@@ -524,7 +524,9 @@ function showIMSection(sectionId) {
     const canAccessInvoiceWrite = isSuperAdmin;
     const canAccessSummaryNote = isSuperAdmin;
     const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
-    const canAccessPayments = false; // 10.4.1: Payments is disabled/dead for now.
+    const canAccessPayments = (typeof canCurrentUserAccessPayments === 'function')
+        ? canCurrentUserAccessPayments()
+        : false;
 
     // 3. Strict Access Control Checks
     if ((sectionId === 'im-invoice-entry' || sectionId === 'im-batch-entry') && !canAccessInvoiceWrite) {
@@ -540,8 +542,8 @@ function showIMSection(sectionId) {
         return;
     }
 
-    if (sectionId === 'im-payments') {
-        alert('Payments is currently disabled.');
+    if (sectionId === 'im-payments' && !canAccessPayments) {
+        alert('Access Denied: Payments requires an Admin role with a Finance, Accounts, or Accounting position.');
         return;
     }
 
@@ -762,9 +764,9 @@ try {
     }
 
     if (sectionId === 'im-payments') {
-        imPaymentsTableBody.innerHTML = '';
-        invoicesToPay = {};
-        updatePaymentsCount();
+        if (typeof initializePaymentsWorkspace === 'function') {
+            initializePaymentsWorkspace();
+        }
     }
 }
 

@@ -126,7 +126,12 @@ async function populateInvoiceDashboard(forceRefresh = false) {
     showLoading(topActivitiesList);
 
     const jumpButtons = dashboardSection.querySelectorAll('[data-im-jump]');
+    const paymentJumpButton = dashboardSection.querySelector('[data-im-jump="im-payments"]');
+    if (paymentJumpButton && typeof canCurrentUserAccessPayments === 'function' && !canCurrentUserAccessPayments()) {
+        paymentJumpButton.remove();
+    }
     jumpButtons.forEach(btn => {
+        if (!btn.isConnected) return;
         btn.addEventListener('click', () => {
             const target = btn.getAttribute('data-im-jump');
             const navLink = document.querySelector(`#im-nav a[data-section="${target}"]`);

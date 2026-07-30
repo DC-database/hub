@@ -816,9 +816,10 @@ if (settingsVacationCheckbox) {
     }
 
 
-    // 11.3.4: Shared Batch auto-attention helper.
+    // 11.4.5: Shared Batch auto-attention helper.
     // Batch Entry is separate from Invoice Entry. Single-row status changes use:
-    // For SRV = Normal group -> site Site DC; non-Normal group -> site Logistic; Report=GIO; CEO Approval=Hamad; In Process=COO; all others=None.
+    // For SRV + Normal group = site Site DC; For SRV + Logistic group = Imran/logistic person regardless of site;
+    // Report=GIO; CEO Approval=Hamad; In Process=COO; all others=None. Manual Attention remains allowed.
     const findBatchApproverName = (keyword, fallback = '') => {
         const needle = String(keyword || '').toLowerCase().trim();
         if (!needle || !allApproverData) return fallback || keyword;
@@ -902,10 +903,11 @@ if (settingsVacationCheckbox) {
                 return;
             }
 
-            // Per-row Attention: open a full modal picker
-            if (e.target.classList.contains('batch-attention-btn')) {
-                // Looks for the new card container instead of a tr
-                const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
+            // Per-row Attention: open a full modal picker.
+            // 11.4.5: use closest() so clicking text/icon inside the button opens it too.
+            const attentionBtn = e.target && e.target.closest ? e.target.closest('.batch-attention-btn') : null;
+            if (attentionBtn && batchTableBody.contains(attentionBtn)) {
+                const row = attentionBtn.closest('.batch-invoice-card') || attentionBtn.closest('tr');
                 if (row) openBatchAttentionPicker(row);
                 return;
             }
@@ -1280,9 +1282,9 @@ if (summaryNotePrintBtn) {
 
     if (imAddPaymentButton) {
         imAddPaymentButton.addEventListener('click', () => {
-            imPaymentModalPOInput.value = '';
-            imPaymentModalResults.innerHTML = '<p>Enter a PO number to see invoices ready for payment.</p>';
-            imAddPaymentModal.classList.remove('hidden');
+            if (typeof openPaymentSearchModal === 'function') {
+                openPaymentSearchModal();
+            }
         });
     }
     if (imSavePaymentsButton) imSavePaymentsButton.addEventListener('click', handleSavePayments);
@@ -1290,10 +1292,10 @@ if (summaryNotePrintBtn) {
         imPaymentsTableBody.addEventListener('click', (e) => {
             if (e.target.classList.contains('payment-remove-btn')) {
                 const row = e.target.closest('tr');
-                const key = row.dataset.key;
-                if (key && invoicesToPay[key]) delete invoicesToPay[key];
-                row.remove();
-                updatePaymentsCount();
+                const cartId = row ? row.dataset.key : '';
+                if (typeof removePaymentCartItem === 'function') {
+                    removePaymentCartItem(cartId);
+                }
             }
         });
     }

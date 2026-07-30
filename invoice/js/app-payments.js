@@ -1,330 +1,850 @@
-// js/app-payments.js
-// 8.3.0 — Payment workflow moved out of app.js (cleanup only).
-// Public function names preserved for existing event wiring.
+// ============================================================================
+// IBA 11.5.3 — Supplier Payment Email Checkout
+// Reconstructs the retired payment updater as a one-company cart that marks
+// With Accounts invoices Paid and prepares the cheque collection email.
+// ============================================================================
 
-// ==========================================================================
-// 21. INVOICE MANAGEMENT: PAYMENTS
-// ==========================================================================
+let paymentSearchResults = new Map();
+let paymentVendorEmailMap = null;
+let paymentVendorEmailPromise = null;
+let paymentRestoredStorageKey = '';
 
-function updatePaymentModalTotal() {
-    const modalResultsContainer = document.getElementById('im-payment-modal-results');
-    const checkboxes = modalResultsContainer.querySelectorAll('.payment-modal-inv-checkbox:checked');
-
-    const totalDisplay = document.getElementById('payment-modal-total-value');
-    if (!totalDisplay) return;
-
-    let totalSum = 0;
-    checkboxes.forEach(checkbox => {
-        const row = checkbox.closest('tr');
-        if (row) {
-            const invValueCell = row.cells[2].textContent;
-            const value = parseFloat(String(invValueCell).replace(/,/g, ''));
-            if (!isNaN(value)) {
-                totalSum += value;
-            }
-        }
-    });
-    totalDisplay.textContent = formatCurrency(totalSum);
+function paymentText(value) {
+    return String(value == null ? '' : value).trim();
 }
 
-async function handlePaymentModalPOSearch() {
-    const poNumber = imPaymentModalPOInput.value.trim().toUpperCase();
-    const totalDisplay = document.getElementById('payment-modal-total-value');
+function paymentNormalize(value) {
+    return paymentText(value).toLowerCase().replace(/\s+/g, ' ');
+}
 
-    // 1. Reset Total Display
-    if (totalDisplay) totalDisplay.textContent = formatCurrency(0);
+function paymentNormalizeSupplierId(value) {
+    const raw = paymentText(value).replace(/^"|"$/g, '').replace(/,/g, '').toUpperCase();
+    return /^\d+\.0+$/.test(raw) ? raw.replace(/\.0+$/, '') : raw;
+}
 
-    if (!poNumber) {
-        imPaymentModalResults.innerHTML = '<p>Please enter a PO Number.</p>';
-        return;
+function paymentCurrency(value) {
+    const amount = Number(value) || 0;
+    if (typeof formatCurrency === 'function') return formatCurrency(amount);
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function paymentToday() {
+    if (typeof getTodayDateString === 'function') return getTodayDateString();
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function canCurrentUserAccessPayments() {
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    const name = paymentNormalize(user.Name || user.name);
+    const superName = paymentNormalize(
+        typeof SUPER_ADMIN_NAME !== 'undefined' ? SUPER_ADMIN_NAME : ''
+    );
+    if (name && superName && name === superName) return true;
+
+    const role = paymentNormalize(user.Role || user.role);
+    if (role !== 'admin') return false;
+
+    const positionTokens = paymentNormalize(user.Position || user.position)
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+    return positionTokens.some(token => ['finance', 'accounts', 'accounting'].includes(token));
+}
+
+function paymentCartId(poNumber, invoiceKey) {
+    return `${paymentText(poNumber).toUpperCase()}::${paymentText(invoiceKey)}`;
+}
+
+function paymentCartItems() {
+    if (!invoicesToPay || typeof invoicesToPay !== 'object') invoicesToPay = {};
+    return Object.values(invoicesToPay).filter(Boolean);
+}
+
+function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
+    const po = paymentText(poNumber).toUpperCase();
+    const poData = (typeof allPOData !== 'undefined' && allPOData && allPOData[po])
+        ? allPOData[po]
+        : {};
+    const supplierName = paymentText(
+        invoiceData.vendorName ||
+        invoiceData.vendor_name ||
+        invoiceData.vendor ||
+        poData['Supplier Name'] ||
+        poData['Supplier Name:'] ||
+        poData.Supplier
+    ) || 'N/A';
+    const supplierId = paymentNormalizeSupplierId(
+        invoiceData.vendorId ||
+        invoiceData.vendor_id ||
+        invoiceData.supplierId ||
+        invoiceData.supplier_id ||
+        poData['Supplier ID'] ||
+        poData['Vendor ID'] ||
+        poData.vendor_id
+    );
+    const site = paymentText(
+        invoiceData.site ||
+        invoiceData.siteName ||
+        invoiceData.site_name ||
+        poData['Project ID']
+    ) || 'N/A';
+    return { supplierName, supplierId, site };
+}
+
+function paymentSupplierIdentity(item) {
+    const id = paymentNormalizeSupplierId(item && item.supplierId);
+    if (id) return `id:${id}`;
+    return `name:${paymentNormalize(item && item.supplierName)}`;
+}
+
+function paymentStorageKey() {
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    const identity = paymentText(user.Email || user.Name || user.Mobile || 'unknown')
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '_');
+    return `iba_payment_email_cart_11_5_3_${identity}`;
+}
+
+function persistPaymentCart() {
+    try {
+        const key = paymentStorageKey();
+        const items = paymentCartItems();
+        if (!items.length) {
+            localStorage.removeItem(key);
+            return;
+        }
+        localStorage.setItem(key, JSON.stringify({
+            version: '11.5.3',
+            savedAt: Date.now(),
+            items
+        }));
+    } catch (error) {
+        console.warn('Payment cart could not be saved locally:', error);
     }
-    
-    imPaymentModalResults.innerHTML = '<p>Searching...</p>';
+}
+
+function restorePaymentCart() {
+    const key = paymentStorageKey();
+    if (paymentRestoredStorageKey === key) return;
+    paymentRestoredStorageKey = key;
+    invoicesToPay = {};
 
     try {
-        // 11.0.5: Payment PO search only needs one PO bucket. Do not download the
-        // full invoice_entries tree just to find payable invoices for a typed PO.
-        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
-            await ensureInvoicePOBaseDataFetched(false);
-        } else if (typeof ensureInvoiceLightDataFetched === 'function') {
-            await ensureInvoiceLightDataFetched(false);
-        }
-
-        let invoicesData = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : null;
-        if (!invoicesData && typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
-            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
-            invoicesData = snap.val() || null;
-            if (invoicesData) {
-                if (!allInvoiceData) allInvoiceData = {};
-                allInvoiceData[poNumber] = invoicesData;
-                if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
-            }
-        }
-
-        if (!invoicesData) {
-             imPaymentModalResults.innerHTML = '<p>No invoices found for this PO.</p>';
-             return;
-        }
-
-        // 2. Create Table Structure Programmatically
-        imPaymentModalResults.innerHTML = ''; // Clear loading text
-        const table = document.createElement('table');
-        table.innerHTML = `
-            <thead>
-                <tr>
-                    <th><input type="checkbox" id="payment-modal-select-all"></th>
-                    <th>Inv. Entry ID</th>
-                    <th>Inv. Value</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="payment-modal-tbody"></tbody>
-        `;
-        imPaymentModalResults.appendChild(table);
-        const tbody = table.querySelector('tbody');
-
-        const sortedInvoices = Object.entries(invoicesData).sort(([, a], [, b]) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
-        let resultsFound = false;
-
-        // 3. Loop Through Invoices
-        for (const [key, inv] of sortedInvoices) {
-            // Filter: Only "With Accounts" AND not already in the payment list
-            if (inv.status === 'With Accounts' && !invoicesToPay[key]) {
-                resultsFound = true;
-                
-                const tr = document.createElement('tr');
-                tr.style.cursor = 'pointer'; // Make the cursor look like a hand
-
-                tr.innerHTML = `
-                    <td style="text-align:center;">
-                        <input type="checkbox" class="payment-modal-inv-checkbox" data-key='${key}' data-po='${poNumber}'>
-                    </td>
-                    <td>${inv.invEntryID || ''}</td>
-                    <td>${formatCurrency(inv.invValue)}</td>
-                    <td>${inv.status || ''}</td>
-                `;
-
-                // --- CLICK ROW LOGIC ---
-                tr.addEventListener('click', (e) => {
-                    // If user clicked the checkbox directly, do nothing (let default behavior work)
-                    if (e.target.type === 'checkbox') return;
-
-                    // Otherwise, find the checkbox and toggle it
-                    const checkbox = tr.querySelector('.payment-modal-inv-checkbox');
-                    if (checkbox) {
-                        checkbox.checked = !checkbox.checked;
-                        updatePaymentModalTotal(); // Recalculate Sum immediately
-                    }
-                });
-
-                // Add Listener to Checkbox itself (for direct clicks)
-                const checkbox = tr.querySelector('.payment-modal-inv-checkbox');
-                checkbox.addEventListener('change', updatePaymentModalTotal);
-
-                tbody.appendChild(tr);
-            }
-        }
-
-        // 4. Handle Empty or Success States
-        if (!resultsFound) {
-            imPaymentModalResults.innerHTML = '<p>No invoices found for this PO with status "With Accounts" that haven\'t already been added.</p>';
-        } else {
-            // "Select All" Logic
-            const selectAll = document.getElementById('payment-modal-select-all');
-            if (selectAll) {
-                selectAll.addEventListener('change', (e) => {
-                    const checkboxes = tbody.querySelectorAll('.payment-modal-inv-checkbox');
-                    checkboxes.forEach(chk => chk.checked = e.target.checked);
-                    updatePaymentModalTotal(); // Update Total
-                });
-            }
-        }
-
+        const parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        const items = parsed && Array.isArray(parsed.items) ? parsed.items : [];
+        items.forEach(item => {
+            const po = paymentText(item.po).toUpperCase();
+            const invoiceKey = paymentText(item.key);
+            if (!po || !invoiceKey) return;
+            const id = paymentCartId(po, invoiceKey);
+            invoicesToPay[id] = {
+                ...item,
+                id,
+                po,
+                key: invoiceKey,
+                amountPaid: Number(item.amountPaid) || 0
+            };
+        });
     } catch (error) {
-        console.error("Error searching in payment modal:", error);
-        imPaymentModalResults.innerHTML = '<p>An error occurred while searching.</p>';
+        console.warn('Saved payment cart could not be restored:', error);
+        try { localStorage.removeItem(key); } catch (_) {}
     }
 }
 
-async function handleAddSelectedToPayments() {
-    const selectedCheckboxes = document.getElementById('im-payment-modal-results').querySelectorAll('.payment-modal-inv-checkbox:checked');
+function paymentParseCsvRow(rowText) {
+    const values = [];
+    let current = '';
+    let quoted = false;
+    const row = String(rowText || '');
+    for (let i = 0; i < row.length; i += 1) {
+        const char = row[i];
+        if (char === '"') {
+            if (quoted && row[i + 1] === '"') {
+                current += '"';
+                i += 1;
+            } else {
+                quoted = !quoted;
+            }
+        } else if (char === ',' && !quoted) {
+            values.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    values.push(current.trim());
+    return values;
+}
 
-    if (selectedCheckboxes.length === 0) {
-        alert("Please select at least one invoice to add.");
-        return;
+function paymentParseVendorEmailCsv(csvText) {
+    const lines = String(csvText || '')
+        .replace(/^\uFEFF/, '')
+        .split(/\r?\n/)
+        .filter(line => line.trim());
+    if (!lines.length) return {};
+
+    const headers = paymentParseCsvRow(lines[0]);
+    const normalizedHeaders = headers.map(header => paymentNormalize(header).replace(/[^a-z0-9]/g, ''));
+    let supplierIndex = normalizedHeaders.findIndex(header => header === 'supplierid' || header === 'vendorid');
+    let emailIndex = normalizedHeaders.findIndex(header => header === 'emailaddress' || header === 'email');
+    if (supplierIndex < 0) supplierIndex = 1; // VendorEmail.csv column B
+    if (emailIndex < 0) emailIndex = 4;       // VendorEmail.csv column E
+
+    const emailMap = {};
+    for (let index = 1; index < lines.length; index += 1) {
+        const row = paymentParseCsvRow(lines[index]);
+        const supplierId = paymentNormalizeSupplierId(row[supplierIndex]);
+        const email = paymentText(row[emailIndex]).replace(/\s+/g, '');
+        if (supplierId && email) emailMap[supplierId] = email;
+    }
+    return emailMap;
+}
+
+async function loadPaymentVendorEmails(forceRefresh = false) {
+    if (paymentVendorEmailMap && !forceRefresh) return paymentVendorEmailMap;
+    if (paymentVendorEmailPromise && !forceRefresh) return paymentVendorEmailPromise;
+
+    paymentVendorEmailPromise = (async () => {
+        try {
+            const url = (typeof getFirebaseCSVUrl === 'function')
+                ? await getFirebaseCSVUrl('VendorEmail.csv')
+                : `https://raw.githubusercontent.com/DC-database/Hub/main/VendorEmail.csv?v=${Date.now()}`;
+            if (!url) {
+                paymentVendorEmailMap = {};
+                return paymentVendorEmailMap;
+            }
+            const csvText = (typeof fetchCsvTextWithFallback === 'function')
+                ? await fetchCsvTextWithFallback(url, 'VendorEmail.csv')
+                : await fetch(url, { cache: 'no-store', mode: 'cors' }).then(response => {
+                    if (!response.ok) throw new Error(`VendorEmail.csv fetch failed: ${response.status}`);
+                    return response.text();
+                });
+            paymentVendorEmailMap = paymentParseVendorEmailCsv(csvText);
+            return paymentVendorEmailMap;
+        } catch (error) {
+            console.warn('VendorEmail.csv could not be loaded. Recipient will remain blank.', error);
+            paymentVendorEmailMap = {};
+            return paymentVendorEmailMap;
+        } finally {
+            paymentVendorEmailPromise = null;
+        }
+    })();
+
+    return paymentVendorEmailPromise;
+}
+
+function paymentRecipientFor(item) {
+    const supplierId = paymentNormalizeSupplierId(item && item.supplierId);
+    return supplierId && paymentVendorEmailMap ? paymentText(paymentVendorEmailMap[supplierId]) : '';
+}
+
+function updatePaymentsCount() {
+    const items = paymentCartItems();
+    if (paymentsCountDisplay) {
+        paymentsCountDisplay.textContent = items.length ? `(${items.length})` : '';
+    }
+}
+
+function renderPaymentsCart() {
+    if (!imPaymentsTableBody) return;
+    const items = paymentCartItems();
+    const emptyState = document.getElementById('im-payment-cart-empty');
+    const tableWrap = document.querySelector('#im-payments .im-payment-cart-table-wrap');
+    const totalEl = document.getElementById('im-payment-cart-total-value');
+    const companyEl = document.getElementById('im-payment-company-name');
+    const supplierIdEl = document.getElementById('im-payment-supplier-id');
+    const recipientEl = document.getElementById('im-payment-recipient');
+    const clearButton = document.getElementById('im-clear-payments-button');
+    const checkoutButton = document.getElementById('im-save-payments-button');
+
+    imPaymentsTableBody.innerHTML = '';
+    if (emptyState) emptyState.classList.toggle('hidden', items.length > 0);
+    if (tableWrap) tableWrap.classList.toggle('hidden', items.length === 0);
+    if (clearButton) clearButton.disabled = items.length === 0;
+    if (checkoutButton) checkoutButton.disabled = items.length === 0;
+
+    const first = items[0] || null;
+    if (companyEl) companyEl.textContent = first ? first.supplierName : 'No company selected';
+    if (supplierIdEl) supplierIdEl.textContent = first && first.supplierId ? first.supplierId : '—';
+    if (recipientEl) {
+        const recipient = first ? paymentRecipientFor(first) : '';
+        recipientEl.textContent = first
+            ? (recipient || (paymentVendorEmailMap ? 'Not found — enter manually' : 'Checking VendorEmail.csv…'))
+            : 'Add invoices to begin';
+        recipientEl.classList.toggle('is-missing', !!first && !recipient && !!paymentVendorEmailMap);
     }
 
-    let addedCount = 0;
+    let total = 0;
+    items.forEach(item => {
+        const row = document.createElement('tr');
+        row.dataset.key = item.id;
+        row.dataset.po = item.po;
 
+        const invoiceCell = document.createElement('td');
+        invoiceCell.textContent = item.invoiceNo || item.invEntryID || 'N/A';
+        const poCell = document.createElement('td');
+        poCell.textContent = item.po;
+        const companyCell = document.createElement('td');
+        companyCell.textContent = item.supplierName;
+
+        const amountCell = document.createElement('td');
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.min = '0';
+        amountInput.step = '0.01';
+        amountInput.className = 'payment-input highlight-field im-payment-amount-input';
+        amountInput.name = 'amountPaid';
+        amountInput.value = (Number(item.amountPaid) || 0).toFixed(2);
+        amountInput.setAttribute('aria-label', `Amount paid for ${item.invoiceNo || item.po}`);
+        amountInput.addEventListener('input', () => {
+            item.amountPaid = Math.max(0, Number(amountInput.value) || 0);
+            persistPaymentCart();
+            const nextTotal = paymentCartItems().reduce((sum, current) => sum + (Number(current.amountPaid) || 0), 0);
+            if (totalEl) totalEl.textContent = paymentCurrency(nextTotal);
+        });
+        amountCell.appendChild(amountInput);
+
+        const releaseCell = document.createElement('td');
+        releaseCell.innerHTML = `<span class="im-payment-auto-date"><i class="fa-solid fa-calendar-check"></i> ${paymentToday()}</span>`;
+
+        const statusCell = document.createElement('td');
+        const statusBadge = document.createElement('span');
+        statusBadge.className = 'status-badge im-payment-status-badge';
+        statusBadge.textContent = item.status || 'With Accounts';
+        statusCell.appendChild(statusBadge);
+
+        const actionCell = document.createElement('td');
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'delete-btn payment-remove-btn';
+        removeButton.title = 'Remove from payment list';
+        removeButton.setAttribute('aria-label', `Remove ${item.invoiceNo || item.po}`);
+        removeButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        actionCell.appendChild(removeButton);
+
+        [invoiceCell, poCell, companyCell, amountCell, releaseCell, statusCell, actionCell]
+            .forEach(cell => row.appendChild(cell));
+        imPaymentsTableBody.appendChild(row);
+        total += Number(item.amountPaid) || 0;
+    });
+
+    if (totalEl) totalEl.textContent = paymentCurrency(total);
+    updatePaymentsCount();
+}
+
+async function initializePaymentsWorkspace() {
+    if (!canCurrentUserAccessPayments()) return;
+    restorePaymentCart();
+    renderPaymentsCart();
+    const statusEl = document.getElementById('im-payment-status-message');
+    if (statusEl) statusEl.textContent = '';
+    await loadPaymentVendorEmails(false);
+    renderPaymentsCart();
+}
+
+function openPaymentSearchModal() {
+    if (!canCurrentUserAccessPayments()) {
+        alert('Access Denied: Payments requires an Admin role with a Finance, Accounts, or Accounting position.');
+        return;
+    }
+    if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
+    if (imPaymentModalResults) {
+        imPaymentModalResults.innerHTML = '<p>Enter a PO number, invoice number, or company to begin.</p>';
+    }
+    const totalDisplay = document.getElementById('payment-modal-total-value');
+    if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
+    paymentSearchResults = new Map();
+    if (imAddPaymentModal) imAddPaymentModal.classList.remove('hidden');
+    setTimeout(() => {
+        if (imPaymentModalPOInput) imPaymentModalPOInput.focus();
+    }, 80);
+}
+
+async function paymentEnsurePOBaseData() {
     if (typeof ensureInvoicePOBaseDataFetched === 'function') {
         await ensureInvoicePOBaseDataFetched(false);
     } else if (typeof ensureInvoiceLightDataFetched === 'function') {
         await ensureInvoiceLightDataFetched(false);
     }
+}
 
-    // The modal already fetched each selected PO bucket. As a safety net, fetch only
-    // any exact PO that is missing from the local partial cache.
-    const missingPOs = Array.from(new Set(Array.from(selectedCheckboxes).map(chk => String(chk.dataset.po || '').trim().toUpperCase()).filter(Boolean)))
-        .filter(po => !(allInvoiceData && allInvoiceData[po]));
-    for (const po of missingPOs) {
-        try {
-            const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
-            if (!allInvoiceData) allInvoiceData = {};
-            allInvoiceData[po] = snap.val() || {};
-            if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
-        } catch (err) {
-            console.warn('Payment selected PO fetch failed:', po, err);
-        }
+async function paymentFetchPOBucket(poNumber) {
+    const po = paymentText(poNumber).toUpperCase();
+    if (!po) return {};
+    if (allInvoiceData && Object.prototype.hasOwnProperty.call(allInvoiceData, po)) {
+        return allInvoiceData[po] || {};
     }
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return {};
+    const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+    const bucket = snap.val() || {};
+    if (!allInvoiceData) allInvoiceData = {};
+    allInvoiceData[po] = bucket;
+    if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
+    return bucket;
+}
 
-    selectedCheckboxes.forEach(checkbox => {
-        const key = checkbox.dataset.key;
-        const po = checkbox.dataset.po;
+function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
+    const po = paymentText(poNumber).toUpperCase();
+    const supplier = paymentGetSupplierDetails(po, invoiceData);
+    const savedAmount = Number(invoiceData.amountPaid);
+    const invoiceValue = Number(invoiceData.invValue) || 0;
+    const amountPaid = Number.isFinite(savedAmount) && savedAmount > 0 ? savedAmount : invoiceValue;
+    const id = paymentCartId(po, invoiceKey);
+    return {
+        id,
+        key: paymentText(invoiceKey),
+        po,
+        invoiceNo: paymentText(invoiceData.invNumber || invoiceData.invoiceNo),
+        invEntryID: paymentText(invoiceData.invEntryID),
+        supplierName: supplier.supplierName,
+        supplierId: supplier.supplierId,
+        site: supplier.site,
+        amountPaid,
+        invoiceValue,
+        status: paymentText(invoiceData.status) || 'With Accounts',
+        originalAttention: paymentText(invoiceData.attention)
+    };
+}
 
-        if (invoicesToPay[key]) return;
+function paymentCollectMatches(poNumbers, queryText) {
+    const query = paymentNormalize(queryText);
+    const cartIds = new Set(paymentCartItems().map(item => item.id));
+    const results = [];
 
-        const invData = (allInvoiceData[po] && allInvoiceData[po][key]) ? allInvoiceData[po][key] : null;
+    poNumbers.forEach(poNumber => {
+        const po = paymentText(poNumber).toUpperCase();
+        const bucket = allInvoiceData && allInvoiceData[po] ? allInvoiceData[po] : {};
+        const supplier = paymentGetSupplierDetails(po, {});
+        const poMatch = paymentNormalize(po).includes(query);
+        const supplierMatch = paymentNormalize(supplier.supplierName).includes(query);
+        const supplierIdMatch = paymentNormalizeSupplierId(supplier.supplierId).toLowerCase().includes(query);
 
-        if (invData) {
-            invoicesToPay[key] = {
-                ...invData,
-                key,
-                po,
-                originalAttention: invData.attention
-            };
-
-            const poDetails = allPOData[po] || {};
-            const site = poDetails['Project ID'] || 'N/A';
-            const vendor = poDetails['Supplier Name'] || 'N/A';
-
-            const row = document.createElement('tr');
-            row.setAttribute('data-key', key);
-            row.setAttribute('data-po', po);
-
-            row.innerHTML = `
-                <td>${po}</td>
-                <td>${site}</td>
-                <td>${vendor}</td>
-                <td>${invData.invEntryID || ''}</td>
-                <td>
-                    <input type="number" name="invValue" class="payment-input" step="0.01" value="${invData.invValue || ''}" readonly style="background-color: #f0f0f0;">
-                </td>
-                <td>
-                    <input type="number" name="amountPaid" class="payment-input highlight-field" step="0.01" value="${invData.invValue || ''}">
-                </td>
-                <td>
-                    <input type="date" name="releaseDate" class="payment-input" value="${getTodayDateString()}">
-                </td>
-                <td>${invData.status || ''}</td>
-                <td><button type="button" class="delete-btn payment-remove-btn" title="Remove from list">&times;</button></td>
-            `;
-
-            imPaymentsTableBody.appendChild(row);
-            addedCount++;
-        }
+        Object.entries(bucket || {}).forEach(([key, invoice]) => {
+            if (paymentNormalize(invoice && invoice.status) !== 'with accounts') return;
+            const item = paymentResultFromInvoice(po, key, invoice || {});
+            const invoiceMatch = paymentNormalize(item.invoiceNo).includes(query);
+            const entryMatch = paymentNormalize(item.invEntryID).includes(query);
+            if (!(poMatch || supplierMatch || supplierIdMatch || invoiceMatch || entryMatch)) return;
+            if (!cartIds.has(item.id)) results.push(item);
+        });
     });
 
-    if (addedCount > 0) {
-        updatePaymentsCount();
+    results.sort((a, b) =>
+        a.supplierName.localeCompare(b.supplierName) ||
+        a.po.localeCompare(b.po, undefined, { numeric: true }) ||
+        (a.invoiceNo || a.invEntryID).localeCompare(b.invoiceNo || b.invEntryID, undefined, { numeric: true })
+    );
+    return results;
+}
 
-        const modal = document.getElementById('im-add-payment-modal');
-        if (modal) modal.classList.add('hidden');
+function paymentRenderSearchResults(results) {
+    paymentSearchResults = new Map(results.map(item => [item.id, item]));
+    imPaymentModalResults.innerHTML = '';
 
-        document.getElementById('im-payment-modal-po-input').value = '';
-        document.getElementById('im-payment-modal-results').innerHTML = '';
-    } else {
-        alert("The selected invoices are already in your payment list.");
+    if (!results.length) {
+        imPaymentModalResults.innerHTML = '<p>No matching With Accounts invoices were found, or the matching records are already in the payment list.</p>';
+        const totalDisplay = document.getElementById('payment-modal-total-value');
+        if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.className = 'im-payment-result-table';
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="payment-modal-select-all" aria-label="Select all results"></th>
+                <th>Invoice No.</th>
+                <th>PO No.</th>
+                <th>Company</th>
+                <th>Amount Paid</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    `;
+    const tbody = table.querySelector('tbody');
+
+    results.forEach(item => {
+        const row = document.createElement('tr');
+        const selectCell = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'payment-modal-inv-checkbox';
+        checkbox.dataset.id = item.id;
+        checkbox.setAttribute('aria-label', `Select ${item.invoiceNo || item.po}`);
+        selectCell.appendChild(checkbox);
+
+        const invoiceCell = document.createElement('td');
+        invoiceCell.textContent = item.invoiceNo || item.invEntryID || 'N/A';
+        const poCell = document.createElement('td');
+        poCell.textContent = item.po;
+        const companyCell = document.createElement('td');
+        companyCell.textContent = item.supplierName;
+        const amountCell = document.createElement('td');
+        amountCell.textContent = paymentCurrency(item.amountPaid);
+        amountCell.className = 'right-align';
+        const statusCell = document.createElement('td');
+        statusCell.textContent = item.status;
+
+        [selectCell, invoiceCell, poCell, companyCell, amountCell, statusCell]
+            .forEach(cell => row.appendChild(cell));
+        row.addEventListener('click', event => {
+            if (event.target !== checkbox) checkbox.checked = !checkbox.checked;
+            updatePaymentModalTotal();
+        });
+        checkbox.addEventListener('change', updatePaymentModalTotal);
+        tbody.appendChild(row);
+    });
+
+    table.querySelector('#payment-modal-select-all').addEventListener('change', event => {
+        tbody.querySelectorAll('.payment-modal-inv-checkbox').forEach(checkbox => {
+            checkbox.checked = event.target.checked;
+        });
+        updatePaymentModalTotal();
+    });
+
+    imPaymentModalResults.appendChild(table);
+    updatePaymentModalTotal();
+}
+
+function updatePaymentModalTotal() {
+    const totalDisplay = document.getElementById('payment-modal-total-value');
+    if (!totalDisplay || !imPaymentModalResults) return;
+    let total = 0;
+    imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox:checked').forEach(checkbox => {
+        const item = paymentSearchResults.get(checkbox.dataset.id);
+        if (item) total += Number(item.amountPaid) || 0;
+    });
+    totalDisplay.textContent = paymentCurrency(total);
+}
+
+async function handlePaymentModalPOSearch() {
+    const query = paymentText(imPaymentModalPOInput && imPaymentModalPOInput.value);
+    if (!query) {
+        imPaymentModalResults.innerHTML = '<p>Please enter a PO number, invoice number, or company.</p>';
+        return;
+    }
+
+    imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Searching With Accounts invoices…</p>';
+    const totalDisplay = document.getElementById('payment-modal-total-value');
+    if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
+
+    try {
+        await paymentEnsurePOBaseData();
+        const queryLower = paymentNormalize(query);
+        const queryUpper = paymentText(query).toUpperCase();
+        const candidatePOs = new Set();
+        const allPOs = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+
+        Object.entries(allPOs).forEach(([poNumber, poData]) => {
+            const supplierName = paymentText(
+                poData['Supplier Name'] || poData['Supplier Name:'] || poData.Supplier
+            );
+            const supplierId = paymentNormalizeSupplierId(
+                poData['Supplier ID'] || poData['Vendor ID'] || poData.vendor_id
+            );
+            if (
+                paymentNormalize(poNumber).includes(queryLower) ||
+                paymentNormalize(supplierName).includes(queryLower) ||
+                supplierId.toLowerCase().includes(queryLower)
+            ) {
+                candidatePOs.add(paymentText(poNumber).toUpperCase());
+            }
+        });
+
+        Object.entries(allInvoiceData || {}).forEach(([poNumber, bucket]) => {
+            if (Object.values(bucket || {}).some(invoice =>
+                paymentNormalize(invoice && (invoice.invNumber || invoice.invoiceNo || invoice.invEntryID)).includes(queryLower)
+            )) {
+                candidatePOs.add(paymentText(poNumber).toUpperCase());
+            }
+        });
+
+        if (!/[\s.#$/[\]]/.test(queryUpper)) candidatePOs.add(queryUpper);
+        if (candidatePOs.size > 150) {
+            imPaymentModalResults.innerHTML = '<p>Too many POs match this company search. Please enter a more specific company name, PO number, or invoice number.</p>';
+            return;
+        }
+
+        const candidateList = Array.from(candidatePOs).filter(Boolean);
+        for (let index = 0; index < candidateList.length; index += 12) {
+            const batch = candidateList.slice(index, index + 12);
+            await Promise.all(batch.map(po => paymentFetchPOBucket(po)));
+        }
+
+        let results = paymentCollectMatches(candidateList, query);
+
+        // Invoice-number searches cannot be addressed directly in the nested Firebase
+        // tree without the PO. Run the existing deeper search only after a direct
+        // PO/company/cache search returns nothing and only because the user requested it.
+        if (!results.length && window.__invoiceEntriesFullLoaded !== true && typeof ensureInvoiceDataFetched === 'function') {
+            imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Running deeper invoice-number search…</p>';
+            await ensureInvoiceDataFetched(false);
+            results = paymentCollectMatches(Object.keys(allInvoiceData || {}), query);
+        }
+
+        paymentRenderSearchResults(results);
+    } catch (error) {
+        console.error('Payment invoice search failed:', error);
+        imPaymentModalResults.innerHTML = '<p>An error occurred while searching. Please check the connection and try again.</p>';
     }
 }
 
-function updatePaymentsCount() {
-    if (paymentsCountDisplay) {
-        const rows = imPaymentsTableBody.querySelectorAll('tr');
-        paymentsCountDisplay.textContent = `(Total to Pay: ${rows.length})`;
+async function handleAddSelectedToPayments() {
+    const selected = Array.from(
+        imPaymentModalResults.querySelectorAll('.payment-modal-inv-checkbox:checked')
+    ).map(checkbox => paymentSearchResults.get(checkbox.dataset.id)).filter(Boolean);
+
+    if (!selected.length) {
+        alert('Please select at least one invoice to add.');
+        return;
     }
+
+    const selectedSuppliers = new Set(selected.map(paymentSupplierIdentity));
+    if (selectedSuppliers.size > 1) {
+        alert('One payment checkout can contain only one company. Please select invoices belonging to the same supplier.');
+        return;
+    }
+
+    const existingItems = paymentCartItems();
+    if (existingItems.length && paymentSupplierIdentity(existingItems[0]) !== paymentSupplierIdentity(selected[0])) {
+        alert(`This payment list already belongs to ${existingItems[0].supplierName}. Clear it before adding another company.`);
+        return;
+    }
+
+    selected.forEach(item => {
+        invoicesToPay[item.id] = { ...item };
+    });
+    persistPaymentCart();
+    renderPaymentsCart();
+    await loadPaymentVendorEmails(false);
+    renderPaymentsCart();
+
+    if (imAddPaymentModal) imAddPaymentModal.classList.add('hidden');
+    if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
+    if (imPaymentModalResults) {
+        imPaymentModalResults.innerHTML = '<p>Enter a PO number, invoice number, or company to begin.</p>';
+    }
+}
+
+function removePaymentCartItem(cartId) {
+    const id = paymentText(cartId);
+    if (!id || !invoicesToPay || !invoicesToPay[id]) return;
+    delete invoicesToPay[id];
+    persistPaymentCart();
+    renderPaymentsCart();
+}
+
+function clearPaymentCart(skipConfirmation = false) {
+    const items = paymentCartItems();
+    if (!items.length) return true;
+    if (!skipConfirmation && !confirm(`Clear all ${items.length} invoice(s) from the payment list?`)) {
+        return false;
+    }
+    invoicesToPay = {};
+    persistPaymentCart();
+    renderPaymentsCart();
+    return true;
+}
+
+function buildPaymentCollectionEmailBody(items) {
+    const rows = items.map(item =>
+        `${item.invoiceNo || item.invEntryID || 'N/A'}\t${item.po}\t${paymentCurrency(item.amountPaid)}`
+    );
+    const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
+
+    return [
+        'ATTENTION: ACCOUNTS DEPARTMENT',
+        '',
+        'I hope this email finds you well.',
+        '',
+        'Kindly be advised that the payment for the following invoice is ready for collection at our Main Office; please arrange for a collector to collect your payment',
+        '',
+        'Invoice No.\tPO No.\tAmount',
+        ...rows,
+        `Total Sum\t\t${paymentCurrency(total)}`,
+        '',
+        'Upon Collection kindly take note of the following:',
+        '',
+        '1.\tThe Collection timing is between 1:00 pm to 4:00 pm from Saturday-Wednesday and 9:00 am to 1:00 pm on Thursday.',
+        '2.\tThe Collector must have the Original Receipt and Valid ID. However, If the collector is not sponsored by the same company. He must bring an authorization letter on corporate letterhead, stamped, and signed by an authorized signatory, as well as a copy of the company computer card.'
+    ].join('\r\n');
+}
+
+function openPaymentCollectionEmail(recipient, subject, body) {
+    const safeRecipient = paymentText(recipient).replace(/[\r\n?&#]/g, '');
+    const mailto = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
 }
 
 async function handleSavePayments() {
-    const rows = imPaymentsTableBody.querySelectorAll('tr');
-    if (rows.length === 0) {
-        alert("There are no payments in the list to save.");
+    const items = paymentCartItems();
+    const statusEl = document.getElementById('im-payment-status-message');
+    const checkoutButton = document.getElementById('im-save-payments-button');
+
+    if (!items.length) {
+        alert('There are no invoices in the payment list.');
         return;
     }
-    if (!confirm(`You are about to mark ${rows.length} invoice(s) as 'Paid'. This will update their status, Invoice Value, Amount To Paid, and Release Date. Continue?`)) {
+    if (!canCurrentUserAccessPayments()) {
+        alert('Access Denied: Payments requires an Admin role with a Finance, Accounts, or Accounting position.');
+        return;
+    }
+    if (new Set(items.map(paymentSupplierIdentity)).size !== 1) {
+        alert('The payment list contains more than one company. Please clear it and rebuild the list.');
+        return;
+    }
+    if (items.some(item => !(Number(item.amountPaid) > 0))) {
+        alert('Every invoice must have an Amount Paid greater than zero before checkout.');
         return;
     }
 
-    const savePromises = [];
-    const localCacheUpdates = [];
-    let updatesMade = 0;
+    const supplierName = items[0].supplierName || 'Supplier';
+    const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
+    const confirmed = confirm(
+        `Checkout ${items.length} invoice(s) for ${supplierName}?\n\n` +
+        `Total Sum: ${paymentCurrency(total)}\n\n` +
+        'This will mark every listed invoice Paid, set its Release Date to today, and open the cheque collection email.'
+    );
+    if (!confirmed) return;
 
-    for (const row of rows) {
-        const invoiceKey = row.dataset.key;
-        const poNumber = row.dataset.po;
-        const originalInvoiceData = invoicesToPay[invoiceKey];
-
-        if (!invoiceKey || !poNumber || !originalInvoiceData) {
-            console.warn("Skipping row with missing data:", row);
-            continue;
-        }
-
-        const invValueInput = row.querySelector('input[name="invValue"]');
-        const amountPaidInput = row.querySelector('input[name="amountPaid"]');
-        const releaseDateInput = row.querySelector('input[name="releaseDate"]');
-
-        const newInvValue = parseFloat(invValueInput.value) || 0;
-        const newAmountPaid = parseFloat(amountPaidInput.value) || 0;
-        const newReleaseDate = releaseDateInput.value || getTodayDateString();
-
-        const updates = {
-            status: 'Paid',
-            invValue: newInvValue,
-            amountPaid: newAmountPaid,
-            releaseDate: newReleaseDate
-        };
-
-        savePromises.push(
-            invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)
-        );
-
-        // === SYNC LINKED JOB ENTRY ===
-        await updateLinkedJobEntry(poNumber, invoiceKey, 'Paid', 'Payment processed');
-
-        const updatedFullData = { ...originalInvoiceData, ...updates };
-        savePromises.push(
-            updateInvoiceTaskLookup(poNumber, invoiceKey, updatedFullData, originalInvoiceData.attention)
-        );
-
-        localCacheUpdates.push({
-            po: poNumber,
-            key: invoiceKey,
-            data: updates
-        });
-        updatesMade++;
+    if (checkoutButton) {
+        checkoutButton.disabled = true;
+        checkoutButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing…';
+    }
+    if (statusEl) {
+        statusEl.className = 'im-payment-status-message is-working';
+        statusEl.textContent = 'Validating invoices and preparing checkout…';
     }
 
     try {
-        await Promise.all(savePromises);
+        // Refresh the small GitHub CSV at checkout so a newly added or corrected
+        // supplier email is used without requiring a system-version update.
+        await loadPaymentVendorEmails(true);
+        const currentRecords = await Promise.all(items.map(async item => {
+            const snap = await invoiceDb.ref(`invoice_entries/${item.po}/${item.key}`).once('value');
+            return { item, invoice: snap.val() };
+        }));
 
-        if (allInvoiceData) {
-            for (const update of localCacheUpdates) {
-                if (allInvoiceData[update.po] && allInvoiceData[update.po][update.key]) {
-                    allInvoiceData[update.po][update.key] = {
-                        ...allInvoiceData[update.po][update.key],
-                        ...update.data
-                    };
-                }
-            }
-            console.log("Local invoice cache updated surgically.");
+        const missing = currentRecords.filter(record => !record.invoice);
+        if (missing.length) {
+            throw new Error(`${missing.length} invoice record(s) could not be found. No checkout was completed.`);
+        }
+        const changed = currentRecords.filter(record => paymentNormalize(record.invoice.status) !== 'with accounts');
+        if (changed.length) {
+            throw new Error(
+                `${changed.length} invoice record(s) are no longer With Accounts. Refresh the payment list before checkout.`
+            );
         }
 
-        alert(`${updatesMade} payment(s) processed successfully! Invoices updated to 'Paid'.`);
-        imPaymentsTableBody.innerHTML = '';
-        invoicesToPay = {};
-        updatePaymentsCount();
-        allSystemEntries = [];
+        const checkoutDate = paymentToday();
+        const serverTimestamp = (typeof firebase !== 'undefined' && firebase.database)
+            ? firebase.database.ServerValue.TIMESTAMP
+            : Date.now();
+        const batchUpdates = {};
+
+        currentRecords.forEach(({ item }) => {
+            const basePath = `invoice_entries/${item.po}/${item.key}`;
+            batchUpdates[`${basePath}/status`] = 'Paid';
+            batchUpdates[`${basePath}/amountPaid`] = Number(item.amountPaid);
+            batchUpdates[`${basePath}/releaseDate`] = checkoutDate;
+            batchUpdates[`${basePath}/statusChangedAt`] = serverTimestamp;
+            batchUpdates[`${basePath}/statusQueueAt`] = serverTimestamp;
+            batchUpdates[`${basePath}/lastUpdated`] = serverTimestamp;
+        });
+
+        if (statusEl) statusEl.textContent = 'Marking invoices Paid…';
+        await invoiceDb.ref().update(batchUpdates);
+
+        currentRecords.forEach(({ item, invoice }) => {
+            const localUpdates = {
+                status: 'Paid',
+                amountPaid: Number(item.amountPaid),
+                releaseDate: checkoutDate,
+                statusChangedAt: Date.now(),
+                statusQueueAt: Date.now(),
+                lastUpdated: Date.now()
+            };
+            if (!allInvoiceData) allInvoiceData = {};
+            if (!allInvoiceData[item.po]) allInvoiceData[item.po] = {};
+            allInvoiceData[item.po][item.key] = { ...invoice, ...localUpdates };
+        });
+
+        if (statusEl) statusEl.textContent = 'Synchronizing linked payment records…';
+        const syncResults = await Promise.allSettled(currentRecords.flatMap(({ item, invoice }) => {
+            const updatedInvoice = {
+                ...invoice,
+                status: 'Paid',
+                amountPaid: Number(item.amountPaid),
+                releaseDate: checkoutDate,
+                statusChangedAt: Date.now(),
+                statusQueueAt: Date.now(),
+                lastUpdated: Date.now()
+            };
+            return [
+                updateLinkedJobEntry(item.po, item.key, 'Paid', 'Payment checkout and cheque collection email prepared'),
+                updateInvoiceTaskLookup(item.po, item.key, updatedInvoice, invoice.attention)
+            ];
+        }));
+        const syncFailures = syncResults.filter(result => result.status === 'rejected');
+        if (syncFailures.length) {
+            console.warn('Some linked payment task synchronization calls failed:', syncFailures);
+        }
+
+        const finalItems = currentRecords.map(({ item }) => ({
+            ...item,
+            releaseDate: checkoutDate,
+            status: 'Paid'
+        }));
+        const recipient = paymentRecipientFor(finalItems[0]);
+        const subject = `Cheque Collection - ${supplierName}`;
+        const body = buildPaymentCollectionEmailBody(finalItems);
+
+        try {
+            allSystemEntries = [];
+            if (typeof cacheTimestamps !== 'undefined' && cacheTimestamps) cacheTimestamps.systemEntries = 0;
+        } catch (_) {}
+
+        clearPaymentCart(true);
+        if (statusEl) {
+            statusEl.className = 'im-payment-status-message is-success';
+            statusEl.textContent = `${finalItems.length} invoice(s) marked Paid. Opening the cheque collection email${recipient ? '' : ' with a blank recipient'}…`;
+        }
+        openPaymentCollectionEmail(recipient, subject, body);
     } catch (error) {
-        console.error("Error saving payments:", error);
-        alert("An error occurred while saving payments. Some updates may have failed. Please check the data and try again.");
+        console.error('Payment checkout failed:', error);
+        if (statusEl) {
+            statusEl.className = 'im-payment-status-message is-error';
+            statusEl.textContent = error.message || 'Payment checkout failed. No email was opened.';
+        }
+        alert(error.message || 'Payment checkout failed. Please check the data and try again.');
+    } finally {
+        if (checkoutButton) {
+            checkoutButton.disabled = paymentCartItems().length === 0;
+            checkoutButton.innerHTML = '<i class="fa-solid fa-envelope-circle-check"></i> Checkout &amp; Mark Paid';
+        }
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const clearButton = document.getElementById('im-clear-payments-button');
+    if (clearButton && !clearButton.dataset.paymentBound) {
+        clearButton.dataset.paymentBound = '1';
+        clearButton.addEventListener('click', () => clearPaymentCart(false));
+    }
+});
+
+window.canCurrentUserAccessPayments = canCurrentUserAccessPayments;
+window.initializePaymentsWorkspace = initializePaymentsWorkspace;
+window.openPaymentSearchModal = openPaymentSearchModal;
+window.removePaymentCartItem = removePaymentCartItem;
+window.clearPaymentCart = clearPaymentCart;
+window.ibaPaymentEmailTools = {
+    parseVendorEmailCsv: paymentParseVendorEmailCsv,
+    buildEmailBody: buildPaymentCollectionEmailBody,
+    normalizeSupplierId: paymentNormalizeSupplierId
+};

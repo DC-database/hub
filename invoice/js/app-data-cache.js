@@ -1062,7 +1062,7 @@ async function getFirebaseCSVUrl(filename) {
     // jsDelivr sometimes returns 503 or omits CORS headers during local testing,
     // which can block Batch Entry PO Search / ECommit loading.
     const cacheBuster = "?v=" + new Date().getTime();
-    const criticalRawCsv = ['Vendors.csv', 'ECommit.csv', 'ECommit2.csv'];
+    const criticalRawCsv = ['Vendors.csv', 'VendorEmail.csv', 'ECommit.csv', 'ECommit2.csv'];
     if (criticalRawCsv.includes(filename)) {
         return `https://raw.githubusercontent.com/DC-database/Hub/main/${filename}${cacheBuster}`;
     }
