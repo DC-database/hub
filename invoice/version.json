@@ -1,6 +1,6 @@
 {
   "version": "11.5.9",
   "releasedAt": "2026-07-30",
-  "title": "Cache-First Vendor Payment Recovery",
-  "message": "The first search for an unindexed vendor now recovers only that vendor's With Accounts invoices using indexed PO queries, records completion, and fills the compact payment index. Later searches for that vendor use the compact index only."
+  "title": "2026 Cache-First Vendor Payment Recovery",
+  "message": "Payments now searches the compact ready index first. For a vendor not yet recovered, it checks only matching Firebase invoice POs, collects With Accounts invoices dated 2026, fills the ready index, and uses the cache for later searches."
 }
