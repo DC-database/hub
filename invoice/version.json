@@ -1,6 +1,6 @@
 {
-  "version": "11.5.4",
+  "version": "11.5.7",
   "releasedAt": "2026-07-30",
-  "title": "Formatted Outlook Payment Email",
-  "message": "Formats the cheque collection email in Calibri with aligned, underlined invoice columns and a clear collection notice. Amount Paid fields now use accounting formatting, while Outlook Classic opens with the current user's automatic signature ready for the formatted email to be pasted above it."
+  "title": "Continuous Company Payment Search",
+  "message": "Company searches load all matching With Accounts invoices across their POs. Add Selected & Continue keeps the search modal open, clears the completed search, preserves the growing multi-company payment cart, and immediately prepares the field for the next company."
 }
