@@ -1,8 +1,8 @@
 // ============================================================================
-// IBA 11.5.9 — Cache-First Vendor Payment Recovery
+// IBA 11.5.9 Corrected — 2026 Cache-First Vendor Payment Recovery
 // Uses a compact Firebase index for partial vendor/PO/invoice searches. Vendors
-// without completion metadata receive one indexed With Accounts-only legacy scan;
-// later vendor searches use only the compact index.
+// without 2026 completion metadata receive one targeted With Accounts-only scan
+// across matching POs that actually exist in invoice_entries.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -13,11 +13,16 @@ let paymentReadyIndexCacheRestored = false;
 let paymentReadyMeta = new Map();
 let paymentReadyMetaLoadPromise = null;
 let paymentReadyMetaCacheRestored = false;
+let paymentInvoicePOKeys = new Set();
+let paymentInvoicePOKeysLoadPromise = null;
 
 const PAYMENT_READY_INDEX_PATH = 'invoice_payments_ready';
 const PAYMENT_READY_CACHE_KEY = 'iba_invoice_payments_ready_v1';
 const PAYMENT_READY_META_PATH = 'invoice_payments_ready_meta';
 const PAYMENT_READY_META_CACHE_KEY = 'iba_invoice_payments_ready_meta_v1';
+const PAYMENT_INVOICE_PO_KEYS_CACHE_KEY = 'iba_invoice_payment_po_keys_v1';
+const PAYMENT_LEGACY_RECOVERY_YEAR = 2026;
+const PAYMENT_PO_KEYS_CACHE_MAX_AGE = 30 * 60 * 1000;
 
 function paymentText(value) {
     return String(value == null ? '' : value).trim();
@@ -30,6 +35,32 @@ function paymentNormalize(value) {
 function paymentNormalizeSupplierId(value) {
     const raw = paymentText(value).replace(/^"|"$/g, '').replace(/,/g, '').toUpperCase();
     return /^\d+\.0+$/.test(raw) ? raw.replace(/\.0+$/, '') : raw;
+}
+
+function paymentInvoiceDateValue(invoiceData = {}) {
+    return paymentText(
+        invoiceData.invoiceDate ||
+        invoiceData.InvoiceDate ||
+        invoiceData['Invoice Date'] ||
+        invoiceData.invoice_date
+    );
+}
+
+function paymentInvoiceDateYear(invoiceData = {}) {
+    const raw = paymentInvoiceDateValue(invoiceData);
+    if (!raw) return null;
+
+    const fourDigitYear = raw.match(/(?:^|[^\d])((?:19|20)\d{2})(?:[^\d]|$)/);
+    if (fourDigitYear) return Number(fourDigitYear[1]);
+
+    const shortDate = raw.match(/^\d{1,2}[\/.-]\d{1,2}[\/.-](\d{2})$/);
+    if (shortDate) return 2000 + Number(shortDate[1]);
+
+    return null;
+}
+
+function paymentInvoiceMatchesRecoveryYear(invoiceData = {}, year = PAYMENT_LEGACY_RECOVERY_YEAR) {
+    return paymentInvoiceDateYear(invoiceData) === Number(year);
 }
 
 function paymentCurrency(value) {
@@ -113,6 +144,8 @@ function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
         invoiceData.vendorName ||
         invoiceData.vendor_name ||
         invoiceData.vendor ||
+        invoiceData.Vendor ||
+        invoiceData['Vendor Name'] ||
         poData['Supplier Name'] ||
         poData['Supplier Name:'] ||
         poData.Supplier
@@ -122,7 +155,10 @@ function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
         invoiceData.vendor_id ||
         invoiceData.supplierId ||
         invoiceData.supplier_id ||
+        invoiceData['Supplier ID'] ||
+        invoiceData['Vendor ID'] ||
         poData['Supplier ID'] ||
+        poData['Supplier ID:'] ||
         poData['Vendor ID'] ||
         poData.vendor_id
     );
@@ -130,6 +166,8 @@ function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
         invoiceData.site ||
         invoiceData.siteName ||
         invoiceData.site_name ||
+        invoiceData.Site ||
+        invoiceData['Project ID'] ||
         poData['Project ID']
     ) || 'N/A';
     return { supplierName, supplierId, site };
@@ -162,6 +200,7 @@ function paymentReadyPayload(poNumber, invoiceKey, invoiceData = {}, updatedAtVa
         invoiceValue,
         status: 'With Accounts',
         originalAttention: paymentText(invoiceData.attention),
+        invoiceDate: paymentInvoiceDateValue(invoiceData),
         updatedAt
     };
 }
@@ -367,6 +406,96 @@ function paymentUpdateReadyMetaMemory(metaKey, row) {
     if (row) paymentReadyMeta.set(metaKey, { ...row, metaKey });
     else paymentReadyMeta.delete(metaKey);
     paymentPersistReadyMetaCache();
+}
+
+function paymentInvoiceDatabaseURL() {
+    const candidates = [];
+    try {
+        if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.app && invoiceDb.app.options) {
+            candidates.push(invoiceDb.app.options.databaseURL);
+        }
+    } catch (_) {}
+    try {
+        if (typeof invoiceApp !== 'undefined' && invoiceApp && invoiceApp.options) {
+            candidates.push(invoiceApp.options.databaseURL);
+        }
+    } catch (_) {}
+    candidates.push('https://invoiceentry-b15a8-default-rtdb.europe-west1.firebasedatabase.app');
+    return paymentText(candidates.find(Boolean)).replace(/\/+$/, '');
+}
+
+function paymentRestoreInvoicePOKeysCache() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY) || 'null');
+        if (
+            !parsed ||
+            !Array.isArray(parsed.items) ||
+            !(Number(parsed.savedAt) > 0) ||
+            Date.now() - Number(parsed.savedAt) > PAYMENT_PO_KEYS_CACHE_MAX_AGE
+        ) {
+            return null;
+        }
+        return new Set(parsed.items.map(value => paymentText(value).toUpperCase()).filter(Boolean));
+    } catch (error) {
+        console.warn('Payment invoice PO-key cache could not be restored:', error);
+        return null;
+    }
+}
+
+function paymentPersistInvoicePOKeysCache(keys) {
+    try {
+        localStorage.setItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY, JSON.stringify({
+            version: '11.5.9-corrected',
+            savedAt: Date.now(),
+            items: Array.from(keys || [])
+        }));
+    } catch (error) {
+        console.warn('Payment invoice PO-key cache could not be saved:', error);
+    }
+}
+
+async function paymentEnsureInvoicePOKeysLoaded() {
+    if (paymentInvoicePOKeys.size) return paymentInvoicePOKeys;
+    const cached = paymentRestoreInvoicePOKeysCache();
+    if (cached && cached.size) {
+        paymentInvoicePOKeys = cached;
+        return paymentInvoicePOKeys;
+    }
+    if (paymentInvoicePOKeysLoadPromise) return paymentInvoicePOKeysLoadPromise;
+
+    paymentInvoicePOKeysLoadPromise = (async () => {
+        if (typeof fetch !== 'function') {
+            const localKeys = new Set(
+                Object.keys((typeof allInvoiceData !== 'undefined' && allInvoiceData) || {})
+                    .map(value => paymentText(value).toUpperCase())
+                    .filter(Boolean)
+            );
+            paymentInvoicePOKeys = localKeys;
+            return paymentInvoicePOKeys;
+        }
+
+        const databaseURL = paymentInvoiceDatabaseURL();
+        const response = await fetch(`${databaseURL}/invoice_entries.json?shallow=true`, {
+            cache: 'no-store',
+            mode: 'cors'
+        });
+        if (!response.ok) {
+            throw new Error(`Invoice PO-key lookup failed: ${response.status} ${response.statusText || ''}`.trim());
+        }
+        const value = await response.json();
+        paymentInvoicePOKeys = new Set(
+            Object.keys(value || {}).map(po => paymentText(po).toUpperCase()).filter(Boolean)
+        );
+        paymentPersistInvoicePOKeysCache(paymentInvoicePOKeys);
+        return paymentInvoicePOKeys;
+    })();
+
+    try {
+        return await paymentInvoicePOKeysLoadPromise;
+    } catch (error) {
+        paymentInvoicePOKeysLoadPromise = null;
+        throw error;
+    }
 }
 
 async function syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData = {}) {
@@ -613,6 +742,50 @@ async function paymentFetchWithAccountsPOBucket(poNumber) {
     return bucket;
 }
 
+async function paymentFetchWithAccountsPOBucketWithRetry(poNumber, maxAttempts = 2) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            await paymentFetchWithAccountsPOBucket(poNumber);
+            return paymentText(poNumber).toUpperCase();
+        } catch (error) {
+            lastError = error;
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 150 * attempt));
+            }
+        }
+    }
+    throw lastError || new Error(`With Accounts lookup failed for PO ${poNumber}.`);
+}
+
+async function paymentFetchWithAccountsPOs(poNumbers, onProgress) {
+    const poList = Array.from(new Set(
+        (poNumbers || []).map(po => paymentText(po).toUpperCase()).filter(Boolean)
+    ));
+    const succeeded = [];
+    const failed = [];
+    let processed = 0;
+
+    for (let index = 0; index < poList.length; index += 12) {
+        const batch = poList.slice(index, index + 12);
+        const results = await Promise.allSettled(
+            batch.map(po => paymentFetchWithAccountsPOBucketWithRetry(po, 2))
+        );
+        results.forEach((result, resultIndex) => {
+            const po = batch[resultIndex];
+            if (result.status === 'fulfilled') {
+                succeeded.push(po);
+            } else {
+                failed.push({ po, error: result.reason });
+            }
+        });
+        processed += batch.length;
+        if (typeof onProgress === 'function') onProgress(processed, poList.length);
+    }
+
+    return { succeeded, failed };
+}
+
 function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
     const po = paymentText(poNumber).toUpperCase();
     const supplier = paymentGetSupplierDetails(po, invoiceData);
@@ -632,12 +805,14 @@ function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
         amountPaid,
         invoiceValue,
         status: paymentText(invoiceData.status) || 'With Accounts',
-        originalAttention: paymentText(invoiceData.attention)
+        originalAttention: paymentText(invoiceData.attention),
+        invoiceDate: paymentInvoiceDateValue(invoiceData)
     };
 }
 
-function paymentCollectMatches(poNumbers, queryText) {
+function paymentCollectMatches(poNumbers, queryText, options = {}) {
     const query = paymentNormalize(queryText);
+    const recoveryYear = Number(options && options.recoveryYear) || 0;
     const cartIds = new Set(paymentCartItems().map(item => item.id));
     const results = [];
 
@@ -651,6 +826,7 @@ function paymentCollectMatches(poNumbers, queryText) {
 
         Object.entries(bucket || {}).forEach(([key, invoice]) => {
             if (paymentNormalize(invoice && invoice.status) !== 'with accounts') return;
+            if (recoveryYear && !paymentInvoiceMatchesRecoveryYear(invoice || {}, recoveryYear)) return;
             const item = paymentResultFromInvoice(po, key, invoice || {});
             const invoiceMatch = paymentNormalize(item.invoiceNo).includes(query);
             const entryMatch = paymentNormalize(item.invEntryID).includes(query);
@@ -797,10 +973,34 @@ function paymentPOsForVendorTargets(targets) {
     return Array.from(candidatePOs).filter(Boolean);
 }
 
+function paymentPOMapForVendorTargets(targets, existingPOKeys = null) {
+    const poMap = new Map();
+    (targets || []).filter(Boolean).forEach(target => {
+        const targetPOs = paymentPOsForVendorTargets([target]).filter(po =>
+            !existingPOKeys || existingPOKeys.has(paymentText(po).toUpperCase())
+        );
+        poMap.set(target.metaKey, targetPOs);
+    });
+    return poMap;
+}
+
+function paymentPOUnionFromTargetMap(targetPOMap) {
+    const poNumbers = new Set();
+    (targetPOMap || new Map()).forEach(targetPOs => {
+        (targetPOs || []).forEach(po => poNumbers.add(paymentText(po).toUpperCase()));
+    });
+    return Array.from(poNumbers).filter(Boolean);
+}
+
 function paymentVendorTargetIsComplete(target) {
     if (!target || !target.metaKey) return false;
     const row = paymentReadyMeta.get(target.metaKey);
-    return Boolean(row && Object.prototype.hasOwnProperty.call(row, 'completedAt'));
+    return Boolean(
+        row &&
+        Object.prototype.hasOwnProperty.call(row, 'completedAt') &&
+        Number(row.recoveryYear) === PAYMENT_LEGACY_RECOVERY_YEAR &&
+        Number(row.schemaVersion) >= 2
+    );
 }
 
 function paymentCandidatePOsForQuery(queryText) {
@@ -841,7 +1041,7 @@ function paymentCandidatePOsForQuery(queryText) {
     return Array.from(candidatePOs).filter(Boolean);
 }
 
-async function paymentCommitReadyBackfill(items, completedTargets = []) {
+async function paymentCommitReadyBackfill(items, completedTargets = [], targetPOMap = new Map()) {
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return;
     const updates = {};
     const localRows = [];
@@ -871,7 +1071,7 @@ async function paymentCommitReadyBackfill(items, completedTargets = []) {
 
     (completedTargets || []).forEach(target => {
         if (!target || !target.metaKey) return;
-        const targetPOs = paymentPOsForVendorTargets([target]);
+        const targetPOs = targetPOMap.get(target.metaKey) || [];
         const targetPOSet = new Set(targetPOs);
         const metaRow = {
             metaKey: target.metaKey,
@@ -881,7 +1081,8 @@ async function paymentCommitReadyBackfill(items, completedTargets = []) {
             completedAt: serverTimestamp,
             poCount: targetPOs.length,
             invoiceCount: (items || []).filter(item => targetPOSet.has(item.po)).length,
-            schemaVersion: 1
+            recoveryYear: PAYMENT_LEGACY_RECOVERY_YEAR,
+            schemaVersion: 2
         };
         updates[`${PAYMENT_READY_META_PATH}/${target.metaKey}`] = metaRow;
         localMetaRows.push(metaRow);
@@ -1017,30 +1218,46 @@ async function handlePaymentModalPOSearch() {
             return;
         }
 
-        const candidateList = incompleteVendorTargets.length
-            ? paymentPOsForVendorTargets(incompleteVendorTargets)
-            : paymentCandidatePOsForQuery(query);
-
-        if (candidateList.length > 150) {
-            if (indexedResults.length) {
-                paymentRenderSearchResults(indexedResults);
-            } else {
-                imPaymentModalResults.innerHTML = '<p>Too many POs match this company search. Please enter a more specific company name, PO number, or invoice number.</p>';
+        let targetPOMap = new Map();
+        let candidateList = [];
+        if (incompleteVendorTargets.length) {
+            let existingPOKeys = null;
+            try {
+                imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Checking existing invoice POs…</p>';
+                existingPOKeys = await paymentEnsureInvoicePOKeysLoaded();
+            } catch (poKeyError) {
+                console.warn('Lightweight invoice PO-key lookup failed. Using matching vendor POs directly.', poKeyError);
             }
-            return;
+            targetPOMap = paymentPOMapForVendorTargets(incompleteVendorTargets, existingPOKeys);
+            candidateList = paymentPOUnionFromTargetMap(targetPOMap);
+        } else {
+            candidateList = paymentCandidatePOsForQuery(query);
         }
 
-        for (let index = 0; index < candidateList.length; index += 12) {
-            const batch = candidateList.slice(index, index + 12);
-            await Promise.all(batch.map(po => paymentFetchWithAccountsPOBucket(po)));
-        }
+        const recovery = await paymentFetchWithAccountsPOs(candidateList, (processed, total) => {
+            imPaymentModalResults.innerHTML = `
+                <p><i class="fa-solid fa-spinner fa-spin"></i>
+                Recovering 2026 With Accounts invoices… ${processed} of ${total} POs checked.</p>
+            `;
+        });
 
-        const targetedResults = paymentCollectMatches(candidateList, query);
+        const targetedResults = paymentCollectMatches(recovery.succeeded, query, {
+            recoveryYear: PAYMENT_LEGACY_RECOVERY_YEAR
+        });
+        const failedPOs = new Set(recovery.failed.map(item => item.po));
+        const completedVendorTargets = incompleteVendorTargets.filter(target =>
+            (targetPOMap.get(target.metaKey) || []).every(po => !failedPOs.has(po))
+        );
         if (targetedResults.length || incompleteVendorTargets.length) {
             try {
-                // Only mark vendors complete after every indexed PO query and the
-                // combined ready-index/metadata update have succeeded.
-                await paymentCommitReadyBackfill(targetedResults, incompleteVendorTargets);
+                // Successful 2026 rows are cached immediately. A vendor receives
+                // completion metadata only when every one of its matching POs
+                // succeeds, so a partial recovery is retried on the next search.
+                await paymentCommitReadyBackfill(
+                    targetedResults,
+                    completedVendorTargets,
+                    targetPOMap
+                );
             } catch (indexError) {
                 console.warn('Targeted payment-ready vendor backfill skipped:', indexError);
             }
@@ -1051,6 +1268,18 @@ async function handlePaymentModalPOSearch() {
             ...targetedResults
         ]);
         paymentRenderSearchResults(results);
+        if (
+            recovery.failed.length &&
+            imPaymentModalResults &&
+            typeof imPaymentModalResults.insertAdjacentHTML === 'function'
+        ) {
+            imPaymentModalResults.insertAdjacentHTML(
+                'afterbegin',
+                `<div class="im-payment-recovery-warning">
+                    ${recovery.failed.length} PO lookup(s) could not be completed and will be retried on the next search.
+                </div>`
+            );
+        }
     } catch (error) {
         console.error('Payment invoice search failed:', error);
         imPaymentModalResults.innerHTML = '<p>An error occurred while searching. Please check the connection and try again.</p>';
