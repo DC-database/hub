@@ -79,6 +79,92 @@
 }
 
 /* ==========================================================================
+   11.6.1 — Payments Search: Full Result Scrolling
+   Keep the search controls and action footer visible while the complete
+   With Accounts result table uses one reliable internal scrollbar.
+   ========================================================================== */
+body #im-add-payment-modal > .modal-container.im-payment-search-modal {
+    height: min(90vh, 900px) !important;
+    height: min(90dvh, 900px) !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-header,
+body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-footer {
+    flex: 0 0 auto !important;
+}
+
+body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-content > p,
+body #im-add-payment-modal > .modal-container.im-payment-search-modal .im-payment-search-row {
+    flex: 0 0 auto !important;
+}
+
+body #im-add-payment-modal > .modal-container.im-payment-search-modal #im-payment-modal-results.im-payment-search-results {
+    flex: 1 1 auto !important;
+    min-height: 220px !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: scroll !important;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+    scrollbar-width: auto;
+    scrollbar-color: rgba(17, 96, 69, .78) #e7f0ec;
+}
+
+body #im-add-payment-modal #im-payment-modal-results::-webkit-scrollbar {
+    width: 13px;
+    height: 13px;
+}
+
+body #im-add-payment-modal #im-payment-modal-results::-webkit-scrollbar-track {
+    background: #e7f0ec;
+    border-radius: 999px;
+}
+
+body #im-add-payment-modal #im-payment-modal-results::-webkit-scrollbar-thumb {
+    min-height: 42px;
+    border: 3px solid #e7f0ec;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1c7a59, #0b4b35);
+}
+
+body #im-add-payment-modal #im-payment-modal-results::-webkit-scrollbar-thumb:hover {
+    background: #073d2b;
+}
+
+body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 3 !important;
+}
+
+@media (max-width: 680px) {
+    body #im-add-payment-modal > .modal-container.im-payment-search-modal {
+        width: calc(100vw - 16px) !important;
+        height: 92vh !important;
+        height: 92dvh !important;
+        max-height: 92vh !important;
+        max-height: 92dvh !important;
+    }
+
+    body #im-add-payment-modal > .modal-container.im-payment-search-modal #im-payment-modal-results.im-payment-search-results {
+        min-height: 160px !important;
+    }
+}
+
+/* ==========================================================================
    11.5.7 — Continuous Multi-Company Payment Search
    ========================================================================== */
 #im-payments .im-hero-payments {

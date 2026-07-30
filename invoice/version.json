@@ -1,6 +1,6 @@
 {
-  "version": "11.6.0",
+  "version": "11.6.1",
   "releasedAt": "2026-08-01",
-  "title": "IBA Portal New Domain",
-  "message": "The IBA Portal is now operating at port.iba.com.qa. Internal links for Chat, Procure, Finance, PO, and Epicore now use the new official domain."
+  "title": "Complete Payment Search Results",
+  "message": "The Payments search modal now keeps its search controls and footer visible while every matching With Accounts invoice remains reachable through one clear results-table scrollbar."
 }
