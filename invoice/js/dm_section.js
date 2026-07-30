@@ -337,11 +337,11 @@ document.getElementById('dm-users-btn')?.addEventListener('click', () => {
 document.getElementById('dm-full-chat')?.addEventListener('click', () => {
     try {
         const origin = (window.location && typeof window.location.origin === 'string') ? window.location.origin : '';
-        const safeOrigin = (origin && origin !== 'null' && !origin.startsWith('file:')) ? origin : 'https://ibaport.site';
+        const safeOrigin = (origin && origin !== 'null' && !origin.startsWith('file:')) ? origin : 'https://port.iba.com.qa';
         const url = safeOrigin.replace(/\/$/, '') + '/Chat';
         window.open(url, '_blank', 'noopener');
     } catch (_) {
-        window.open('https://ibaport.site/Chat', '_blank', 'noopener');
+        window.open('https://port.iba.com.qa/Chat', '_blank', 'noopener');
     }
 });
 

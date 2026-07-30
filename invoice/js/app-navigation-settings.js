@@ -179,12 +179,12 @@ function applyWelcomeModulePermissions() {
     setWelcomeModuleVisibility(
         'finance-report-button',
         permission.canFinancialReport,
-        'a[href="https://ibaport.site/Finance/"], a[data-original-href="https://ibaport.site/Finance/"]'
+        'a[href="https://port.iba.com.qa/Finance/"], a[data-original-href="https://port.iba.com.qa/Finance/"]'
     );
     setWelcomeModuleVisibility(
         'po-system-button',
         permission.canPOSystem,
-        'a[href="https://ibaport.site/PO/"], a[data-original-href="https://ibaport.site/PO/"]'
+        'a[href="https://port.iba.com.qa/PO/"], a[data-original-href="https://port.iba.com.qa/PO/"]'
     );
 }
 
@@ -310,8 +310,8 @@ function handleSuccessfulLogin() {
         console.log('Celebration banner failed:', e);
     }
 
-    // --- 11.4.6: Temporary IBA Portal domain migration notice ---
-    // UI only. The current ibaport.site links remain unchanged in this patch.
+    // --- 11.6.0: Retire the completed domain migration notice ---
+    // The helper now removes any legacy countdown or overlay without showing a new notice.
     try {
         if (typeof window.showDomainMigrationNoticeIfNeeded === 'function') {
             window.showDomainMigrationNoticeIfNeeded();

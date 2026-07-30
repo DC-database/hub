@@ -665,7 +665,7 @@ document.addEventListener('click', function(e) {
         // Stop the app's internal navigation from blocking this click
         e.stopPropagation(); 
         
-        // The browser will now follow the href="https://ibaport.site/Epicore/" naturally
+        // The browser will now follow the href="https://port.iba.com.qa/Epicore/" naturally
         console.log("Navigating to Epicore external site...");
     }
 }, true); // The 'true' here makes this run BEFORE the app's other scripts

@@ -383,10 +383,10 @@ document.getElementById('dm-users-btn')?.addEventListener('click', () => {
 // Full messaging (opens the dedicated full chat page in a new tab)
 document.getElementById('dm-full-chat')?.addEventListener('click', () => {
     try {
-        window.open('https://ibaport.site/Chat', '_blank', 'noopener');
+        window.open('https://port.iba.com.qa/Chat', '_blank', 'noopener');
     } catch (_) {
         // Fallback: navigate in the same tab if popups are blocked
-        window.location.href = 'https://ibaport.site/Chat';
+        window.location.href = 'https://port.iba.com.qa/Chat';
     }
 });
 

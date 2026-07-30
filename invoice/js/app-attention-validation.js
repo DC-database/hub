@@ -1,5 +1,5 @@
 // js/app-attention-validation.js
-// Version 11.3.4 — Adds Batch Entry group-aware attention routing while preserving Invoice Entry behavior.
+// Version 11.4.5 — Adds Batch Entry group-aware attention routing while preserving Invoice Entry behavior.
 // Moved from app.js in v8.2.3 (cleanup only).
 // Public function names preserved for existing app.js listeners and inline handlers.
 
@@ -404,7 +404,7 @@ function imWireInvoiceValidationUI() {
 
 // ------------------------------------------------------------
 // Batch Entry status/group-specific Attention routing helpers
-// Version 11.3.4
+// Version 11.4.5
 // ------------------------------------------------------------
 function imBatchNormalizeText(value) {
     return String(value == null ? '' : value).replace(/\u00A0/g, ' ').trim().replace(/\s+/g, ' ');
@@ -419,6 +419,17 @@ function imBatchNormalizeGroup(value) { return imBatchNormalizeText(value) || 'N
 function imBatchIsNormalGroup(value) {
     const group = imBatchNormalizeKey(imBatchNormalizeGroup(value));
     return !group || group === 'normal';
+}
+function imBatchIsLogisticGroup(value) {
+    const group = imBatchNormalizeKey(imBatchNormalizeGroup(value));
+    return group === 'logistic' || group === 'logistics' || group.includes('logistic');
+}
+function imBatchFallbackAttentionName() {
+    return (typeof resolveVacationAssignee === 'function') ? (resolveVacationAssignee('Irwin') || 'Irwin') : 'Irwin';
+}
+function imBatchFindLogisticAttentionName() {
+    const name = imBatchFindPersonByNameOrPosition('imran', 'logistic', '');
+    return name || imBatchFallbackAttentionName();
 }
 function imBatchSiteToken(value) {
     const raw = imBatchNormalizeText(value);
@@ -497,7 +508,19 @@ function imBatchFixedAttentionForStatus(statusValue) {
 async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
     await imBatchEnsureApproverData();
     const group = imBatchNormalizeGroup(groupValue);
-    const wantedRole = imBatchIsNormalGroup(group) ? 'site dc' : 'logistic';
+
+    // 11.4.5: Logistic invoices go to Imran/logistic person regardless of site.
+    // Unknown/non-matching groups fall back to Irwin instead of trying site routing.
+    if (imBatchIsLogisticGroup(group)) {
+        const logisticName = imBatchFindLogisticAttentionName();
+        return [{ name: logisticName, position: 'Logistic', group, role: 'logistic', site: 'All Sites' }];
+    }
+    if (!imBatchIsNormalGroup(group)) {
+        const fallback = imBatchFallbackAttentionName();
+        return [{ name: fallback, position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
+    }
+
+    const wantedRole = 'site dc';
     const candidates = [];
     const seen = new Set();
     imBatchApproverUsers().forEach((user) => {
@@ -509,8 +532,8 @@ async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
         candidates.push({ name, position: user.position, group, role: wantedRole, site: user.site });
     });
     if (candidates.length === 0) {
-        const fallback = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee('Irwin') : 'Irwin';
-        return [{ name: fallback || 'Irwin', position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
+        const fallback = imBatchFallbackAttentionName();
+        return [{ name: fallback, position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
     }
     return candidates;
 }
@@ -534,6 +557,18 @@ async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue
         const target = imBatchFixedAttentionForStatus(statusValue);
         if (target) choices = [{ value: target, label: target }];
     }
+
+    // 11.4.5: keep automatic options, but also allow manual override.
+    // This makes the Attention picker usable when the user intentionally assigns
+    // a different responsible person before saving.
+    if (allowOverrideSearch) {
+        const existing = new Set(choices.map(c => imBatchNormalizeKey(c.value)));
+        const manualChoices = imBatchApproverUsers()
+            .filter(u => u && u.name && !existing.has(imBatchNormalizeKey(u.name)))
+            .map(u => ({ value: u.name, label: `Manual: ${u.label}` }));
+        choices = [...choices, ...manualChoices];
+    }
+
     try { if (typeof choicesInstance.clearStore === 'function') choicesInstance.clearStore(); else if (typeof choicesInstance.clearChoices === 'function') choicesInstance.clearChoices(); } catch (_) {}
     choicesInstance.setChoices([...baseOptions, ...choices], 'value', 'label', true);
 }
