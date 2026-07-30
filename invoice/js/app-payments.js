@@ -1,14 +1,11 @@
 // ============================================================================
-// IBA 11.5.4 — Formatted Supplier Payment Email Checkout
-// Reconstructs the retired payment updater as a one-company cart that marks
-// With Accounts invoices Paid and prepares the cheque collection email.
+// IBA 11.5.7 — Continuous Multi-Company Payment Search
+// Lets authorized users collect With Accounts invoices from one or more
+// companies and mark the complete payment cart Paid in one atomic checkout.
 // ============================================================================
 
 let paymentSearchResults = new Map();
-let paymentVendorEmailMap = null;
-let paymentVendorEmailPromise = null;
 let paymentRestoredStorageKey = '';
-let paymentPreparedEmail = null;
 
 function paymentText(value) {
     return String(value == null ? '' : value).trim();
@@ -32,15 +29,6 @@ function paymentCurrency(value) {
 function paymentParseAmount(value) {
     const parsed = Number(paymentText(value).replace(/,/g, ''));
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
-}
-
-function paymentEscapeHtml(value) {
-    return paymentText(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
 }
 
 function paymentToday() {
@@ -109,18 +97,12 @@ function paymentGetSupplierDetails(poNumber, invoiceData = {}) {
     return { supplierName, supplierId, site };
 }
 
-function paymentSupplierIdentity(item) {
-    const id = paymentNormalizeSupplierId(item && item.supplierId);
-    if (id) return `id:${id}`;
-    return `name:${paymentNormalize(item && item.supplierName)}`;
-}
-
 function paymentStorageKey() {
     const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
     const identity = paymentText(user.Email || user.Name || user.Mobile || 'unknown')
         .toLowerCase()
         .replace(/[^a-z0-9_-]+/g, '_');
-    return `iba_payment_email_cart_11_5_3_${identity}`;
+    return `iba_payment_cart_11_5_6_${identity}`;
 }
 
 function persistPaymentCart() {
@@ -132,7 +114,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.5.4',
+            version: '11.5.7',
             savedAt: Date.now(),
             items
         }));
@@ -169,93 +151,6 @@ function restorePaymentCart() {
     }
 }
 
-function paymentParseCsvRow(rowText) {
-    const values = [];
-    let current = '';
-    let quoted = false;
-    const row = String(rowText || '');
-    for (let i = 0; i < row.length; i += 1) {
-        const char = row[i];
-        if (char === '"') {
-            if (quoted && row[i + 1] === '"') {
-                current += '"';
-                i += 1;
-            } else {
-                quoted = !quoted;
-            }
-        } else if (char === ',' && !quoted) {
-            values.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
-    }
-    values.push(current.trim());
-    return values;
-}
-
-function paymentParseVendorEmailCsv(csvText) {
-    const lines = String(csvText || '')
-        .replace(/^\uFEFF/, '')
-        .split(/\r?\n/)
-        .filter(line => line.trim());
-    if (!lines.length) return {};
-
-    const headers = paymentParseCsvRow(lines[0]);
-    const normalizedHeaders = headers.map(header => paymentNormalize(header).replace(/[^a-z0-9]/g, ''));
-    let supplierIndex = normalizedHeaders.findIndex(header => header === 'supplierid' || header === 'vendorid');
-    let emailIndex = normalizedHeaders.findIndex(header => header === 'emailaddress' || header === 'email');
-    if (supplierIndex < 0) supplierIndex = 1; // VendorEmail.csv column B
-    if (emailIndex < 0) emailIndex = 4;       // VendorEmail.csv column E
-
-    const emailMap = {};
-    for (let index = 1; index < lines.length; index += 1) {
-        const row = paymentParseCsvRow(lines[index]);
-        const supplierId = paymentNormalizeSupplierId(row[supplierIndex]);
-        const email = paymentText(row[emailIndex]).replace(/\s+/g, '');
-        if (supplierId && email) emailMap[supplierId] = email;
-    }
-    return emailMap;
-}
-
-async function loadPaymentVendorEmails(forceRefresh = false) {
-    if (paymentVendorEmailMap && !forceRefresh) return paymentVendorEmailMap;
-    if (paymentVendorEmailPromise && !forceRefresh) return paymentVendorEmailPromise;
-
-    paymentVendorEmailPromise = (async () => {
-        try {
-            const url = (typeof getFirebaseCSVUrl === 'function')
-                ? await getFirebaseCSVUrl('VendorEmail.csv')
-                : `https://raw.githubusercontent.com/DC-database/Hub/main/VendorEmail.csv?v=${Date.now()}`;
-            if (!url) {
-                paymentVendorEmailMap = {};
-                return paymentVendorEmailMap;
-            }
-            const csvText = (typeof fetchCsvTextWithFallback === 'function')
-                ? await fetchCsvTextWithFallback(url, 'VendorEmail.csv')
-                : await fetch(url, { cache: 'no-store', mode: 'cors' }).then(response => {
-                    if (!response.ok) throw new Error(`VendorEmail.csv fetch failed: ${response.status}`);
-                    return response.text();
-                });
-            paymentVendorEmailMap = paymentParseVendorEmailCsv(csvText);
-            return paymentVendorEmailMap;
-        } catch (error) {
-            console.warn('VendorEmail.csv could not be loaded. Recipient will remain blank.', error);
-            paymentVendorEmailMap = {};
-            return paymentVendorEmailMap;
-        } finally {
-            paymentVendorEmailPromise = null;
-        }
-    })();
-
-    return paymentVendorEmailPromise;
-}
-
-function paymentRecipientFor(item) {
-    const supplierId = paymentNormalizeSupplierId(item && item.supplierId);
-    return supplierId && paymentVendorEmailMap ? paymentText(paymentVendorEmailMap[supplierId]) : '';
-}
-
 function updatePaymentsCount() {
     const items = paymentCartItems();
     if (paymentsCountDisplay) {
@@ -269,9 +164,6 @@ function renderPaymentsCart() {
     const emptyState = document.getElementById('im-payment-cart-empty');
     const tableWrap = document.querySelector('#im-payments .im-payment-cart-table-wrap');
     const totalEl = document.getElementById('im-payment-cart-total-value');
-    const companyEl = document.getElementById('im-payment-company-name');
-    const supplierIdEl = document.getElementById('im-payment-supplier-id');
-    const recipientEl = document.getElementById('im-payment-recipient');
     const clearButton = document.getElementById('im-clear-payments-button');
     const checkoutButton = document.getElementById('im-save-payments-button');
 
@@ -280,17 +172,6 @@ function renderPaymentsCart() {
     if (tableWrap) tableWrap.classList.toggle('hidden', items.length === 0);
     if (clearButton) clearButton.disabled = items.length === 0;
     if (checkoutButton) checkoutButton.disabled = items.length === 0;
-
-    const first = items[0] || null;
-    if (companyEl) companyEl.textContent = first ? first.supplierName : 'No company selected';
-    if (supplierIdEl) supplierIdEl.textContent = first && first.supplierId ? first.supplierId : '—';
-    if (recipientEl) {
-        const recipient = first ? paymentRecipientFor(first) : '';
-        recipientEl.textContent = first
-            ? (recipient || (paymentVendorEmailMap ? 'Not found — enter manually' : 'Checking VendorEmail.csv…'))
-            : 'Add invoices to begin';
-        recipientEl.classList.toggle('is-missing', !!first && !recipient && !!paymentVendorEmailMap);
-    }
 
     let total = 0;
     items.forEach(item => {
@@ -360,8 +241,6 @@ async function initializePaymentsWorkspace() {
     renderPaymentsCart();
     const statusEl = document.getElementById('im-payment-status-message');
     if (statusEl) statusEl.textContent = '';
-    await loadPaymentVendorEmails(false);
-    renderPaymentsCart();
 }
 
 function openPaymentSearchModal() {
@@ -470,6 +349,18 @@ function paymentRenderSearchResults(results) {
         return;
     }
 
+    const companyCount = new Set(results.map(item => paymentNormalize(item.supplierName))).size;
+    const poCount = new Set(results.map(item => paymentText(item.po).toUpperCase())).size;
+    const invoiceWord = results.length === 1 ? 'invoice' : 'invoices';
+    const poWord = poCount === 1 ? 'PO' : 'POs';
+    const companyWord = companyCount === 1 ? 'company' : 'companies';
+    const resultSummary = document.createElement('div');
+    resultSummary.className = 'im-payment-result-summary';
+    resultSummary.innerHTML = `
+        <i class="fa-solid fa-list-check"></i>
+        <span><strong>${results.length}</strong> With Accounts ${invoiceWord} found across <strong>${poCount}</strong> ${poWord} from <strong>${companyCount}</strong> ${companyWord}.</span>
+    `;
+
     const table = document.createElement('table');
     table.className = 'im-payment-result-table';
     table.innerHTML = `
@@ -526,6 +417,7 @@ function paymentRenderSearchResults(results) {
         updatePaymentModalTotal();
     });
 
+    imPaymentModalResults.appendChild(resultSummary);
     imPaymentModalResults.appendChild(table);
     updatePaymentModalTotal();
 }
@@ -623,31 +515,34 @@ async function handleAddSelectedToPayments() {
         return;
     }
 
-    const selectedSuppliers = new Set(selected.map(paymentSupplierIdentity));
-    if (selectedSuppliers.size > 1) {
-        alert('One payment checkout can contain only one company. Please select invoices belonging to the same supplier.');
-        return;
-    }
-
-    const existingItems = paymentCartItems();
-    if (existingItems.length && paymentSupplierIdentity(existingItems[0]) !== paymentSupplierIdentity(selected[0])) {
-        alert(`This payment list already belongs to ${existingItems[0].supplierName}. Clear it before adding another company.`);
-        return;
-    }
-
     selected.forEach(item => {
         invoicesToPay[item.id] = { ...item };
     });
     persistPaymentCart();
     renderPaymentsCart();
-    await loadPaymentVendorEmails(false);
-    renderPaymentsCart();
 
-    if (imAddPaymentModal) imAddPaymentModal.classList.add('hidden');
     if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
     if (imPaymentModalResults) {
-        imPaymentModalResults.innerHTML = '<p>Enter a PO number, invoice number, or company to begin.</p>';
+        const companyCount = new Set(selected.map(item => paymentNormalize(item.supplierName))).size;
+        const invoiceWord = selected.length === 1 ? 'invoice' : 'invoices';
+        const companyWord = companyCount === 1 ? 'company' : 'companies';
+        imPaymentModalResults.innerHTML = `
+            <div class="im-payment-add-success">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                    <strong>${selected.length} ${invoiceWord} from ${companyCount} ${companyWord} added to the payment list.</strong>
+                    <span>Search another company, PO, or invoice to continue building the same list.</span>
+                </div>
+            </div>
+        `;
     }
+    const totalDisplay = document.getElementById('payment-modal-total-value');
+    if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
+    paymentSearchResults = new Map();
+    if (imPaymentModalResults) imPaymentModalResults.scrollTop = 0;
+    setTimeout(() => {
+        if (imPaymentModalPOInput) imPaymentModalPOInput.focus();
+    }, 50);
 }
 
 function removePaymentCartItem(cartId) {
@@ -670,164 +565,6 @@ function clearPaymentCart(skipConfirmation = false) {
     return true;
 }
 
-function buildPaymentCollectionEmailText(items) {
-    const rows = items.map((item, index) =>
-        `${index + 1}. ${item.invoiceNo || item.invEntryID || 'N/A'}\t${item.po}\t${paymentCurrency(item.amountPaid)}`
-    );
-    const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
-
-    return [
-        'ATTENTION: ACCOUNTS DEPARTMENT',
-        '',
-        'I hope this email finds you well.',
-        '',
-        'Kindly be advised that the payment for the following invoice is ready for collection at our Main Office; please arrange for a collector to collect your payment',
-        '',
-        'Invoice No.\tPO No.\tAmount',
-        ...rows,
-        `Total Sum\t\t${paymentCurrency(total)}`,
-        '',
-        'Upon Collection kindly take note of the following:',
-        '',
-        '1.\tThe Collection timing is between 1:00 pm to 4:00 pm from Saturday-Wednesday and 9:00 am to 1:00 pm on Thursday.',
-        '2.\tThe Collector must have the Original Receipt and Valid ID. However, If the collector is not sponsored by the same company. He must bring an authorization letter on corporate letterhead, stamped, and signed by an authorized signatory, as well as a copy of the company computer card.'
-    ].join('\r\n');
-}
-
-function buildPaymentCollectionEmailHtml(items) {
-    const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
-    const rows = items.map((item, index) => `
-        <tr>
-            <td style="padding:0 30px 3px 0;white-space:nowrap;">${index + 1}. ${paymentEscapeHtml(item.invoiceNo || item.invEntryID || 'N/A')}</td>
-            <td style="padding:0 30px 3px 0;white-space:nowrap;">${paymentEscapeHtml(item.po)}</td>
-            <td style="padding:0 0 3px 0;text-align:right;white-space:nowrap;">${paymentEscapeHtml(paymentCurrency(item.amountPaid))}</td>
-        </tr>
-    `).join('');
-
-    return `
-        <div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.25;color:#000000;">
-            <p style="margin:0 0 18px 0;">ATTENTION: ACCOUNTS DEPARTMENT</p>
-            <p style="margin:0 0 18px 0;">I hope this email finds you well.</p>
-            <p style="margin:0 0 18px 0;">Kindly be advised that the payment for the following invoice is ready for collection at our Main Office; please arrange for a collector to collect your payment</p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 20px 0;font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.25;color:#000000;">
-                <thead>
-                    <tr>
-                        <th style="padding:0 30px 4px 0;text-align:left;font-weight:400;white-space:nowrap;text-decoration:underline;">Invoice No.</th>
-                        <th style="padding:0 30px 4px 0;text-align:left;font-weight:400;white-space:nowrap;text-decoration:underline;">PO No.</th>
-                        <th style="padding:0 0 4px 0;text-align:right;font-weight:400;white-space:nowrap;text-decoration:underline;">Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                    <tr>
-                        <td colspan="2" style="padding:0 30px 0 0;white-space:nowrap;">Total Sum</td>
-                        <td style="padding:0;text-align:right;white-space:nowrap;">${paymentEscapeHtml(paymentCurrency(total))}</td>
-                    </tr>
-                </tbody>
-            </table>
-            <p style="margin:0 0 18px 0;text-decoration:underline;">Upon Collection kindly take note of the following:</p>
-            <ol style="margin:0;padding-left:34px;">
-                <li style="margin:0 0 3px 0;padding-left:8px;">The Collection timing is between 1:00 pm to 4:00 pm from Saturday-Wednesday and 9:00 am to 1:00 pm on Thursday.</li>
-                <li style="margin:0;padding-left:8px;">The Collector must have the Original Receipt and Valid ID. However, If the collector is not sponsored by the same company. He must bring an authorization letter on corporate letterhead, stamped, and signed by an authorized signatory, as well as a copy of the company computer card.</li>
-            </ol>
-        </div>
-    `.trim();
-}
-
-function openPaymentCollectionEmail(recipient, subject) {
-    const safeRecipient = paymentText(recipient).replace(/[\r\n?&#]/g, '');
-    const mailto = `mailto:${safeRecipient}?subject=${encodeURIComponent(subject)}`;
-    window.location.href = mailto;
-}
-
-function paymentRenderPreparedEmail(emailData) {
-    paymentPreparedEmail = emailData;
-    const modal = document.getElementById('im-payment-email-ready-modal');
-    const recipientEl = document.getElementById('im-payment-email-ready-recipient');
-    const subjectEl = document.getElementById('im-payment-email-ready-subject');
-    const previewEl = document.getElementById('im-payment-email-preview');
-    const actionButton = document.getElementById('im-payment-copy-open-outlook');
-    const feedbackEl = document.getElementById('im-payment-email-copy-feedback');
-
-    if (recipientEl) recipientEl.textContent = emailData.recipient || 'Blank — enter the recipient in Outlook';
-    if (subjectEl) subjectEl.textContent = emailData.subject;
-    if (previewEl) previewEl.innerHTML = emailData.html;
-    if (feedbackEl) feedbackEl.textContent = '';
-    if (actionButton) {
-        actionButton.disabled = false;
-        actionButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Email &amp; Open Outlook Classic';
-    }
-    if (modal) modal.classList.remove('hidden');
-}
-
-function paymentCopyPreviewFallback() {
-    const previewEl = document.getElementById('im-payment-email-preview');
-    if (!previewEl || typeof document.execCommand !== 'function') return false;
-
-    const selection = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(previewEl);
-    selection.removeAllRanges();
-    selection.addRange(range);
-    const copied = document.execCommand('copy');
-    selection.removeAllRanges();
-    return copied;
-}
-
-async function copyPreparedPaymentEmailAndOpenOutlook() {
-    if (!paymentPreparedEmail) {
-        alert('No prepared payment email is available.');
-        return;
-    }
-
-    const actionButton = document.getElementById('im-payment-copy-open-outlook');
-    const feedbackEl = document.getElementById('im-payment-email-copy-feedback');
-    if (actionButton) {
-        actionButton.disabled = true;
-        actionButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Copying…';
-    }
-
-    try {
-        let copied = false;
-        if (
-            navigator.clipboard &&
-            typeof navigator.clipboard.write === 'function' &&
-            typeof ClipboardItem !== 'undefined'
-        ) {
-            const clipboardItem = new ClipboardItem({
-                'text/html': new Blob([paymentPreparedEmail.html], { type: 'text/html' }),
-                'text/plain': new Blob([paymentPreparedEmail.text], { type: 'text/plain' })
-            });
-            await navigator.clipboard.write([clipboardItem]);
-            copied = true;
-        } else {
-            copied = paymentCopyPreviewFallback();
-        }
-
-        if (!copied) throw new Error('The formatted email could not be copied.');
-        if (feedbackEl) {
-            feedbackEl.textContent = 'Copied. When Outlook opens, press Ctrl+V above your automatic signature.';
-        }
-        if (actionButton) {
-            actionButton.innerHTML = '<i class="fa-solid fa-check"></i> Copied — Opening Outlook';
-        }
-        openPaymentCollectionEmail(paymentPreparedEmail.recipient, paymentPreparedEmail.subject);
-    } catch (error) {
-        console.error('Payment email copy failed:', error);
-        if (feedbackEl) {
-            feedbackEl.textContent = 'Copy was blocked. Allow clipboard access in Chrome, then try again.';
-        }
-        alert('Chrome could not copy the formatted email. Allow clipboard access for this site, then try again.');
-    } finally {
-        if (actionButton) {
-            window.setTimeout(() => {
-                actionButton.disabled = false;
-                actionButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copy Email &amp; Open Outlook Classic';
-            }, 1200);
-        }
-    }
-}
-
 async function handleSavePayments() {
     const items = paymentCartItems();
     const statusEl = document.getElementById('im-payment-status-message');
@@ -841,21 +578,22 @@ async function handleSavePayments() {
         alert('Access Denied: Payments requires an Admin role with a Finance, Accounts, or Accounting position.');
         return;
     }
-    if (new Set(items.map(paymentSupplierIdentity)).size !== 1) {
-        alert('The payment list contains more than one company. Please clear it and rebuild the list.');
-        return;
-    }
     if (items.some(item => !(Number(item.amountPaid) > 0))) {
-        alert('Every invoice must have an Amount Paid greater than zero before checkout.');
+        alert('Every invoice must have an Amount Paid greater than zero before it can be marked Paid.');
         return;
     }
 
-    const supplierName = items[0].supplierName || 'Supplier';
+    const companyNames = Array.from(new Set(
+        items.map(item => paymentText(item.supplierName) || 'Unknown company')
+    ));
+    const companySummary = companyNames.length === 1
+        ? companyNames[0]
+        : `${companyNames.length} companies`;
     const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
     const confirmed = confirm(
-        `Checkout ${items.length} invoice(s) for ${supplierName}?\n\n` +
+        `Mark ${items.length} invoice(s) from ${companySummary} as Paid?\n\n` +
         `Total Sum: ${paymentCurrency(total)}\n\n` +
-        'This will mark every listed invoice Paid, set its Release Date to today, and open the cheque collection email.'
+        'This will mark every listed invoice Paid and set its Release Date to today.'
     );
     if (!confirmed) return;
 
@@ -865,13 +603,10 @@ async function handleSavePayments() {
     }
     if (statusEl) {
         statusEl.className = 'im-payment-status-message is-working';
-        statusEl.textContent = 'Validating invoices and preparing checkout…';
+        statusEl.textContent = 'Validating invoices before marking them Paid…';
     }
 
     try {
-        // Refresh the small GitHub CSV at checkout so a newly added or corrected
-        // supplier email is used without requiring a system-version update.
-        await loadPaymentVendorEmails(true);
         const currentRecords = await Promise.all(items.map(async item => {
             const snap = await invoiceDb.ref(`invoice_entries/${item.po}/${item.key}`).once('value');
             return { item, invoice: snap.val() };
@@ -933,7 +668,7 @@ async function handleSavePayments() {
                 lastUpdated: Date.now()
             };
             return [
-                updateLinkedJobEntry(item.po, item.key, 'Paid', 'Payment checkout and cheque collection email prepared'),
+                updateLinkedJobEntry(item.po, item.key, 'Paid', 'Payment marked Paid'),
                 updateInvoiceTaskLookup(item.po, item.key, updatedInvoice, invoice.attention)
             ];
         }));
@@ -941,20 +676,6 @@ async function handleSavePayments() {
         if (syncFailures.length) {
             console.warn('Some linked payment task synchronization calls failed:', syncFailures);
         }
-
-        const finalItems = currentRecords.map(({ item }) => ({
-            ...item,
-            releaseDate: checkoutDate,
-            status: 'Paid'
-        }));
-        const recipient = paymentRecipientFor(finalItems[0]);
-        const subject = `Cheque Collection - ${supplierName}`;
-        const emailData = {
-            recipient,
-            subject,
-            text: buildPaymentCollectionEmailText(finalItems),
-            html: buildPaymentCollectionEmailHtml(finalItems)
-        };
 
         try {
             allSystemEntries = [];
@@ -964,20 +685,19 @@ async function handleSavePayments() {
         clearPaymentCart(true);
         if (statusEl) {
             statusEl.className = 'im-payment-status-message is-success';
-            statusEl.textContent = `${finalItems.length} invoice(s) marked Paid. The formatted cheque collection email is ready${recipient ? '' : ' with a blank recipient'}.`;
+            statusEl.textContent = `${currentRecords.length} invoice(s) from ${companySummary} marked Paid successfully.`;
         }
-        paymentRenderPreparedEmail(emailData);
     } catch (error) {
         console.error('Payment checkout failed:', error);
         if (statusEl) {
             statusEl.className = 'im-payment-status-message is-error';
-            statusEl.textContent = error.message || 'Payment checkout failed. No email was opened.';
+            statusEl.textContent = error.message || 'The invoices could not be marked Paid.';
         }
-        alert(error.message || 'Payment checkout failed. Please check the data and try again.');
+        alert(error.message || 'The invoices could not be marked Paid. Please check the data and try again.');
     } finally {
         if (checkoutButton) {
             checkoutButton.disabled = paymentCartItems().length === 0;
-            checkoutButton.innerHTML = '<i class="fa-solid fa-envelope-circle-check"></i> Checkout &amp; Mark Paid';
+            checkoutButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Mark as Paid';
         }
     }
 }
@@ -989,22 +709,6 @@ document.addEventListener('DOMContentLoaded', () => {
         clearButton.addEventListener('click', () => clearPaymentCart(false));
     }
 
-    const copyOpenButton = document.getElementById('im-payment-copy-open-outlook');
-    if (copyOpenButton && !copyOpenButton.dataset.paymentBound) {
-        copyOpenButton.dataset.paymentBound = '1';
-        copyOpenButton.addEventListener('click', copyPreparedPaymentEmailAndOpenOutlook);
-    }
-
-    const emailReadyModal = document.getElementById('im-payment-email-ready-modal');
-    if (emailReadyModal && !emailReadyModal.dataset.paymentBound) {
-        emailReadyModal.dataset.paymentBound = '1';
-        emailReadyModal.querySelectorAll('[data-payment-email-close]').forEach(button => {
-            button.addEventListener('click', () => emailReadyModal.classList.add('hidden'));
-        });
-        emailReadyModal.addEventListener('click', event => {
-            if (event.target === emailReadyModal) emailReadyModal.classList.add('hidden');
-        });
-    }
 });
 
 window.canCurrentUserAccessPayments = canCurrentUserAccessPayments;
@@ -1012,10 +716,7 @@ window.initializePaymentsWorkspace = initializePaymentsWorkspace;
 window.openPaymentSearchModal = openPaymentSearchModal;
 window.removePaymentCartItem = removePaymentCartItem;
 window.clearPaymentCart = clearPaymentCart;
-window.ibaPaymentEmailTools = {
-    parseVendorEmailCsv: paymentParseVendorEmailCsv,
-    buildEmailBody: buildPaymentCollectionEmailText,
-    buildEmailHtml: buildPaymentCollectionEmailHtml,
+window.ibaPaymentTools = {
     parseAmount: paymentParseAmount,
     normalizeSupplierId: paymentNormalizeSupplierId
 };
