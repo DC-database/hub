@@ -1,6 +1,6 @@
 {
-  "version": "11.6.3",
+  "version": "11.6.4",
   "releasedAt": "2026-08-01",
-  "title": "Pocket-Only Payments and Historical Paid Dates",
-  "message": "Payments now use the compact With Accounts pocket by default, arrange newest release dates first, preserve With Accounts dates, support per-invoice Paid Dates, and restrict targeted legacy archive recovery to Super Admin."
+  "title": "Payment Pocket Transfer and WorkDesk Visibility",
+  "message": "Super Admin can safely transfer the exact filtered With Accounts Invoice Records result into the compact payment pocket, exclude unwanted rows before transfer, and refresh existing entries without duplicates. Authorized users can now review that same live pocket from WorkDesk."
 }
