@@ -1,6 +1,6 @@
 {
-  "version": "11.6.6",
+  "version": "11.6.7",
   "releasedAt": "2026-08-01",
-  "title": "WorkDesk Payment Pocket Site and SRV View",
-  "message": "The WorkDesk Ready for Payment card now uses the approved position access list, limits site-based staff to assigned sites, displays Invoice Value instead of Amount Paid, provides an All Sites filter where permitted, and opens each available SRV PDF without loading the complete invoice archive."
+  "title": "Payment Pocket Transfer Full Scrolling",
+  "message": "The Prepare Payment Pocket Transfer popup now keeps its controls visible while the complete prepared invoice list scrolls inside one dedicated table area. Prepare Mark as Paid remains unchanged."
 }

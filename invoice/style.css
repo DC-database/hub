@@ -33119,3 +33119,77 @@ body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results 
         min-width: 0;
     }
 }
+
+/* ========================================================================
+   11.6.7 — Prepare Payment Pocket Transfer full internal scrolling
+   This targets only #im-pocket-transfer-modal. Mark as Paid is untouched.
+   ======================================================================== */
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) {
+    overflow: hidden !important;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) > .modal-container.im-pocket-transfer-modal {
+    width: min(1180px, calc(100vw - 28px)) !important;
+    max-width: 1180px !important;
+    height: min(92vh, 900px) !important;
+    height: min(92dvh, 900px) !important;
+    max-height: 92vh !important;
+    max-height: 92dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) > .modal-container.im-pocket-transfer-modal > .modal-header,
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) > .modal-container.im-pocket-transfer-modal > .modal-footer {
+    flex: 0 0 auto !important;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) > .modal-container.im-pocket-transfer-modal > .modal-content {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-help,
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-stats,
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-status {
+    flex: 0 0 auto !important;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-table-wrap.table-wrapper {
+    display: block !important;
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 190px !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
+    scrollbar-gutter: stable both-edges;
+}
+
+body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-table {
+    min-width: 980px !important;
+    overflow: visible !important;
+}
+
+@media (max-width: 780px) {
+    body #im-pocket-transfer-modal.modal-overlay:not(.hidden) > .modal-container.im-pocket-transfer-modal {
+        width: calc(100vw - 12px) !important;
+        height: calc(100vh - 12px) !important;
+        height: calc(100dvh - 12px) !important;
+        max-height: calc(100vh - 12px) !important;
+        max-height: calc(100dvh - 12px) !important;
+    }
+
+    body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-table-wrap.table-wrapper {
+        min-height: 150px !important;
+    }
+}
