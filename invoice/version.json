@@ -1,6 +1,6 @@
 {
-  "version": "11.6.8",
+  "version": "11.6.9",
   "releasedAt": "2026-08-01",
-  "title": "WorkDesk Ready Payment Theme Polish",
-  "message": "The WorkDesk Ready for Payment card and list now use the established navy and teal WorkDesk color family, and the desktop Site filter is reduced to a compact width without changing permissions, data, sorting, or payment behavior."
+  "title": "Ready Payment Invoice Value Alignment",
+  "message": "The Invoice Value heading in the WorkDesk Ready for Payment table is now right-aligned directly above its accounting-formatted values. No payment data or behavior is changed."
 }

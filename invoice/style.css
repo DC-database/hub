@@ -33268,3 +33268,10 @@ body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-ta
         max-width: none !important;
     }
 }
+
+/* ========================================================================
+   11.6.9 — Align Invoice Value heading with its amount column
+   ======================================================================== */
+#wd-dashboard .wd-payment-pocket-table thead th:nth-child(5) {
+    text-align: right !important;
+}
