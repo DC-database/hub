@@ -1,6 +1,6 @@
 {
-  "version": "11.6.7",
+  "version": "11.6.8",
   "releasedAt": "2026-08-01",
-  "title": "Payment Pocket Transfer Full Scrolling",
-  "message": "The Prepare Payment Pocket Transfer popup now keeps its controls visible while the complete prepared invoice list scrolls inside one dedicated table area. Prepare Mark as Paid remains unchanged."
+  "title": "WorkDesk Ready Payment Theme Polish",
+  "message": "The WorkDesk Ready for Payment card and list now use the established navy and teal WorkDesk color family, and the desktop Site filter is reduced to a compact width without changing permissions, data, sorting, or payment behavior."
 }

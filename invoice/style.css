@@ -33193,3 +33193,78 @@ body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-ta
         min-height: 150px !important;
     }
 }
+
+/* ========================================================================
+   11.6.8 — Ready for Payment WorkDesk theme alignment + compact Site filter
+   ======================================================================== */
+#wd-dashboard .wd-dashboard-payment-section {
+    border-color: rgba(15, 76, 117, 0.14) !important;
+    background:
+        radial-gradient(circle at 96% 8%, rgba(15, 76, 117, 0.08), transparent 34%),
+        rgba(255, 255, 255, 0.86) !important;
+}
+
+#wd-dashboard .wd-active-status-card.tone-payment::after,
+#wd-dashboard .wd-active-status-card.tone-payment .wd-status-icon {
+    background: linear-gradient(135deg, #003a5c, #0f4c75) !important;
+}
+
+#wd-dashboard .wd-dashboard-payment-grid .wd-payment-pocket-card.active,
+#wd-dashboard .wd-dashboard-payment-grid .wd-payment-pocket-card.active:hover,
+#wd-dashboard .wd-dashboard-payment-grid .wd-payment-pocket-card.active:focus {
+    border-color: rgba(0, 58, 92, 0.48) !important;
+    background: linear-gradient(180deg, #ffffff, #f1f7fb) !important;
+    box-shadow: 0 18px 38px rgba(0, 58, 92, 0.16), 0 0 0 3px rgba(15, 76, 117, 0.10) !important;
+}
+
+#wd-dashboard .wd-payment-pocket-board {
+    border-color: rgba(15, 76, 117, 0.22) !important;
+    box-shadow: 0 18px 38px rgba(0, 58, 92, 0.09) !important;
+}
+
+#wd-dashboard .wd-payment-pocket-board-head {
+    border-bottom: 3px solid #e5b93f !important;
+    background: linear-gradient(135deg, #003a5c 0%, #0f4c75 62%, #176b87 100%) !important;
+}
+
+#wd-dashboard .wd-payment-pocket-tools {
+    border-bottom-color: #d7e3eb !important;
+    background: linear-gradient(180deg, #f8fbfd, #edf4f8) !important;
+}
+
+#wd-dashboard .wd-payment-pocket-tools label {
+    color: #003a5c !important;
+}
+
+#wd-dashboard .wd-payment-pocket-tools select {
+    width: 160px !important;
+    min-width: 160px !important;
+    max-width: 160px !important;
+    border-color: #9bb5c5 !important;
+    color: #0f2742 !important;
+}
+
+#wd-dashboard .wd-payment-pocket-tools select:focus {
+    border-color: #0f4c75 !important;
+    outline-color: rgba(15, 76, 117, 0.14) !important;
+}
+
+#wd-dashboard .wd-payment-pocket-table th {
+    border-bottom-color: #c7d7e2 !important;
+    background: #edf4f8 !important;
+    color: #0f2742 !important;
+}
+
+#wd-dashboard .wd-payment-pocket-status {
+    border-color: #b8d2e2 !important;
+    background: #edf6fb !important;
+    color: #003a5c !important;
+}
+
+@media (max-width: 700px) {
+    #wd-dashboard .wd-payment-pocket-tools select {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+}
