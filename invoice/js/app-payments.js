@@ -1,7 +1,7 @@
 // ============================================================================
-// IBA 11.6.4 — Exact Result Pocket Transfer + Shared WorkDesk Pocket
-// Normal payment searches and the WorkDesk card share the compact With Accounts
-// pocket. Super Admin can safely refresh it from exact Invoice Records results.
+// IBA 11.6.5 — Exact Result Paid Cleanup + Full Payment Scrolling
+// Super Admin can transfer or mark exact filtered Invoice Records results Paid.
+// Paid cleanup preserves With Accounts dates and removes matching pocket rows.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -348,7 +348,7 @@ function paymentSubscribeReadyIndex(listener) {
 function paymentPersistReadyIndexCache() {
     try {
         localStorage.setItem(PAYMENT_READY_CACHE_KEY, JSON.stringify({
-            version: '11.6.4',
+            version: '11.6.5',
             savedAt: Date.now(),
             items: Array.from(paymentReadyIndex.entries())
         }));
@@ -433,7 +433,7 @@ async function paymentEnsureReadyIndexLoaded() {
 function paymentPersistReadyMetaCache() {
     try {
         localStorage.setItem(PAYMENT_READY_META_CACHE_KEY, JSON.stringify({
-            version: '11.6.4',
+            version: '11.6.5',
             savedAt: Date.now(),
             items: Array.from(paymentReadyMeta.entries())
         }));
@@ -564,7 +564,7 @@ function paymentRestoreInvoicePOKeysCache() {
 function paymentPersistInvoicePOKeysCache(keys) {
     try {
         localStorage.setItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY, JSON.stringify({
-            version: '11.6.4',
+            version: '11.6.5',
             savedAt: Date.now(),
             items: Array.from(keys || [])
         }));
@@ -705,6 +705,202 @@ async function paymentTransferFilteredInvoicesToPocket(records, onProgress) {
     };
 }
 
+function paymentPaidDateAfterWithAccounts(value) {
+    const iso = paymentDateISO(value);
+    if (!iso) return '';
+    const [year, month, day] = iso.split('-').map(Number);
+    const next = new Date(Date.UTC(year, month - 1, day + 1));
+    if (next.getUTCDay() === 5) next.setUTCDate(next.getUTCDate() + 1);
+    return paymentISOFromParts(next.getUTCFullYear(), next.getUTCMonth() + 1, next.getUTCDate());
+}
+
+async function paymentReadExactInvoicesInChunks(items, onProgress) {
+    const records = [];
+    const chunkSize = 25;
+    for (let start = 0; start < items.length; start += chunkSize) {
+        const chunk = items.slice(start, start + chunkSize);
+        const resolved = await Promise.all(chunk.map(async item => {
+            const snapshot = await invoiceDb.ref(`invoice_entries/${item.po}/${item.key}`).once('value');
+            return { ...item, currentInvoice: snapshot.val() || null };
+        }));
+        records.push(...resolved);
+        if (typeof onProgress === 'function') {
+            onProgress({ phase: 'validating', processed: records.length, total: items.length });
+        }
+    }
+    return records;
+}
+
+async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
+    if (!paymentIsSuperAdmin()) {
+        throw new Error('Only Irwin/Super Admin can mark filtered Invoice Records as Paid.');
+    }
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+        throw new Error('The Invoice Realtime Database connection is unavailable.');
+    }
+
+    const unique = new Map();
+    (Array.isArray(records) ? records : []).forEach(record => {
+        const po = paymentText(record && (record.po || record.poNumber)).toUpperCase();
+        const key = paymentText(record && (record.key || record.invoiceKey));
+        const invoice = record && record.invoice && typeof record.invoice === 'object'
+            ? record.invoice
+            : record;
+        if (!po || !key || !invoice || typeof invoice !== 'object') {
+            throw new Error('One of the prepared rows has no permanent PO/invoice identity.');
+        }
+        if (paymentNormalize(record && record.source || invoice.source) === 'ecommit') {
+            throw new Error('ECommit-only rows cannot be marked Paid.');
+        }
+        if (paymentNormalize(invoice.status) !== 'with accounts') {
+            throw new Error('Every prepared invoice must have With Accounts status.');
+        }
+        const withAccountsDate = paymentDateISO(
+            paymentText(invoice.withAccountsReleaseDate) || paymentWithAccountsDateValue(invoice)
+        );
+        const paidDate = paymentPaidDateAfterWithAccounts(withAccountsDate);
+        if (!withAccountsDate || !paidDate) {
+            throw new Error('Every prepared invoice must have a valid With Accounts Date.');
+        }
+        if (paidDate > paymentToday()) {
+            throw new Error(`The calculated Paid Date for ${paymentText(invoice.invNumber || invoice.invEntryID || po)} is later than today.`);
+        }
+        unique.set(paymentCartId(po, key), { po, key, invoice, withAccountsDate, paidDate });
+    });
+
+    const prepared = Array.from(unique.values());
+    if (!prepared.length) throw new Error('There are no remaining invoices to mark Paid.');
+
+    const exactRecords = await paymentReadExactInvoicesInChunks(prepared, onProgress);
+    const missing = exactRecords.filter(record => !record.currentInvoice);
+    if (missing.length) {
+        throw new Error(`${missing.length} invoice record(s) could not be found. Nothing was updated.`);
+    }
+
+    const changedStatus = exactRecords.filter(record => paymentNormalize(record.currentInvoice.status) !== 'with accounts');
+    if (changedStatus.length) {
+        throw new Error(`${changedStatus.length} invoice record(s) are no longer With Accounts. Refresh Invoice Records; nothing was updated.`);
+    }
+
+    const changedDates = exactRecords.filter(record => {
+        const currentDate = paymentDateISO(
+            paymentText(record.currentInvoice.withAccountsReleaseDate) || paymentWithAccountsDateValue(record.currentInvoice)
+        );
+        return !currentDate || currentDate !== record.withAccountsDate;
+    });
+    if (changedDates.length) {
+        throw new Error(`${changedDates.length} With Accounts Date value(s) changed after the search. Refresh Invoice Records; nothing was updated.`);
+    }
+
+    const serverTimestamp = (typeof firebase !== 'undefined' && firebase.database)
+        ? firebase.database.ServerValue.TIMESTAMP
+        : Date.now();
+    const updates = {};
+    exactRecords.forEach(record => {
+        const basePath = `invoice_entries/${record.po}/${record.key}`;
+        updates[`${basePath}/status`] = 'Paid';
+        updates[`${basePath}/attention`] = '';
+        updates[`${basePath}/withAccountsReleaseDate`] = record.withAccountsDate;
+        updates[`${basePath}/paidDate`] = record.paidDate;
+        updates[`${basePath}/releaseDate`] = record.paidDate;
+        updates[`${basePath}/statusChangedAt`] = serverTimestamp;
+        updates[`${basePath}/statusQueueAt`] = serverTimestamp;
+        updates[`${basePath}/lastUpdated`] = serverTimestamp;
+        updates[`${basePath}/updatedAt`] = serverTimestamp;
+        updates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(record.po, record.key)}`] = null;
+    });
+
+    if (typeof onProgress === 'function') {
+        onProgress({ phase: 'saving', processed: 0, total: exactRecords.length });
+    }
+    await invoiceDb.ref().update(updates);
+
+    exactRecords.forEach(record => {
+        const localUpdates = {
+            status: 'Paid',
+            attention: '',
+            withAccountsReleaseDate: record.withAccountsDate,
+            paidDate: record.paidDate,
+            releaseDate: record.paidDate,
+            statusChangedAt: Date.now(),
+            statusQueueAt: Date.now(),
+            lastUpdated: Date.now(),
+            updatedAt: Date.now()
+        };
+        record.updatedInvoice = { ...record.currentInvoice, ...localUpdates };
+        if (!allInvoiceData) allInvoiceData = {};
+        if (!allInvoiceData[record.po]) allInvoiceData[record.po] = {};
+        allInvoiceData[record.po][record.key] = { ...record.updatedInvoice, key: record.key };
+        paymentReadyIndex.delete(paymentReadyIndexKey(record.po, record.key));
+    });
+    paymentPersistReadyIndexCache();
+    paymentNotifyReadyIndexSubscribers();
+
+    let syncFailures = 0;
+    const syncChunkSize = 10;
+    for (let start = 0; start < exactRecords.length; start += syncChunkSize) {
+        const chunk = exactRecords.slice(start, start + syncChunkSize);
+        const sideEffects = [];
+        chunk.forEach(record => {
+            if (typeof updateLinkedJobEntry === 'function') {
+                sideEffects.push(Promise.resolve().then(() =>
+                    updateLinkedJobEntry(record.po, record.key, 'Paid', 'Marked Paid from filtered Invoice Records')
+                ));
+            }
+            if (typeof updateInvoiceTaskLookup === 'function') {
+                sideEffects.push(Promise.resolve().then(() =>
+                    updateInvoiceTaskLookup(
+                        record.po,
+                        record.key,
+                        record.updatedInvoice,
+                        record.currentInvoice.attention,
+                        { skipPaymentReadySync: true }
+                    )
+                ));
+            }
+            if (window.logInvoiceHistory) {
+                sideEffects.push(Promise.resolve().then(() =>
+                    window.logInvoiceHistory(
+                        record.po,
+                        record.key,
+                        'Paid',
+                        `Marked Paid from Invoice Records. With Accounts: ${record.withAccountsDate}; Paid: ${record.paidDate}`
+                    )
+                ));
+            }
+            try {
+                if (typeof logRecentUpdate === 'function') logRecentUpdate(record.po);
+            } catch (_) {}
+        });
+        const settled = await Promise.allSettled(sideEffects);
+        syncFailures += settled.filter(result => result.status === 'rejected').length;
+        if (typeof onProgress === 'function') {
+            onProgress({
+                phase: 'syncing',
+                processed: Math.min(start + chunk.length, exactRecords.length),
+                total: exactRecords.length
+            });
+        }
+    }
+
+    try {
+        allSystemEntries = [];
+        if (typeof cacheTimestamps !== 'undefined' && cacheTimestamps) cacheTimestamps.systemEntries = 0;
+    } catch (_) {}
+
+    return {
+        total: exactRecords.length,
+        pocketRemoved: exactRecords.length,
+        syncFailures,
+        records: exactRecords.map(record => ({
+            po: record.po,
+            key: record.key,
+            withAccountsDate: record.withAccountsDate,
+            paidDate: record.paidDate
+        }))
+    };
+}
+
 async function removeInvoicePaymentReadyIndex(poNumber, invoiceKey) {
     const po = paymentText(poNumber).toUpperCase();
     const key = paymentText(invoiceKey);
@@ -745,7 +941,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.6.4',
+            version: '11.6.5',
             savedAt: Date.now(),
             items
         }));
@@ -1863,6 +2059,8 @@ window.ibaPaymentPocket = {
     getItems: paymentReadyItemsSnapshot,
     subscribe: paymentSubscribeReadyIndex,
     transferFilteredInvoices: paymentTransferFilteredInvoicesToPocket,
+    markFilteredInvoicesPaid: paymentMarkFilteredInvoicesPaid,
+    calculatePaidDate: paymentPaidDateAfterWithAccounts,
     displayDate: paymentDisplayDate,
     isSuperAdmin: paymentIsSuperAdmin
 };

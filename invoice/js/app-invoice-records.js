@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-invoice-records.js
    Invoice Management reporting / records renderer.
-   Version: 11.6.4
+   Version: 11.6.5
 
    Cleanup Phase:
    - Moved the Invoice Reporting / Invoice Records display renderer out of app.js.
@@ -309,16 +309,264 @@ async function imConfirmPocketTransfer() {
     }
 }
 
+let imMarkPaidSourceItems = [];
+let imMarkPaidExcludedIds = new Set();
+let imMarkPaidCompleted = false;
+
+function imMarkPaidWithAccountsDate(item) {
+    const invoice = item && item.invoice ? item.invoice : (item || {});
+    const raw = imPocketTransferText(invoice.withAccountsReleaseDate || invoice.releaseDate);
+    if (window.ibaPaymentTools && typeof window.ibaPaymentTools.dateISO === 'function') {
+        return window.ibaPaymentTools.dateISO(raw);
+    }
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : '';
+}
+
+function imMarkPaidCalculatedDate(item) {
+    const withAccountsDate = imMarkPaidWithAccountsDate(item);
+    if (!withAccountsDate || !window.ibaPaymentPocket || typeof window.ibaPaymentPocket.calculatePaidDate !== 'function') return '';
+    return window.ibaPaymentPocket.calculatePaidDate(withAccountsDate);
+}
+
+function imMarkPaidToday() {
+    if (typeof getTodayDateString === 'function') return getTodayDateString();
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function imMarkPaidValidation(items = imPocketTransferCurrentResultItems()) {
+    const base = imPocketTransferValidation(items);
+    if (!base.valid) return base;
+    if (!window.ibaPaymentPocket || typeof window.ibaPaymentPocket.calculatePaidDate !== 'function') {
+        return { valid: false, message: 'The payment date service is unavailable. Refresh the system and try again.' };
+    }
+    const missingDate = items.find(item => !imMarkPaidWithAccountsDate(item) || !imMarkPaidCalculatedDate(item));
+    if (missingDate) {
+        return { valid: false, message: 'Every filtered invoice must have a valid With Accounts Date before it can be marked Paid.' };
+    }
+    const futureDate = items.find(item => imMarkPaidCalculatedDate(item) > imMarkPaidToday());
+    if (futureDate) {
+        const invoice = futureDate.invoice || {};
+        return {
+            valid: false,
+            message: `The calculated Paid Date for ${invoice.invNumber || invoice.invEntryID || futureDate.po} is later than today.`
+        };
+    }
+    return { valid: true, message: '' };
+}
+
+function imUpdateMarkPaidButtonState() {
+    const button = document.getElementById('im-prepare-mark-paid-btn');
+    if (!button) return;
+    const isSuperAdmin = imPocketTransferIsSuperAdmin();
+    button.classList.toggle('hidden', !isSuperAdmin);
+    if (!isSuperAdmin) return;
+
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imMarkPaidValidation(items);
+    button.disabled = !validation.valid;
+    button.title = validation.valid
+        ? `Prepare exactly ${items.length} filtered With Accounts invoice(s) to be marked Paid.`
+        : validation.message;
+    const label = button.querySelector('span');
+    if (label) label.textContent = validation.valid
+        ? `Prepare Mark as Paid (${items.length})`
+        : 'Prepare Mark as Paid';
+}
+
+function imUpdateFilteredResultActionStates() {
+    imUpdatePocketTransferButtonState();
+    imUpdateMarkPaidButtonState();
+}
+
+function imMarkPaidRemainingItems() {
+    return imMarkPaidSourceItems.filter(item => !imMarkPaidExcludedIds.has(item.id));
+}
+
+function imMarkPaidSetStatus(message, tone = '') {
+    const status = document.getElementById('im-mark-paid-status');
+    if (!status) return;
+    status.className = `im-pocket-transfer-status${tone ? ` is-${tone}` : ''}`;
+    status.textContent = message || '';
+}
+
+function imRenderMarkPaidList() {
+    const body = document.getElementById('im-mark-paid-table-body');
+    const originalCount = document.getElementById('im-mark-paid-original-count');
+    const excludedCount = document.getElementById('im-mark-paid-excluded-count');
+    const remainingCount = document.getElementById('im-mark-paid-remaining-count');
+    const totalDisplay = document.getElementById('im-mark-paid-total');
+    const confirmButton = document.getElementById('im-mark-paid-confirm-btn');
+    const resetButton = document.getElementById('im-mark-paid-reset-btn');
+    if (!body) return;
+
+    const remaining = imMarkPaidRemainingItems();
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    if (originalCount) originalCount.textContent = String(imMarkPaidSourceItems.length);
+    if (excludedCount) excludedCount.textContent = String(imMarkPaidExcludedIds.size);
+    if (remainingCount) remainingCount.textContent = String(remaining.length);
+    if (totalDisplay) totalDisplay.textContent = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (confirmButton) confirmButton.disabled = !remaining.length || imMarkPaidCompleted;
+    if (resetButton) resetButton.disabled = !imMarkPaidExcludedIds.size || imMarkPaidCompleted;
+
+    if (!remaining.length) {
+        body.innerHTML = '<tr><td colspan="8" class="im-pocket-transfer-empty">All prepared invoices are excluded. Use Reset List to restore them.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = remaining.map(item => {
+        const invoice = item.invoice || {};
+        const amount = imPocketTransferAmount(invoice);
+        const amountText = typeof formatCurrency === 'function'
+            ? formatCurrency(amount)
+            : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const withAccountsDate = imMarkPaidWithAccountsDate(item);
+        const paidDate = imMarkPaidCalculatedDate(item);
+        return `
+            <tr>
+                <td>${imPocketTransferSafe(invoice.invNumber || invoice.invoiceNo || invoice.invEntryID || 'N/A')}</td>
+                <td>${imPocketTransferSafe(item.po)}</td>
+                <td>${imPocketTransferSafe(invoice.vendorName || 'N/A')}</td>
+                <td>${imPocketTransferSafe(invoice.site || 'N/A')}</td>
+                <td class="right-align">${imPocketTransferSafe(amountText)}</td>
+                <td>${imPocketTransferSafe(formatToDDMMMYY(withAccountsDate))}</td>
+                <td><strong>${imPocketTransferSafe(formatToDDMMMYY(paidDate))}</strong></td>
+                <td><button type="button" class="im-pocket-transfer-remove im-mark-paid-remove" data-mark-paid-id="${imPocketTransferSafe(encodeURIComponent(item.id))}" title="Exclude from this Mark as Paid action only" aria-label="Exclude ${imPocketTransferSafe(invoice.invNumber || item.po)}"><i class="fa-solid fa-xmark"></i></button></td>
+            </tr>`;
+    }).join('');
+}
+
+function imOpenMarkPaidModal() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can mark filtered Invoice Records as Paid.');
+        return;
+    }
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imMarkPaidValidation(items);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+
+    imMarkPaidSourceItems = items;
+    imMarkPaidExcludedIds = new Set();
+    imMarkPaidCompleted = false;
+    const confirmButton = document.getElementById('im-mark-paid-confirm-btn');
+    if (confirmButton) confirmButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Mark Remaining as Paid';
+    imMarkPaidSetStatus('Remove anything that should remain With Accounts, then confirm the remaining list.');
+    imRenderMarkPaidList();
+    document.getElementById('im-mark-paid-modal')?.classList.remove('hidden');
+}
+
+function imCloseMarkPaidModal() {
+    document.getElementById('im-mark-paid-modal')?.classList.add('hidden');
+}
+
+async function imConfirmMarkPaid() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can mark filtered Invoice Records as Paid.');
+        return;
+    }
+    const remaining = imMarkPaidRemainingItems();
+    if (!remaining.length) {
+        alert('There are no remaining invoices to mark Paid.');
+        return;
+    }
+    const validation = imMarkPaidValidation(remaining);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+    if (!window.ibaPaymentPocket || typeof window.ibaPaymentPocket.markFilteredInvoicesPaid !== 'function') {
+        alert('The filtered Mark as Paid service is unavailable. Refresh the system and try again.');
+        return;
+    }
+
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    const totalText = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const confirmed = confirm(
+        `Mark exactly ${remaining.length} remaining invoice(s) as Paid?\n\n` +
+        `Excluded: ${imMarkPaidExcludedIds.size}\n` +
+        `Remaining Total: ${totalText}\n\n` +
+        'Paid Date will be the day after the original With Accounts Date. If that day is Friday, it will move to Saturday. This will also remove matching payment-pocket rows.'
+    );
+    if (!confirmed) return;
+
+    const confirmButton = document.getElementById('im-mark-paid-confirm-btn');
+    const resetButton = document.getElementById('im-mark-paid-reset-btn');
+    if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Validating…';
+    }
+    if (resetButton) resetButton.disabled = true;
+    document.querySelectorAll('#im-mark-paid-table-body .im-mark-paid-remove').forEach(button => {
+        button.disabled = true;
+    });
+
+    try {
+        const result = await window.ibaPaymentPocket.markFilteredInvoicesPaid(remaining, progress => {
+            const phaseLabel = progress.phase === 'saving'
+                ? 'Saving the Paid status'
+                : (progress.phase === 'syncing' ? 'Synchronizing linked records' : 'Validating current invoices');
+            imMarkPaidSetStatus(`${phaseLabel}: ${progress.processed} of ${progress.total}…`, 'working');
+            if (confirmButton) confirmButton.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${phaseLabel}…`;
+        });
+        imMarkPaidCompleted = true;
+        const warning = result.syncFailures
+            ? ` Core invoice updates are complete; ${result.syncFailures} linked background operation(s) reported a warning.`
+            : '';
+        imMarkPaidSetStatus(
+            `${result.total} invoice(s) marked Paid successfully and removed from the payment pocket.${warning}`,
+            result.syncFailures ? 'working' : 'success'
+        );
+        if (confirmButton) confirmButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Mark as Paid Completed';
+
+        try {
+            const currentSearch = document.getElementById('im-reporting-search')?.value || '';
+            await populateInvoiceReporting(currentSearch, { silent: true });
+        } catch (refreshError) {
+            console.warn('Invoice Records could not refresh after filtered Mark as Paid:', refreshError);
+            imUpdateFilteredResultActionStates();
+        }
+    } catch (error) {
+        console.error('Filtered Invoice Records Mark as Paid failed:', error);
+        imMarkPaidSetStatus(error.message || 'The invoices could not be marked Paid.', 'error');
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Retry Mark as Paid';
+        }
+        if (resetButton) resetButton.disabled = !imMarkPaidExcludedIds.size;
+        document.querySelectorAll('#im-mark-paid-table-body .im-mark-paid-remove').forEach(button => {
+            button.disabled = false;
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const prepareButton = document.getElementById('im-prepare-pocket-transfer-btn');
+    const markPaidPrepareButton = document.getElementById('im-prepare-mark-paid-btn');
     const transferBody = document.getElementById('im-pocket-transfer-table-body');
+    const markPaidBody = document.getElementById('im-mark-paid-table-body');
     const resetButton = document.getElementById('im-pocket-transfer-reset-btn');
+    const markPaidResetButton = document.getElementById('im-mark-paid-reset-btn');
     const confirmButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    const markPaidConfirmButton = document.getElementById('im-mark-paid-confirm-btn');
     const clearButton = document.getElementById('im-reporting-clear-button');
 
     if (prepareButton && !prepareButton.dataset.pocketTransferBound) {
         prepareButton.dataset.pocketTransferBound = '1';
         prepareButton.addEventListener('click', imOpenPocketTransferModal);
+    }
+    if (markPaidPrepareButton && !markPaidPrepareButton.dataset.markPaidBound) {
+        markPaidPrepareButton.dataset.markPaidBound = '1';
+        markPaidPrepareButton.addEventListener('click', imOpenMarkPaidModal);
     }
     if (transferBody && !transferBody.dataset.pocketTransferBound) {
         transferBody.dataset.pocketTransferBound = '1';
@@ -333,6 +581,19 @@ document.addEventListener('DOMContentLoaded', () => {
             imRenderPocketTransferList();
         });
     }
+    if (markPaidBody && !markPaidBody.dataset.markPaidBound) {
+        markPaidBody.dataset.markPaidBound = '1';
+        markPaidBody.addEventListener('click', event => {
+            const removeButton = event.target.closest('.im-mark-paid-remove');
+            if (!removeButton || removeButton.disabled || imMarkPaidCompleted) return;
+            let itemId = '';
+            try { itemId = decodeURIComponent(removeButton.dataset.markPaidId || ''); } catch (_) {}
+            if (!itemId) return;
+            imMarkPaidExcludedIds.add(itemId);
+            imMarkPaidSetStatus('List updated. The excluded invoice will remain With Accounts.');
+            imRenderMarkPaidList();
+        });
+    }
     if (resetButton && !resetButton.dataset.pocketTransferBound) {
         resetButton.dataset.pocketTransferBound = '1';
         resetButton.addEventListener('click', () => {
@@ -342,20 +603,38 @@ document.addEventListener('DOMContentLoaded', () => {
             imRenderPocketTransferList();
         });
     }
+    if (markPaidResetButton && !markPaidResetButton.dataset.markPaidBound) {
+        markPaidResetButton.dataset.markPaidBound = '1';
+        markPaidResetButton.addEventListener('click', () => {
+            if (imMarkPaidCompleted) return;
+            imMarkPaidExcludedIds = new Set();
+            imMarkPaidSetStatus('All originally prepared Invoice Records rows have been restored.');
+            imRenderMarkPaidList();
+        });
+    }
     if (confirmButton && !confirmButton.dataset.pocketTransferBound) {
         confirmButton.dataset.pocketTransferBound = '1';
         confirmButton.addEventListener('click', imConfirmPocketTransfer);
+    }
+    if (markPaidConfirmButton && !markPaidConfirmButton.dataset.markPaidBound) {
+        markPaidConfirmButton.dataset.markPaidBound = '1';
+        markPaidConfirmButton.addEventListener('click', imConfirmMarkPaid);
     }
     document.querySelectorAll('#im-pocket-transfer-modal .modal-close-btn').forEach(button => {
         if (button.dataset.pocketTransferBound) return;
         button.dataset.pocketTransferBound = '1';
         button.addEventListener('click', imClosePocketTransferModal);
     });
+    document.querySelectorAll('#im-mark-paid-modal .modal-close-btn').forEach(button => {
+        if (button.dataset.markPaidBound) return;
+        button.dataset.markPaidBound = '1';
+        button.addEventListener('click', imCloseMarkPaidModal);
+    });
     if (clearButton && !clearButton.dataset.pocketTransferStateBound) {
         clearButton.dataset.pocketTransferStateBound = '1';
-        clearButton.addEventListener('click', () => setTimeout(imUpdatePocketTransferButtonState, 0));
+        clearButton.addEventListener('click', () => setTimeout(imUpdateFilteredResultActionStates, 0));
     }
-    imUpdatePocketTransferButtonState();
+    imUpdateFilteredResultActionStates();
 });
 
 
@@ -505,7 +784,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const canPrintSticker = isAdmin && canAccessInvoiceRecords;
 
     currentReportData = [];
-    imUpdatePocketTransferButtonState();
+    imUpdateFilteredResultActionStates();
 
     if (!canAccessInvoiceRecords) {
         if (contentArea) contentArea.innerHTML = '<div class="loading-state">Access denied. Invoice Records is Admin only.</div>';
@@ -658,7 +937,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
         processedPOData.sort((a, b) => a.balance - b.balance);
         currentReportData = processedPOData;
-        imUpdatePocketTransferButtonState();
+        imUpdateFilteredResultActionStates();
 
         if (document.getElementById('reporting-count-display')) {
             document.getElementById('reporting-count-display').textContent = `(Found: ${currentReportData.length})`;
