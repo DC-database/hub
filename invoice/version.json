@@ -1,6 +1,6 @@
 {
-  "version": "11.6.9",
+  "version": "11.7.0",
   "releasedAt": "2026-08-01",
-  "title": "Ready Payment Invoice Value Alignment",
-  "message": "The Invoice Value heading in the WorkDesk Ready for Payment table is now right-aligned directly above its accounting-formatted values. No payment data or behavior is changed."
+  "title": "History Scrolling and Ready Payment Period Filters",
+  "message": "Invoice History now keeps its header and Close controls visible while the timeline scrolls. Ready for Payment now provides pocket-only Year and dynamic Month filters, combines them with Site and search, and automatically brings filtered results into view."
 }
