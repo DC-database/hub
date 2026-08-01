@@ -1,6 +1,6 @@
 {
-  "version": "11.6.2",
+  "version": "11.6.3",
   "releasedAt": "2026-08-01",
-  "title": "Mobile Desktop Site Routing",
-  "message": "Invoice Management now opens its full desktop interface when Chrome Desktop Site is requested, while ordinary mobile and rotated-phone sessions keep the existing mobile Invoice and Active Task experience."
+  "title": "Pocket-Only Payments and Historical Paid Dates",
+  "message": "Payments now use the compact With Accounts pocket by default, arrange newest release dates first, preserve With Accounts dates, support per-invoice Paid Dates, and restrict targeted legacy archive recovery to Super Admin."
 }

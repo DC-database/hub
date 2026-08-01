@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.6.1">
+    <link rel="stylesheet" href="style.css?v=11.6.3">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -2021,7 +2021,8 @@
                                     <th>PO No.</th>
                                     <th>Company</th>
                                     <th>Amount Paid</th>
-                                    <th>Release Date</th>
+                                    <th>With Accounts Date</th>
+                                    <th>Paid Date</th>
                                     <th>Status</th>
                                     <th aria-label="Remove"></th>
                                 </tr>
@@ -2390,12 +2391,18 @@
         <div class="modal-container im-payment-search-modal">
             <div class="modal-header"><h2>Find With Accounts Invoices</h2><button class="modal-close-btn">&times;</button></div>
             <div class="modal-content">
-                <p>Enter any part of a company name, such as Khalifa, to load its With Accounts invoices across every matching PO. You may also search by PO or invoice number.</p>
+                <p>Leave the search box empty to show every invoice in the current With Accounts pocket, or enter part of a company name, a PO, or an invoice number.</p>
+                <div id="im-payment-legacy-controls" class="im-payment-legacy-controls hidden">
+                    <label for="im-payment-legacy-toggle">
+                        <input type="checkbox" id="im-payment-legacy-toggle">
+                        <span><strong>Legacy Archive Search</strong><small>Super Admin only — performs targeted Realtime Database recovery.</small></span>
+                    </label>
+                </div>
                 <div class="search-and-filter-group im-payment-search-row">
                     <input type="text" id="im-payment-modal-po-input" placeholder="Search company name, PO, or invoice number..." autocomplete="off">
                     <button id="im-payment-modal-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
                 </div>
-                <div id="im-payment-modal-results" class="table-wrapper im-payment-search-results"><p>Enter a PO number, invoice number, or company to begin.</p></div>
+                <div id="im-payment-modal-results" class="table-wrapper im-payment-search-results"><p>Press Search with the box empty to show every current With Accounts invoice.</p></div>
             </div>
             <div class="modal-footer im-payment-search-footer">
                 <div class="im-payment-selected-total">
@@ -3314,7 +3321,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.6.2"></script>
+    <script src="app.js?v=11.6.3"></script>
     <script src="js/app-time-clock.js?v=11.5.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.6.0"></script>
@@ -3323,7 +3330,7 @@
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
     <script src="js/app-invoice-dashboard.js?v=11.5.3"></script>
-    <script src="js/app-payments.js?v=11.5.9-corrected"></script>
+    <script src="js/app-payments.js?v=11.6.3"></script>
     <script src="js/app-invoice-records.js?v=11.6.0"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.4.0"></script>
@@ -3340,10 +3347,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.6.2';
+      window.IBA_SYSTEM_VERSION = '11.6.3';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.6.2"></script>
+    <script src="js/app-version-checker.js?v=11.6.3"></script>
 
     </body>
 </html>

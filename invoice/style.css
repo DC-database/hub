@@ -107,6 +107,7 @@ body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-c
 }
 
 body #im-add-payment-modal > .modal-container.im-payment-search-modal > .modal-content > p,
+body #im-add-payment-modal > .modal-container.im-payment-search-modal .im-payment-legacy-controls,
 body #im-add-payment-modal > .modal-container.im-payment-search-modal .im-payment-search-row {
     flex: 0 0 auto !important;
 }
@@ -225,16 +226,17 @@ body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th
 }
 
 #im-payments #im-payments-table {
-    min-width: 950px;
+    min-width: 1180px;
 }
 
-#im-payments #im-payments-table th:nth-child(1) { width: 14%; }
-#im-payments #im-payments-table th:nth-child(2) { width: 12%; }
-#im-payments #im-payments-table th:nth-child(3) { width: 25%; }
-#im-payments #im-payments-table th:nth-child(4) { width: 15%; text-align: right; }
-#im-payments #im-payments-table th:nth-child(5) { width: 16%; }
+#im-payments #im-payments-table th:nth-child(1) { width: 12%; }
+#im-payments #im-payments-table th:nth-child(2) { width: 9%; }
+#im-payments #im-payments-table th:nth-child(3) { width: 20%; }
+#im-payments #im-payments-table th:nth-child(4) { width: 13%; text-align: right; }
+#im-payments #im-payments-table th:nth-child(5) { width: 14%; }
 #im-payments #im-payments-table th:nth-child(6) { width: 13%; }
-#im-payments #im-payments-table th:nth-child(7) { width: 5%; }
+#im-payments #im-payments-table th:nth-child(7) { width: 11%; }
+#im-payments #im-payments-table th:nth-child(8) { width: 5%; }
 
 #im-payments #im-payments-table td:nth-child(1),
 #im-payments #im-payments-table td:nth-child(2) {
@@ -264,7 +266,7 @@ body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th
     font-variant-numeric: tabular-nums;
 }
 
-#im-payments .im-payment-auto-date {
+#im-payments .im-payment-with-accounts-date {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -272,6 +274,32 @@ body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th
     font-size: .8rem;
     font-weight: 850;
     white-space: nowrap;
+}
+
+#im-payments .im-payment-with-accounts-date.is-missing {
+    color: #9a6700;
+}
+
+#im-payments .im-payment-paid-date-input {
+    width: 142px;
+    max-width: 100%;
+    min-height: 40px;
+    padding: 7px 9px;
+    border: 1px solid #8ec5b3 !important;
+    border-radius: 10px;
+    color: #0b4b35;
+    background: #f0fdf7 !important;
+    font-size: .8rem;
+    font-weight: 850;
+    font-variant-numeric: tabular-nums;
+}
+
+#im-payments .im-payment-paid-date-input:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+    color: #52606b;
+    background: #edf2f4 !important;
+    border-color: #cbd5e1 !important;
 }
 
 #im-payments .im-payment-status-badge {
@@ -365,6 +393,51 @@ body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th
 #im-add-payment-modal .im-payment-search-row input {
     width: 100%;
     min-height: 46px;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls {
+    margin: 12px 0 0;
+    padding: 11px 13px;
+    border: 1px solid #e9c46a;
+    border-radius: 14px;
+    color: #6f4d00;
+    background: #fff9e8;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls.hidden {
+    display: none !important;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls input {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: #a46a00;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls span,
+#im-add-payment-modal .im-payment-legacy-controls strong,
+#im-add-payment-modal .im-payment-legacy-controls small {
+    display: block;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls strong {
+    font-size: .82rem;
+}
+
+#im-add-payment-modal .im-payment-legacy-controls small {
+    margin-top: 2px;
+    color: #8a650f;
+    font-size: .72rem;
+    line-height: 1.35;
 }
 
 #im-add-payment-modal .im-payment-search-results {
@@ -464,6 +537,38 @@ body #im-add-payment-modal #im-payment-modal-results .im-payment-result-table th
 
 #im-add-payment-modal .im-payment-result-table tbody tr:hover {
     background: #eef8fb;
+}
+
+#im-add-payment-modal .im-payment-result-table tbody tr.im-payment-date-group,
+#im-add-payment-modal .im-payment-result-table tbody tr.im-payment-date-group:hover {
+    cursor: default;
+    background: #dff3eb;
+}
+
+#im-add-payment-modal .im-payment-result-table tbody tr.im-payment-date-group.is-missing,
+#im-add-payment-modal .im-payment-result-table tbody tr.im-payment-date-group.is-missing:hover {
+    background: #fff4d6;
+}
+
+#im-add-payment-modal .im-payment-result-table .im-payment-date-group td {
+    width: auto !important;
+    padding: 8px 12px;
+    border-top: 2px solid #b8dfd0;
+    border-bottom: 1px solid #b8dfd0;
+    color: #0b5d43;
+    text-align: left !important;
+    font-size: .76rem;
+    font-weight: 750;
+    letter-spacing: .015em;
+}
+
+#im-add-payment-modal .im-payment-result-table .im-payment-date-group.is-missing td {
+    border-color: #edd58d;
+    color: #7a5700;
+}
+
+#im-add-payment-modal .im-payment-result-table .im-payment-date-group i {
+    margin-right: 6px;
 }
 
 #im-add-payment-modal .im-payment-result-table th:first-child,
