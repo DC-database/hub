@@ -262,10 +262,7 @@ body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation
     .print-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 30px; font-size: 9px; table-layout: fixed; border: 3px solid #003A5C !important; border-radius: 8px; overflow: hidden; }
     .print-table th, .print-table td { padding: 8px 6px; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
     .print-table th { background-color: #f8fafc !important; color: #003A5C !important; font-weight: 800; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #003A5C !important; }
-    
-    /* Removed the !important text color block here so inline JS styles can work! */
     .print-table td { border-bottom: 1px solid #e2e8f0 !important; }
-    
     .print-table tr:nth-child(even) td { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .print-table tr:last-child td { border-bottom: none; }
     .print-table td.num { text-align: right; }
@@ -290,4 +287,63 @@ body.theme-off::before, body.theme-off::after { opacity: 0 !important; animation
     .print-project-table td { padding: 6px; border: 1px solid #cbd5e1 !important; color: #1e293b !important; word-wrap: break-word; overflow-wrap: break-word; }
     .print-project-table tr:nth-child(even) td { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .print-project-table th.num, .print-project-table td.num { text-align: right; }
+}
+
+/* ========================================================= */
+/* NEW: Simple checkbox for "Filter by Latest SRV Date Only"*/
+/* ========================================================= */
+.filter-group label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0 6px 0 0;
+    cursor: pointer;
+    accent-color: #38bdf8;
+    vertical-align: middle;
+}
+
+.filter-group label {
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #cbd5e1;
+    background: transparent !important;
+    padding: 0;
+    border: none;
+    cursor: default;
+}
+
+.filter-group label:hover {
+    background: transparent !important;
+    border: none;
+}
+
+/* Improve filters row layout – avoid overlap */
+.filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+}
+
+.filter-group {
+    flex: 1 1 auto;
+    min-width: 120px;
+}
+
+/* Align checkbox group to the right, prevent stretching */
+.filter-group:has(input[type="checkbox"]) {
+    flex: 0 0 auto;
+    margin-left: auto;
+    align-self: center;
+}
+
+/* On smaller screens, let checkbox wrap to new line */
+@media (max-width: 1200px) {
+    .filter-group:has(input[type="checkbox"]) {
+        flex-basis: 100%;
+        margin-left: 0;
+        justify-content: flex-start;
+        margin-top: 8px;
+    }
 }

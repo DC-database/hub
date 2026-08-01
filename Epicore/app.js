@@ -626,6 +626,9 @@ function applyFilters() {
     
     const filterInvoicedEl = document.getElementById("filterInvoiced");
     const selectedInvoiced = filterInvoicedEl ? filterInvoicedEl.value : "";
+    
+    // NEW: get the checkbox state
+    const filterLatestSrvOnly = document.getElementById("filterLatestSrvOnly")?.checked || false;
 
     const selectedSiteCheckboxes = Array.from(document.querySelectorAll(".site-checkbox:checked")).map(cb => cb.value);
     const totalSitesAvailable = document.querySelectorAll(".site-checkbox").length;
@@ -639,58 +642,96 @@ function applyFilters() {
 
         if (isSiteFilterActive && !selectedSiteCheckboxes.includes(site.trim())) return false;
 
-        const relatedCommits = getSrvRecordsForPO(poNumber);
+        const allCommitsForPO = getSrvRecordsForPO(poNumber); // ALL SRVs (including fallback)
         let validCommits = [];
 
-        let poDatePasses = true;
-        if (selectedMonth !== "" && row._month !== selectedMonth) poDatePasses = false;
-        if (selectedYearFrom !== "" && (!row._year || parseInt(row._year) < parseInt(selectedYearFrom))) poDatePasses = false;
-        if (selectedYearTo !== "" && (!row._year || parseInt(row._year) > parseInt(selectedYearTo))) poDatePasses = false;
-
-        let hasMatchingSrvDate = false;
-        relatedCommits.forEach(commit => {
-            let srvDatePasses = true;
-            let srvMonth = ""; let srvYear = "";
-            if (commit['Date'] && commit['Date'] !== '-') {
-                const d = new Date(commit['Date']);
-                if (!isNaN(d)) {
-                    srvMonth = d.getMonth().toString();
-                    srvYear = d.getFullYear().toString();
+        // ------------------------------------------------------------------
+        // NEW LOGIC: Filter by "any SRV outside year range" (strict)
+        // ------------------------------------------------------------------
+        if (filterLatestSrvOnly && (selectedYearFrom !== "" || selectedYearTo !== "")) {
+            let hasOutOfRangeSrv = false;
+            
+            for (let commit of allCommitsForPO) {
+                const d = commit['Date'];
+                if (d && d !== '-') {
+                    const dateObj = new Date(d);
+                    if (!isNaN(dateObj)) {
+                        const srvYear = dateObj.getFullYear();
+                        // If To Year is set and this SRV year is greater than To Year -> exclude PO
+                        if (selectedYearTo !== "" && srvYear > parseInt(selectedYearTo)) {
+                            hasOutOfRangeSrv = true;
+                            break;
+                        }
+                        // If From Year is set and this SRV year is less than From Year -> exclude PO (optional)
+                        if (selectedYearFrom !== "" && srvYear < parseInt(selectedYearFrom)) {
+                            hasOutOfRangeSrv = true;
+                            break;
+                        }
+                    }
                 }
             }
+            // If any out-of-range SRV found, exclude this PO entirely
+            if (hasOutOfRangeSrv) return false;
+            
+            // If we reach here, all SRVs are within the range (or no SRVs).
+            // Set filteredCommits to all commits (or empty) for later use.
+            row._filteredCommits = allCommitsForPO;
+        } 
+        // ------------------------------------------------------------------
+        // ORIGINAL LOGIC (when checkbox is OFF or no year range selected)
+        // ------------------------------------------------------------------
+        else {
+            let poDatePasses = true;
+            if (selectedMonth !== "" && row._month !== selectedMonth) poDatePasses = false;
+            if (selectedYearFrom !== "" && (!row._year || parseInt(row._year) < parseInt(selectedYearFrom))) poDatePasses = false;
+            if (selectedYearTo !== "" && (!row._year || parseInt(row._year) > parseInt(selectedYearTo))) poDatePasses = false;
 
-            if (selectedMonth !== "" && srvMonth !== selectedMonth) srvDatePasses = false;
-            if (selectedYearFrom !== "" && (srvYear === "" || parseInt(srvYear) < parseInt(selectedYearFrom))) srvDatePasses = false;
-            if (selectedYearTo !== "" && (srvYear === "" || parseInt(srvYear) > parseInt(selectedYearTo))) srvDatePasses = false;
+            let hasMatchingSrvDate = false;
+            allCommitsForPO.forEach(commit => {
+                let srvDatePasses = true;
+                let srvMonth = "", srvYear = "";
+                if (commit['Date'] && commit['Date'] !== '-') {
+                    const d = new Date(commit['Date']);
+                    if (!isNaN(d)) {
+                        srvMonth = d.getMonth().toString();
+                        srvYear = d.getFullYear().toString();
+                    }
+                }
 
-            if (srvDatePasses) {
-                hasMatchingSrvDate = true;
-                validCommits.push(commit); 
+                if (selectedMonth !== "" && srvMonth !== selectedMonth) srvDatePasses = false;
+                if (selectedYearFrom !== "" && (srvYear === "" || parseInt(srvYear) < parseInt(selectedYearFrom))) srvDatePasses = false;
+                if (selectedYearTo !== "" && (srvYear === "" || parseInt(srvYear) > parseInt(selectedYearTo))) srvDatePasses = false;
+
+                if (srvDatePasses) {
+                    hasMatchingSrvDate = true;
+                    validCommits.push(commit);
+                }
+            });
+
+            if (isDateFilterActive && !poDatePasses && !hasMatchingSrvDate) {
+                return false;
             }
-        });
-
-        if (isDateFilterActive && !poDatePasses && !hasMatchingSrvDate) {
-            return false;
+            row._filteredCommits = isDateFilterActive ? validCommits : allCommitsForPO;
         }
 
-        row._filteredCommits = isDateFilterActive ? validCommits : relatedCommits;
-
+        // ------------------------------------------------------------------
+        // COMMON FILTERS (Status, Balance, Invoiced, Retention, Search)
+        // ------------------------------------------------------------------
         const openColumnVal = (row['Open'] || '').toString().toLowerCase().trim();
         const isClosed = (openColumnVal === 'false');
         if (selectedStatus === 'open' && isClosed) return false;
         if (selectedStatus === 'closed' && !isClosed) return false;
 
-        // Invoiced filter using the new combined status
-if (selectedInvoiced !== "") {
-    const invStatus = getPOInvoicedStatus(poNumber, row._filteredCommits, isClosed);
-    let statusKey = "";
-    if (invStatus === "Cleared") statusKey = "cleared";
-    else if (invStatus === "Pending") statusKey = "pending";
-    else if (invStatus === "Under process") statusKey = "under_process";
-    else if (invStatus === "No SRV") statusKey = "no_srv";
-
-    if (selectedInvoiced !== statusKey) return false;
-}
+        // Invoiced filter
+        if (selectedInvoiced !== "") {
+            const invStatus = getPOInvoicedStatus(poNumber, row._filteredCommits, isClosed);
+            let statusKey = "";
+            if (invStatus === "Cleared") statusKey = "cleared";
+            else if (invStatus === "Pending") statusKey = "pending";
+            else if (invStatus === "Under process") statusKey = "under_process";
+            else if (invStatus === "No SRV") statusKey = "no_srv";
+            if (selectedInvoiced !== statusKey) return false;
+        }
 
         if (selectedBalance !== "" || selectedSrv !== "" || selectedRetention !== "" || selectedMinBalance !== "") {
             let poSrvAmt = 0;
@@ -719,32 +760,23 @@ if (selectedInvoiced !== "") {
                 if (selectedBalance === 'value' && isZeroBalance) return false; 
             }
 
-            // ==============================================
-            // CORRECTED RETENTION FILTER LOGIC
-            // ==============================================
             if (selectedRetention !== "") {
                 const poRetAmt = retentionByPO[poNumber] || 0;
                 const hasRetention = Math.abs(poRetAmt) > 0.01;
                 
                 const fbRecords = allFirebaseData.filter(r => (r.poNo || r.poNumber || "").toString().trim() === poNumber);
                 let hasRealPendingPayment = false;
-                
                 fbRecords.forEach(rec => {
                     const dPaid = (rec.datePaid || '').toString().trim();
                     const chq = (rec.chequeNo || '').toString().trim();
                     const retVal = parseFloat(rec.retention || 0);
-                    
                     const isDPaidEmpty = (dPaid === '' || dPaid === '-');
                     const isChqEmpty = (chq === '' || chq === '-');
-                    
-                    // Only count as pending payment if BOTH date and cheque are empty AND the retention value is NOT zero
                     if (isDPaidEmpty && isChqEmpty && Math.abs(retVal) > 0.001) {
                         hasRealPendingPayment = true;
                     }
                 });
                 
-                // Determine if this qualifies as "Pending Payment" for filtering
-                // Pending payment ONLY when: total retention is zero/negative BUT there's a pending record with non-zero value
                 let isPendingPayment = false;
                 if (!hasRetention && hasRealPendingPayment) {
                     isPendingPayment = true;
@@ -1095,8 +1127,7 @@ function generateSummaryPrintout() {
     let totalInvoiceAmount = 0; 
     let totalSrvAmount = 0; 
     let totalRetentionAmount = 0;
-    let totalUnderProcessSrv = 0;   // NEW
-    let totalOutstandingBalance = 0; // will be re‑defined below
+    let totalUnderProcessSrv = 0;
     let rowsHtml = '';
     
     currentFilteredData.forEach(row => {
@@ -1114,7 +1145,20 @@ function generateSummaryPrintout() {
 
         const relatedCommits = row._filteredCommits || getSrvRecordsForPO(poNumber);
         
-        // Invoiced status
+        // --- NEW: find latest SRV date ---
+        let latestSrvDate = '-';
+        if (relatedCommits.length > 0) {
+            const validDates = relatedCommits
+                .map(c => c['Date'])
+                .filter(d => d && d !== '-' && !isNaN(new Date(d).getTime()))
+                .map(d => new Date(d));
+            if (validDates.length > 0) {
+                const maxDate = new Date(Math.max(...validDates));
+                latestSrvDate = formatToDDMMMYYYY(maxDate);
+            }
+        }
+        
+        // Invoiced status (unchanged)
         const invStatus = getPOInvoicedStatus(poNumber, relatedCommits, mainStatus === 'Closed');
         let summaryInvoicedStatus = invStatus;
         let summaryInvoicedStyle = "";
@@ -1131,7 +1175,6 @@ function generateSummaryPrintout() {
         });
         totalSrvAmount += poSrvAmt;
 
-        // If this PO is Under process, add its SRV to the under‑process total
         if (invStatus === "Under process") {
             totalUnderProcessSrv += poSrvAmt;
         }
@@ -1143,7 +1186,6 @@ function generateSummaryPrintout() {
         if (mainStatus === 'Closed' && poSrvAmt === 0) {
             rowBalance = 0;
         }
-        // Not used for grand totals anymore, but keep if needed elsewhere
 
         let statusStyle = mainStatus === 'Closed' ? 'color:#ef4444 !important; font-weight:800;' : 'color:#10b981 !important; font-weight:800;';
 
@@ -1155,6 +1197,7 @@ function generateSummaryPrintout() {
                 <td>${orderDate}</td>
                 <td style="${statusStyle}">${mainStatus}</td>
                 <td style="${summaryInvoicedStyle}">${summaryInvoicedStatus}</td>
+                <td class="num">${latestSrvDate}</td>   <!-- NEW COLUMN -->
                 <td class="num">${invAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num">${poSrvAmt.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
                 <td class="num" style="color:#ea580c !important; font-weight:bold;">${poRetention.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
@@ -1174,23 +1217,25 @@ function generateSummaryPrintout() {
             <p>Generated on: ${printTime} &nbsp; | &nbsp; Records: ${currentFilteredData.length}</p>
             ${getActiveFiltersHtml()}
         </div>
+
         <table class="print-table">
-            <thead>
-                <tr>
-                    <th style="width: 8%;">Ref / PO</th>
-                    <th style="width: 6%;">Site</th>
-                    <th style="width: 20%;">Vendor Name</th>
-                    <th style="width: 10%;">Order Date</th>
-                    <th style="width: 8%;">PO Status</th> 
-                    <th style="width: 8%;">Invoiced</th> 
-                    <th class="num" style="width: 10%;">PO Value (QAR)</th>
-                    <th class="num" style="width: 10%;">SRV Total (QAR)</th>
-                    <th class="num" style="color:#ea580c !important; width: 8%;">Retention (QAR)</th>
-                    <th class="num" style="width: 12%;">Outstanding (QAR)</th>
-                </tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-        </table>
+    <thead>
+        <tr>
+            <th style="width: 6%;">Ref / PO</th>
+            <th style="width: 4%;">Site</th>
+            <th style="width: 20%;">Vendor Name</th>
+            <th style="width: 10%;">Order Date</th>
+            <th style="width: 8%;">PO Status</th> 
+            <th style="width: 9%;">Invoiced</th>
+            <th style="width: 10%;">LAST SRV Date</th>        <!-- NEW -->
+            <th class="num" style="width: 10%;">PO Value (QAR)</th>
+            <th class="num" style="width: 10%;">SRV Total (QAR)</th>
+            <th class="num" style="color:#ea580c !important; width: 10%;">Retention (QAR)</th>
+            <th class="num" style="width: 12%;">Outstanding (QAR)</th>
+        </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+</table>
         <div class="print-summary-box">
             <table class="print-summary-table">
                 <tr><td style="font-weight:800;">Grand Total PO Value</td><td>QAR ${totalInvoiceAmount.toLocaleString('en-US', {minimumFractionDigits: 2})}</td></tr>
