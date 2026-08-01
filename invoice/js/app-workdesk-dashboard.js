@@ -217,6 +217,12 @@ let wdPaymentPocketItems = [];
 let wdPaymentPocketSubscriptionStarted = false;
 let wdPaymentPocketUnsubscribe = null;
 let wdPaymentPocketSelectedSite = '';
+let wdPaymentPocketSelectedYear = '';
+let wdPaymentPocketSelectedMonth = '';
+const WD_PAYMENT_POCKET_MONTH_NAMES = Object.freeze([
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+]);
 const WD_PAYMENT_POCKET_ALLOWED_POSITIONS = [
     'finance',
     'accounts',
@@ -412,6 +418,81 @@ function wdPaymentPocketDateSortValue(value) {
     return match ? Number(`${match[1]}${String(match[2]).padStart(2, '0')}${String(match[3]).padStart(2, '0')}`) : -1;
 }
 
+function wdPaymentPocketDateParts(value) {
+    const sortValue = wdPaymentPocketDateSortValue(value);
+    if (!Number.isFinite(sortValue) || sortValue < 10000101) return null;
+    const digits = String(Math.trunc(sortValue)).padStart(8, '0');
+    const year = Number(digits.slice(0, 4));
+    const month = Number(digits.slice(4, 6));
+    const day = Number(digits.slice(6, 8));
+    const candidate = new Date(year, month - 1, day);
+    if (
+        candidate.getFullYear() !== year ||
+        candidate.getMonth() !== month - 1 ||
+        candidate.getDate() !== day
+    ) return null;
+    return { year, month, day, sortValue };
+}
+
+function wdPaymentPocketAvailableYears(items = [], now = new Date()) {
+    const currentYear = now instanceof Date && !Number.isNaN(now.getTime())
+        ? now.getFullYear()
+        : new Date().getFullYear();
+    const years = new Set();
+    (Array.isArray(items) ? items : []).forEach(item => {
+        const parts = wdPaymentPocketDateParts(item?.releaseDate);
+        if (parts && parts.year <= currentYear) years.add(parts.year);
+    });
+    return Array.from(years).sort((a, b) => b - a);
+}
+
+function wdPaymentPocketItemsForYear(items = [], yearValue, now = new Date()) {
+    const year = Number(yearValue);
+    if (!Number.isInteger(year)) return Array.isArray(items) ? items.slice() : [];
+    const currentYear = now instanceof Date && !Number.isNaN(now.getTime())
+        ? now.getFullYear()
+        : new Date().getFullYear();
+    const currentMonth = now instanceof Date && !Number.isNaN(now.getTime())
+        ? now.getMonth() + 1
+        : new Date().getMonth() + 1;
+    const maximumMonth = year === currentYear ? currentMonth : 12;
+    return (Array.isArray(items) ? items : []).filter(item => {
+        const parts = wdPaymentPocketDateParts(item?.releaseDate);
+        return parts && parts.year === year && parts.month <= maximumMonth;
+    });
+}
+
+function wdPaymentPocketAvailableMonths(items = [], yearValue) {
+    const year = Number(yearValue);
+    if (!Number.isInteger(year)) return [];
+    const months = new Set();
+    (Array.isArray(items) ? items : []).forEach(item => {
+        const parts = wdPaymentPocketDateParts(item?.releaseDate);
+        if (parts && parts.year === year) months.add(parts.month);
+    });
+    return Array.from(months).sort((a, b) => a - b);
+}
+
+function wdPaymentPocketMonthLabel(monthValue, short = false) {
+    const month = Number(monthValue);
+    const label = WD_PAYMENT_POCKET_MONTH_NAMES[month - 1] || '';
+    return short && label ? label.slice(0, 3) : label;
+}
+
+function wdFocusPaymentPocketResults() {
+    const focusBoard = () => {
+        const board = document.querySelector('#wd-active-dashboard-list .wd-payment-pocket-board');
+        if (!board || typeof board.scrollIntoView !== 'function') return;
+        try {
+            board.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+        } catch (_) {
+            board.scrollIntoView(true);
+        }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focusBoard);
+    else setTimeout(focusBoard, 0);
+}
+
 function wdComparePaymentPocketItems(a, b) {
     return wdPaymentPocketDateSortValue(b?.releaseDate) - wdPaymentPocketDateSortValue(a?.releaseDate) ||
         wdText(a?.supplierName).localeCompare(wdText(b?.supplierName), undefined, { sensitivity: 'base' }) ||
@@ -426,6 +507,8 @@ function wdStartPaymentPocketSync() {
         wdPaymentPocketSubscriptionStarted = false;
         wdPaymentPocketItems = [];
         wdPaymentPocketSelectedSite = '';
+        wdPaymentPocketSelectedYear = '';
+        wdPaymentPocketSelectedMonth = '';
         return;
     }
     if (wdPaymentPocketSubscriptionStarted) return;
@@ -2995,6 +3078,8 @@ function wdBindDashboardControls() {
             const nextStatus = card.dataset.status || WD_DASHBOARD_ALL;
             if (nextStatus === WD_PAYMENT_POCKET_FILTER && wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) {
                 wdPaymentPocketSelectedSite = '';
+                wdPaymentPocketSelectedYear = '';
+                wdPaymentPocketSelectedMonth = '';
             }
             wdActiveDashboardSelectedStatus = nextStatus;
             wdActiveDashboardSelectedQueueDate = '';
@@ -3011,6 +3096,7 @@ function wdBindDashboardControls() {
 
             wdRenderDashboardCards();
             wdRenderDashboardList();
+            if (nextStatus === WD_PAYMENT_POCKET_FILTER) wdFocusPaymentPocketResults();
         });
     }
 
@@ -3054,6 +3140,11 @@ function wdBindDashboardControls() {
             wdRenderDashboardCards();
             wdRenderDashboardList();
         });
+        searchInput.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' || wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) return;
+            event.preventDefault();
+            wdFocusPaymentPocketResults();
+        });
     }
 
     if (clearBtn && !clearBtn.dataset.bound) {
@@ -3068,6 +3159,15 @@ function wdBindDashboardControls() {
     if (listEl && !listEl.dataset.dateTabsBound) {
         listEl.dataset.dateTabsBound = 'true';
         listEl.addEventListener('click', (e) => {
+            const paymentMonthTab = e.target.closest('.wd-payment-pocket-month-tab');
+            if (paymentMonthTab) {
+                e.preventDefault();
+                wdPaymentPocketSelectedMonth = paymentMonthTab.dataset.paymentMonth || '';
+                wdRenderDashboardList();
+                wdFocusPaymentPocketResults();
+                return;
+            }
+
             const paymentSrvButton = e.target.closest('.wd-payment-pocket-srv-resolve');
             if (paymentSrvButton) {
                 e.preventDefault();
@@ -3102,9 +3202,15 @@ function wdBindDashboardControls() {
         listEl.dataset.paymentPocketSiteBound = 'true';
         listEl.addEventListener('change', event => {
             const siteSelect = event.target.closest('#wd-payment-pocket-site-filter');
-            if (!siteSelect) return;
-            wdPaymentPocketSelectedSite = siteSelect.value || '';
+            const yearSelect = event.target.closest('#wd-payment-pocket-year-filter');
+            if (!siteSelect && !yearSelect) return;
+            if (siteSelect) wdPaymentPocketSelectedSite = siteSelect.value || '';
+            if (yearSelect) {
+                wdPaymentPocketSelectedYear = yearSelect.value || '';
+                wdPaymentPocketSelectedMonth = '';
+            }
             wdRenderDashboardList();
+            wdFocusPaymentPocketResults();
         });
     }
 }
@@ -3639,6 +3745,8 @@ function wdResetDashboardSearchAndSelection() {
     wdActiveDashboardSelectedQueueDate = '';
     wdAllActiveCorkboardSelectedSiteKey = '';
     wdPaymentPocketSelectedSite = '';
+    wdPaymentPocketSelectedYear = '';
+    wdPaymentPocketSelectedMonth = '';
     wdRenderDashboardCards();
     wdRenderDashboardList();
 }
@@ -4749,12 +4857,32 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         item?.releaseDate
     ].map(value => wdText(value)).join(' ').toLowerCase();
     const accessibleItems = wdPaymentPocketAccessibleItems();
-    const availableSites = wdPaymentPocketSiteOptions(accessibleItems);
+    const now = new Date();
+    const availableYears = wdPaymentPocketAvailableYears(accessibleItems, now);
+    if (!availableYears.some(year => String(year) === String(wdPaymentPocketSelectedYear))) {
+        wdPaymentPocketSelectedYear = availableYears.length ? String(availableYears[0]) : '';
+        wdPaymentPocketSelectedMonth = '';
+    }
+    const yearItems = wdPaymentPocketSelectedYear
+        ? wdPaymentPocketItemsForYear(accessibleItems, wdPaymentPocketSelectedYear, now)
+        : accessibleItems.slice();
+    const availableSites = wdPaymentPocketSiteOptions(yearItems);
     if (wdPaymentPocketSelectedSite && !availableSites.some(site => wdNormalize(site) === wdNormalize(wdPaymentPocketSelectedSite))) {
         wdPaymentPocketSelectedSite = '';
     }
-    const items = accessibleItems
+    const siteItems = yearItems
         .filter(item => !wdPaymentPocketSelectedSite || wdNormalize(item?.site) === wdNormalize(wdPaymentPocketSelectedSite))
+        .slice();
+    const availableMonths = wdPaymentPocketAvailableMonths(siteItems, wdPaymentPocketSelectedYear);
+    if (wdPaymentPocketSelectedMonth && !availableMonths.includes(Number(wdPaymentPocketSelectedMonth))) {
+        wdPaymentPocketSelectedMonth = '';
+    }
+    const items = siteItems
+        .filter(item => {
+            if (!wdPaymentPocketSelectedMonth) return true;
+            const parts = wdPaymentPocketDateParts(item?.releaseDate);
+            return parts && parts.month === Number(wdPaymentPocketSelectedMonth);
+        })
         .filter(item => !search || searchableText(item).includes(search))
         .slice()
         .sort(wdComparePaymentPocketItems);
@@ -4765,9 +4893,11 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
 
     if (titleEl) titleEl.textContent = 'Ready for Payment';
     if (summaryEl) {
-        summaryEl.textContent = search
-            ? `${items.length} matching pocket invoice${items.length === 1 ? '' : 's'} · ${accessibleItems.length} accessible · Invoice Value QAR ${totalText}`
-            : `${items.length} With Accounts invoice${items.length === 1 ? '' : 's'}${wdPaymentPocketSelectedSite ? ` for ${wdPaymentPocketSelectedSite}` : ''} · Invoice Value QAR ${totalText}`;
+        const periodLabel = wdPaymentPocketSelectedYear
+            ? `${wdPaymentPocketSelectedMonth ? wdPaymentPocketMonthLabel(wdPaymentPocketSelectedMonth) : 'All Months'} ${wdPaymentPocketSelectedYear}`
+            : 'All dated records';
+        const siteLabel = wdPaymentPocketSelectedSite || (wdIsPaymentPocketSiteScopedUser() ? 'All Assigned Sites' : 'All Sites');
+        summaryEl.textContent = `${items.length} ${search ? 'matching ' : ''}With Accounts invoice${items.length === 1 ? '' : 's'} · ${siteLabel} · ${periodLabel} · Invoice Value QAR ${totalText}`;
     }
 
     if (!accessibleItems.length) {
@@ -4801,7 +4931,7 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     }).join('') : `
         <tr>
             <td colspan="8" class="wd-payment-pocket-no-match">
-                No invoice matches the selected site and search. Change the Site filter or clear the search.
+                No invoice matches the selected Site, Year, Month, and search. Change a filter or clear the search.
             </td>
         </tr>`;
 
@@ -4809,6 +4939,21 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     const siteOptions = availableSites.map(site => `
         <option value="${wdSafe(site)}"${wdNormalize(site) === wdNormalize(wdPaymentPocketSelectedSite) ? ' selected' : ''}>${wdSafe(site)}</option>
     `).join('');
+
+    const yearOptions = availableYears.length
+        ? availableYears.map(year => `
+            <option value="${year}"${String(year) === String(wdPaymentPocketSelectedYear) ? ' selected' : ''}>${year}</option>
+        `).join('')
+        : '<option value="">No dated year</option>';
+    const monthTabs = `
+        <button class="wd-payment-pocket-month-tab${wdPaymentPocketSelectedMonth ? '' : ' active'}" type="button"
+            data-payment-month="" role="tab" aria-selected="${wdPaymentPocketSelectedMonth ? 'false' : 'true'}">All Months</button>
+        ${availableMonths.map(month => `
+            <button class="wd-payment-pocket-month-tab${Number(wdPaymentPocketSelectedMonth) === month ? ' active' : ''}" type="button"
+                data-payment-month="${month}" role="tab" aria-selected="${Number(wdPaymentPocketSelectedMonth) === month ? 'true' : 'false'}">
+                ${wdSafe(wdPaymentPocketMonthLabel(month, true))}
+            </button>
+        `).join('')}`;
 
     listEl.innerHTML = `
         <div class="wd-payment-pocket-board">
@@ -4821,12 +4966,23 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                 <div><small>Displayed Invoice Value</small><strong>QAR ${wdSafe(totalText)}</strong></div>
             </div>
             <div class="wd-payment-pocket-tools">
-                <label for="wd-payment-pocket-site-filter"><i class="fa-solid fa-location-dot"></i> Site</label>
-                <select id="wd-payment-pocket-site-filter" aria-label="Filter payment-pocket invoices by site">
-                    <option value="">${wdSafe(allSitesLabel)}</option>
-                    ${siteOptions}
-                </select>
-                <small>${wdIsPaymentPocketSiteScopedUser() ? 'Limited to your assigned site access.' : 'Choose a site or keep all sites visible.'}</small>
+                <div class="wd-payment-pocket-filter-group wd-payment-pocket-site-group">
+                    <label for="wd-payment-pocket-site-filter"><i class="fa-solid fa-location-dot"></i> Site</label>
+                    <select id="wd-payment-pocket-site-filter" aria-label="Filter payment-pocket invoices by site">
+                        <option value="">${wdSafe(allSitesLabel)}</option>
+                        ${siteOptions}
+                    </select>
+                </div>
+                <small class="wd-payment-pocket-filter-note">${wdIsPaymentPocketSiteScopedUser() ? 'Limited to your assigned site access.' : 'Choose a site or keep all sites visible.'}</small>
+                <div class="wd-payment-pocket-filter-group wd-payment-pocket-year-group">
+                    <label for="wd-payment-pocket-year-filter"><i class="fa-regular fa-calendar"></i> Year</label>
+                    <select id="wd-payment-pocket-year-filter" aria-label="Filter payment-pocket invoices by year"${availableYears.length ? '' : ' disabled'}>
+                        ${yearOptions}
+                    </select>
+                </div>
+            </div>
+            <div class="wd-payment-pocket-month-tabs" role="tablist" aria-label="Filter Ready for Payment invoices by month">
+                ${monthTabs}
             </div>
             <div class="table-wrapper wd-payment-pocket-table-wrap">
                 <table class="wd-payment-pocket-table">
