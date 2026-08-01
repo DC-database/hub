@@ -1,6 +1,6 @@
 {
-  "version": "11.6.5",
+  "version": "11.6.6",
   "releasedAt": "2026-08-01",
-  "title": "Filtered Mark as Paid and Full Payment Scrolling",
-  "message": "Super Admin can now prepare the exact filtered With Accounts Invoice Records result, exclude unwanted rows, and mark the remainder Paid using the next-day rule that skips Friday. Original With Accounts dates are preserved, matching pocket rows are removed, and the Payments search popup now scrolls through every result."
+  "title": "WorkDesk Payment Pocket Site and SRV View",
+  "message": "The WorkDesk Ready for Payment card now uses the approved position access list, limits site-based staff to assigned sites, displays Invoice Value instead of Amount Paid, provides an All Sites filter where permitted, and opens each available SRV PDF without loading the complete invoice archive."
 }

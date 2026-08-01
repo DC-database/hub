@@ -33031,3 +33031,91 @@ body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results 
         min-height: 160px !important;
     }
 }
+
+/* ========================================================================
+   11.6.6 — WorkDesk payment-pocket site filter + SRV access
+   ======================================================================== */
+#wd-dashboard .wd-payment-pocket-tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid #dbe4ea;
+    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+}
+
+#wd-dashboard .wd-payment-pocket-tools label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: #0f4c3a;
+    font-size: 0.78rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+#wd-dashboard .wd-payment-pocket-tools select {
+    min-width: 220px;
+    height: 38px;
+    padding: 0 36px 0 12px;
+    border: 1px solid #94a3b8;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 0.82rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#wd-dashboard .wd-payment-pocket-tools select:focus {
+    border-color: #0f766e;
+    outline: 3px solid rgba(15, 118, 110, 0.14);
+}
+
+#wd-dashboard .wd-payment-pocket-tools small {
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+#wd-dashboard .wd-payment-pocket-table {
+    min-width: 1080px;
+}
+
+#wd-dashboard .wd-payment-pocket-table .wd-dashboard-pdf-btn.srv {
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #059669, #047857);
+    color: #ffffff !important;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+}
+
+#wd-dashboard .wd-payment-pocket-table button.wd-dashboard-pdf-btn.srv:disabled {
+    cursor: wait;
+    opacity: 0.72;
+    transform: none;
+}
+
+#wd-dashboard .wd-payment-pocket-no-match {
+    padding: 30px 18px !important;
+    color: #64748b !important;
+    font-weight: 800;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    #wd-dashboard .wd-payment-pocket-tools {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    #wd-dashboard .wd-payment-pocket-tools select {
+        width: 100%;
+        min-width: 0;
+    }
+}
