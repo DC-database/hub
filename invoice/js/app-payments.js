@@ -1,8 +1,7 @@
 // ============================================================================
-// IBA 11.5.9 Corrected — 2026 Cache-First Vendor Payment Recovery
-// Uses a compact Firebase index for partial vendor/PO/invoice searches. Vendors
-// without 2026 completion metadata receive one targeted With Accounts-only scan
-// across matching POs that actually exist in invoice_entries.
+// IBA 11.6.3 — Pocket-Only Payments + Super Admin Legacy Recovery
+// Normal payment searches read only the compact With Accounts pocket. A guarded
+// Super Admin option can deliberately recover legacy records from targeted POs.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -83,13 +82,96 @@ function paymentToday() {
     return `${year}-${month}-${day}`;
 }
 
-function canCurrentUserAccessPayments() {
+function paymentISOFromParts(yearValue, monthValue, dayValue) {
+    const year = Number(yearValue);
+    const month = Number(monthValue);
+    const day = Number(dayValue);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return '';
+    const candidate = new Date(year, month - 1, day);
+    if (
+        candidate.getFullYear() !== year ||
+        candidate.getMonth() !== month - 1 ||
+        candidate.getDate() !== day
+    ) return '';
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function paymentDateISO(value) {
+    const raw = paymentText(value);
+    if (!raw) return '';
+
+    if (typeof normalizeDateForInput === 'function') {
+        try {
+            const normalized = paymentText(normalizeDateForInput(raw));
+            const normalizedMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (normalizedMatch) {
+                const validated = paymentISOFromParts(normalizedMatch[1], normalizedMatch[2], normalizedMatch[3]);
+                if (validated) return validated;
+            }
+        } catch (_) {}
+    }
+
+    const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (isoMatch) {
+        return paymentISOFromParts(isoMatch[1], isoMatch[2], isoMatch[3]);
+    }
+
+    const dayFirstMatch = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-]((?:19|20)?\d{2})$/);
+    if (dayFirstMatch) {
+        const year = dayFirstMatch[3].length === 2 ? `20${dayFirstMatch[3]}` : dayFirstMatch[3];
+        return paymentISOFromParts(year, dayFirstMatch[2], dayFirstMatch[1]);
+    }
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return paymentISOFromParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
+}
+
+function paymentWithAccountsDateValue(invoiceData = {}) {
+    return paymentText(
+        invoiceData.releaseDate ||
+        invoiceData.ReleaseDate ||
+        invoiceData['Release Date'] ||
+        invoiceData.release_date ||
+        invoiceData.withAccountsReleaseDate
+    );
+}
+
+function paymentDateSortValue(value) {
+    const iso = paymentDateISO(value);
+    return iso ? Number(iso.replace(/-/g, '')) : -1;
+}
+
+function paymentDisplayDate(value) {
+    const iso = paymentDateISO(value);
+    if (!iso) return 'Date unavailable';
+    const [year, month, day] = iso.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+    });
+}
+
+function paymentNaturalCompare(left, right) {
+    return paymentText(left).localeCompare(paymentText(right), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+    });
+}
+
+function paymentIsSuperAdmin() {
     const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
     const name = paymentNormalize(user.Name || user.name);
     const superName = paymentNormalize(
         typeof SUPER_ADMIN_NAME !== 'undefined' ? SUPER_ADMIN_NAME : ''
     );
-    if (name && superName && name === superName) return true;
+    return Boolean(name && superName && name === superName);
+}
+
+function canCurrentUserAccessPayments() {
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    if (paymentIsSuperAdmin()) return true;
 
     const role = paymentNormalize(user.Role || user.role);
     if (role !== 'admin') return false;
@@ -201,6 +283,7 @@ function paymentReadyPayload(poNumber, invoiceKey, invoiceData = {}, updatedAtVa
         status: 'With Accounts',
         originalAttention: paymentText(invoiceData.attention),
         invoiceDate: paymentInvoiceDateValue(invoiceData),
+        releaseDate: paymentWithAccountsDateValue(invoiceData),
         updatedAt
     };
 }
@@ -224,14 +307,17 @@ function paymentReadyItemFromRow(row = {}, fallbackIndexKey = '') {
         amountPaid: Number.isFinite(savedAmount) && savedAmount > 0 ? savedAmount : invoiceValue,
         invoiceValue,
         status: paymentText(row.status) || 'With Accounts',
-        originalAttention: paymentText(row.originalAttention || row.attention)
+        originalAttention: paymentText(row.originalAttention || row.attention),
+        invoiceDate: paymentInvoiceDateValue(row),
+        releaseDate: paymentWithAccountsDateValue(row),
+        paidDate: paymentDateISO(row.paidDate) || paymentToday()
     };
 }
 
 function paymentPersistReadyIndexCache() {
     try {
         localStorage.setItem(PAYMENT_READY_CACHE_KEY, JSON.stringify({
-            version: '11.5.9',
+            version: '11.6.3',
             savedAt: Date.now(),
             items: Array.from(paymentReadyIndex.entries())
         }));
@@ -291,7 +377,7 @@ async function paymentEnsureReadyIndexLoaded() {
             }
         };
         const handleError = error => {
-            console.warn('Payment-ready index could not be loaded. Using targeted PO fallback.', error);
+            console.warn('Payment-ready pocket could not be loaded. Using the saved local pocket cache.', error);
             if (!resolved) {
                 clearTimeout(fallbackTimer);
                 resolved = true;
@@ -315,7 +401,7 @@ async function paymentEnsureReadyIndexLoaded() {
 function paymentPersistReadyMetaCache() {
     try {
         localStorage.setItem(PAYMENT_READY_META_CACHE_KEY, JSON.stringify({
-            version: '11.5.9',
+            version: '11.6.3',
             savedAt: Date.now(),
             items: Array.from(paymentReadyMeta.entries())
         }));
@@ -445,7 +531,7 @@ function paymentRestoreInvoicePOKeysCache() {
 function paymentPersistInvoicePOKeysCache(keys) {
     try {
         localStorage.setItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY, JSON.stringify({
-            version: '11.5.9-corrected',
+            version: '11.6.3',
             savedAt: Date.now(),
             items: Array.from(keys || [])
         }));
@@ -555,7 +641,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.5.9',
+            version: '11.6.3',
             savedAt: Date.now(),
             items
         }));
@@ -583,7 +669,9 @@ function restorePaymentCart() {
                 id,
                 po,
                 key: invoiceKey,
-                amountPaid: Number(item.amountPaid) || 0
+                amountPaid: Number(item.amountPaid) || 0,
+                releaseDate: paymentWithAccountsDateValue(item),
+                paidDate: paymentDateISO(item.paidDate) || paymentToday()
             };
         });
     } catch (error) {
@@ -601,7 +689,8 @@ function updatePaymentsCount() {
 
 function renderPaymentsCart() {
     if (!imPaymentsTableBody) return;
-    const items = paymentCartItems();
+    const items = paymentSortAndDedupeResults(paymentCartItems());
+    const isSuperAdmin = paymentIsSuperAdmin();
     const emptyState = document.getElementById('im-payment-cart-empty');
     const tableWrap = document.querySelector('#im-payments .im-payment-cart-table-wrap');
     const totalEl = document.getElementById('im-payment-cart-total-value');
@@ -616,6 +705,10 @@ function renderPaymentsCart() {
 
     let total = 0;
     items.forEach(item => {
+        item.releaseDate = paymentWithAccountsDateValue(item);
+        item.paidDate = isSuperAdmin
+            ? (paymentDateISO(item.paidDate) || paymentToday())
+            : paymentToday();
         const row = document.createElement('tr');
         row.dataset.key = item.id;
         row.dataset.po = item.po;
@@ -648,8 +741,35 @@ function renderPaymentsCart() {
         });
         amountCell.appendChild(amountInput);
 
-        const releaseCell = document.createElement('td');
-        releaseCell.innerHTML = `<span class="im-payment-auto-date"><i class="fa-solid fa-calendar-check"></i> ${paymentToday()}</span>`;
+        const withAccountsDateCell = document.createElement('td');
+        withAccountsDateCell.innerHTML = `<span class="im-payment-with-accounts-date${item.releaseDate ? '' : ' is-missing'}"><i class="fa-solid fa-calendar-day"></i> ${paymentDisplayDate(item.releaseDate)}</span>`;
+
+        const paidDateCell = document.createElement('td');
+        const paidDateInput = document.createElement('input');
+        paidDateInput.type = 'date';
+        paidDateInput.className = 'im-payment-paid-date-input';
+        paidDateInput.value = item.paidDate;
+        paidDateInput.max = paymentToday();
+        paidDateInput.readOnly = !isSuperAdmin;
+        paidDateInput.disabled = !isSuperAdmin;
+        paidDateInput.title = isSuperAdmin
+            ? 'Super Admin may select the actual historical paid date.'
+            : 'Paid Date is locked to today for Finance, Accounts, and Accounting users.';
+        paidDateInput.setAttribute('aria-label', `Paid date for ${item.invoiceNo || item.po}`);
+        if (isSuperAdmin) {
+            paidDateInput.addEventListener('change', () => {
+                const normalizedDate = paymentDateISO(paidDateInput.value);
+                if (!normalizedDate || normalizedDate > paymentToday()) {
+                    alert('Paid Date must be a valid date and cannot be later than today.');
+                    paidDateInput.value = item.paidDate || paymentToday();
+                    return;
+                }
+                item.paidDate = normalizedDate;
+                paidDateInput.value = normalizedDate;
+                persistPaymentCart();
+            });
+        }
+        paidDateCell.appendChild(paidDateInput);
 
         const statusCell = document.createElement('td');
         const statusBadge = document.createElement('span');
@@ -666,7 +786,7 @@ function renderPaymentsCart() {
         removeButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         actionCell.appendChild(removeButton);
 
-        [invoiceCell, poCell, companyCell, amountCell, releaseCell, statusCell, actionCell]
+        [invoiceCell, poCell, companyCell, amountCell, withAccountsDateCell, paidDateCell, statusCell, actionCell]
             .forEach(cell => row.appendChild(cell));
         imPaymentsTableBody.appendChild(row);
         total += Number(item.amountPaid) || 0;
@@ -681,7 +801,6 @@ async function initializePaymentsWorkspace() {
     restorePaymentCart();
     renderPaymentsCart();
     paymentEnsureReadyIndexLoaded();
-    paymentEnsureReadyMetaLoaded();
     const statusEl = document.getElementById('im-payment-status-message');
     if (statusEl) statusEl.textContent = '';
 }
@@ -693,8 +812,12 @@ function openPaymentSearchModal() {
     }
     if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
     if (imPaymentModalResults) {
-        imPaymentModalResults.innerHTML = '<p>Enter a PO number, invoice number, or company to begin.</p>';
+        imPaymentModalResults.innerHTML = '<p>Press Search with the box empty to show every current With Accounts invoice, or enter a company, PO, or invoice number.</p>';
     }
+    const legacyControls = document.getElementById('im-payment-legacy-controls');
+    const legacyToggle = document.getElementById('im-payment-legacy-toggle');
+    if (legacyToggle) legacyToggle.checked = false;
+    if (legacyControls) legacyControls.classList.toggle('hidden', !paymentIsSuperAdmin());
     const totalDisplay = document.getElementById('payment-modal-total-value');
     if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
     paymentSearchResults = new Map();
@@ -806,7 +929,9 @@ function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
         invoiceValue,
         status: paymentText(invoiceData.status) || 'With Accounts',
         originalAttention: paymentText(invoiceData.attention),
-        invoiceDate: paymentInvoiceDateValue(invoiceData)
+        invoiceDate: paymentInvoiceDateValue(invoiceData),
+        releaseDate: paymentWithAccountsDateValue(invoiceData),
+        paidDate: paymentToday()
     };
 }
 
@@ -837,12 +962,7 @@ function paymentCollectMatches(poNumbers, queryText, options = {}) {
         });
     });
 
-    results.sort((a, b) =>
-        a.supplierName.localeCompare(b.supplierName) ||
-        a.po.localeCompare(b.po, undefined, { numeric: true }) ||
-        (a.invoiceNo || a.invEntryID).localeCompare(b.invoiceNo || b.invEntryID, undefined, { numeric: true })
-    );
-    return results;
+    return paymentSortAndDedupeResults(results, options);
 }
 
 function paymentCollectReadyMatches(queryText) {
@@ -860,21 +980,36 @@ function paymentCollectReadyMatches(queryText) {
             item.supplierName,
             item.supplierId
         ];
-        if (fields.some(value => paymentNormalize(value).includes(query))) results.push(item);
+        if (!query || fields.some(value => paymentNormalize(value).includes(query))) results.push(item);
     });
     return paymentSortAndDedupeResults(results);
 }
 
-function paymentSortAndDedupeResults(results) {
+function paymentIsExactPOQuery(queryText, results = []) {
+    const query = paymentText(queryText).toUpperCase();
+    if (!/^\d{3,}$/.test(query)) return false;
+    return !results.length || results.every(item => paymentText(item && item.po).toUpperCase() === query);
+}
+
+function paymentSortAndDedupeResults(results, options = {}) {
     const unique = new Map();
     (results || []).forEach(item => {
         if (item && item.id) unique.set(item.id, item);
     });
-    return Array.from(unique.values()).sort((a, b) =>
-        a.supplierName.localeCompare(b.supplierName) ||
-        a.po.localeCompare(b.po, undefined, { numeric: true }) ||
-        (a.invoiceNo || a.invEntryID).localeCompare(b.invoiceNo || b.invEntryID, undefined, { numeric: true })
-    );
+    const items = Array.from(unique.values());
+    const exactPO = Boolean(options.exactPO) || paymentIsExactPOQuery(options.queryText, items);
+
+    return items.sort((a, b) => {
+        if (exactPO) {
+            return paymentNaturalCompare(a.invoiceNo || a.invEntryID, b.invoiceNo || b.invEntryID) ||
+                paymentDateSortValue(b.releaseDate) - paymentDateSortValue(a.releaseDate) ||
+                paymentNaturalCompare(a.supplierName, b.supplierName);
+        }
+        return paymentDateSortValue(b.releaseDate) - paymentDateSortValue(a.releaseDate) ||
+            paymentNaturalCompare(a.supplierName, b.supplierName) ||
+            paymentNaturalCompare(a.po, b.po) ||
+            paymentNaturalCompare(a.invoiceNo || a.invEntryID, b.invoiceNo || b.invEntryID);
+    });
 }
 
 function paymentVendorTargetsForQuery(queryText) {
@@ -1061,7 +1196,8 @@ async function paymentCommitReadyBackfill(items, completedTargets = [], targetPO
             current &&
             paymentText(current.invoiceNo) === payload.invoiceNo &&
             paymentNormalize(current.vendorName) === payload.vendorNameLower &&
-            Number(current.amountPaid) === Number(payload.amountPaid)
+            Number(current.amountPaid) === Number(payload.amountPaid) &&
+            paymentDateISO(current.releaseDate) === paymentDateISO(payload.releaseDate)
         ) {
             return;
         }
@@ -1094,27 +1230,32 @@ async function paymentCommitReadyBackfill(items, completedTargets = [], targetPO
     localMetaRows.forEach(metaRow => paymentUpdateReadyMetaMemory(metaRow.metaKey, metaRow));
 }
 
-function paymentRenderSearchResults(results) {
-    paymentSearchResults = new Map(results.map(item => [item.id, item]));
+function paymentRenderSearchResults(results, options = {}) {
+    const exactPO = Boolean(options.exactPO) || paymentIsExactPOQuery(options.queryText, results);
+    const sortedResults = paymentSortAndDedupeResults(results, {
+        queryText: options.queryText,
+        exactPO
+    });
+    paymentSearchResults = new Map(sortedResults.map(item => [item.id, item]));
     imPaymentModalResults.innerHTML = '';
 
-    if (!results.length) {
+    if (!sortedResults.length) {
         imPaymentModalResults.innerHTML = '<p>No matching With Accounts invoices were found, or the matching records are already in the payment list.</p>';
         const totalDisplay = document.getElementById('payment-modal-total-value');
         if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
         return;
     }
 
-    const companyCount = new Set(results.map(item => paymentNormalize(item.supplierName))).size;
-    const poCount = new Set(results.map(item => paymentText(item.po).toUpperCase())).size;
-    const invoiceWord = results.length === 1 ? 'invoice' : 'invoices';
+    const companyCount = new Set(sortedResults.map(item => paymentNormalize(item.supplierName))).size;
+    const poCount = new Set(sortedResults.map(item => paymentText(item.po).toUpperCase())).size;
+    const invoiceWord = sortedResults.length === 1 ? 'invoice' : 'invoices';
     const poWord = poCount === 1 ? 'PO' : 'POs';
     const companyWord = companyCount === 1 ? 'company' : 'companies';
     const resultSummary = document.createElement('div');
     resultSummary.className = 'im-payment-result-summary';
     resultSummary.innerHTML = `
         <i class="fa-solid fa-list-check"></i>
-        <span><strong>${results.length}</strong> With Accounts ${invoiceWord} found across <strong>${poCount}</strong> ${poWord} from <strong>${companyCount}</strong> ${companyWord}.</span>
+        <span><strong>${sortedResults.length}</strong> With Accounts ${invoiceWord} found across <strong>${poCount}</strong> ${poWord} from <strong>${companyCount}</strong> ${companyWord}. ${exactPO ? 'Invoice numbers are arranged in natural order.' : 'Newest With Accounts date is shown first.'}</span>
     `;
 
     const table = document.createElement('table');
@@ -1134,7 +1275,20 @@ function paymentRenderSearchResults(results) {
     `;
     const tbody = table.querySelector('tbody');
 
-    results.forEach(item => {
+    let currentDateGroup = null;
+    sortedResults.forEach(item => {
+        const dateGroup = paymentDateISO(item.releaseDate) || '__missing__';
+        if (!exactPO && dateGroup !== currentDateGroup) {
+            const groupRow = document.createElement('tr');
+            groupRow.className = `im-payment-date-group${dateGroup === '__missing__' ? ' is-missing' : ''}`;
+            const groupCell = document.createElement('td');
+            groupCell.colSpan = 6;
+            groupCell.innerHTML = `<i class="fa-solid fa-calendar-day"></i> With Accounts Date: <strong>${paymentDisplayDate(item.releaseDate)}</strong>`;
+            groupRow.appendChild(groupCell);
+            tbody.appendChild(groupRow);
+            currentDateGroup = dateGroup;
+        }
+
         const row = document.createElement('tr');
         const selectCell = document.createElement('td');
         const checkbox = document.createElement('input');
@@ -1191,36 +1345,57 @@ function updatePaymentModalTotal() {
 
 async function handlePaymentModalPOSearch() {
     const query = paymentText(imPaymentModalPOInput && imPaymentModalPOInput.value);
-    if (!query) {
-        imPaymentModalResults.innerHTML = '<p>Please enter a PO number, invoice number, or company.</p>';
+    const legacyToggle = document.getElementById('im-payment-legacy-toggle');
+    const legacyMode = Boolean(legacyToggle && legacyToggle.checked);
+
+    // Hiding the control is not treated as security. This guard prevents every
+    // archive path unless the current signed-in user is the Super Admin.
+    if (legacyMode && !paymentIsSuperAdmin()) {
+        if (legacyToggle) legacyToggle.checked = false;
+        imPaymentModalResults.innerHTML = '<p>Legacy Archive Search is restricted to the Super Admin.</p>';
+        return;
+    }
+    if (legacyMode && !query) {
+        imPaymentModalResults.innerHTML = '<p>Enter an exact PO number or part of a company name before using Legacy Archive Search.</p>';
         return;
     }
 
-    imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Searching With Accounts invoices…</p>';
+    imPaymentModalResults.innerHTML = legacyMode
+        ? '<p><i class="fa-solid fa-spinner fa-spin"></i> Preparing targeted Super Admin archive search…</p>'
+        : '<p><i class="fa-solid fa-spinner fa-spin"></i> Searching the current With Accounts pocket…</p>';
     const totalDisplay = document.getElementById('payment-modal-total-value');
     if (totalDisplay) totalDisplay.textContent = paymentCurrency(0);
 
     try {
-        await Promise.all([
-            paymentEnsureReadyIndexLoaded(),
-            paymentEnsureReadyMetaLoaded(),
-            paymentEnsurePOBaseData()
-        ]);
+        await paymentEnsureReadyIndexLoaded();
+        const pocketResults = paymentCollectReadyMatches(query);
 
-        const indexedResults = paymentCollectReadyMatches(query);
-        const vendorTargets = paymentVendorTargetsForQuery(query);
-        const incompleteVendorTargets = vendorTargets.filter(target => !paymentVendorTargetIsComplete(target));
-
-        // Completion metadata means every legacy With Accounts invoice for each
-        // matching vendor has already been recovered into the compact index.
-        if (vendorTargets.length && !incompleteVendorTargets.length) {
-            paymentRenderSearchResults(indexedResults);
+        // Normal Finance/Accounts/Accounting searches stop here. They never
+        // inspect invoice_entries, including when no pocket match is found.
+        if (!legacyMode) {
+            paymentRenderSearchResults(pocketResults, {
+                queryText: query,
+                source: 'pocket'
+            });
             return;
         }
 
+        await paymentEnsurePOBaseData();
+
+        const queryUpper = paymentText(query).toUpperCase();
+        const exactPO = /^\d{3,}$/.test(queryUpper);
+        const indexedResults = exactPO
+            ? pocketResults
+            : pocketResults.filter(item => paymentInvoiceMatchesRecoveryYear(item, PAYMENT_LEGACY_RECOVERY_YEAR));
+        const vendorTargets = exactPO ? [] : paymentVendorTargetsForQuery(query);
         let targetPOMap = new Map();
         let candidateList = [];
-        if (incompleteVendorTargets.length) {
+
+        if (exactPO) {
+            // An exact PO is already a targeted database path, so it may recover
+            // older genuine With Accounts records from any invoice year.
+            candidateList = [queryUpper];
+        } else if (vendorTargets.length) {
             let existingPOKeys = null;
             try {
                 imPaymentModalResults.innerHTML = '<p><i class="fa-solid fa-spinner fa-spin"></i> Checking existing invoice POs…</p>';
@@ -1228,31 +1403,41 @@ async function handlePaymentModalPOSearch() {
             } catch (poKeyError) {
                 console.warn('Lightweight invoice PO-key lookup failed. Using matching vendor POs directly.', poKeyError);
             }
-            targetPOMap = paymentPOMapForVendorTargets(incompleteVendorTargets, existingPOKeys);
+            // Explicit Super Admin recovery rechecks matching vendors even when
+            // older completion metadata exists; this also refreshes missing dates.
+            targetPOMap = paymentPOMapForVendorTargets(vendorTargets, existingPOKeys);
             candidateList = paymentPOUnionFromTargetMap(targetPOMap);
         } else {
             candidateList = paymentCandidatePOsForQuery(query);
         }
 
+        if (!candidateList.length) {
+            paymentRenderSearchResults(indexedResults, {
+                queryText: query,
+                exactPO,
+                source: 'legacy'
+            });
+            return;
+        }
+
         const recovery = await paymentFetchWithAccountsPOs(candidateList, (processed, total) => {
             imPaymentModalResults.innerHTML = `
                 <p><i class="fa-solid fa-spinner fa-spin"></i>
-                Recovering 2026 With Accounts invoices… ${processed} of ${total} POs checked.</p>
+                ${exactPO ? 'Checking the selected PO across all years' : `Recovering ${PAYMENT_LEGACY_RECOVERY_YEAR} With Accounts invoices`}… ${processed} of ${total} POs checked.</p>
             `;
         });
 
         const targetedResults = paymentCollectMatches(recovery.succeeded, query, {
-            recoveryYear: PAYMENT_LEGACY_RECOVERY_YEAR
+            recoveryYear: exactPO ? 0 : PAYMENT_LEGACY_RECOVERY_YEAR,
+            queryText: query,
+            exactPO
         });
         const failedPOs = new Set(recovery.failed.map(item => item.po));
-        const completedVendorTargets = incompleteVendorTargets.filter(target =>
+        const completedVendorTargets = vendorTargets.filter(target =>
             (targetPOMap.get(target.metaKey) || []).every(po => !failedPOs.has(po))
         );
-        if (targetedResults.length || incompleteVendorTargets.length) {
+        if (targetedResults.length || vendorTargets.length) {
             try {
-                // Successful 2026 rows are cached immediately. A vendor receives
-                // completion metadata only when every one of its matching POs
-                // succeeds, so a partial recovery is retried on the next search.
                 await paymentCommitReadyBackfill(
                     targetedResults,
                     completedVendorTargets,
@@ -1266,8 +1451,15 @@ async function handlePaymentModalPOSearch() {
         const results = paymentSortAndDedupeResults([
             ...indexedResults,
             ...targetedResults
-        ]);
-        paymentRenderSearchResults(results);
+        ], {
+            queryText: query,
+            exactPO
+        });
+        paymentRenderSearchResults(results, {
+            queryText: query,
+            exactPO,
+            source: 'legacy'
+        });
         if (
             recovery.failed.length &&
             imPaymentModalResults &&
@@ -1297,7 +1489,11 @@ async function handleAddSelectedToPayments() {
     }
 
     selected.forEach(item => {
-        invoicesToPay[item.id] = { ...item };
+        invoicesToPay[item.id] = {
+            ...item,
+            releaseDate: paymentWithAccountsDateValue(item),
+            paidDate: paymentToday()
+        };
     });
     persistPaymentCart();
     renderPaymentsCart();
@@ -1348,6 +1544,7 @@ function clearPaymentCart(skipConfirmation = false) {
 
 async function handleSavePayments() {
     const items = paymentCartItems();
+    const isSuperAdmin = paymentIsSuperAdmin();
     const statusEl = document.getElementById('im-payment-status-message');
     const checkoutButton = document.getElementById('im-save-payments-button');
 
@@ -1364,6 +1561,21 @@ async function handleSavePayments() {
         return;
     }
 
+    const today = paymentToday();
+    const invalidPaidDates = [];
+    items.forEach(item => {
+        const selectedDate = isSuperAdmin ? paymentDateISO(item.paidDate) : today;
+        if (!selectedDate || selectedDate > today) {
+            invalidPaidDates.push(item.invoiceNo || item.po);
+            return;
+        }
+        item.paidDate = selectedDate;
+    });
+    if (invalidPaidDates.length) {
+        alert(`Paid Date must be valid and cannot be later than today. Please check: ${invalidPaidDates.join(', ')}`);
+        return;
+    }
+
     const companyNames = Array.from(new Set(
         items.map(item => paymentText(item.supplierName) || 'Unknown company')
     ));
@@ -1371,10 +1583,15 @@ async function handleSavePayments() {
         ? companyNames[0]
         : `${companyNames.length} companies`;
     const total = items.reduce((sum, item) => sum + (Number(item.amountPaid) || 0), 0);
+    const paidDates = Array.from(new Set(items.map(item => item.paidDate)));
+    const paidDateSummary = paidDates.length === 1
+        ? paymentDisplayDate(paidDates[0])
+        : `${paidDates.length} selected Paid Dates`;
     const confirmed = confirm(
         `Mark ${items.length} invoice(s) from ${companySummary} as Paid?\n\n` +
         `Total Sum: ${paymentCurrency(total)}\n\n` +
-        'This will mark every listed invoice Paid and set its Release Date to today.'
+        `Paid Date: ${paidDateSummary}\n\n` +
+        'The existing With Accounts Date will be preserved, and Release Date will become the selected Paid Date.'
     );
     if (!confirmed) return;
 
@@ -1414,17 +1631,23 @@ async function handleSavePayments() {
             );
         }
 
-        const checkoutDate = paymentToday();
         const serverTimestamp = (typeof firebase !== 'undefined' && firebase.database)
             ? firebase.database.ServerValue.TIMESTAMP
             : Date.now();
         const batchUpdates = {};
 
-        currentRecords.forEach(({ item }) => {
+        currentRecords.forEach(({ item, invoice }) => {
             const basePath = `invoice_entries/${item.po}/${item.key}`;
+            const withAccountsDate = paymentText(invoice.withAccountsReleaseDate) ||
+                paymentWithAccountsDateValue(invoice) ||
+                paymentWithAccountsDateValue(item);
             batchUpdates[`${basePath}/status`] = 'Paid';
             batchUpdates[`${basePath}/amountPaid`] = Number(item.amountPaid);
-            batchUpdates[`${basePath}/releaseDate`] = checkoutDate;
+            if (!paymentText(invoice.withAccountsReleaseDate) && withAccountsDate) {
+                batchUpdates[`${basePath}/withAccountsReleaseDate`] = withAccountsDate;
+            }
+            batchUpdates[`${basePath}/paidDate`] = item.paidDate;
+            batchUpdates[`${basePath}/releaseDate`] = item.paidDate;
             batchUpdates[`${basePath}/statusChangedAt`] = serverTimestamp;
             batchUpdates[`${basePath}/statusQueueAt`] = serverTimestamp;
             batchUpdates[`${basePath}/lastUpdated`] = serverTimestamp;
@@ -1435,14 +1658,21 @@ async function handleSavePayments() {
         await invoiceDb.ref().update(batchUpdates);
 
         currentRecords.forEach(({ item, invoice }) => {
+            const withAccountsDate = paymentText(invoice.withAccountsReleaseDate) ||
+                paymentWithAccountsDateValue(invoice) ||
+                paymentWithAccountsDateValue(item);
             const localUpdates = {
                 status: 'Paid',
                 amountPaid: Number(item.amountPaid),
-                releaseDate: checkoutDate,
+                paidDate: item.paidDate,
+                releaseDate: item.paidDate,
                 statusChangedAt: Date.now(),
                 statusQueueAt: Date.now(),
                 lastUpdated: Date.now()
             };
+            if (!paymentText(invoice.withAccountsReleaseDate) && withAccountsDate) {
+                localUpdates.withAccountsReleaseDate = withAccountsDate;
+            }
             if (!allInvoiceData) allInvoiceData = {};
             if (!allInvoiceData[item.po]) allInvoiceData[item.po] = {};
             allInvoiceData[item.po][item.key] = { ...invoice, ...localUpdates };
@@ -1451,11 +1681,18 @@ async function handleSavePayments() {
 
         if (statusEl) statusEl.textContent = 'Synchronizing linked payment records…';
         const syncResults = await Promise.allSettled(currentRecords.flatMap(({ item, invoice }) => {
+            const withAccountsDate = paymentText(invoice.withAccountsReleaseDate) ||
+                paymentWithAccountsDateValue(invoice) ||
+                paymentWithAccountsDateValue(item);
             const updatedInvoice = {
                 ...invoice,
                 status: 'Paid',
                 amountPaid: Number(item.amountPaid),
-                releaseDate: checkoutDate,
+                paidDate: item.paidDate,
+                releaseDate: item.paidDate,
+                ...(!paymentText(invoice.withAccountsReleaseDate) && withAccountsDate
+                    ? { withAccountsReleaseDate: withAccountsDate }
+                    : {}),
                 statusChangedAt: Date.now(),
                 statusQueueAt: Date.now(),
                 lastUpdated: Date.now()
@@ -1514,5 +1751,9 @@ window.removeInvoicePaymentReadyIndex = removeInvoicePaymentReadyIndex;
 window.ibaPaymentTools = {
     parseAmount: paymentParseAmount,
     normalizeSupplierId: paymentNormalizeSupplierId,
-    readyIndexKey: paymentReadyIndexKey
+    readyIndexKey: paymentReadyIndexKey,
+    dateISO: paymentDateISO,
+    displayDate: paymentDisplayDate,
+    isSuperAdmin: paymentIsSuperAdmin,
+    sortResults: paymentSortAndDedupeResults
 };
