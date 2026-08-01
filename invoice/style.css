@@ -32860,3 +32860,174 @@ body.iba-domain-migration-dialog-open {
         text-align: right !important;
     }
 }
+
+/* ========================================================================
+   11.6.5 — Invoice Records exact-result Mark as Paid + Payments scrolling
+   ======================================================================== */
+.im-mark-paid-trigger {
+    background: linear-gradient(135deg, #b45309, #92400e) !important;
+    border-color: rgba(180, 83, 9, 0.48) !important;
+    color: #ffffff !important;
+}
+
+.im-mark-paid-trigger:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.48 !important;
+    filter: grayscale(0.35);
+}
+
+body #im-mark-paid-modal > .modal-container.im-mark-paid-modal {
+    width: min(1240px, calc(100vw - 34px)) !important;
+    max-width: 1240px !important;
+    height: min(88vh, 860px) !important;
+    max-height: calc(100vh - 28px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#im-mark-paid-modal .modal-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    overflow: hidden !important;
+}
+
+#im-mark-paid-modal .im-mark-paid-help {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #7c2d12;
+}
+
+#im-mark-paid-modal .im-mark-paid-table-wrap {
+    flex: 1 1 0 !important;
+    min-height: 190px !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 13px !important;
+    background: #ffffff !important;
+    touch-action: pan-x pan-y;
+    scrollbar-gutter: stable;
+}
+
+#im-mark-paid-modal .im-mark-paid-table {
+    width: 100% !important;
+    min-width: 1120px !important;
+    border-collapse: collapse !important;
+    overflow: visible !important;
+}
+
+#im-mark-paid-modal .im-mark-paid-table thead th {
+    background: #92400e !important;
+}
+
+#im-mark-paid-modal .im-mark-paid-table tbody td:nth-child(7) strong {
+    color: #047857;
+    white-space: nowrap;
+}
+
+#im-mark-paid-modal .im-pocket-transfer-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+
+#im-mark-paid-modal .im-pocket-transfer-footer > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+}
+
+#im-mark-paid-modal .im-mark-paid-confirm-btn {
+    background: linear-gradient(135deg, #b45309, #92400e) !important;
+}
+
+/* The general premium-modal table rule uses overflow:hidden. These final,
+   payment-specific rules restore one real scroll owner for every result row. */
+body #im-add-payment-modal.modal-overlay:not(.hidden) {
+    overflow: hidden !important;
+}
+
+body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal {
+    width: min(1120px, calc(100vw - 28px)) !important;
+    max-width: 1120px !important;
+    height: min(94vh, 940px) !important;
+    height: min(94dvh, 940px) !important;
+    max-height: 94vh !important;
+    max-height: 94dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal > .modal-header,
+body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal > .modal-footer {
+    flex: 0 0 auto !important;
+}
+
+body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal > .modal-content {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results.im-payment-search-results.table-wrapper {
+    display: block !important;
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    height: 0 !important;
+    min-height: 220px !important;
+    max-height: none !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
+    scrollbar-gutter: stable both-edges;
+}
+
+body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results .im-payment-result-table {
+    overflow: visible !important;
+}
+
+@media (max-width: 780px) {
+    body #im-mark-paid-modal > .modal-container.im-mark-paid-modal {
+        width: calc(100vw - 16px) !important;
+        height: calc(100vh - 16px) !important;
+        height: calc(100dvh - 16px) !important;
+        max-height: calc(100vh - 16px) !important;
+        max-height: calc(100dvh - 16px) !important;
+    }
+
+    #im-mark-paid-modal .im-pocket-transfer-footer,
+    #im-mark-paid-modal .im-pocket-transfer-footer > div {
+        width: 100% !important;
+        align-items: stretch !important;
+        flex-direction: column !important;
+    }
+
+    #im-mark-paid-modal .im-pocket-transfer-footer button {
+        width: 100% !important;
+    }
+
+    body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal {
+        width: calc(100vw - 12px) !important;
+        height: calc(100vh - 12px) !important;
+        height: calc(100dvh - 12px) !important;
+        max-height: calc(100vh - 12px) !important;
+        max-height: calc(100dvh - 12px) !important;
+    }
+
+    body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results.im-payment-search-results.table-wrapper {
+        min-height: 160px !important;
+    }
+}

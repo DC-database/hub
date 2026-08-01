@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.6.4">
+    <link rel="stylesheet" href="style.css?v=11.6.5">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -1888,6 +1888,7 @@
                 <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()" title="Download Finance Report"><i class="fa-solid fa-file-lines"></i><span>Finance</span></button>
                 <button id="im-download-excel-custom-btn" class="download-btn im-export-excel-btn" type="button" onclick="exportCurrentTableToExcel()" title="Export current results to Excel"><i class="fa-solid fa-file-excel"></i><span>Excel</span></button>
                 <button id="im-prepare-pocket-transfer-btn" class="download-btn im-pocket-transfer-trigger hidden" type="button" title="Prepare the current filtered With Accounts results for transfer"><i class="fa-solid fa-cart-arrow-down"></i><span>Prepare Pocket Transfer</span></button>
+                <button id="im-prepare-mark-paid-btn" class="download-btn im-mark-paid-trigger hidden" type="button" title="Prepare the current filtered With Accounts results to be marked Paid"><i class="fa-solid fa-calendar-check"></i><span>Prepare Mark as Paid</span></button>
                 <button id="im-refresh-reporting-button" class="refresh-btn im-reporting-refresh-mini" title="Force Full Refresh" type="button"><i class="fa-solid fa-cloud-arrow-down"></i><span>Refresh</span></button>
             </div>
         </div>
@@ -2457,6 +2458,52 @@
                 <button id="im-pocket-transfer-reset-btn" class="secondary-btn" type="button"><i class="fa-solid fa-rotate-left"></i> Reset List</button>
                 <div>
                     <button id="im-pocket-transfer-confirm-btn" class="download-btn" type="button"><i class="fa-solid fa-cloud-arrow-up"></i> Transfer Remaining to Payment Pocket</button>
+                    <button class="secondary-btn modal-close-btn" type="button">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- INVOICE RECORDS - SUPER ADMIN FILTERED MARK AS PAID -->
+    <!-- ====================================================================== -->
+    <div id="im-mark-paid-modal" class="modal-overlay hidden">
+        <div class="modal-container im-pocket-transfer-modal im-mark-paid-modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-calendar-check"></i> Prepare Filtered Invoices as Paid</h2>
+                <button class="modal-close-btn" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p class="im-pocket-transfer-help im-mark-paid-help">This temporary list contains only the latest filtered Invoice Records result. The original With Accounts Date is preserved; Paid Date is the following day, skipping Friday. Use X to exclude any row.</p>
+                <div class="im-pocket-transfer-stats" aria-live="polite">
+                    <div><span>Original</span><strong id="im-mark-paid-original-count">0</strong></div>
+                    <div><span>Excluded</span><strong id="im-mark-paid-excluded-count">0</strong></div>
+                    <div><span>Remaining</span><strong id="im-mark-paid-remaining-count">0</strong></div>
+                    <div><span>Remaining Total</span><strong id="im-mark-paid-total">0.00</strong></div>
+                </div>
+                <div class="table-wrapper im-pocket-transfer-table-wrap im-mark-paid-table-wrap">
+                    <table class="im-pocket-transfer-table im-mark-paid-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice No.</th>
+                                <th>PO No.</th>
+                                <th>Company</th>
+                                <th>Site</th>
+                                <th class="right-align">Amount Paid</th>
+                                <th>With Accounts Date</th>
+                                <th>Calculated Paid Date</th>
+                                <th aria-label="Exclude"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="im-mark-paid-table-body"></tbody>
+                    </table>
+                </div>
+                <p id="im-mark-paid-status" class="im-pocket-transfer-status" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer im-pocket-transfer-footer">
+                <button id="im-mark-paid-reset-btn" class="secondary-btn" type="button"><i class="fa-solid fa-rotate-left"></i> Reset List</button>
+                <div>
+                    <button id="im-mark-paid-confirm-btn" class="download-btn im-mark-paid-confirm-btn" type="button"><i class="fa-solid fa-circle-check"></i> Mark Remaining as Paid</button>
                     <button class="secondary-btn modal-close-btn" type="button">Close</button>
                 </div>
             </div>
@@ -3367,7 +3414,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.6.4"></script>
+    <script src="app.js?v=11.6.5"></script>
     <script src="js/app-time-clock.js?v=11.5.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.6.0"></script>
@@ -3376,8 +3423,8 @@
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
     <script src="js/app-invoice-dashboard.js?v=11.5.3"></script>
-    <script src="js/app-payments.js?v=11.6.4"></script>
-    <script src="js/app-invoice-records.js?v=11.6.4"></script>
+    <script src="js/app-payments.js?v=11.6.5"></script>
+    <script src="js/app-invoice-records.js?v=11.6.5"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
     <script src="js/app-workdesk-dashboard.js?v=11.6.4"></script>
     <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
@@ -3393,10 +3440,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.6.4';
+      window.IBA_SYSTEM_VERSION = '11.6.5';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.6.4"></script>
+    <script src="js/app-version-checker.js?v=11.6.5"></script>
 
     </body>
 </html>

@@ -1,6 +1,6 @@
 {
-  "version": "11.6.4",
+  "version": "11.6.5",
   "releasedAt": "2026-08-01",
-  "title": "Payment Pocket Transfer and WorkDesk Visibility",
-  "message": "Super Admin can safely transfer the exact filtered With Accounts Invoice Records result into the compact payment pocket, exclude unwanted rows before transfer, and refresh existing entries without duplicates. Authorized users can now review that same live pocket from WorkDesk."
+  "title": "Filtered Mark as Paid and Full Payment Scrolling",
+  "message": "Super Admin can now prepare the exact filtered With Accounts Invoice Records result, exclude unwanted rows, and mark the remainder Paid using the next-day rule that skips Friday. Original With Accounts dates are preserved, matching pocket rows are removed, and the Payments search popup now scrolls through every result."
 }

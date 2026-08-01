@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.6.4';
+const APP_VERSION = '11.6.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3839,7 +3839,7 @@ async function handleSaveModifiedTask() {
 
 
 
-async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention) {
+async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention, options = {}) {
     const sanitizeFirebaseKey = (key) => String(key || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
 
     // 11.5.8: Keep the compact Payments index aligned with the master invoice.
@@ -3847,7 +3847,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
     // The master invoice remains authoritative and invoice saving must not fail
     // if this lightweight search index is temporarily unavailable.
     try {
-        if (typeof window.syncInvoicePaymentReadyIndex === 'function') {
+        if (!options.skipPaymentReadySync && typeof window.syncInvoicePaymentReadyIndex === 'function') {
             await window.syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData || {});
         }
     } catch (paymentIndexError) {
