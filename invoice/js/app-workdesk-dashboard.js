@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.6.4
+   Version: 11.6.6
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -216,6 +216,26 @@ const WD_PAYMENT_POCKET_FILTER = '__PAYMENT_READY__';
 let wdPaymentPocketItems = [];
 let wdPaymentPocketSubscriptionStarted = false;
 let wdPaymentPocketUnsubscribe = null;
+let wdPaymentPocketSelectedSite = '';
+const WD_PAYMENT_POCKET_ALLOWED_POSITIONS = [
+    'finance',
+    'accounts',
+    'accounting',
+    'logistics',
+    'procurement',
+    'site engineer',
+    'mep engineer',
+    'reception',
+    'ceo',
+    'secretary',
+    'document controller',
+    'procurement lead'
+];
+const WD_PAYMENT_POCKET_SITE_SCOPED_POSITIONS = [
+    'site engineer',
+    'mep engineer',
+    'document controller'
+];
 const WD_COMPLETED_STATUSES = new Set([
     'with accounts',
     'paid',
@@ -315,19 +335,70 @@ function wdNormalize(value) {
     return String(value || '').trim().toLowerCase();
 }
 
-function wdCanSeePaymentPocket() {
-    if (typeof window.canCurrentUserAccessPayments === 'function') {
-        try { return Boolean(window.canCurrentUserAccessPayments()); } catch (_) {}
-    }
+function wdIsPaymentPocketSuperAdmin() {
     const userName = wdNormalize(currentApprover?.Name || currentApprover?.name || '');
     const superName = wdNormalize(typeof SUPER_ADMIN_NAME !== 'undefined' ? SUPER_ADMIN_NAME : 'Irwin');
-    if (userName && superName && userName === superName) return true;
-    const role = wdNormalize(currentApprover?.Role || currentApprover?.role || '');
-    if (role !== 'admin') return false;
-    const positionTokens = wdNormalize(currentApprover?.Position || currentApprover?.position || '')
-        .split(/[^a-z0-9]+/)
+    return Boolean(userName && superName && userName === superName);
+}
+
+function wdPaymentPocketPositionText() {
+    return wdNormalize(currentApprover?.Position || currentApprover?.position || '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function wdPaymentPocketPositionIncludes(term) {
+    const position = wdPaymentPocketPositionText();
+    const wanted = wdNormalize(term).replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return Boolean(position && wanted && ` ${position} `.includes(` ${wanted} `));
+}
+
+function wdCanSeePaymentPocket() {
+    if (wdIsPaymentPocketSuperAdmin()) return true;
+    return WD_PAYMENT_POCKET_ALLOWED_POSITIONS.some(wdPaymentPocketPositionIncludes);
+}
+
+function wdIsPaymentPocketSiteScopedUser() {
+    if (wdIsPaymentPocketSuperAdmin()) return false;
+    return WD_PAYMENT_POCKET_SITE_SCOPED_POSITIONS.some(wdPaymentPocketPositionIncludes);
+}
+
+function wdPaymentPocketAssignedSiteTokens() {
+    const raw = wdText(currentApprover?.Site || currentApprover?.site || '');
+    if (!raw) return [];
+    return raw
+        .split(/[,+/|;]+|\s+and\s+/i)
+        .map(part => wdNormalize(part))
         .filter(Boolean);
-    return positionTokens.some(token => ['finance', 'accounts', 'accounting'].includes(token));
+}
+
+function wdCanSeePaymentPocketItem(item = {}) {
+    if (!wdCanSeePaymentPocket()) return false;
+    if (!wdIsPaymentPocketSiteScopedUser()) return true;
+    const assignedSites = wdPaymentPocketAssignedSiteTokens();
+    if (!assignedSites.length) return false;
+    if (assignedSites.some(site => site === 'all' || site.startsWith('all '))) return true;
+    const itemSite = wdNormalize(item.site || '');
+    if (!itemSite) return false;
+    const itemFirst = itemSite.split(' ')[0];
+    const itemCodes = new Set(itemSite.match(/\b\d{2,}\b/g) || []);
+    return assignedSites.some(assignedSite => {
+        const assignedFirst = assignedSite.split(' ')[0];
+        const assignedCodes = assignedSite.match(/\b\d{2,}\b/g) || [];
+        return assignedCodes.some(code => itemCodes.has(code)) ||
+            itemSite === assignedSite ||
+            itemFirst === assignedFirst ||
+            itemSite.includes(assignedSite) ||
+            assignedSite.includes(itemSite);
+    });
+}
+
+function wdPaymentPocketAccessibleItems() {
+    return (Array.isArray(wdPaymentPocketItems) ? wdPaymentPocketItems : [])
+        .filter(wdCanSeePaymentPocketItem)
+        .slice()
+        .sort(wdComparePaymentPocketItems);
 }
 
 function wdPaymentPocketDateSortValue(value) {
@@ -354,6 +425,7 @@ function wdStartPaymentPocketSync() {
         wdPaymentPocketUnsubscribe = null;
         wdPaymentPocketSubscriptionStarted = false;
         wdPaymentPocketItems = [];
+        wdPaymentPocketSelectedSite = '';
         return;
     }
     if (wdPaymentPocketSubscriptionStarted) return;
@@ -2920,7 +2992,11 @@ function wdBindDashboardControls() {
         cardsEl.addEventListener('click', async (e) => {
             const card = e.target.closest('.wd-active-status-card');
             if (!card) return;
-            wdActiveDashboardSelectedStatus = card.dataset.status || WD_DASHBOARD_ALL;
+            const nextStatus = card.dataset.status || WD_DASHBOARD_ALL;
+            if (nextStatus === WD_PAYMENT_POCKET_FILTER && wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) {
+                wdPaymentPocketSelectedSite = '';
+            }
+            wdActiveDashboardSelectedStatus = nextStatus;
             wdActiveDashboardSelectedQueueDate = '';
             wdAllActiveCorkboardSelectedSiteKey = '';
 
@@ -2992,6 +3068,14 @@ function wdBindDashboardControls() {
     if (listEl && !listEl.dataset.dateTabsBound) {
         listEl.dataset.dateTabsBound = 'true';
         listEl.addEventListener('click', (e) => {
+            const paymentSrvButton = e.target.closest('.wd-payment-pocket-srv-resolve');
+            if (paymentSrvButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                wdResolvePaymentPocketSrv(paymentSrvButton);
+                return;
+            }
+
             const forwardBtn = e.target.closest('.wd-forward-task-btn');
             if (forwardBtn) {
                 e.preventDefault();
@@ -3011,6 +3095,15 @@ function wdBindDashboardControls() {
             const tab = e.target.closest('.wd-date-tab');
             if (!tab) return;
             wdActiveDashboardSelectedQueueDate = tab.dataset.dateKey || '';
+            wdRenderDashboardList();
+        });
+    }
+    if (listEl && !listEl.dataset.paymentPocketSiteBound) {
+        listEl.dataset.paymentPocketSiteBound = 'true';
+        listEl.addEventListener('change', event => {
+            const siteSelect = event.target.closest('#wd-payment-pocket-site-filter');
+            if (!siteSelect) return;
+            wdPaymentPocketSelectedSite = siteSelect.value || '';
             wdRenderDashboardList();
         });
     }
@@ -3545,6 +3638,7 @@ function wdResetDashboardSearchAndSelection() {
     wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
     wdActiveDashboardSelectedQueueDate = '';
     wdAllActiveCorkboardSelectedSiteKey = '';
+    wdPaymentPocketSelectedSite = '';
     wdRenderDashboardCards();
     wdRenderDashboardList();
 }
@@ -3676,7 +3770,7 @@ function wdRenderDashboardCards() {
     }
 
     if (wdCanSeePaymentPocket()) {
-        const paymentCount = wdPaymentPocketItems.length;
+        const paymentCount = wdPaymentPocketAccessibleItems().length;
         const paymentActive = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER ? 'active' : '';
         sectionsHtml += `
             <section class="wd-dashboard-card-section wd-dashboard-payment-section">
@@ -4551,6 +4645,96 @@ function wdPaymentPocketDisplayDate(value) {
     return raw;
 }
 
+function wdPaymentPocketInvoiceValue(item = {}) {
+    const candidates = [item.invoiceValue, item.invValue, item.amountPaid];
+    for (const candidate of candidates) {
+        if (candidate === undefined || candidate === null || candidate === '') continue;
+        const amount = Number(String(candidate).replace(/,/g, ''));
+        if (Number.isFinite(amount)) return Math.max(0, amount);
+    }
+    return 0;
+}
+
+function wdPaymentPocketSiteOptions(items = []) {
+    const sites = new Map();
+    (Array.isArray(items) ? items : []).forEach(item => {
+        const site = wdText(item?.site, 'N/A');
+        const key = wdNormalize(site);
+        if (key && !sites.has(key)) sites.set(key, site);
+    });
+    return Array.from(sites.values()).sort((a, b) =>
+        wdText(a).localeCompare(wdText(b), undefined, { numeric: true, sensitivity: 'base' })
+    );
+}
+
+function wdPaymentPocketSrvAction(item = {}) {
+    const srvName = wdText(item.srvName || item.srvPDF || item.srvPdf || '');
+    if (typeof SRV_BASE_PATH !== 'undefined' && SRV_BASE_PATH && wdHasPdfName(srvName)) {
+        return wdBuildPdfButton('SRV', SRV_BASE_PATH, srvName, 'srv');
+    }
+    const itemId = wdText(item.id || `${item.po || ''}::${item.key || ''}`);
+    return `
+        <button class="wd-dashboard-pdf-btn srv wd-payment-pocket-srv-resolve" type="button"
+            data-pocket-item-id="${wdSafe(encodeURIComponent(itemId))}"
+            title="Find and open the saved SRV PDF for this invoice">
+            <i class="fa-regular fa-file-pdf"></i> SRV
+        </button>`;
+}
+
+async function wdResolvePaymentPocketSrv(button) {
+    if (!button || button.disabled || !wdCanSeePaymentPocket()) return;
+    let itemId = '';
+    try { itemId = decodeURIComponent(button.dataset.pocketItemId || ''); } catch (_) {}
+    const item = wdPaymentPocketAccessibleItems().find(candidate =>
+        wdText(candidate.id || `${candidate.po || ''}::${candidate.key || ''}`) === itemId
+    );
+    if (!item || !item.po || !item.key) {
+        alert('This payment-pocket invoice could not be identified. Refresh WorkDesk and try again.');
+        return;
+    }
+
+    const originalHtml = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening';
+    const previewTab = typeof window.open === 'function' ? window.open('about:blank', '_blank') : null;
+    try {
+        if (previewTab) {
+            try { previewTab.opener = null; } catch (_) {}
+        }
+        let invoice = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[item.po])
+            ? allInvoiceData[item.po][item.key]
+            : null;
+        if (!invoice) {
+            if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+                throw new Error('The Invoice Realtime Database connection is unavailable.');
+            }
+            const snapshot = await invoiceDb.ref(`invoice_entries/${item.po}/${item.key}`).once('value');
+            invoice = snapshot.val() || null;
+        }
+        if (!invoice) throw new Error('The invoice record could not be found.');
+
+        const srvName = wdText(invoice.srvName || invoice.srvPDF || invoice.srvPdf || '');
+        if (!wdHasPdfName(srvName)) {
+            throw new Error('No SRV PDF is saved for this invoice.');
+        }
+        if (typeof SRV_BASE_PATH === 'undefined' || !SRV_BASE_PATH || typeof buildSharePointPdfUrl !== 'function') {
+            throw new Error('The SRV document location is unavailable.');
+        }
+        const url = buildSharePointPdfUrl(SRV_BASE_PATH, srvName);
+        if (!url) throw new Error('The SRV PDF link could not be prepared.');
+
+        item.srvName = srvName;
+        if (previewTab && !previewTab.closed) previewTab.location.href = url;
+        else throw new Error('Chrome blocked the SRV PDF tab. Allow pop-ups for this site and try again.');
+        wdRenderDashboardList();
+    } catch (error) {
+        if (previewTab && !previewTab.closed) previewTab.close();
+        alert(error.message || 'The SRV PDF could not be opened.');
+        button.disabled = false;
+        button.innerHTML = originalHtml;
+    }
+}
+
 function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const search = wdNormalize(searchInput?.value || '');
@@ -4564,11 +4748,17 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         item?.status,
         item?.releaseDate
     ].map(value => wdText(value)).join(' ').toLowerCase();
-    const items = wdPaymentPocketItems
+    const accessibleItems = wdPaymentPocketAccessibleItems();
+    const availableSites = wdPaymentPocketSiteOptions(accessibleItems);
+    if (wdPaymentPocketSelectedSite && !availableSites.some(site => wdNormalize(site) === wdNormalize(wdPaymentPocketSelectedSite))) {
+        wdPaymentPocketSelectedSite = '';
+    }
+    const items = accessibleItems
+        .filter(item => !wdPaymentPocketSelectedSite || wdNormalize(item?.site) === wdNormalize(wdPaymentPocketSelectedSite))
         .filter(item => !search || searchableText(item).includes(search))
         .slice()
         .sort(wdComparePaymentPocketItems);
-    const total = items.reduce((sum, item) => sum + (Number(item?.amountPaid) || 0), 0);
+    const total = items.reduce((sum, item) => sum + wdPaymentPocketInvoiceValue(item), 0);
     const totalText = typeof formatCurrency === 'function'
         ? formatCurrency(total)
         : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4576,24 +4766,24 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     if (titleEl) titleEl.textContent = 'Ready for Payment';
     if (summaryEl) {
         summaryEl.textContent = search
-            ? `${items.length} matching pocket invoice${items.length === 1 ? '' : 's'} · ${wdPaymentPocketItems.length} total · QAR ${totalText}`
-            : `${items.length} With Accounts invoice${items.length === 1 ? '' : 's'} in the compact payment pocket · QAR ${totalText}`;
+            ? `${items.length} matching pocket invoice${items.length === 1 ? '' : 's'} · ${accessibleItems.length} accessible · Invoice Value QAR ${totalText}`
+            : `${items.length} With Accounts invoice${items.length === 1 ? '' : 's'}${wdPaymentPocketSelectedSite ? ` for ${wdPaymentPocketSelectedSite}` : ''} · Invoice Value QAR ${totalText}`;
     }
 
-    if (!items.length) {
+    if (!accessibleItems.length) {
         listEl.innerHTML = `
-            <div class="wd-dashboard-empty-state ${search ? '' : 'success'}">
-                <span class="wd-empty-icon"><i class="fa-solid ${search ? 'fa-magnifying-glass' : 'fa-circle-check'}"></i></span>
+            <div class="wd-dashboard-empty-state success">
+                <span class="wd-empty-icon"><i class="fa-solid fa-circle-check"></i></span>
                 <div>
-                    <strong>${search ? 'No matching pocket invoice' : 'Payment pocket is clear'}</strong>
-                    <p>${search ? 'Try another company, PO, invoice number, or site.' : 'No current With Accounts invoice is waiting for payment.'}</p>
+                    <strong>Payment pocket is clear</strong>
+                    <p>No current With Accounts invoice is available for your permitted site access.</p>
                 </div>
             </div>`;
         return;
     }
 
-    const rows = items.map(item => {
-        const amount = Number(item?.amountPaid) || 0;
+    const rows = items.length ? items.map(item => {
+        const amount = wdPaymentPocketInvoiceValue(item);
         const amountText = typeof formatCurrency === 'function'
             ? formatCurrency(amount)
             : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -4605,9 +4795,20 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                 <td>${wdSafe(item?.site || 'N/A')}</td>
                 <td class="right-align">${wdSafe(amountText)}</td>
                 <td>${wdSafe(wdPaymentPocketDisplayDate(item?.releaseDate))}</td>
+                <td>${wdPaymentPocketSrvAction(item)}</td>
                 <td><span class="wd-payment-pocket-status">With Accounts</span></td>
             </tr>`;
-    }).join('');
+    }).join('') : `
+        <tr>
+            <td colspan="8" class="wd-payment-pocket-no-match">
+                No invoice matches the selected site and search. Change the Site filter or clear the search.
+            </td>
+        </tr>`;
+
+    const allSitesLabel = wdIsPaymentPocketSiteScopedUser() ? 'All Assigned Sites' : 'All Sites';
+    const siteOptions = availableSites.map(site => `
+        <option value="${wdSafe(site)}"${wdNormalize(site) === wdNormalize(wdPaymentPocketSelectedSite) ? ' selected' : ''}>${wdSafe(site)}</option>
+    `).join('');
 
     listEl.innerHTML = `
         <div class="wd-payment-pocket-board">
@@ -4617,7 +4818,15 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                     <strong>${items.length}</strong>
                     <small>${search ? 'matching' : 'current'} invoice${items.length === 1 ? '' : 's'} • newest With Accounts date first</small>
                 </div>
-                <div><small>Displayed Total</small><strong>QAR ${wdSafe(totalText)}</strong></div>
+                <div><small>Displayed Invoice Value</small><strong>QAR ${wdSafe(totalText)}</strong></div>
+            </div>
+            <div class="wd-payment-pocket-tools">
+                <label for="wd-payment-pocket-site-filter"><i class="fa-solid fa-location-dot"></i> Site</label>
+                <select id="wd-payment-pocket-site-filter" aria-label="Filter payment-pocket invoices by site">
+                    <option value="">${wdSafe(allSitesLabel)}</option>
+                    ${siteOptions}
+                </select>
+                <small>${wdIsPaymentPocketSiteScopedUser() ? 'Limited to your assigned site access.' : 'Choose a site or keep all sites visible.'}</small>
             </div>
             <div class="table-wrapper wd-payment-pocket-table-wrap">
                 <table class="wd-payment-pocket-table">
@@ -4627,8 +4836,9 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                             <th>PO No.</th>
                             <th>Company</th>
                             <th>Site</th>
-                            <th>Amount Paid</th>
+                            <th>Invoice Value</th>
                             <th>With Accounts Date</th>
+                            <th>SRV PDF</th>
                             <th>Status</th>
                         </tr>
                     </thead>

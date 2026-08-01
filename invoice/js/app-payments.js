@@ -1,7 +1,7 @@
 // ============================================================================
-// IBA 11.6.5 — Exact Result Paid Cleanup + Full Payment Scrolling
-// Super Admin can transfer or mark exact filtered Invoice Records results Paid.
-// Paid cleanup preserves With Accounts dates and removes matching pocket rows.
+// IBA 11.6.6 — WorkDesk Payment Pocket Visibility + SRV Reference
+// The compact With Accounts pocket now carries Invoice Value and SRV identity
+// for the view-only WorkDesk list without downloading the invoice archive.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -281,6 +281,7 @@ function paymentReadyPayload(poNumber, invoiceKey, invoiceData = {}, updatedAtVa
         site: supplier.site,
         amountPaid,
         invoiceValue,
+        srvName: paymentText(invoiceData.srvName || invoiceData.srvPDF || invoiceData.srvPdf),
         status: 'With Accounts',
         originalAttention: paymentText(invoiceData.attention),
         invoiceDate: paymentInvoiceDateValue(invoiceData),
@@ -307,6 +308,7 @@ function paymentReadyItemFromRow(row = {}, fallbackIndexKey = '') {
         site: paymentText(row.site) || 'N/A',
         amountPaid: Number.isFinite(savedAmount) && savedAmount > 0 ? savedAmount : invoiceValue,
         invoiceValue,
+        srvName: paymentText(row.srvName || row.srvPDF || row.srvPdf),
         status: paymentText(row.status) || 'With Accounts',
         originalAttention: paymentText(row.originalAttention || row.attention),
         invoiceDate: paymentInvoiceDateValue(row),
@@ -348,7 +350,7 @@ function paymentSubscribeReadyIndex(listener) {
 function paymentPersistReadyIndexCache() {
     try {
         localStorage.setItem(PAYMENT_READY_CACHE_KEY, JSON.stringify({
-            version: '11.6.5',
+            version: '11.6.6',
             savedAt: Date.now(),
             items: Array.from(paymentReadyIndex.entries())
         }));
@@ -433,7 +435,7 @@ async function paymentEnsureReadyIndexLoaded() {
 function paymentPersistReadyMetaCache() {
     try {
         localStorage.setItem(PAYMENT_READY_META_CACHE_KEY, JSON.stringify({
-            version: '11.6.5',
+            version: '11.6.6',
             savedAt: Date.now(),
             items: Array.from(paymentReadyMeta.entries())
         }));
@@ -564,7 +566,7 @@ function paymentRestoreInvoicePOKeysCache() {
 function paymentPersistInvoicePOKeysCache(keys) {
     try {
         localStorage.setItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY, JSON.stringify({
-            version: '11.6.5',
+            version: '11.6.6',
             savedAt: Date.now(),
             items: Array.from(keys || [])
         }));
@@ -941,7 +943,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.6.5',
+            version: '11.6.6',
             savedAt: Date.now(),
             items
         }));
@@ -1497,6 +1499,8 @@ async function paymentCommitReadyBackfill(items, completedTargets = [], targetPO
             paymentText(current.invoiceNo) === payload.invoiceNo &&
             paymentNormalize(current.vendorName) === payload.vendorNameLower &&
             Number(current.amountPaid) === Number(payload.amountPaid) &&
+            Number(current.invoiceValue) === Number(payload.invoiceValue) &&
+            paymentText(current.srvName) === payload.srvName &&
             paymentDateISO(current.releaseDate) === paymentDateISO(payload.releaseDate)
         ) {
             return;
