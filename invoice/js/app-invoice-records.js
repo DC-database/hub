@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-invoice-records.js
    Invoice Management reporting / records renderer.
-   Version: 11.4.9
+   Version: 11.6.4
 
    Cleanup Phase:
    - Moved the Invoice Reporting / Invoice Records display renderer out of app.js.
@@ -59,6 +59,304 @@ function imInvoiceRecordEntryLabel(invoice) {
     if (imIsEcommitInvoiceRecord(invoice)) return 'EPICOR – Not Imported';
     return String((invoice && invoice.invEntryID) || '');
 }
+
+// 11.6.4: Super Admin stages exactly the current Invoice Records result before
+// transferring selected With Accounts rows into the compact payment pocket.
+let imPocketTransferSourceItems = [];
+let imPocketTransferExcludedIds = new Set();
+let imPocketTransferCompleted = false;
+
+function imPocketTransferText(value) {
+    return String(value == null ? '' : value).trim();
+}
+
+function imPocketTransferNormalize(value) {
+    return imPocketTransferText(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function imPocketTransferIsSuperAdmin() {
+    const currentName = imPocketTransferNormalize(currentApprover?.Name || currentApprover?.name || '');
+    const superName = imPocketTransferNormalize(typeof SUPER_ADMIN_NAME !== 'undefined' ? SUPER_ADMIN_NAME : 'Irwin');
+    return Boolean(currentName && superName && currentName === superName);
+}
+
+function imPocketTransferSafe(value) {
+    if (typeof escapeHtml === 'function') return escapeHtml(value == null ? '' : value);
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function imPocketTransferAmount(invoice = {}) {
+    const saved = Number(invoice.amountPaid);
+    const invoiceValue = Number(invoice.invValue) || 0;
+    return Number.isFinite(saved) && saved > 0 ? saved : invoiceValue;
+}
+
+function imPocketTransferCurrentResultItems() {
+    const items = [];
+    (Array.isArray(currentReportData) ? currentReportData : []).forEach(poData => {
+        const po = imPocketTransferText(poData && poData.poNumber).toUpperCase();
+        (Array.isArray(poData && poData.filteredInvoices) ? poData.filteredInvoices : []).forEach(invoice => {
+            const key = imPocketTransferText(invoice && invoice.key);
+            const id = `${po}::${key}`;
+            items.push({
+                id,
+                po,
+                key,
+                source: imPocketTransferText(invoice && invoice.source),
+                invoice: {
+                    ...(invoice || {}),
+                    vendorName: imPocketTransferText(
+                        invoice && (invoice.vendorName || invoice.vendor || invoice.supplierName)
+                    ) || imPocketTransferText(poData && poData.vendor) || 'N/A',
+                    site: imPocketTransferText(
+                        invoice && (invoice.site || invoice.siteName || invoice['Project ID'])
+                    ) || imPocketTransferText(poData && poData.site) || 'N/A'
+                }
+            });
+        });
+    });
+    return items;
+}
+
+function imPocketTransferValidation(items = imPocketTransferCurrentResultItems()) {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) return { valid: false, message: 'Search Invoice Records first.' };
+    if (list.some(item => !item.po || !item.key)) {
+        return { valid: false, message: 'The result contains a row without a permanent Firebase invoice identity.' };
+    }
+    if (list.some(item => imPocketTransferNormalize(item.source || item.invoice?.source) === 'ecommit')) {
+        return { valid: false, message: 'The result contains ECommit-only rows. Filter saved With Accounts invoices only.' };
+    }
+    if (list.some(item => imPocketTransferNormalize(item.invoice?.status) !== 'with accounts')) {
+        return { valid: false, message: 'Filter Invoice Records to With Accounts before preparing the transfer.' };
+    }
+    return { valid: true, message: '' };
+}
+
+function imUpdatePocketTransferButtonState() {
+    const button = document.getElementById('im-prepare-pocket-transfer-btn');
+    if (!button) return;
+    const isSuperAdmin = imPocketTransferIsSuperAdmin();
+    button.classList.toggle('hidden', !isSuperAdmin);
+    if (!isSuperAdmin) return;
+
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imPocketTransferValidation(items);
+    button.disabled = !validation.valid;
+    button.title = validation.valid
+        ? `Prepare exactly ${items.length} filtered With Accounts invoice(s) for pocket transfer.`
+        : validation.message;
+    const label = button.querySelector('span');
+    if (label) label.textContent = validation.valid
+        ? `Prepare Pocket Transfer (${items.length})`
+        : 'Prepare Pocket Transfer';
+}
+
+function imPocketTransferRemainingItems() {
+    return imPocketTransferSourceItems.filter(item => !imPocketTransferExcludedIds.has(item.id));
+}
+
+function imPocketTransferSetStatus(message, tone = '') {
+    const status = document.getElementById('im-pocket-transfer-status');
+    if (!status) return;
+    status.className = `im-pocket-transfer-status${tone ? ` is-${tone}` : ''}`;
+    status.textContent = message || '';
+}
+
+function imRenderPocketTransferList() {
+    const body = document.getElementById('im-pocket-transfer-table-body');
+    const originalCount = document.getElementById('im-pocket-transfer-original-count');
+    const excludedCount = document.getElementById('im-pocket-transfer-excluded-count');
+    const remainingCount = document.getElementById('im-pocket-transfer-remaining-count');
+    const totalDisplay = document.getElementById('im-pocket-transfer-total');
+    const transferButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    const resetButton = document.getElementById('im-pocket-transfer-reset-btn');
+    if (!body) return;
+
+    const remaining = imPocketTransferRemainingItems();
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    if (originalCount) originalCount.textContent = String(imPocketTransferSourceItems.length);
+    if (excludedCount) excludedCount.textContent = String(imPocketTransferExcludedIds.size);
+    if (remainingCount) remainingCount.textContent = String(remaining.length);
+    if (totalDisplay) totalDisplay.textContent = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (transferButton) transferButton.disabled = !remaining.length || imPocketTransferCompleted;
+    if (resetButton) resetButton.disabled = !imPocketTransferExcludedIds.size || imPocketTransferCompleted;
+
+    if (!remaining.length) {
+        body.innerHTML = '<tr><td colspan="7" class="im-pocket-transfer-empty">All prepared invoices are excluded. Use Reset List to restore them.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = remaining.map(item => {
+        const invoice = item.invoice || {};
+        const amount = imPocketTransferAmount(invoice);
+        const amountText = typeof formatCurrency === 'function'
+            ? formatCurrency(amount)
+            : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const releaseDate = typeof formatToDDMMMYY === 'function'
+            ? formatToDDMMMYY(invoice.releaseDate)
+            : imPocketTransferText(invoice.releaseDate) || '---';
+        return `
+            <tr>
+                <td>${imPocketTransferSafe(invoice.invNumber || invoice.invoiceNo || invoice.invEntryID || 'N/A')}</td>
+                <td>${imPocketTransferSafe(item.po)}</td>
+                <td>${imPocketTransferSafe(invoice.vendorName || 'N/A')}</td>
+                <td>${imPocketTransferSafe(invoice.site || 'N/A')}</td>
+                <td class="right-align">${imPocketTransferSafe(amountText)}</td>
+                <td>${imPocketTransferSafe(releaseDate)}</td>
+                <td><button type="button" class="im-pocket-transfer-remove" data-transfer-id="${imPocketTransferSafe(encodeURIComponent(item.id))}" title="Exclude from this transfer only" aria-label="Exclude ${imPocketTransferSafe(invoice.invNumber || item.po)}"><i class="fa-solid fa-xmark"></i></button></td>
+            </tr>`;
+    }).join('');
+}
+
+function imOpenPocketTransferModal() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can transfer Invoice Records results.');
+        return;
+    }
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imPocketTransferValidation(items);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+
+    imPocketTransferSourceItems = items;
+    imPocketTransferExcludedIds = new Set();
+    imPocketTransferCompleted = false;
+    const transferButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    if (transferButton) transferButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Transfer Remaining to Payment Pocket';
+    imPocketTransferSetStatus('Remove any invoice you do not want to transfer, then confirm the remaining list.');
+    imRenderPocketTransferList();
+    document.getElementById('im-pocket-transfer-modal')?.classList.remove('hidden');
+}
+
+function imClosePocketTransferModal() {
+    document.getElementById('im-pocket-transfer-modal')?.classList.add('hidden');
+}
+
+async function imConfirmPocketTransfer() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can transfer Invoice Records results.');
+        return;
+    }
+    const remaining = imPocketTransferRemainingItems();
+    if (!remaining.length) {
+        alert('There are no remaining invoices to transfer.');
+        return;
+    }
+    const validation = imPocketTransferValidation(remaining);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+    if (!window.ibaPaymentPocket || typeof window.ibaPaymentPocket.transferFilteredInvoices !== 'function') {
+        alert('The payment pocket service is unavailable. Refresh the system and try again.');
+        return;
+    }
+
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    const totalText = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const confirmed = confirm(
+        `Transfer exactly ${remaining.length} remaining invoice(s) to the payment pocket?\n\n` +
+        `Excluded: ${imPocketTransferExcludedIds.size}\n` +
+        `Remaining Total: ${totalText}\n\n` +
+        'Existing pocket records will be refreshed in place and will not duplicate.'
+    );
+    if (!confirmed) return;
+
+    const transferButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    const resetButton = document.getElementById('im-pocket-transfer-reset-btn');
+    if (transferButton) {
+        transferButton.disabled = true;
+        transferButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Transferring…';
+    }
+    if (resetButton) resetButton.disabled = true;
+    document.querySelectorAll('#im-pocket-transfer-table-body .im-pocket-transfer-remove').forEach(button => {
+        button.disabled = true;
+    });
+
+    try {
+        const result = await window.ibaPaymentPocket.transferFilteredInvoices(remaining, progress => {
+            imPocketTransferSetStatus(`Transferring ${progress.processed} of ${progress.total} invoice(s)…`, 'working');
+        });
+        imPocketTransferCompleted = true;
+        imPocketTransferSetStatus(
+            `${result.total} invoice(s) transferred successfully: ${result.added} new and ${result.refreshed} existing pocket record(s) refreshed. Current pocket total: ${result.items.length}.`,
+            'success'
+        );
+        if (transferButton) transferButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Transfer Completed';
+    } catch (error) {
+        console.error('Invoice Records pocket transfer failed:', error);
+        imPocketTransferSetStatus(error.message || 'The pocket transfer could not be completed.', 'error');
+        if (transferButton) {
+            transferButton.disabled = false;
+            transferButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Retry Transfer';
+        }
+        if (resetButton) resetButton.disabled = !imPocketTransferExcludedIds.size;
+        document.querySelectorAll('#im-pocket-transfer-table-body .im-pocket-transfer-remove').forEach(button => {
+            button.disabled = false;
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const prepareButton = document.getElementById('im-prepare-pocket-transfer-btn');
+    const transferBody = document.getElementById('im-pocket-transfer-table-body');
+    const resetButton = document.getElementById('im-pocket-transfer-reset-btn');
+    const confirmButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    const clearButton = document.getElementById('im-reporting-clear-button');
+
+    if (prepareButton && !prepareButton.dataset.pocketTransferBound) {
+        prepareButton.dataset.pocketTransferBound = '1';
+        prepareButton.addEventListener('click', imOpenPocketTransferModal);
+    }
+    if (transferBody && !transferBody.dataset.pocketTransferBound) {
+        transferBody.dataset.pocketTransferBound = '1';
+        transferBody.addEventListener('click', event => {
+            const removeButton = event.target.closest('.im-pocket-transfer-remove');
+            if (!removeButton || removeButton.disabled || imPocketTransferCompleted) return;
+            let itemId = '';
+            try { itemId = decodeURIComponent(removeButton.dataset.transferId || ''); } catch (_) {}
+            if (!itemId) return;
+            imPocketTransferExcludedIds.add(itemId);
+            imPocketTransferSetStatus('List updated. The excluded invoice will not be transferred.');
+            imRenderPocketTransferList();
+        });
+    }
+    if (resetButton && !resetButton.dataset.pocketTransferBound) {
+        resetButton.dataset.pocketTransferBound = '1';
+        resetButton.addEventListener('click', () => {
+            if (imPocketTransferCompleted) return;
+            imPocketTransferExcludedIds = new Set();
+            imPocketTransferSetStatus('All originally prepared Invoice Records rows have been restored.');
+            imRenderPocketTransferList();
+        });
+    }
+    if (confirmButton && !confirmButton.dataset.pocketTransferBound) {
+        confirmButton.dataset.pocketTransferBound = '1';
+        confirmButton.addEventListener('click', imConfirmPocketTransfer);
+    }
+    document.querySelectorAll('#im-pocket-transfer-modal .modal-close-btn').forEach(button => {
+        if (button.dataset.pocketTransferBound) return;
+        button.dataset.pocketTransferBound = '1';
+        button.addEventListener('click', imClosePocketTransferModal);
+    });
+    if (clearButton && !clearButton.dataset.pocketTransferStateBound) {
+        clearButton.dataset.pocketTransferStateBound = '1';
+        clearButton.addEventListener('click', () => setTimeout(imUpdatePocketTransferButtonState, 0));
+    }
+    imUpdatePocketTransferButtonState();
+});
 
 
 // --- CORE REPORTING LOGIC ---
@@ -207,6 +505,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const canPrintSticker = isAdmin && canAccessInvoiceRecords;
 
     currentReportData = [];
+    imUpdatePocketTransferButtonState();
 
     if (!canAccessInvoiceRecords) {
         if (contentArea) contentArea.innerHTML = '<div class="loading-state">Access denied. Invoice Records is Admin only.</div>';
@@ -359,6 +658,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
         processedPOData.sort((a, b) => a.balance - b.balance);
         currentReportData = processedPOData;
+        imUpdatePocketTransferButtonState();
 
         if (document.getElementById('reporting-count-display')) {
             document.getElementById('reporting-count-display').textContent = `(Found: ${currentReportData.length})`;

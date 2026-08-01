@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 10.8.4
+   Version: 11.6.4
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -212,6 +212,10 @@ const WD_DASHBOARD_ALL = '__ALL__';
 const WD_DASHBOARD_STATUS_PREFIX = '__STATUS__::';
 const WD_DASHBOARD_PERSON_PREFIX = '__PERSON__::';
 const WD_DASHBOARD_MY_STATUS_PREFIX = '__MY_STATUS__::';
+const WD_PAYMENT_POCKET_FILTER = '__PAYMENT_READY__';
+let wdPaymentPocketItems = [];
+let wdPaymentPocketSubscriptionStarted = false;
+let wdPaymentPocketUnsubscribe = null;
 const WD_COMPLETED_STATUSES = new Set([
     'with accounts',
     'paid',
@@ -309,6 +313,64 @@ function wdSafe(value) {
 
 function wdNormalize(value) {
     return String(value || '').trim().toLowerCase();
+}
+
+function wdCanSeePaymentPocket() {
+    if (typeof window.canCurrentUserAccessPayments === 'function') {
+        try { return Boolean(window.canCurrentUserAccessPayments()); } catch (_) {}
+    }
+    const userName = wdNormalize(currentApprover?.Name || currentApprover?.name || '');
+    const superName = wdNormalize(typeof SUPER_ADMIN_NAME !== 'undefined' ? SUPER_ADMIN_NAME : 'Irwin');
+    if (userName && superName && userName === superName) return true;
+    const role = wdNormalize(currentApprover?.Role || currentApprover?.role || '');
+    if (role !== 'admin') return false;
+    const positionTokens = wdNormalize(currentApprover?.Position || currentApprover?.position || '')
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+    return positionTokens.some(token => ['finance', 'accounts', 'accounting'].includes(token));
+}
+
+function wdPaymentPocketDateSortValue(value) {
+    const raw = wdText(value);
+    if (!raw) return -1;
+    let normalized = raw;
+    if (typeof normalizeDateForInput === 'function') {
+        try { normalized = normalizeDateForInput(raw) || raw; } catch (_) {}
+    }
+    const match = String(normalized).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    return match ? Number(`${match[1]}${String(match[2]).padStart(2, '0')}${String(match[3]).padStart(2, '0')}`) : -1;
+}
+
+function wdComparePaymentPocketItems(a, b) {
+    return wdPaymentPocketDateSortValue(b?.releaseDate) - wdPaymentPocketDateSortValue(a?.releaseDate) ||
+        wdText(a?.supplierName).localeCompare(wdText(b?.supplierName), undefined, { sensitivity: 'base' }) ||
+        wdText(a?.po).localeCompare(wdText(b?.po), undefined, { numeric: true, sensitivity: 'base' }) ||
+        wdText(a?.invoiceNo || a?.invEntryID).localeCompare(wdText(b?.invoiceNo || b?.invEntryID), undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function wdStartPaymentPocketSync() {
+    if (!wdCanSeePaymentPocket()) {
+        if (typeof wdPaymentPocketUnsubscribe === 'function') wdPaymentPocketUnsubscribe();
+        wdPaymentPocketUnsubscribe = null;
+        wdPaymentPocketSubscriptionStarted = false;
+        wdPaymentPocketItems = [];
+        return;
+    }
+    if (wdPaymentPocketSubscriptionStarted) return;
+    const pocketApi = window.ibaPaymentPocket;
+    if (!pocketApi || typeof pocketApi.subscribe !== 'function') return;
+
+    wdPaymentPocketSubscriptionStarted = true;
+    if (typeof pocketApi.getItems === 'function') {
+        try { wdPaymentPocketItems = pocketApi.getItems().slice().sort(wdComparePaymentPocketItems); } catch (_) {}
+    }
+    wdPaymentPocketUnsubscribe = pocketApi.subscribe(items => {
+        wdPaymentPocketItems = (Array.isArray(items) ? items : []).slice().sort(wdComparePaymentPocketItems);
+        if (!wdPopulateDashboardRunning && document.getElementById('wd-active-dashboard-cards')) {
+            wdRenderDashboardCards();
+            if (wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER) wdRenderDashboardList();
+        }
+    });
 }
 
 function wdDashboardUserCacheKey() {
@@ -783,6 +845,7 @@ function wdCurrentUserNameNorm() {
 
 function wdDashboardFilterExists(filterKey) {
     if (!filterKey || filterKey === WD_DASHBOARD_NONE || filterKey === WD_DASHBOARD_ALL) return true;
+    if (filterKey === WD_PAYMENT_POCKET_FILTER) return wdCanSeePaymentPocket();
     if (filterKey.startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)) {
         const target = filterKey.slice(WD_DASHBOARD_MY_STATUS_PREFIX.length);
         return wdPersonalDashboardTasks.some(t => wdNormalize(t.personalBucket || wdDashboardPersonalBucket(t.status, t.type)) === target);
@@ -805,6 +868,7 @@ function wdDashboardFilterExists(filterKey) {
 function wdDashboardSelectedLabel() {
     if (wdActiveDashboardSelectedStatus === WD_DASHBOARD_NONE) return 'Select a status card';
     if (wdActiveDashboardSelectedStatus === WD_DASHBOARD_ALL) return 'All Active Tasks';
+    if (wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER) return 'Ready for Payment';
     if (wdActiveDashboardSelectedStatus.startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)) {
         const target = wdActiveDashboardSelectedStatus.slice(WD_DASHBOARD_MY_STATUS_PREFIX.length);
         const found = wdPersonalDashboardTasks.find(t => wdNormalize(t.personalBucket || wdDashboardPersonalBucket(t.status, t.type)) === target);
@@ -2755,6 +2819,7 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         : 'Cards are loaded. Click a My Personal Task card to review the list.';
 
     wdPopulateDashboardRunning = true;
+    wdStartPaymentPocketSync();
 
     try {
         if (!forceRefresh) {
@@ -2860,7 +2925,11 @@ function wdBindDashboardControls() {
             wdAllActiveCorkboardSelectedSiteKey = '';
 
             const isPersonalSelection = wdIsPersonalDashboardSelection(wdActiveDashboardSelectedStatus);
-            if (wdCanSeeAllActiveDashboard() && !isPersonalSelection) {
+            if (
+                wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER &&
+                wdCanSeeAllActiveDashboard() &&
+                !isPersonalSelection
+            ) {
                 await wdEnsureAdminAllActiveDashboardLoaded(false);
             }
 
@@ -2901,7 +2970,9 @@ function wdBindDashboardControls() {
             // 11.0.0: Dashboard search is global. Typing a search clears any
             // previously picked All Active category/site so results are not trapped
             // inside the old card selection.
-            wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
+            if (wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) {
+                wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
+            }
             wdActiveDashboardSelectedQueueDate = '';
             wdAllActiveCorkboardSelectedSiteKey = '';
             wdRenderDashboardCards();
@@ -3601,6 +3672,30 @@ function wdRenderDashboardCards() {
                     <small>Open system tasks not assigned to you</small>
                 </div>
                 <div class="wd-dashboard-card-grid wd-dashboard-status-grid">${activeHtml}</div>
+            </section>`;
+    }
+
+    if (wdCanSeePaymentPocket()) {
+        const paymentCount = wdPaymentPocketItems.length;
+        const paymentActive = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER ? 'active' : '';
+        sectionsHtml += `
+            <section class="wd-dashboard-card-section wd-dashboard-payment-section">
+                <div class="wd-dashboard-card-section-head">
+                    <span><i class="fa-solid fa-money-check-dollar"></i> Accounts payment pocket</span>
+                    <small>Compact With Accounts records ready for payment processing</small>
+                </div>
+                <div class="wd-dashboard-card-grid wd-dashboard-payment-grid">
+                    <button class="wd-active-status-card wd-payment-pocket-card tone-payment ${paymentActive}" data-status="${WD_PAYMENT_POCKET_FILTER}" type="button" aria-label="Show ${paymentCount} invoices ready for payment">
+                        <span class="wd-status-card-glow"></span>
+                        <span class="wd-status-icon"><i class="fa-solid fa-wallet"></i></span>
+                        <span class="wd-status-meta">
+                            <strong>${paymentCount}</strong>
+                            <em>Ready for Payment</em>
+                            <small>Payment pocket • newest first</small>
+                        </span>
+                        <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+                    </button>
+                </div>
             </section>`;
     }
 
@@ -4444,6 +4539,105 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
     listEl.innerHTML = `${selectorHtml}${corkNotesHtml}`;
 }
 
+function wdPaymentPocketDisplayDate(value) {
+    if (window.ibaPaymentPocket && typeof window.ibaPaymentPocket.displayDate === 'function') {
+        try { return window.ibaPaymentPocket.displayDate(value); } catch (_) {}
+    }
+    const raw = wdText(value);
+    if (!raw) return 'Date unavailable';
+    if (typeof formatToDDMMMYY === 'function') {
+        try { return formatToDDMMMYY(raw); } catch (_) {}
+    }
+    return raw;
+}
+
+function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
+    const searchInput = document.getElementById('wd-active-dashboard-search');
+    const search = wdNormalize(searchInput?.value || '');
+    const searchableText = item => [
+        item?.po,
+        item?.invoiceNo,
+        item?.invEntryID,
+        item?.supplierName,
+        item?.supplierId,
+        item?.site,
+        item?.status,
+        item?.releaseDate
+    ].map(value => wdText(value)).join(' ').toLowerCase();
+    const items = wdPaymentPocketItems
+        .filter(item => !search || searchableText(item).includes(search))
+        .slice()
+        .sort(wdComparePaymentPocketItems);
+    const total = items.reduce((sum, item) => sum + (Number(item?.amountPaid) || 0), 0);
+    const totalText = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (titleEl) titleEl.textContent = 'Ready for Payment';
+    if (summaryEl) {
+        summaryEl.textContent = search
+            ? `${items.length} matching pocket invoice${items.length === 1 ? '' : 's'} · ${wdPaymentPocketItems.length} total · QAR ${totalText}`
+            : `${items.length} With Accounts invoice${items.length === 1 ? '' : 's'} in the compact payment pocket · QAR ${totalText}`;
+    }
+
+    if (!items.length) {
+        listEl.innerHTML = `
+            <div class="wd-dashboard-empty-state ${search ? '' : 'success'}">
+                <span class="wd-empty-icon"><i class="fa-solid ${search ? 'fa-magnifying-glass' : 'fa-circle-check'}"></i></span>
+                <div>
+                    <strong>${search ? 'No matching pocket invoice' : 'Payment pocket is clear'}</strong>
+                    <p>${search ? 'Try another company, PO, invoice number, or site.' : 'No current With Accounts invoice is waiting for payment.'}</p>
+                </div>
+            </div>`;
+        return;
+    }
+
+    const rows = items.map(item => {
+        const amount = Number(item?.amountPaid) || 0;
+        const amountText = typeof formatCurrency === 'function'
+            ? formatCurrency(amount)
+            : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `
+            <tr>
+                <td><strong>${wdSafe(item?.invoiceNo || item?.invEntryID || 'N/A')}</strong></td>
+                <td>${wdSafe(item?.po || 'N/A')}</td>
+                <td>${wdSafe(item?.supplierName || 'N/A')}</td>
+                <td>${wdSafe(item?.site || 'N/A')}</td>
+                <td class="right-align">${wdSafe(amountText)}</td>
+                <td>${wdSafe(wdPaymentPocketDisplayDate(item?.releaseDate))}</td>
+                <td><span class="wd-payment-pocket-status">With Accounts</span></td>
+            </tr>`;
+    }).join('');
+
+    listEl.innerHTML = `
+        <div class="wd-payment-pocket-board">
+            <div class="wd-payment-pocket-board-head">
+                <div>
+                    <span>Accounts Payment Pocket</span>
+                    <strong>${items.length}</strong>
+                    <small>${search ? 'matching' : 'current'} invoice${items.length === 1 ? '' : 's'} • newest With Accounts date first</small>
+                </div>
+                <div><small>Displayed Total</small><strong>QAR ${wdSafe(totalText)}</strong></div>
+            </div>
+            <div class="table-wrapper wd-payment-pocket-table-wrap">
+                <table class="wd-payment-pocket-table">
+                    <thead>
+                        <tr>
+                            <th>Invoice No.</th>
+                            <th>PO No.</th>
+                            <th>Company</th>
+                            <th>Site</th>
+                            <th>Amount Paid</th>
+                            <th>With Accounts Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+        </div>`;
+}
+
 function wdRenderDashboardList() {
     const listEl = document.getElementById('wd-active-dashboard-list');
     const titleEl = document.getElementById('wd-active-dashboard-title');
@@ -4453,6 +4647,12 @@ function wdRenderDashboardList() {
     const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const globalSearch = wdNormalize(searchInput?.value || '');
+
+    if (selected === WD_PAYMENT_POCKET_FILTER && wdCanSeePaymentPocket()) {
+        wdRenderPaymentPocketList(listEl, titleEl, summaryEl);
+        return;
+    }
+
     const baseTasks = wdGetFilteredDashboardTasks();
     let selectedLabel = selected === WD_DASHBOARD_NONE
         ? (globalSearch ? 'Global search results' : 'Select a status card')

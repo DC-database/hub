@@ -1,7 +1,7 @@
 // ============================================================================
-// IBA 11.6.3 — Pocket-Only Payments + Super Admin Legacy Recovery
-// Normal payment searches read only the compact With Accounts pocket. A guarded
-// Super Admin option can deliberately recover legacy records from targeted POs.
+// IBA 11.6.4 — Exact Result Pocket Transfer + Shared WorkDesk Pocket
+// Normal payment searches and the WorkDesk card share the compact With Accounts
+// pocket. Super Admin can safely refresh it from exact Invoice Records results.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -14,6 +14,7 @@ let paymentReadyMetaLoadPromise = null;
 let paymentReadyMetaCacheRestored = false;
 let paymentInvoicePOKeys = new Set();
 let paymentInvoicePOKeysLoadPromise = null;
+const paymentReadyIndexSubscribers = new Set();
 
 const PAYMENT_READY_INDEX_PATH = 'invoice_payments_ready';
 const PAYMENT_READY_CACHE_KEY = 'iba_invoice_payments_ready_v1';
@@ -314,10 +315,40 @@ function paymentReadyItemFromRow(row = {}, fallbackIndexKey = '') {
     };
 }
 
+function paymentReadyItemsSnapshot() {
+    const items = [];
+    paymentReadyIndex.forEach((row, indexKey) => {
+        const item = paymentReadyItemFromRow(row, indexKey);
+        if (item && paymentNormalize(item.status) === 'with accounts') items.push(item);
+    });
+    return paymentSortAndDedupeResults(items);
+}
+
+function paymentNotifyReadyIndexSubscribers() {
+    if (!paymentReadyIndexSubscribers.size) return;
+    const items = paymentReadyItemsSnapshot();
+    paymentReadyIndexSubscribers.forEach(listener => {
+        try { listener(items.map(item => ({ ...item }))); } catch (error) {
+            console.warn('Payment pocket subscriber could not be updated:', error);
+        }
+    });
+}
+
+function paymentSubscribeReadyIndex(listener) {
+    if (typeof listener !== 'function') return () => {};
+    paymentRestoreReadyIndexCache();
+    paymentReadyIndexSubscribers.add(listener);
+    try { listener(paymentReadyItemsSnapshot().map(item => ({ ...item }))); } catch (_) {}
+    paymentEnsureReadyIndexLoaded().catch(error => {
+        console.warn('Payment pocket subscription could not load the live pocket:', error);
+    });
+    return () => paymentReadyIndexSubscribers.delete(listener);
+}
+
 function paymentPersistReadyIndexCache() {
     try {
         localStorage.setItem(PAYMENT_READY_CACHE_KEY, JSON.stringify({
-            version: '11.6.3',
+            version: '11.6.4',
             savedAt: Date.now(),
             items: Array.from(paymentReadyIndex.entries())
         }));
@@ -350,6 +381,7 @@ function paymentApplyReadyIndexSnapshot(snapshotValue) {
     });
     paymentReadyIndex = next;
     paymentPersistReadyIndexCache();
+    paymentNotifyReadyIndexSubscribers();
 }
 
 async function paymentEnsureReadyIndexLoaded() {
@@ -401,7 +433,7 @@ async function paymentEnsureReadyIndexLoaded() {
 function paymentPersistReadyMetaCache() {
     try {
         localStorage.setItem(PAYMENT_READY_META_CACHE_KEY, JSON.stringify({
-            version: '11.6.3',
+            version: '11.6.4',
             savedAt: Date.now(),
             items: Array.from(paymentReadyMeta.entries())
         }));
@@ -485,6 +517,7 @@ function paymentUpdateReadyIndexMemory(indexKey, row) {
     if (row) paymentReadyIndex.set(indexKey, { ...row, indexKey });
     else paymentReadyIndex.delete(indexKey);
     paymentPersistReadyIndexCache();
+    paymentNotifyReadyIndexSubscribers();
 }
 
 function paymentUpdateReadyMetaMemory(metaKey, row) {
@@ -531,7 +564,7 @@ function paymentRestoreInvoicePOKeysCache() {
 function paymentPersistInvoicePOKeysCache(keys) {
     try {
         localStorage.setItem(PAYMENT_INVOICE_PO_KEYS_CACHE_KEY, JSON.stringify({
-            version: '11.6.3',
+            version: '11.6.4',
             savedAt: Date.now(),
             items: Array.from(keys || [])
         }));
@@ -603,6 +636,75 @@ async function syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData = 
     return true;
 }
 
+async function paymentTransferFilteredInvoicesToPocket(records, onProgress) {
+    if (!paymentIsSuperAdmin()) {
+        throw new Error('Only Irwin/Super Admin can transfer Invoice Records results to the payment pocket.');
+    }
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+        throw new Error('The Invoice Realtime Database connection is unavailable.');
+    }
+
+    await paymentEnsureReadyIndexLoaded();
+
+    const unique = new Map();
+    (Array.isArray(records) ? records : []).forEach(record => {
+        const po = paymentText(record && (record.po || record.poNumber)).toUpperCase();
+        const key = paymentText(record && (record.key || record.invoiceKey));
+        const invoice = record && record.invoice && typeof record.invoice === 'object'
+            ? record.invoice
+            : record;
+        if (!po || !key || !invoice || typeof invoice !== 'object') {
+            throw new Error('One of the prepared Invoice Records rows has no permanent PO/invoice identity.');
+        }
+        if (paymentNormalize(record && record.source || invoice.source) === 'ecommit') {
+            throw new Error('ECommit-only rows cannot be transferred to the payment pocket.');
+        }
+        if (paymentNormalize(invoice.status) !== 'with accounts') {
+            throw new Error('Every prepared invoice must still have With Accounts status.');
+        }
+        unique.set(paymentCartId(po, key), { po, key, invoice });
+    });
+
+    const prepared = Array.from(unique.values());
+    if (!prepared.length) throw new Error('There are no remaining invoices to transfer.');
+
+    let added = 0;
+    let refreshed = 0;
+    const payloads = prepared.map(({ po, key, invoice }) => {
+        const payload = paymentReadyPayload(po, key, invoice);
+        if (paymentReadyIndex.has(payload.indexKey)) refreshed += 1;
+        else added += 1;
+        return payload;
+    });
+
+    const batchSize = 200;
+    let processed = 0;
+    for (let start = 0; start < payloads.length; start += batchSize) {
+        const batch = payloads.slice(start, start + batchSize);
+        const updates = {};
+        batch.forEach(payload => {
+            updates[`${PAYMENT_READY_INDEX_PATH}/${payload.indexKey}`] = payload;
+        });
+        await invoiceDb.ref().update(updates);
+        batch.forEach(payload => {
+            paymentReadyIndex.set(payload.indexKey, { ...payload, indexKey: payload.indexKey });
+        });
+        processed += batch.length;
+        paymentPersistReadyIndexCache();
+        paymentNotifyReadyIndexSubscribers();
+        if (typeof onProgress === 'function') {
+            onProgress({ processed, total: payloads.length, added, refreshed });
+        }
+    }
+
+    return {
+        total: payloads.length,
+        added,
+        refreshed,
+        items: paymentReadyItemsSnapshot()
+    };
+}
+
 async function removeInvoicePaymentReadyIndex(poNumber, invoiceKey) {
     const po = paymentText(poNumber).toUpperCase();
     const key = paymentText(invoiceKey);
@@ -621,7 +723,9 @@ async function paymentRemoveReadyItems(items) {
         updates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(item.po, item.key)}`] = null;
     });
     await invoiceDb.ref().update(updates);
-    list.forEach(item => paymentUpdateReadyIndexMemory(paymentReadyIndexKey(item.po, item.key), null));
+    list.forEach(item => paymentReadyIndex.delete(paymentReadyIndexKey(item.po, item.key)));
+    paymentPersistReadyIndexCache();
+    paymentNotifyReadyIndexSubscribers();
 }
 
 function paymentStorageKey() {
@@ -641,7 +745,7 @@ function persistPaymentCart() {
             return;
         }
         localStorage.setItem(key, JSON.stringify({
-            version: '11.6.3',
+            version: '11.6.4',
             savedAt: Date.now(),
             items
         }));
@@ -1226,7 +1330,11 @@ async function paymentCommitReadyBackfill(items, completedTargets = [], targetPO
 
     if (!Object.keys(updates).length) return;
     await invoiceDb.ref().update(updates);
-    localRows.forEach(payload => paymentUpdateReadyIndexMemory(payload.indexKey, payload));
+    if (localRows.length) {
+        localRows.forEach(payload => paymentReadyIndex.set(payload.indexKey, { ...payload, indexKey: payload.indexKey }));
+        paymentPersistReadyIndexCache();
+        paymentNotifyReadyIndexSubscribers();
+    }
     localMetaRows.forEach(metaRow => paymentUpdateReadyMetaMemory(metaRow.metaKey, metaRow));
 }
 
@@ -1676,8 +1784,10 @@ async function handleSavePayments() {
             if (!allInvoiceData) allInvoiceData = {};
             if (!allInvoiceData[item.po]) allInvoiceData[item.po] = {};
             allInvoiceData[item.po][item.key] = { ...invoice, ...localUpdates };
-            paymentUpdateReadyIndexMemory(paymentReadyIndexKey(item.po, item.key), null);
+            paymentReadyIndex.delete(paymentReadyIndexKey(item.po, item.key));
         });
+        paymentPersistReadyIndexCache();
+        paymentNotifyReadyIndexSubscribers();
 
         if (statusEl) statusEl.textContent = 'Synchronizing linked payment records…';
         const syncResults = await Promise.allSettled(currentRecords.flatMap(({ item, invoice }) => {
@@ -1748,6 +1858,14 @@ window.removePaymentCartItem = removePaymentCartItem;
 window.clearPaymentCart = clearPaymentCart;
 window.syncInvoicePaymentReadyIndex = syncInvoicePaymentReadyIndex;
 window.removeInvoicePaymentReadyIndex = removeInvoicePaymentReadyIndex;
+window.ibaPaymentPocket = {
+    ensureLoaded: paymentEnsureReadyIndexLoaded,
+    getItems: paymentReadyItemsSnapshot,
+    subscribe: paymentSubscribeReadyIndex,
+    transferFilteredInvoices: paymentTransferFilteredInvoicesToPocket,
+    displayDate: paymentDisplayDate,
+    isSuperAdmin: paymentIsSuperAdmin
+};
 window.ibaPaymentTools = {
     parseAmount: paymentParseAmount,
     normalizeSupplierId: paymentNormalizeSupplierId,
