@@ -12013,6 +12013,342 @@ body.im-modal-is-dragging {
     font-size: .72rem;
 }
 
+/* 11.7.9 — Inventory Active Task premium single/multi arrangement */
+#wd-activetask .wd-inventory-modern-table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#wd-activetask .wd-inventory-section-row td {
+    padding: 18px 10px 9px !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+#wd-activetask .wd-inventory-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 34px;
+    color: #052e2b;
+    text-transform: uppercase;
+    letter-spacing: .035em;
+}
+
+#wd-activetask .wd-inventory-section-heading > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .92rem;
+    font-weight: 950;
+}
+
+#wd-activetask .wd-inventory-section-heading > span i {
+    color: #0f766e;
+}
+
+#wd-activetask .wd-inventory-section-heading small {
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 750;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+#wd-activetask .wd-inventory-section-heading b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 24px;
+    margin-left: auto;
+    padding: 0 8px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: #0f766e;
+    font-size: .72rem;
+    font-weight: 950;
+}
+
+#wd-activetask .wd-inventory-section-row.is-multi .wd-inventory-section-heading {
+    border-bottom: 2px solid rgba(15, 118, 110, .24);
+}
+
+#wd-activetask .wd-inventory-section-row.is-single .wd-inventory-section-heading {
+    border-bottom: 2px solid rgba(14, 116, 144, .18);
+}
+
+#wd-activetask .wd-inventory-modern-table tbody tr.controlid-group-header td {
+    padding: 5px 8px !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+#wd-activetask .wd-inventory-batch-card {
+    display: grid;
+    grid-template-columns: 42px minmax(220px, .9fr) minmax(230px, 1.35fr) minmax(260px, 1.15fr) minmax(120px, .55fr);
+    align-items: center;
+    overflow: hidden;
+    min-height: 82px;
+    border: 1px solid rgba(14, 116, 144, .28);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 90% 8%, rgba(14, 165, 164, .12), transparent 34%),
+        linear-gradient(135deg, #ffffff 0%, #f0fdfa 52%, #eff6ff 100%);
+    box-shadow: 0 10px 26px rgba(2, 44, 55, .10);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+#wd-activetask .controlid-group-header:hover .wd-inventory-batch-card,
+#wd-activetask .controlid-group-header.open .wd-inventory-batch-card {
+    transform: translateY(-1px);
+    border-color: rgba(15, 118, 110, .58);
+    box-shadow: 0 15px 34px rgba(2, 44, 55, .15);
+}
+
+#wd-activetask .wd-inventory-batch-toggle {
+    align-self: stretch;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    background: linear-gradient(180deg, #064e4a, #0f766e);
+}
+
+#wd-activetask .wd-inventory-batch-toggle .group-toggle-icon {
+    margin: 0;
+    transition: transform .18s ease;
+}
+
+#wd-activetask .wd-inventory-batch-identity,
+#wd-activetask .wd-inventory-batch-route,
+#wd-activetask .wd-inventory-batch-progress,
+#wd-activetask .wd-inventory-batch-status {
+    min-width: 0;
+    padding: 12px 16px;
+}
+
+#wd-activetask .wd-inventory-batch-identity {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+#wd-activetask .wd-inventory-batch-identity strong {
+    overflow: hidden;
+    color: #062d44;
+    font-size: .91rem;
+    font-weight: 950;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#wd-activetask .wd-inventory-multi-badge,
+#wd-activetask .wd-inventory-single-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    padding: 6px 9px;
+    border-radius: 8px;
+    font-size: .66rem;
+    font-weight: 950;
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+
+#wd-activetask .wd-inventory-multi-badge {
+    border: 1px solid rgba(212, 160, 23, .55);
+    color: #8a5700;
+    background: #fff8df;
+}
+
+#wd-activetask .wd-inventory-single-badge {
+    margin-right: 9px;
+    border: 1px solid rgba(14, 116, 144, .36);
+    color: #075985;
+    background: #f0f9ff;
+}
+
+#wd-activetask .wd-inventory-control-id {
+    display: inline-block;
+    vertical-align: middle;
+    color: #062d44;
+    font-size: .78rem;
+    font-weight: 900;
+}
+
+#wd-activetask .wd-inventory-batch-route,
+#wd-activetask .wd-inventory-movement {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #164e63;
+    font-weight: 800;
+}
+
+#wd-activetask .wd-inventory-batch-route {
+    border-left: 1px solid rgba(14, 116, 144, .15);
+    border-right: 1px solid rgba(14, 116, 144, .15);
+}
+
+#wd-activetask .wd-inventory-batch-progress > div:first-child {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #475569;
+    font-size: .68rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+#wd-activetask .wd-inventory-progress-track {
+    overflow: hidden;
+    height: 7px;
+    margin: 7px 0 5px;
+    border-radius: 999px;
+    background: #dbe7ec;
+}
+
+#wd-activetask .wd-inventory-progress-track i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #0f766e, #14b8a6);
+}
+
+#wd-activetask .wd-inventory-batch-progress small {
+    color: #0f766e;
+    font-size: .66rem;
+    font-weight: 900;
+}
+
+#wd-activetask .wd-inventory-batch-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+#wd-activetask .wd-inventory-batch-status span {
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: #0b4f6c;
+    font-size: .67rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+#wd-activetask .wd-inventory-batch-status small {
+    color: #64748b;
+    font-size: .64rem;
+    font-weight: 750;
+}
+
+#wd-activetask .wd-inventory-modern-table tbody tr.controlid-group-child td {
+    background: #fbfefd !important;
+}
+
+#wd-activetask .wd-inventory-modern-table tbody tr.controlid-group-child td:first-child {
+    border-left: 4px solid rgba(15, 118, 110, .35);
+}
+
+#wd-activetask .wd-inventory-modern-table tbody tr.wd-inventory-completed-child td {
+    color: #64748b !important;
+    background: #f8fafc !important;
+}
+
+#wd-activetask .wd-inventory-item-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 54px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    color: #0f766e;
+    background: #e7f8f4;
+    font-size: .68rem;
+    font-weight: 950;
+}
+
+#wd-activetask .wd-inventory-product-name {
+    color: #0f172a;
+    font-size: .78rem;
+    font-weight: 850;
+}
+
+#wd-activetask .wd-inventory-detail-text {
+    color: #64748b;
+    font-size: .73rem;
+}
+
+#wd-activetask .wd-inventory-status-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 86px;
+    padding: 6px 9px;
+    border: 1px solid color-mix(in srgb, var(--inventory-status-color, #0f766e) 35%, white);
+    border-radius: 999px;
+    color: var(--inventory-status-color, #0f766e);
+    background: color-mix(in srgb, var(--inventory-status-color, #0f766e) 8%, white);
+    font-size: .66rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+#wd-activetask .wd-inventory-action-btn {
+    min-width: 108px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 9px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #064e4a, #0f766e);
+    box-shadow: 0 6px 14px rgba(15, 118, 110, .22);
+    cursor: pointer;
+    font-size: .69rem;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+#wd-activetask .wd-inventory-action-btn:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(135deg, #073f3c, #0b675f);
+}
+
+#wd-activetask .wd-inventory-received-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #16835d;
+    font-size: .68rem;
+    font-weight: 950;
+    text-transform: uppercase;
+}
+
+#wd-activetask .wd-inventory-single-row td {
+    border-top: 1px solid #dce8ec !important;
+    border-bottom: 1px solid #dce8ec !important;
+    background: #ffffff !important;
+}
+
+#wd-activetask .wd-inventory-single-row td:first-child {
+    border-left: 4px solid #0e7490 !important;
+}
+
+@media (max-width: 1320px) {
+    #wd-activetask .wd-inventory-batch-card {
+        grid-template-columns: 40px minmax(190px, .8fr) minmax(190px, 1fr) minmax(220px, 1fr) minmax(105px, .5fr);
+    }
+    #wd-activetask .wd-inventory-batch-identity,
+    #wd-activetask .wd-inventory-batch-route,
+    #wd-activetask .wd-inventory-batch-progress,
+    #wd-activetask .wd-inventory-batch-status {
+        padding: 10px 11px;
+    }
+}
+
 @media (max-width: 980px) {
     .wd-page-hero-inventory,
     .wd-page-hero-records-inventory,

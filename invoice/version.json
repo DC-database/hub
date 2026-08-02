@@ -1,6 +1,6 @@
 {
-  "version": "11.7.8",
+  "version": "11.7.9",
   "releasedAt": "2026-08-02",
-  "title": "All Active Blank-Attention Index Repair",
-  "message": "On Hold, Pending, and For Summary invoices now remain in the compact All Active Dashboard index even when their workflow intentionally clears Attention, while personal task indexes remain limited to named assignees."
+  "title": "Inventory Receiving and Active Task Grouping",
+  "message": "Inventory receiving now updates Active Task immediately after a verified stock receipt, failed stock updates stay open, multi-item transfers remain clearly grouped, and On Hold invoices preserve an optional manually selected Attention person."
 }

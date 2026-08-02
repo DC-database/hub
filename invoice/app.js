@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.7.8';
+const APP_VERSION = '11.7.9';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4216,8 +4216,8 @@ async function updateLinkedJobEntry(poNumber, invoiceKey, newStatus, note = '') 
 
 
 
-// 11.1.5: Invoice statuses below are record/holding/final statuses.
-// They should always save with Attention = None/blank so they do not create personal active tasks.
+// Final/reference statuses below save with Attention=None. On Hold is intentionally
+// excluded in 11.7.9 so a manually selected responsible person is preserved.
 function imStatusUsesNoAttention(statusValue) {
     const st = String(statusValue || '').trim().toLowerCase().replace(/\s+/g, ' ');
     return [
@@ -4225,8 +4225,7 @@ function imStatusUsesNoAttention(statusValue) {
         'for summary',
         'with accounts',
         'pending',
-        'report approved',
-        'on hold'
+        'report approved'
     ].includes(st);
 }
 
@@ -4348,7 +4347,9 @@ async function handleAddInvoice(e) {
     imApplyInvoiceAttentionRule(invoiceData);
 
     // --- NEW: STRICT VALIDATION ---
-    const isAttentionRequired = !imStatusUsesNoAttention(invoiceData.status);
+    const isAttentionRequired = (typeof imIsAttentionRequiredForStatus === 'function')
+        ? imIsAttentionRequiredForStatus(invoiceData.status)
+        : !imStatusUsesNoAttention(invoiceData.status);
 
     if (!invoiceData.invNumber || !invoiceData.invValue || !invoiceData.invoiceDate || !invoiceData.status) {
         alert("Please fill in all highlighted fields:\n- Invoice No.\n- Invoice Value\n- Invoice Date\n- Status");
