@@ -1,6 +1,6 @@
 {
-  "version": "11.8.0",
+  "version": "11.8.1",
   "releasedAt": "2026-08-02",
-  "title": "Premium Module Colour Identity",
-  "message": "WorkDesk, Inventory, and Invoice Management now use distinct approved colour palettes across desktop, mobile, cards, tables, controls, and modal popups without changing system workflows."
+  "title": "Adaptive Module Contrast Correction",
+  "message": "Cards, tabs, buttons, icons, expanded Invoice Records tables, modal controls, and mobile surfaces now use readable light-on-dark or dark-on-light contrast while preserving each module's approved colour identity."
 }
