@@ -8,9 +8,9 @@
 @media (max-width: 768px) {
     #inventory-view,
     body.inventory-mode {
-        --module-accent: #4d0000;
-        --module-accent-deep: #2b0000;
-        --module-accent-mid: #7a1111;
+        --module-accent: #226484;
+        --module-accent-deep: #123043;
+        --module-accent-mid: #66c0b8;
     }
     #inventory-view .wd-mobile-header,
     #inventory-view .mobile-page-header,
@@ -20,10 +20,10 @@
     body.inventory-mode .inventory-request-review-head {
         background:
             radial-gradient(circle at 96% 0%, rgba(255,255,255,0.16), transparent 30%),
-            linear-gradient(135deg, #2b0000, #4d0000 60%, #7a1111) !important;
+            linear-gradient(135deg, #123043, #226484 60%, #66c0b8) !important;
         color: #ffffff !important;
         border-radius: 20px !important;
-        border: 1px solid rgba(255,241,241,0.24) !important;
+        border: 1px solid rgba(207,253,249,0.24) !important;
     }
     #inventory-view .wd-page-hero h1,
     #inventory-view .inventory-hero h1,
@@ -35,10 +35,10 @@
     #ms-transfer-btn,
     #ms-restock-btn,
     #ms-usage-btn {
-        background: linear-gradient(135deg, #4d0000, #7a1111) !important;
+        background: linear-gradient(135deg, #226484, #66c0b8) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid rgba(255,241,241,0.34) !important;
+        border: 1px solid rgba(207,253,249,0.34) !important;
         border-radius: 14px !important;
         opacity: 1 !important;
     }
@@ -48,16 +48,16 @@
     #ms-transfer-btn.disabled,
     #ms-restock-btn.disabled,
     #ms-usage-btn.disabled {
-        background: #fff1f1 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77,0,0,0.24) !important;
+        background: #cffdf9 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132,0.24) !important;
         opacity: 1 !important;
     }
     #inventory-view table thead th,
     body.inventory-mode table thead th,
     #ms-table thead th {
-        background: #4d0000 !important;
+        background: #226484 !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
     }
@@ -77,7 +77,7 @@
     #ms-add-stock-modal .modal-header,
     #transfer-job-modal .modal-header,
     #transfer-approval-modal .modal-header {
-        background: linear-gradient(135deg, #2b0000, #4d0000 60%, #7a1111) !important;
+        background: linear-gradient(135deg, #123043, #226484 60%, #66c0b8) !important;
         color: #ffffff !important;
     }
     .inventory-themed-modal .modal-header *,
@@ -88,7 +88,7 @@
     }
     #inventory-job-records-stage-switch .inv-stage-btn.active,
     body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active {
-        background: linear-gradient(135deg, #4d0000, #7a1111) !important;
+        background: linear-gradient(135deg, #226484, #66c0b8) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
     }
@@ -104,13 +104,13 @@
     body.inventory-mode #active-task-filters.report-tabs,
     #ms-category-tabs.report-tabs,
     #ms-category-tabs.ms-premium-tabs {
-        background: rgba(255, 248, 248, 0.96) !important;
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
-        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        background: rgba(244,255,253, 0.96) !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
+        border-bottom: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 18px !important;
         padding: 8px !important;
         gap: 8px !important;
-        box-shadow: 0 8px 20px rgba(43, 0, 0, 0.06) !important;
+        box-shadow: 0 8px 20px rgba(18,48,67, 0.06) !important;
     }
 
     body.inventory-mode #wd-reporting #report-tabs.report-tabs button,
@@ -119,12 +119,12 @@
     body.inventory-mode #active-task-filters.report-tabs button,
     #ms-category-tabs .ms-family-chip,
     #ms-category-tabs.report-tabs button {
-        --tab-color: #4d0000 !important;
-        --tab-text: #4d0000 !important;
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        --tab-color: #226484 !important;
+        --tab-text: #226484 !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.22) !important;
         border-radius: 14px !important;
         box-shadow: none !important;
         text-shadow: none !important;
@@ -138,13 +138,13 @@
     body.inventory-mode #active-task-filters.report-tabs button.active,
     #ms-category-tabs .ms-family-chip.active,
     #ms-category-tabs.report-tabs button.active {
-        --tab-color: #4d0000 !important;
+        --tab-color: #226484 !important;
         --tab-text: #ffffff !important;
-        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: rgba(77, 0, 0, 0.48) !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+        border-color: rgba(34,100,132, 0.48) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.18) !important;
     }
     body.inventory-mode #wd-reporting #report-tabs.report-tabs button.active *,
     body.inventory-mode #report-tabs.report-tabs button.active *,
@@ -157,20 +157,20 @@
     }
 
     #ms-table tbody tr:hover {
-        background: #fffafa !important;
-        box-shadow: inset 4px 0 0 #4d0000 !important;
+        background: #f4fffd !important;
+        box-shadow: inset 4px 0 0 #226484 !important;
     }
     #ms-table .ms-product-code,
     #ms-table .ms-family-badge {
-        background: #fff1f1 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77,0,0,0.20) !important;
+        background: #cffdf9 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132,0.20) !important;
         border-radius: 999px !important;
         font-weight: 900 !important;
     }
     #ms-table .ms-stock-pill {
-        background: linear-gradient(135deg, #4d0000 0%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #226484 0%, #66c0b8 100%) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
         border-radius: 999px !important;
@@ -180,10 +180,10 @@
     #ms-table .ms-row-action-btn,
     #ms-table .ms-add-to-required-btn,
     #ms-table .ms-edit-stock-btn {
-        background: #fff8f8 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77,0,0,0.24) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132,0.24) !important;
         border-radius: 12px !important;
         font-weight: 900 !important;
     }
@@ -209,22 +209,22 @@
 
     body.inventory-mode .inv-mobile-search-box {
         background: #ffffff !important;
-        border: 1px solid rgba(77, 0, 0, 0.18) !important;
+        border: 1px solid rgba(34,100,132, 0.18) !important;
         border-radius: 18px !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.08) !important;
         overflow: hidden !important;
     }
 
     body.inventory-mode .inv-mobile-search-box:focus-within {
-        border-color: rgba(77, 0, 0, 0.45) !important;
-        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.14) !important;
+        border-color: rgba(34,100,132, 0.45) !important;
+        box-shadow: 0 12px 26px rgba(18,48,67, 0.14) !important;
     }
 
     body.inventory-mode .inv-mobile-search-box i,
     body.inventory-mode .inv-mobile-search-box .fa,
     body.inventory-mode .inv-mobile-search-box .fas {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         flex: 0 0 auto !important;
     }
 
@@ -275,16 +275,16 @@
     }
 
     body.inventory-mode .inv-mobile-scan-btn {
-        background: linear-gradient(135deg, #4d0000, #7a1111) !important;
+        background: linear-gradient(135deg, #226484, #66c0b8) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid rgba(77, 0, 0, 0.34) !important;
+        border: 1px solid rgba(34,100,132, 0.34) !important;
         border-radius: 14px !important;
-        box-shadow: 0 10px 20px rgba(43, 0, 0, 0.16) !important;
+        box-shadow: 0 10px 20px rgba(18,48,67, 0.16) !important;
     }
 
     body.inventory-mode #inv-mobile-material-search-clear {
-        background: #fff8f8 !important;
+        background: #f4fffd !important;
         color: #7f1d1d !important;
         -webkit-text-fill-color: #7f1d1d !important;
         border: 1px solid rgba(185, 28, 28, 0.24) !important;
@@ -301,13 +301,13 @@
 @media (max-width: 768px) {
     body.inventory-mode #wd-activetask #active-task-mobile-header,
     body.inventory-mode #active-task-mobile-header {
-        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255, 241, 241, 0.22) !important;
+        border: 1px solid rgba(207,253,249, 0.22) !important;
         border-radius: 18px !important;
         margin: 8px 0 12px 0 !important;
         padding: 10px 12px !important;
-        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.16) !important;
+        box-shadow: 0 12px 26px rgba(18,48,67, 0.16) !important;
     }
 
     body.inventory-mode #active-task-mobile-header h1 {
@@ -325,42 +325,42 @@
         min-width: 42px !important;
         border-radius: 14px !important;
         background: rgba(255, 255, 255, 0.96) !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(255, 241, 241, 0.42) !important;
-        box-shadow: 0 10px 18px rgba(43, 0, 0, 0.18) !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(207,253,249, 0.42) !important;
+        box-shadow: 0 10px 18px rgba(18,48,67, 0.18) !important;
         opacity: 1 !important;
     }
 
     body.inventory-mode #mobile-activetask-refresh-btn i,
     body.inventory-mode #active-task-mobile-header .mobile-header-icon i {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
     }
 
     body.inventory-mode #wd-activetask .wd-premium-searchbar,
     body.inventory-mode #wd-activetask .search-and-filter-group {
-        border: 1px solid rgba(77, 0, 0, 0.14) !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.06) !important;
+        border: 1px solid rgba(34,100,132, 0.14) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.06) !important;
     }
 
     body.inventory-mode #wd-activetask .wd-search-field:focus-within,
     body.inventory-mode #wd-activetask .search-bar-local:focus-within {
-        border-color: rgba(77, 0, 0, 0.44) !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.12) !important;
+        border-color: rgba(34,100,132, 0.44) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.12) !important;
     }
 
     body.inventory-mode #wd-activetask .wd-search-field i,
     body.inventory-mode #wd-activetask .search-bar-local i {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
     }
 
     body.inventory-mode #wd-activetask #active-task-clear-button {
-        background: #fff8f8 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.22) !important;
         border-radius: 14px !important;
         font-weight: 900 !important;
         opacity: 1 !important;
@@ -368,25 +368,25 @@
 
     body.inventory-mode #wd-activetask #active-task-filters.report-tabs,
     body.inventory-mode #active-task-filters.report-tabs {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
-        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
+        border-bottom: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 18px !important;
         padding: 8px !important;
         margin: 10px 0 14px 0 !important;
         gap: 8px !important;
-        box-shadow: 0 8px 20px rgba(43, 0, 0, 0.06) !important;
+        box-shadow: 0 8px 20px rgba(18,48,67, 0.06) !important;
     }
 
     body.inventory-mode #wd-activetask #active-task-filters.report-tabs button,
     body.inventory-mode #active-task-filters.report-tabs button,
     body.inventory-mode #active-task-filters.report-tabs button[disabled] {
-        --tab-color: #fff1f1 !important;
-        --tab-text: #4d0000 !important;
-        background: #fff1f1 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.24) !important;
+        --tab-color: #cffdf9 !important;
+        --tab-text: #226484 !important;
+        background: #cffdf9 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.24) !important;
         border-radius: 14px !important;
         clip-path: none !important;
         margin: 0 !important;
@@ -400,20 +400,20 @@
     body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active,
     body.inventory-mode #active-task-filters.report-tabs button.active,
     body.inventory-mode #active-task-filters.report-tabs button.blink-tab {
-        --tab-color: #4d0000 !important;
+        --tab-color: #226484 !important;
         --tab-text: #ffffff !important;
-        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: rgba(77, 0, 0, 0.48) !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+        border-color: rgba(34,100,132, 0.48) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.18) !important;
     }
 
     body.inventory-mode #active-task-filters.report-tabs button .notification-badge {
         background: #ffffff !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.20) !important;
     }
 
     body.inventory-mode #active-task-mobile-view {
@@ -422,9 +422,9 @@
 
     body.inventory-mode #active-task-mobile-view .mobile-task-card,
     body.inventory-mode #active-task-mobile-view .wd-task-card {
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 20px !important;
-        box-shadow: 0 14px 30px rgba(43, 0, 0, 0.10) !important;
+        box-shadow: 0 14px 30px rgba(18,48,67, 0.10) !important;
         overflow: hidden !important;
         background: #ffffff !important;
     }
@@ -432,7 +432,7 @@
     body.inventory-mode #active-task-mobile-view .mobile-card-header,
     body.inventory-mode #active-task-mobile-view .wd-task-card-header,
     body.inventory-mode #active-task-mobile-view .m-card-header {
-        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
         color: #ffffff !important;
         border-left: 0 !important;
     }
@@ -458,8 +458,8 @@
 
     body.inventory-mode #active-task-mobile-view .mobile-card-body,
     body.inventory-mode #active-task-mobile-view .wd-task-card-body {
-        background: #fffafa !important;
-        border-top: 1px solid rgba(77, 0, 0, 0.12) !important;
+        background: #f4fffd !important;
+        border-top: 1px solid rgba(34,100,132, 0.12) !important;
     }
 
     body.inventory-mode #active-task-mobile-view .m-pdf-btn,
@@ -468,27 +468,27 @@
     body.inventory-mode #active-task-mobile-view .modify-btn,
     body.inventory-mode #active-task-mobile-view .srv-done-btn,
     body.inventory-mode #active-task-mobile-view button:not(.delete-btn):not(.reject-btn) {
-        background: linear-gradient(135deg, #4d0000, #7a1111) !important;
+        background: linear-gradient(135deg, #226484, #66c0b8) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid rgba(77, 0, 0, 0.32) !important;
+        border: 1px solid rgba(34,100,132, 0.32) !important;
         border-radius: 14px !important;
         font-weight: 950 !important;
-        box-shadow: 0 10px 20px rgba(43, 0, 0, 0.14) !important;
+        box-shadow: 0 10px 20px rgba(18,48,67, 0.14) !important;
     }
 
     body.inventory-mode #active-task-mobile-view .wd-modern-empty-row,
     body.inventory-mode #wd-activetask .wd-modern-empty-row {
-        background: #fffafa !important;
-        border: 1px dashed rgba(77, 0, 0, 0.28) !important;
-        color: #4d0000 !important;
+        background: #f4fffd !important;
+        border: 1px dashed rgba(34,100,132, 0.28) !important;
+        color: #226484 !important;
     }
 
     body.inventory-mode #active-task-mobile-view .wd-modern-empty-row i,
     body.inventory-mode #wd-activetask .wd-modern-empty-row i {
-        background: #fff1f1 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        background: #cffdf9 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
     }
 }
 
@@ -510,14 +510,14 @@
         box-shadow: none !important;
         margin: 4px 0 10px !important;
         padding: 0 4px !important;
-        color: #4d0000 !important;
+        color: #226484 !important;
         min-height: auto !important;
     }
 
     body.inventory-mode #active-task-mobile-header h1,
     #inventory-view #active-task-mobile-header h1 {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         font-size: 1rem !important;
         font-weight: 950 !important;
         text-shadow: none !important;
@@ -534,11 +534,11 @@
         height: 40px !important;
         padding: 0 12px !important;
         border-radius: 14px !important;
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.20) !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.08) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.20) !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.08) !important;
         opacity: 1 !important;
     }
 
@@ -546,8 +546,8 @@
     body.inventory-mode #active-task-mobile-header .mobile-header-icon i,
     #inventory-view #mobile-activetask-refresh-btn i,
     #inventory-view #active-task-mobile-header .mobile-header-icon i {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         opacity: 1 !important;
     }
 
@@ -560,13 +560,13 @@
     #inventory-view #wd-activetask #active-task-filters.report-tabs,
     #inventory-view #active-task-filters,
     #inventory-view #active-task-filters.report-tabs {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
-        border-bottom: 1px solid rgba(77, 0, 0, 0.16) !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
+        border-bottom: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 16px !important;
         padding: 7px !important;
         gap: 7px !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.05) !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.05) !important;
         overflow-x: auto !important;
     }
 
@@ -577,9 +577,9 @@
     body.inventory-mode #active-task-filters .filter-tab,
     #inventory-view #active-task-filters .filter-tab {
         background: #ffffff !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.20) !important;
         border-radius: 13px !important;
         padding: 10px 14px !important;
         font-weight: 950 !important;
@@ -597,11 +597,11 @@
     #inventory-view #active-task-filters button.blink-tab,
     body.inventory-mode #active-task-filters .filter-tab.active,
     #inventory-view #active-task-filters .filter-tab.active {
-        background: #4d0000 !important;
+        background: #226484 !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: #4d0000 !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.14) !important;
+        border-color: #226484 !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.14) !important;
     }
 
     body.inventory-mode #active-task-filters button.active *,
@@ -614,10 +614,10 @@
 
     body.inventory-mode #active-task-filters .notification-badge,
     #inventory-view #active-task-filters .notification-badge {
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.20) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.20) !important;
     }
 
     /* Empty/no-task state: remove blue bar/pill and keep it clean maroon themed */
@@ -629,10 +629,10 @@
     #inventory-view #active-task-mobile-view .wd-modern-empty-row,
     #inventory-view #active-task-mobile-view .no-task,
     #inventory-view #active-task-mobile-view .empty-state {
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px dashed rgba(77, 0, 0, 0.24) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px dashed rgba(34,100,132, 0.24) !important;
         border-radius: 16px !important;
         box-shadow: none !important;
     }
@@ -641,9 +641,9 @@
     body.inventory-mode #active-task-mobile-view .wd-modern-empty-row i,
     #inventory-view #wd-activetask .wd-modern-empty-row i,
     #inventory-view #active-task-mobile-view .wd-modern-empty-row i {
-        background: #fff1f1 !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        background: #cffdf9 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
     }
 
     /* Keep task cards close to the existing mobile task layout; only recolor accents */
@@ -652,10 +652,10 @@
     #inventory-view #active-task-mobile-view .mobile-task-card,
     #inventory-view #active-task-mobile-view .wd-task-card {
         background: #ffffff !important;
-        border: 1px solid rgba(77, 0, 0, 0.14) !important;
-        border-left: 4px solid #4d0000 !important;
+        border: 1px solid rgba(34,100,132, 0.14) !important;
+        border-left: 4px solid #226484 !important;
         border-radius: 18px !important;
-        box-shadow: 0 10px 24px rgba(43, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 24px rgba(18,48,67, 0.08) !important;
         overflow: hidden !important;
     }
 
@@ -665,10 +665,10 @@
     #inventory-view #active-task-mobile-view .mobile-card-header,
     #inventory-view #active-task-mobile-view .wd-task-card-header,
     #inventory-view #active-task-mobile-view .m-card-header {
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border-bottom: 1px solid rgba(77, 0, 0, 0.10) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border-bottom: 1px solid rgba(34,100,132, 0.10) !important;
     }
 
     body.inventory-mode #active-task-mobile-view .mobile-card-header *,
@@ -677,8 +677,8 @@
     #inventory-view #active-task-mobile-view .mobile-card-header *,
     #inventory-view #active-task-mobile-view .wd-task-card-header *,
     #inventory-view #active-task-mobile-view .m-card-header * {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         text-shadow: none !important;
     }
 
@@ -698,12 +698,12 @@
     #inventory-view #active-task-mobile-view .m-btn-approve,
     #inventory-view #active-task-mobile-view .modify-btn,
     #inventory-view #active-task-mobile-view .srv-done-btn {
-        background: #4d0000 !important;
+        background: #226484 !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border: 1px solid #4d0000 !important;
+        border: 1px solid #226484 !important;
         border-radius: 13px !important;
-        box-shadow: 0 8px 16px rgba(43, 0, 0, 0.12) !important;
+        box-shadow: 0 8px 16px rgba(18,48,67, 0.12) !important;
     }
 }
 
@@ -723,10 +723,10 @@
     body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button[disabled],
     body.inventory-request-review-active #active-task-filters.report-tabs button,
     body.inventory-request-review-active #active-task-filters.report-tabs button[disabled] {
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.22) !important;
         border-radius: 13px !important;
         box-shadow: none !important;
         text-shadow: none !important;
@@ -746,11 +746,11 @@
     body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active[disabled],
     body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button.active,
     body.inventory-mobile-theme-active #wd-activetask #active-task-filters.report-tabs button.active[disabled] {
-        background: #4d0000 !important;
+        background: #226484 !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: #4d0000 !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.16) !important;
+        border-color: #226484 !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.16) !important;
         text-shadow: none !important;
         opacity: 1 !important;
     }
@@ -776,10 +776,10 @@
 @media (max-width: 768px) {
     #active-task-filters.inventory-task-filters-maroon,
     #wd-activetask #active-task-filters.inventory-task-filters-maroon {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 16px !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.05) !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.05) !important;
     }
 
     #active-task-filters.inventory-task-filters-maroon > button,
@@ -788,11 +788,11 @@
     #wd-activetask #active-task-filters.inventory-task-filters-maroon button,
     #active-task-filters.inventory-task-filters-maroon button[disabled],
     #wd-activetask #active-task-filters.inventory-task-filters-maroon button[disabled] {
-        background: #fffafa !important;
+        background: #f4fffd !important;
         background-image: none !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.24) !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.24) !important;
         border-radius: 13px !important;
         box-shadow: none !important;
         text-shadow: none !important;
@@ -808,12 +808,12 @@
     #wd-activetask #active-task-filters.inventory-task-filters-maroon button.active,
     #wd-activetask #active-task-filters.inventory-task-filters-maroon > button[disabled],
     #wd-activetask #active-task-filters.inventory-task-filters-maroon button[disabled] {
-        background: #4d0000 !important;
-        background-image: linear-gradient(135deg, #2b0000 0%, #4d0000 65%, #7a1111 100%) !important;
+        background: #226484 !important;
+        background-image: linear-gradient(135deg, #123043 0%, #226484 65%, #66c0b8 100%) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: #4d0000 !important;
-        box-shadow: 0 8px 18px rgba(43, 0, 0, 0.16) !important;
+        border-color: #226484 !important;
+        box-shadow: 0 8px 18px rgba(18,48,67, 0.16) !important;
         text-shadow: none !important;
     }
 
@@ -837,15 +837,15 @@
     .inventory-mobile-finder-active #wd-inv-mobile-material-finder .inv-mobile-search-box {
         overflow: hidden !important;
         background: #ffffff !important;
-        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        border: 1px solid rgba(34,100,132, 0.22) !important;
         border-radius: 18px !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.08) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.08) !important;
     }
 
     #wd-inv-mobile-material-finder .inv-mobile-search-box:focus-within,
     .inventory-mobile-finder-active #wd-inv-mobile-material-finder .inv-mobile-search-box:focus-within {
-        border-color: rgba(77, 0, 0, 0.45) !important;
-        box-shadow: 0 12px 26px rgba(43, 0, 0, 0.13) !important;
+        border-color: rgba(34,100,132, 0.45) !important;
+        box-shadow: 0 12px 26px rgba(18,48,67, 0.13) !important;
     }
 
     #wd-inv-mobile-material-finder #inv-mobile-material-search-input,
@@ -880,7 +880,7 @@
         border-radius: 0 !important;
         color: #111827 !important;
         -webkit-text-fill-color: #111827 !important;
-        caret-color: #4d0000 !important;
+        caret-color: #226484 !important;
         font-family: inherit !important;
         font-size: 13px !important;
         font-weight: 700 !important;
@@ -927,8 +927,8 @@
 
     body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details,
     #inventory-view #active-task-mobile-view .inventory-mobile-task-details {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.12) !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.12) !important;
         border-radius: 14px !important;
         padding: 10px 12px !important;
         box-shadow: none !important;
@@ -950,8 +950,8 @@
 
     body.inventory-mode #active-task-mobile-view .inventory-mobile-task-details strong,
     #inventory-view #active-task-mobile-view .inventory-mobile-task-details strong {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         font-weight: 800 !important;
     }
 
@@ -984,16 +984,16 @@
 
     body.inventory-mode #transfer-approval-modal #transfer-modal-details,
     #inventory-view #transfer-approval-modal #transfer-modal-details {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.14) !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.14) !important;
         border-radius: 14px !important;
         box-shadow: none !important;
     }
 
     body.inventory-mode #transfer-approval-modal #transfer-modal-details strong,
     #inventory-view #transfer-approval-modal #transfer-modal-details strong {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
     }
 }
 
@@ -1007,7 +1007,7 @@
     #active-task-mobile-view .inventory-transfer-mobile-header,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header {
-        background: #fffafa !important;
+        background: #f4fffd !important;
         color: #2f1414 !important;
         -webkit-text-fill-color: #2f1414 !important;
         text-shadow: none !important;
@@ -1027,8 +1027,8 @@
     #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-main h3 {
-        color: #3a0707 !important;
-        -webkit-text-fill-color: #3a0707 !important;
+        color: #123043 !important;
+        -webkit-text-fill-color: #123043 !important;
         font-weight: 900 !important;
         opacity: 1 !important;
         text-shadow: none !important;
@@ -1037,31 +1037,31 @@
     #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub {
-        color: #5a1f1f !important;
-        -webkit-text-fill-color: #5a1f1f !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         opacity: 1 !important;
     }
 
     #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-sub span:first-child {
-        color: #00748c !important;
-        -webkit-text-fill-color: #00748c !important;
+        color: #0d7e85 !important;
+        -webkit-text-fill-color: #0d7e85 !important;
     }
 
     #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-val {
-        color: #6b0000 !important;
-        -webkit-text-fill-color: #6b0000 !important;
+        color: #123043 !important;
+        -webkit-text-fill-color: #123043 !important;
         font-weight: 900 !important;
     }
 
     #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref,
     body.inventory-mode #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref,
     #inventory-view #active-task-mobile-view .inventory-transfer-mobile-header .m-card-amount .m-card-ref {
-        color: #7f1d1d !important;
-        -webkit-text-fill-color: #7f1d1d !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         opacity: 1 !important;
     }
 
@@ -1100,22 +1100,22 @@
     body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs,
     #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs,
     #active-task-filters.inventory-mobile-active-task.report-tabs {
-        background: rgba(255, 248, 248, 0.96) !important;
-        border: 1px solid rgba(77, 0, 0, 0.16) !important;
+        background: rgba(244,255,253, 0.96) !important;
+        border: 1px solid rgba(34,100,132, 0.16) !important;
         border-radius: 18px !important;
         padding: 8px !important;
         gap: 8px !important;
-        box-shadow: 0 8px 20px rgba(43, 0, 0, 0.06) !important;
+        box-shadow: 0 8px 20px rgba(18,48,67, 0.06) !important;
     }
 
     body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button,
     #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button,
     #active-task-filters.inventory-mobile-active-task.report-tabs button {
-        background: #fffafa !important;
+        background: #f4fffd !important;
         background-image: none !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border: 1px solid rgba(77, 0, 0, 0.22) !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border: 1px solid rgba(34,100,132, 0.22) !important;
         border-radius: 14px !important;
         box-shadow: none !important;
         text-shadow: none !important;
@@ -1130,39 +1130,39 @@
     #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button.blink-tab,
     #active-task-filters.inventory-mobile-active-task.report-tabs button.active,
     #active-task-filters.inventory-mobile-active-task.report-tabs button.blink-tab {
-        background: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
-        background-image: linear-gradient(135deg, #2b0000 0%, #4d0000 62%, #7a1111 100%) !important;
+        background: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
+        background-image: linear-gradient(135deg, #123043 0%, #226484 62%, #66c0b8 100%) !important;
         color: #ffffff !important;
         -webkit-text-fill-color: #ffffff !important;
-        border-color: rgba(77, 0, 0, 0.48) !important;
-        box-shadow: 0 10px 22px rgba(43, 0, 0, 0.18) !important;
+        border-color: rgba(34,100,132, 0.48) !important;
+        box-shadow: 0 10px 22px rgba(18,48,67, 0.18) !important;
     }
 
     body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card,
     #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card,
     #active-task-mobile-view .inventory-mobile-task-card {
-        background: #fffafa !important;
-        border: 1px solid rgba(77, 0, 0, 0.20) !important;
-        border-left: 5px solid #4d0000 !important;
+        background: #f4fffd !important;
+        border: 1px solid rgba(34,100,132, 0.20) !important;
+        border-left: 5px solid #226484 !important;
         border-radius: 18px !important;
-        box-shadow: 0 14px 28px rgba(43, 0, 0, 0.10) !important;
+        box-shadow: 0 14px 28px rgba(18,48,67, 0.10) !important;
         overflow: hidden !important;
     }
 
     body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header,
     #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header,
     #active-task-mobile-view .inventory-mobile-task-card .inventory-transfer-mobile-header {
-        background: #fffafa !important;
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
-        border-left: 5px solid #4d0000 !important;
+        background: #f4fffd !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        border-left: 5px solid #226484 !important;
     }
 
     body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header h3,
     body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .m-card-main h3,
     #active-task-mobile-view .inventory-mobile-task-card .m-card-main h3 {
-        color: #4d0000 !important;
-        -webkit-text-fill-color: #4d0000 !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
         text-shadow: none !important;
         font-weight: 950 !important;
     }
