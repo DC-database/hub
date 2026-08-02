@@ -1,6 +1,6 @@
 // =================================================================================================
 // IBA — Inventory JS Foundation
-// Version: 8.4.4
+// Version: 11.8.3
 // Purpose: Inventory context/type helpers separated from app.js.
 // Keep this file lightweight. Do not move stock saving/approval logic here until later phases.
 // =================================================================================================
@@ -261,8 +261,8 @@ function renderInventoryJobRecordsTable(entries) {
     if (typeof wdUiSetRecordsHeroContext === 'function') wdUiSetRecordsHeroContext('inventory');
     reportingTableBody.innerHTML = '';
 
-    const tableHead = document.querySelector('#reporting-printable-area table thead');
-    const reportingTable = document.querySelector('#reporting-printable-area table');
+    const reportingTable = document.getElementById('job-records-table');
+    const tableHead = reportingTable?.querySelector('thead');
 
     if (reportingTable) reportingTable.classList.add('inv-job-records-table');
     if (reportingTableBody) reportingTableBody.classList.add('inv-job-records-body');
@@ -272,7 +272,7 @@ function renderInventoryJobRecordsTable(entries) {
             <tr>
                 <th>Control ID</th><th>Product Name</th><th>Site Route</th>
                 <th>Ordered Qty</th><th>Delivered Qty</th><th>Shipping Date</th>
-                <th>Arrival Date</th><th>Contact</th><th>Status / Remarks</th>
+                <th>Arrival Date</th><th>Contact</th><th>Actions</th>
             </tr>`;
     }
 
@@ -328,20 +328,6 @@ function renderInventoryJobRecordsTable(entries) {
         return 'inv-type-other';
     };
 
-    const invStatusClass = (status) => {
-        const st = (status || 'Pending').toString().trim().toLowerCase();
-        if (st.includes('approved') || st.includes('completed')) return 'approved';
-        if (st.includes('reject')) return 'rejected';
-        if (st.includes('transit')) return 'transit';
-        if (st.includes('pending')) return 'pending';
-        return 'neutral';
-    };
-
-    const buildInvStatusBadge = (status) => {
-        const safeStatus = esc(status || 'Pending');
-        return `<span class="inv-job-status-badge inv-job-status-${invStatusClass(status)}">${safeStatus}</span>`;
-    };
-
     const buildInventoryRow = (entry, opts = {}) => {
         const isChild = !!opts.isChild;
         const itemIndex = Number.isFinite(opts.itemIndex) ? opts.itemIndex : null;
@@ -349,8 +335,6 @@ function renderInventoryJobRecordsTable(entries) {
         const controlCell = isChild
             ? `<span class="inv-child-connector"></span><span class="inv-child-index">${itemIndex !== null ? itemIndex : ''}</span>`
             : `<strong class="inv-control-id-text">${esc(entry.controlId || '')}</strong><span class="inv-type-pill ${invTypeClass(type)}">${esc(type || 'Inventory')}</span>`;
-
-        const noteDisplay = entry.note ? `<div class="inv-job-note">${esc(entry.note)}</div>` : '';
 
         let actions = `<button class="print-btn waybill-btn" data-key="${entry.key}" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#6f42c1; color:white; border:none; border-radius:4px;" title="Print Waybill"><i class="fa-solid fa-print"></i></button>`;
         actions += `<button class="history-btn action-btn" onclick="showTransferHistory('${entry.key}')" style="padding:2px 6px; margin-right:5px; font-size:0.7rem; background:#17a2b8; color:white; border:none; border-radius:4px;" title="View History"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
@@ -367,9 +351,7 @@ function renderInventoryJobRecordsTable(entries) {
             <td>${esc(entry.shippingDate || '')}</td>
             <td>${esc(entry.arrivalDate || '')}</td>
             <td>${esc(entry.contactName || '')}</td>
-            <td class="inv-status-cell">
-                ${buildInvStatusBadge(entry.remarks || 'Pending')}
-                ${noteDisplay}
+            <td class="inv-actions-cell">
                 <div class="inv-row-actions">${actions}</div>
             </td>
         `;
@@ -426,7 +408,7 @@ function renderInventoryJobRecordsTable(entries) {
             <td>${esc(firstShippingDate)}</td>
             <td>${esc(firstArrivalDate)}</td>
             <td>${esc(firstContact)}</td>
-            <td class="inv-group-status-cell">
+            <td class="inv-group-actions-cell">
                 <span class="inv-expand-hint">Click to expand</span>
             </td>
         `;
