@@ -1,6 +1,6 @@
 {
-  "version": "11.8.2",
+  "version": "11.8.3",
   "releasedAt": "2026-08-02",
-  "title": "Accounts Paid Date and Payment Remove Fix",
-  "message": "Accounts Admin users can now select the actual Paid Date before marking invoices Paid, and the payment-table remove button responds across its complete visible area."
+  "title": "Inventory Records and Readability Correction",
+  "message": "Inventory Job Records now use the correct nine-column table with a compact Actions column, Inventory counters and alert navigation remain readable, Request Review uses a compact filter, and expensive legacy stock-table fallback selectors were removed."
 }

@@ -644,6 +644,174 @@ body.wd-paid-history-open {
     }
 }
 
+/* ========================================================================== */
+/* 11.8.3 — Inventory-only readability, records alignment, and UI cleanup     */
+/* ========================================================================== */
+
+/* A pulsing Inventory navigation item keeps a light alert surface even when
+   it is not the selected page, so its foreground must stay dark. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active:not(.active) {
+    background: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active:not(.active) :is(i, span:not(.notification-badge)) {
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active .notification-badge {
+    background: var(--iba-inv-coral) !important;
+    border-color: rgba(18, 48, 67, 0.18) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* Material Stock, Active Task, and Job Records use a light metric capsule. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(#wd-material-stock, #wd-activetask, #wd-reporting) .wd-page-hero-metric {
+    background: #f4fffd !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(#wd-material-stock, #wd-activetask, #wd-reporting) .wd-page-hero-metric :is(span, strong, small, i) {
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+}
+
+/* Active/Completed folders: every surface and its nested count are explicit. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch {
+    background: rgba(244, 255, 253, 0.88) !important;
+    border-color: rgba(102, 192, 184, 0.56) !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch .inv-stage-btn {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch .inv-stage-btn.active {
+    background: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch .inv-stage-btn .inv-stage-count {
+    background: var(--iba-inv-mint) !important;
+    border: 1px solid rgba(255, 255, 255, 0.42) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch .inv-stage-btn.active .inv-stage-count {
+    background: #ffffff !important;
+    border-color: rgba(18, 48, 67, 0.14) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* Keep the Inventory In Transit report action wide enough for icon and label. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inventory-intransit-report-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+    min-width: 112px !important;
+    width: auto !important;
+    padding: 0 16px !important;
+    gap: 8px !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inventory-intransit-report-btn:is(:hover, :focus-visible) {
+    background: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inventory-intransit-report-btn i {
+    flex: 0 0 auto !important;
+    color: inherit !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* The Request Review filter is a compact control, not a full white banner. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-toolbar {
+    display: flex !important;
+    justify-content: flex-end !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    margin: 12px 0 10px auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-toolbar label {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 7px 9px 7px 12px !important;
+    border: 1px solid rgba(34, 100, 132, 0.24) !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-weight: 850 !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review #inv-request-review-filter {
+    min-width: 112px !important;
+    height: 36px !important;
+    margin: 0 !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    background: #f4fffd !important;
+    color: #123043 !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-status {
+    color: var(--iba-inv-ocean) !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* Inventory Job Records has one compact action column; history owns details. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #job-records-table :is(.inv-actions-cell, .inv-group-actions-cell) {
+    min-width: 138px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #job-records-table .inv-row-actions {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+}
+
+@media (max-width: 900px) {
+    body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(#wd-material-stock, #wd-activetask, #wd-reporting) .wd-page-hero-metric {
+        width: 100% !important;
+        text-align: left !important;
+    }
+}
+
 /* 11.8.2 — Payments row removal uses the complete visible button hit area. */
 #im-payments #im-payments-table .payment-remove-btn {
     position: relative !important;
