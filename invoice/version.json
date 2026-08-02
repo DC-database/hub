@@ -1,6 +1,6 @@
 {
-  "version": "11.8.5",
+  "version": "11.8.6",
   "releasedAt": "2026-08-02",
-  "title": "Strict Invoice Dashboard Access",
-  "message": "The Invoice Management Dashboard is now visible and accessible only to Super Admin or users whose position is Finance, Accounts, Accounting, CEO, or COO, regardless of User/Admin role. Other users are routed to a permitted section."
+  "title": "IPC Personal Tasks and Pending Site View",
+  "message": "Invoice Entry IPC Application records now remain visible to their Attention person in WorkDesk Dashboard and Active Task. My Pending Dashboard results are grouped by Site and ordered by PO, while Active Task keeps its existing date priority."
 }
