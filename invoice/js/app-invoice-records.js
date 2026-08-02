@@ -776,6 +776,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     const isSuperAdmin = (currentApprover?.Name || '').trim().toLowerCase() === String(SUPER_ADMIN_NAME || '').trim().toLowerCase();
+    const canEditInvoiceEntry = (typeof canCurrentUserEditInvoiceEntry === 'function')
+        ? canCurrentUserEditInvoiceEntry()
+        : (isSuperAdmin || isVacationDelegate);
     
     // 10.4.1: Invoice Records is Admin/Super Admin only. Normal users do not load invoice_entries here.
     const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
@@ -1055,7 +1058,9 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     const reportViewLink = (finalReportName && finalReportName.toLowerCase() !== 'nil') ? `<a href="${REPORT_BASE_PATH}${encodeURIComponent(finalReportName)}.pdf" target="_blank" class="action-btn" style="background-color: #6f42c1; color: white;" onclick="event.stopPropagation();" title="View Report PDF">RPT</a>` : '';
 
                     let historyBtn = (inv.history || inv.createdAt || inv.originTimestamp) ? `<button type="button" class="history-btn action-btn" onclick="event.stopPropagation(); showInvoiceHistory('${poData.poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>` : '';
-                    let editBtn = `<button type="button" class="edit-inv-no-btn im-enter-inv-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}" title="Enter New Invoice Number" aria-label="Enter New Invoice Number"><i class="fa-solid fa-pen-to-square im-enter-inv-icon" style="color:#ffda1f !important; -webkit-text-fill-color:#ffda1f !important; fill:#ffda1f !important; text-shadow:0 1px 2px rgba(0,0,0,.45);"></i></button>`;
+                    let editBtn = canEditInvoiceEntry
+                        ? `<button type="button" class="edit-inv-no-btn im-enter-inv-btn action-btn" data-po="${poData.poNumber}" data-key="${inv.key}" data-current="${inv.invNumber || ''}" title="Enter New Invoice Number" aria-label="Enter New Invoice Number"><i class="fa-solid fa-pen-to-square im-enter-inv-icon" style="color:#ffda1f !important; -webkit-text-fill-color:#ffda1f !important; fill:#ffda1f !important; text-shadow:0 1px 2px rgba(0,0,0,.45);"></i></button>`
+                        : '';
             
                     // 9.5.9: Removed the separate printer + "Report" action button from Invoice Records.
                     // The compact "Rpt" button above remains the report PDF link.
@@ -1076,7 +1081,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                     }
 
                     actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${reportViewLink} ${srvPDFLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
-                } else if (isEcommitRecord && isAllowedUser) {
+                } else if (isEcommitRecord && canEditInvoiceEntry) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }
 

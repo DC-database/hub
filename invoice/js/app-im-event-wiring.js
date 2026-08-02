@@ -387,6 +387,14 @@ if (masterRowClick) {
         const editInvBtn = e.target.closest('.edit-inv-no-btn');
         if (editInvBtn) {
             e.stopPropagation();
+            const canEditInvoice = (typeof canCurrentUserEditInvoiceEntry === 'function')
+                ? canCurrentUserEditInvoiceEntry()
+                : (((currentApprover?.Name || '').trim().toLowerCase() === String((typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin').trim().toLowerCase()) ||
+                    ((typeof isVacationDelegateUser === 'function') && isVacationDelegateUser()));
+            if (!canEditInvoice) {
+                alert('Access Denied: Only Irwin/Super Admin or the active vacation replacement can edit an existing invoice.');
+                return;
+            }
             const po = editInvBtn.dataset.po;
             const key = editInvBtn.dataset.key;
             const currentVal = editInvBtn.dataset.current;
@@ -431,15 +439,7 @@ if (masterRowClick) {
         // ---------------------------------------------------------
 const invoiceRow = e.target.closest('.nested-invoice-row');
         if (invoiceRow) {
-            // A. Permission Check
-            const userRoleLower = (currentApprover?.Role || '').toLowerCase();
-            const userPositionLower = (currentApprover?.Position || '').toLowerCase();
-            const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-            const canEdit = userRoleLower === 'admin' || userPositionLower === 'accounting' || userPositionLower === 'accounts' || isVacationDelegate;
-            
-            if (!canEdit) return;
-
-            // [NEW] B. Handle "Inv. No." Column (Index 1) Logic
+            // A. Handle "Inv. No." Column (Index 1) Logic
             // ---------------------------------------------------
             const clickedCell = e.target.closest('td');
             
@@ -468,6 +468,14 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
                 return; 
             }
             // ---------------------------------------------------
+
+            // B. Permission Check for importing or editing an invoice.
+            const canEdit = (typeof canCurrentUserEditInvoiceEntry === 'function')
+                ? canCurrentUserEditInvoiceEntry()
+                : (((currentApprover?.Name || '').trim().toLowerCase() === String((typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin').trim().toLowerCase()) ||
+                    ((typeof isVacationDelegateUser === 'function') && isVacationDelegateUser()));
+
+            if (!canEdit) return;
 
             // C. Get Row Data
             const poNumber = invoiceRow.dataset.poNumber;

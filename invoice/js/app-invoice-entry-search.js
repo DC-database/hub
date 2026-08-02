@@ -1158,6 +1158,18 @@ async function handleActiveJobClick(e) {
 // ==========================================================================
 
 function populateInvoiceFormForEditing(invoiceKey) {
+    const canEditInvoice = (typeof canCurrentUserEditInvoiceEntry === 'function')
+        ? canCurrentUserEditInvoiceEntry()
+        : (((currentApprover?.Name || '').trim().toLowerCase() === String((typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin').trim().toLowerCase()) ||
+            ((typeof isVacationDelegateUser === 'function') && isVacationDelegateUser()));
+    if (!canEditInvoice) {
+        currentlyEditingInvoiceKey = null;
+        const invoiceEntryModal = document.getElementById('im-invoice-entry-modal');
+        if (invoiceEntryModal) invoiceEntryModal.classList.add('hidden');
+        alert('Access Denied: Only Irwin/Super Admin or the active vacation replacement can edit an existing invoice.');
+        return;
+    }
+
     const invData = currentPOInvoices[invoiceKey];
     if (!invData) return;
 
