@@ -219,6 +219,7 @@ let wdPaymentPocketUnsubscribe = null;
 let wdPaymentPocketSelectedSite = '';
 let wdPaymentPocketSelectedYear = '';
 let wdPaymentPocketSelectedMonth = '';
+let wdPaymentHistoryLookupToken = 0;
 const WD_PAYMENT_POCKET_MONTH_NAMES = Object.freeze([
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -3070,6 +3071,7 @@ function wdBindDashboardControls() {
     const refreshBtn = document.getElementById('wd-active-dashboard-refresh');
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const clearBtn = document.getElementById('wd-active-dashboard-clear');
+    wdBindPaymentHistoryModal();
 
     if (cardsEl && !cardsEl.dataset.bound) {
         cardsEl.dataset.bound = 'true';
@@ -3141,10 +3143,10 @@ function wdBindDashboardControls() {
             wdRenderDashboardCards();
             wdRenderDashboardList();
         });
-        searchInput.addEventListener('keydown', event => {
+        searchInput.addEventListener('keydown', async event => {
             if (event.key !== 'Enter' || wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) return;
             event.preventDefault();
-            wdFocusPaymentPocketResults();
+            await wdHandlePaymentPocketSearchSubmit();
         });
     }
 
@@ -4778,6 +4780,379 @@ function wdPaymentPocketSrvAction(item = {}) {
     return '';
 }
 
+function wdPaymentHistoryExactPO(value) {
+    const po = wdText(value).toUpperCase();
+    if (!po || po.length < 2 || /\s/.test(po)) return '';
+    if (!/\d/.test(po)) return '';
+    // Firebase keys cannot contain these characters. Restrict this fallback to
+    // a true exact-PO lookup so vendor/notes searches never read the archive.
+    if (/[.#$/\[\]]/.test(po) || !/^[A-Z0-9_-]+$/.test(po)) return '';
+    if (typeof imLooksLikeExactPOSearch === 'function' && !imLooksLikeExactPOSearch(po)) return '';
+    return po;
+}
+
+function wdCanOpenInvoiceRecordsFromPaymentHistory() {
+    const role = wdNormalize(currentApprover?.Role || currentApprover?.role || '');
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function')
+        ? isVacationDelegateUser()
+        : false;
+    return role === 'admin' || wdIsPaymentPocketSuperAdmin() || isVacationDelegate;
+}
+
+function wdPaymentHistoryISODate(value) {
+    if (value === undefined || value === null || value === '') return '';
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        const date = new Date(value);
+        if (!Number.isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    }
+    if (typeof normalizeDateForInput === 'function') {
+        try {
+            const normalized = wdText(normalizeDateForInput(value));
+            if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return normalized;
+        } catch (_) {}
+    }
+    const raw = wdText(value);
+    return /^\d{4}-\d{1,2}-\d{1,2}/.test(raw) ? raw.slice(0, 10) : raw;
+}
+
+function wdPaymentHistoryDisplayDate(value) {
+    const normalized = wdPaymentHistoryISODate(value);
+    if (!normalized) return '—';
+    const displayed = wdPaymentPocketDisplayDate(normalized);
+    return displayed === 'Date unavailable' ? '—' : displayed;
+}
+
+function wdPaymentHistoryAmount(invoice = {}) {
+    const candidates = [invoice.amountPaid, invoice.amtPaid, invoice.paidAmount, invoice.invValue, invoice.invoiceValue];
+    for (const candidate of candidates) {
+        if (candidate === undefined || candidate === null || candidate === '') continue;
+        const amount = Number(String(candidate).replace(/,/g, ''));
+        if (Number.isFinite(amount)) return Math.max(0, amount);
+    }
+    return null;
+}
+
+function wdPaymentHistoryAmountText(value) {
+    if (!Number.isFinite(value)) return 'Amount unavailable';
+    const amount = Math.max(0, Number(value));
+    const formatted = typeof formatCurrency === 'function'
+        ? formatCurrency(amount)
+        : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `QAR ${formatted}`;
+}
+
+function wdPaymentHistorySortValue(item = {}) {
+    return wdPaymentPocketDateSortValue(item.paidDate || item.releaseDate) || -1;
+}
+
+async function wdFetchPaidPaymentHistory(poNumber) {
+    const po = wdPaymentHistoryExactPO(poNumber);
+    if (!po) throw new Error('Enter an exact PO number before checking payment history.');
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || typeof invoiceDb.ref !== 'function') {
+        throw new Error('Invoice payment history is unavailable. Please refresh and try again.');
+    }
+
+    const poDetails = (typeof allPOData !== 'undefined' && allPOData && allPOData[po])
+        ? allPOData[po]
+        : {};
+    const fallbackCompany = wdText(
+        poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails.Supplier || ''
+    );
+    const fallbackSite = wdText(poDetails['Project ID'] || poDetails.Site || '');
+
+    // If lightweight PO data already proves the PO is outside a site-scoped
+    // user's assignment, stop before reading even that exact Firebase branch.
+    if (fallbackSite && !wdCanSeePaymentPocketItem({ site: fallbackSite })) {
+        return { po, company: fallbackCompany || 'Company unavailable', total: 0, recent: [] };
+    }
+
+    // 11.7.4: One exact PO branch only. Never read the full invoice_entries archive.
+    const snapshot = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+    const invoices = snapshot.val() || {};
+
+    const paidItems = Object.entries(invoices)
+        .map(([key, invoice]) => {
+            const row = invoice && typeof invoice === 'object' ? invoice : {};
+            if (wdNormalize(row.status) !== 'paid') return null;
+            const company = wdText(
+                row.vendorName || row.vendor_name || row.vendor || row.Vendor || row['Vendor Name'] || fallbackCompany,
+                'Company unavailable'
+            );
+            const site = wdText(row.site || row.siteName || row.Site || row['Project ID'] || fallbackSite);
+            const paidDate = wdPaymentHistoryISODate(row.paidDate || row.releaseDate);
+            return {
+                key,
+                po,
+                invoiceNo: wdText(row.invNumber || row.invoiceNo || row.invEntryID, key),
+                amountPaid: wdPaymentHistoryAmount(row),
+                withAccountsDate: wdPaymentHistoryISODate(row.withAccountsReleaseDate),
+                paidDate,
+                releaseDate: paidDate,
+                company,
+                supplierName: company,
+                site,
+                updatedAt: Number(row.updatedAt || row.lastUpdated || row.statusChangedAt || 0) || 0
+            };
+        })
+        .filter(Boolean)
+        .filter(item => wdCanSeePaymentPocketItem(item))
+        .sort((a, b) =>
+            wdPaymentHistorySortValue(b) - wdPaymentHistorySortValue(a) ||
+            b.updatedAt - a.updatedAt ||
+            wdText(a.invoiceNo).localeCompare(wdText(b.invoiceNo), undefined, { numeric: true, sensitivity: 'base' })
+        );
+
+    return {
+        po,
+        company: paidItems[0]?.company || fallbackCompany || 'Company unavailable',
+        total: paidItems.length,
+        recent: paidItems.slice(0, 3)
+    };
+}
+
+function wdOpenPaymentHistoryModalShell(poNumber) {
+    const modal = document.getElementById('wd-paid-history-modal');
+    const body = document.getElementById('wd-paid-history-body');
+    const title = document.getElementById('wd-paid-history-title');
+    const subtitle = document.getElementById('wd-paid-history-subtitle');
+    const fullButton = document.getElementById('wd-paid-history-full-records');
+    const footerCopy = document.getElementById('wd-paid-history-footer-copy');
+    if (!modal || !body) return;
+
+    const po = wdPaymentHistoryExactPO(poNumber);
+    if (title) title.textContent = 'Checking Payment History';
+    if (subtitle) subtitle.textContent = `Looking for completed payments under PO ${po || wdText(poNumber)}.`;
+    body.innerHTML = `
+        <div class="wd-paid-history-loading">
+            <span><i class="fa-solid fa-spinner fa-spin"></i></span>
+            <strong>Checking exact PO payment records…</strong>
+            <p>Only this PO is being checked.</p>
+        </div>`;
+    if (fullButton) {
+        fullButton.classList.add('hidden');
+        fullButton.dataset.po = po;
+    }
+    if (footerCopy) footerCopy.textContent = 'The latest three completed invoices will appear here.';
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body?.classList.add('wd-paid-history-open');
+}
+
+function wdRenderPaymentHistoryModal(result = {}) {
+    const body = document.getElementById('wd-paid-history-body');
+    const title = document.getElementById('wd-paid-history-title');
+    const subtitle = document.getElementById('wd-paid-history-subtitle');
+    const fullButton = document.getElementById('wd-paid-history-full-records');
+    const footerCopy = document.getElementById('wd-paid-history-footer-copy');
+    if (!body) return;
+
+    const po = wdText(result.po);
+    const recent = Array.isArray(result.recent) ? result.recent : [];
+    const total = Number(result.total) || 0;
+    const latest = recent[0] || null;
+    if (title) title.textContent = total ? 'Payment History Found' : 'No Paid Invoice Found';
+    if (subtitle) {
+        subtitle.textContent = total
+            ? 'This PO is no longer in Ready for Payment. Recent completed payments are shown below.'
+            : `No completed payment record is available for PO ${po}.`;
+    }
+
+    const canOpenRecords = wdCanOpenInvoiceRecordsFromPaymentHistory();
+    if (fullButton) {
+        fullButton.dataset.po = po;
+        fullButton.classList.toggle('hidden', !canOpenRecords);
+    }
+    if (footerCopy) {
+        footerCopy.textContent = canOpenRecords
+            ? `Full records will open with PO ${po} searched automatically.`
+            : 'Full Invoice Records requires existing Admin access.';
+    }
+
+    if (!total) {
+        body.innerHTML = `
+            <div class="wd-paid-history-info">
+                <span><i class="fa-solid fa-circle-info"></i></span>
+                <div><strong>No current With Accounts invoice matches this PO.</strong><p>The exact PO was checked for completed payments.</p></div>
+            </div>
+            <div class="wd-paid-history-empty">
+                <span><i class="fa-solid fa-receipt"></i></span>
+                <strong>No recent payment history was found for this PO.</strong>
+                <p>Use Invoice Records for the complete PO lifecycle${canOpenRecords ? ' or try a different exact PO' : ''}.</p>
+            </div>`;
+        return;
+    }
+
+    const rows = recent.map(item => `
+        <article class="wd-paid-history-row">
+            <span class="wd-paid-history-check"><i class="fa-solid fa-check"></i></span>
+            <div class="wd-paid-history-field wd-paid-history-invoice"><small>Invoice No.</small><strong>${wdSafe(item.invoiceNo || 'N/A')}</strong></div>
+            <div class="wd-paid-history-field"><small>Amount Paid</small><strong>${wdSafe(wdPaymentHistoryAmountText(item.amountPaid))}</strong></div>
+            <div class="wd-paid-history-field"><small>With Accounts</small><strong>${wdSafe(wdPaymentHistoryDisplayDate(item.withAccountsDate))}</strong></div>
+            <div class="wd-paid-history-field"><small>Paid Date</small><strong class="is-paid-date">${wdSafe(wdPaymentHistoryDisplayDate(item.paidDate))}</strong></div>
+            <span class="wd-paid-history-badge">Paid</span>
+        </article>`).join('');
+
+    body.innerHTML = `
+        <div class="wd-paid-history-info">
+            <span><i class="fa-solid fa-circle-info"></i></span>
+            <div><strong>No current With Accounts invoice matches this PO.</strong><p>The system checked this exact PO and found completed payment records.</p></div>
+        </div>
+        <section class="wd-paid-history-summary-card">
+            <span class="wd-paid-history-summary-accent"></span>
+            <span class="wd-paid-history-summary-icon"><i class="fa-regular fa-file-lines"></i></span>
+            <div class="wd-paid-history-po"><small>Purchase Order</small><strong>PO ${wdSafe(po)}</strong><span>${wdSafe(result.company || 'Company unavailable')}</span></div>
+            <div class="wd-paid-history-latest">
+                <span class="wd-paid-history-count"><i class="fa-solid fa-circle"></i> ${total} Paid Invoice${total === 1 ? '' : 's'}</span>
+                <small>Most Recent Payment</small>
+                <strong>${wdSafe(wdPaymentHistoryAmountText(latest?.amountPaid))}</strong>
+            </div>
+            <div class="wd-paid-history-latest-date"><small>Paid Date</small><strong>${wdSafe(wdPaymentHistoryDisplayDate(latest?.paidDate))}</strong></div>
+        </section>
+        <div class="wd-paid-history-list-head"><strong>Recent Paid Invoices</strong><span>Showing latest ${recent.length} of ${total}</span></div>
+        <section class="wd-paid-history-list">${rows}</section>`;
+}
+
+function wdRenderPaymentHistoryError(poNumber, error) {
+    const body = document.getElementById('wd-paid-history-body');
+    const title = document.getElementById('wd-paid-history-title');
+    const subtitle = document.getElementById('wd-paid-history-subtitle');
+    const fullButton = document.getElementById('wd-paid-history-full-records');
+    const footerCopy = document.getElementById('wd-paid-history-footer-copy');
+    if (title) title.textContent = 'Payment History Unavailable';
+    if (subtitle) subtitle.textContent = 'The exact PO could not be checked right now.';
+    if (body) {
+        body.innerHTML = `
+            <div class="wd-paid-history-empty is-error">
+                <span><i class="fa-solid fa-triangle-exclamation"></i></span>
+                <strong>Unable to check payment history.</strong>
+                <p>${wdSafe(error?.message || 'Please refresh and try again.')}</p>
+            </div>`;
+    }
+    const canOpenRecords = wdCanOpenInvoiceRecordsFromPaymentHistory();
+    if (fullButton) {
+        fullButton.dataset.po = wdPaymentHistoryExactPO(poNumber);
+        fullButton.classList.toggle('hidden', !canOpenRecords);
+    }
+    if (footerCopy) footerCopy.textContent = canOpenRecords
+        ? 'You can still open the full Invoice Records search.'
+        : 'Full Invoice Records requires existing Admin access.';
+}
+
+function wdClosePaymentHistoryModal() {
+    const modal = document.getElementById('wd-paid-history-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body?.classList.remove('wd-paid-history-open');
+}
+
+function wdOpenInvoiceRecordsFromPaymentHistory(poNumber) {
+    const po = wdPaymentHistoryExactPO(poNumber);
+    if (!po || !wdCanOpenInvoiceRecordsFromPaymentHistory()) {
+        alert('Invoice Records requires existing Admin access.');
+        return;
+    }
+    wdClosePaymentHistoryModal();
+    try { sessionStorage.setItem('imReportingSearch', po); } catch (_) {}
+
+    if (!invoiceManagementButton) {
+        alert('Invoice Management is unavailable. Refresh the system and try again.');
+        return;
+    }
+    invoiceManagementButton.click();
+
+    const startedAt = Date.now();
+    const waitForInvoiceModule = () => {
+        const invoiceView = document.getElementById('invoice-management-view');
+        const ready = invoiceView && !invoiceView.classList.contains('hidden');
+        if (!ready) {
+            if (Date.now() - startedAt < 10000) {
+                setTimeout(waitForInvoiceModule, 100);
+            } else {
+                alert('Invoice Management took too long to open. Please try again.');
+            }
+            return;
+        }
+
+        // Let the normal Invoice Management dashboard landing finish first,
+        // then use its own navigation so the 11.7.3 accordion stays in sync.
+        setTimeout(() => {
+            const reportingLink = imNav?.querySelector('a[data-section="im-reporting"]');
+            if (reportingLink) reportingLink.click();
+
+            const searchInput = document.getElementById('im-reporting-search');
+            const siteFilter = document.getElementById('im-reporting-site-filter');
+            const monthFilter = document.getElementById('im-reporting-month-filter');
+            const yearFilter = document.getElementById('im-reporting-year-filter');
+            const statusFilter = document.getElementById('im-reporting-status-filter');
+            if (siteFilter) siteFilter.value = '';
+            if (monthFilter) monthFilter.value = '';
+            if (yearFilter) yearFilter.value = '';
+            if (statusFilter) statusFilter.value = '';
+            if (searchInput) searchInput.value = po;
+            try { sessionStorage.setItem('imReportingSearch', po); } catch (_) {}
+            if (typeof populateInvoiceReporting === 'function') populateInvoiceReporting(po);
+        }, 120);
+    };
+    waitForInvoiceModule();
+}
+
+async function wdHandlePaymentPocketSearchSubmit() {
+    const searchInput = document.getElementById('wd-active-dashboard-search');
+    const po = wdPaymentHistoryExactPO(searchInput?.value || '');
+    if (!po) {
+        wdFocusPaymentPocketResults();
+        return;
+    }
+
+    const readyMatches = wdPaymentPocketAccessibleItems()
+        .filter(item => wdText(item?.po).toUpperCase() === po)
+        .sort(wdComparePaymentPocketItems);
+    if (readyMatches.length) {
+        const dateParts = wdPaymentPocketDateParts(readyMatches[0]?.releaseDate);
+        wdPaymentPocketSelectedSite = '';
+        wdPaymentPocketSelectedYear = dateParts ? String(dateParts.year) : '';
+        wdPaymentPocketSelectedMonth = '';
+        wdRenderDashboardList();
+        wdFocusPaymentPocketResults();
+        return;
+    }
+
+    const lookupToken = ++wdPaymentHistoryLookupToken;
+    wdOpenPaymentHistoryModalShell(po);
+    try {
+        const result = await wdFetchPaidPaymentHistory(po);
+        if (lookupToken !== wdPaymentHistoryLookupToken) return;
+        wdRenderPaymentHistoryModal(result);
+    } catch (error) {
+        if (lookupToken !== wdPaymentHistoryLookupToken) return;
+        console.warn(`Ready for Payment history lookup failed for ${po}:`, error);
+        wdRenderPaymentHistoryError(po, error);
+    }
+}
+
+function wdBindPaymentHistoryModal() {
+    const modal = document.getElementById('wd-paid-history-modal');
+    if (!modal || modal.dataset.bound) return;
+    modal.dataset.bound = '1';
+    modal.addEventListener('click', event => {
+        if (event.target === modal || event.target.closest('[data-wd-paid-history-close]')) {
+            wdClosePaymentHistoryModal();
+            return;
+        }
+        const fullButton = event.target.closest('#wd-paid-history-full-records');
+        if (fullButton) wdOpenInvoiceRecordsFromPaymentHistory(fullButton.dataset.po || '');
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !modal.classList.contains('hidden')) wdClosePaymentHistoryModal();
+    });
+}
+
 function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const search = wdNormalize(searchInput?.value || '');
@@ -5006,7 +5381,7 @@ function wdRenderDashboardList() {
     if (!baseTasks.length) {
         const globalSearchEmpty = selected === WD_DASHBOARD_NONE && globalSearch;
         if (summaryEl) summaryEl.textContent = globalSearchEmpty
-            ? 'No matching task found in the already-loaded Dashboard cache.'
+            ? 'No matching dashboard task found.'
             : 'No matching task found for the selected card/search.';
         listEl.innerHTML = `
             <div class="wd-dashboard-empty-state">
@@ -5014,7 +5389,7 @@ function wdRenderDashboardList() {
                 <div>
                     <strong>No matching task</strong>
                     <p>${globalSearchEmpty
-                        ? 'The global search used the Dashboard data already loaded in this browser. Refresh the Dashboard only if you need to verify newest records.'
+                        ? 'Try another PO, vendor, site, attention, note, or status.'
                         : 'Try another status card or search by PO, vendor, site, attention, note, or status.'}</p>
                 </div>
             </div>`;
