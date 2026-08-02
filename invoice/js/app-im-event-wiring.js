@@ -118,14 +118,33 @@
         });
     }
 
+    function imSetNavGroupExpanded(group, shouldOpen) {
+        if (!group || !imNav) return;
+
+        // 11.7.3: Invoice Management and Reports & Finance behave as one
+        // accordion. Opening either group closes every other IM nav group.
+        if (shouldOpen) {
+            imNav.querySelectorAll('.im-nav-group').forEach(otherGroup => {
+                if (otherGroup === group) return;
+                otherGroup.classList.remove('is-open');
+                const otherToggle = otherGroup.querySelector('[data-im-nav-group-toggle]');
+                if (otherToggle) otherToggle.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        group.classList.toggle('is-open', shouldOpen);
+        const groupButton = group.querySelector('[data-im-nav-group-toggle]');
+        if (groupButton) groupButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+    }
+
     imNav.addEventListener('click', (e) => {
         const groupToggle = e.target.closest('[data-im-nav-group-toggle]');
         if (groupToggle) {
             e.preventDefault();
             const group = groupToggle.closest('.im-nav-group');
             if (group) {
-                const isOpen = group.classList.toggle('is-open');
-                groupToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                const isOpen = !group.classList.contains('is-open');
+                imSetNavGroupExpanded(group, isOpen);
             }
             return;
         }
@@ -142,10 +161,8 @@
         const sectionId = link.getAttribute('data-section');
         if (sectionId) {
             const parentGroup = link.closest('.im-nav-group');
-            if (parentGroup && !parentGroup.classList.contains('is-open')) {
-                parentGroup.classList.add('is-open');
-                const btn = parentGroup.querySelector('[data-im-nav-group-toggle]');
-                if (btn) btn.setAttribute('aria-expanded', 'true');
+            if (parentGroup) {
+                imSetNavGroupExpanded(parentGroup, true);
             }
             imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
             link.classList.add('active');
