@@ -1,6 +1,6 @@
 {
-  "version": "11.7.5",
+  "version": "11.7.6",
   "releasedAt": "2026-08-02",
-  "title": "IPC Application + Paid History Action",
-  "message": "Invoice Entry and Batch Entry can now route IPC Application invoices into the existing WorkDesk IPC queue, while Ready for Payment reveals a Paid History action only when an exact PO is absent from the complete accessible pocket."
+  "title": "Paid History Popup Repair",
+  "message": "The Ready for Payment Paid History window now opens above WorkDesk instead of remaining trapped inside a hidden modal, and the duplicate bottom version label has been removed from Invoice Management."
 }
