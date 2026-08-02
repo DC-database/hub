@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.7.6
+   Version: 11.7.7
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -166,6 +166,12 @@
    11.7.6:
    - Paid History is re-parented to the document body before binding/opening so a
      legacy hidden modal ancestor cannot prevent the WorkDesk popup from appearing.
+
+   11.7.7:
+   - Global search highlights matching WorkDesk/payment cards without auto-opening
+     the first result category; users explicitly choose which queue to display.
+   - Ready for Payment adds a strict Admin + Accounts/Accounting row action that
+     marks one invoice Paid using the existing next-day, Friday-to-Saturday rule.
    ========================================================================== */
 
 // =================================================================================================
@@ -377,6 +383,12 @@ function wdCanSeePaymentPocket() {
     return WD_PAYMENT_POCKET_ALLOWED_POSITIONS.some(wdPaymentPocketPositionIncludes);
 }
 
+function wdCanMarkPaymentPocketPaid() {
+    const role = wdNormalize(currentApprover?.Role || currentApprover?.role || '');
+    if (role !== 'admin') return false;
+    return wdPaymentPocketPositionIncludes('accounts') || wdPaymentPocketPositionIncludes('accounting');
+}
+
 function wdIsPaymentPocketSiteScopedUser() {
     if (wdIsPaymentPocketSuperAdmin()) return false;
     return WD_PAYMENT_POCKET_SITE_SCOPED_POSITIONS.some(wdPaymentPocketPositionIncludes);
@@ -417,6 +429,26 @@ function wdPaymentPocketAccessibleItems() {
         .filter(wdCanSeePaymentPocketItem)
         .slice()
         .sort(wdComparePaymentPocketItems);
+}
+
+function wdPaymentPocketSearchableText(item = {}) {
+    return [
+        item.po,
+        item.invoiceNo,
+        item.invEntryID,
+        item.supplierName,
+        item.vendorName,
+        item.supplierId,
+        item.site,
+        item.status,
+        item.releaseDate
+    ].map(value => wdText(value)).join(' ').toLowerCase();
+}
+
+function wdPaymentPocketHasSearchMatch(searchValue) {
+    const search = wdNormalize(searchValue);
+    if (!search || !wdCanSeePaymentPocket()) return false;
+    return wdPaymentPocketAccessibleItems().some(item => wdPaymentPocketSearchableText(item).includes(search));
 }
 
 function wdPaymentPocketDateSortValue(value) {
@@ -3154,12 +3186,9 @@ function wdBindDashboardControls() {
     if (searchInput && !searchInput.dataset.bound) {
         searchInput.dataset.bound = 'true';
         searchInput.addEventListener('input', () => {
-            // 11.0.0: Dashboard search is global. Typing a search clears any
-            // previously picked All Active category/site so results are not trapped
-            // inside the old card selection.
-            if (wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) {
-                wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
-            }
+            // 11.7.7: Dashboard search identifies and highlights matching cards,
+            // but never chooses a result category on the user's behalf.
+            wdActiveDashboardSelectedStatus = WD_DASHBOARD_NONE;
             wdActiveDashboardSelectedQueueDate = '';
             wdAllActiveCorkboardSelectedSiteKey = '';
             wdRenderDashboardCards();
@@ -3191,7 +3220,15 @@ function wdBindDashboardControls() {
     const listEl = document.getElementById('wd-active-dashboard-list');
     if (listEl && !listEl.dataset.dateTabsBound) {
         listEl.dataset.dateTabsBound = 'true';
-        listEl.addEventListener('click', (e) => {
+        listEl.addEventListener('click', async (e) => {
+            const markPaidButton = e.target.closest('.wd-payment-pocket-mark-paid');
+            if (markPaidButton) {
+                e.preventDefault();
+                e.stopPropagation();
+                await wdHandlePaymentPocketMarkPaid(markPaidButton);
+                return;
+            }
+
             const paymentMonthTab = e.target.closest('.wd-payment-pocket-month-tab');
             if (paymentMonthTab) {
                 e.preventDefault();
@@ -3787,10 +3824,13 @@ function wdRenderDashboardCards() {
     const dashboardSearch = wdDashboardSearchValue();
     const selectedFilter = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
     const dashboardGlobalSearchMode = !!dashboardSearch && selectedFilter === WD_DASHBOARD_NONE;
-    const searchStatusKeys = (canSeeAllActive && dashboardGlobalSearchMode)
+    const searchStatusKeys = dashboardGlobalSearchMode
         ? wdDashboardSearchContextStatusKeys()
         : new Set();
-    const shouldShowSearchCategoryContext = searchStatusKeys.size > 0;
+    const paymentSearchContextMatch = dashboardGlobalSearchMode && wdPaymentPocketHasSearchMatch(dashboardSearch);
+    const shouldShowSearchCategoryContext = dashboardGlobalSearchMode && (
+        searchStatusKeys.size > 0 || paymentSearchContextMatch
+    );
     const statusCounts = new Map();
 
     wdActiveDashboardTasks.forEach(task => {
@@ -3812,9 +3852,14 @@ function wdRenderDashboardCards() {
             const count = myStatusCounts.get(status) || 0;
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardMyStatusFilterKey(status);
-            const active = (!canSeeAllActive && filterKey === wdActiveDashboardSelectedStatus) || filterKey === wdActiveDashboardSelectedStatus ? 'active' : '';
+            const searchContextMatch = shouldShowSearchCategoryContext && searchStatusKeys.has(wdNormalize(status));
+            const directActive = filterKey === wdActiveDashboardSelectedStatus;
+            const active = directActive || searchContextMatch ? 'active' : '';
+            const searchContextClass = shouldShowSearchCategoryContext
+                ? (searchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
+                : '';
             personalHtml += `
-                <button class="wd-active-status-card wd-person-task-card tone-${tone} ${active}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show my ${wdSafe(status)} tasks">
+                <button class="wd-active-status-card wd-person-task-card tone-${tone} ${active} ${searchContextClass}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show my ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>
                     <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
                     <span class="wd-status-meta">
@@ -3907,7 +3952,11 @@ function wdRenderDashboardCards() {
 
     if (wdCanSeePaymentPocket()) {
         const paymentCount = wdPaymentPocketAccessibleItems().length;
-        const paymentActive = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER ? 'active' : '';
+        const paymentDirectActive = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER;
+        const paymentActive = paymentDirectActive || paymentSearchContextMatch ? 'active' : '';
+        const paymentSearchContextClass = shouldShowSearchCategoryContext
+            ? (paymentSearchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
+            : '';
         sectionsHtml += `
             <section class="wd-dashboard-card-section wd-dashboard-payment-section">
                 <div class="wd-dashboard-card-section-head">
@@ -3915,7 +3964,7 @@ function wdRenderDashboardCards() {
                     <small>Compact With Accounts records ready for payment processing</small>
                 </div>
                 <div class="wd-dashboard-card-grid wd-dashboard-payment-grid">
-                    <button class="wd-active-status-card wd-payment-pocket-card tone-payment ${paymentActive}" data-status="${WD_PAYMENT_POCKET_FILTER}" type="button" aria-label="Show ${paymentCount} invoices ready for payment">
+                    <button class="wd-active-status-card wd-payment-pocket-card tone-payment ${paymentActive} ${paymentSearchContextClass}" data-status="${WD_PAYMENT_POCKET_FILTER}" type="button" aria-label="Show ${paymentCount} invoices ready for payment">
                         <span class="wd-status-card-glow"></span>
                         <span class="wd-status-icon"><i class="fa-solid fa-wallet"></i></span>
                         <span class="wd-status-meta">
@@ -4813,6 +4862,87 @@ function wdPaymentPocketSrvAction(item = {}) {
     return '';
 }
 
+function wdPaymentPocketFindItem(indexKey) {
+    const wanted = wdText(indexKey);
+    if (!wanted) return null;
+    return wdPaymentPocketAccessibleItems().find(item => wdText(item?.indexKey) === wanted) || null;
+}
+
+function wdPaymentPocketCalculatedPaidDate(item = {}) {
+    const pocketApi = window.ibaPaymentPocket;
+    if (!pocketApi || typeof pocketApi.calculatePaidDate !== 'function') return '';
+    try { return wdText(pocketApi.calculatePaidDate(item?.releaseDate)); } catch (_) { return ''; }
+}
+
+async function wdHandlePaymentPocketMarkPaid(button) {
+    if (!button || button.dataset.processing === '1') return;
+    const pocketApi = window.ibaPaymentPocket;
+    const apiAllowsAction = pocketApi && typeof pocketApi.canMarkWorkdeskPaid === 'function'
+        ? pocketApi.canMarkWorkdeskPaid()
+        : false;
+    if (!wdCanMarkPaymentPocketPaid() || !apiAllowsAction) {
+        alert('Only an Admin with Accounts or Accounting position can mark a Ready for Payment invoice as Paid.');
+        return;
+    }
+    if (typeof pocketApi.markWorkdeskInvoicePaid !== 'function') {
+        alert('The Ready for Payment action is unavailable. Refresh the system and try again.');
+        return;
+    }
+
+    const item = wdPaymentPocketFindItem(button.dataset.paymentIndexKey || '');
+    if (!item) {
+        alert('This invoice is no longer available in Ready for Payment. The list will now refresh.');
+        wdRenderDashboardCards();
+        wdRenderDashboardList();
+        return;
+    }
+
+    const paidDate = wdPaymentPocketCalculatedPaidDate(item);
+    if (!paidDate) {
+        alert('This invoice has no valid With Accounts Date, so its Paid Date cannot be calculated.');
+        return;
+    }
+
+    const invoiceLabel = wdText(item.invoiceNo || item.invEntryID, 'N/A');
+    const confirmed = confirm(
+        `Mark invoice ${invoiceLabel} under PO ${wdText(item.po, 'N/A')} as Paid?\n\n` +
+        `With Accounts Date: ${wdPaymentPocketDisplayDate(item.releaseDate)}\n` +
+        `Paid Date: ${wdPaymentPocketDisplayDate(paidDate)}\n\n` +
+        'The Paid Date is one day after the With Accounts Date; Friday moves to Saturday. The invoice will be removed from Ready for Payment.'
+    );
+    if (!confirmed) return;
+
+    const originalHtml = button.innerHTML;
+    button.dataset.processing = '1';
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking…';
+
+    try {
+        const result = await pocketApi.markWorkdeskInvoicePaid(item, progress => {
+            if (!button.isConnected) return;
+            const phase = wdNormalize(progress?.phase);
+            const label = phase === 'saving' ? 'Saving…' : (phase === 'syncing' ? 'Syncing…' : 'Checking…');
+            button.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${label}`;
+        });
+        wdPaymentPocketItems = wdPaymentPocketItems.filter(row => wdText(row?.indexKey) !== wdText(item.indexKey));
+        wdRenderDashboardCards();
+        wdRenderDashboardList();
+        const warning = Number(result?.syncFailures) > 0
+            ? '\n\nThe invoice was marked Paid, but one linked background update may need the next Dashboard refresh.'
+            : '';
+        alert(`Invoice ${invoiceLabel} was marked Paid successfully.${warning}`);
+    } catch (error) {
+        console.error('WorkDesk Ready for Payment Mark Paid failed:', error);
+        alert(error?.message || 'The invoice could not be marked Paid. Please refresh and try again.');
+    } finally {
+        if (button.isConnected) {
+            button.dataset.processing = '';
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        }
+    }
+}
+
 function wdPaymentPocketExactPOMatches(poNumber) {
     const po = wdPaymentHistoryExactPO(poNumber);
     if (!po) return [];
@@ -5225,16 +5355,7 @@ function wdBindPaymentHistoryModal() {
 function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const search = wdNormalize(searchInput?.value || '');
-    const searchableText = item => [
-        item?.po,
-        item?.invoiceNo,
-        item?.invEntryID,
-        item?.supplierName,
-        item?.supplierId,
-        item?.site,
-        item?.status,
-        item?.releaseDate
-    ].map(value => wdText(value)).join(' ').toLowerCase();
+    const canMarkPaid = wdCanMarkPaymentPocketPaid();
     const accessibleItems = wdPaymentPocketAccessibleItems();
     const now = new Date();
     const availableYears = wdPaymentPocketAvailableYears(accessibleItems, now);
@@ -5262,7 +5383,7 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
             const parts = wdPaymentPocketDateParts(item?.releaseDate);
             return parts && parts.month === Number(wdPaymentPocketSelectedMonth);
         })
-        .filter(item => !search || searchableText(item).includes(search))
+        .filter(item => !search || wdPaymentPocketSearchableText(item).includes(search))
         .slice()
         .sort(wdComparePaymentPocketItems);
     const total = items.reduce((sum, item) => sum + wdPaymentPocketInvoiceValue(item), 0);
@@ -5296,6 +5417,10 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         const amountText = typeof formatCurrency === 'function'
             ? formatCurrency(amount)
             : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const paidDate = wdPaymentPocketCalculatedPaidDate(item);
+        const actionCell = canMarkPaid
+            ? `<td class="wd-payment-pocket-action-cell"><button type="button" class="wd-payment-pocket-mark-paid" data-payment-index-key="${wdSafe(item?.indexKey || '')}" title="Mark Paid on ${wdSafe(wdPaymentPocketDisplayDate(paidDate))}"><i class="fa-solid fa-circle-check"></i> Mark Paid</button></td>`
+            : '';
         return `
             <tr>
                 <td><strong>${wdSafe(item?.invoiceNo || item?.invEntryID || 'N/A')}</strong></td>
@@ -5306,10 +5431,11 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                 <td>${wdSafe(wdPaymentPocketDisplayDate(item?.releaseDate))}</td>
                 <td>${wdPaymentPocketSrvAction(item)}</td>
                 <td><span class="wd-payment-pocket-status">With Accounts</span></td>
+                ${actionCell}
             </tr>`;
     }).join('') : `
         <tr>
-            <td colspan="8" class="wd-payment-pocket-no-match">
+            <td colspan="${canMarkPaid ? 9 : 8}" class="wd-payment-pocket-no-match">
                 No invoice matches the selected Site, Year, Month, and search. Change a filter or clear the search.
             </td>
         </tr>`;
@@ -5375,6 +5501,7 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
                             <th>With Accounts Date</th>
                             <th>SRV PDF</th>
                             <th>Status</th>
+                            ${canMarkPaid ? '<th>Action</th>' : ''}
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
@@ -5393,6 +5520,29 @@ function wdRenderDashboardList() {
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const globalSearch = wdNormalize(searchInput?.value || '');
     wdSyncPaidHistoryTrigger();
+
+    if (selected === WD_DASHBOARD_NONE && globalSearch) {
+        const taskCategories = wdDashboardSearchContextStatusKeys();
+        const paymentMatched = wdPaymentPocketHasSearchMatch(globalSearch);
+        const matchingCategories = taskCategories.size + (paymentMatched ? 1 : 0);
+        if (titleEl) titleEl.textContent = matchingCategories ? 'Choose a highlighted card' : 'No matching category';
+        if (summaryEl) {
+            summaryEl.textContent = matchingCategories
+                ? `${matchingCategories} matching categor${matchingCategories === 1 ? 'y' : 'ies'} found. Select one highlighted card to display its filtered results.`
+                : 'No WorkDesk or Ready for Payment card contains this search.';
+        }
+        listEl.innerHTML = `
+            <div class="wd-dashboard-empty-state${matchingCategories ? '' : ' is-search-empty'}">
+                <span class="wd-empty-icon"><i class="fa-solid ${matchingCategories ? 'fa-hand-pointer' : 'fa-magnifying-glass'}"></i></span>
+                <div>
+                    <strong>${matchingCategories ? 'Choose where to open the result' : 'No matching category found'}</strong>
+                    <p>${matchingCategories
+                        ? 'Matching cards are highlighted above. Click IPC Application, Ready for Payment, or another highlighted card to load only that category.'
+                        : 'Try another PO, vendor, site, attention, note, status, or payment-pocket search.'}</p>
+                </div>
+            </div>`;
+        return;
+    }
 
     if (selected === WD_PAYMENT_POCKET_FILTER && wdCanSeePaymentPocket()) {
         wdRenderPaymentPocketList(listEl, titleEl, summaryEl);

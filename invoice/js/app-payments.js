@@ -1,7 +1,8 @@
 // ============================================================================
-// IBA 11.6.6 — WorkDesk Payment Pocket Visibility + SRV Reference
+// IBA 11.7.7 — WorkDesk Payment Pocket Visibility + Controlled Paid Action
 // The compact With Accounts pocket now carries Invoice Value and SRV identity
-// for the view-only WorkDesk list without downloading the invoice archive.
+// without downloading the invoice archive. Admin users in Accounts/Accounting
+// may mark a displayed pocket row Paid through the same verified write workflow.
 // ============================================================================
 
 let paymentSearchResults = new Map();
@@ -181,6 +182,17 @@ function canCurrentUserAccessPayments() {
         .split(/[^a-z0-9]+/)
         .filter(Boolean);
     return positionTokens.some(token => ['finance', 'accounts', 'accounting'].includes(token));
+}
+
+function paymentCanCurrentUserMarkWorkdeskPaid() {
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    const role = paymentNormalize(user.Role || user.role);
+    if (role !== 'admin') return false;
+
+    const positionTokens = paymentNormalize(user.Position || user.position)
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean);
+    return positionTokens.some(token => ['accounts', 'accounting'].includes(token));
 }
 
 function paymentCartId(poNumber, invoiceKey) {
@@ -733,10 +745,16 @@ async function paymentReadExactInvoicesInChunks(items, onProgress) {
     return records;
 }
 
-async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
-    if (!paymentIsSuperAdmin()) {
-        throw new Error('Only Irwin/Super Admin can mark filtered Invoice Records as Paid.');
+async function paymentMarkInvoicesPaidInternal(records, onProgress, accessMode) {
+    const isWorkdeskPaymentAction = accessMode === 'workdesk-payment-pocket';
+    if (isWorkdeskPaymentAction ? !paymentCanCurrentUserMarkWorkdeskPaid() : !paymentIsSuperAdmin()) {
+        throw new Error(isWorkdeskPaymentAction
+            ? 'Only an Admin with Accounts or Accounting position can mark this Ready for Payment invoice as Paid.'
+            : 'Only Irwin/Super Admin can mark filtered Invoice Records as Paid.');
     }
+    const actionSource = isWorkdeskPaymentAction
+        ? 'WorkDesk Ready for Payment'
+        : 'filtered Invoice Records';
     if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
         throw new Error('The Invoice Realtime Database connection is unavailable.');
     }
@@ -846,7 +864,7 @@ async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
         chunk.forEach(record => {
             if (typeof updateLinkedJobEntry === 'function') {
                 sideEffects.push(Promise.resolve().then(() =>
-                    updateLinkedJobEntry(record.po, record.key, 'Paid', 'Marked Paid from filtered Invoice Records')
+                    updateLinkedJobEntry(record.po, record.key, 'Paid', `Marked Paid from ${actionSource}`)
                 ));
             }
             if (typeof updateInvoiceTaskLookup === 'function') {
@@ -866,7 +884,7 @@ async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
                         record.po,
                         record.key,
                         'Paid',
-                        `Marked Paid from Invoice Records. With Accounts: ${record.withAccountsDate}; Paid: ${record.paidDate}`
+                        `Marked Paid from ${actionSource}. With Accounts: ${record.withAccountsDate}; Paid: ${record.paidDate}`
                     )
                 ));
             }
@@ -901,6 +919,14 @@ async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
             paidDate: record.paidDate
         }))
     };
+}
+
+async function paymentMarkFilteredInvoicesPaid(records, onProgress) {
+    return paymentMarkInvoicesPaidInternal(records, onProgress, 'invoice-records');
+}
+
+async function paymentMarkWorkdeskInvoicePaid(record, onProgress) {
+    return paymentMarkInvoicesPaidInternal([record], onProgress, 'workdesk-payment-pocket');
 }
 
 async function removeInvoicePaymentReadyIndex(poNumber, invoiceKey) {
@@ -2064,9 +2090,11 @@ window.ibaPaymentPocket = {
     subscribe: paymentSubscribeReadyIndex,
     transferFilteredInvoices: paymentTransferFilteredInvoicesToPocket,
     markFilteredInvoicesPaid: paymentMarkFilteredInvoicesPaid,
+    markWorkdeskInvoicePaid: paymentMarkWorkdeskInvoicePaid,
     calculatePaidDate: paymentPaidDateAfterWithAccounts,
     displayDate: paymentDisplayDate,
-    isSuperAdmin: paymentIsSuperAdmin
+    isSuperAdmin: paymentIsSuperAdmin,
+    canMarkWorkdeskPaid: paymentCanCurrentUserMarkWorkdeskPaid
 };
 window.ibaPaymentTools = {
     parseAmount: paymentParseAmount,
