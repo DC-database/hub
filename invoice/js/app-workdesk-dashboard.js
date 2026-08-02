@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.7.5
+   Version: 11.7.6
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -162,6 +162,10 @@
      dashboard card through the compact active-invoice index; Job Records remain separate.
    - Ready for Payment reveals Paid History only for an exact PO absent from the
      complete accessible payment pocket, so archive reads remain user-triggered.
+
+   11.7.6:
+   - Paid History is re-parented to the document body before binding/opening so a
+     legacy hidden modal ancestor cannot prevent the WorkDesk popup from appearing.
    ========================================================================== */
 
 // =================================================================================================
@@ -4971,8 +4975,17 @@ async function wdFetchPaidPaymentHistory(poNumber) {
     };
 }
 
-function wdOpenPaymentHistoryModalShell(poNumber) {
+function wdEnsurePaymentHistoryModalAtBodyRoot() {
     const modal = document.getElementById('wd-paid-history-modal');
+    if (!modal) return null;
+    if (document.body && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+    return modal;
+}
+
+function wdOpenPaymentHistoryModalShell(poNumber) {
+    const modal = wdEnsurePaymentHistoryModalAtBodyRoot();
     const body = document.getElementById('wd-paid-history-body');
     const title = document.getElementById('wd-paid-history-title');
     const subtitle = document.getElementById('wd-paid-history-subtitle');
@@ -5193,7 +5206,7 @@ async function wdHandlePaymentPocketSearchSubmit() {
 }
 
 function wdBindPaymentHistoryModal() {
-    const modal = document.getElementById('wd-paid-history-modal');
+    const modal = wdEnsurePaymentHistoryModalAtBodyRoot();
     if (!modal || modal.dataset.bound) return;
     modal.dataset.bound = '1';
     modal.addEventListener('click', event => {
