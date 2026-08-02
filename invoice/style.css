@@ -34473,3 +34473,1804 @@ body #history-modal.modal-overlay:not(.hidden) .history-premium-table {
         padding-left: 0;
     }
 }
+
+/* ========================================================================== */
+/* 11.8.0 — Module identity palettes (colour-only override)                   */
+/* WorkDesk: orange / navy / blue / ice                                      */
+/* Inventory: coral / ocean / turquoise / mint                               */
+/* Invoice Management: teal / navy / peach / neutral                         */
+/* ========================================================================== */
+
+:root {
+    --iba-wd-orange: #fd5f00;
+    --iba-wd-navy: #002049;
+    --iba-wd-blue: #015692;
+    --iba-wd-ice: #d9faff;
+
+    --iba-inv-coral: #f96263;
+    --iba-inv-ocean: #226484;
+    --iba-inv-turquoise: #66c0b8;
+    --iba-inv-mint: #cffdf9;
+
+    --iba-im-teal: #0d7e85;
+    --iba-im-navy: #14293f;
+    --iba-im-peach: #feb088;
+    --iba-im-neutral: #eef0f4;
+}
+
+/* -------------------------------------------------------------------------- */
+/* WorkDesk                                                                   */
+/* -------------------------------------------------------------------------- */
+
+body:not(.inventory-mode) #workdesk-view,
+body:not(.inventory-mode) #workdesk-view .workdesk-main,
+body:not(.inventory-mode) #workdesk-view .workdesk-section {
+    background-color: var(--iba-wd-ice) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view .workdesk-sidebar {
+    background: linear-gradient(180deg, var(--iba-wd-navy) 0%, var(--iba-wd-blue) 100%) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+    box-shadow: 12px 0 30px rgba(0, 32, 73, 0.18) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view .workdesk-sidebar :is(.wd-user-profile, .wd-user-name, .wd-user-position, .workdesk-footer-nav, .version-display),
+body:not(.inventory-mode) #workdesk-view .workdesk-sidebar i {
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view .wd-user-avatar {
+    background: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-ice) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a,
+body:not(.inventory-mode) #workdesk-view .wd-back-button {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a:hover,
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a:focus-visible,
+body:not(.inventory-mode) #workdesk-view .wd-back-button:hover {
+    background-color: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-ice) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active,
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a {
+    background-color: var(--iba-wd-ice) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: var(--iba-wd-navy) !important;
+    box-shadow: inset 5px 0 0 var(--iba-wd-orange), 0 8px 20px rgba(0, 32, 73, 0.2) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active i,
+body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a i {
+    color: var(--iba-wd-orange) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) {
+    background: linear-gradient(135deg, var(--iba-wd-navy) 0%, var(--iba-wd-blue) 100%) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+    box-shadow: 0 18px 36px rgba(0, 32, 73, 0.2) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) :is(h1, h2, h3, p, span, strong, i) {
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.wd-control-eyebrow, .wd-page-eyebrow) {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.wd-active-dashboard-cards, .wd-active-dashboard-list, .wd-active-dashboard-toolbar, .wd-premium-searchbar, .wd-records-controls, .wd-mini-metrics, .settings-card, .dashboard-card, .wd-dashboard-card, .wd-task-card, .task-card, .report-controls, .table-wrapper, .calendar-container) {
+    background-color: #ffffff !important;
+    border-color: rgba(1, 86, 146, 0.28) !important;
+    color: var(--iba-wd-navy) !important;
+    box-shadow: 0 12px 26px rgba(0, 32, 73, 0.09) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(h1, h2, h3, h4, h5, .section-title, .card-title, .wd-section-title) {
+    color: var(--iba-wd-navy) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card):hover,
+body:not(.inventory-mode) #workdesk-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card).active,
+body:not(.inventory-mode) #workdesk-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card).selected {
+    border-color: var(--iba-wd-orange) !important;
+    box-shadow: 0 14px 30px rgba(253, 95, 0, 0.18) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn) {
+    background-color: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):hover,
+body:not(.inventory-mode) #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):focus-visible {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.notification-badge, .badge, .count-badge, .wd-status-pill, .status-badge) {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: rgba(1, 86, 146, 0.4) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(input, select, textarea, .choices__inner):focus,
+body:not(.inventory-mode) #workdesk-view .choices.is-focused .choices__inner {
+    border-color: var(--iba-wd-orange) !important;
+    box-shadow: 0 0 0 3px rgba(253, 95, 0, 0.16) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view table thead,
+body:not(.inventory-mode) #workdesk-view table thead tr,
+body:not(.inventory-mode) #workdesk-view table thead th {
+    background-color: var(--iba-wd-navy) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view table tbody tr:nth-child(even) td {
+    background-color: rgba(217, 250, 255, 0.48) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view table tbody tr:hover td {
+    background-color: var(--iba-wd-ice) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button, .wd-payment-pocket-month-tab) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-blue) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button, .wd-payment-pocket-month-tab).active {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+/* WorkDesk modal and popup surfaces. */
+.wd-themed-modal > .modal-container,
+#wd-paid-history-modal > .modal-container,
+#history-modal.history-scope-workdesk > .modal-container {
+    background-color: var(--iba-wd-ice) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+    box-shadow: 0 28px 70px rgba(0, 32, 73, 0.34) !important;
+}
+
+.wd-themed-modal :is(.modal-header, .history-modal-header),
+#wd-paid-history-modal :is(.modal-header, .history-modal-header),
+#history-modal.history-scope-workdesk :is(.modal-header, .history-modal-header) {
+    background: linear-gradient(135deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+.wd-themed-modal :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button),
+#wd-paid-history-modal :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button),
+#history-modal.history-scope-workdesk :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button) {
+    color: #ffffff !important;
+}
+
+.wd-themed-modal :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary),
+#wd-paid-history-modal :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary),
+#history-modal.history-scope-workdesk :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary) {
+    background-color: #ffffff !important;
+    border-color: rgba(1, 86, 146, 0.3) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+.wd-themed-modal table thead th,
+#wd-paid-history-modal table thead th,
+#history-modal.history-scope-workdesk table thead th {
+    background-color: var(--iba-wd-navy) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+.wd-themed-modal :is(input, select, textarea, .choices__inner),
+#wd-paid-history-modal :is(input, select, textarea, .choices__inner),
+#history-modal.history-scope-workdesk :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+.wd-themed-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn),
+#wd-paid-history-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn),
+#history-modal.history-scope-workdesk :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn) {
+    background-color: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+.wd-themed-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover,
+#wd-paid-history-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover,
+#history-modal.history-scope-workdesk :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+}
+
+/* Dynamically created WorkDesk forwarding popup. */
+#wd-forward-task-modal .wd-forward-modal-card {
+    background-color: var(--iba-wd-ice) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+    box-shadow: 0 28px 70px rgba(0, 32, 73, 0.34) !important;
+}
+
+#wd-forward-task-modal .wd-forward-modal-head {
+    background: linear-gradient(135deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+#wd-forward-task-modal .wd-forward-modal-head :is(h1, h2, h3, span, i, button) {
+    color: #ffffff !important;
+}
+
+#wd-forward-task-modal :is(.wd-forward-modal-body, .wd-forward-modal-actions) {
+    background-color: #ffffff !important;
+    border-color: rgba(1, 86, 146, 0.3) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+#wd-forward-task-modal :is(select, textarea) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+#wd-forward-task-modal :is(.wd-forward-cancel, .wd-forward-send) {
+    background-color: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+#wd-forward-task-modal :is(.wd-forward-cancel, .wd-forward-send):hover {
+    background-color: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Inventory — deliberately blue + coral (not the Invoice teal palette)       */
+/* -------------------------------------------------------------------------- */
+
+body.inventory-mode #workdesk-view,
+body.inventory-mode #workdesk-view .workdesk-main,
+body.inventory-mode #workdesk-view .workdesk-section,
+#inventory-view,
+#inventory-view .workdesk-main,
+#inventory-view .workdesk-section {
+    background-color: var(--iba-inv-mint) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view .workdesk-sidebar,
+#inventory-view .workdesk-sidebar {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+    box-shadow: 12px 0 30px rgba(34, 100, 132, 0.22) !important;
+}
+
+body.inventory-mode #workdesk-view .workdesk-sidebar :is(.wd-user-profile, .wd-user-name, .wd-user-position, .workdesk-footer-nav, .version-display, i),
+#inventory-view .workdesk-sidebar :is(.wd-user-profile, .wd-user-name, .wd-user-position, .workdesk-footer-nav, .version-display, i) {
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view .wd-user-avatar,
+#inventory-view .wd-user-avatar {
+    background: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-mint) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a,
+body.inventory-mode #workdesk-view .wd-back-button,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a,
+#inventory-view .wd-back-button {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a:hover,
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a:focus-visible,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a:hover,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a:focus-visible {
+    background-color: var(--iba-inv-turquoise) !important;
+    border-color: var(--iba-inv-mint) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active,
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a {
+    background-color: #ffffff !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: var(--iba-inv-ocean) !important;
+    box-shadow: inset 5px 0 0 var(--iba-inv-coral), 0 8px 20px rgba(34, 100, 132, 0.2) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active i,
+body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a i,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active i,
+#inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a i {
+    color: var(--iba-inv-coral) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active),
+#inventory-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+    box-shadow: 0 18px 36px rgba(34, 100, 132, 0.22) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) :is(h1, h2, h3, p, span, strong, i),
+#inventory-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) :is(h1, h2, h3, p, span, strong, i) {
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-control-eyebrow, .wd-page-eyebrow),
+#inventory-view :is(.wd-control-eyebrow, .wd-page-eyebrow) {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-active-dashboard-cards, .wd-active-dashboard-list, .wd-active-dashboard-toolbar, .wd-premium-searchbar, .wd-records-controls, .wd-mini-metrics, .settings-card, .dashboard-card, .wd-dashboard-card, .wd-task-card, .task-card, .report-controls, .table-wrapper, .calendar-container, .wd-inventory-batch-card),
+#inventory-view :is(.wd-active-dashboard-cards, .wd-active-dashboard-list, .wd-active-dashboard-toolbar, .wd-premium-searchbar, .wd-records-controls, .wd-mini-metrics, .settings-card, .dashboard-card, .wd-dashboard-card, .wd-task-card, .task-card, .report-controls, .table-wrapper, .calendar-container, .wd-inventory-batch-card) {
+    background-color: #ffffff !important;
+    border-color: rgba(34, 100, 132, 0.28) !important;
+    color: var(--iba-inv-ocean) !important;
+    box-shadow: 0 12px 26px rgba(34, 100, 132, 0.11) !important;
+}
+
+body.inventory-mode #workdesk-view :is(h1, h2, h3, h4, h5, .section-title, .card-title, .wd-section-title, .wd-inventory-section-heading),
+#inventory-view :is(h1, h2, h3, h4, h5, .section-title, .card-title, .wd-section-title, .wd-inventory-section-heading) {
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card, .wd-inventory-batch-card):hover,
+body.inventory-mode #workdesk-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card, .wd-inventory-batch-card).active,
+#inventory-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card, .wd-inventory-batch-card):hover,
+#inventory-view :is(.wd-dashboard-card, .wd-task-card, .task-card, .summary-card, .metric-card, .wd-inventory-batch-card).active {
+    border-color: var(--iba-inv-coral) !important;
+    box-shadow: 0 14px 30px rgba(249, 98, 99, 0.2) !important;
+}
+
+body.inventory-mode #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn),
+#inventory-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn) {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):hover,
+body.inventory-mode #workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):focus-visible,
+#inventory-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):hover,
+#inventory-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.modal-close):not(.danger-btn):focus-visible {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.notification-badge, .badge, .count-badge, .wd-status-pill, .status-badge, .wd-inventory-multi-badge),
+#inventory-view :is(.notification-badge, .badge, .count-badge, .wd-status-pill, .status-badge, .wd-inventory-multi-badge) {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-inventory-single-badge, .wd-inventory-status-pill),
+#inventory-view :is(.wd-inventory-single-badge, .wd-inventory-status-pill) {
+    background-color: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-inventory-progress-track, .progress-track),
+#inventory-view :is(.wd-inventory-progress-track, .progress-track) {
+    background-color: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-inventory-progress-fill, .progress-fill, .wd-inventory-progress-track > span),
+#inventory-view :is(.wd-inventory-progress-fill, .progress-fill, .wd-inventory-progress-track > span) {
+    background-color: var(--iba-inv-turquoise) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.wd-inventory-action-btn, .inventory-confirm-received-btn, .confirm-received-btn),
+#inventory-view :is(.wd-inventory-action-btn, .inventory-confirm-received-btn, .confirm-received-btn) {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view :is(input, select, textarea, .choices__inner),
+#inventory-view :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: rgba(34, 100, 132, 0.42) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(input, select, textarea, .choices__inner):focus,
+body.inventory-mode #workdesk-view .choices.is-focused .choices__inner,
+#inventory-view :is(input, select, textarea, .choices__inner):focus,
+#inventory-view .choices.is-focused .choices__inner {
+    border-color: var(--iba-inv-coral) !important;
+    box-shadow: 0 0 0 3px rgba(102, 192, 184, 0.28) !important;
+}
+
+body.inventory-mode #workdesk-view table thead,
+body.inventory-mode #workdesk-view table thead tr,
+body.inventory-mode #workdesk-view table thead th,
+#inventory-view table thead,
+#inventory-view table thead tr,
+#inventory-view table thead th {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view table tbody tr:nth-child(even) td,
+#inventory-view table tbody tr:nth-child(even) td {
+    background-color: rgba(207, 253, 249, 0.55) !important;
+}
+
+body.inventory-mode #workdesk-view table tbody tr:hover td,
+#inventory-view table tbody tr:hover td {
+    background-color: var(--iba-inv-mint) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button),
+#inventory-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+body.inventory-mode #workdesk-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button).active,
+#inventory-view :is(.report-tab, .wd-premium-tabs button, .wd-active-date-tabs button).active {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+/* Inventory modal and popup surfaces, including dynamically created requests. */
+.inventory-themed-modal > .modal-container,
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) > .modal-container,
+#history-modal.history-scope-inventory > .modal-container {
+    background-color: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+    box-shadow: 0 28px 70px rgba(34, 100, 132, 0.36) !important;
+}
+
+.inventory-themed-modal :is(.modal-header, .history-modal-header),
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(.modal-header, .history-modal-header),
+#history-modal.history-scope-inventory :is(.modal-header, .history-modal-header) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+.inventory-themed-modal :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button),
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button),
+#history-modal.history-scope-inventory :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button) {
+    color: #ffffff !important;
+}
+
+.inventory-themed-modal :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary),
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary),
+#history-modal.history-scope-inventory :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary) {
+    background-color: #ffffff !important;
+    border-color: rgba(34, 100, 132, 0.3) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+.inventory-themed-modal table thead th,
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) table thead th,
+#history-modal.history-scope-inventory table thead th {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: #ffffff !important;
+}
+
+.inventory-themed-modal :is(input, select, textarea, .choices__inner),
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(input, select, textarea, .choices__inner),
+#history-modal.history-scope-inventory :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+.inventory-themed-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn),
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn),
+#history-modal.history-scope-inventory :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn) {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+}
+
+.inventory-themed-modal :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover,
+body.inventory-mode .modal-overlay:not(.wd-themed-modal) :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover,
+#history-modal.history-scope-inventory :is(.primary-btn, .secondary-btn, .action-btn, .modal-confirm-btn):hover {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+}
+
+/* Dynamically created Inventory request-conversion popup. */
+#inv-request-convert-modal .inventory-request-convert-modal {
+    background-color: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+    box-shadow: 0 28px 70px rgba(34, 100, 132, 0.36) !important;
+}
+
+#inv-request-convert-modal .inventory-request-convert-head {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+#inv-request-convert-modal .inventory-request-convert-head :is(h1, h2, h3, p, span, i, button) {
+    color: #ffffff !important;
+}
+
+#inv-request-convert-modal :is(.inventory-request-convert-body, .inventory-request-convert-footer, .inventory-request-convert-route, .inventory-request-convert-lines) {
+    background-color: #ffffff !important;
+    border-color: rgba(34, 100, 132, 0.3) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+#inv-request-convert-modal :is(input, select, textarea) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+#inv-request-convert-modal :is(.primary-btn, .secondary-btn) {
+    background-color: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+}
+
+#inv-request-convert-modal :is(.primary-btn, .secondary-btn):hover {
+    background-color: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Invoice Management — deliberately teal + navy + peach                      */
+/* -------------------------------------------------------------------------- */
+
+#invoice-management-view,
+#invoice-management-view .workdesk-main,
+#invoice-management-view .workdesk-section {
+    background-color: var(--iba-im-neutral) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view .workdesk-sidebar {
+    background: linear-gradient(180deg, var(--iba-im-navy) 0%, var(--iba-im-teal) 100%) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+    box-shadow: 12px 0 30px rgba(20, 41, 63, 0.2) !important;
+}
+
+#invoice-management-view .workdesk-sidebar :is(.wd-user-profile, .wd-user-name, .wd-user-position, .workdesk-footer-nav, .version-display, i) {
+    color: #ffffff !important;
+}
+
+#invoice-management-view .wd-user-avatar {
+    background: var(--iba-im-peach) !important;
+    border-color: #ffffff !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a,
+#invoice-management-view .wd-back-button,
+#invoice-management-view .im-nav-group-toggle {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a:hover,
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a:focus-visible,
+#invoice-management-view .im-nav-group-toggle:hover,
+#invoice-management-view .im-nav-group-toggle:focus-visible {
+    background-color: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active,
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a,
+#invoice-management-view .im-nav-group.is-open > .im-nav-group-toggle {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+    box-shadow: inset 5px 0 0 #ffffff, 0 8px 20px rgba(20, 41, 63, 0.2) !important;
+}
+
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active i,
+#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a i,
+#invoice-management-view .im-nav-group.is-open > .im-nav-group-toggle i {
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.im-standard-hero, .im-reporting-header, .reporting-header, .wd-page-hero, .dashboard-header) {
+    background: linear-gradient(135deg, var(--iba-im-teal) 0%, var(--iba-im-navy) 100%) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+    box-shadow: 0 18px 36px rgba(20, 41, 63, 0.2) !important;
+}
+
+#invoice-management-view :is(.im-standard-hero, .im-reporting-header, .reporting-header, .wd-page-hero, .dashboard-header) :is(h1, h2, h3, p, span, strong, i) {
+    color: #ffffff !important;
+}
+
+#invoice-management-view :is(.im-standard-eyebrow, .im-found-count-chip) {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.dashboard-card, .im-dashboard-card, .im-card, .im-admin-control-surface, .im-payment-empty-state, .im-payment-checkout-bar, .im-entry-main-pane, .im-entry-quick-panel, .im-entry-sidebar, .im-summary-card, .settings-card, .report-controls, .table-wrapper, .search-and-filter-group, .daily-report-section, .help-content, .im-help-tab-panel) {
+    background-color: #ffffff !important;
+    border-color: rgba(13, 126, 133, 0.28) !important;
+    color: var(--iba-im-navy) !important;
+    box-shadow: 0 12px 26px rgba(20, 41, 63, 0.09) !important;
+}
+
+#invoice-management-view :is(h1, h2, h3, h4, h5, .section-title, .card-title, .im-sidebar-title) {
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.dashboard-card, .im-dashboard-card, .im-card, .im-summary-card):hover,
+#invoice-management-view :is(.dashboard-card, .im-dashboard-card, .im-card, .im-summary-card).active,
+#invoice-management-view :is(.dashboard-card, .im-dashboard-card, .im-card, .im-summary-card).selected {
+    border-color: var(--iba-im-peach) !important;
+    box-shadow: 0 14px 30px rgba(254, 176, 136, 0.3) !important;
+}
+
+#invoice-management-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .refresh-btn, .print-btn):not(.modal-close):not(.danger-btn) {
+    background-color: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .refresh-btn, .print-btn):not(.modal-close):not(.danger-btn):hover,
+#invoice-management-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .refresh-btn, .print-btn):not(.modal-close):not(.danger-btn):focus-visible,
+#invoice-management-view :is(.im-help-tab-btn, .im-quick-status-btn).active,
+#invoice-management-view :is(.im-help-tab-btn, .im-quick-status-btn).is-active {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.notification-badge, .badge, .count-badge, .status-badge, .im-admin-status-pill, .im-payment-status-badge) {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: rgba(13, 126, 133, 0.42) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(input, select, textarea, .choices__inner):focus,
+#invoice-management-view .choices.is-focused .choices__inner {
+    border-color: var(--iba-im-peach) !important;
+    box-shadow: 0 0 0 3px rgba(254, 176, 136, 0.28) !important;
+}
+
+#invoice-management-view table thead,
+#invoice-management-view table thead tr,
+#invoice-management-view table thead th {
+    background-color: var(--iba-im-navy) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view table tbody tr:nth-child(even) td {
+    background-color: rgba(238, 240, 244, 0.75) !important;
+}
+
+#invoice-management-view table tbody tr:hover td {
+    background-color: rgba(254, 176, 136, 0.26) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.report-tab, .im-help-tab-btn, .im-quick-status-btn, .summary-note-tab) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-teal) !important;
+}
+
+#invoice-management-view :is(.report-tab, .im-help-tab-btn, .im-quick-status-btn, .summary-note-tab).active,
+#invoice-management-view :is(.report-tab, .im-help-tab-btn, .im-quick-status-btn, .summary-note-tab).is-active {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view :is(.im-payment-cart-total, .total-row, tfoot, .im-footer-po-summary) {
+    background-color: rgba(254, 176, 136, 0.32) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+/* Every Invoice Management modal/popup, including mobile search and history. */
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) > .modal-container {
+    background-color: var(--iba-im-neutral) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-navy) !important;
+    box-shadow: 0 28px 70px rgba(20, 41, 63, 0.36) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.modal-header, .history-modal-header) {
+    background: linear-gradient(135deg, var(--iba-im-teal), var(--iba-im-navy)) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.modal-header, .history-modal-header) :is(h1, h2, h3, p, span, i, button) {
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary, .im-entry-quick-panel, .im-pocket-transfer-help, .im-pocket-transfer-stats, .im-payment-search-results) {
+    background-color: #ffffff !important;
+    border-color: rgba(13, 126, 133, 0.3) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) table thead th {
+    background-color: var(--iba-im-navy) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(input, select, textarea, .choices__inner) {
+    background-color: #ffffff !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.primary-btn, .secondary-btn, .action-btn, .download-btn, .modal-confirm-btn, .im-quick-status-btn) {
+    background-color: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.primary-btn, .secondary-btn, .action-btn, .download-btn, .modal-confirm-btn, .im-quick-status-btn):hover,
+#im-invoice-entry-modal .im-quick-status-btn.is-active {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#im-invoice-entry-modal :is(.im-entry-modal-footer, .im-footer-po-summary),
+#im-add-payment-modal :is(.im-payment-cart-total, .im-payment-search-summary),
+#im-pocket-transfer-modal :is(.im-pocket-transfer-stats, .im-pocket-transfer-status),
+#im-mark-paid-modal :is(.im-pocket-transfer-stats, .im-pocket-transfer-status) {
+    background-color: rgba(254, 176, 136, 0.32) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+/* Dynamically created attention chooser used by Invoice Entry and Batch Entry. */
+#dynamic-candidate-picker > div {
+    background-color: var(--iba-im-neutral) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-navy) !important;
+    box-shadow: 0 28px 70px rgba(20, 41, 63, 0.36) !important;
+}
+
+#dynamic-candidate-picker > div > div:first-child {
+    background: linear-gradient(135deg, var(--iba-im-teal), var(--iba-im-navy)) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+}
+
+#dynamic-candidate-picker > div > div:first-child :is(h1, h2, h3, span, i, button) {
+    color: #ffffff !important;
+}
+
+#dynamic-candidate-picker > div > div:nth-child(2) {
+    background-color: #ffffff !important;
+    border-color: rgba(13, 126, 133, 0.3) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#dynamic-candidate-picker > div > div:nth-child(2) p {
+    color: var(--iba-im-navy) !important;
+}
+
+#dynamic-candidate-picker > div > div:nth-child(2) button {
+    background-color: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-teal) !important;
+}
+
+#dynamic-candidate-picker > div > div:last-child button {
+    background-color: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mobile: preserve each module identity across compact bars and menus.        */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+    body:not(.inventory-mode) #workdesk-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header) {
+        background-color: var(--iba-wd-navy) !important;
+        border-color: var(--iba-wd-orange) !important;
+        color: #ffffff !important;
+    }
+
+    body:not(.inventory-mode) #workdesk-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header) :is(a, button, i, span) {
+        color: #ffffff !important;
+    }
+
+    body:not(.inventory-mode) #workdesk-view :is(.mobile-bottom-nav, .mobile-nav) :is(a, button).active {
+        background-color: var(--iba-wd-orange) !important;
+        border-color: var(--iba-wd-orange) !important;
+        color: #ffffff !important;
+    }
+
+    body.inventory-mode #workdesk-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header),
+    #inventory-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header) {
+        background-color: var(--iba-inv-ocean) !important;
+        border-color: var(--iba-inv-coral) !important;
+        color: #ffffff !important;
+    }
+
+    body.inventory-mode #workdesk-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header) :is(a, button, i, span),
+    #inventory-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header) :is(a, button, i, span) {
+        color: #ffffff !important;
+    }
+
+    body.inventory-mode #workdesk-view :is(.mobile-bottom-nav, .mobile-nav) :is(a, button).active,
+    #inventory-view :is(.mobile-bottom-nav, .mobile-nav) :is(a, button).active {
+        background-color: var(--iba-inv-coral) !important;
+        border-color: var(--iba-inv-coral) !important;
+        color: #ffffff !important;
+    }
+
+    #invoice-management-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header, .im-mobile-header) {
+        background-color: var(--iba-im-navy) !important;
+        border-color: var(--iba-im-peach) !important;
+        color: #ffffff !important;
+    }
+
+    #invoice-management-view :is(.mobile-header, .mobile-topbar, .mobile-bottom-nav, .mobile-nav, .workdesk-mobile-header, .im-mobile-header) :is(a, button, i, span) {
+        color: #ffffff !important;
+    }
+
+    #invoice-management-view :is(.mobile-bottom-nav, .mobile-nav) :is(a, button).active {
+        background-color: var(--iba-im-peach) !important;
+        border-color: var(--iba-im-peach) !important;
+        color: var(--iba-im-navy) !important;
+    }
+
+    .wd-themed-modal > .modal-container {
+        border-color: var(--iba-wd-orange) !important;
+    }
+
+    .inventory-themed-modal > .modal-container,
+    body.inventory-mode .modal-overlay:not(.wd-themed-modal) > .modal-container {
+        border-color: var(--iba-inv-coral) !important;
+    }
+
+    :is(
+        #im-invoice-entry-modal,
+        #im-batch-search-modal,
+        #im-attention-picker-modal,
+        #im-add-payment-modal,
+        #im-pocket-transfer-modal,
+        #im-mark-paid-modal,
+        #im-manual-po-modal,
+        #im-finance-report-modal,
+        #im-mobile-search-modal,
+        #im-invoice-print-modal,
+        #history-modal.history-scope-invoice
+    ) > .modal-container {
+        border-color: var(--iba-im-peach) !important;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 11.8.0 final cascade guard                                                 */
+/* Older releases contain highly specific module colours. These scoped       */
+/* variables and repeated-root selectors ensure no legacy red/green palette   */
+/* can outrank the approved 11.8.0 identity.                                  */
+/* -------------------------------------------------------------------------- */
+
+body:not(.inventory-mode) #workdesk-view {
+    --wd-module-blue-a: var(--iba-wd-navy) !important;
+    --wd-module-blue-b: var(--iba-wd-navy) !important;
+    --wd-module-blue-c: var(--iba-wd-blue) !important;
+    --wd-module-blue-d: var(--iba-wd-blue) !important;
+    --wd-module-accent: var(--iba-wd-orange) !important;
+    --wd-module-accent-strong: var(--iba-wd-orange) !important;
+    --wd-module-accent-soft: var(--iba-wd-ice) !important;
+    --wd-module-text-dark: var(--iba-wd-navy) !important;
+    --wd-module-text-light: #ffffff !important;
+    --wd-menu-dark: var(--iba-wd-navy) !important;
+    --wd-menu-dark-2: var(--iba-wd-blue) !important;
+    --wd-menu-accent: var(--iba-wd-orange) !important;
+    --wd-menu-accent-strong: var(--iba-wd-orange) !important;
+    --wd-menu-soft: var(--iba-wd-ice) !important;
+    --wd-menu-soft-2: #ffffff !important;
+    --primary-blue: var(--iba-wd-blue) !important;
+    --iba-premium-navy: var(--iba-wd-navy) !important;
+    --iba-premium-navy-2: var(--iba-wd-blue) !important;
+    --iba-premium-cyan: var(--iba-wd-ice) !important;
+    --iba-premium-gold: var(--iba-wd-orange) !important;
+    --iba-premium-gold-soft: var(--iba-wd-ice) !important;
+    --iba-premium-soft: var(--iba-wd-ice) !important;
+    --iba-premium-text: var(--iba-wd-navy) !important;
+}
+
+body.inventory-mode #workdesk-view,
+#inventory-view {
+    --inv-module-accent: var(--iba-inv-coral) !important;
+    --inv-module-accent-strong: var(--iba-inv-coral) !important;
+    --inv-module-accent-deep: var(--iba-inv-ocean) !important;
+    --inv-module-accent-mid: var(--iba-inv-turquoise) !important;
+    --inv-module-accent-soft: var(--iba-inv-mint) !important;
+    --inv-module-violet-a: var(--iba-inv-ocean) !important;
+    --inv-module-violet-b: var(--iba-inv-ocean) !important;
+    --inv-module-violet-c: var(--iba-inv-turquoise) !important;
+    --inv-module-violet-d: var(--iba-inv-coral) !important;
+    --inv-module-text-dark: var(--iba-inv-ocean) !important;
+    --inv-module-text-light: #ffffff !important;
+    --inv-theme-red: var(--iba-inv-coral) !important;
+    --inv-theme-red-deep: var(--iba-inv-ocean) !important;
+    --inv-theme-red-mid: var(--iba-inv-turquoise) !important;
+    --inv-theme-red-soft: var(--iba-inv-mint) !important;
+    --inv-maroon: var(--iba-inv-ocean) !important;
+    --inv-maroon-deep: var(--iba-inv-ocean) !important;
+    --inv-maroon-mid: var(--iba-inv-turquoise) !important;
+    --inv-maroon-soft: var(--iba-inv-mint) !important;
+    --inv-maroon-border: var(--iba-inv-coral) !important;
+    --primary-blue: var(--iba-inv-ocean) !important;
+}
+
+#invoice-management-view {
+    --im-theme-green: var(--iba-im-teal) !important;
+    --im-theme-green-deep: var(--iba-im-navy) !important;
+    --im-theme-green-mid: var(--iba-im-teal) !important;
+    --im-theme-green-soft: var(--iba-im-neutral) !important;
+    --im-module-accent: var(--iba-im-peach) !important;
+    --im-module-accent-dark: var(--iba-im-navy) !important;
+    --im-module-accent-mid: var(--iba-im-teal) !important;
+    --im-module-accent-soft: var(--iba-im-neutral) !important;
+    --im-module-accent-line: var(--iba-im-peach) !important;
+    --im-879-green: var(--iba-im-teal) !important;
+    --im-879-green-dark: var(--iba-im-navy) !important;
+    --im-879-green-mid: var(--iba-im-teal) !important;
+    --im-879-green-light: var(--iba-im-neutral) !important;
+    --im-879-green-border: var(--iba-im-peach) !important;
+    --im-880-green: var(--iba-im-teal) !important;
+    --im-880-green-dark: var(--iba-im-navy) !important;
+    --im-880-green-deep: var(--iba-im-navy) !important;
+    --im-880-green-mid: var(--iba-im-teal) !important;
+    --im-880-green-soft: var(--iba-im-neutral) !important;
+    --im-880-line: var(--iba-im-peach) !important;
+    --im-880-text: var(--iba-im-navy) !important;
+    --im-881-green: var(--iba-im-teal) !important;
+    --im-881-green-dark: var(--iba-im-navy) !important;
+    --im-881-green-deep: var(--iba-im-navy) !important;
+    --im-881-green-mid: var(--iba-im-teal) !important;
+    --im-881-green-soft: var(--iba-im-neutral) !important;
+    --im-881-green-line: var(--iba-im-peach) !important;
+    --im-881-green-line-soft: var(--iba-im-neutral) !important;
+    --primary-blue: var(--iba-im-teal) !important;
+    --iba-base-blue: var(--iba-im-teal) !important;
+    --iba-base-blue-dark: var(--iba-im-navy) !important;
+    --iba-base-blue-light: var(--iba-im-teal) !important;
+    --iba-secondary-teal: var(--iba-im-teal) !important;
+    --iba-hero-blue-a: var(--iba-im-teal) !important;
+    --iba-hero-blue-b: var(--iba-im-navy) !important;
+    --iba-hero-gold: var(--iba-im-peach) !important;
+    --iba-hero-gold-soft: var(--iba-im-neutral) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view,
+body:not(.inventory-mode) #workdesk-view *,
+body.inventory-mode #workdesk-view,
+body.inventory-mode #workdesk-view *,
+#inventory-view,
+#inventory-view *,
+#invoice-management-view,
+#invoice-management-view * {
+    -webkit-text-fill-color: currentColor !important;
+}
+
+.wd-themed-modal,
+.wd-themed-modal *,
+#wd-paid-history-modal,
+#wd-paid-history-modal *,
+.inventory-themed-modal,
+.inventory-themed-modal *,
+#inv-request-convert-modal,
+#inv-request-convert-modal *,
+#wd-forward-task-modal,
+#wd-forward-task-modal *,
+#dynamic-candidate-picker,
+#dynamic-candidate-picker *,
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal
+),
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal
+) * {
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* WorkDesk high-specificity colour enforcement. */
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view .workdesk-sidebar {
+    background: linear-gradient(180deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+    border-color: var(--iba-wd-orange) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) {
+    background: linear-gradient(135deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+    border-color: var(--iba-wd-orange) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn):is(:hover, :focus-visible, .active, .is-active) {
+    background: var(--iba-wd-orange) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view table thead :is(tr, th),
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view table thead {
+    background: var(--iba-wd-navy) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+/* Inventory high-specificity colour enforcement. */
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view .workdesk-sidebar,
+#inventory-view#inventory-view#inventory-view#inventory-view .workdesk-sidebar {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active),
+#inventory-view#inventory-view#inventory-view#inventory-view :is(.wd-control-center-hero, .wd-page-hero, .wd-page-hero-material, .wd-page-hero-records, .wd-page-hero-active) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn),
+#inventory-view#inventory-view#inventory-view#inventory-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn):is(:hover, :focus-visible, .active, .is-active),
+#inventory-view#inventory-view#inventory-view#inventory-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn):not(.danger-btn):not(.delete-btn):is(:hover, :focus-visible, .active, .is-active),
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.wd-inventory-action-btn, .inventory-confirm-received-btn, .confirm-received-btn),
+#inventory-view#inventory-view#inventory-view#inventory-view :is(.wd-inventory-action-btn, .inventory-confirm-received-btn, .confirm-received-btn) {
+    background: var(--iba-inv-coral) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view table thead :is(tr, th),
+body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view table thead,
+#inventory-view#inventory-view#inventory-view#inventory-view table thead :is(tr, th),
+#inventory-view#inventory-view#inventory-view#inventory-view table thead {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: #ffffff !important;
+}
+
+/* Invoice Management high-specificity colour enforcement. */
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view .workdesk-sidebar {
+    background: linear-gradient(180deg, var(--iba-im-navy), var(--iba-im-teal)) !important;
+    border-color: var(--iba-im-peach) !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(.im-standard-hero, .im-reporting-header, .reporting-header, .wd-page-hero, .dashboard-header) {
+    background: linear-gradient(135deg, var(--iba-im-teal), var(--iba-im-navy)) !important;
+    border-color: var(--iba-im-peach) !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .refresh-btn, .print-btn):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(button, .primary-btn, .secondary-btn, .action-btn, .download-btn, .refresh-btn, .print-btn):not(.danger-btn):not(.delete-btn):is(:hover, :focus-visible, .active, .is-active) {
+    background: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view .im-nav-group-toggle {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #ffffff !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view .im-nav-group.is-open > .im-nav-group-toggle {
+    background: var(--iba-im-peach) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view table thead :is(tr, th),
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view table thead {
+    background: var(--iba-im-navy) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+/* Modal high-specificity enforcement for legacy per-ID rules. */
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) :is(.modal-header, .history-modal-header) {
+    background: linear-gradient(135deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+    border-color: var(--iba-wd-orange) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) > .modal-container {
+    background: var(--iba-wd-ice) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary) {
+    background: #ffffff !important;
+    border-color: rgba(1, 86, 146, 0.3) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) :is(input, select, textarea, .choices__inner) {
+    background: #ffffff !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: var(--iba-wd-navy) !important;
+}
+
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) :is(.primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn, .modal-footer .modal-close-btn):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-wd-blue) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+):is(
+    #vacation-replacement-modal,
+    #calendar-task-modal,
+    #modify-task-modal,
+    #ceo-approval-modal,
+    #standard-job-modal,
+    #process-report-modal,
+    #wd-paid-history-modal,
+    #history-modal.history-scope-workdesk
+) table thead :is(tr, th) {
+    background: var(--iba-wd-navy) !important;
+    border-color: var(--iba-wd-blue) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) :is(.modal-header, .history-modal-header) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-coral) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) > .modal-container {
+    background: var(--iba-inv-mint) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary) {
+    background: #ffffff !important;
+    border-color: rgba(34, 100, 132, 0.3) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) :is(input, select, textarea, .choices__inner) {
+    background: #ffffff !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: var(--iba-inv-ocean) !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) :is(.primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn, button[id*="save"], button[id*="approve"], button[id*="print"], button[id*="excel"]):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-ocean) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+):is(
+    #ms-report-modal,
+    #ms-requestlist-modal,
+    #ms-new-material-modal,
+    #ms-photo-browser-modal,
+    #ms-add-stock-modal,
+    #transfer-job-modal,
+    #transfer-approval-modal,
+    #history-modal.history-scope-inventory
+) table thead :is(tr, th) {
+    background: var(--iba-inv-ocean) !important;
+    border-color: var(--iba-inv-turquoise) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.modal-header, .history-modal-header) {
+    background: linear-gradient(135deg, var(--iba-im-teal), var(--iba-im-navy)) !important;
+    border-color: var(--iba-im-peach) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) > .modal-container {
+    background: var(--iba-im-neutral) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.modal-content, .modal-footer, .table-wrapper, .history-modal-summary, .im-entry-quick-panel, .im-pocket-transfer-help, .im-pocket-transfer-stats, .im-payment-search-results) {
+    background: #ffffff !important;
+    border-color: rgba(13, 126, 133, 0.3) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(input, select, textarea, .choices__inner) {
+    background: #ffffff !important;
+    border-color: var(--iba-im-teal) !important;
+    color: var(--iba-im-navy) !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) :is(.primary-btn, .secondary-btn, .action-btn, .download-btn, .print-btn, .im-quick-status-btn):not(.danger-btn):not(.delete-btn) {
+    background: var(--iba-im-teal) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+:is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+):is(
+    #im-invoice-entry-modal,
+    #im-batch-search-modal,
+    #im-attention-picker-modal,
+    #im-add-payment-modal,
+    #im-pocket-transfer-modal,
+    #im-mark-paid-modal,
+    #im-manual-po-modal,
+    #im-finance-report-modal,
+    #im-mobile-search-modal,
+    #im-invoice-print-modal,
+    #history-modal.history-scope-invoice
+) table thead :is(tr, th) {
+    background: var(--iba-im-navy) !important;
+    border-color: var(--iba-im-teal) !important;
+    color: #ffffff !important;
+}
+
+/* Actual compact/mobile surfaces used by the three modules. */
+@media (max-width: 900px) {
+    body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view :is(#active-task-mobile-header, .dayview-mobile-header-new, .mobile-app-header, .mobile-card-header.active) {
+        background: linear-gradient(135deg, var(--iba-wd-navy), var(--iba-wd-blue)) !important;
+        border-color: var(--iba-wd-orange) !important;
+        color: #ffffff !important;
+    }
+
+    body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view :is(.mobile-task-card, .mobile-card-body, .mobile-module-switcher-select) {
+        background-color: #ffffff !important;
+        border-color: var(--iba-wd-blue) !important;
+        color: var(--iba-wd-navy) !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view#workdesk-view :is(#active-task-mobile-header, .dayview-mobile-header-new, .mobile-app-header, .mobile-card-header.active),
+    #inventory-view#inventory-view#inventory-view :is(#active-task-mobile-header, .dayview-mobile-header-new, .mobile-app-header, .mobile-card-header.active) {
+        background: var(--iba-inv-ocean) !important;
+        border-color: var(--iba-inv-coral) !important;
+        color: #ffffff !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view#workdesk-view :is(.mobile-task-card, .mobile-card-body, .mobile-module-switcher-select),
+    #inventory-view#inventory-view#inventory-view :is(.mobile-task-card, .mobile-card-body, .mobile-module-switcher-select) {
+        background-color: #ffffff !important;
+        border-color: var(--iba-inv-turquoise) !important;
+        color: var(--iba-inv-ocean) !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view :is(#active-task-mobile-header, .dayview-mobile-header-new, .mobile-app-header, .im-mobile-header, .mobile-card-header.active) {
+        background: linear-gradient(135deg, var(--iba-im-teal), var(--iba-im-navy)) !important;
+        border-color: var(--iba-im-peach) !important;
+        color: #ffffff !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view :is(.mobile-task-card, .mobile-card-body, .mobile-module-switcher-select) {
+        background-color: #ffffff !important;
+        border-color: var(--iba-im-teal) !important;
+        color: var(--iba-im-navy) !important;
+    }
+}

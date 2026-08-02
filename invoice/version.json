@@ -1,6 +1,6 @@
 {
-  "version": "11.7.9",
+  "version": "11.8.0",
   "releasedAt": "2026-08-02",
-  "title": "Inventory Receiving and Active Task Grouping",
-  "message": "Inventory receiving now updates Active Task immediately after a verified stock receipt, failed stock updates stay open, multi-item transfers remain clearly grouped, and On Hold invoices preserve an optional manually selected Attention person."
+  "title": "Premium Module Colour Identity",
+  "message": "WorkDesk, Inventory, and Invoice Management now use distinct approved colour palettes across desktop, mobile, cards, tables, controls, and modal popups without changing system workflows."
 }
