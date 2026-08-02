@@ -645,6 +645,52 @@ body.wd-paid-history-open {
 }
 
 /* ========================================================================== */
+/* 11.8.4 — WorkDesk and Invoice Active Task navigation contrast              */
+/* ========================================================================== */
+
+/* The Active Task alert uses a light pulse card even while another page is
+   selected. Keep its title and icon dark in every pulse state. */
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active {
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active :is(i, span:not(.notification-badge)),
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active :is(i, span:not(.notification-badge))::before {
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active .notification-badge {
+    background: var(--iba-wd-orange) !important;
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active {
+    color: var(--iba-im-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active :is(i, span:not(.notification-badge)),
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active :is(i, span:not(.notification-badge))::before {
+    color: var(--iba-im-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+    opacity: 1 !important;
+}
+
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.nav-pulse-active .notification-badge {
+    background: var(--iba-im-peach) !important;
+    color: var(--iba-im-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* ========================================================================== */
 /* 11.8.3 — Inventory-only readability, records alignment, and UI cleanup     */
 /* ========================================================================== */
 

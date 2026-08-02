@@ -1,6 +1,6 @@
 {
-  "version": "11.8.3",
+  "version": "11.8.4",
   "releasedAt": "2026-08-02",
-  "title": "Inventory Records and Readability Correction",
-  "message": "Inventory Job Records now use the correct nine-column table with a compact Actions column, Inventory counters and alert navigation remain readable, Request Review uses a compact filter, and expensive legacy stock-table fallback selectors were removed."
+  "title": "Active Task Navigation Contrast Correction",
+  "message": "WorkDesk and Invoice Management Active Task alerts now keep dark, readable titles and icons on their light pulse cards across desktop and mobile navigation."
 }
