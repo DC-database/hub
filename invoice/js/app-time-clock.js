@@ -1,6 +1,6 @@
 /*
- * IBA 11.5.2 — Desktop Time Identity Clock
- * Purpose: show a live analog clock with the current date beneath it.
+ * IBA 11.7.2 — Desktop Time Identity Clock
+ * Purpose: show a live analog clock with weekday/date and system version beneath it.
  * Scope: UI only. No Firebase, no permissions, no workflow logic.
  */
 (function () {
@@ -44,6 +44,10 @@
           border: 0 !important;
           outline: 0 !important;
           box-shadow: none !important;
+        }
+        .workdesk-sidebar .sidebar-footer-info .sidebar-version-display,
+        aside.workdesk-sidebar .sidebar-footer-info .sidebar-version-display {
+          display: none !important;
         }
         .workdesk-sidebar > .iba-sidebar-time-clock,
         aside.workdesk-sidebar > .iba-sidebar-time-clock,
@@ -268,6 +272,16 @@
         .iba-time-phase-morning .iba-time-date { color: #ffe8ae; }
         .iba-time-phase-day .iba-time-date { color: #dff7ff; }
         .iba-time-phase-evening .iba-time-date { color: #dce4ff; }
+        .iba-time-version {
+          margin-top: 2px;
+          font-size: 9px;
+          line-height: 1;
+          font-weight: 800;
+          color: rgba(255,255,255,.58);
+          letter-spacing: .16em;
+          text-shadow: 0 1px 5px rgba(0,0,0,.32);
+          white-space: nowrap;
+        }
       }
       @media (max-width: 768px) {
         .iba-sidebar-time-clock { display: none !important; }
@@ -315,6 +329,7 @@
       </div>
       <div class="iba-time-meta">
         <span class="iba-time-date">-- --- ----</span>
+        <span class="iba-time-version">v--</span>
       </div>
     `;
     const face = wrap.querySelector('.iba-time-face');
@@ -371,10 +386,16 @@
     const minuteDeg = ((minute + second / 60) * 6);
     const hourDeg = (((hour % 12) + minute / 60) * 30);
     const currentDate = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
       day: '2-digit',
       month: 'short',
       year: 'numeric'
     }).format(now).toUpperCase();
+    const versionText = 'v' + String(
+      (typeof APP_VERSION !== 'undefined' && APP_VERSION)
+        ? APP_VERSION
+        : (window.IBA_SYSTEM_VERSION || '')
+    ).replace(/^v/i, '');
 
     document.querySelectorAll('.' + CLOCK_CLASS).forEach(function (clock) {
       clock.classList.remove('iba-time-phase-morning', 'iba-time-phase-day', 'iba-time-phase-evening');
@@ -383,10 +404,12 @@
       const minuteHand = clock.querySelector('.iba-time-hand.minute');
       const secondHand = clock.querySelector('.iba-time-hand.second');
       const dateEl = clock.querySelector('.iba-time-date');
+      const versionEl = clock.querySelector('.iba-time-version');
       if (hourHand) hourHand.style.transform = 'rotate(' + hourDeg + 'deg)';
       if (minuteHand) minuteHand.style.transform = 'rotate(' + minuteDeg + 'deg)';
       if (secondHand) secondHand.style.transform = 'rotate(' + secondDeg + 'deg)';
       if (dateEl) dateEl.textContent = currentDate;
+      if (versionEl) versionEl.textContent = versionText;
       clock.setAttribute('aria-label', 'Analog clock. Current date ' + currentDate);
     });
   }

@@ -60,7 +60,7 @@ function refreshNotePickers(latestNote) {
 // ------------------------------------------------------------
 // autoSetAttentionForStatus
 // ------------------------------------------------------------
-async function autoSetAttentionForStatus(status, siteCode, choicesInstance) {
+async function autoSetAttentionForStatus(status, siteCode, choicesInstance, groupValue = '') {
     if (!choicesInstance) return;
     if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status)) {
         imClearAttentionToNone(choicesInstance);
@@ -84,7 +84,12 @@ async function autoSetAttentionForStatus(status, siteCode, choicesInstance) {
     } else if (st === 'report') {
         targetName = findPersonByKeyword('gio', true);
     } else if (st === 'for srv') {
-    candidates = getSiteMatchedAttentionCandidatesForSRV(siteCode);
+    // 11.7.2: Invoice Entry now uses the same Group-aware SRV routing as Batch Entry.
+    // Logistic ignores site and selects the Logistic-position user. Normal uses
+    // site-matched Site DC candidates. Every no-match case falls back to Irwin/delegate.
+    candidates = (typeof imBatchGetAttentionCandidatesForSRV === 'function')
+        ? await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue)
+        : getSiteMatchedAttentionCandidatesForSRV(siteCode);
     candidates = candidates.filter(c => c && c.name && c.name.trim().length > 0);
     if (candidates.length === 1) {
         targetName = candidates[0].name;
@@ -428,8 +433,13 @@ function imBatchFallbackAttentionName() {
     return (typeof resolveVacationAssignee === 'function') ? (resolveVacationAssignee('Irwin') || 'Irwin') : 'Irwin';
 }
 function imBatchFindLogisticAttentionName() {
-    const name = imBatchFindPersonByNameOrPosition('imran', 'logistic', '');
-    return name || imBatchFallbackAttentionName();
+    const logisticUser = imBatchApproverUsers().find(user => imBatchPositionMatches(user.position, 'logistic'));
+    if (logisticUser && logisticUser.name) {
+        return (typeof resolveVacationAssignee === 'function')
+            ? resolveVacationAssignee(logisticUser.name)
+            : logisticUser.name;
+    }
+    return imBatchFallbackAttentionName();
 }
 function imBatchSiteToken(value) {
     const raw = imBatchNormalizeText(value);
@@ -500,16 +510,17 @@ function imBatchFindPersonByNameOrPosition(nameNeedle, positionNeedle, fallbackN
 }
 function imBatchFixedAttentionForStatus(statusValue) {
     const st = imBatchNormalizeKey(statusValue);
-    if (st === 'report') return imBatchFindPersonByNameOrPosition('gio', 'accounts', 'GIO');
-    if (st === 'ceo approval') return imBatchFindPersonByNameOrPosition('hamad', 'ceo', 'Hamad');
-    if (st === 'in process') return imBatchFindPersonByNameOrPosition('', 'coo', 'COO');
+    const fallback = imBatchFallbackAttentionName();
+    if (st === 'report') return imBatchFindPersonByNameOrPosition('gio', '', '') || fallback;
+    if (st === 'ceo approval') return imBatchFindPersonByNameOrPosition('hamad', '', '') || fallback;
+    if (st === 'in process') return imBatchFindPersonByNameOrPosition('', 'coo', '') || fallback;
     return '';
 }
 async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
     await imBatchEnsureApproverData();
     const group = imBatchNormalizeGroup(groupValue);
 
-    // 11.4.5: Logistic invoices go to Imran/logistic person regardless of site.
+    // Logistic invoices go to the Logistic-position person regardless of site.
     // Unknown/non-matching groups fall back to Irwin instead of trying site routing.
     if (imBatchIsLogisticGroup(group)) {
         const logisticName = imBatchFindLogisticAttentionName();

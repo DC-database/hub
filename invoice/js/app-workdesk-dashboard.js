@@ -227,6 +227,7 @@ const WD_PAYMENT_POCKET_ALLOWED_POSITIONS = [
     'finance',
     'accounts',
     'accounting',
+    'logistic',
     'logistics',
     'procurement',
     'site engineer',
@@ -3168,14 +3169,6 @@ function wdBindDashboardControls() {
                 return;
             }
 
-            const paymentSrvButton = e.target.closest('.wd-payment-pocket-srv-resolve');
-            if (paymentSrvButton) {
-                e.preventDefault();
-                e.stopPropagation();
-                wdResolvePaymentPocketSrv(paymentSrvButton);
-                return;
-            }
-
             const forwardBtn = e.target.closest('.wd-forward-task-btn');
             if (forwardBtn) {
                 e.preventDefault();
@@ -4780,67 +4773,9 @@ function wdPaymentPocketSrvAction(item = {}) {
     if (typeof SRV_BASE_PATH !== 'undefined' && SRV_BASE_PATH && wdHasPdfName(srvName)) {
         return wdBuildPdfButton('SRV', SRV_BASE_PATH, srvName, 'srv');
     }
-    const itemId = wdText(item.id || `${item.po || ''}::${item.key || ''}`);
-    return `
-        <button class="wd-dashboard-pdf-btn srv wd-payment-pocket-srv-resolve" type="button"
-            data-pocket-item-id="${wdSafe(encodeURIComponent(itemId))}"
-            title="Find and open the saved SRV PDF for this invoice">
-            <i class="fa-regular fa-file-pdf"></i> SRV
-        </button>`;
-}
-
-async function wdResolvePaymentPocketSrv(button) {
-    if (!button || button.disabled || !wdCanSeePaymentPocket()) return;
-    let itemId = '';
-    try { itemId = decodeURIComponent(button.dataset.pocketItemId || ''); } catch (_) {}
-    const item = wdPaymentPocketAccessibleItems().find(candidate =>
-        wdText(candidate.id || `${candidate.po || ''}::${candidate.key || ''}`) === itemId
-    );
-    if (!item || !item.po || !item.key) {
-        alert('This payment-pocket invoice could not be identified. Refresh WorkDesk and try again.');
-        return;
-    }
-
-    const originalHtml = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Opening';
-    const previewTab = typeof window.open === 'function' ? window.open('about:blank', '_blank') : null;
-    try {
-        if (previewTab) {
-            try { previewTab.opener = null; } catch (_) {}
-        }
-        let invoice = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[item.po])
-            ? allInvoiceData[item.po][item.key]
-            : null;
-        if (!invoice) {
-            if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
-                throw new Error('The Invoice Realtime Database connection is unavailable.');
-            }
-            const snapshot = await invoiceDb.ref(`invoice_entries/${item.po}/${item.key}`).once('value');
-            invoice = snapshot.val() || null;
-        }
-        if (!invoice) throw new Error('The invoice record could not be found.');
-
-        const srvName = wdText(invoice.srvName || invoice.srvPDF || invoice.srvPdf || '');
-        if (!wdHasPdfName(srvName)) {
-            throw new Error('No SRV PDF is saved for this invoice.');
-        }
-        if (typeof SRV_BASE_PATH === 'undefined' || !SRV_BASE_PATH || typeof buildSharePointPdfUrl !== 'function') {
-            throw new Error('The SRV document location is unavailable.');
-        }
-        const url = buildSharePointPdfUrl(SRV_BASE_PATH, srvName);
-        if (!url) throw new Error('The SRV PDF link could not be prepared.');
-
-        item.srvName = srvName;
-        if (previewTab && !previewTab.closed) previewTab.location.href = url;
-        else throw new Error('Chrome blocked the SRV PDF tab. Allow pop-ups for this site and try again.');
-        wdRenderDashboardList();
-    } catch (error) {
-        if (previewTab && !previewTab.closed) previewTab.close();
-        alert(error.message || 'The SRV PDF could not be opened.');
-        button.disabled = false;
-        button.innerHTML = originalHtml;
-    }
+    // 11.7.2: The compact pocket already carries srvName. Keep the cell blank
+    // when it has no valid link instead of exact-reading the archived invoice.
+    return '';
 }
 
 function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {

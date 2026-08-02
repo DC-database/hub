@@ -52,7 +52,14 @@ function resetInvoiceForm() {
         if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(defaultStatus)) {
             if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
         } else {
-            populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
+            const currentGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+                ? imGetCurrentInvoiceEntryGroup()
+                : 'Normal';
+            if (String(defaultStatus || '').trim().toLowerCase() === 'for srv' && typeof populateBatchAttentionDropdownForRow === 'function') {
+                populateBatchAttentionDropdownForRow(imAttentionSelectChoices, defaultStatus, currentSite, currentGroup, true);
+            } else {
+                populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
+            }
         }
     }
 
@@ -454,6 +461,16 @@ async function proceedWithPOLoading(poNumber, poData) {
     if (!allInvoiceData) allInvoiceData = {};
     allInvoiceData[poNumber] = invoicesData || {};
 
+    const pendingGroup = (pendingJobEntryDataForInvoice && String(pendingJobEntryDataForInvoice.po || '').trim().toUpperCase() === String(poNumber || '').trim().toUpperCase())
+        ? (pendingJobEntryDataForInvoice.group || pendingJobEntryDataForInvoice.category || '')
+        : '';
+    const poGroup = poData && (poData.Group || poData.group || poData.Category || poData.category || '');
+    if (pendingGroup) {
+        currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(pendingGroup);
+    } else {
+        currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(poGroup || 'Normal');
+    }
+
     currentPO = poNumber;
     const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
     const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
@@ -805,6 +822,52 @@ function imGetInvoiceJobCategory(job) {
     return raw;
 }
 
+function imNormalizeInvoiceGroupValue(value) {
+    return imGetInvoiceJobCategory({ group: value }) || 'Normal';
+}
+
+function imGetCurrentInvoiceEntryGroup() {
+    const candidates = [];
+
+    try {
+        if (currentlyEditingInvoiceKey && currentPOInvoices && currentPOInvoices[currentlyEditingInvoiceKey]) {
+            const invoice = currentPOInvoices[currentlyEditingInvoiceKey];
+            candidates.push(invoice.group, invoice.invoiceGroup, invoice.category, invoice.jobType);
+        }
+    } catch (_) {}
+
+    try {
+        if (pendingJobEntryDataForInvoice) {
+            candidates.push(pendingJobEntryDataForInvoice.group, pendingJobEntryDataForInvoice.category);
+        }
+    } catch (_) {}
+
+    try {
+        if (jobEntryToUpdateAfterInvoice && Array.isArray(allSystemEntries)) {
+            const originJob = allSystemEntries.find(entry => entry && entry.key === jobEntryToUpdateAfterInvoice);
+            if (originJob) candidates.push(originJob.group, originJob.category);
+        }
+    } catch (_) {}
+
+    try { candidates.push(currentInvoiceEntryGroup); } catch (_) {}
+
+    try {
+        const poData = currentPO && allPOData ? allPOData[currentPO] : null;
+        if (poData) candidates.push(poData.Group, poData.group, poData.Category, poData.category);
+    } catch (_) {}
+
+    for (const candidate of candidates) {
+        const value = String(candidate || '').trim();
+        if (value) return imNormalizeInvoiceGroupValue(value);
+    }
+    return 'Normal';
+}
+
+try {
+    window.imNormalizeInvoiceGroupValue = imNormalizeInvoiceGroupValue;
+    window.imGetCurrentInvoiceEntryGroup = imGetCurrentInvoiceEntryGroup;
+} catch (_) {}
+
 function setActiveJobsSidebarStandby(message) {
     if (activeJobsSidebarCountDisplay) {
         activeJobsSidebarCountDisplay.textContent = 'Active Jobs';
@@ -1083,7 +1146,8 @@ async function handleActiveJobClick(e) {
         vendorName,
         vendorId,
         site,
-        invoiceDate
+        invoiceDate,
+        category
     } = item.dataset;
 
     if (!po) {
@@ -1092,6 +1156,7 @@ async function handleActiveJobClick(e) {
     }
 
     jobEntryToUpdateAfterInvoice = source === 'job_entry' ? key : null;
+    currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(category || 'Normal');
     pendingJobEntryDataForInvoice = {
         po,
         ref,
@@ -1100,7 +1165,9 @@ async function handleActiveJobClick(e) {
         vendorName,
         vendorId,
         site,
-        invoiceDate
+        invoiceDate,
+        group: currentInvoiceEntryGroup,
+        category: currentInvoiceEntryGroup
     };
 
     // --- STEP 1: MEMORIZE THE RECEPTION HISTORY ---
@@ -1173,6 +1240,13 @@ function populateInvoiceFormForEditing(invoiceKey) {
     const invData = currentPOInvoices[invoiceKey];
     if (!invData) return;
 
+    currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(
+        invData.group || invData.invoiceGroup || invData.category || invData.jobType ||
+        (currentPO && allPOData && allPOData[currentPO]
+            ? (allPOData[currentPO].Group || allPOData[currentPO].group || allPOData[currentPO].Category || allPOData[currentPO].category)
+            : '') ||
+        'Normal'
+    );
     resetInvoiceForm();
     currentlyEditingInvoiceKey = invoiceKey;
 
@@ -1229,7 +1303,10 @@ function populateInvoiceFormForEditing(invoiceKey) {
         if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(formStatus)) {
             if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
         } else {
-            populateAttentionDropdown(imAttentionSelectChoices, formStatus, currentSite, true).then(() => {
+            const populatePromise = (String(formStatus || '').trim().toLowerCase() === 'for srv' && typeof populateBatchAttentionDropdownForRow === 'function')
+                ? populateBatchAttentionDropdownForRow(imAttentionSelectChoices, formStatus, currentSite, currentInvoiceEntryGroup, true)
+                : populateAttentionDropdown(imAttentionSelectChoices, formStatus, currentSite, true);
+            Promise.resolve(populatePromise).then(() => {
                 if (invData.attention && invData.attention !== 'None') {
                     imAttentionSelectChoices.setChoiceByValue(invData.attention);
                 }

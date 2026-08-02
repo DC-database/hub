@@ -270,6 +270,7 @@ if (imNewInvoiceForm) {
             currentlyEditingInvoiceKey = null;
             jobEntryToUpdateAfterInvoice = null;
             pendingJobEntryDataForInvoice = null;
+            currentInvoiceEntryGroup = '';
             if (imPODetailsContainer) imPODetailsContainer.innerHTML = '';
             if (imExistingInvoicesContainer) imExistingInvoicesContainer.classList.add('hidden');
             if (imPOSearchInput) imPOSearchInput.value = '';
@@ -675,7 +676,14 @@ if (imStatusSelect) {
         // 4. Apply normal dropdown filtering only for statuses that need Attention
         if (imAttentionSelectChoices && !noAttentionStatus) {
             const currentSelection = imAttentionSelectChoices.getValue(true);
-            await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
+            const currentGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+                ? imGetCurrentInvoiceEntryGroup()
+                : 'Normal';
+            if (String(statusValue || '').trim().toLowerCase() === 'for srv' && typeof populateBatchAttentionDropdownForRow === 'function') {
+                await populateBatchAttentionDropdownForRow(imAttentionSelectChoices, statusValue, currentSite, currentGroup, true);
+            } else {
+                await populateAttentionDropdown(imAttentionSelectChoices, statusValue, currentSite, true);
+            }
             if (currentSelection && currentSelection !== 'None') {
                 imAttentionSelectChoices.setChoiceByValue(currentSelection);
             }
@@ -683,7 +691,10 @@ if (imStatusSelect) {
 
         // 5. AUTO‑ATTENTION LOGIC (new)
         if (imAttentionSelectChoices && currentPO && !noAttentionStatus) {
-            await autoSetAttentionForStatus(statusValue, currentSite, imAttentionSelectChoices);
+            const currentGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+                ? imGetCurrentInvoiceEntryGroup()
+                : 'Normal';
+            await autoSetAttentionForStatus(statusValue, currentSite, imAttentionSelectChoices, currentGroup);
         }
     });
 }
@@ -826,7 +837,7 @@ if (settingsVacationCheckbox) {
 
     // 11.4.5: Shared Batch auto-attention helper.
     // Batch Entry is separate from Invoice Entry. Single-row status changes use:
-    // For SRV + Normal group = site Site DC; For SRV + Logistic group = Imran/logistic person regardless of site;
+    // For SRV + Normal group = site Site DC; For SRV + Logistic group = Logistic-position person regardless of site;
     // Report=GIO; CEO Approval=Hamad; In Process=COO; all others=None. Manual Attention remains allowed.
     const findBatchApproverName = (keyword, fallback = '') => {
         const needle = String(keyword || '').toLowerCase().trim();
