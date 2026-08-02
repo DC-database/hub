@@ -1,6 +1,6 @@
 {
-  "version": "11.7.4",
+  "version": "11.7.5",
   "releasedAt": "2026-08-02",
-  "title": "Ready for Payment History Preview",
-  "message": "An exact PO with no current Ready for Payment match can now show its latest three paid invoices in a premium payment-history window, with a permission-safe automatic handoff to the full Invoice Records search."
+  "title": "IPC Application + Paid History Action",
+  "message": "Invoice Entry and Batch Entry can now route IPC Application invoices into the existing WorkDesk IPC queue, while Ready for Payment reveals a Paid History action only when an exact PO is absent from the complete accessible pocket."
 }

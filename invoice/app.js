@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.7.4';
+const APP_VERSION = '11.7.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4579,6 +4579,14 @@ async function handleUpdateInvoice(e) {
     invoiceData.attention = (attentionValue === 'None') ? '' : attentionValue;
 
     imApplyInvoiceAttentionRule(invoiceData);
+
+    // 11.7.5: an existing invoice moved to IPC Application must have a real
+    // QS/Senior QS Attention so the compact task index can route it to WorkDesk.
+    if (String(invoiceData.status || '').trim().toLowerCase() === 'ipc application' && !invoiceData.attention) {
+        if (typeof imMarkInvoiceInvalidUI === 'function') imMarkInvoiceInvalidUI({ requireAttention: true });
+        alert("Please select a QS/Senior QS 'Attention' person for IPC Application.");
+        return;
+    }
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
     // Keep Group available for future group-aware SRV routing, including old records.

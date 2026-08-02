@@ -32650,6 +32650,38 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
     outline: none !important;
 }
 
+/* 11.7.5: shown only when an exact PO is absent from the complete accessible
+   payment pocket. The archive is not read until the user clicks this button. */
+#wd-dashboard .wd-paid-history-trigger.hidden {
+    display: none !important;
+}
+
+#wd-dashboard .wd-paid-history-trigger {
+    height: 42px !important;
+    padding: 0 15px !important;
+    border: 1px solid rgba(13, 116, 104, 0.42) !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #0d7468 0%, #08675d 100%) !important;
+    color: #ffffff !important;
+    font-size: 0.84rem !important;
+    font-weight: 850 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    box-shadow: 0 9px 20px rgba(13, 116, 104, 0.20) !important;
+}
+
+#wd-dashboard .wd-paid-history-trigger:hover,
+#wd-dashboard .wd-paid-history-trigger:focus-visible {
+    transform: translateY(-1px) !important;
+    border-color: rgba(245, 200, 76, 0.95) !important;
+    box-shadow: 0 12px 25px rgba(13, 116, 104, 0.28), 0 0 0 3px rgba(245, 200, 76, 0.16) !important;
+    outline: none !important;
+}
+
 #wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted,
 #wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted:hover,
 #wd-dashboard .wd-dashboard-status-grid .wd-active-status-card.wd-search-category-muted:focus,
@@ -32699,7 +32731,8 @@ body #im-batch-search-modal.modal-overlay:not(.hidden) {
         align-items: stretch !important;
     }
 
-    #wd-dashboard .wd-active-dashboard-clear-btn {
+    #wd-dashboard .wd-active-dashboard-clear-btn,
+    #wd-dashboard .wd-paid-history-trigger {
         width: 100% !important;
     }
 }

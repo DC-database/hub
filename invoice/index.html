@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.7.4">
+    <link rel="stylesheet" href="style.css?v=11.7.5">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -443,6 +443,9 @@
                                 <i class="fa-solid fa-magnifying-glass"></i>
                                 <input id="wd-active-dashboard-search" type="search" placeholder="Search PO, vendor, site, note, status...">
                             </div>
+                            <button id="wd-paid-history-trigger" class="wd-paid-history-trigger hidden" type="button" title="Check the latest paid transactions for this PO">
+                                <i class="fa-solid fa-clock-rotate-left"></i> Paid History
+                            </button>
                             <button id="wd-active-dashboard-clear" class="wd-active-dashboard-clear-btn" type="button" title="Clear Dashboard search and selection">
                                 <i class="fa-solid fa-eraser"></i> Clear
                             </button>
@@ -1418,6 +1421,7 @@
         <option value="No Need SRV">No Need SRV</option>
         <option value="Pending">Pending</option>
         <option value="For IPC">For IPC</option>
+        <option value="IPC Application">IPC Application</option>
         <option value="Under Review" selected>Under Review</option>
         <option value="In Process">In Process</option>
         <option value="For Summary">For Summary</option>
@@ -1663,6 +1667,7 @@
                 <option value="No Need SRV">No Need SRV</option>
                 <option value="Pending">Pending</option>
                 <option value="For IPC">For IPC</option>
+                <option value="IPC Application">IPC Application</option>
                 <option value="Under Review">Under Review</option>
                 <option value="Unresolved">Unresolved</option>
                 <option value="For Approval">For Approval</option>
@@ -1911,6 +1916,7 @@
     <option value="For SRV">For SRV</option>
     <option value="Pending">Pending</option>
     <option value="For IPC">For IPC</option>
+    <option value="IPC Application">IPC Application</option>
     <option value="Under Review">Under Review</option>
     <option value="In Process">In Process</option>
     <option value="For Summary">For Summary</option>
@@ -3323,6 +3329,7 @@
                     <option value="For SRV">For SRV</option>
                     <option value="Pending">Pending</option>
                     <option value="For IPC">For IPC</option>
+                    <option value="IPC Application">IPC Application</option>
                     <option value="Under Review">Under Review</option>
                     <option value="In Process">In Process</option>
                     <option value="For Summary">For Summary</option>
@@ -3448,7 +3455,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.7.4"></script>
+    <script src="app.js?v=11.7.5"></script>
     <script src="js/app-time-clock.js?v=11.7.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.6.0"></script>
@@ -3460,24 +3467,24 @@
     <script src="js/app-payments.js?v=11.6.6"></script>
     <script src="js/app-invoice-records.js?v=11.7.1"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
-    <script src="js/app-workdesk-dashboard.js?v=11.7.4"></script>
+    <script src="js/app-workdesk-dashboard.js?v=11.7.5"></script>
     <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=10.9.4"></script>
     <script src="js/app-modal-navigation-clear.js?v=11.4.0"></script>
     <script src="js/app-invoice-entry-search.js?v=11.7.2"></script>
-    <script src="js/app-attention-validation.js?v=11.7.2"></script>
-    <script src="js/app-batch-entry-ui.js?v=11.4.9"></script>
+    <script src="js/app-attention-validation.js?v=11.7.5"></script>
+    <script src="js/app-batch-entry-ui.js?v=11.7.5"></script>
     <script src="js/app-im-event-wiring.js?v=11.7.3"></script>
     <script src="js/app-history-transfer.js?v=10.4.2"></script>
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.7.4';
+      window.IBA_SYSTEM_VERSION = '11.7.5';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.7.4"></script>
+    <script src="js/app-version-checker.js?v=11.7.5"></script>
 
     </body>
 </html>
