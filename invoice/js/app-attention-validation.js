@@ -284,8 +284,8 @@ function imNormalizeAttentionStatus(statusValue) {
     return String(statusValue || '').trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-// 11.1.5: These invoice statuses are holding/final/reference statuses.
-// They must always use Attention = None/blank and must not create personal active tasks.
+// These final/reference statuses must use Attention=None. On Hold is different:
+// 11.7.9 allows an optional manual owner while still allowing an unassigned hold.
 function imShouldForceAttentionNoneForStatus(statusValue) {
     const st = imNormalizeAttentionStatus(statusValue);
     return [
@@ -293,12 +293,12 @@ function imShouldForceAttentionNoneForStatus(statusValue) {
         'for summary',
         'with accounts',
         'pending',
-        'report approved',
-        'on hold'
+        'report approved'
     ].includes(st);
 }
 
 function imIsAttentionRequiredForStatus(statusValue) {
+    if (imNormalizeAttentionStatus(statusValue) === 'on hold') return false;
     return !imShouldForceAttentionNoneForStatus(statusValue);
 }
 
@@ -419,7 +419,11 @@ function imBatchStatusRequiresAttention(statusValue) {
     const st = imBatchNormalizeKey(statusValue);
     return ['for srv', 'ipc application', 'report', 'in process', 'ceo approval'].includes(st);
 }
-function imBatchShouldForceAttentionNoneForStatus(statusValue) { return !imBatchStatusRequiresAttention(statusValue); }
+function imBatchShouldForceAttentionNoneForStatus(statusValue) {
+    // On Hold accepts a manual Attention person but does not require or auto-assign one.
+    if (imBatchNormalizeKey(statusValue) === 'on hold') return false;
+    return !imBatchStatusRequiresAttention(statusValue);
+}
 function imBatchNormalizeGroup(value) { return imBatchNormalizeText(value) || 'Normal'; }
 function imBatchIsNormalGroup(value) {
     const group = imBatchNormalizeKey(imBatchNormalizeGroup(value));
@@ -626,6 +630,7 @@ async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue,
         const po = row && row.dataset ? (row.dataset.po || '') : '';
         throw new Error(`Please select a QS/Senior QS Attention for PO ${po || ''} / IPC Application.`);
     }
+    if (st === 'on hold') return attn;
     return '';
 }
 

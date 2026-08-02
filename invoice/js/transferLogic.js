@@ -422,7 +422,12 @@ window.handleTransferAction = async (status, options = {}) => {
     const arrivalDateVal = document.getElementById('transfer-modal-date') ? document.getElementById('transfer-modal-date').value : '';
 
     const btn = status === 'Approved' ? document.getElementById('transfer-modal-approve-btn') : document.getElementById('transfer-modal-reject-btn');
-    if(btn) { btn.disabled = true; btn.textContent = "Processing..."; }
+    const originalBtnHtml = btn ? btn.innerHTML : '';
+    const setProgress = (label) => {
+        if (!btn) return;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> ${label}`;
+    };
+    if(btn) { btn.disabled = true; setProgress("Checking Transfer..."); }
 
     const database = (typeof db !== 'undefined') ? db : firebase.database();
 
@@ -476,14 +481,18 @@ window.handleTransferAction = async (status, options = {}) => {
                     updates.approvedQty = qty; updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver; updates.esn = generatedESN;
                     await commitUpdate(database, key, updates, note, opts); return true;
                 }
-                 if (task.remarks === 'In Transit') {
+                if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty; updates.arrivalDate = arrivalDateVal;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
 
-                    if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
+                    if (!pID || !destSite) throw new Error('This restock is missing its product or destination site. Nothing was completed.');
+                    setProgress('Updating Destination Stock...');
+                    await runStockTransaction(pID, qty, 'Add', destSite);
 
+                    setProgress('Saving Receipt...');
+                    await commitUpdate(database, key, updates, note, opts);
                     if (!silentMode) alert(`Restock Confirmed! ${qty} Added to Stock.`);
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    return true;
                 }
             }
 
@@ -544,11 +553,16 @@ window.handleTransferAction = async (status, options = {}) => {
                     updates.arrivalDate = arrivalDateVal;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
 
-                    // --- ATOMIC ADD CALL ---
-                    if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
+                    if (!pID || !destSite) throw new Error('This transfer is missing its product or destination site. Nothing was completed.');
 
+                    // --- ATOMIC ADD CALL ---
+                    setProgress('Updating Destination Stock...');
+                    await runStockTransaction(pID, qty, 'Add', destSite);
+
+                    setProgress('Saving Receipt...');
+                    await commitUpdate(database, key, updates, note, opts);
                     if (!silentMode) alert(`Transfer Received. ${qty} Added to Destination.`);
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    return true;
                 }
             }
 
@@ -571,18 +585,25 @@ window.handleTransferAction = async (status, options = {}) => {
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty;
                     updates.receiverEsn = `${generateStructuredESN(4, 4)}/${cleanName}`;
-                    if (pID && destSite) await runStockTransaction(pID, qty, 'Add', destSite);
+                    if (!pID || !destSite) throw new Error('This return is missing its product or destination site. Nothing was completed.');
+                    setProgress('Updating Destination Stock...');
+                    await runStockTransaction(pID, qty, 'Add', destSite);
+                    setProgress('Saving Receipt...');
+                    await commitUpdate(database, key, updates, note, opts);
                     if (!silentMode) alert("Return Received.");
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    return true;
                 }
             }
         }
     } catch (error) {
         console.error("Error:", error);
-        if (!silentMode) alert("Action failed. Check console.");
+        if (!silentMode) alert(error && error.message ? error.message : "Action failed. Please try again.");
         return false;
     } finally {
-        if(btn) btn.disabled = false;
+        if(btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalBtnHtml || (status === 'Approved' ? 'Approve' : 'Reject');
+        }
     }
 };
 
@@ -594,8 +615,15 @@ async function commitUpdate(db, key, updates, note, options = {}) {
     // Track last activity so other modules (e.g., Material Stock cache) can detect fresh changes
     // even when the original `timestamp` (created-at) remains unchanged.
     updates.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
-    await db.ref(`transfer_entries/${key}`).update(updates);
-    await db.ref(`transfer_entries/${key}/history`).push(historyEntry);
+    const historyKey = db.ref(`transfer_entries/${key}/history`).push().key;
+    const atomicUpdates = { ...updates };
+    if (historyKey) atomicUpdates[`history/${historyKey}`] = historyEntry;
+    await db.ref(`transfer_entries/${key}`).update(atomicUpdates);
+
+    // 11.7.9: The Firebase write is authoritative, but the Inventory Active Task
+    // must not redraw from its older five-minute browser cache. Apply the exact
+    // successful update locally, then let the normal renderer filter/re-group it.
+    applyTransferUpdateToLocalCaches(key, updates);
 
     if (!options.keepModalOpen) {
         const modal = document.getElementById('transfer-approval-modal');
@@ -603,9 +631,23 @@ async function commitUpdate(db, key, updates, note, options = {}) {
     }
 
     if (!options.deferRefresh) {
-        if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
         if(typeof populateActiveTasks === 'function') await populateActiveTasks();
     }
+}
+
+function applyTransferUpdateToLocalCaches(key, updates) {
+    const localUpdates = { ...updates, lastUpdated: Date.now() };
+    const patchList = (list) => {
+        if (!Array.isArray(list)) return;
+        const index = list.findIndex(item => item && String(item.key || '') === String(key || ''));
+        if (index < 0) return;
+        list[index] = { ...list[index], ...localUpdates };
+    };
+
+    try { if (typeof inventorySystemEntries !== 'undefined') patchList(inventorySystemEntries); } catch (_) {}
+    try { if (typeof allSystemEntries !== 'undefined') patchList(allSystemEntries); } catch (_) {}
+    try { if (typeof userActiveTasks !== 'undefined') patchList(userActiveTasks); } catch (_) {}
+    try { if (typeof inventoryActiveTasks !== 'undefined') patchList(inventoryActiveTasks); } catch (_) {}
 }
 
 // *** RENAMED FUNCTION TO AVOID CONFLICT WITH APP.JS ***
@@ -613,7 +655,7 @@ async function commitUpdate(db, key, updates, note, options = {}) {
 async function runStockTransaction(id, qty, action, siteName) {
     if (id === undefined || id === null || qty === undefined || qty === null || !siteName) {
         console.error("Missing params for stock update", { id, qty, siteName });
-        return;
+        throw new Error('The stock update is missing its product, quantity, or site. Nothing was completed.');
     }
 
     // Normalize inputs to avoid mismatches (e.g., trailing spaces in product IDs)
@@ -621,7 +663,7 @@ async function runStockTransaction(id, qty, action, siteName) {
     const amount = parseFloat(qty);
     if (!cleanId || !isFinite(amount) || amount <= 0) {
         console.error("Invalid params for stock update", { cleanId, qty });
-        return;
+        throw new Error('The stock quantity is invalid. Nothing was completed.');
     }
 
     // Sanitize Site Name for Firebase keys (cannot contain . # $ [ ] /)
@@ -651,7 +693,7 @@ async function runStockTransaction(id, qty, action, siteName) {
             const ref = database.ref(`material_stock/${key}`);
 
             // 3. ATOMIC TRANSACTION
-            await ref.transaction((currentData) => {
+            const transactionResult = await ref.transaction((currentData) => {
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
 
@@ -676,12 +718,19 @@ async function runStockTransaction(id, qty, action, siteName) {
                 }
                 return currentData;
             });
+            if (!transactionResult || transactionResult.committed !== true) {
+                throw new Error(`Stock item ${cleanId} could not be updated. Nothing was completed.`);
+            }
             console.log(`Stock ${action}ed: ${amount} at ${safeSiteName}`);
+            return true;
         } else {
             console.warn(`Stock Item ${cleanId} not found. Update skipped.`);
-            alert(`Warning: Item ${cleanId} not found in stock. Balance not updated.`);
+            throw new Error(`Stock item ${cleanId} was not found. The receipt remains open.`);
         }
-    } catch (error) { console.error("Stock update failed:", error); }
+    } catch (error) {
+        console.error("Stock update failed:", error);
+        throw error;
+    }
 }
 
 // ==========================================================================
@@ -836,9 +885,12 @@ async function saveTransferEntry(e) {
     let startAttention = (type === 'Transfer') ? sourceContact : approver;
 
     try {
-        const promises = itemsToSave.map(item => {
+        const promises = itemsToSave.map((item, itemIndex) => {
             const entryData = {
                 controlNumber: controlNo,
+                batchSize: itemsToSave.length,
+                batchIndex: itemIndex + 1,
+                isMultiItem: itemsToSave.length > 1,
                 jobType: type, for: type,
                 productID: item.productID,
                 productName: item.productName,

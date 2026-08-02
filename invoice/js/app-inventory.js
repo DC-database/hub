@@ -509,7 +509,8 @@ window.bindInventoryJobRecordGroupToggle = bindInventoryJobRecordGroupToggle;
 // WorkDesk/Invoice Active Task remains inside app.js for now.
 // =================================================================================================
 function renderInventoryActiveTaskTable(tasks) {
-    // Moved from app.js in 7.5.6. Keep Inventory Active Task UI owned by app-inventory.js.
+    // 11.7.9: Inventory keeps its own premium task layout. Multi-item batches
+    // remain visibly grouped even after some lines have already been received.
     if (typeof wdUiSetActiveTaskHeroContext === 'function') wdUiSetActiveTaskHeroContext('inventory');
     const inventoryTasks = (Array.isArray(tasks) ? tasks : []).filter(t => isInventoryTaskRecord(t));
     const isMobile = (typeof isMobileViewport === 'function') ? isMobileViewport() : (window.innerWidth <= 768);
@@ -550,9 +551,13 @@ function renderInventoryActiveTaskTable(tasks) {
         return;
     }
 
-    const userRole = (currentApprover.Role || '').toLowerCase();
+    const escapeText = (value) => (typeof wdUiEscape === 'function')
+        ? wdUiEscape(value)
+        : String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
 
-    const getControlKey = (t) => String(t.ref || t.controlId || t.controlNumber || '').trim() || 'N/A';
+    const getRawControlKey = (t) => String(t.controlNumber || t.controlId || t.ref || '').trim();
+    const getControlKey = (t) => getRawControlKey(t) || `ITEM-${String(t.key || 'UNKNOWN')}`;
+    const getControlLabel = (t) => getRawControlKey(t) || String(t.key || 'N/A');
 
     const getMovementText = (t) => {
         const fromLoc = t.fromSite || t.fromLocation || 'N/A';
@@ -573,6 +578,19 @@ function renderInventoryActiveTaskTable(tasks) {
         return displayQty;
     };
 
+    const getTaskTime = (task) => {
+        const raw = task.timestamp || task.createdAt || task.enteredAt || task.lastUpdated || 0;
+        const numberValue = Number(raw);
+        if (Number.isFinite(numberValue) && numberValue > 0) return numberValue < 10000000000 ? numberValue * 1000 : numberValue;
+        const parsed = Date.parse(String(raw || ''));
+        return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
+    };
+
+    const isCompletedItem = (task) => {
+        const status = String(task.remarks || task.status || '').trim().toLowerCase();
+        return ['completed', 'done', 'received', 'closed'].includes(status);
+    };
+
     const getStatusColor = (status) => {
         if (status === 'Pending' || status === 'Pending Admin') return '#dc3545';
         if (status === 'Approved') return '#28a745';
@@ -580,24 +598,23 @@ function renderInventoryActiveTaskTable(tasks) {
         return '#333';
     };
 
-    const renderTransferRow = (task, { isChild = false } = {}) => {
+    const renderTransferRow = (task, { isChild = false, itemNumber = 0, itemTotal = 0, singleItem = false } = {}) => {
         const row = document.createElement('tr');
         row.setAttribute('data-key', task.key);
         row.classList.toggle('controlid-group-child', isChild);
         row.classList.add('wd-modern-row', 'wd-inventory-row', 'tone-' + ((typeof wdUiStatusTone === 'function') ? wdUiStatusTone(task.remarks || task.status || 'Pending') : 'default'));
+        if (singleItem) row.classList.add('wd-inventory-single-row');
+        if (isCompletedItem(task)) row.classList.add('wd-inventory-completed-child');
 
         if (task.isUrgent === false) {
             row.style.opacity = '0.7';
             row.style.backgroundColor = '#f9f9f9';
         }
 
-        let actionButtons = '<button class="transfer-action-btn" data-key="' + task.key + '" style="background-color: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">Action</button>';
-
-        // Inventory keeps its own action flow. Delete is intentionally hidden here
-        // so Inventory Active Task no longer borrows the old WorkDesk admin-delete UI.
-        if (false && userRole === 'admin') {
-            actionButtons += '<button type="button" class="delete-btn transfer-delete-btn" data-key="' + task.key + '" style="margin-left: 5px; padding: 6px 12px;">Delete</button>';
-        }
+        const actionLabel = String(task.remarks || '').trim() === 'In Transit' ? 'Confirm Received' : 'Action';
+        const actionButtons = isCompletedItem(task)
+            ? '<span class="wd-inventory-received-mark"><i class="fa-solid fa-circle-check"></i> Received</span>'
+            : '<button class="transfer-action-btn wd-inventory-action-btn" data-key="' + escapeText(task.key) + '">' + escapeText(actionLabel) + '</button>';
 
         const movement = getMovementText(task);
 
@@ -615,23 +632,40 @@ function renderInventoryActiveTaskTable(tasks) {
         const statusColor = getStatusColor(task.remarks);
 
         const controlCell = isChild
-            ? '<td class="desktop-only controlid-child-cell"><span class="controlid-child-marker">↳</span> ' + (getControlKey(task)) + '</td>'
-            : '<td class="desktop-only"><strong>' + (getControlKey(task)) + '</strong></td>';
+            ? '<td class="desktop-only controlid-child-cell"><span class="wd-inventory-item-index">' + escapeText(itemNumber) + ' of ' + escapeText(itemTotal) + '</span></td>'
+            : '<td class="desktop-only"><span class="wd-inventory-single-badge">Single Item</span><strong class="wd-inventory-control-id">' + escapeText(getControlLabel(task)) + '</strong></td>';
 
         row.innerHTML =
             controlCell +
-            '<td class="desktop-only">' + (task.vendorName || task.productName || '') + '</td>' +
-            '<td class="desktop-only">' + (task.details || '') + '</td>' +
-            '<td class="desktop-only">' + movement + '</td>' +
+            '<td class="desktop-only"><strong class="wd-inventory-product-name">' + escapeText(task.vendorName || task.productName || '') + '</strong></td>' +
+            '<td class="desktop-only"><span class="wd-inventory-detail-text">' + escapeText(task.details || '') + '</span></td>' +
+            '<td class="desktop-only"><span class="wd-inventory-movement"><i class="fa-solid fa-route"></i> ' + escapeText(movement) + '</span></td>' +
             '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + displayQty + qtyLabel + '</td>' +
-            '<td class="desktop-only">' + (task.contactName || task.requestor || '') + '</td>' +
-            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + task.remarks + '</span></td>' +
+            '<td class="desktop-only">' + escapeText(task.contactName || task.requestor || '') + '</td>' +
+            '<td class="desktop-only"><span class="wd-inventory-status-pill" style="--inventory-status-color:' + statusColor + '">' + escapeText(task.remarks || task.status || '') + '</span></td>' +
             '<td class="desktop-only">' + actionButtons + '</td>';
 
         return row;
     };
 
-    // Group Inventory tasks by Control ID (accordion)
+    // Use the already-loaded Inventory family cache to remember the original
+    // batch size and completed siblings. This does not trigger another Firebase read.
+    const cachedInventory = (() => {
+        try {
+            if (typeof inventorySystemEntries !== 'undefined' && Array.isArray(inventorySystemEntries)) {
+                return inventorySystemEntries.filter(item => isInventoryTaskRecord(item));
+            }
+        } catch (_) {}
+        return inventoryTasks.slice();
+    })();
+
+    const cachedByControl = new Map();
+    cachedInventory.forEach(item => {
+        const key = getControlKey(item);
+        if (!cachedByControl.has(key)) cachedByControl.set(key, []);
+        cachedByControl.get(key).push(item);
+    });
+
     const groups = new Map();
     filteredTasks.forEach(t => {
         const k = getControlKey(t);
@@ -639,79 +673,108 @@ function renderInventoryActiveTaskTable(tasks) {
         groups.get(k).push(t);
     });
 
-    const safeSelectorValue = (value) => String(value || '').replace(/"/g, '');
-
     const closeAllGroups = () => {
         document.querySelectorAll('#active-task-table-body tr.controlid-group-child').forEach(r => { r.style.display = 'none'; });
         document.querySelectorAll('#active-task-table-body tr.controlid-group-header').forEach(r => { r.classList.remove('open'); });
     };
 
-    const openGroup = (groupId) => {
-        const safeId = safeSelectorValue(groupId);
-        document.querySelectorAll('#active-task-table-body tr.controlid-group-child[data-parent-group="' + safeId + '"]').forEach(r => { r.style.display = 'table-row'; });
-        const header = document.querySelector('#active-task-table-body tr.controlid-group-header[data-group-id="' + safeId + '"]');
+    const openGroup = (domGroupId) => {
+        document.querySelectorAll('#active-task-table-body tr.controlid-group-child[data-parent-group="' + domGroupId + '"]').forEach(r => { r.style.display = 'table-row'; });
+        const header = document.querySelector('#active-task-table-body tr.controlid-group-header[data-group-id="' + domGroupId + '"]');
         if (header) header.classList.add('open');
     };
 
-    const groupIds = Array.from(groups.keys()).sort((a, b) => String(a).localeCompare(String(b)));
-    groupIds.forEach(groupId => {
-        const items = groups.get(groupId) || [];
-        if (items.length <= 1) {
-            activeTaskTableBody.appendChild(renderTransferRow(items[0]));
-            return;
-        }
+    const multiGroups = [];
+    const singleItems = [];
+    groups.forEach((visibleItems, groupId) => {
+        const peers = cachedByControl.get(groupId) || visibleItems;
+        const declaredSize = Math.max(...visibleItems.map(item => Number(item.batchSize || 0)), 0);
+        const totalSize = Math.max(declaredSize, peers.length, visibleItems.length);
+        const isMulti = totalSize > 1 || visibleItems.some(item => item.isMultiItem === true);
+        const createdAt = Math.min(...visibleItems.map(getTaskTime));
+        if (isMulti) multiGroups.push({ groupId, visibleItems, peers, totalSize, createdAt });
+        else singleItems.push(...visibleItems);
+    });
 
-        const first = items[0] || {};
-        const productName = first.vendorName || first.productName || '';
-        const uniqueDetails = Array.from(new Set(items.map(i => String(i.details || '').trim()).filter(Boolean)));
-        const detailsSummary = uniqueDetails.length === 0 ? '' : (uniqueDetails.length === 1 ? uniqueDetails[0] : 'Multiple records');
+    multiGroups.sort((a, b) => a.createdAt - b.createdAt || String(a.groupId).localeCompare(String(b.groupId)));
+    singleItems.sort((a, b) => getTaskTime(a) - getTaskTime(b) || String(getControlLabel(a)).localeCompare(String(getControlLabel(b))));
 
-        const uniqueMov = Array.from(new Set(items.map(getMovementText)));
-        const movementSummary = uniqueMov.length === 1 ? uniqueMov[0] : 'Multiple';
+    const appendSectionHeading = (title, caption, count, className) => {
+        const row = document.createElement('tr');
+        row.className = `wd-inventory-section-row ${className || ''}`;
+        row.innerHTML = '<td colspan="8"><div class="wd-inventory-section-heading"><span><i class="fa-solid fa-layer-group"></i> ' + escapeText(title) + '</span><small>' + escapeText(caption) + '</small><b>' + escapeText(count) + '</b></div></td>';
+        activeTaskTableBody.appendChild(row);
+    };
 
-        const totalQty = items.reduce((sum, t) => sum + getDisplayQty(t), 0);
-        const uniqueContacts = Array.from(new Set(items.map(i => String(i.contactName || i.requestor || '').trim()).filter(Boolean)));
-        const contactSummary = uniqueContacts.length === 0 ? '' : (uniqueContacts.length === 1 ? uniqueContacts[0] : 'Multiple');
+    if (multiGroups.length > 0) {
+        appendSectionHeading('Multi-Item Transactions', 'Grouped by Control ID', multiGroups.length, 'is-multi');
+    }
 
-        const uniqueStatuses = Array.from(new Set(items.map(i => String(i.remarks || '').trim()).filter(Boolean)));
-        const statusSummary = uniqueStatuses.length === 0 ? '' : (uniqueStatuses.length === 1 ? uniqueStatuses[0] : 'Multiple');
-        const statusColor = uniqueStatuses.length === 1 ? getStatusColor(statusSummary) : '#333';
+    multiGroups.forEach((group, groupIndex) => {
+        const { groupId, visibleItems, peers, totalSize } = group;
+        const domGroupId = `inventory-batch-${groupIndex}`;
+        const visibleKeys = new Set(visibleItems.map(item => String(item.key || '')));
+        const completedPeers = peers.filter(isCompletedItem);
+        const completedCount = completedPeers.length;
+        const waitingCount = Math.max(0, totalSize - completedCount);
+        const progress = totalSize > 0 ? Math.min(100, Math.round((completedCount / totalSize) * 100)) : 0;
+        const displayMap = new Map();
+        peers.forEach(item => {
+            if (isCompletedItem(item) || visibleKeys.has(String(item.key || ''))) displayMap.set(String(item.key || ''), item);
+        });
+        visibleItems.forEach(item => displayMap.set(String(item.key || ''), item));
+        const displayItems = Array.from(displayMap.values()).sort((a, b) => {
+            const ai = Number(a.batchIndex || 0);
+            const bi = Number(b.batchIndex || 0);
+            if (ai && bi && ai !== bi) return ai - bi;
+            return getTaskTime(a) - getTaskTime(b);
+        });
 
-        const groupIsUrgent = items.some(t => t.isUrgent === true);
+        const first = visibleItems[0] || peers[0] || {};
+        const movements = Array.from(new Set(peers.map(getMovementText).filter(Boolean)));
+        const movementSummary = movements.length === 1 ? movements[0] : 'Multiple sources / destinations';
+        const statuses = Array.from(new Set(visibleItems.map(item => String(item.remarks || item.status || '').trim()).filter(Boolean)));
+        const statusSummary = statuses.length === 1 ? statuses[0] : 'Multiple stages';
+
         const headerRow = document.createElement('tr');
-        headerRow.className = 'controlid-group-header wd-modern-row wd-inventory-group-row tone-' + ((typeof wdUiStatusTone === 'function') ? wdUiStatusTone(statusSummary || 'Pending') : 'default');
-        headerRow.setAttribute('data-group-id', safeSelectorValue(groupId));
-
-        if (!groupIsUrgent) {
-            headerRow.style.opacity = '0.7';
-            headerRow.style.backgroundColor = '#f9f9f9';
-        }
-
+        headerRow.className = 'controlid-group-header wd-modern-row wd-inventory-group-row';
+        headerRow.setAttribute('data-group-id', domGroupId);
         headerRow.innerHTML =
-            '<td class="desktop-only"><span class="group-toggle-icon">▸</span> <strong>' + groupId + '</strong> <span class="controlid-group-count">(' + items.length + ')</span></td>' +
-            '<td class="desktop-only">' + productName + '</td>' +
-            '<td class="desktop-only">' + detailsSummary + '</td>' +
-            '<td class="desktop-only">' + movementSummary + '</td>' +
-            '<td class="desktop-only" style="font-weight: bold; color: #003A5C;">' + (Number.isFinite(totalQty) ? totalQty : '') + ' <span class="controlid-group-total-label">(Total)</span></td>' +
-            '<td class="desktop-only">' + contactSummary + '</td>' +
-            '<td class="desktop-only"><span style="color: ' + statusColor + '; font-weight: bold;">' + statusSummary + '</span></td>' +
-            '<td class="desktop-only"><span class="controlid-group-hint">Click to expand</span></td>';
+            '<td colspan="8" class="desktop-only"><div class="wd-inventory-batch-card">' +
+                '<span class="wd-inventory-batch-toggle"><i class="fa-solid fa-chevron-right group-toggle-icon"></i></span>' +
+                '<div class="wd-inventory-batch-identity"><span class="wd-inventory-multi-badge">Multi • ' + escapeText(totalSize) + ' Items</span><strong>' + escapeText(getControlLabel(first)) + '</strong></div>' +
+                '<div class="wd-inventory-batch-route"><i class="fa-solid fa-route"></i><span>' + escapeText(movementSummary) + '</span></div>' +
+                '<div class="wd-inventory-batch-progress"><div><span>' + escapeText(waitingCount) + ' waiting</span><span>' + escapeText(completedCount) + ' received</span></div><div class="wd-inventory-progress-track"><i style="width:' + progress + '%"></i></div><small>' + progress + '% complete</small></div>' +
+                '<div class="wd-inventory-batch-status"><span>' + escapeText(statusSummary) + '</span><small>Click to expand</small></div>' +
+            '</div></td>';
 
         headerRow.addEventListener('click', () => {
             const isOpen = headerRow.classList.contains('open');
             closeAllGroups();
-            if (!isOpen) openGroup(groupId);
+            if (!isOpen) openGroup(domGroupId);
         });
-
         activeTaskTableBody.appendChild(headerRow);
 
-        items.forEach(item => {
-            const childRow = renderTransferRow(item, { isChild: true });
-            childRow.setAttribute('data-parent-group', safeSelectorValue(groupId));
+        displayItems.forEach((item, itemIndex) => {
+            const declaredIndex = Number(item.batchIndex || 0);
+            const childRow = renderTransferRow(item, {
+                isChild: true,
+                itemNumber: declaredIndex || (itemIndex + 1),
+                itemTotal: totalSize
+            });
+            childRow.setAttribute('data-parent-group', domGroupId);
             childRow.style.display = 'none';
             activeTaskTableBody.appendChild(childRow);
         });
     });
+
+    if (singleItems.length > 0) {
+        appendSectionHeading('Single-Item Transactions', 'Individual inventory movements', singleItems.length, 'is-single');
+        singleItems.forEach(item => activeTaskTableBody.appendChild(renderTransferRow(item, { singleItem: true })));
+    }
+
+    // Keep the oldest multi-item transaction open so the receiver can act immediately.
+    if (multiGroups.length > 0) openGroup('inventory-batch-0');
 }
 
 
@@ -2665,10 +2728,15 @@ function renderInventoryMobileActiveTasks(tasks) {
         const approver = invRequestSafeText(routeMeta.approver || '');
         const receiver = invRequestSafeText(routeMeta.receiver || requester);
         const controlNumber = invRequestSafeText(routeMeta.controlNumber || buildOfficialTransferControlNumber(req.requestCode, index));
+        const batchSize = Math.max(1, Number(routeMeta.batchSize || 1));
+        const batchIndex = Math.max(1, Number(routeMeta.batchIndex || 1));
         return {
             controlNumber,
             controlId: controlNumber,
             ref: controlNumber,
+            batchSize,
+            batchIndex,
+            isMultiItem: batchSize > 1,
             jobType: 'Transfer',
             for: 'Transfer',
             productID: invRequestSafeText(line.productId || line.productID || ''),
@@ -3029,7 +3097,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 const meta = groupsMeta[groupIndex] || {};
                 const controlNumber = buildOfficialTransferControlNumber(req.requestCode || code, groupIndex);
                 officialGroups.push({ controlNumber, fromSite: group.fromSite, toSite: group.toSite, itemCount: group.lines.length, sourceContact: meta.sourceContact, approver: meta.approver, receiver: meta.receiver });
-                group.lines.forEach(line => {
+                group.lines.forEach((line, lineIndex) => {
                     const newRef = dbRef.ref('transfer_entries').push();
                     const officialKey = newRef.key;
                     officialKeys.push(officialKey);
@@ -3038,7 +3106,9 @@ function renderInventoryMobileActiveTasks(tasks) {
                         controlNumber,
                         fromSite: group.fromSite,
                         toSite: group.toSite,
-                        routeKey: group.key
+                        routeKey: group.key,
+                        batchSize: group.lines.length,
+                        batchIndex: lineIndex + 1
                     });
                     runningIndex += 1;
                 });
@@ -3540,4 +3610,3 @@ async function printInventoryInTransitReport() {
         alert('Failed to generate the In Transit report.');
     }
 }
-
