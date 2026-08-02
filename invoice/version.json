@@ -1,6 +1,6 @@
 {
-  "version": "11.8.1",
+  "version": "11.8.2",
   "releasedAt": "2026-08-02",
-  "title": "Adaptive Module Contrast Correction",
-  "message": "Cards, tabs, buttons, icons, expanded Invoice Records tables, modal controls, and mobile surfaces now use readable light-on-dark or dark-on-light contrast while preserving each module's approved colour identity."
+  "title": "Accounts Paid Date and Payment Remove Fix",
+  "message": "Accounts Admin users can now select the actual Paid Date before marking invoices Paid, and the payment-table remove button responds across its complete visible area."
 }

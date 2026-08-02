@@ -644,6 +644,28 @@ body.wd-paid-history-open {
     }
 }
 
+/* 11.8.2 — Payments row removal uses the complete visible button hit area. */
+#im-payments #im-payments-table .payment-remove-btn {
+    position: relative !important;
+    z-index: 1 !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    touch-action: manipulation;
+}
+
+#im-payments #im-payments-table .payment-remove-btn > *,
+#im-payments #im-payments-table .payment-remove-btn::before,
+#im-payments #im-payments-table .payment-remove-btn::after {
+    pointer-events: none !important;
+}
+
 /* High-specificity modal icon/X inheritance: outranks later split CSS files. */
 :is(
     #vacation-replacement-modal,
