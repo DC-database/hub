@@ -1,5 +1,5 @@
 // js/app-attention-validation.js
-// Version 11.4.5 — Adds Batch Entry group-aware attention routing while preserving Invoice Entry behavior.
+// Version 11.7.5 — Adds Invoice/Batch IPC Application attention routing while preserving existing behavior.
 // Moved from app.js in v8.2.3 (cleanup only).
 // Public function names preserved for existing app.js listeners and inline handlers.
 
@@ -417,7 +417,7 @@ function imBatchNormalizeText(value) {
 function imBatchNormalizeKey(value) { return imBatchNormalizeText(value).toLowerCase(); }
 function imBatchStatusRequiresAttention(statusValue) {
     const st = imBatchNormalizeKey(statusValue);
-    return ['for srv', 'report', 'in process', 'ceo approval'].includes(st);
+    return ['for srv', 'ipc application', 'report', 'in process', 'ceo approval'].includes(st);
 }
 function imBatchShouldForceAttentionNoneForStatus(statusValue) { return !imBatchStatusRequiresAttention(statusValue); }
 function imBatchNormalizeGroup(value) { return imBatchNormalizeText(value) || 'Normal'; }
@@ -490,6 +490,12 @@ function imBatchPositionMatches(position, role) {
     if (r === 'accounts' || r === 'account') return pos.includes('account');
     if (r === 'ceo') return pos.includes('ceo') || pos.includes('chief executive');
     if (r === 'coo') return pos.includes('coo') || pos.includes('chief operating');
+    if (r === 'qs' || r === 'senior qs') {
+        const hasQS = compact === 'qs' || compact.includes('qs') || pos.includes('quantity surveyor') || /(^|[^a-z])q\.?\s*s\.?([^a-z]|$)/i.test(position || '');
+        return r === 'senior qs'
+            ? hasQS && (pos.includes('senior') || pos.includes('sr'))
+            : hasQS;
+    }
     return pos.includes(r);
 }
 function imBatchFindPersonByNameOrPosition(nameNeedle, positionNeedle, fallbackName) {
@@ -564,6 +570,24 @@ async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue
     if (st === 'for srv') {
         const candidates = await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue);
         choices = candidates.map(c => ({ value: c.name, label: `${c.name}${c.position ? ' - ' + c.position : ''}${c.isFallback ? ' (Fallback)' : ''}` }));
+    } else if (st === 'ipc application') {
+        // Match WorkDesk IPC Application: show every QS/Senior QS regardless of site.
+        const seen = new Set();
+        choices = imBatchApproverUsers()
+            .filter(user => imBatchPositionMatches(user.position, 'qs'))
+            .map(user => {
+                const name = (typeof resolveVacationAssignee === 'function')
+                    ? (resolveVacationAssignee(user.name) || user.name)
+                    : user.name;
+                return { name, position: user.position };
+            })
+            .filter(user => {
+                const key = imBatchNormalizeKey(user.name);
+                if (!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            })
+            .map(user => ({ value: user.name, label: `${user.name}${user.position ? ' - ' + user.position : ''}` }));
     } else {
         const target = imBatchFixedAttentionForStatus(statusValue);
         if (target) choices = [{ value: target, label: target }];
@@ -596,6 +620,11 @@ async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue,
         if (candidates.length === 1) return candidates[0].name || '';
         const po = row && row.dataset ? (row.dataset.po || '') : '';
         throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Multiple ${imBatchIsNormalGroup(groupValue) ? 'Site DC' : 'Logistic'} candidates are available.`);
+    }
+    if (st === 'ipc application') {
+        if (attn) return attn;
+        const po = row && row.dataset ? (row.dataset.po || '') : '';
+        throw new Error(`Please select a QS/Senior QS Attention for PO ${po || ''} / IPC Application.`);
     }
     return '';
 }

@@ -271,6 +271,7 @@ async function handleAddPOToBatch() {
                         <option value="No Need SRV">No Need SRV</option>
                         <option value="Pending">Pending</option>
                         <option value="For IPC">For IPC</option>
+                        <option value="IPC Application">IPC Application</option>
                         <option value="Under Review">Under Review</option>
                         <option value="In Process">In Process</option>
                         <option value="For Summary">For Summary</option>
@@ -438,6 +439,7 @@ async function addInvoiceToBatchTable(invData) {
                     <option value="No Need SRV">No Need SRV</option>
                     <option value="Pending">Pending</option>
                     <option value="For IPC">For IPC</option>
+                    <option value="IPC Application">IPC Application</option>
                     <option value="Under Review">Under Review</option>
                     <option value="For Approval">For Approval</option>
                     <option value="Unresolved">Unresolved</option>

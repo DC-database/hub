@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.6.6
+   Version: 11.7.5
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -156,6 +156,12 @@
    - Dashboard Job Record cache can now be overwritten/removed by Firebase job key.
    - This prevents stale IPC Application dashboard copies when the same record moves
      to IPC Processed in another open browser.
+
+   11.7.5:
+   - Invoice Management IPC Application records join the existing IPC Application
+     dashboard card through the compact active-invoice index; Job Records remain separate.
+   - Ready for Payment reveals Paid History only for an exact PO absent from the
+     complete accessible payment pocket, so archive reads remain user-triggered.
    ========================================================================== */
 
 // =================================================================================================
@@ -857,6 +863,7 @@ const WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP = {
     'for approval': 'For Approval',
     'pending': 'Pending',
     'unresolved': 'Unresolved',
+    'ipc application': 'IPC Application',
     'report': 'Report'
 };
 const WD_DASHBOARD_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
@@ -1455,7 +1462,9 @@ function wdStatusIcon(status) {
 function wdTaskDisplayStatus(task = {}) {
     const bucket = wdText(task.bucket || '');
     const rawStatus = wdText(task.status || task.remarks || bucket || 'Pending');
-    if (['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(bucket)) || ['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(task.type || ''))) {
+    const source = wdNormalize(task.source || '');
+    const isIPCJobRecord = source.includes('job') || source.includes('ipc_job');
+    if (isIPCJobRecord && (['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(bucket)) || ['ipc', 'ipc processed', 'ipc application'].includes(wdNormalize(task.type || '')))) {
         const ipcStatus = wdText(task.ipc || task.ipcStatus || task.jobStatus || rawStatus || '');
         if (ipcStatus && wdNormalize(ipcStatus) !== 'no ipc') return ipcStatus;
         return wdNormalize(task.type || '') === 'ipc application' ? 'Pending' : 'Waiting Invoice';
@@ -2069,9 +2078,17 @@ function wdIsDashboardActiveTaskSourceItem(task) {
     // Dashboard source must mirror WorkDesk Active Task, but only invoice-related items.
     if (['Transfer', 'Restock', 'Return', 'Usage'].includes(taskFor) || source === 'transfer_entry') return false;
 
-    // IPC is intentionally added from Job Records only, so Active Task "For IPC" / IPC rows
-    // do not create a second wrong card/count.
-    if (['IPC', 'IPC Application', 'IPC Processed'].includes(taskFor) || source === 'ipc_job' || statusNorm.includes('ipc') || statusNorm === 'waiting invoice') return false;
+    // 11.7.5: Legacy For IPC and IPC Job Records keep their existing source rules.
+    // A real Invoice Management record explicitly saved as IPC Application is now
+    // allowed through the compact invoice task index and shares the dashboard card.
+    const isInvoiceIPCApplication = statusNorm === 'ipc application' &&
+        (taskFor === 'Invoice' || source === 'invoice' || source === 'invoice_record' || source === 'invoice_task_lookup');
+    if (!isInvoiceIPCApplication && (
+        ['IPC', 'IPC Application', 'IPC Processed'].includes(taskFor) ||
+        source === 'ipc_job' ||
+        statusNorm.includes('ipc') ||
+        statusNorm === 'waiting invoice'
+    )) return false;
 
     const isInvoiceRelated = taskFor === 'Invoice' || source === 'invoice' || source === 'invoice_record' || source === 'job_entry';
     if (!isInvoiceRelated) return false;
@@ -3071,6 +3088,7 @@ function wdBindDashboardControls() {
     const refreshBtn = document.getElementById('wd-active-dashboard-refresh');
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const clearBtn = document.getElementById('wd-active-dashboard-clear');
+    const paidHistoryBtn = document.getElementById('wd-paid-history-trigger');
     wdBindPaymentHistoryModal();
 
     if (cardsEl && !cardsEl.dataset.bound) {
@@ -3155,6 +3173,14 @@ function wdBindDashboardControls() {
         clearBtn.addEventListener('click', () => {
             wdResetDashboardSearchAndSelection();
             try { searchInput?.focus(); } catch (_) {}
+        });
+    }
+
+    if (paidHistoryBtn && !paidHistoryBtn.dataset.bound) {
+        paidHistoryBtn.dataset.bound = 'true';
+        paidHistoryBtn.addEventListener('click', async () => {
+            if (paidHistoryBtn.classList.contains('hidden') || paidHistoryBtn.disabled) return;
+            await wdHandlePaymentPocketSearchSubmit();
         });
     }
 
@@ -3649,10 +3675,13 @@ async function wdLoadAllActiveDashboardCounts(forceRefresh = false) {
             entries.forEach((entry, index) => {
                 if (!entry || typeof entry !== 'object') return;
                 if (wdJobEntryIsClosedForDashboard(entry)) return;
-                if (wdJobEntryMatchesActiveInvoice(entry, activeInvoiceLinkKeysForCounts)) return;
                 const status = wdEntryStatus(entry);
                 const forText = wdNormalize(entry.for || entry.For || entry.type || entry.Type || '');
                 const isInvoiceJob = forText === 'invoice' || forText === 'invoice job' || forText.includes('invoice');
+                // Only Invoice/New Entry intake rows duplicate an active Invoice
+                // Management task. IPC Job Records stay separate even when an
+                // invoice under the same PO is also IPC Application.
+                if (isInvoiceJob && wdJobEntryMatchesActiveInvoice(entry, activeInvoiceLinkKeysForCounts)) return;
                 if (isInvoiceJob && wdIsJobNewEntryQueue(entry, status, 'job_entry')) {
                     const key = wdText(entry.key || entry.id || entry.po || `${index}`);
                     const pseudo = { source: 'job_entry', type: 'Invoice Job', key, po: entry.po || entry.originalPO || entry.ref || '', ref: entry.ref || '' };
@@ -4780,6 +4809,33 @@ function wdPaymentPocketSrvAction(item = {}) {
     return '';
 }
 
+function wdPaymentPocketExactPOMatches(poNumber) {
+    const po = wdPaymentHistoryExactPO(poNumber);
+    if (!po) return [];
+    return wdPaymentPocketAccessibleItems()
+        .filter(item => wdText(item?.po).toUpperCase() === po)
+        .sort(wdComparePaymentPocketItems);
+}
+
+function wdSyncPaidHistoryTrigger() {
+    const button = document.getElementById('wd-paid-history-trigger');
+    const searchInput = document.getElementById('wd-active-dashboard-search');
+    if (!button) return;
+
+    const po = wdPaymentHistoryExactPO(searchInput?.value || '');
+    const isPaymentPocketOpen = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER;
+    const existsInPocket = po ? wdPaymentPocketExactPOMatches(po).length > 0 : false;
+    const shouldShow = Boolean(wdCanSeePaymentPocket() && isPaymentPocketOpen && po && !existsInPocket);
+
+    button.classList.toggle('hidden', !shouldShow);
+    button.disabled = !shouldShow;
+    button.dataset.po = shouldShow ? po : '';
+    button.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    button.title = shouldShow
+        ? `PO ${po} is not in Ready for Payment. Check its latest paid transactions.`
+        : 'Available when an exact PO is absent from Ready for Payment';
+}
+
 function wdPaymentHistoryExactPO(value) {
     const po = wdText(value).toUpperCase();
     if (!po || po.length < 2 || /\s/.test(po)) return '';
@@ -5323,6 +5379,7 @@ function wdRenderDashboardList() {
     const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const globalSearch = wdNormalize(searchInput?.value || '');
+    wdSyncPaidHistoryTrigger();
 
     if (selected === WD_PAYMENT_POCKET_FILTER && wdCanSeePaymentPocket()) {
         wdRenderPaymentPocketList(listEl, titleEl, summaryEl);
