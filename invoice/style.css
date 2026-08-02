@@ -78,6 +78,610 @@
     100% { border-color: var(--iba-secondary-teal); box-shadow: 0 0 2px var(--iba-secondary-teal), 0 0 5px var(--iba-secondary-teal), 0 0 10px var(--iba-secondary-teal), inset 0 0 0 2px rgba(0,0,0,0.5); }
 }
 
+/* ========================================================================== */
+/* 11.7.4 — WorkDesk Ready for Payment: premium recent-paid history           */
+/* ========================================================================== */
+body.wd-paid-history-open {
+    overflow: hidden;
+}
+
+#wd-paid-history-modal.hidden {
+    display: none !important;
+}
+
+#wd-paid-history-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000002;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(10, 43, 42, 0.58);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.wd-paid-history-window {
+    width: min(1040px, calc(100vw - 48px));
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(183, 210, 214, 0.95);
+    border-radius: 24px;
+    background: #f8fbfc;
+    box-shadow: 0 28px 70px rgba(7, 38, 38, 0.34);
+    color: #173e46;
+}
+
+.wd-paid-history-header {
+    position: relative;
+    flex: 0 0 auto;
+    padding: 18px 74px 22px 36px;
+    color: #fff;
+    background: linear-gradient(105deg, #073e56 0%, #0a5d69 64%, #147668 100%);
+}
+
+.wd-paid-history-window-label {
+    width: max-content;
+    padding-bottom: 8px;
+    border-bottom: 3px solid #f2bd35;
+    color: #c3dfe5;
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.wd-paid-history-heading-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.wd-paid-history-heading-icon {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f2bd35;
+    color: #073e56;
+    font-size: 1.25rem;
+    box-shadow: 0 8px 20px rgba(242, 189, 53, 0.22);
+}
+
+.wd-paid-history-heading-row h2 {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.35rem, 2.1vw, 1.75rem);
+    line-height: 1.1;
+}
+
+.wd-paid-history-heading-row p {
+    margin: 6px 0 0;
+    color: #cce3e6;
+    font-size: 0.78rem;
+}
+
+.wd-paid-history-close {
+    position: absolute;
+    top: 24px;
+    right: 26px;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.wd-paid-history-close:hover,
+.wd-paid-history-close:focus-visible {
+    background: rgba(255, 255, 255, 0.25);
+    transform: rotate(4deg) scale(1.04);
+    outline: none;
+}
+
+.wd-paid-history-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 20px 32px 24px;
+}
+
+.wd-paid-history-info {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    padding: 13px 16px;
+    border: 1px solid #a9d7f3;
+    border-radius: 14px;
+    background: #edf7ff;
+    color: #10496b;
+}
+
+.wd-paid-history-info > span {
+    color: #0e83c6;
+    font-size: 1.55rem;
+}
+
+.wd-paid-history-info strong,
+.wd-paid-history-info p {
+    display: block;
+    margin: 0;
+}
+
+.wd-paid-history-info strong {
+    font-size: 0.78rem;
+}
+
+.wd-paid-history-info p {
+    margin-top: 4px;
+    color: #4d7183;
+    font-size: 0.7rem;
+}
+
+.wd-paid-history-summary-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: 56px minmax(210px, 1.35fr) minmax(190px, 1fr) minmax(130px, 0.68fr);
+    align-items: center;
+    gap: 18px;
+    margin-top: 18px;
+    padding: 19px 24px 19px 28px;
+    overflow: hidden;
+    border: 1px solid #d4e2e1;
+    border-radius: 17px;
+    background: linear-gradient(135deg, #fff, #f2f8f6);
+    box-shadow: 0 8px 20px rgba(23, 61, 57, 0.1);
+}
+
+.wd-paid-history-summary-accent {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 7px;
+    background: #f2bd35;
+}
+
+.wd-paid-history-summary-icon {
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e2f2ee;
+    color: #117266;
+    font-size: 1.35rem;
+}
+
+.wd-paid-history-po small,
+.wd-paid-history-latest > small,
+.wd-paid-history-latest-date small,
+.wd-paid-history-field small {
+    display: block;
+    color: #748d8c;
+    font-size: 0.61rem;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.wd-paid-history-po > strong {
+    display: block;
+    margin-top: 5px;
+    color: #083e54;
+    font-size: 1.55rem;
+    line-height: 1.05;
+}
+
+.wd-paid-history-po > span {
+    display: block;
+    margin-top: 7px;
+    color: #375d60;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.wd-paid-history-count {
+    width: max-content;
+    max-width: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 13px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    background: #e1f5eb;
+    color: #117149;
+    font-size: 0.65rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.wd-paid-history-count i {
+    font-size: 0.48rem;
+    color: #16a064;
+}
+
+.wd-paid-history-latest > strong,
+.wd-paid-history-latest-date > strong {
+    display: block;
+    margin-top: 7px;
+    color: #0c4f5d;
+    font-size: 1rem;
+    font-weight: 900;
+}
+
+.wd-paid-history-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 24px 0 11px;
+}
+
+.wd-paid-history-list-head strong {
+    color: #496b6d;
+    font-size: 0.71rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.wd-paid-history-list-head span {
+    color: #6f8586;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.wd-paid-history-list {
+    position: relative;
+    display: grid;
+    gap: 11px;
+}
+
+.wd-paid-history-list::before {
+    content: '';
+    position: absolute;
+    top: 36px;
+    bottom: 36px;
+    left: 18px;
+    width: 3px;
+    border-radius: 3px;
+    background: #c8ddd8;
+}
+
+.wd-paid-history-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 28px minmax(160px, 1.25fr) minmax(140px, 0.95fr) minmax(120px, 0.78fr) minmax(115px, 0.72fr) 76px;
+    align-items: center;
+    gap: 15px;
+    min-height: 74px;
+    padding: 11px 18px 11px 12px;
+    border: 1px solid #d9e6e4;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 6px 15px rgba(23, 61, 57, 0.09);
+}
+
+.wd-paid-history-check {
+    position: relative;
+    z-index: 1;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    background: #13a16b;
+    color: #fff;
+    font-size: 0.58rem;
+    box-sizing: content-box;
+}
+
+.wd-paid-history-field strong {
+    display: block;
+    margin-top: 6px;
+    overflow-wrap: anywhere;
+    color: #294e52;
+    font-size: 0.79rem;
+}
+
+.wd-paid-history-field.is-paid-date,
+.wd-paid-history-field strong.is-paid-date {
+    color: #117149;
+}
+
+.wd-paid-history-invoice strong {
+    color: #0b4358;
+    font-size: 0.85rem;
+}
+
+.wd-paid-history-badge {
+    justify-self: end;
+    min-width: 68px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #e0f6e9;
+    color: #0b8451;
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.wd-paid-history-loading,
+.wd-paid-history-empty {
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px;
+    text-align: center;
+}
+
+.wd-paid-history-loading > span,
+.wd-paid-history-empty > span {
+    width: 62px;
+    height: 62px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+    border-radius: 50%;
+    background: #e3f3ef;
+    color: #117266;
+    font-size: 1.55rem;
+}
+
+.wd-paid-history-empty.is-error > span {
+    background: #fff0e8;
+    color: #c3502f;
+}
+
+.wd-paid-history-loading strong,
+.wd-paid-history-empty strong {
+    color: #103f4c;
+    font-size: 1rem;
+}
+
+.wd-paid-history-loading p,
+.wd-paid-history-empty p {
+    max-width: 540px;
+    margin: 8px 0 0;
+    color: #6a8283;
+    font-size: 0.78rem;
+}
+
+.wd-paid-history-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 16px 32px;
+    border-top: 1px solid #d8e4e5;
+    background: #f8fbfc;
+}
+
+.wd-paid-history-footer-note {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.wd-paid-history-footer-note > span {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #e8f2f5;
+    color: #0b5b6c;
+}
+
+.wd-paid-history-footer-note strong,
+.wd-paid-history-footer-note p {
+    display: block;
+    margin: 0;
+}
+
+.wd-paid-history-footer-note strong {
+    color: #45696d;
+    font-size: 0.66rem;
+}
+
+.wd-paid-history-footer-note p {
+    margin-top: 3px;
+    color: #7b9090;
+    font-size: 0.62rem;
+}
+
+.wd-paid-history-footer-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.wd-paid-history-secondary,
+.wd-paid-history-primary {
+    min-height: 44px;
+    padding: 0 25px;
+    border-radius: 999px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.71rem;
+    font-weight: 900;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.wd-paid-history-secondary {
+    border: 1px solid #cbdcdf;
+    background: #fff;
+    color: #385b61;
+}
+
+.wd-paid-history-primary {
+    min-width: 235px;
+    border: 1px solid #0d7468;
+    background: #0d7468;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(13, 116, 104, 0.18);
+}
+
+.wd-paid-history-primary i {
+    margin-right: 7px;
+}
+
+.wd-paid-history-secondary:hover,
+.wd-paid-history-secondary:focus-visible,
+.wd-paid-history-primary:hover,
+.wd-paid-history-primary:focus-visible {
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.wd-paid-history-primary:hover,
+.wd-paid-history-primary:focus-visible {
+    background: #08675d;
+    box-shadow: 0 10px 22px rgba(13, 116, 104, 0.25);
+}
+
+@media (max-width: 900px) {
+    #wd-paid-history-modal {
+        align-items: flex-start;
+        padding: 12px;
+        overflow-y: auto;
+    }
+
+    .wd-paid-history-window {
+        width: 100%;
+        max-height: none;
+        border-radius: 19px;
+    }
+
+    .wd-paid-history-header {
+        padding: 17px 60px 20px 22px;
+    }
+
+    .wd-paid-history-body {
+        overflow: visible;
+        padding: 16px;
+    }
+
+    .wd-paid-history-summary-card {
+        grid-template-columns: 50px 1fr;
+        gap: 12px;
+        padding: 18px 18px 18px 24px;
+    }
+
+    .wd-paid-history-latest,
+    .wd-paid-history-latest-date {
+        grid-column: 2;
+    }
+
+    .wd-paid-history-row {
+        grid-template-columns: 28px 1fr auto;
+        gap: 10px 12px;
+        padding: 14px 13px 14px 10px;
+    }
+
+    .wd-paid-history-field {
+        grid-column: 2;
+    }
+
+    .wd-paid-history-check {
+        grid-row: 1 / span 4;
+        align-self: start;
+    }
+
+    .wd-paid-history-badge {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .wd-paid-history-list::before {
+        top: 30px;
+        bottom: 30px;
+        left: 17px;
+    }
+
+    .wd-paid-history-footer {
+        align-items: stretch;
+        flex-direction: column;
+        padding: 15px 16px 18px;
+    }
+
+    .wd-paid-history-footer-actions {
+        width: 100%;
+    }
+
+    .wd-paid-history-secondary,
+    .wd-paid-history-primary {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 0 16px;
+    }
+}
+
+@media (max-width: 560px) {
+    .wd-paid-history-heading-row p {
+        font-size: 0.7rem;
+    }
+
+    .wd-paid-history-summary-card {
+        grid-template-columns: 1fr;
+    }
+
+    .wd-paid-history-summary-icon,
+    .wd-paid-history-po,
+    .wd-paid-history-latest,
+    .wd-paid-history-latest-date {
+        grid-column: 1;
+    }
+
+    .wd-paid-history-summary-icon {
+        width: 44px;
+        height: 44px;
+    }
+
+    .wd-paid-history-list-head {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .wd-paid-history-footer-actions {
+        flex-direction: column-reverse;
+    }
+
+    .wd-paid-history-secondary,
+    .wd-paid-history-primary {
+        width: 100%;
+        flex: none;
+    }
+}
+
 /* ========================================================================
    11.6.4 — Exact Invoice Records result transfer + WorkDesk payment pocket
    ======================================================================== */

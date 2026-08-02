@@ -141,7 +141,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
 
-    <link rel="stylesheet" href="style.css?v=11.7.0">
+    <link rel="stylesheet" href="style.css?v=11.7.4">
     <link rel="stylesheet" href="css/transfer_stock.css?v=10.5.7">
     <link rel="stylesheet" href="css/mobile.css?v=9.2.7">
     <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
@@ -3370,6 +3370,40 @@
     </div>
 </div>
 
+<!-- WORKDESK READY FOR PAYMENT - RECENT PAID HISTORY -->
+<div id="wd-paid-history-modal" class="wd-paid-history-modal hidden" aria-hidden="true">
+    <section class="wd-paid-history-window" role="dialog" aria-modal="true" aria-labelledby="wd-paid-history-title">
+        <header class="wd-paid-history-header">
+            <div class="wd-paid-history-window-label">System Window</div>
+            <div class="wd-paid-history-heading-row">
+                <span class="wd-paid-history-heading-icon"><i class="fa-solid fa-check"></i></span>
+                <div>
+                    <h2 id="wd-paid-history-title">Payment History Found</h2>
+                    <p id="wd-paid-history-subtitle">Recent completed payments are shown below.</p>
+                </div>
+            </div>
+            <button type="button" class="wd-paid-history-close" data-wd-paid-history-close aria-label="Close payment history">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </header>
+
+        <div id="wd-paid-history-body" class="wd-paid-history-body"></div>
+
+        <footer class="wd-paid-history-footer">
+            <div class="wd-paid-history-footer-note">
+                <span><i class="fa-solid fa-circle-info"></i></span>
+                <div><strong>Need every invoice under this PO?</strong><p id="wd-paid-history-footer-copy">Open the complete Invoice Records search.</p></div>
+            </div>
+            <div class="wd-paid-history-footer-actions">
+                <button type="button" class="wd-paid-history-secondary" data-wd-paid-history-close>Close</button>
+                <button type="button" id="wd-paid-history-full-records" class="wd-paid-history-primary hidden">
+                    <i class="fa-regular fa-window-restore"></i> View Full Invoice Records
+                </button>
+            </div>
+        </footer>
+    </section>
+</div>
+
 <div id="im-invoice-print-modal" class="modal hidden" style="z-index: 999999;">
     <div class="modal-content" style="width: 90%; height: 90%; margin: 2% auto; display: flex; flex-direction: column; padding: 0;">
         <div class="modal-header" style="padding: 15px; background: #003A5C; color: white; display: flex; justify-content: space-between;">
@@ -3414,7 +3448,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.7.3"></script>
+    <script src="app.js?v=11.7.4"></script>
     <script src="js/app-time-clock.js?v=11.7.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.6.0"></script>
@@ -3426,7 +3460,7 @@
     <script src="js/app-payments.js?v=11.6.6"></script>
     <script src="js/app-invoice-records.js?v=11.7.1"></script>
     <script src="js/app-active-tasks.js?v=11.0.6"></script>
-    <script src="js/app-workdesk-dashboard.js?v=11.7.2"></script>
+    <script src="js/app-workdesk-dashboard.js?v=11.7.4"></script>
     <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
@@ -3440,10 +3474,10 @@
     <script src="js/app-help.js?v=8.2.3"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.7.3';
+      window.IBA_SYSTEM_VERSION = '11.7.4';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.7.3"></script>
+    <script src="js/app-version-checker.js?v=11.7.4"></script>
 
     </body>
 </html>

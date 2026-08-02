@@ -1,6 +1,6 @@
 {
-  "version": "11.7.3",
+  "version": "11.7.4",
   "releasedAt": "2026-08-02",
-  "title": "Invoice Navigation Accordion",
-  "message": "Invoice Management and Reports & Finance now behave as a single accordion, automatically closing the other group whenever one is expanded."
+  "title": "Ready for Payment History Preview",
+  "message": "An exact PO with no current Ready for Payment match can now show its latest three paid invoices in a premium payment-history window, with a permission-safe automatic handoff to the full Invoice Records search."
 }
