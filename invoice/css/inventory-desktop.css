@@ -1,5 +1,5 @@
 /*
-  IBA 8.8.9 CSS MODULE SPLIT
+  IBA 11.8.3 CSS MODULE SPLIT
   This file is a module-specific override layer.
   style.css and css/mobile.css remain as legacy/shared base for now.
   Future UI fixes should go here instead of adding more mixed rules to the base files.
@@ -751,38 +751,6 @@
     }
 }
 
-/* Chrome/Edge desktop fallback for Inventory mode when body.inventory-mode was not yet applied. */
-@supports selector(body:has(*)) {
-    @media (min-width: 769px) {
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button:disabled,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #active-task-filters.report-tabs button.active:disabled {
-            background: #ecfffc !important;
-            color: #226484 !important;
-            -webkit-text-fill-color: #226484 !important;
-            border: 1px solid rgba(34,100,132,0.24) !important;
-            border-radius: 14px !important;
-            box-shadow: 0 8px 18px rgba(18,48,67,0.06) !important;
-            opacity: 1 !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-category-tabs .ms-family-chip.active {
-            background: linear-gradient(135deg, #123043 0%, #226484 60%, #66c0b8 100%) !important;
-            color: #ffffff !important;
-            -webkit-text-fill-color: #ffffff !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-category-tabs .ms-family-chip.active * {
-            color: #ffffff !important;
-            -webkit-text-fill-color: #ffffff !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
-            border-left: 4px solid #226484 !important;
-            box-shadow: inset 4px 0 0 #226484 !important;
-        }
-    }
-}
-
-
 /* =========================================================
    8.8.8 INVENTORY DESKTOP FINAL POLISH
    Scope: desktop Inventory only.
@@ -907,39 +875,6 @@
     }
 }
 
-@supports selector(body:has(*)) {
-    @media (min-width: 769px) {
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tr,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table td {
-            border-left: 0 !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
-            border-left: 0 !important;
-            box-shadow: none !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
-            position: relative !important;
-            border-left: 0 !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
-            content: "" !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 12px !important;
-            bottom: 12px !important;
-            width: 4px !important;
-            background: #226484 !important;
-            border-radius: 999px !important;
-        }
-    }
-}
-
-
 /* =========================================================
    8.8.9 INVENTORY DESKTOP MATERIAL STOCK ROW MARKER POLISH
    Scope: desktop Inventory only.
@@ -1032,39 +967,5 @@
         background: rgba(34,100,132,0.52) !important;
         border-radius: 999px !important;
         box-shadow: none !important;
-    }
-}
-
-@supports selector(body:has(*)) {
-    @media (min-width: 769px) {
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tr,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table td {
-            border-left: 0 !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) {
-            border-left: 0 !important;
-            box-shadow: none !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child {
-            position: relative !important;
-            border-left: 0 !important;
-            overflow: visible !important;
-        }
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr.ms-parent-row td:first-child::before,
-        body:has(#workdesk-nav .wd-nav-material:not([style*="display: none"])) #workdesk-view #ms-table tbody tr:not(.stock-child-row) td:first-child::before {
-            content: "" !important;
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            width: 4px !important;
-            background: #226484 !important;
-            border-radius: 999px !important;
-            box-shadow: none !important;
-        }
     }
 }
