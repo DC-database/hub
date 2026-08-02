@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.7.0';
+const APP_VERSION = '11.7.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -246,6 +246,25 @@ let imDateTimeInterval = null;
 let activeTaskAutoRefreshInterval = null;
 let imNavigationList = [];
 let imNavigationIndex = -1;
+
+// Existing invoice records may only be edited by Irwin/Super Admin or by
+// the active replacement assigned through Irwin's Vacation setting.
+function canCurrentUserEditInvoiceEntry() {
+    const userName = String(currentApprover?.Name || '').trim().toLowerCase();
+    const superAdminName = String(
+        (typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin'
+    ).trim().toLowerCase();
+
+    if (userName && superAdminName && userName === superAdminName) return true;
+
+    try {
+        return Boolean((typeof isVacationDelegateUser === 'function') && isVacationDelegateUser());
+    } catch (_) {
+        return false;
+    }
+}
+
+try { window.canCurrentUserEditInvoiceEntry = canCurrentUserEditInvoiceEntry; } catch (_) { /* non-browser test */ }
 
 // ==========================================================================
 // UTILITIES (shared)
@@ -4531,6 +4550,10 @@ async function handleAddInvoice(e) {
 
 async function handleUpdateInvoice(e) {
     e.preventDefault();
+    if (!canCurrentUserEditInvoiceEntry()) {
+        alert('Access Denied: Only Irwin/Super Admin or the active vacation replacement can edit an existing invoice.');
+        return;
+    }
     if (!currentPO || !currentlyEditingInvoiceKey) {
         alert('No invoice selected for update.');
         return;

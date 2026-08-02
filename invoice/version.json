@@ -1,6 +1,6 @@
 {
-  "version": "11.7.0",
+  "version": "11.7.1",
   "releasedAt": "2026-08-01",
-  "title": "History Scrolling and Ready Payment Period Filters",
-  "message": "Invoice History now keeps its header and Close controls visible while the timeline scrolls. Ready for Payment now provides pocket-only Year and dynamic Month filters, combines them with Site and search, and automatically brings filtered results into view."
+  "title": "Invoice Records Super Admin Edit Lock",
+  "message": "Existing invoice editing from Invoice Records is now limited to Irwin/Super Admin or the active assigned vacation replacement. Other Admin users retain read, PDF, history, print, and reporting access."
 }
