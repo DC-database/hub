@@ -342,6 +342,7 @@ const WD_ACTIVE_EXACT_INVOICE_STATUS_MAP = {
     'in process': 'In Process',
     'pending': 'Pending',
     'unresolved': 'Unresolved',
+    'ipc application': 'IPC Application',
     'report': 'Report'
 };
 const WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
@@ -968,13 +969,14 @@ function wdActiveTaskAttentionMentionsName(attentionVal, nameVal) {
     return attention.includes(name) || name.includes(attention);
 }
 
-async function wdActiveTaskRemoveLookupRow(ownerName, invoiceKey) {
+async function wdActiveTaskRemoveLookupRow(ownerName, invoiceKey, options = {}) {
     try {
         if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref || !invoiceKey) return;
+        const removeAll = options.removeAll !== false;
         const safeOwner = wdActiveTaskSafeFirebaseKey(ownerName);
         const removals = [];
         if (safeOwner) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safeOwner}/${invoiceKey}`).remove());
-        removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).remove());
+        if (removeAll) removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).remove());
         await Promise.allSettled(removals);
     } catch (_) { /* do not block UI */ }
 }
@@ -1048,21 +1050,29 @@ async function wdActiveTaskValidateLookupSource(task = {}, ownerName = '', invoi
         const activeByHelper = (typeof isInvoiceTaskActive === 'function')
             ? isInvoiceTaskActive(latest)
             : !wdActiveTaskIsInactiveInvoiceStatus(latestStatus);
-        if (!activeByHelper || wdActiveTaskIsInactiveInvoiceStatus(latestStatus)) {
+        if (!activeByHelper) {
             await wdActiveTaskRemoveLookupRow(ownerName, key);
+            return null;
+        }
+
+        // An active source with a status that this personal view does not track
+        // must never delete the shared All Active lookup. Only clean this user's
+        // personal pointer; the Dashboard can still apply its own official map.
+        if (!latestStatus || wdActiveTaskIsInactiveInvoiceStatus(latestStatus)) {
+            await wdActiveTaskRemoveLookupRow(ownerName, key, { removeAll: false });
             return null;
         }
 
         const latestAttention = latest.attention || latest.Attention || latest.assignedTo || '';
         if (!latestAttention) {
-            await wdActiveTaskRemoveLookupRow(ownerName, key);
+            await wdActiveTaskRemoveLookupRow(ownerName, key, { removeAll: false });
             return null;
         }
 
         // Personal Active Task must follow source-of-truth Attention. If this
         // lightweight inbox row is under an old user, hide and clean that row.
         if (ownerName && !wdActiveTaskAttentionMentionsName(latestAttention, ownerName)) {
-            await wdActiveTaskRemoveLookupRow(ownerName, key);
+            await wdActiveTaskRemoveLookupRow(ownerName, key, { removeAll: false });
             return null;
         }
 

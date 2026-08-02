@@ -2008,6 +2008,22 @@ function wdCompareDashboardPriority(a, b) {
     return (Number(a?.timestamp || 0) || 0) - (Number(b?.timestamp || 0) || 0);
 }
 
+function wdCompareDashboardByPO(a, b) {
+    const poA = wdText(a?.po || a?.originalPO || a?.ref || '');
+    const poB = wdText(b?.po || b?.originalPO || b?.ref || '');
+    const poCompare = poA.localeCompare(poB, undefined, { numeric: true, sensitivity: 'base' });
+    if (poCompare !== 0) return poCompare;
+
+    const refA = wdText(a?.ref || a?.invoiceNumber || a?.invoiceNo || '');
+    const refB = wdText(b?.ref || b?.invoiceNumber || b?.invoiceNo || '');
+    const refCompare = refA.localeCompare(refB, undefined, { numeric: true, sensitivity: 'base' });
+    if (refCompare !== 0) return refCompare;
+
+    const keyA = wdText(a?.key || a?.originalKey || '');
+    const keyB = wdText(b?.key || b?.originalKey || '');
+    return keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function wdTaskVendorSortName(task) {
     const raw = wdText(
         task?.vendorName || task?.vendor || task?.supplierName || task?.Supplier ||
@@ -4712,11 +4728,16 @@ function wdRenderDashboardCorkNote(task, index, options = {}) {
         </article>`;
 }
 
-function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl) {
+function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl, options = {}) {
     wdEnsureSiteCsvLookupForDashboard();
     const statusLabel = selectedLabel || 'All Active Tasks';
-    const taskSorter = wdDashboardSorterForLabel(statusLabel);
-    const isForSummaryView = wdIsForSummaryDashboardLabel(statusLabel);
+    const taskSorter = typeof options.taskSorter === 'function'
+        ? options.taskSorter
+        : wdDashboardSorterForLabel(statusLabel);
+    const isForSummaryView = options.forceSiteGrouping === true
+        ? false
+        : wdIsForSummaryDashboardLabel(statusLabel);
+    const selectorLabel = wdText(options.selectorLabel || 'All Active Tasks');
     const tasks = (baseTasks || []).slice().sort(taskSorter);
     const groupLabel = isForSummaryView ? 'vendor' : 'site';
     const groupLabelPlural = isForSummaryView ? 'vendor groups' : 'site groups';
@@ -4803,7 +4824,7 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
 
     const selectorHtml = `
         <div class="wd-site-selector-panel ${selectedGroup ? 'has-selection' : 'site-only'} ${isForSummaryView ? 'vendor-selector' : ''}">
-            <div class="wd-cork-site-selector" role="tablist" aria-label="All Active Tasks ${groupLabel} selector">
+            <div class="wd-cork-site-selector" role="tablist" aria-label="${wdSafe(selectorLabel)} ${groupLabel} selector">
                 ${groupCardsHtml}
             </div>
         </div>`;
@@ -5625,6 +5646,22 @@ function wdRenderDashboardList() {
     // yellow note board grouped by site so users can quickly see where they can help.
     if (!wdIsPersonalDashboardSelection(selected)) {
         wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl);
+        return;
+    }
+
+    // 11.8.6: My Pending is a location overview on the Dashboard. Active Task
+    // keeps the operational date-priority view, while this card is grouped by
+    // Site and ordered by PO inside each selected site.
+    const selectedPersonalBucket = selected.startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)
+        ? selected.slice(WD_DASHBOARD_MY_STATUS_PREFIX.length)
+        : '';
+    if (selectedPersonalBucket === 'pending') {
+        wdActiveDashboardSelectedQueueDate = '';
+        wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summaryEl, listEl, {
+            taskSorter: wdCompareDashboardByPO,
+            forceSiteGrouping: true,
+            selectorLabel: 'My Pending Tasks'
+        });
         return;
     }
 
