@@ -1,5 +1,5 @@
 // ============================================================================
-// IBA 11.7.7 — WorkDesk Payment Pocket Visibility + Controlled Paid Action
+// IBA 11.8.2 — WorkDesk Payment Pocket + Controlled Paid Date Action
 // The compact With Accounts pocket now carries Invoice Value and SRV identity
 // without downloading the invoice archive. Admin users in Accounts/Accounting
 // may mark a displayed pocket row Paid through the same verified write workflow.
@@ -182,6 +182,15 @@ function canCurrentUserAccessPayments() {
         .split(/[^a-z0-9]+/)
         .filter(Boolean);
     return positionTokens.some(token => ['finance', 'accounts', 'accounting'].includes(token));
+}
+
+function paymentCanCurrentUserEditPaidDate() {
+    if (paymentIsSuperAdmin()) return true;
+
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    const role = paymentNormalize(user.Role || user.role);
+    const position = paymentNormalize(user.Position || user.position);
+    return role === 'admin' && position === 'accounts';
 }
 
 function paymentCanCurrentUserMarkWorkdeskPaid() {
@@ -1018,7 +1027,7 @@ function updatePaymentsCount() {
 function renderPaymentsCart() {
     if (!imPaymentsTableBody) return;
     const items = paymentSortAndDedupeResults(paymentCartItems());
-    const isSuperAdmin = paymentIsSuperAdmin();
+    const canEditPaidDate = paymentCanCurrentUserEditPaidDate();
     const emptyState = document.getElementById('im-payment-cart-empty');
     const tableWrap = document.querySelector('#im-payments .im-payment-cart-table-wrap');
     const totalEl = document.getElementById('im-payment-cart-total-value');
@@ -1034,7 +1043,7 @@ function renderPaymentsCart() {
     let total = 0;
     items.forEach(item => {
         item.releaseDate = paymentWithAccountsDateValue(item);
-        item.paidDate = isSuperAdmin
+        item.paidDate = canEditPaidDate
             ? (paymentDateISO(item.paidDate) || paymentToday())
             : paymentToday();
         const row = document.createElement('tr');
@@ -1078,13 +1087,13 @@ function renderPaymentsCart() {
         paidDateInput.className = 'im-payment-paid-date-input';
         paidDateInput.value = item.paidDate;
         paidDateInput.max = paymentToday();
-        paidDateInput.readOnly = !isSuperAdmin;
-        paidDateInput.disabled = !isSuperAdmin;
-        paidDateInput.title = isSuperAdmin
-            ? 'Super Admin may select the actual historical paid date.'
-            : 'Paid Date is locked to today for Finance, Accounts, and Accounting users.';
+        paidDateInput.readOnly = !canEditPaidDate;
+        paidDateInput.disabled = !canEditPaidDate;
+        paidDateInput.title = canEditPaidDate
+            ? 'Super Admin and Accounts Admin users may select the actual paid date.'
+            : 'Paid Date is locked to today for users without Accounts date-edit permission.';
         paidDateInput.setAttribute('aria-label', `Paid date for ${item.invoiceNo || item.po}`);
-        if (isSuperAdmin) {
+        if (canEditPaidDate) {
             paidDateInput.addEventListener('change', () => {
                 const normalizedDate = paymentDateISO(paidDateInput.value);
                 if (!normalizedDate || normalizedDate > paymentToday()) {
@@ -1112,6 +1121,11 @@ function renderPaymentsCart() {
         removeButton.title = 'Remove from payment list';
         removeButton.setAttribute('aria-label', `Remove ${item.invoiceNo || item.po}`);
         removeButton.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        removeButton.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            removePaymentCartItem(item.id);
+        });
         actionCell.appendChild(removeButton);
 
         [invoiceCell, poCell, companyCell, amountCell, withAccountsDateCell, paidDateCell, statusCell, actionCell]
@@ -1878,7 +1892,7 @@ function clearPaymentCart(skipConfirmation = false) {
 
 async function handleSavePayments() {
     const items = paymentCartItems();
-    const isSuperAdmin = paymentIsSuperAdmin();
+    const canEditPaidDate = paymentCanCurrentUserEditPaidDate();
     const statusEl = document.getElementById('im-payment-status-message');
     const checkoutButton = document.getElementById('im-save-payments-button');
 
@@ -1898,7 +1912,7 @@ async function handleSavePayments() {
     const today = paymentToday();
     const invalidPaidDates = [];
     items.forEach(item => {
-        const selectedDate = isSuperAdmin ? paymentDateISO(item.paidDate) : today;
+        const selectedDate = canEditPaidDate ? paymentDateISO(item.paidDate) : today;
         if (!selectedDate || selectedDate > today) {
             invalidPaidDates.push(item.invoiceNo || item.po);
             return;
