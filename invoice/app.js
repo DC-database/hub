@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.7.7';
+const APP_VERSION = '11.7.8';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3967,7 +3967,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         }
     };
 
-    const newAttention = invoiceData.attention;
+    const newAttention = String(invoiceData.attention || '').trim();
     const isTaskNowActive = isInvoiceTaskActive(invoiceData);
 
     // 10.2.6: Done is done. If the invoice is now inactive, remove any stale
@@ -3979,8 +3979,10 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         return;
     }
 
-    // 1. Add to new user's inbox
-    if (isTaskNowActive && newAttention) {
+    // 11.7.8: Every active invoice belongs in the compact All Active index,
+    // even when its workflow intentionally uses blank Attention (On Hold,
+    // Pending, For Summary). Only the personal inbox requires a named person.
+    if (isTaskNowActive) {
         const poKey = String(poNumber || '').trim().toUpperCase();
 
         // Keep purchase_orders in-sync for any PO that is actually used in the invoice system
@@ -4125,12 +4127,12 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             updatedAt: invoiceData.updatedAt || invoiceData.lastUpdated || firebase.database.ServerValue.TIMESTAMP
         };
 
-        const safeNewAttentionKey = sanitizeFirebaseKey(newAttention);
-        // 10.2.8: Keep both the personal inbox and the broad All index in sync.
-        // 10.2.5 reduced downloads by using this lightweight index; if the All row
-        // is not updated when Pending -> For SRV / On Hold, Dashboard can temporarily
-        // lose the card even though the invoice is active.
-        await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
+        const safeNewAttentionKey = newAttention ? sanitizeFirebaseKey(newAttention) : '';
+        // Personal tasks remain strictly Attention-based. The broad All index is
+        // independent so blank-Attention active queues cannot disappear.
+        if (safeNewAttentionKey) {
+            await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
+        }
         await invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).set(taskData);
         await markWorkdeskDashboardRecent(true, taskData);
     }

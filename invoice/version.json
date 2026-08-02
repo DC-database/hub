@@ -1,6 +1,6 @@
 {
-  "version": "11.7.7",
+  "version": "11.7.8",
   "releasedAt": "2026-08-02",
-  "title": "WorkDesk Search Choice + Controlled Mark Paid",
-  "message": "WorkDesk search now highlights matching categories without opening results until a card is selected, and authorized Accounts/Accounting Admin users can mark individual Ready for Payment invoices Paid using the verified next-day date rule."
+  "title": "All Active Blank-Attention Index Repair",
+  "message": "On Hold, Pending, and For Summary invoices now remain in the compact All Active Dashboard index even when their workflow intentionally clears Attention, while personal task indexes remain limited to named assignees."
 }
