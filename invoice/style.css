@@ -33898,6 +33898,53 @@ body #im-pocket-transfer-modal.modal-overlay:not(.hidden) .im-pocket-transfer-ta
     color: #003a5c !important;
 }
 
+/* 11.7.7 — Controlled row-level payment action */
+#wd-dashboard .wd-payment-pocket-action-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+#wd-dashboard .wd-payment-pocket-mark-paid {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 6px 11px;
+    border: 1px solid #0b6170;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #075985, #0f766e);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.71rem;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 7px 15px rgba(7, 89, 133, 0.18);
+    transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+#wd-dashboard .wd-payment-pocket-mark-paid:hover,
+#wd-dashboard .wd-payment-pocket-mark-paid:focus-visible {
+    filter: brightness(1.06);
+    outline: 3px solid rgba(229, 185, 63, 0.28);
+    outline-offset: 2px;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(7, 89, 133, 0.24);
+}
+
+#wd-dashboard .wd-payment-pocket-mark-paid:disabled {
+    cursor: wait;
+    filter: grayscale(0.2);
+    opacity: 0.7;
+    transform: none;
+}
+
+#wd-dashboard .wd-payment-pocket-table:has(.wd-payment-pocket-mark-paid) {
+    min-width: 1180px;
+}
+
 @media (max-width: 700px) {
     #wd-dashboard .wd-payment-pocket-tools select {
         width: 100% !important;

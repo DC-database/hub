@@ -1,6 +1,6 @@
 {
-  "version": "11.7.6",
+  "version": "11.7.7",
   "releasedAt": "2026-08-02",
-  "title": "Paid History Popup Repair",
-  "message": "The Ready for Payment Paid History window now opens above WorkDesk instead of remaining trapped inside a hidden modal, and the duplicate bottom version label has been removed from Invoice Management."
+  "title": "WorkDesk Search Choice + Controlled Mark Paid",
+  "message": "WorkDesk search now highlights matching categories without opening results until a card is selected, and authorized Accounts/Accounting Admin users can mark individual Ready for Payment invoices Paid using the verified next-day date rule."
 }
