@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.7.1';
+const APP_VERSION = '11.7.2';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -358,6 +358,7 @@ let allVendorsData = null; // New Cache for Vendors.csv
 // -- Workdesk <-> IM Context --
 let jobEntryToUpdateAfterInvoice = null;
 let pendingJobEntryDataForInvoice = null;
+let currentInvoiceEntryGroup = '';
 
 let cacheTimestamps = {
     poData: 0,
@@ -4325,6 +4326,13 @@ async function handleAddInvoice(e) {
     imApplyRetentionInvoiceNoRuleToForm();
     const formData = new FormData(imNewInvoiceForm);
     const invoiceData = Object.fromEntries(formData.entries());
+
+    // 11.7.2: Preserve the WorkDesk/PO invoice Group in the permanent invoice.
+    const invoiceGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+        ? imGetCurrentInvoiceEntryGroup()
+        : normalizeNameText(currentInvoiceEntryGroup || 'Normal');
+    invoiceData.group = invoiceGroup || 'Normal';
+    invoiceData.invoiceGroup = invoiceData.group;
     
     // SANITIZE: Remove commas before saving
     if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
@@ -4573,6 +4581,14 @@ async function handleUpdateInvoice(e) {
     imApplyInvoiceAttentionRule(invoiceData);
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
+    // Keep Group available for future group-aware SRV routing, including old records.
+    const invoiceGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+        ? imGetCurrentInvoiceEntryGroup()
+        : normalizeNameText(
+            originalInvoiceData?.group || originalInvoiceData?.invoiceGroup || currentInvoiceEntryGroup || 'Normal'
+        );
+    invoiceData.group = invoiceGroup || 'Normal';
+    invoiceData.invoiceGroup = invoiceData.group;
     const newStatus = invoiceData.status;
     const oldStatus = originalInvoiceData ? originalInvoiceData.status : '';
 
@@ -7530,6 +7546,7 @@ try {
                 }
                 jobEntryToUpdateAfterInvoice = key;
                 pendingJobEntryDataForInvoice = taskData;
+                currentInvoiceEntryGroup = String(taskData.group || taskData.category || 'Normal').trim() || 'Normal';
                 invoiceManagementButton.click();
                 setTimeout(() => {
                     const link = imNav.querySelector('a[data-section="im-invoice-entry"]');

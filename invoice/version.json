@@ -1,6 +1,6 @@
 {
-  "version": "11.7.1",
-  "releasedAt": "2026-08-01",
-  "title": "Invoice Records Super Admin Edit Lock",
-  "message": "Existing invoice editing from Invoice Records is now limited to Irwin/Super Admin or the active assigned vacation replacement. Other Admin users retain read, PDF, history, print, and reporting access."
+  "version": "11.7.2",
+  "releasedAt": "2026-08-02",
+  "title": "Group-Aware SRV Routing and Payment Pocket Refinements",
+  "message": "Invoice Entry and Batch Entry now preserve Group-aware For SRV routing, Logistic users can access Ready for Payment, missing pocket SRV links remain blank without archive reads, and the WorkDesk clock now shows weekday, date, and a compact version mark."
 }
