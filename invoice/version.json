@@ -1,6 +1,6 @@
 {
-  "version": "11.8.4",
+  "version": "11.8.5",
   "releasedAt": "2026-08-02",
-  "title": "Active Task Navigation Contrast Correction",
-  "message": "WorkDesk and Invoice Management Active Task alerts now keep dark, readable titles and icons on their light pulse cards across desktop and mobile navigation."
+  "title": "Strict Invoice Dashboard Access",
+  "message": "The Invoice Management Dashboard is now visible and accessible only to Super Admin or users whose position is Finance, Accounts, Accounting, CEO, or COO, regardless of User/Admin role. Other users are routed to a permitted section."
 }

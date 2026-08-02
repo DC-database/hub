@@ -645,6 +645,15 @@ body.wd-paid-history-open {
 }
 
 /* ========================================================================== */
+/* 11.8.5 — Strict Invoice Dashboard visibility                               */
+/* ========================================================================== */
+
+/* Fail closed until the authenticated user's position has been checked. */
+body:not(.iba-can-see-im-dashboard) #invoice-management-view#invoice-management-view#invoice-management-view :is(.im-nav-dashboard, #im-dashboard) {
+    display: none !important;
+}
+
+/* ========================================================================== */
 /* 11.8.4 — WorkDesk and Invoice Active Task navigation contrast              */
 /* ========================================================================== */
 

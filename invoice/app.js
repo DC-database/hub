@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.8.4';
+const APP_VERSION = '11.8.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -7736,6 +7736,12 @@ try {
         const canAccessPayments = (typeof canCurrentUserAccessPayments === 'function')
             ? canCurrentUserAccessPayments()
             : false;
+        const canAccessDashboard = (typeof canCurrentUserAccessInvoiceDashboard === 'function')
+            ? canCurrentUserAccessInvoiceDashboard()
+            : false;
+        if (document.body) {
+            document.body.classList.toggle('iba-can-see-im-dashboard', canAccessDashboard);
+        }
         const financeTokens = String(userPos || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         // 11.0.3: Allow QS and Senior QS positions to access Invoice Management → Financial Report.
         const hasFinancePosition = financeTokens.some(t => ['finance', 'accounts', 'accounting', 'ceo', 'coo', 'qs', 'seniorqs'].includes(t));
@@ -7779,7 +7785,7 @@ try {
                 link.classList.remove('hidden');
             }
 
-            if (section === 'im-dashboard' && !(isAdmin || isVacationDelegate || isSuperAdmin)) {
+            if (section === 'im-dashboard' && !canAccessDashboard) {
                 li.style.display = 'none';
             }
 
@@ -7810,18 +7816,27 @@ try {
             return;
         }
 
-        // --- STRICT ROUTING: ALWAYS DASHBOARD ---
+        // 11.8.5: Land only on a section this user is permitted to open.
         imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
 
-        // We default to Dashboard for everyone who can see IM.
-        // If they are not admin, they shouldn't see the IM button in the first place (handled in login).
-        // But if they are here, Dashboard is the safe landing page.
-        const dashLink = imNav.querySelector('a[data-section="im-dashboard"]');
-        if (dashLink) dashLink.classList.add('active');
+        const landingSection = (typeof getInvoiceManagementLandingSection === 'function')
+            ? getInvoiceManagementLandingSection()
+            : (canAccessDashboard ? 'im-dashboard' : (canAccessInvoiceRecords ? 'im-reporting' : null));
 
-        // Load Dashboard immediately (Single Click Fix)
+        if (!landingSection) {
+            showView('workdesk');
+            document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+            const activeTaskLink = workdeskNav.querySelector('a[data-section="wd-activetask"]');
+            if (activeTaskLink) activeTaskLink.classList.add('active');
+            if (typeof showWorkdeskSection === 'function') showWorkdeskSection('wd-activetask');
+            return;
+        }
+
+        const landingLink = imNav.querySelector(`a[data-section="${landingSection}"]`);
+        if (landingLink) landingLink.classList.add('active');
+
         setTimeout(() => {
-            showIMSection('im-dashboard');
+            showIMSection(landingSection);
         }, 50);
     });
 
