@@ -31,6 +31,60 @@ function showView(viewName) {
     }
 }
 
+// 11.8.5: Invoice Dashboard access is position-based and independent of the
+// user's User/Admin role. Keep this permission centralized so navigation,
+// direct section routing, and dashboard data loading use the same rule.
+function getInvoiceDashboardAccessState(user = null) {
+    const activeUser = user || currentApprover || window.currentApprover || null;
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const userName = normalize(activeUser?.Name || activeUser?.name || activeUser?.username);
+    const position = normalize(activeUser?.Position || activeUser?.position);
+    const superAdminName = normalize(
+        (typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin'
+    );
+    const positionTokens = position.split(/[^a-z0-9]+/).filter(Boolean);
+    const isSuperAdmin = Boolean(userName && superAdminName && userName === superAdminName);
+    const hasAllowedPosition = positionTokens.some(token =>
+        ['finance', 'accounts', 'accounting', 'ceo', 'coo'].includes(token)
+    ) || position === 'chief executive officer' || position === 'chief operating officer';
+
+    return {
+        isSuperAdmin,
+        hasAllowedPosition,
+        canAccessDashboard: Boolean(activeUser && (isSuperAdmin || hasAllowedPosition))
+    };
+}
+
+function canCurrentUserAccessInvoiceDashboard() {
+    return getInvoiceDashboardAccessState().canAccessDashboard;
+}
+
+function getInvoiceManagementLandingSection() {
+    const user = currentApprover || window.currentApprover || null;
+    if (!user) return null;
+    if (canCurrentUserAccessInvoiceDashboard()) return 'im-dashboard';
+
+    const normalize = value => String(value || '').trim().toLowerCase();
+    const role = normalize(user.Role || user.role);
+    const access = getInvoiceDashboardAccessState(user);
+    let isVacationDelegate = false;
+    try {
+        isVacationDelegate = Boolean(
+            typeof isVacationDelegateUser === 'function' && isVacationDelegateUser()
+        );
+    } catch (_) {}
+
+    if (role === 'admin' || access.isSuperAdmin || isVacationDelegate) return 'im-reporting';
+    if (typeof canCurrentUserAccessPayments === 'function' && canCurrentUserAccessPayments()) return 'im-payments';
+    return null;
+}
+
+try {
+    window.getInvoiceDashboardAccessState = getInvoiceDashboardAccessState;
+    window.canCurrentUserAccessInvoiceDashboard = canCurrentUserAccessInvoiceDashboard;
+    window.getInvoiceManagementLandingSection = getInvoiceManagementLandingSection;
+} catch (_) {}
+
 // --- Authentication Helpers ---
 
 async function findApprover(identifier) {
@@ -527,8 +581,40 @@ function showIMSection(sectionId) {
     const canAccessPayments = (typeof canCurrentUserAccessPayments === 'function')
         ? canCurrentUserAccessPayments()
         : false;
+    const canAccessDashboard = canCurrentUserAccessInvoiceDashboard();
+
+    if (document.body) {
+        document.body.classList.toggle('iba-can-see-im-dashboard', canAccessDashboard);
+    }
 
     // 3. Strict Access Control Checks
+    if (sectionId === 'im-dashboard' && !canAccessDashboard) {
+        alert('Access Denied: Invoice Dashboard is limited to Super Admin, Finance, Accounts, Accounting, CEO, and COO.');
+        const safeSection = getInvoiceManagementLandingSection();
+        if (!safeSection || safeSection === 'im-dashboard') {
+            showView('workdesk');
+            document.querySelectorAll('#workdesk-nav a, .workdesk-footer-nav a').forEach(a => a.classList.remove('active'));
+            const activeTaskLink = document.querySelector('#workdesk-nav a[data-section="wd-activetask"]');
+            if (activeTaskLink) activeTaskLink.classList.add('active');
+            if (typeof showWorkdeskSection === 'function') showWorkdeskSection('wd-activetask');
+            return;
+        }
+
+        sectionId = safeSection;
+        if (imNav) {
+            imNav.querySelectorAll('a').forEach(a => a.classList.remove('active'));
+            const safeLink = imNav.querySelector(`a[data-section="${safeSection}"]`);
+            if (safeLink) {
+                safeLink.classList.add('active');
+                const parentGroup = safeLink.closest('.im-nav-group');
+                if (parentGroup) {
+                    parentGroup.classList.add('is-open');
+                    parentGroup.querySelector('[data-im-nav-group-toggle]')?.setAttribute('aria-expanded', 'true');
+                }
+            }
+        }
+    }
+
     if ((sectionId === 'im-invoice-entry' || sectionId === 'im-batch-entry') && !canAccessInvoiceWrite) {
         alert('Access Denied: Invoice Entry and Batch Entry are Super Admin only.');
         return;

@@ -1,5 +1,5 @@
 // js/app-history-transfer.js
-// Version 8.5.8
+// Version 11.8.5
 // Moved from app.js: BLOCK 24 — Invoice / Transfer History + Stock Reversal
 // Logic preserved; only file location changed.
 
@@ -266,6 +266,10 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
     if (dashboardNavLink) {
         dashboardNavLink.addEventListener('dblclick', (e) => {
             e.preventDefault();
+            const canAccessDashboard = (typeof canCurrentUserAccessInvoiceDashboard === 'function')
+                ? canCurrentUserAccessInvoiceDashboard()
+                : false;
+            if (!canAccessDashboard) return;
             // Only load if we are currently IN the IM view
             if (!invoiceManagementView.classList.contains('hidden')) {
                 // Visual Feedback

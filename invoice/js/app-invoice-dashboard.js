@@ -1,10 +1,18 @@
 // =================================================================================================
 // IBA WorkDesk - Invoice Management Dashboard Module
-// Version 8.4.9
+// Version 11.8.5
 // Purpose: Premium Invoice Management dashboard UI polish only. Existing data source and chart logic preserved.
 // =================================================================================================
 
 async function populateInvoiceDashboard(forceRefresh = false) {
+    const canAccessDashboard = (typeof canCurrentUserAccessInvoiceDashboard === 'function')
+        ? canCurrentUserAccessInvoiceDashboard()
+        : false;
+    if (!canAccessDashboard) {
+        console.warn('Invoice Dashboard load blocked by access control.');
+        return;
+    }
+
     const dashboardSection = document.getElementById('im-dashboard');
     if (!dashboardSection) return;
 
