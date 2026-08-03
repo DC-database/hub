@@ -13,6 +13,181 @@
     --iba-invoice-line: rgba(255,255,255,0.86);
 }
 
+/* ========================================================================
+   11.8.7 — Batch Entry follows the Invoice teal / navy / peach palette.
+   Semantic success, warning, and delete states keep their own meaning.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #invoice-management-view#invoice-management-view #im-batch-entry {
+        --batch-navy: var(--iba-im-navy, #14293f);
+        --batch-teal: var(--iba-im-teal, #0d7e85);
+        --batch-peach: var(--iba-im-peach, #feb088);
+        --batch-soft: #effafa;
+        --batch-border: rgba(13,126,133,.24);
+        color: var(--batch-navy) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top {
+        background:
+            radial-gradient(circle at 96% 0%, rgba(254,176,136,.18), transparent 30%),
+            linear-gradient(135deg, var(--batch-navy) 0%, #16495a 52%, var(--batch-teal) 100%) !important;
+        border: 1px solid rgba(254,176,136,.62) !important;
+        border-bottom: 2px solid var(--batch-peach) !important;
+        box-shadow: 0 18px 38px rgba(20,41,63,.16) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top :is(h1, p, .icon-wrapper, .icon-wrapper i) {
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top .icon-wrapper {
+        background: rgba(255,255,255,.12) !important;
+        border: 1px solid rgba(255,255,255,.22) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry #batch-count-display {
+        background: rgba(255,255,255,.13) !important;
+        border-color: rgba(254,176,136,.54) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry > div:nth-of-type(2),
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-global-controls {
+        background:
+            radial-gradient(circle at 0 0, rgba(13,126,133,.07), transparent 32%),
+            linear-gradient(180deg, #ffffff, var(--batch-soft)) !important;
+        border-color: var(--batch-border) !important;
+        box-shadow: 0 14px 30px rgba(20,41,63,.075) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-global-controls > div:first-child,
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(.search-bar-local i, #im-batch-global-controls .fa-solid) {
+        color: var(--batch-teal) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(label, .batch-input-grid label),
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-global-controls label {
+        color: var(--batch-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(input, select, textarea, .choices__inner) {
+        border-color: var(--batch-border) !important;
+        color: var(--batch-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(input, select, textarea):focus,
+    #invoice-management-view#invoice-management-view #im-batch-entry .choices.is-focused .choices__inner,
+    #invoice-management-view#invoice-management-view #im-batch-entry .search-bar-local:focus-within {
+        border-color: var(--batch-peach) !important;
+        box-shadow: 0 0 0 4px rgba(254,176,136,.18), 0 8px 18px rgba(20,41,63,.08) !important;
+        outline: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(#im-batch-add-po-button, #im-batch-save-button, #im-batch-search-by-status-button) {
+        background: linear-gradient(135deg, var(--batch-teal), var(--batch-navy)) !important;
+        border-color: rgba(254,176,136,.42) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+        box-shadow: 0 9px 18px rgba(20,41,63,.13) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry :is(#im-batch-search-existing-button, #im-batch-search-by-note-button, #im-refresh-batch-button) {
+        background: #ffffff !important;
+        border: 1px solid var(--batch-border) !important;
+        color: var(--batch-teal) !important;
+        -webkit-text-fill-color: currentColor !important;
+        box-shadow: 0 7px 14px rgba(20,41,63,.07) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-clear-button {
+        background: #fff5f5 !important;
+        border-color: rgba(185,28,28,.25) !important;
+        color: #b91c1c !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-invoice-card {
+        border-color: var(--batch-border) !important;
+        box-shadow: 0 14px 30px rgba(20,41,63,.09) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-invoice-card:hover {
+        border-color: rgba(254,176,136,.72) !important;
+        box-shadow: 0 18px 36px rgba(20,41,63,.13) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header,
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header[style] {
+        background: linear-gradient(135deg, var(--batch-navy) 0%, #16495a 52%, var(--batch-teal) 100%) !important;
+        border-bottom-color: var(--batch-peach) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header :is(label, label[style]) {
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header :is(input, select, .batch-attention-btn) {
+        background: #ffffff !important;
+        color: var(--batch-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+        border: 1px solid rgba(255,255,255,.32) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header .btn-quick-ipc {
+        background: var(--batch-teal) !important;
+        border: 1px solid rgba(255,255,255,.34) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-header .btn-quick-five {
+        background: var(--batch-peach) !important;
+        border: 1px solid rgba(255,255,255,.38) !important;
+        color: var(--batch-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-body,
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-input-grid > div {
+        background: linear-gradient(180deg, #ffffff, #f7fbfc) !important;
+        border-color: rgba(13,126,133,.16) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-body .batch-input-grid label,
+    #invoice-management-view#invoice-management-view #im-batch-table-body .batch-card-body .batch-input-grid label[style] {
+        color: var(--batch-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry table thead :is(tr, th),
+    #im-batch-search-modal#im-batch-search-modal table.batch-existing-invoices-table thead :is(tr, th) {
+        background: var(--iba-im-navy, #14293f) !important;
+        background-color: var(--iba-im-navy, #14293f) !important;
+        background-image: none !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+        border-color: rgba(255,255,255,.18) !important;
+    }
+
+    #im-batch-search-modal#im-batch-search-modal .modal-header {
+        background: linear-gradient(135deg, var(--iba-im-navy, #14293f), var(--iba-im-teal, #0d7e85)) !important;
+        border-bottom-color: var(--iba-im-peach, #feb088) !important;
+    }
+
+    #im-batch-search-modal#im-batch-search-modal :is(#im-batch-modal-search-btn, #im-batch-modal-add-selected-btn) {
+        background: linear-gradient(135deg, var(--iba-im-teal, #0d7e85), var(--iba-im-navy, #14293f)) !important;
+        border-color: rgba(254,176,136,.46) !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+}
+
 @media (min-width: 769px) {
     #invoice-management-view {
         --module-accent: var(--iba-invoice);
@@ -701,3 +876,91 @@
     opacity: 1 !important;
 }
 
+/* ========================================================================
+   11.8.7 — Invoice Entry Active Jobs panel uses the Invoice palette.
+   ======================================================================== */
+@media (min-width: 769px) {
+    #invoice-management-view#invoice-management-view #im-entry-sidebar {
+        background:
+            radial-gradient(circle at 100% 0%, rgba(254,176,136,.20), transparent 31%),
+            linear-gradient(180deg, var(--iba-im-navy, #14293f) 0%, #16495a 52%, var(--iba-im-teal, #0d7e85) 100%) !important;
+        border-left: 1px solid rgba(254,176,136,.55) !important;
+        box-shadow: -16px 0 36px rgba(20,41,63,.22) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar :is(#active-jobs-sidebar-count-display, .im-sidebar-title) {
+        margin: 0 0 14px !important;
+        padding: 0 0 11px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(254,176,136,.58) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar :is(#active-jobs-sidebar-count-display, .im-sidebar-title)::after {
+        background: linear-gradient(90deg, var(--iba-im-peach, #feb088), rgba(254,176,136,.18), transparent) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar #im-sidebar-search,
+    #invoice-management-view#invoice-management-view #im-entry-sidebar input#im-sidebar-search[style] {
+        background: #ffffff !important;
+        border: 1px solid rgba(13,126,133,.42) !important;
+        color: var(--iba-im-navy, #14293f) !important;
+        -webkit-text-fill-color: currentColor !important;
+        box-shadow: 0 8px 18px rgba(20,41,63,.12) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar #im-sidebar-search::placeholder {
+        color: #6a7885 !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar #im-sidebar-search:focus {
+        border-color: var(--iba-im-peach, #feb088) !important;
+        box-shadow: 0 0 0 4px rgba(254,176,136,.18), 0 10px 22px rgba(20,41,63,.16) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-no-jobs {
+        color: rgba(255,255,255,.82) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item {
+        background: linear-gradient(180deg, #ffffff, #f5fbfb) !important;
+        border: 1px solid rgba(13,126,133,.22) !important;
+        border-left: 4px solid var(--iba-im-teal, #0d7e85) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 9px 20px rgba(20,41,63,.14) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item:is(:hover, .active, .selected) {
+        transform: translateX(-3px) !important;
+        background: #fef0e8 !important;
+        border-color: rgba(254,176,136,.72) !important;
+        border-left-color: var(--iba-im-peach, #feb088) !important;
+        box-shadow: 0 13px 26px rgba(20,41,63,.18) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar :is(.im-compact-po, .im-compact-vendor) {
+        color: var(--iba-im-navy, #14293f) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-compact-amount {
+        color: var(--iba-im-teal, #0d7e85) !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-compact-status,
+    #invoice-management-view#invoice-management-view #im-entry-sidebar .im-compact-category[style] {
+        background: #dff6f4 !important;
+        border-color: rgba(13,126,133,.24) !important;
+        color: #0b5960 !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+}

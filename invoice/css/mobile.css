@@ -28,6 +28,312 @@ body:not(.inventory-mode) #workdesk-nav .wd-nav-material {
   }
 }
 
+/* =====================================================================
+   11.8.7 — Connected mobile Invoice Records accordion
+   One PO card owns its invoice timeline; no detached table or horizontal scroll.
+   ===================================================================== */
+@media (max-width: 900px) {
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-mobile-po-accordion,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-mobile-po-accordion {
+    width: 100% !important;
+    margin: 12px 0 !important;
+    border: 1px solid rgba(13, 126, 133, .25) !important;
+    border-radius: 22px !important;
+    background: #ffffff !important;
+    box-shadow: 0 14px 34px rgba(20, 41, 63, .10) !important;
+    overflow: hidden !important;
+  }
+
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-po-balance-card,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-po-balance-card {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 15px !important;
+    border: 0 !important;
+    border-top: 5px solid #0d7e85 !important;
+    border-radius: 21px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f4fbfb 100%) !important;
+    color: #14293f !important;
+    -webkit-text-fill-color: currentColor !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    overflow: visible !important;
+  }
+
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-mobile-po-accordion.is-expanded .im-po-balance-card,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-mobile-po-accordion.is-expanded .im-po-balance-card {
+    border-radius: 21px 21px 0 0 !important;
+    border-bottom: 1px solid rgba(13, 126, 133, .18) !important;
+  }
+
+  #im-reporting-mobile-view .im-po-balance-card::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  #im-reporting-mobile-view .po-card-header {
+    align-items: center !important;
+    margin: 0 0 10px !important;
+  }
+
+  #im-reporting-mobile-view .po-card-ponum {
+    color: #14293f !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-size: 1.08rem !important;
+    font-weight: 950 !important;
+  }
+
+  #im-reporting-mobile-view .po-card-count {
+    background: #dff6f4 !important;
+    border: 1px solid rgba(13, 126, 133, .22) !important;
+    color: #0b5960 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  #im-reporting-mobile-view .po-card-chevron {
+    color: #0d7e85 !important;
+    -webkit-text-fill-color: currentColor !important;
+    transition: transform .2s ease !important;
+  }
+
+  #im-reporting-mobile-view .im-mobile-po-accordion.is-expanded .po-card-chevron {
+    transform: rotate(180deg) !important;
+  }
+
+  #im-reporting-mobile-view .po-card-vendor-block {
+    margin: 0 0 10px !important;
+    padding: 10px 11px !important;
+    border: 1px solid rgba(13, 126, 133, .16) !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,.86) !important;
+  }
+
+  #im-reporting-mobile-view .po-card-vendor-block strong {
+    color: #14293f !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  #im-reporting-mobile-view .po-card-site {
+    margin: 0 !important;
+    background: #fef0e8 !important;
+    border-color: rgba(254, 176, 136, .56) !important;
+    color: #713b25 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  #im-reporting-mobile-view .po-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+    margin: 10px 0 0 !important;
+  }
+
+  #im-reporting-mobile-view .po-card-metric,
+  #im-reporting-mobile-view .po-card-metric.balance-metric {
+    min-width: 0 !important;
+    padding: 9px 8px !important;
+    border: 1px solid rgba(13, 126, 133, .16) !important;
+    border-radius: 13px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  #im-reporting-mobile-view .po-card-metric.balance-metric {
+    background: #fef0e8 !important;
+    border-color: rgba(254, 176, 136, .48) !important;
+  }
+
+  #im-reporting-mobile-view .po-card-label,
+  #im-reporting-mobile-view .im-tx-field-label {
+    color: #5f6f7e !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-size: 9.5px !important;
+  }
+
+  #im-reporting-mobile-view .po-card-value,
+  #im-reporting-mobile-view .po-card-balance,
+  #im-reporting-mobile-view .po-card-metric.balance-metric .po-card-value {
+    color: #14293f !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-size: .78rem !important;
+    font-style: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #im-reporting-mobile-view .po-card-balance.negative {
+    color: #b42318 !important;
+  }
+
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-mobile-po-detail,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-mobile-po-detail {
+    margin: 0 !important;
+    padding: 13px !important;
+    border: 0 !important;
+    border-radius: 0 0 21px 21px !important;
+    background: #f5f9fb !important;
+    box-shadow: none !important;
+  }
+
+  #im-reporting-mobile-view .im-invoice-list-header {
+    margin: 0 0 12px !important;
+    padding: 9px 11px !important;
+    border-radius: 13px !important;
+    background: #14293f !important;
+    color: #ffffff !important;
+  }
+
+  #im-reporting-mobile-view .im-invoice-list-header :is(h3, span) {
+    color: #ffffff !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  #im-reporting-mobile-view .im-invoice-list {
+    position: relative !important;
+    display: grid !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    padding: 0 0 0 27px !important;
+    overflow: visible !important;
+  }
+
+  #im-reporting-mobile-view .im-invoice-list::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 14px !important;
+    bottom: 14px !important;
+    left: 10px !important;
+    width: 2px !important;
+    border-radius: 999px !important;
+    background: rgba(13, 126, 133, .28) !important;
+  }
+
+  #im-reporting-mobile-view .im-invoice-item {
+    position: relative !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    border: 1px solid rgba(13, 126, 133, .17) !important;
+    border-left: 3px solid #0d7e85 !important;
+    border-radius: 15px !important;
+    background: #ffffff !important;
+    box-shadow: 0 7px 18px rgba(20, 41, 63, .06) !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-timeline-index {
+    position: absolute !important;
+    top: 13px !important;
+    left: -36px !important;
+    width: 24px !important;
+    height: 24px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 3px solid #f5f9fb !important;
+    border-radius: 50% !important;
+    background: #0d7e85 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-size: 10px !important;
+    font-weight: 950 !important;
+    z-index: 1 !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-title {
+    color: #0d7e85 !important;
+    -webkit-text-fill-color: currentColor !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-status {
+    max-width: 46% !important;
+    background: #fef0e8 !important;
+    border-color: rgba(254, 176, 136, .54) !important;
+    color: #713b25 !important;
+    -webkit-text-fill-color: currentColor !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-amount-panel,
+  #im-reporting-mobile-view .im-tx-meta-line {
+    margin-top: 8px !important;
+    padding: 8px 9px !important;
+    border: 1px solid #e0e8ed !important;
+    border-radius: 11px !important;
+    background: #f8fbfc !important;
+    color: #5f6f7e !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-amount-panel strong,
+  #im-reporting-mobile-view .im-tx-meta-line strong {
+    color: #14293f !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-align: right !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-actions {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 9px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-action-btn,
+  #im-reporting-mobile-view .im-tx-actions .im-tx-action-btn:only-child {
+    min-width: 0 !important;
+    min-height: 34px !important;
+    padding: 6px 5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-radius: 10px !important;
+    background: #0d7e85 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: currentColor !important;
+    font-size: 9.5px !important;
+    font-weight: 900 !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-action-btn.srv-pdf-btn {
+    background: #14293f !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-action-btn.report-pdf-btn {
+    background: #feb088 !important;
+    color: #14293f !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-no-pdf {
+    margin-top: 9px !important;
+    color: #7b8794 !important;
+    font-size: 10.5px !important;
+  }
+}
+
+@media (max-width: 370px) {
+  #im-reporting-mobile-view .po-card-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  #im-reporting-mobile-view .po-card-metric.balance-metric {
+    grid-column: 1 / -1 !important;
+  }
+
+  #im-reporting-mobile-view .im-tx-actions {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
 /* ============================================================
    iba-inventory-mobile-nav-guard
    Moved from index.html in 7.4.7 for easier mobile UI maintenance.
