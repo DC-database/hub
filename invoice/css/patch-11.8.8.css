@@ -1,0 +1,261 @@
+/* ========================================================================== 
+   IBA 11.8.8 — Corrective patch
+   Scope:
+   - WorkDesk Active Task Queue Date count contrast.
+   - Mobile Inventory / Invoice-Task bottom navigation readability.
+   - Clean mobile Inventory Tasks / My Tasks title rows.
+   - Invoice Entry modal title/footer highlight cleanup.
+   No layout workflow, data, permission, or Firebase-path changes.
+   ========================================================================== */
+
+/* 4 — Active Task Queue Date count must stay readable on both states.
+   Extra ID specificity intentionally beats the older global adaptive-button rule. */
+body:not(.inventory-mode)
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#wd-activetask #active-task-date-tabs .wd-date-tab .wd-date-tab-count {
+    background: #eef8fb !important;
+    background-image: none !important;
+    color: #14293f !important;
+    -webkit-text-fill-color: #14293f !important;
+    border: 1px solid rgba(1, 86, 146, .16) !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    font-weight: 850 !important;
+}
+
+body:not(.inventory-mode)
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#wd-activetask #active-task-date-tabs .wd-date-tab.active .wd-date-tab-count {
+    background: rgba(255, 255, 255, .94) !important;
+    background-image: none !important;
+    color: #14293f !important;
+    -webkit-text-fill-color: #14293f !important;
+    border-color: rgba(255, 255, 255, .72) !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 900px) {
+    /* 5 — Inactive mobile destinations must not inherit the old white sidebar text. */
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation {
+        background: #ffffff !important;
+        background-image: none !important;
+        border-top-color: rgba(20, 41, 63, .16) !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation a:not(.active):not(#mobile-nav-logout) {
+        background: transparent !important;
+        background-image: none !important;
+        border-color: transparent !important;
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation {
+        background: #ffffff !important;
+        background-image: none !important;
+        border-top-color: rgba(18, 48, 67, .18) !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation a:not(.active):not(#mobile-nav-logout) {
+        background: transparent !important;
+        background-image: none !important;
+        border-color: transparent !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation {
+        background: #ffffff !important;
+        background-image: none !important;
+        border-top-color: rgba(20, 41, 63, .16) !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation a:not(.active):not(#im-mobile-nav-logout) {
+        background: transparent !important;
+        background-image: none !important;
+        border-color: transparent !important;
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation a:not(.active):not(#mobile-nav-logout) :is(i, span:not(.notification-badge)),
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation a:not(.active):not(#mobile-nav-logout) :is(i, span:not(.notification-badge)),
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation a:not(.active):not(#im-mobile-nav-logout) :is(i, span:not(.notification-badge)) {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    /* 6 — Shared Active Task mobile heading is a title row, never a solid card. */
+    body
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 10px !important;
+        min-height: 44px !important;
+        margin: 0 0 12px !important;
+        padding: 5px 2px 9px !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header,
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header.invoice-mobile-active-task {
+        color: #075985 !important;
+        border-bottom: 2px solid rgba(7, 89, 133, .34) !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header,
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header.inventory-mobile-active-task {
+        color: #226484 !important;
+        border-bottom: 2px solid rgba(102, 192, 184, .54) !important;
+    }
+
+    body
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header h1 {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        text-shadow: none !important;
+        font-size: 1.1rem !important;
+        line-height: 1.15 !important;
+        font-weight: 950 !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header #mobile-activetask-refresh-btn,
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header.invoice-mobile-active-task #mobile-activetask-refresh-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        background: #eef8fb !important;
+        background-image: none !important;
+        border: 1px solid rgba(7, 89, 133, .24) !important;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+        color: #075985 !important;
+        -webkit-text-fill-color: #075985 !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header #mobile-activetask-refresh-btn,
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header.inventory-mobile-active-task #mobile-activetask-refresh-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 40px !important;
+        min-width: 40px !important;
+        height: 40px !important;
+        padding: 0 !important;
+        background: #f4fffd !important;
+        background-image: none !important;
+        border: 1px solid rgba(34, 100, 132, .24) !important;
+        border-radius: 12px !important;
+        box-shadow: none !important;
+        color: #226484 !important;
+        -webkit-text-fill-color: #226484 !important;
+        opacity: 1 !important;
+    }
+
+    body
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #wd-activetask #active-task-mobile-header #mobile-activetask-refresh-btn i {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+}
+
+/* 13 — Invoice Entry title and PO/Site/Vendor summary use clean surfaces. */
+body #im-invoice-entry-modal#im-invoice-entry-modal .modal-header #im-form-title {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-bottom: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+}
+
+body #im-invoice-entry-modal#im-invoice-entry-modal .modal-header #im-form-title::after {
+    content: none !important;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+body #im-invoice-entry-modal#im-invoice-entry-modal .modal-footer.im-entry-modal-footer {
+    background: #f8fbfc !important;
+    background-color: #f8fbfc !important;
+    background-image: none !important;
+    border-top: 1px solid rgba(13, 126, 133, .18) !important;
+    box-shadow: none !important;
+}
+
+body #im-invoice-entry-modal#im-invoice-entry-modal .im-footer-po-summary,
+body #im-invoice-entry-modal#im-invoice-entry-modal .im-footer-po-item,
+body #im-invoice-entry-modal#im-invoice-entry-modal .im-footer-po-item :is(strong, span) {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}

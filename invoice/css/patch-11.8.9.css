@@ -1,0 +1,315 @@
+/* ========================================================================== 
+   IBA 11.8.9 — Mobile logout, Invoice Records contrast, and open desktop shell
+   Scope:
+   - Restore Logout in the mobile WorkDesk / Inventory / Invoice bottom nav.
+   - Keep every mobile Invoice Records PO-summary value readable without hover.
+   - Visually flatten the large desktop module wrapper while preserving its DOM.
+   - Give WorkDesk, Inventory, and Invoice Management the same open spacing and
+     a slim module-coloured top accent line.
+   No workflow, data, permission, Firebase-path, or accordion logic changes.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   15 — Mobile Logout must be a visible bottom-navigation destination.
+   The element and logout handler already exist; this only restores its layout.
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+    body.iba-mobile-ui
+    #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    body.inventory-mode
+    #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    body.iba-mobile-ui
+    #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    body.im-mobile-reporting-mode
+    #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+        display: flex !important;
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+    }
+
+    body.iba-mobile-ui
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout,
+    body.inventory-mode
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout,
+    body.iba-mobile-ui
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout,
+    body.im-mobile-reporting-mode
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout {
+        display: flex !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        background: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout :is(i, span),
+    body.inventory-mode
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout :is(i, span),
+    body.iba-mobile-ui
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout :is(i, span),
+    body.im-mobile-reporting-mode
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout :is(i, span) {
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout:is(:hover, :focus-visible),
+    body.inventory-mode
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout:is(:hover, :focus-visible),
+    body.iba-mobile-ui
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout:is(:hover, :focus-visible),
+    body.im-mobile-reporting-mode
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout:is(:hover, :focus-visible) {
+        background: #fff1f0 !important;
+        color: #8f1d14 !important;
+        -webkit-text-fill-color: #8f1d14 !important;
+        outline: none !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   16 — Mobile Invoice Records PO summary must be readable at rest.
+   High specificity intentionally defeats older button/status/hover colour rules.
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card,
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card:is(:hover, :focus, :focus-visible, :active) {
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        text-shadow: none !important;
+    }
+
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-ponum,
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-vendor-block strong,
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-metric .po-card-value {
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-label {
+        color: #4c6072 !important;
+        -webkit-text-fill-color: #4c6072 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-site,
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-site i {
+        color: #713b25 !important;
+        -webkit-text-fill-color: #713b25 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-count,
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-chevron {
+        color: #0b5960 !important;
+        -webkit-text-fill-color: #0b5960 !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view
+    button.im-po-balance-card .po-card-balance.negative {
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   17 — Desktop open module shell trial.
+   Keep the wrapper elements for JavaScript safety, but remove their card look.
+   The three modules share the same spacing model and retain one slim identity line.
+   -------------------------------------------------------------------------- */
+@media (min-width: 901px) {
+    #workdesk-view#workdesk-view .workdesk-main,
+    #inventory-view#inventory-view .workdesk-main,
+    #invoice-management-view#invoice-management-view .workdesk-main {
+        padding: 18px 28px 26px !important;
+    }
+
+    #workdesk-view#workdesk-view .workdesk-section,
+    #inventory-view#inventory-view .workdesk-section,
+    #invoice-management-view#invoice-management-view .workdesk-section {
+        padding: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view #workdesk-content-area,
+    #invoice-management-view#invoice-management-view #im-content-area,
+    #inventory-view#inventory-view .workdesk-main {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view #workdesk-content-area::before,
+    #invoice-management-view#invoice-management-view #im-content-area::before,
+    #inventory-view#inventory-view .workdesk-main::before {
+        content: "" !important;
+        display: block !important;
+        width: 100% !important;
+        height: 3px !important;
+        margin: 0 0 16px !important;
+        border: 0 !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+        pointer-events: none !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view #workdesk-content-area::before {
+        background: linear-gradient(90deg, #015692 0%, #53bfd8 62%, rgba(83,191,216,0) 100%) !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view #workdesk-content-area::before,
+    #inventory-view#inventory-view .workdesk-main::before {
+        background: linear-gradient(90deg, #226484 0%, #66c0b8 62%, rgba(102,192,184,0) 100%) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-content-area::before {
+        background: linear-gradient(90deg, #0d7e85 0%, #feb088 62%, rgba(254,176,136,0) 100%) !important;
+    }
+
+    /* Prevent legacy section rules from recreating the old top border/card. */
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view .workdesk-section,
+    body.inventory-mode
+    #workdesk-view#workdesk-view .workdesk-section,
+    #inventory-view#inventory-view .workdesk-section,
+    #invoice-management-view#invoice-management-view .workdesk-section {
+        border-top-width: 0 !important;
+        border-top-style: none !important;
+        border-top-color: transparent !important;
+    }
+}
+
+/* Device-class fallback: some forced-desktop mobile browsers reach the 900px
+   layout before the body routing class is applied. Keep the same fixes active. */
+@media (max-width: 900px) {
+    #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+        display: flex !important;
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+    }
+
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout,
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout {
+        display: flex !important;
+        width: 100% !important;
+        height: 100% !important;
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        background: transparent !important;
+        background-image: none !important;
+        opacity: 1 !important;
+    }
+
+    #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout :is(i, span),
+    #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout :is(i, span) {
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card,
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card:is(:hover, :focus, :focus-visible, :active) {
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        text-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card :is(.po-card-ponum, .po-card-vendor-block strong, .po-card-metric .po-card-value) {
+        color: #14293f !important;
+        -webkit-text-fill-color: #14293f !important;
+        opacity: 1 !important;
+        text-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-label {
+        color: #4c6072 !important;
+        -webkit-text-fill-color: #4c6072 !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site,
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site i {
+        color: #713b25 !important;
+        -webkit-text-fill-color: #713b25 !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card :is(.po-card-count, .po-card-chevron) {
+        color: #0b5960 !important;
+        -webkit-text-fill-color: #0b5960 !important;
+        opacity: 1 !important;
+    }
+
+    #invoice-management-view#invoice-management-view
+    #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-balance.negative {
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+    }
+}
