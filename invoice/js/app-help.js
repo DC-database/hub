@@ -1574,6 +1574,15 @@ const imPoDetails = document.getElementById('im-po-details-container');
 
 if (imPoClearBtn) {
     imPoClearBtn.addEventListener('click', () => {
+        // 11.8.8: Clear every PO-file/folder state before clearing the page.
+        if (typeof window.imResetInvoicePOFileActionState === 'function') {
+            window.imResetInvoicePOFileActionState({
+                preserveCurrentPO: false,
+                invalidateCheck: true,
+                reason: 'invoice-entry-page-clear'
+            });
+        }
+
         // 1. Clear Search Inputs
         if (imPoInputTop) imPoInputTop.value = '';
         if (imPoInputBottom) imPoInputBottom.value = '';
@@ -1608,7 +1617,11 @@ if (imPoClearBtn) {
         if (existingContainer) existingContainer.classList.add('hidden');
 
         // 6. Reset Internal State
-        window.currentPO = null;
+        try {
+            currentPO = null;
+        } catch (_) {
+            window.currentPO = null;
+        }
         
         console.log("Invoice Entry Page Cleared.");
     });

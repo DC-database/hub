@@ -2,7 +2,7 @@
    js/app-ui-shortcuts.js
    IBA UI shortcuts, audio toggle UI, quick invoice buttons, WhatsApp inquiry,
    and invoice amount input formatters.
-   Version: 8.1.0
+   Version: 11.8.8
 
    Cleanup Phase:
    - Moved Block 30 out of app.js.
@@ -60,18 +60,36 @@ window.imAddToDeletionCollection = async function(poNumber) {
             selectedPOs[key] = recordData;
             localStorage.setItem('selectedPOs', JSON.stringify(selectedPOs));
 
-            // Update Button UI
+            // 11.8.8: Mark both copies of the same PO-file action together.
+            // The shared reset controller can now reliably restore these buttons
+            // when Clear, a new search, a new invoice, or modal close occurs.
+            const normalizedPO = String(poNumber || '').trim().toUpperCase();
+            const normalizeActionPO = (value) => String(value || '').trim().toUpperCase();
+
+            // Only mark controls that still belong to the PO the user clicked.
+            // Clear/new-search may have replaced the modal while this Firebase query was running.
             document.querySelectorAll('#im-po-collect-btn, .im-po-collect-btn').forEach(btn => {
+                if (normalizeActionPO(btn.dataset.poFilePo) !== normalizedPO) return;
                 btn.innerHTML = `<i class="fa-solid fa-check"></i> Added to List`;
                 btn.style.background = "#059669";
                 btn.disabled = true;
+                btn.setAttribute('aria-disabled', 'true');
+                btn.classList.add('is-added');
+                btn.dataset.poFileFound = '1';
+                btn.dataset.poFilePo = normalizedPO;
+                btn.dataset.poFileState = 'added';
             });
 
             const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
-            if (modalDeletionBtn) {
+            if (modalDeletionBtn && normalizeActionPO(modalDeletionBtn.dataset.poFilePo) === normalizedPO) {
                 modalDeletionBtn.innerHTML = `<i class="fa-solid fa-check"></i>`;
                 modalDeletionBtn.title = 'Added to deletion list';
                 modalDeletionBtn.disabled = true;
+                modalDeletionBtn.setAttribute('aria-disabled', 'true');
+                modalDeletionBtn.classList.add('is-added');
+                modalDeletionBtn.dataset.poFileFound = '1';
+                modalDeletionBtn.dataset.poFilePo = normalizedPO;
+                modalDeletionBtn.dataset.poFileState = 'added';
             }
         }
     } catch (error) {

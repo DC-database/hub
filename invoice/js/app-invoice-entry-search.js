@@ -1,9 +1,143 @@
 // ==========================================================================
-// IBA APP 8.2.2 - Invoice Entry Search / Modal / Form Loader
+// IBA APP 11.8.8 - Invoice Entry Search / Modal / Form Loader
 // Moved from app.js without changing logic.
 // ==========================================================================
 
+// ==========================================================================
+// IBA APP 11.8.8 - Invoice Entry PO-file action state controller
+// Keeps the outer PO-file action and the modal folder button synchronized.
+// ==========================================================================
+
+let imPOFileCheckSequence = 0;
+
+function imNormalizePOFileActionPO(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function imResetPOFileActionButton(button, poNumber, compact = false) {
+    if (!button) return;
+
+    button.disabled = false;
+    button.removeAttribute('aria-disabled');
+    button.classList.remove('is-added');
+    button.dataset.poFileFound = '1';
+    button.dataset.poFilePo = imNormalizePOFileActionPO(poNumber);
+    button.dataset.poFileState = 'ready';
+    button.title = 'Original PO is in file — add to deletion list';
+    button.style.removeProperty('background');
+    button.style.removeProperty('background-color');
+    button.style.removeProperty('color');
+    button.style.removeProperty('opacity');
+    button.innerHTML = compact
+        ? '<i class="fa-solid fa-folder-minus"></i>'
+        : '<i class="fa-solid fa-folder-minus"></i> Add to Deletion List';
+    button.onclick = () => window.imAddToDeletionCollection(poNumber);
+}
+
+function imResetInvoicePOFileActionState(options = {}) {
+    const preserveCurrentPO = options.preserveCurrentPO === true;
+    const invalidateCheck = options.invalidateCheck !== false;
+    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
+    const poRecordEl = document.querySelector('#im-modal-po-details .im-po-record, .im-po-record');
+    const outerCollectBtn = document.getElementById('im-po-collect-btn');
+    const currentPoValue = imNormalizePOFileActionPO(
+        options.poNumber || (typeof currentPO !== 'undefined' ? currentPO : '')
+    );
+
+    const foundPo = imNormalizePOFileActionPO(
+        modalDeletionBtn?.dataset.poFilePo ||
+        poRecordEl?.dataset.poFilePo ||
+        outerCollectBtn?.dataset.poFilePo ||
+        ''
+    );
+    const hasReusableFoundState = preserveCurrentPO &&
+        currentPoValue &&
+        foundPo === currentPoValue &&
+        (
+            modalDeletionBtn?.dataset.poFileFound === '1' ||
+            poRecordEl?.dataset.poFileFound === '1' ||
+            outerCollectBtn?.dataset.poFileFound === '1'
+        );
+
+    if (hasReusableFoundState) {
+        if (modalDeletionBtn) {
+            modalDeletionBtn.classList.remove('hidden');
+            modalDeletionBtn.classList.add('im-po-file-action-btn--active');
+            imResetPOFileActionButton(modalDeletionBtn, currentPoValue, true);
+        }
+        if (outerCollectBtn) {
+            outerCollectBtn.classList.add('im-po-collect-btn');
+            imResetPOFileActionButton(outerCollectBtn, currentPoValue, false);
+        }
+        return imPOFileCheckSequence;
+    }
+
+    // A new PO search or full page clear must invalidate every older async lookup.
+    if (!preserveCurrentPO && invalidateCheck) {
+        imPOFileCheckSequence += 1;
+    }
+
+    // During an in-progress check for the current PO, a form reset should only
+    // clear an old check mark. It must not cancel or erase the active lookup.
+    const currentCheckStillRunning = preserveCurrentPO &&
+        currentPoValue &&
+        poRecordEl?.dataset.poCheckFor === currentPoValue &&
+        poRecordEl?.dataset.poFileState === 'checking';
+
+    if (currentCheckStillRunning) {
+        if (modalDeletionBtn) {
+            modalDeletionBtn.disabled = false;
+            modalDeletionBtn.removeAttribute('aria-disabled');
+            modalDeletionBtn.classList.remove('is-added');
+            modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+        }
+        return imPOFileCheckSequence;
+    }
+
+    if (outerCollectBtn) outerCollectBtn.remove();
+
+    if (modalDeletionBtn) {
+        modalDeletionBtn.classList.add('hidden');
+        modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+        modalDeletionBtn.disabled = false;
+        modalDeletionBtn.removeAttribute('aria-disabled');
+        modalDeletionBtn.onclick = null;
+        modalDeletionBtn.title = 'Original PO file action';
+        modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+        modalDeletionBtn.style.removeProperty('background');
+        modalDeletionBtn.style.removeProperty('background-color');
+        modalDeletionBtn.style.removeProperty('color');
+        modalDeletionBtn.style.removeProperty('opacity');
+        delete modalDeletionBtn.dataset.poFileFound;
+        delete modalDeletionBtn.dataset.poFilePo;
+        delete modalDeletionBtn.dataset.poFileState;
+    }
+
+    if (poRecordEl && !preserveCurrentPO) {
+        delete poRecordEl.dataset.poCheckFor;
+        delete poRecordEl.dataset.poCheckRunId;
+        delete poRecordEl.dataset.poFileFound;
+        delete poRecordEl.dataset.poFilePo;
+        poRecordEl.dataset.poFileState = 'idle';
+        poRecordEl.className = 'im-po-record im-po-record-status im-po-record-status-none';
+        poRecordEl.innerHTML = '<i class="fa-regular fa-circle"></i> <span>Search a PO to check file</span>';
+    }
+
+    return imPOFileCheckSequence;
+}
+
+window.imResetInvoicePOFileActionState = imResetInvoicePOFileActionState;
+
 function resetInvoiceForm() {
+    // 11.8.8: A fresh/new invoice must never retain the previous checked folder state.
+    // If the same PO still has a confirmed file record, keep the action available
+    // but restore it to its normal unselected folder icon.
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: true,
+        invalidateCheck: false,
+        reason: 'invoice-form-reset'
+    });
+
     // 1. --- AUTO-GENERATE NEXT ID ---
     // Instead of keeping the current value, we calculate the next sequence number fresh.
     let nextId = "INV-01"; // Default start
@@ -257,12 +391,29 @@ function openIMInvoiceEntryModal() {
 function closeIMInvoiceEntryModal() {
     const modal = document.getElementById('im-invoice-entry-modal') || imInvoiceEntryModal;
     if (modal) {
+        imResetInvoicePOFileActionState({
+            preserveCurrentPO: true,
+            invalidateCheck: false,
+            reason: 'invoice-modal-close'
+        });
         modal.classList.add('hidden');
     }
 }
 
 window.addEventListener('resize', () => {
     clampIMInvoiceEntryModalPosition();
+});
+
+// The shared modal-close listener hides overlays directly. Keep the Invoice Entry
+// folder action synchronized even when that generic listener closes this modal.
+document.addEventListener('click', (event) => {
+    const closeButton = event.target?.closest?.('#im-invoice-entry-modal .modal-close-btn');
+    if (!closeButton) return;
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: true,
+        invalidateCheck: false,
+        reason: 'invoice-modal-close-button'
+    });
 });
 
 // =========================================================
@@ -275,6 +426,15 @@ async function handlePOSearch(poNumberFromInput) {
         alert('Please enter a PO Number.');
         return;
     }
+
+    // 11.8.8: Every new search starts with a clean folder state and invalidates
+    // any slower lookup from the previously searched PO.
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: false,
+        invalidateCheck: true,
+        poNumber,
+        reason: 'new-po-search'
+    });
 
     sessionStorage.setItem('imPOSearch', poNumber);
     if (imPOSearchInput) imPOSearchInput.value = poNumber;
@@ -497,34 +657,56 @@ async function proceedWithPOLoading(poNumber, poData) {
 function imRunPOFileCheckInBackground(poNumber) {
     // ============================================================
     // PO RECORDS SEARCH & BUTTON LOGIC (non-blocking)
+    // 11.8.8: every run has a unique token so an older result cannot
+    // repaint the folder button after Clear or a different PO search.
     // ============================================================
-    const poRecordEl = document.querySelector('.im-po-record');
+    const normalizedPO = imNormalizePOFileActionPO(poNumber);
+    const poRecordEl = document.querySelector('#im-modal-po-details .im-po-record, .im-po-record');
     const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
 
-    const setPoRecordStatus = (status, label, iconClass) => {
-        if (!poRecordEl || poRecordEl.dataset.poCheckFor !== poNumber) return;
-        poRecordEl.className = `im-po-record im-po-record-status im-po-record-status-${status}`;
-        poRecordEl.innerHTML = `<i class="${iconClass}"></i> <span>${escapeHtml(label)}</span>`;
-    };
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: false,
+        invalidateCheck: true,
+        poNumber: normalizedPO,
+        reason: 'po-file-check-start'
+    });
+    const checkRunId = imPOFileCheckSequence;
 
     if (!poRecordEl) return;
 
-    poRecordEl.dataset.poCheckFor = poNumber;
-    setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
+    poRecordEl.dataset.poCheckFor = normalizedPO;
+    poRecordEl.dataset.poCheckRunId = String(checkRunId);
+    poRecordEl.dataset.poFilePo = normalizedPO;
+    poRecordEl.dataset.poFileFound = '0';
+    poRecordEl.dataset.poFileState = 'checking';
 
-    // Remove the old inline add button and reset the modal folder action on every new PO search.
-    document.getElementById('im-po-collect-btn')?.remove();
     if (modalDeletionBtn) {
-        modalDeletionBtn.classList.add('hidden');
-        modalDeletionBtn.classList.remove('im-po-file-action-btn--active');
-        modalDeletionBtn.onclick = null;
+        modalDeletionBtn.dataset.poFilePo = normalizedPO;
+        modalDeletionBtn.dataset.poFileFound = '0';
+        modalDeletionBtn.dataset.poFileState = 'checking';
     }
+
+    const isCurrentCheck = () => (
+        imPOFileCheckSequence === checkRunId &&
+        poRecordEl.dataset.poCheckRunId === String(checkRunId) &&
+        poRecordEl.dataset.poCheckFor === normalizedPO
+    );
+
+    const setPoRecordStatus = (status, label, iconClass) => {
+        if (!isCurrentCheck()) return false;
+        poRecordEl.className = `im-po-record im-po-record-status im-po-record-status-${status}`;
+        poRecordEl.innerHTML = `<i class="${iconClass}"></i> <span>${escapeHtml(label)}</span>`;
+        poRecordEl.dataset.poFileState = status;
+        return true;
+    };
+
+    setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
 
     setTimeout(async () => {
         try {
-            if (poRecordEl.dataset.poCheckFor !== poNumber) return;
+            if (!isCurrentCheck()) return;
 
-            const searchVal = poNumber.replace(/[^0-9]/g, '');
+            const searchVal = normalizedPO.replace(/[^0-9]/g, '');
             const ref = progressDb.ref('records');
 
             // Perform the indexed search. This stays lightweight because it queries the PO child only.
@@ -533,34 +715,57 @@ function imRunPOFileCheckInBackground(poNumber) {
                 snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal, 10)).once('value');
             }
 
-            if (poRecordEl.dataset.poCheckFor !== poNumber) return;
+            if (!isCurrentCheck()) return;
 
             if (snapshot.exists()) {
-                // Attention state: this PO has an original file record. Make it obvious.
                 setPoRecordStatus('found', 'Original PO in File', 'fa-solid fa-folder-open');
+                poRecordEl.dataset.poFileFound = '1';
+                poRecordEl.dataset.poFilePo = normalizedPO;
+                poRecordEl.dataset.poFileState = 'ready';
 
                 const collectBtn = document.createElement('button');
                 collectBtn.id = 'im-po-collect-btn';
                 collectBtn.type = 'button';
                 collectBtn.className = 'im-po-collect-btn';
-                collectBtn.title = 'Original PO is in file — add to deletion list';
-                collectBtn.innerHTML = `<i class="fa-solid fa-folder-minus"></i> Add to Deletion List`;
-                collectBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
                 poRecordEl.parentElement.appendChild(collectBtn);
+                imResetPOFileActionButton(collectBtn, normalizedPO, false);
 
                 if (modalDeletionBtn) {
                     modalDeletionBtn.classList.remove('hidden');
                     modalDeletionBtn.classList.add('im-po-file-action-btn--active');
-                    modalDeletionBtn.title = 'Original PO is in file — add to deletion list';
-                    modalDeletionBtn.onclick = () => window.imAddToDeletionCollection(poNumber);
+                    imResetPOFileActionButton(modalDeletionBtn, normalizedPO, true);
                 }
-
             } else {
                 setPoRecordStatus('none', 'No PO file found', 'fa-regular fa-circle');
+                poRecordEl.dataset.poFileFound = '0';
+                poRecordEl.dataset.poFileState = 'none';
+                if (modalDeletionBtn) {
+                    modalDeletionBtn.classList.add('hidden');
+                    modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+                    modalDeletionBtn.disabled = false;
+                    modalDeletionBtn.onclick = null;
+                    modalDeletionBtn.dataset.poFileFound = '0';
+                    modalDeletionBtn.dataset.poFilePo = normalizedPO;
+                    modalDeletionBtn.dataset.poFileState = 'none';
+                    modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+                }
             }
         } catch (error) {
             console.error("Query Error:", error);
+            if (!isCurrentCheck()) return;
             setPoRecordStatus('error', 'PO file check error', 'fa-solid fa-triangle-exclamation');
+            poRecordEl.dataset.poFileFound = '0';
+            poRecordEl.dataset.poFileState = 'error';
+            if (modalDeletionBtn) {
+                modalDeletionBtn.classList.add('hidden');
+                modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+                modalDeletionBtn.disabled = false;
+                modalDeletionBtn.onclick = null;
+                modalDeletionBtn.dataset.poFileFound = '0';
+                modalDeletionBtn.dataset.poFilePo = normalizedPO;
+                modalDeletionBtn.dataset.poFileState = 'error';
+                modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+            }
         }
     }, 0);
 }
