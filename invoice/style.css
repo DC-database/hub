@@ -37450,3 +37450,172 @@ body.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#wor
         -webkit-text-fill-color: currentColor !important;
     }
 }
+
+/* 11.8.7 — Material Stock rows keep horizontal separation only.
+   Remove the legacy per-cell shading/dividers that formed vertical bands. */
+body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock #ms-table tbody td,
+#inventory-view#inventory-view #wd-material-stock #ms-table tbody td {
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none !important;
+    background-image: none !important;
+}
+
+/* 11.8.7 — Queue Date badge contrast follows the badge surface, not the card. */
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-date-tab .wd-date-tab-count {
+    background: #eef8fb !important;
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+    opacity: 1 !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-date-tab.active .wd-date-tab-count {
+    background: rgba(255, 255, 255, 0.84) !important;
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+}
+
+/* 11.8.7 — Mobile bottom navigation: every unselected destination remains visible. */
+@media (max-width: 900px) {
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation,
+    body.inventory-mode #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation,
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation {
+        background: #ffffff !important;
+        border-top-color: rgba(20, 41, 63, 0.16) !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a {
+        background: transparent !important;
+        border-color: transparent !important;
+        color: var(--iba-wd-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a {
+        background: transparent !important;
+        border-color: transparent !important;
+        color: var(--iba-inv-ocean) !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation a {
+        background: transparent !important;
+        border-color: transparent !important;
+        color: var(--iba-im-navy) !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a :is(i, span),
+    body.inventory-mode #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a :is(i, span),
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation a :is(i, span) {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        opacity: 1 !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a.active {
+        background: var(--iba-wd-orange) !important;
+        border-color: var(--iba-wd-orange) !important;
+        color: var(--iba-wd-navy) !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation a.active {
+        background: var(--iba-inv-coral) !important;
+        border-color: var(--iba-inv-coral) !important;
+        color: #123043 !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation a.active {
+        background: var(--iba-im-peach) !important;
+        border-color: var(--iba-im-peach) !important;
+        color: var(--iba-im-navy) !important;
+    }
+
+    /* Active Task mobile heading is a clean title row, not a second solid bar. */
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #active-task-mobile-header,
+    body.inventory-mode #workdesk-view#workdesk-view #active-task-mobile-header,
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #active-task-mobile-header {
+        margin: 0 0 12px !important;
+        padding: 8px 2px 9px !important;
+        background: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #active-task-mobile-header {
+        border-bottom: 2px solid var(--iba-wd-blue) !important;
+        color: var(--iba-wd-navy) !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #active-task-mobile-header {
+        border-bottom: 2px solid var(--iba-inv-turquoise) !important;
+        color: var(--iba-inv-ocean) !important;
+    }
+
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #active-task-mobile-header {
+        border-bottom: 2px solid var(--iba-im-teal) !important;
+        color: var(--iba-im-navy) !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #active-task-mobile-header h1,
+    body.inventory-mode #workdesk-view#workdesk-view #active-task-mobile-header h1,
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #active-task-mobile-header h1 {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        text-shadow: none !important;
+    }
+
+    body.iba-mobile-ui:not(.inventory-mode) #workdesk-view#workdesk-view #active-task-mobile-header .mobile-header-icon,
+    body.inventory-mode #workdesk-view#workdesk-view #active-task-mobile-header .mobile-header-icon,
+    body.iba-mobile-ui #invoice-management-view#invoice-management-view #active-task-mobile-header .mobile-header-icon {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        padding: 0 !important;
+        border-radius: 12px !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: currentColor !important;
+        box-shadow: none !important;
+    }
+}
+
+/* 11.8.7 — Payment total stays clean on the white checkout bar. */
+#invoice-management-view#invoice-management-view #im-payments .im-payment-checkout-bar .im-payment-cart-total,
+#invoice-management-view#invoice-management-view #im-payments .im-payment-checkout-bar .im-payment-cart-total :is(span, strong) {
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+/* 11.8.7 — WorkDesk Dashboard search uses one clean outer focus ring only. */
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap {
+    background: #ffffff !important;
+    border: 1px solid rgba(1, 86, 146, 0.28) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 8px 18px rgba(0, 32, 73, 0.06) !important;
+    transition: border-color .16s ease, box-shadow .16s ease !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap:focus-within {
+    border-color: var(--iba-wd-blue) !important;
+    box-shadow: 0 0 0 3px rgba(1, 86, 146, 0.14), 0 10px 22px rgba(0, 32, 73, 0.09) !important;
+}
+
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap #wd-active-dashboard-search,
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap #wd-active-dashboard-search:focus,
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap #wd-active-dashboard-search:active,
+body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-search-wrap #wd-active-dashboard-search:not(:placeholder-shown) {
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    color: var(--iba-wd-navy) !important;
+    -webkit-text-fill-color: currentColor !important;
+}

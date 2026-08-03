@@ -1,6 +1,6 @@
 {
-  "version": "11.8.6",
-  "releasedAt": "2026-08-02",
-  "title": "IPC Personal Tasks and Pending Site View",
-  "message": "Invoice Entry IPC Application records now remain visible to their Attention person in WorkDesk Dashboard and Active Task. My Pending Dashboard results are grouped by Site and ordered by PO, while Active Task keeps its existing date priority."
+  "version": "11.8.7",
+  "releasedAt": "2026-08-03",
+  "title": "Dashboard Sync, Mobile Records and Theme Polish",
+  "message": "Personal IPC tasks now stay synchronized between Active Task and Dashboard. Mobile navigation and Invoice Records are clearer, while WorkDesk, Inventory, Payment, Invoice Entry, and Batch Entry visual details now follow their correct module palettes."
 }
