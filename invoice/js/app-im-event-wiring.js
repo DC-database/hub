@@ -1353,25 +1353,27 @@ if (summaryNotePrintBtn) {
         if (card && card.dataset.toggleTarget) {
             const targetId = card.dataset.toggleTarget;
             const targetElement = document.querySelector(targetId);
-            const icon = card.querySelector('.po-card-chevron');
+            const accordion = card.closest('.im-mobile-po-accordion');
 
             if (targetElement) {
                 const isOpening = targetElement.classList.contains('hidden-invoice-list');
 
                 if (isOpening) {
-                    const allOpenLists = document.querySelectorAll('[id^="mobile-invoice-list-"]:not(.hidden-invoice-list)');
-                    allOpenLists.forEach(listDiv => {
-                        listDiv.classList.add('hidden-invoice-list');
-                        const otherCard = document.querySelector(`[data-toggle-target="#${listDiv.id}"]`);
-                        const otherIcon = otherCard ? otherCard.querySelector('.po-card-chevron') : null;
-                        if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+                    // 11.8.7: Mobile Invoice Records is a single-open accordion.
+                    document.querySelectorAll('.im-mobile-po-accordion.is-expanded').forEach(openAccordion => {
+                        if (openAccordion === accordion) return;
+                        openAccordion.classList.remove('is-expanded');
+                        const openButton = openAccordion.querySelector('.im-po-balance-card[data-toggle-target]');
+                        const openDetail = openAccordion.querySelector('[id^="mobile-invoice-list-"]');
+                        if (openButton) openButton.setAttribute('aria-expanded', 'false');
+                        if (openDetail) openDetail.classList.add('hidden-invoice-list');
                     });
                 }
 
                 targetElement.classList.toggle('hidden-invoice-list');
-                if (icon) {
-                    icon.style.transform = targetElement.classList.contains('hidden-invoice-list') ? 'rotate(0deg)' : 'rotate(180deg)';
-                }
+                const expanded = !targetElement.classList.contains('hidden-invoice-list');
+                card.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                if (accordion) accordion.classList.toggle('is-expanded', expanded);
             }
         }
     });

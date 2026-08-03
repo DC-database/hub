@@ -923,22 +923,23 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
             cardClass = 'status-new';
         }
 
-        const invoiceCards = invoices.map(inv => {
+        const invoiceCards = invoices.map((inv, invoiceIndex) => {
             const invPDFName = imPdfBase(inv.invName);
             const srvPDFName = imPdfBase(inv.srvName);
             const reportPDFName = imPdfBase(inv.reportName);
             const invButtons = [];
             if (imHasPdfName(inv.invName)) {
-                invButtons.push(`<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-file-invoice"></i>&nbsp;INV PDF</a>`);
+                invButtons.push(`<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="im-tx-action-btn invoice-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-file-invoice"></i><span>INV</span></a>`);
             }
             if (imHasPdfName(inv.srvName)) {
-                invButtons.push(`<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-receipt"></i>&nbsp;SRV PDF</a>`);
+                invButtons.push(`<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="im-tx-action-btn srv-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-receipt"></i><span>SRV</span></a>`);
             }
             if (imHasPdfName(inv.reportName)) {
-                invButtons.push(`<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="im-tx-action-btn report-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-file-lines"></i>&nbsp;REPORT PDF</a>`);
+                invButtons.push(`<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="im-tx-action-btn report-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-file-lines"></i><span>REPORT</span></a>`);
             }
             return `
                 <li class="im-invoice-item">
+                    <span class="im-tx-timeline-index" aria-hidden="true">${invoiceIndex + 1}</span>
                     <div class="im-tx-card-header">
                         <div class="im-tx-invoice-main">
                             <span class="im-tx-field-label">Invoice No.</span>
@@ -951,55 +952,60 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
                         <strong>${imAmountDisplay(inv.invValue, canViewAmounts)}</strong>
                     </div>
                     <div class="im-tx-meta-line">
-                        <span>Date Release</span>
+                        <span>Release Date</span>
                         <strong>${formatToDDMMMYY(inv.releaseDate || inv.invoiceDate || '') || 'N/A'}</strong>
+                    </div>
+                    <div class="im-tx-meta-line im-tx-attention-line">
+                        <span>Attention</span>
+                        <strong>${escapeHtml(inv.attention || 'Not assigned')}</strong>
                     </div>
                     ${invButtons.length ? `<div class="im-tx-actions">${invButtons.join('')}</div>` : '<div class="im-tx-no-pdf">No PDF attached</div>'}
                 </li>`;
         }).join('');
 
         mobileContainer.insertAdjacentHTML('beforeend', `
-            <div class="im-po-balance-card ${cardClass}" data-toggle-target="#${listId}">
-                <div class="po-card-header">
-                    <div class="po-card-title-wrap">
-                        <span class="po-card-label">PO No.</span>
-                        <span class="po-card-ponum">${escapeHtml(poData.poNumber || 'N/A')}</span>
-                    </div>
-                    <div class="po-card-right-wrap">
-                        <span class="po-card-count">${invoices.length} Txn</span>
-                        <i class="fa-solid fa-chevron-down po-card-chevron"></i>
-                    </div>
-                </div>
-                <div class="po-card-vendor-block">
-                    <span class="po-card-label">Vendor Name</span>
-                    <strong>${escapeHtml(poData.vendor || 'N/A')}</strong>
-                </div>
-                <div class="po-card-body">
-                    <span class="po-card-site"><i class="fa-solid fa-location-dot"></i> Site No. ${escapeHtml(poData.site || 'N/A')}</span>
-                    <div class="po-card-grid">
-                        <div class="po-card-metric">
-                            <span class="po-card-label">Total PO Value</span>
-                            <span class="po-card-value">${imAmountDisplay(poValue, canViewAmounts)}</span>
+            <article class="im-mobile-po-accordion ${cardClass}">
+                <button class="im-po-balance-card ${cardClass}" type="button" data-toggle-target="#${listId}" aria-expanded="false" aria-controls="${listId}">
+                    <div class="po-card-header">
+                        <div class="po-card-title-wrap">
+                            <span class="po-card-label">PO No.</span>
+                            <span class="po-card-ponum">${escapeHtml(poData.poNumber || 'N/A')}</span>
                         </div>
-                        <div class="po-card-metric balance-metric">
-                            <span class="po-card-label">Balance</span>
-                            <span class="po-card-value po-card-balance ${balance < 0 ? 'negative' : ''}">${imAmountDisplay(balance, canViewAmounts)}</span>
+                        <div class="po-card-right-wrap">
+                            <span class="po-card-count">${invoices.length} Invoice${invoices.length === 1 ? '' : 's'}</span>
+                            <i class="fa-solid fa-chevron-down po-card-chevron" aria-hidden="true"></i>
                         </div>
                     </div>
+                    <div class="po-card-vendor-block">
+                        <span class="po-card-label">Vendor</span>
+                        <strong>${escapeHtml(poData.vendor || 'N/A')}</strong>
+                    </div>
+                    <div class="po-card-body">
+                        <span class="po-card-site"><i class="fa-solid fa-location-dot"></i> Site ${escapeHtml(poData.site || 'N/A')}</span>
+                        <div class="po-card-grid">
+                            <div class="po-card-metric">
+                                <span class="po-card-label">PO Value</span>
+                                <span class="po-card-value">${imAmountDisplay(poValue, canViewAmounts)}</span>
+                            </div>
+                            <div class="po-card-metric">
+                                <span class="po-card-label">Invoiced</span>
+                                <span class="po-card-value">${imAmountDisplay(totalSRV, canViewAmounts)}</span>
+                            </div>
+                            <div class="po-card-metric balance-metric">
+                                <span class="po-card-label">Balance</span>
+                                <span class="po-card-value po-card-balance ${balance < 0 ? 'negative' : ''}">${imAmountDisplay(balance, canViewAmounts)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+                <div id="${listId}" class="im-mobile-po-detail hidden-invoice-list">
+                    <div class="im-invoice-list-header">
+                        <h3>Invoice Entries</h3>
+                        <span>${invoices.length} entr${invoices.length === 1 ? 'y' : 'ies'}</span>
+                    </div>
+                    <ul class="im-invoice-list">${invoiceCards}</ul>
                 </div>
-            </div>
-            <div id="${listId}" class="im-mobile-po-detail hidden-invoice-list">
-                <div class="im-invoice-list-header">
-                    <h3>Transactions</h3>
-                    <span>${invoices.length} invoice entr${invoices.length === 1 ? 'y' : 'ies'}</span>
-                </div>
-                <ul class="im-invoice-list">${invoiceCards}</ul>
-                <div class="im-mobile-po-summary">
-                    <div class="im-mobile-po-summary-row"><span>Total PO Value</span><strong>${imAmountDisplay(poValue, canViewAmounts)}</strong></div>
-                    <div class="im-mobile-po-summary-row"><span>Total SRV</span><strong>${imAmountDisplay(totalSRV, canViewAmounts)}</strong></div>
-                    <div class="im-mobile-po-summary-row ${balance < 0 ? 'negative' : ''}"><span>Balance</span><strong>${imAmountDisplay(balance, canViewAmounts)}</strong></div>
-                </div>
-            </div>
+            </article>
         `);
     });
 }

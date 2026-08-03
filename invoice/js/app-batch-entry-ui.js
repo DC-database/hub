@@ -232,10 +232,10 @@ async function handleAddPOToBatch() {
         row.setAttribute('data-next-invid', nextInvId);
 
         row.innerHTML = `
-            <div class="batch-card-header" style="background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important; border-bottom: 4px solid #d8fae9 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+            <div class="batch-card-header" style="background: linear-gradient(135deg, #14293f 0%, #16495a 52%, #0d7e85 100%) !important; border-bottom: 4px solid #feb088 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
                 
                 <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #d8fae9 !important; font-size: 0.75rem !important;">(New)</span>
+                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #ffd5bf !important; font-size: 0.75rem !important;">(New)</span>
                 </div>
 
                 <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
@@ -249,11 +249,11 @@ async function handleAddPOToBatch() {
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                     <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important;">Inv No. 
                         <div style="display: flex !important; gap: 3px !important;">
-                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0b4b35 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
-                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #1c7a59 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
+                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0d7e85 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
+                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #feb088 !important; color: #14293f !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
                         </div>
                     </label>
-                    <input type="text" name="invNumber" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                    <input type="text" name="invNumber" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important; position: relative !important;">
@@ -261,12 +261,12 @@ async function handleAddPOToBatch() {
                     <div style="position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important;">
                         <select name="attention" class="batch-input batch-attention-select"></select>
                     </div>
-                    <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #023020 !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
+                    <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #14293f !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                     <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
-                    <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
+                    <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
                         <option value="For SRV">For SRV</option>
                         <option value="No Need SRV">No Need SRV</option>
                         <option value="Pending">Pending</option>
@@ -286,7 +286,7 @@ async function handleAddPOToBatch() {
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                     <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
-                    <input type="text" name="note" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                    <input type="text" name="note" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
                 </div>
 
                 <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
@@ -399,10 +399,10 @@ async function addInvoiceToBatchTable(invData) {
     row.setAttribute('data-invoice-group', resolvedGroup);
 
     row.innerHTML = `
-        <div class="batch-card-header" style="background: linear-gradient(135deg, #073d2b 0%, #116045 68%, #1c7a59 100%) !important; border-bottom: 4px solid #d8fae9 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
+        <div class="batch-card-header" style="background: linear-gradient(135deg, #14293f 0%, #16495a 52%, #0d7e85 100%) !important; border-bottom: 4px solid #feb088 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
             
             <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #d8fae9 !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
+                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #ffd5bf !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
             </div>
 
             <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
@@ -417,11 +417,11 @@ async function addInvoiceToBatchTable(invData) {
                 <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin: 0 !important; white-space: nowrap !important; height: 14px !important; line-height: 14px !important;">
                     <span>Inv No.</span>
                     <div style="display: flex !important; gap: 3px !important; height: 14px !important;">
-                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0b4b35 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
-                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #1c7a59 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
+                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0d7e85 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
+                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #feb088 !important; color: #14293f !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
                     </div>
                 </label>
-                <input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                <input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
             </div>
 
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important; position: relative !important;">
@@ -429,12 +429,12 @@ async function addInvoiceToBatchTable(invData) {
                 <div style="position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden !important; visibility: hidden !important;">
                     <select name="attention" class="batch-input batch-attention-select"></select>
                 </div>
-                <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #023020 !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
+                <button type="button" class="secondary-btn batch-attention-btn" title="Select Attention" style="width: 100% !important; height: 32px !important; padding: 0 8px !important; margin: 0 !important; color: #14293f !important; background: white !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; cursor: pointer !important; display: block !important;">Select Attention</button>
             </div>
 
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                 <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
-                <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
+                <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
                     <option value="For SRV">For SRV</option>
                     <option value="No Need SRV">No Need SRV</option>
                     <option value="Pending">Pending</option>
@@ -460,7 +460,7 @@ async function addInvoiceToBatchTable(invData) {
 
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
                 <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
-                <input type="text" name="note" class="batch-input" value="${invData.note || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #023020 !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                <input type="text" name="note" class="batch-input" value="${invData.note || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
             </div>
 
             <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
@@ -743,15 +743,15 @@ async function handleBatchModalPOSearch() {
             <tbody id="batch-modal-tbody"></tbody>
         `;
 
-        // 10.5.7: This modal has multiple global/modal table styles competing in CSS.
-        // Apply the Batch Search PO header theme directly so it stays readable even
+        // 11.8.7: This modal has multiple global/modal table styles competing in CSS.
+        // Apply the Invoice palette directly so the header stays readable even
         // when cached CSS or later stylesheets try to turn the header light/white.
         table.querySelectorAll('thead, thead tr, thead th').forEach((el) => {
-            el.style.setProperty('background', '#0b4b35', 'important');
-            el.style.setProperty('background-color', '#0b4b35', 'important');
+            el.style.setProperty('background', '#14293f', 'important');
+            el.style.setProperty('background-color', '#14293f', 'important');
             el.style.setProperty('background-image', 'none', 'important');
-            el.style.setProperty('color', '#facc15', 'important');
-            el.style.setProperty('-webkit-text-fill-color', '#facc15', 'important');
+            el.style.setProperty('color', '#ffffff', 'important');
+            el.style.setProperty('-webkit-text-fill-color', '#ffffff', 'important');
             el.style.setProperty('font-weight', '900', 'important');
             el.style.setProperty('text-shadow', 'none', 'important');
             el.style.setProperty('border-color', 'rgba(255,255,255,.20)', 'important');

@@ -3051,7 +3051,15 @@ async function populateWorkdeskDashboard(forceRefresh = false) {
         if (!forceRefresh) {
             const cached = wdLoadDashboardCache();
             if (cached) {
-                wdPersonalDashboardTasks = Array.isArray(cached.personalTasks) ? cached.personalTasks : [];
+                // 11.8.7: The cached Dashboard can pre-date the latest Active Task
+                // result (for example, an Invoice Entry changed to IPC Application).
+                // Always rebuild My Personal Tasks from the exact in-memory/session
+                // Active Task source before rendering the cached global overview.
+                // This reuses the compact personal snapshot in normal navigation and
+                // prevents an old Dashboard cache from hiding a task that Active Task
+                // already shows for the attention person.
+                const exactPersonalSource = await wdGetExactMyActiveTaskList(false);
+                wdPersonalDashboardTasks = await wdBuildPersonalDashboardTasks(exactPersonalSource);
 
                 // 10.6.0: Restore the verified All Active dataset when it exists.
                 // If the cache is only a preview/old cache, do not trust its counts;
@@ -4813,7 +4821,6 @@ function wdRenderAllActiveCorkboard(baseTasks, selectedLabel, cacheSuffix, summa
                 <span class="wd-site-card-pin" title="${wdSafe(attentionLabel)}"><i class="fa-solid fa-thumbtack"></i></span>
                 <span class="wd-site-card-no">${wdSafe(parts.siteNo)}</span>
                 <span class="wd-site-card-name">${wdSafe(parts.siteName)}</span>
-                <span class="wd-site-card-count">${group.tasks.length} item${group.tasks.length === 1 ? '' : 's'}</span>
                 ${statusPreview ? `<small>${statusPreview}</small>` : ''}
             </button>`;
     }).join('');
