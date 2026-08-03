@@ -1,6 +1,6 @@
 {
-  "version": "11.9.0",
+  "version": "11.9.3",
   "releasedAt": "2026-08-03",
-  "title": "Mobile Readability and Unified Page Titles",
-  "message": "Keeps mobile Logout visible before tap, corrects Invoice Records PO-detail text contrast even in forced-desktop mobile mode, removes non-essential module eyebrow labels, and standardizes desktop page-title sizing across WorkDesk, Inventory, and Invoice Management."
+  "title": "Logout Navigation Scope Correction",
+  "message": "Keeps the mobile Logout visible at rest in Invoice / Task, WorkDesk and Inventory, while preventing the mobile-only Logout item from appearing in desktop Inventory. Desktop footer Logout and all logout/session logic remain unchanged."
 }
