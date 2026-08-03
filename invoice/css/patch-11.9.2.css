@@ -1,0 +1,23 @@
+/* ========================================================================== 
+   IBA 11.9.2 — WorkDesk Active Task selected-state accent cleanup
+   Scope:
+   - Removes the doubled orange left edge when Active Task is both selected
+     and carrying the pending-task pulse state.
+   - Keeps one clean orange inner accent, the peach/ice selected surface,
+     the task badge, pulse behaviour, navigation and click logic unchanged.
+   ========================================================================== */
+
+@media (min-width: 769px) {
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation > ul > li.wd-nav-activetask > a.active.nav-pulse-active {
+        /* The former orange outer border plus orange inset created two lines. */
+        border: 1px solid rgba(217, 250, 255, 0.88) !important;
+        border-left: 1px solid rgba(217, 250, 255, 0.88) !important;
+
+        /* Retain only one intentional orange left accent. */
+        box-shadow:
+            inset 5px 0 0 var(--iba-wd-orange),
+            0 8px 20px rgba(0, 32, 73, 0.20) !important;
+    }
+}

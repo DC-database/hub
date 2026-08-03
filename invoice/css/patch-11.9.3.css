@@ -1,0 +1,247 @@
+/* ========================================================================== 
+   IBA 11.9.3 — Logout navigation scope and visibility correction
+   Scope:
+   - Mobile Logout is readable at rest in Invoice / Task, WorkDesk and Inventory.
+   - The mobile-only Logout item never leaks into a desktop sidebar.
+   - The normal desktop footer Logout remains untouched.
+   - Logout handlers, confirmation, session clearing, permissions and routing
+     are unchanged.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   DESKTOP GUARD
+   11.9.1 used body.inventory-mode without a mobile condition. That made the
+   mobile-only WorkDesk Logout appear below Material Stock on desktop.
+   Hide only the mobile-only list item when the app identifies desktop mode.
+   The real desktop footer links (#wd-logout-button / #im-logout-button /
+   #inv-logout-button) are not targeted.
+   -------------------------------------------------------------------------- */
+@media (min-width: 901px) {
+    body.iba-desktop-ui
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    body.iba-desktop-ui
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
+}
+
+/* Wide-screen fallback before/without the responsive body-class pass. */
+@media (min-width: 1181px) {
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   MOBILE LOGOUT DESTINATIONS
+   These selectors intentionally exceed the old five-ID module contrast rules,
+   which otherwise repaint every sidebar/nav child white. They are active only
+   for a true mobile app route or the <=900px fallback.
+   -------------------------------------------------------------------------- */
+
+/* App-routed mobile mode, including coarse-pointer tablets up to 1180px. */
+body.iba-mobile-ui
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+body.iba-mobile-ui
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+body.im-mobile-reporting-mode
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 56px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: auto !important;
+}
+
+body.iba-mobile-ui
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#workdesk-nav.workdesk-navigation #mobile-nav-logout,
+body.iba-mobile-ui
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout,
+body.im-mobile-reporting-mode
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    min-height: 56px !important;
+    margin: 0 !important;
+    padding: 5px 2px 4px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #b42318 !important;
+    -webkit-text-fill-color: #b42318 !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 1.05 !important;
+    text-decoration: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    transform: none !important;
+    pointer-events: auto !important;
+}
+
+body.iba-mobile-ui
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#workdesk-nav.workdesk-navigation #mobile-nav-logout :is(i, span),
+body.iba-mobile-ui
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#workdesk-nav.workdesk-navigation #mobile-nav-logout i::before,
+body.iba-mobile-ui
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout :is(i, span),
+body.iba-mobile-ui
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout i::before,
+body.im-mobile-reporting-mode
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout :is(i, span),
+body.im-mobile-reporting-mode
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout i::before {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #b42318 !important;
+    -webkit-text-fill-color: #b42318 !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+body.iba-mobile-ui
+#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+#workdesk-nav.workdesk-navigation #mobile-nav-logout i,
+body.iba-mobile-ui
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout i,
+body.im-mobile-reporting-mode
+#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+#im-nav.workdesk-navigation #im-mobile-nav-logout i {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+}
+
+/* Width fallback while the responsive body class is being initialized. */
+@media (max-width: 900px) {
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        flex: 1 1 0 !important;
+        width: auto !important;
+        min-width: 0 !important;
+        height: 100% !important;
+        min-height: 56px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        align-items: stretch !important;
+        justify-content: center !important;
+        overflow: visible !important;
+        pointer-events: auto !important;
+    }
+
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation #mobile-nav-logout,
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation #im-mobile-nav-logout {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        height: 100% !important;
+        min-height: 56px !important;
+        margin: 0 !important;
+        padding: 5px 2px 4px !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        background: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        font-size: 10px !important;
+        font-weight: 900 !important;
+        line-height: 1.05 !important;
+        text-decoration: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+        mix-blend-mode: normal !important;
+        transform: none !important;
+        pointer-events: auto !important;
+    }
+
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation #mobile-nav-logout :is(i, span),
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    #workdesk-nav.workdesk-navigation #mobile-nav-logout i::before,
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation #im-mobile-nav-logout :is(i, span),
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    #im-nav.workdesk-navigation #im-mobile-nav-logout i::before {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: #b42318 !important;
+        -webkit-text-fill-color: #b42318 !important;
+        text-shadow: none !important;
+        filter: none !important;
+    }
+}
