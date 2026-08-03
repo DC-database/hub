@@ -1,0 +1,17 @@
+IBA 11.8.9 — Mobile Logout, Invoice Records Contrast and Open Module Shell
+
+Upload/replace only these files:
+- index.html
+- app.js
+- version.json
+- css/patch-11.8.9.css
+
+Fixes included:
+- Issue 15: Restore a visible Logout destination in the mobile WorkDesk, Inventory, and Invoice Management bottom navigation while preserving the existing confirmation and session-clear logic.
+- Issue 16: Make the expanded mobile Invoice Records PO summary readable without hover, including PO number, vendor, site, metric labels/values, balance, count, and chevron.
+- Issue 17: Trial open desktop layout. The large outer section card is visually flattened without deleting its structural DOM; WorkDesk, Inventory, and Invoice Management now share the same roomier spacing model and a slim module-coloured top accent line.
+
+Reversal safety:
+- All desktop shell changes are isolated in css/patch-11.8.9.css. Removing that stylesheet link restores the 11.8.8 wrapper presentation.
+
+After upload: hard refresh Chrome using Ctrl + F5.

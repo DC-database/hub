@@ -1,0 +1,18 @@
+IBA 11.9.0 — Mobile Readability and Unified Page Titles
+
+Corrective fixes
+1. Mobile Logout
+   - Logout is now visibly rendered before tap in WorkDesk, Inventory, and Invoice Management.
+   - Existing logout confirmation and session-clear logic are unchanged.
+   - The correction follows the app mobile-routing classes, so it also works when a phone uses Chrome "Desktop site" and reports a wide CSS viewport.
+
+2. Mobile Invoice Records PO details
+   - Vendor, site, invoice-count, metric labels, metric values, and balance values now use readable normal-state colors.
+   - Readability no longer depends on hover/tap.
+   - Existing card/status background, accordion behavior, calculations, searches, permissions, and documents are unchanged.
+
+3. Desktop page-header cleanup
+   - Removed non-essential labels such as WorkDesk Action Center, Inventory Stock Center, WorkDesk Records Center, Invoice Management, Bulk Invoice Entry, Records & Reports, and equivalent eyebrow/kicker labels.
+   - Removed the incorrect WorkDesk wording that could appear while Inventory reused the WorkDesk page structure.
+   - Standardized the main hero-title size, weight, spacing, and underline proportion across WorkDesk, Inventory, and Invoice Management.
+   - Functional descriptions, counts, buttons, controls, and page behavior remain unchanged.

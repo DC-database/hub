@@ -1,6 +1,6 @@
 {
-  "version": "11.8.7",
+  "version": "11.9.0",
   "releasedAt": "2026-08-03",
-  "title": "Dashboard Sync, Mobile Records and Theme Polish",
-  "message": "Personal IPC tasks now stay synchronized between Active Task and Dashboard. Mobile navigation and Invoice Records are clearer, while WorkDesk, Inventory, Payment, Invoice Entry, and Batch Entry visual details now follow their correct module palettes."
+  "title": "Mobile Readability and Unified Page Titles",
+  "message": "Keeps mobile Logout visible before tap, corrects Invoice Records PO-detail text contrast even in forced-desktop mobile mode, removes non-essential module eyebrow labels, and standardizes desktop page-title sizing across WorkDesk, Inventory, and Invoice Management."
 }

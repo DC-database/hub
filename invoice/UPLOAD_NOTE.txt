@@ -1,17 +1,14 @@
-IBA 11.4.5 — Batch Entry Attention Routing + Manual Override Patch
+IBA 11.9.0 — PATCH ONLY
 
-Upload/replace only these files:
+Upload/replace only these files, preserving the folders:
 - index.html
+- app.js
 - version.json
-- js/app-attention-validation.js
-- js/app-im-event-wiring.js
+- css/patch-11.9.0.css
 
-Purpose:
-- Batch Entry For SRV + Group Normal = site-matched Site DC/Camp Boss logic.
-- Batch Entry For SRV + Group Logistic = Imran/logistic person regardless of site.
-- Report = GIO, CEO Approval = Hamad, In Process = COO/Ali.
-- No-attention statuses remain blank/None.
-- If no routing match exists, fallback is Irwin.
-- Manual Attention picker remains allowed so the user can override before saving.
+Reference:
+- CHANGELOG_11.9.0.txt
 
-After upload: hard refresh Chrome using Ctrl + F5.
+This patch corrects mobile Logout visibility, mobile Invoice Records PO-detail contrast, removes unnecessary desktop header labels, and standardizes desktop page-title sizing across WorkDesk, Inventory, and Invoice Management.
+
+After upload, hard refresh Chrome using Ctrl + F5.
