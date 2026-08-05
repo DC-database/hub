@@ -1,0 +1,146 @@
+/* ========================================================================== 
+   IBA 11.10.3 — Final desktop polish correction
+   Visual-only. No workflow, data, permission, navigation or calculation logic.
+   ========================================================================== */
+
+@media (min-width: 901px) {
+    /* WorkDesk dashboard: remove helper copy and use a clean, restrained divider. */
+    body #workdesk-view #wd-dashboard .wd-dashboard-card-section-head > small {
+        display: none !important;
+    }
+
+    body #workdesk-view #wd-dashboard .wd-dashboard-card-section-head {
+        position: relative !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        min-height: 30px !important;
+        padding: 0 0 8px !important;
+        margin: 0 0 12px !important;
+        border: 0 !important;
+    }
+
+    body #workdesk-view #wd-dashboard .wd-dashboard-card-section-head::after {
+        content: "" !important;
+        flex: 1 1 auto !important;
+        height: 1px !important;
+        min-width: 40px !important;
+        background: linear-gradient(90deg, rgba(8,93,139,.42), rgba(8,93,139,.14), transparent) !important;
+    }
+
+    /* One subtle divider language throughout the corrected desktop areas. */
+    body #workdesk-view :is(#wd-dashboard, #wd-activetask, #wd-reporting) .wd-section-divider,
+    body #inventory-view :is(#wd-activetask, #wd-reporting, #wd-material-stock) .wd-section-divider,
+    body.inventory-mode #workdesk-view :is(#wd-activetask, #wd-reporting, #wd-material-stock) .wd-section-divider,
+    body #invoice-management-view :is(#im-invoice-entry, #im-batch-entry, #im-reporting) .im-section-divider {
+        height: 1px !important;
+        border: 0 !important;
+        background: linear-gradient(90deg, rgba(13,126,133,.42), rgba(13,126,133,.13), transparent) !important;
+        box-shadow: none !important;
+    }
+
+    /* Invoice Management titles: exactly one scale across every page. */
+    body #invoice-management-view .workdesk-section > :is(.im-standard-hero, .header, .header-top, .im-dashboard-hero, .im-dashboard-standby-hero) h1,
+    body #invoice-management-view #im-reporting > .header .header-top h1,
+    body #invoice-management-view #im-batch-entry > .header-top h1,
+    body #invoice-management-view #im-summary-note > div:first-of-type h1,
+    body #invoice-management-view .im-command-title-text {
+        font-size: clamp(2.35rem, 2.65vw, 2.80rem) !important;
+        line-height: 1.02 !important;
+        letter-spacing: -.045em !important;
+        font-weight: 950 !important;
+        margin: 0 !important;
+        color: #fff !important;
+        -webkit-text-fill-color: #fff !important;
+        text-shadow: 0 2px 8px rgba(0,0,0,.24) !important;
+    }
+
+    /* Invoice Records: compact aligned Search + Clear row, filters below. */
+    body #invoice-management-view #im-reporting #im-reporting-form {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        grid-template-rows: auto auto !important;
+        gap: 10px 10px !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 0 0 12px !important;
+        padding: 0 0 12px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(13,126,133,.24) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-form > .search-box {
+        grid-column: 1 !important;
+        grid-row: 1 !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-form > .controls-row,
+    body #invoice-management-view #im-reporting #im-reporting-form .action-buttons {
+        display: contents !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-form .filter-group {
+        grid-column: 1 !important;
+        grid-row: 2 !important;
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(135px, 1fr)) !important;
+        gap: 8px !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-search-btn {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        align-self: stretch !important;
+        min-height: 44px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-clear-button {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        align-self: stretch !important;
+        min-height: 44px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-form .print-actions {
+        grid-column: 2 / 4 !important;
+        grid-row: 2 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 8px !important;
+        margin: 0 !important;
+        white-space: nowrap !important;
+    }
+
+    body #invoice-management-view #im-reporting #im-reporting-form :is(input, select, button) {
+        box-sizing: border-box !important;
+    }
+
+    /* Keep reporting table/result surfaces aligned to the same content width. */
+    body #invoice-management-view #im-reporting :is(.reporting-legend, .grid-header, .grid-body, #im-reporting-grand-total-container) {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+}
+
+@media (min-width: 901px) and (max-width: 1220px) {
+    body #invoice-management-view #im-reporting #im-reporting-form .filter-group {
+        grid-template-columns: repeat(2, minmax(150px, 1fr)) !important;
+    }
+}

@@ -1,0 +1,612 @@
+/* ========================================================================== 
+   IBA 11.10.0 — Open workspace layout + compact headers + portal separation
+
+   Desktop-only visual refactor. Existing DOM wrappers, IDs, JavaScript hooks,
+   data tables, filters, Firebase calls, permissions, buttons and workflows stay
+   intact. The patch removes only oversized card decoration and excess spacing.
+
+   Included:
+   - Distinct Main Portal button in WorkDesk, Inventory and Invoice Management.
+   - Compact page headers with nonessential descriptive sentences hidden.
+   - Open layouts for WorkDesk Dashboard / Active Task / Job Records.
+   - Open layouts for Inventory Material Stock / Active Task / Job Records /
+     Request Review.
+   - Open layouts for Invoice Entry / Batch Entry / Invoice Records.
+   Excluded from open-layout conversion: Payments and Summary Note.
+   ========================================================================== */
+
+@media (min-width: 901px) {
+    /* ----------------------------------------------------------------------
+       1. MAIN PORTAL — isolated, outlined and separated from module actions.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button,
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        min-height: 46px !important;
+        margin: 16px 14px 22px !important;
+        padding: 10px 13px !important;
+        border-width: 2px !important;
+        border-style: solid !important;
+        border-radius: 14px !important;
+        background: #ffffff !important;
+        background-image: none !important;
+        font-weight: 900 !important;
+        letter-spacing: .005em !important;
+        text-decoration: none !important;
+        box-shadow: 0 10px 22px rgba(2, 24, 42, .18) !important;
+        position: relative !important;
+        overflow: visible !important;
+    }
+
+    #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button::after,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button::after,
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button::after {
+        content: "›" !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-left: auto !important;
+        font-size: 1.35rem !important;
+        line-height: 1 !important;
+        font-weight: 950 !important;
+    }
+
+    #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button + .workdesk-navigation,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button + .workdesk-navigation,
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button + .workdesk-navigation {
+        border-top: 1px dashed rgba(255,255,255,.46) !important;
+        padding-top: 14px !important;
+    }
+
+    body:not(.inventory-mode) #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button {
+        color: var(--iba-wd-blue, #015692) !important;
+        border-color: var(--iba-wd-orange, #fd5f00) !important;
+        box-shadow: 0 10px 22px rgba(253,95,0,.18) !important;
+    }
+    body:not(.inventory-mode) #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button :is(i, span),
+    body:not(.inventory-mode) #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button::after {
+        color: var(--iba-wd-blue, #015692) !important;
+    }
+    body:not(.inventory-mode) #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button:hover,
+    body:not(.inventory-mode) #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button:focus-visible {
+        background: var(--iba-wd-ice, #d9faff) !important;
+        color: var(--iba-wd-navy, #002049) !important;
+        border-color: var(--iba-wd-orange, #fd5f00) !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button {
+        color: var(--iba-inv-ocean, #226484) !important;
+        border-color: var(--iba-inv-coral, #f96263) !important;
+        box-shadow: 0 10px 22px rgba(249,98,99,.18) !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button :is(i, span),
+    body.inventory-mode #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button::after,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button :is(i, span),
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button::after {
+        color: var(--iba-inv-ocean, #226484) !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button:hover,
+    body.inventory-mode #workdesk-view#workdesk-view > .workdesk-sidebar > .wd-back-button:focus-visible,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button:hover,
+    #inventory-view#inventory-view > .workdesk-sidebar > .wd-back-button:focus-visible {
+        background: var(--iba-inv-mint, #cffdf9) !important;
+        color: var(--iba-inv-ocean, #226484) !important;
+        border-color: var(--iba-inv-coral, #f96263) !important;
+    }
+
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button {
+        color: var(--iba-im-teal, #0d7e85) !important;
+        border-color: var(--iba-im-peach, #feb088) !important;
+        box-shadow: 0 10px 22px rgba(254,176,136,.22) !important;
+    }
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button :is(i, span),
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button::after {
+        color: var(--iba-im-teal, #0d7e85) !important;
+    }
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button:hover,
+    #invoice-management-view#invoice-management-view > .workdesk-sidebar > .wd-back-button:focus-visible {
+        background: #fff4ed !important;
+        color: var(--iba-im-navy, #14293f) !important;
+        border-color: var(--iba-im-peach, #feb088) !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       2. COMPACT PAGE HEADERS — titles and functional actions only.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero),
+    #invoice-management-view#invoice-management-view .im-standard-hero,
+    #invoice-management-view#invoice-management-view #im-reporting > .header,
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top {
+        min-height: 0 !important;
+        margin: 0 0 14px !important;
+        padding: 5px 0 12px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(15, 76, 117, .20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        box-shadow: none !important;
+        color: inherit !important;
+        overflow: visible !important;
+    }
+
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero)::before,
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero)::after,
+    #invoice-management-view#invoice-management-view .im-standard-hero::before,
+    #invoice-management-view#invoice-management-view .im-standard-hero::after,
+    #invoice-management-view#invoice-management-view #im-reporting > .header::before,
+    #invoice-management-view#invoice-management-view #im-reporting > .header::after {
+        display: none !important;
+        content: none !important;
+    }
+
+    #workdesk-view#workdesk-view :is(.wd-control-subtitle, .wd-page-hero-main > p),
+    #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-head p,
+    #invoice-management-view#invoice-management-view .im-standard-hero-main > p,
+    #invoice-management-view#invoice-management-view #im-reporting .im-reporting-hero-subtitle,
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top .header-title p {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero h1, .wd-page-hero h1),
+    #invoice-management-view#invoice-management-view :is(.im-standard-hero h1, #im-reporting > .header h1, #im-batch-entry > .header-top h1) {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        font-size: clamp(1.55rem, 2vw, 2.05rem) !important;
+        line-height: 1.08 !important;
+        letter-spacing: -.025em !important;
+        text-shadow: none !important;
+    }
+
+    body:not(.inventory-mode) #workdesk-view#workdesk-view :is(.wd-control-center-hero h1, .wd-page-hero h1),
+    body:not(.inventory-mode) #workdesk-view#workdesk-view :is(.wd-control-center-hero > div:first-child, .wd-page-hero-main, .wd-page-hero-metric) :is(span, strong, i) {
+        color: var(--iba-wd-navy, #002049) !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-control-center-hero h1, .wd-page-hero h1),
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-control-center-hero > div:first-child, .wd-page-hero-main, .wd-page-hero-metric) :is(span, strong, i),
+    #inventory-view#inventory-view :is(.wd-control-center-hero h1, .wd-page-hero h1),
+    #inventory-view#inventory-view :is(.wd-control-center-hero > div:first-child, .wd-page-hero-main, .wd-page-hero-metric) :is(span, strong, i) {
+        color: var(--iba-inv-ocean, #226484) !important;
+    }
+    #invoice-management-view#invoice-management-view :is(.im-standard-hero h1, #im-reporting > .header h1, #im-batch-entry > .header-top h1),
+    #invoice-management-view#invoice-management-view :is(.im-standard-hero-main, #im-reporting .im-reporting-hero-copy, #im-batch-entry > .header-top .header-title) :is(span, strong, i) {
+        color: var(--iba-im-navy, #14293f) !important;
+    }
+
+    #workdesk-view#workdesk-view .wd-page-hero-metric,
+    #invoice-management-view#invoice-management-view .im-standard-hero-actions,
+    #invoice-management-view#invoice-management-view #im-reporting .im-reporting-hero-actions {
+        margin: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view .wd-page-hero-metric {
+        min-width: 0 !important;
+        padding: 7px 12px !important;
+        border-radius: 999px !important;
+        background: rgba(255,255,255,.76) !important;
+        border: 1px solid rgba(15,76,117,.20) !important;
+        box-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top .icon-wrapper {
+        display: none !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       3. SHARED OPEN-LAYOUT UTILITIES — keep structure, remove card shell.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view :is(#wd-dashboard, #wd-activetask, #wd-reporting, #wd-material-stock, #wd-inv-request-review) :is(
+        .wd-active-dashboard-toolbar,
+        .wd-active-dashboard-list,
+        .wd-premium-searchbar,
+        .wd-records-controls,
+        .wd-mini-metrics,
+        .report-controls,
+        .table-wrapper
+    ),
+    #invoice-management-view#invoice-management-view :is(
+        #im-po-search-container,
+        #im-invoice-form-trigger,
+        #im-existing-invoices-container,
+        #im-reporting-form
+    ) {
+        background: transparent !important;
+        background-color: transparent !important;
+        background-image: none !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        outline: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view :is(#wd-dashboard, #wd-activetask, #wd-reporting, #wd-material-stock, #wd-inv-request-review) :is(.wd-premium-searchbar, .wd-records-controls, .report-controls),
+    #invoice-management-view#invoice-management-view :is(#im-po-search-container, #im-reporting-form) {
+        padding: 0 0 14px !important;
+        margin: 0 0 14px !important;
+        border-bottom: 1px solid rgba(15,76,117,.18) !important;
+    }
+
+    #workdesk-view#workdesk-view :is(#wd-dashboard, #wd-activetask, #wd-reporting, #wd-material-stock, #wd-inv-request-review) .table-wrapper,
+    #invoice-management-view#invoice-management-view :is(#im-existing-invoices-container .table-wrapper, #im-reporting .grid-body) {
+        padding: 0 !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        box-shadow: none !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       4. WORKDESK DASHBOARD — section lines instead of holding cards.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-cards {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0 !important;
+        margin: 0 0 14px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-dashboard .wd-dashboard-card-section {
+        margin: 0 !important;
+        padding: 0 0 18px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(1,86,146,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #workdesk-view#workdesk-view #wd-dashboard .wd-dashboard-card-section + .wd-dashboard-card-section {
+        padding-top: 18px !important;
+    }
+    #workdesk-view#workdesk-view #wd-dashboard .wd-dashboard-card-section:last-child {
+        border-bottom: 0 !important;
+    }
+    #workdesk-view#workdesk-view #wd-dashboard .wd-dashboard-card-section-head {
+        margin: 0 0 11px !important;
+        padding: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-toolbar {
+        align-items: center !important;
+        padding: 14px 0 !important;
+        margin: 0 !important;
+        border-top: 1px solid rgba(1,86,146,.20) !important;
+        border-bottom: 1px solid rgba(1,86,146,.20) !important;
+    }
+    #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-toolbar > div:first-child p {
+        display: none !important;
+    }
+    #workdesk-view#workdesk-view #wd-dashboard .wd-active-dashboard-list {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       5. WORKDESK / INVENTORY ACTIVE TASK + JOB RECORDS.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view #wd-activetask .search-and-filter-group,
+    #workdesk-view#workdesk-view #wd-reporting .search-and-filter-group {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        padding: 0 0 14px !important;
+        margin: 0 0 14px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(15,76,117,.18) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-activetask #active-task-filters,
+    #workdesk-view#workdesk-view #wd-reporting #report-tabs {
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-activetask #active-task-filters {
+        margin: 0 0 12px !important;
+        padding: 0 0 12px !important;
+        border-bottom: 1px solid rgba(15,76,117,.16) !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-activetask #active-task-date-tabs.wd-active-date-tabs {
+        margin: 0 0 18px !important;
+        padding: 0 0 14px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(15,76,117,.18) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #workdesk-view#workdesk-view #wd-activetask .wd-active-date-tabs-head {
+        margin: 0 0 9px !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-activetask > .form-buttons-container {
+        margin: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-activetask > .table-wrapper,
+    #workdesk-view#workdesk-view #wd-reporting #reporting-printable-area > .table-wrapper {
+        border-top: 1px solid rgba(15,76,117,.18) !important;
+        padding-top: 12px !important;
+        overflow-x: auto !important;
+    }
+
+    #workdesk-view#workdesk-view #wd-reporting .wd-records-controls {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       6. INVENTORY MATERIAL STOCK — controls and data separated by lines.
+       ---------------------------------------------------------------------- */
+    body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock .ms-premium-toolbar {
+        margin: 0 0 14px !important;
+        padding: 0 0 14px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(34,100,132,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock #ms-search-container.ms-premium-searchbar {
+        margin: 0 0 14px !important;
+        padding: 0 0 14px !important;
+        max-width: none !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(34,100,132,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock #ms-search-container > div:first-child {
+        max-width: none !important;
+        flex: 1 1 480px !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs.ms-premium-tabs {
+        margin: 0 0 12px !important;
+        padding: 0 0 12px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(34,100,132,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.inventory-mode #workdesk-view#workdesk-view #wd-material-stock .ms-premium-tablewrap {
+        margin: 0 !important;
+        padding: 12px 0 0 !important;
+        border: 0 !important;
+        border-top: 1px solid rgba(34,100,132,.18) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow-x: auto !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       7. INVENTORY REQUEST REVIEW — compact filter and open results area.
+       ---------------------------------------------------------------------- */
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-head {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+        margin: 0 0 12px !important;
+        padding: 5px 0 12px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(34,100,132,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-head h1 {
+        margin: 0 !important;
+        font-size: clamp(1.55rem, 2vw, 2.05rem) !important;
+        color: var(--iba-inv-ocean, #226484) !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-toolbar {
+        display: flex !important;
+        justify-content: flex-end !important;
+        margin: 0 0 10px !important;
+        padding: 0 0 10px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(34,100,132,.16) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-status {
+        margin: 0 0 8px !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-list,
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    body.inventory-mode #workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty {
+        min-height: 220px !important;
+        border: 1px dashed rgba(34,100,132,.25) !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       8. INVOICE ENTRY — open PO search, details, action and invoice list.
+       ---------------------------------------------------------------------- */
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-po-search-container {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin: 0 0 10px !important;
+        padding: 0 0 14px !important;
+        border-bottom: 1px solid rgba(13,126,133,.20) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-modal-po-details {
+        margin: 0 0 12px !important;
+        padding: 9px 0 13px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(13,126,133,.18) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-modal-po-details .po-compact-grid {
+        gap: 9px 22px !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-invoice-form-trigger {
+        margin: 0 0 14px !important;
+        padding: 0 0 14px !important;
+        border-bottom: 1px solid rgba(13,126,133,.18) !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container > .section-divider {
+        margin: 0 0 12px !important;
+        border: 0 !important;
+        border-top: 1px solid rgba(13,126,133,.20) !important;
+    }
+    #invoice-management-view#invoice-management-view #im-invoice-entry #existing-invoices-count-display {
+        margin: 0 0 10px !important;
+        padding: 0 0 7px 12px !important;
+        border-left: 4px solid var(--iba-im-teal, #0d7e85) !important;
+        font-size: 1.1rem !important;
+    }
+    #invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container .table-wrapper {
+        border-top: 1px solid rgba(13,126,133,.16) !important;
+        padding-top: 10px !important;
+        overflow-x: auto !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       9. BATCH ENTRY — compact search and global override sections.
+       ---------------------------------------------------------------------- */
+    #invoice-management-view#invoice-management-view #im-batch-entry > div:nth-of-type(2) {
+        position: relative !important;
+        z-index: 50 !important;
+        margin: 0 0 14px !important;
+        padding: 0 0 14px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(13,126,133,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-global-controls {
+        margin: 0 0 14px !important;
+        padding: 0 0 16px !important;
+        border: 0 !important;
+        border-bottom: 1px solid rgba(13,126,133,.20) !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-global-controls > div:first-child {
+        flex: 0 0 100% !important;
+        margin: 0 0 6px !important;
+        color: var(--iba-im-teal, #0d7e85) !important;
+    }
+    #invoice-management-view#invoice-management-view #im-batch-entry #im-batch-table-body {
+        margin-top: 0 !important;
+        padding: 12px 0 0 !important;
+        border-top: 1px solid rgba(13,126,133,.16) !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       10. INVOICE RECORDS — command controls and results without outer cards.
+       ---------------------------------------------------------------------- */
+    #invoice-management-view#invoice-management-view #im-reporting #im-reporting-form {
+        margin: 0 0 14px !important;
+        padding: 0 0 14px !important;
+        border-bottom: 1px solid rgba(13,126,133,.20) !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting #im-reporting-form .search-box {
+        margin: 0 0 10px !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting #im-reporting-form .controls-row {
+        padding: 0 !important;
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting .reporting-legend {
+        margin: 0 0 10px auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting .grid-header {
+        margin-top: 0 !important;
+        border-radius: 12px 12px 0 0 !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting .grid-body {
+        gap: 8px !important;
+        border-radius: 0 0 12px 12px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting .loading-state {
+        min-height: 120px !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* ----------------------------------------------------------------------
+       11. DENSITY AND RESPONSIVE DESKTOP SAFETY.
+       ---------------------------------------------------------------------- */
+    #workdesk-view#workdesk-view .workdesk-main,
+    #invoice-management-view#invoice-management-view .workdesk-main,
+    #inventory-view#inventory-view .workdesk-main {
+        padding-top: 14px !important;
+    }
+
+}
+
+@media (min-width: 901px) and (max-width: 1250px) {
+    #invoice-management-view#invoice-management-view #im-reporting-form .controls-row {
+        grid-template-columns: 1fr !important;
+    }
+    #invoice-management-view#invoice-management-view #im-reporting-form .action-buttons {
+        justify-content: flex-start !important;
+    }
+    #invoice-management-view#invoice-management-view #im-batch-entry > div:nth-of-type(2) {
+        align-items: stretch !important;
+    }
+}

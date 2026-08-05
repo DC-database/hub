@@ -1,0 +1,299 @@
+/* ========================================================================== 
+   IBA 11.9.4 — Clean Main Portal separation on the accepted 11.9.3 base
+   --------------------------------------------------------------------------
+   Scope:
+   - Desktop sidebar Main Portal only.
+   - Same compact geometry as normal navigation items.
+   - Clear module divider below the portal button.
+   - No page/header/table/workflow styling changes.
+   ========================================================================== */
+
+@media (min-width: 769px) {
+    /* Keep the Main Portal control compact and identical in structure across
+       WorkDesk, Inventory and Invoice Management. High specificity is used
+       deliberately to override earlier module contrast rules without touching
+       any other sidebar link. */
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard {
+        display: grid !important;
+        grid-template-columns: 18px minmax(0, 1fr) 12px !important;
+        align-items: center !important;
+        column-gap: 10px !important;
+        width: 100% !important;
+        min-height: 42px !important;
+        height: 42px !important;
+        box-sizing: border-box !important;
+        margin: 10px 0 0 !important;
+        padding: 0 12px !important;
+        border-width: 1px !important;
+        border-style: solid !important;
+        border-radius: 10px !important;
+        background: #fffaf6 !important;
+        box-shadow: 0 5px 14px rgba(3, 34, 53, 0.12) !important;
+        text-decoration: none !important;
+        transform: none !important;
+        transition: background-color .18s ease, border-color .18s ease,
+                    box-shadow .18s ease, transform .18s ease !important;
+    }
+
+    /* WorkDesk accent. */
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard {
+        border-color: #ff8a4c !important;
+        color: #082f49 !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    /* Inventory accent. */
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard {
+        border-color: #55c7bd !important;
+        color: #0b4f59 !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    /* Invoice Management accent. */
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard {
+        border-color: #ffab83 !important;
+        color: #12304a !important;
+        -webkit-text-fill-color: currentColor !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span),
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span),
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span),
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span) {
+        color: inherit !important;
+        -webkit-text-fill-color: currentColor !important;
+        text-shadow: none !important;
+    }
+
+    .wd-back-button.back-to-main-dashboard .wd-portal-home {
+        width: 18px !important;
+        min-width: 18px !important;
+        font-size: 14px !important;
+        text-align: center !important;
+    }
+
+    .wd-back-button.back-to-main-dashboard .wd-portal-label {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+        text-overflow: ellipsis !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+        letter-spacing: 0 !important;
+    }
+
+    .wd-back-button.back-to-main-dashboard .wd-portal-arrow {
+        width: 12px !important;
+        min-width: 12px !important;
+        font-size: 11px !important;
+        text-align: right !important;
+        opacity: .9 !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:hover,
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:focus-visible {
+        background: #fff2e8 !important;
+        border-color: #ff6a1a !important;
+        color: #082f49 !important;
+        box-shadow: 0 7px 18px rgba(255, 106, 26, 0.18) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:hover,
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:focus-visible,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:hover,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:focus-visible {
+        background: #eefbf8 !important;
+        border-color: #1fa69a !important;
+        color: #0b4f59 !important;
+        box-shadow: 0 7px 18px rgba(31, 166, 154, 0.18) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:hover,
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard:focus-visible {
+        background: #fff3ed !important;
+        border-color: #ff8c57 !important;
+        color: #12304a !important;
+        box-shadow: 0 7px 18px rgba(255, 140, 87, 0.18) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .wd-back-button.back-to-main-dashboard:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.92) !important;
+        outline-offset: 2px !important;
+    }
+
+    /* One clean module divider below Main Portal. This creates the requested
+       separation without making the button taller or changing the menu logic. */
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation,
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > #inv-nav.workdesk-navigation,
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > #im-nav.workdesk-navigation {
+        margin-top: 0 !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation::before,
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation::before,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > #inv-nav.workdesk-navigation::before,
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > #im-nav.workdesk-navigation::before {
+        display: block !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        margin: 12px 0 8px !important;
+        padding-top: 8px !important;
+        border-top: 1px dashed rgba(255, 255, 255, 0.38) !important;
+        color: rgba(255, 255, 255, 0.70) !important;
+        -webkit-text-fill-color: currentColor !important;
+        font-size: 9px !important;
+        font-weight: 800 !important;
+        line-height: 1.1 !important;
+        letter-spacing: .14em !important;
+        text-align: center !important;
+        text-transform: uppercase !important;
+        pointer-events: none !important;
+    }
+
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation::before {
+        content: "WORKDESK" !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > #workdesk-nav.workdesk-navigation::before,
+    #inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > #inv-nav.workdesk-navigation::before {
+        content: "INVENTORY" !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > #im-nav.workdesk-navigation::before {
+        content: "INVOICE MANAGEMENT" !important;
+    }
+}
+
+/* Final contrast lock: earlier legacy contrast rules repeat the view ID five
+   times and use !important. These selectors intentionally exceed that
+   specificity so the compact light portal button can never inherit white text. */
+@media (min-width: 769px) {
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    body:not(.inventory-mode)
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span) {
+        color: #082f49 !important;
+        -webkit-text-fill-color: #082f49 !important;
+    }
+
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    body.inventory-mode
+    #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span),
+    #inventory-view#inventory-view#inventory-view#inventory-view#inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    #inventory-view#inventory-view#inventory-view#inventory-view#inventory-view#inventory-view#inventory-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span) {
+        color: #0b4f59 !important;
+        -webkit-text-fill-color: #0b4f59 !important;
+    }
+
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard,
+    #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view
+    > .workdesk-sidebar
+    > .wd-back-button.back-to-main-dashboard :is(i, span) {
+        color: #12304a !important;
+        -webkit-text-fill-color: #12304a !important;
+    }
+}
