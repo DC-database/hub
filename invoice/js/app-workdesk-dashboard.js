@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.7.7
+   Version: 11.9.5
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -172,6 +172,13 @@
      the first result category; users explicitly choose which queue to display.
    - Ready for Payment adds a strict Admin + Accounts/Accounting row action that
      marks one invoice Paid using the existing next-day, Friday-to-Saturday rule.
+
+   11.9.5:
+   - Added CEO Approval to the WorkDesk Dashboard compact invoice-status queues.
+   - Counts and clicked-card details reuse invoice_tasks_by_user/All with exact
+     per-invoice validation; no full invoice_entries scan or second pocket is added.
+   - Only invoices whose exact current Invoice Entry status is CEO Approval appear;
+     they leave the card automatically after the status changes.
    ========================================================================== */
 
 // =================================================================================================
@@ -213,7 +220,7 @@ let wdDashboardLastRecentSyncAt = 0;
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
-const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V17';
+const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V18';
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
 const WD_DASHBOARD_CACHE_TTL = 24 * 60 * 60 * 1000; // 10.5.8: day/session cache; recent sync repairs changes on open/interval.
 const WD_DASHBOARD_COUNT_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -281,6 +288,7 @@ const WD_STATUS_ORDER = [
     'For Summary',
     'Retention',
     'For Approval',
+    'CEO Approval',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -297,6 +305,7 @@ const WD_DASHBOARD_ALLOWED_BUCKETS = new Set([
     'for summary',
     'retention',
     'for approval',
+    'ceo approval',
     'unresolved',
     'ipc application',
     'ipc processed',
@@ -315,6 +324,7 @@ const WD_DASHBOARD_LAZY_ADMIN_STATUSES = [
     'For Summary',
     'Retention',
     'For Approval',
+    'CEO Approval',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -334,6 +344,7 @@ const WD_DASHBOARD_FIXED_ALL_ACTIVE_CARDS = [
     'For Summary',
     'Retention',
     'For Approval',
+    'CEO Approval',
     'Unresolved',
     'IPC Application',
     'IPC Processed',
@@ -667,7 +678,7 @@ function wdDashboardCacheHasVerifiedAllActive(cached) {
 
 function wdClearDashboardCache() {
     try { window.localStorage.removeItem(WD_DASHBOARD_CACHE_KEY); } catch (e) { /* ignore */ }
-    try { window.localStorage.removeItem('IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1'); } catch (e) { /* ignore */ }
+    try { window.localStorage.removeItem('IBA_WD_ALL_ACTIVE_COUNT_CACHE_V2'); } catch (e) { /* ignore */ }
 }
 
 function wdNormalizeDashboardJobEntry(key, entry = {}) {
@@ -897,6 +908,7 @@ const WD_DASHBOARD_EXACT_INVOICE_STATUS_MAP = {
     'for summary': 'For Summary',
     'retention': 'Retention',
     'for approval': 'For Approval',
+    'ceo approval': 'CEO Approval',
     'pending': 'Pending',
     'unresolved': 'Unresolved',
     'ipc application': 'IPC Application',
@@ -3553,7 +3565,7 @@ try {
 
 function wdReadAllActiveDashboardCountsCache() {
     try {
-        const cached = wdReadJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1');
+        const cached = wdReadJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V2');
         if (!cached || cached.userKey !== wdDashboardUserCacheKey()) return null;
         if ((Date.now() - Number(cached.savedAt || 0)) > WD_DASHBOARD_COUNT_CACHE_TTL) return null;
         return cached.counts && typeof cached.counts === 'object' ? cached : null;
@@ -3564,7 +3576,7 @@ function wdReadAllActiveDashboardCountsCache() {
 
 function wdSaveAllActiveDashboardCountsCache(countsObj, items = null) {
     try {
-        wdWriteJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V1', {
+        wdWriteJSONStorage(window.localStorage, 'IBA_WD_ALL_ACTIVE_COUNT_CACHE_V2', {
             userKey: wdDashboardUserCacheKey(),
             savedAt: Date.now(),
             counts: countsObj || {},
