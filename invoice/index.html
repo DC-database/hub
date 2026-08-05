@@ -158,6 +158,7 @@
     <link rel="stylesheet" href="css/patch-11.9.1.css?v=11.9.1">
     <link rel="stylesheet" href="css/patch-11.9.2.css?v=11.9.2">
     <link rel="stylesheet" href="css/patch-11.9.3.css?v=11.9.3">
+    <link rel="stylesheet" href="css/patch-11.9.4.css?v=11.9.4">
 
     <script src="js/app-tab-guard.js?v=11.0.9"></script>
 
@@ -371,7 +372,7 @@
                 <p id="wd-user-identifier">user@iba.com.qa</p>
             </div>
 
-            <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Main Portal</a>
+            <a href="#" id="back-to-dashboard-button" class="wd-back-button back-to-main-dashboard" aria-label="Return to Main Portal"><i class="fa-solid fa-house wd-portal-home" aria-hidden="true"></i><span class="wd-portal-label">Main Portal</span><i class="fa-solid fa-chevron-right wd-portal-arrow" aria-hidden="true"></i></a>
 
             <nav id="workdesk-nav" class="workdesk-navigation">
                 <ul>
@@ -1168,7 +1169,7 @@
             <p id="inv-user-identifier">Inventory Access</p>
         </div>
 
-        <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+        <a href="#" class="wd-back-button back-to-main-dashboard" aria-label="Return to Main Portal"><i class="fa-solid fa-house wd-portal-home" aria-hidden="true"></i><span class="wd-portal-label">Main Portal</span><i class="fa-solid fa-chevron-right wd-portal-arrow" aria-hidden="true"></i></a>
 
         <nav id="inv-nav" class="workdesk-navigation">
             <ul>
@@ -1212,7 +1213,7 @@
                 <p id="im-user-identifier">user@iba.com.qa</p>
             </div>
 
-            <a href="#" class="wd-back-button back-to-main-dashboard"><i class="fa-solid fa-arrow-left"></i> Main Portal</a>
+            <a href="#" class="wd-back-button back-to-main-dashboard" aria-label="Return to Main Portal"><i class="fa-solid fa-house wd-portal-home" aria-hidden="true"></i><span class="wd-portal-label">Main Portal</span><i class="fa-solid fa-chevron-right wd-portal-arrow" aria-hidden="true"></i></a>
 
             <nav id="im-nav" class="workdesk-navigation">
                 <ul>
@@ -3460,7 +3461,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.9.3"></script>
+    <script src="app.js?v=11.9.5"></script>
     <script src="js/app-time-clock.js?v=11.7.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.8.7"></script>
@@ -3471,8 +3472,8 @@
     <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
     <script src="js/app-payments.js?v=11.8.2"></script>
     <script src="js/app-invoice-records.js?v=11.8.1"></script>
-    <script src="js/app-active-tasks.js?v=11.8.7"></script>
-    <script src="js/app-workdesk-dashboard.js?v=11.8.7"></script>
+    <script src="js/app-active-tasks.js?v=11.9.4"></script>
+    <script src="js/app-workdesk-dashboard.js?v=11.9.5"></script>
     <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
@@ -3486,10 +3487,10 @@
     <script src="js/app-help.js?v=11.8.8"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.9.3';
+      window.IBA_SYSTEM_VERSION = '11.9.5';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-    <script src="js/app-version-checker.js?v=11.9.3"></script>
+    <script src="js/app-version-checker.js?v=11.9.4"></script>
 
     </body>
 </html>

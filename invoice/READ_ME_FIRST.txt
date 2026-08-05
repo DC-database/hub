@@ -1,12 +1,12 @@
-IBA 11.9.2 — PATCH ONLY
+11.9.5 PATCH ONLY
 
-Upload/replace only these files, preserving the folders:
+Upload these files into the matching existing folders.
+Do not delete other files or CSS patch files.
+Base required: 11.9.4.
+After upload, use Ctrl + F5 in Chrome.
+
+Changed runtime files:
 - index.html
 - app.js
 - version.json
-- css/patch-11.9.2.css
-
-Reference:
-- CHANGELOG_11.9.2.txt
-
-After upload, hard refresh Chrome using Ctrl + F5.
+- js/app-workdesk-dashboard.js

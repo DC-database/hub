@@ -1,6 +1,6 @@
 {
-  "version": "11.9.3",
-  "releasedAt": "2026-08-03",
-  "title": "Logout Navigation Scope Correction",
-  "message": "Keeps the mobile Logout visible at rest in Invoice / Task, WorkDesk and Inventory, while preventing the mobile-only Logout item from appearing in desktop Inventory. Desktop footer Logout and all logout/session logic remain unchanged."
+  "version": "11.9.5",
+  "releasedAt": "2026-08-05",
+  "title": "CEO Approval Dashboard Queue",
+  "message": "Adds exact CEO Approval invoices to the WorkDesk Dashboard by reusing the existing compact active-invoice index. No second pocket and no full invoice database scan are introduced."
 }
