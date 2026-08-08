@@ -19,6 +19,7 @@ const paymentReadyIndexSubscribers = new Set();
 
 const PAYMENT_READY_INDEX_PATH = 'invoice_payments_ready';
 const PAYMENT_READY_CACHE_KEY = 'iba_invoice_payments_ready_v1';
+const PAYMENT_PAID_HISTORY_PATH = 'invoice_payments_paid_history';
 const PAYMENT_READY_META_PATH = 'invoice_payments_ready_meta';
 const PAYMENT_READY_META_CACHE_KEY = 'iba_invoice_payments_ready_meta_v1';
 const PAYMENT_INVOICE_PO_KEYS_CACHE_KEY = 'iba_invoice_payment_po_keys_v1';
@@ -127,6 +128,19 @@ function paymentDateISO(value) {
     const parsed = new Date(raw);
     if (Number.isNaN(parsed.getTime())) return '';
     return paymentISOFromParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
+}
+
+function paymentPaidHistoryYear(value, invoiceData = {}) {
+    const iso = paymentDateISO(value);
+    if (iso) {
+        const year = Number(iso.slice(0, 4));
+        if (Number.isInteger(year) && year >= 2000 && year <= 2100) return year;
+    }
+
+    const fallbackYear = paymentInvoiceDateYear(invoiceData);
+    if (Number.isInteger(fallbackYear) && fallbackYear >= 2000 && fallbackYear <= 2100) return fallbackYear;
+
+    return new Date().getFullYear();
 }
 
 function paymentWithAccountsDateValue(invoiceData = {}) {
@@ -336,6 +350,88 @@ function paymentReadyItemFromRow(row = {}, fallbackIndexKey = '') {
         releaseDate: paymentWithAccountsDateValue(row),
         paidDate: paymentDateISO(row.paidDate) || paymentToday()
     };
+}
+
+
+function paymentPaidHistoryPayload(poNumber, invoiceKey, invoiceData = {}, options = {}) {
+    const po = paymentText(poNumber).toUpperCase();
+    const key = paymentText(invoiceKey);
+    if (!po || !key) return null;
+
+    // 11.9.10: Paid History is its own compact pocket. Do not depend on PO/Vendor CSV
+    // lookups here; copy the vendor/site identity from the With Accounts pocket row or
+    // the filtered Invoice Records row that is already in hand.
+    const vendorName = paymentText(
+        options.vendorName || options.supplierName ||
+        invoiceData.vendorName || invoiceData.supplierName || invoiceData.vendor ||
+        invoiceData.Vendor || invoiceData['Vendor Name']
+    ) || 'N/A';
+    const supplierId = paymentNormalizeSupplierId(
+        options.supplierId || options.vendorId ||
+        invoiceData.supplierId || invoiceData.vendorId || invoiceData.vendor_id ||
+        invoiceData['Supplier ID'] || invoiceData['Vendor ID']
+    );
+    const site = paymentText(
+        options.site || invoiceData.site || invoiceData.siteName || invoiceData.Site ||
+        invoiceData['Project ID']
+    ) || 'N/A';
+    const amountCandidate = options.amountPaid ?? invoiceData.amountPaid ?? invoiceData.invValue;
+    const amountPaid = Number(String(amountCandidate ?? '').replace(/,/g, '')) || 0;
+    const paidDate = paymentDateISO(options.paidDate || invoiceData.paidDate || invoiceData.actualPaidDate || invoiceData.releaseDate) || '';
+    const paidYear = paymentPaidHistoryYear(
+        paidDate || options.paidDate || invoiceData.paidDate || invoiceData.actualPaidDate || invoiceData.releaseDate,
+        invoiceData
+    );
+    const withAccountsDate = paymentDateISO(
+        options.withAccountsDate ||
+        invoiceData.withAccountsReleaseDate ||
+        invoiceData.withAccountsDate ||
+        paymentWithAccountsDateValue(invoiceData)
+    ) || '';
+    const markedBy = paymentText(
+        options.markedBy ||
+        invoiceData.paidBy ||
+        invoiceData.updatedBy ||
+        (typeof currentApprover !== 'undefined' && currentApprover ? currentApprover.Name : '')
+    ) || 'System';
+
+    return {
+        indexKey: paymentReadyIndexKey(po, key),
+        po,
+        invoiceKey: key,
+        invoiceNo: paymentText(invoiceData.invNumber || invoiceData.invoiceNo),
+        invEntryID: paymentText(invoiceData.invEntryID),
+        vendorName,
+        vendorNameLower: paymentNormalize(vendorName),
+        supplierId,
+        site,
+        amountPaid,
+        invoiceValue: Number(invoiceData.invValue) || Number(invoiceData.invoiceValue) || 0,
+        withAccountsDate,
+        paidDate,
+        paidYear,
+        releaseDate: paidDate,
+        markedBy,
+        paymentMethod: paymentText(
+            options.paymentMethod ||
+            invoiceData.paymentMethod ||
+            invoiceData.modeOfPayment ||
+            invoiceData.paymentMode
+        ),
+        status: 'Paid',
+        updatedAt: options.updatedAt !== undefined
+            ? options.updatedAt
+            : ((typeof firebase !== 'undefined' && firebase.database)
+                ? firebase.database.ServerValue.TIMESTAMP
+                : Date.now()),
+        schemaVersion: 4
+    };
+}
+
+function paymentNotifyPaidHistoryUpdated(detail = {}) {
+    try {
+        window.dispatchEvent(new CustomEvent('iba:paid-history-updated', { detail }));
+    } catch (_) {}
 }
 
 function paymentReadyItemsSnapshot() {
@@ -728,6 +824,79 @@ async function paymentTransferFilteredInvoicesToPocket(records, onProgress) {
     };
 }
 
+async function paymentTransferFilteredPaidInvoicesToPocket(records, onProgress) {
+    if (!paymentIsSuperAdmin()) {
+        throw new Error('Only Irwin/Super Admin can transfer filtered Paid Invoice Records to the Paid History pocket.');
+    }
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) {
+        throw new Error('The Invoice Realtime Database connection is unavailable.');
+    }
+
+    const unique = new Map();
+    (Array.isArray(records) ? records : []).forEach(record => {
+        const po = paymentText(record && (record.po || record.poNumber)).toUpperCase();
+        const key = paymentText(record && (record.key || record.invoiceKey));
+        const invoice = record && record.invoice && typeof record.invoice === 'object'
+            ? record.invoice
+            : record;
+        if (!po || !key || !invoice || typeof invoice !== 'object') {
+            throw new Error('One of the prepared Paid rows has no permanent PO/invoice identity.');
+        }
+        if (paymentNormalize(record && record.source || invoice.source) === 'ecommit') {
+            throw new Error('ECommit-only rows cannot be transferred to the Paid History pocket.');
+        }
+        if (paymentNormalize(invoice.status) !== 'paid') {
+            throw new Error('Every prepared invoice must have Paid status. Filter Invoice Records to Paid first.');
+        }
+        unique.set(paymentCartId(po, key), { po, key, invoice });
+    });
+
+    const prepared = Array.from(unique.values());
+    if (!prepared.length) throw new Error('There are no remaining Paid invoices to transfer.');
+
+    const serverTimestamp = (typeof firebase !== 'undefined' && firebase.database)
+        ? firebase.database.ServerValue.TIMESTAMP
+        : Date.now();
+    const payloads = prepared.map(({ po, key, invoice }) => paymentPaidHistoryPayload(po, key, invoice, {
+        amountPaid: invoice.amountPaid ?? invoice.invValue,
+        paidDate: invoice.paidDate || invoice.actualPaidDate || invoice.releaseDate,
+        withAccountsDate: invoice.withAccountsReleaseDate || invoice.withAccountsDate,
+        markedBy: invoice.paidBy || invoice.markedBy || invoice.updatedBy || 'Historical Transfer',
+        vendorName: invoice.vendorName || invoice.supplierName || invoice.vendor,
+        supplierId: invoice.supplierId || invoice.vendorId,
+        site: invoice.site || invoice.siteName || invoice['Project ID'],
+        updatedAt: serverTimestamp
+    })).filter(Boolean);
+
+    if (!payloads.length) throw new Error('No valid Paid records were available for transfer.');
+
+    const batchSize = 200;
+    let processed = 0;
+    for (let start = 0; start < payloads.length; start += batchSize) {
+        const batch = payloads.slice(start, start + batchSize);
+        const updates = {};
+        batch.forEach(payload => {
+            // The permanent PO + invoice key is the pocket identity. Re-running a transfer
+            // safely refreshes the same row instead of creating duplicates.
+            updates[`${PAYMENT_PAID_HISTORY_PATH}/${payload.paidYear}/${payload.indexKey}`] = payload;
+            // 11.9.12: clean any legacy flat copy of the same Paid record.
+            updates[`${PAYMENT_PAID_HISTORY_PATH}/${payload.indexKey}`] = null;
+        });
+        await invoiceDb.ref().update(updates);
+        processed += batch.length;
+        if (typeof onProgress === 'function') {
+            onProgress({ processed, total: payloads.length });
+        }
+    }
+
+    paymentNotifyPaidHistoryUpdated({
+        source: 'invoice-records-paid-transfer',
+        count: payloads.length,
+        years: Array.from(new Set(payloads.map(payload => String(payload.paidYear))))
+    });
+    return { total: payloads.length };
+}
+
 function paymentPaidDateAfterWithAccounts(value) {
     const iso = paymentDateISO(value);
     if (!iso) return '';
@@ -825,6 +994,7 @@ async function paymentMarkInvoicesPaidInternal(records, onProgress, accessMode) 
         ? firebase.database.ServerValue.TIMESTAMP
         : Date.now();
     const updates = {};
+    const markedBy = paymentText(currentApprover?.Name) || 'System';
     exactRecords.forEach(record => {
         const basePath = `invoice_entries/${record.po}/${record.key}`;
         updates[`${basePath}/status`] = 'Paid';
@@ -832,22 +1002,44 @@ async function paymentMarkInvoicesPaidInternal(records, onProgress, accessMode) 
         updates[`${basePath}/withAccountsReleaseDate`] = record.withAccountsDate;
         updates[`${basePath}/paidDate`] = record.paidDate;
         updates[`${basePath}/releaseDate`] = record.paidDate;
+        updates[`${basePath}/paidBy`] = markedBy;
         updates[`${basePath}/statusChangedAt`] = serverTimestamp;
         updates[`${basePath}/statusQueueAt`] = serverTimestamp;
         updates[`${basePath}/lastUpdated`] = serverTimestamp;
         updates[`${basePath}/updatedAt`] = serverTimestamp;
         updates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(record.po, record.key)}`] = null;
+
+        const paidHistory = paymentPaidHistoryPayload(record.po, record.key, record.currentInvoice, {
+            amountPaid: record.currentInvoice.amountPaid ?? record.invoice.amountPaid ?? record.currentInvoice.invValue,
+            paidDate: record.paidDate,
+            withAccountsDate: record.withAccountsDate,
+            markedBy,
+            vendorName: record.invoice.vendorName || record.invoice.supplierName || record.currentInvoice.vendorName || record.currentInvoice.supplierName,
+            supplierId: record.invoice.supplierId || record.invoice.vendorId || record.currentInvoice.supplierId || record.currentInvoice.vendorId,
+            site: record.invoice.site || record.invoice.siteName || record.currentInvoice.site || record.currentInvoice.siteName,
+            updatedAt: serverTimestamp
+        });
+        if (paidHistory) {
+            updates[`${PAYMENT_PAID_HISTORY_PATH}/${paidHistory.paidYear}/${paidHistory.indexKey}`] = paidHistory;
+            updates[`${PAYMENT_PAID_HISTORY_PATH}/${paidHistory.indexKey}`] = null;
+        }
     });
 
     if (typeof onProgress === 'function') {
         onProgress({ phase: 'saving', processed: 0, total: exactRecords.length });
     }
     await invoiceDb.ref().update(updates);
+    paymentNotifyPaidHistoryUpdated({
+        source: actionSource,
+        count: exactRecords.length,
+        years: Array.from(new Set(exactRecords.map(record => String(paymentPaidHistoryYear(record.paidDate, record.currentInvoice || {})))))
+    });
 
     exactRecords.forEach(record => {
         const localUpdates = {
             status: 'Paid',
             attention: '',
+            paidBy: markedBy,
             withAccountsReleaseDate: record.withAccountsDate,
             paidDate: record.paidDate,
             releaseDate: record.paidDate,
@@ -1983,6 +2175,7 @@ async function handleSavePayments() {
             ? firebase.database.ServerValue.TIMESTAMP
             : Date.now();
         const batchUpdates = {};
+        const markedBy = paymentText(currentApprover?.Name) || 'System';
 
         currentRecords.forEach(({ item, invoice }) => {
             const basePath = `invoice_entries/${item.po}/${item.key}`;
@@ -1996,14 +2189,36 @@ async function handleSavePayments() {
             }
             batchUpdates[`${basePath}/paidDate`] = item.paidDate;
             batchUpdates[`${basePath}/releaseDate`] = item.paidDate;
+            batchUpdates[`${basePath}/paidBy`] = markedBy;
             batchUpdates[`${basePath}/statusChangedAt`] = serverTimestamp;
             batchUpdates[`${basePath}/statusQueueAt`] = serverTimestamp;
             batchUpdates[`${basePath}/lastUpdated`] = serverTimestamp;
+            batchUpdates[`${basePath}/updatedAt`] = serverTimestamp;
             batchUpdates[`${PAYMENT_READY_INDEX_PATH}/${paymentReadyIndexKey(item.po, item.key)}`] = null;
+
+            const paidHistory = paymentPaidHistoryPayload(item.po, item.key, invoice, {
+                amountPaid: Number(item.amountPaid),
+                paidDate: item.paidDate,
+                withAccountsDate,
+                markedBy,
+                vendorName: item.supplierName || item.vendorName,
+                supplierId: item.supplierId || item.vendorId,
+                site: item.site,
+                updatedAt: serverTimestamp
+            });
+            if (paidHistory) {
+                batchUpdates[`${PAYMENT_PAID_HISTORY_PATH}/${paidHistory.paidYear}/${paidHistory.indexKey}`] = paidHistory;
+                batchUpdates[`${PAYMENT_PAID_HISTORY_PATH}/${paidHistory.indexKey}`] = null;
+            }
         });
 
         if (statusEl) statusEl.textContent = 'Marking invoices Paid…';
         await invoiceDb.ref().update(batchUpdates);
+        paymentNotifyPaidHistoryUpdated({
+            source: 'invoice-management-payments',
+            count: currentRecords.length,
+            years: Array.from(new Set(currentRecords.map(({ item, invoice }) => String(paymentPaidHistoryYear(item.paidDate, invoice || {})))))
+        });
 
         currentRecords.forEach(({ item, invoice }) => {
             const withAccountsDate = paymentText(invoice.withAccountsReleaseDate) ||
@@ -2012,6 +2227,7 @@ async function handleSavePayments() {
             const localUpdates = {
                 status: 'Paid',
                 amountPaid: Number(item.amountPaid),
+                paidBy: markedBy,
                 paidDate: item.paidDate,
                 releaseDate: item.paidDate,
                 statusChangedAt: Date.now(),
@@ -2038,6 +2254,7 @@ async function handleSavePayments() {
                 ...invoice,
                 status: 'Paid',
                 amountPaid: Number(item.amountPaid),
+                paidBy: markedBy,
                 paidDate: item.paidDate,
                 releaseDate: item.paidDate,
                 ...(!paymentText(invoice.withAccountsReleaseDate) && withAccountsDate
@@ -2103,6 +2320,7 @@ window.ibaPaymentPocket = {
     getItems: paymentReadyItemsSnapshot,
     subscribe: paymentSubscribeReadyIndex,
     transferFilteredInvoices: paymentTransferFilteredInvoicesToPocket,
+    transferFilteredPaidInvoices: paymentTransferFilteredPaidInvoicesToPocket,
     markFilteredInvoicesPaid: paymentMarkFilteredInvoicesPaid,
     markWorkdeskInvoicePaid: paymentMarkWorkdeskInvoicePaid,
     calculatePaidDate: paymentPaidDateAfterWithAccounts,

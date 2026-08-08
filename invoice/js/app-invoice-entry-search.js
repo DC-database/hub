@@ -427,6 +427,18 @@ async function handlePOSearch(poNumberFromInput) {
         return;
     }
 
+    // 11.9.6: A fresh manual PO search must not accidentally keep a previously
+    // selected Job Entry conversion. Preserve only the deliberate Active Job
+    // handoff that carries pending data for this exact PO.
+    try {
+        const pendingPO = String(pendingJobEntryDataForInvoice?.po || '').trim().toUpperCase();
+        if (!pendingPO || pendingPO !== poNumber) {
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+            window.importedJobHistory = null;
+        }
+    } catch (_) {}
+
     // 11.8.8: Every new search starts with a clean folder state and invalidates
     // any slower lookup from the previously searched PO.
     imResetInvoicePOFileActionState({
@@ -944,6 +956,264 @@ if (!invNoText.includes('retention')) {  // ← CHANGED variable name
         pendingJobEntryDataForInvoice = null;
     }
 }
+
+// ==========================================================================
+// 11.9.6 — FORGOTTEN IPC APPLICATION / IPC PROCESSED RECOVERY
+// ==========================================================================
+
+let imIPCRecoveryLookupRunning = false;
+
+function imIPCRecoveryText(value) {
+    return String(value == null ? '' : value).trim();
+}
+
+function imIPCRecoveryNormalize(value) {
+    return imIPCRecoveryText(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function imIPCRecoverySafe(value) {
+    return imIPCRecoveryText(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function imIsOpenIPCRecoveryRecord(entry = {}) {
+    if (!entry || typeof entry !== 'object') return false;
+    if (entry.convertedToInvoice || entry.archived || entry.linkedInvoiceKey) return false;
+
+    const type = imIPCRecoveryNormalize(entry.for || entry.type || entry.entryFor);
+    const status = imIPCRecoveryNormalize(entry.remarks || entry.status);
+    if (['converted to invoice', 'completed', 'closed', 'paid'].includes(status)) return false;
+
+    if (type === 'ipc application') {
+        return ['', 'pending', 'ipc issue'].includes(status);
+    }
+    if (type === 'ipc processed' || type === 'ipc') {
+        return ['', 'pending', 'waiting invoice', 'ipc'].includes(status);
+    }
+    return false;
+}
+
+async function imFindOpenIPCJobEntriesForPO(poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!po) return [];
+
+    const found = new Map();
+    const addRecord = (key, entry) => {
+        if (!key || !entry || typeof entry !== 'object') return;
+        if (imIPCRecoveryText(entry.po).toUpperCase() !== po) return;
+        if (!imIsOpenIPCRecoveryRecord(entry)) return;
+        found.set(key, { ...entry, key, source: 'job_entry' });
+    };
+
+    try {
+        if (Array.isArray(allSystemEntries)) {
+            allSystemEntries.forEach(entry => addRecord(entry && entry.key, entry));
+        }
+    } catch (_) {}
+
+    try {
+        const database = (typeof db !== 'undefined' && db && db.ref)
+            ? db
+            : ((typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null);
+        if (!database || !database.ref) return Array.from(found.values());
+
+        const queryValues = [po];
+        if (/^\d+$/.test(po)) queryValues.push(Number(po));
+
+        const results = await Promise.allSettled(queryValues.map(value =>
+            database.ref('job_entries').orderByChild('po').equalTo(value).once('value')
+        ));
+        results.forEach(result => {
+            if (result.status !== 'fulfilled') return;
+            const rows = result.value && result.value.val ? (result.value.val() || {}) : {};
+            Object.entries(rows).forEach(([key, entry]) => addRecord(key, entry));
+        });
+    } catch (error) {
+        console.warn('IPC recovery lookup could not be completed. Existing loaded WorkDesk records will be used.', error);
+    }
+
+    return Array.from(found.values()).sort((a, b) => {
+        const aTime = Number(a.statusQueueAt || a.updatedAt || a.timestamp || 0);
+        const bTime = Number(b.statusQueueAt || b.updatedAt || b.timestamp || 0);
+        return bTime - aTime;
+    });
+}
+
+function imRenderIPCRecoveryRows(records) {
+    const body = document.getElementById('im-ipc-recovery-results');
+    if (!body) return;
+    body.innerHTML = '';
+
+    records.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        const typeRaw = imIPCRecoveryText(entry.for || entry.type || 'IPC');
+        const type = typeRaw === 'IPC' ? 'IPC Processed' : typeRaw;
+        const statusClass = imIPCRecoveryNormalize(type) === 'ipc application'
+            ? 'is-application'
+            : 'is-processed';
+        const reference = entry.ref || entry.reference || entry.jobRef || '—';
+        const enteredBy = entry.enteredBy || entry.createdBy || '—';
+        const date = entry.date || entry.dateEntered || entry.releaseDate || '—';
+        const attention = entry.attention || '—';
+
+        row.innerHTML = `
+            <td><input type="radio" name="im-ipc-recovery-choice" value="${imIPCRecoverySafe(entry.key)}" ${index === 0 ? 'checked' : ''} aria-label="Select ${imIPCRecoverySafe(type)}"></td>
+            <td><span class="im-ipc-recovery-status ${statusClass}">${imIPCRecoverySafe(type)}</span></td>
+            <td>${imIPCRecoverySafe(reference)}</td>
+            <td>${imIPCRecoverySafe(enteredBy)}</td>
+            <td>${imIPCRecoverySafe(date)}</td>
+            <td>${imIPCRecoverySafe(attention)}</td>
+        `;
+        row.addEventListener('click', event => {
+            if (event.target && event.target.matches('input[type="radio"]')) return;
+            const radio = row.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+        body.appendChild(row);
+    });
+}
+
+function imAwaitIPCRecoveryChoice(records) {
+    const modal = document.getElementById('im-ipc-recovery-modal');
+    const convertButton = document.getElementById('im-ipc-recovery-convert');
+    const continueButton = document.getElementById('im-ipc-recovery-continue');
+    const cancelButton = document.getElementById('im-ipc-recovery-cancel');
+    const closeButton = modal && modal.querySelector('.modal-header .modal-close-btn');
+    if (!modal || !convertButton || !continueButton || !cancelButton) {
+        return Promise.resolve({ action: 'continue' });
+    }
+
+    imRenderIPCRecoveryRows(records);
+    modal.classList.remove('hidden');
+
+    return new Promise(resolve => {
+        let finished = false;
+        const cleanup = () => {
+            convertButton.removeEventListener('click', onConvert);
+            continueButton.removeEventListener('click', onContinue);
+            cancelButton.removeEventListener('click', onCancel);
+            if (closeButton) closeButton.removeEventListener('click', onCancel);
+        };
+        const finish = result => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            modal.classList.add('hidden');
+            resolve(result);
+        };
+        const onConvert = () => {
+            const checked = modal.querySelector('input[name="im-ipc-recovery-choice"]:checked');
+            const selected = records.find(record => record.key === (checked && checked.value));
+            if (!selected) {
+                alert('Please select the IPC record that belongs to this invoice.');
+                return;
+            }
+            finish({ action: 'convert', record: selected });
+        };
+        const onContinue = () => finish({ action: 'continue' });
+        const onCancel = event => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            finish({ action: 'cancel' });
+        };
+
+        convertButton.addEventListener('click', onConvert);
+        continueButton.addEventListener('click', onContinue);
+        cancelButton.addEventListener('click', onCancel);
+        if (closeButton) closeButton.addEventListener('click', onCancel);
+    });
+}
+
+function imPrepareIPCRecoveryInvoice(record, poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!record || !record.key || !po) return false;
+
+    jobEntryToUpdateAfterInvoice = record.key;
+
+    const poData = (typeof allPOData !== 'undefined' && allPOData && allPOData[po]) ? allPOData[po] : {};
+    pendingJobEntryDataForInvoice = {
+        po,
+        // IPC references are not guaranteed to be the supplier's physical invoice
+        // number, so Invoice No. intentionally remains blank for the user to enter.
+        ref: '',
+        amount: record.amount || '',
+        date: '',
+        invoiceDate: '',
+        vendorName: record.vendorName || record.vendor || poData['Supplier Name'] || '',
+        vendorId: record.vendorId || record.supplierId || poData['Supplier ID'] || '',
+        site: record.site || poData['Project ID'] || '',
+        group: imNormalizeInvoiceGroupValue(currentInvoiceEntryGroup || 'Normal'),
+        category: imNormalizeInvoiceGroupValue(currentInvoiceEntryGroup || 'Normal')
+    };
+
+    window.importedJobHistory = [{
+        status: imIPCRecoveryText(record.for || record.type || 'IPC'),
+        date: record.date || record.dateEntered || new Date().toISOString(),
+        updatedBy: record.enteredBy || record.createdBy || 'WorkDesk'
+    }];
+
+    try {
+        if (!Array.isArray(allSystemEntries)) allSystemEntries = [];
+        const existingIndex = allSystemEntries.findIndex(entry => entry && entry.key === record.key);
+        const localRecord = { ...record, key: record.key, source: 'job_entry' };
+        if (existingIndex >= 0) allSystemEntries[existingIndex] = { ...allSystemEntries[existingIndex], ...localRecord };
+        else allSystemEntries.push(localRecord);
+    } catch (_) {}
+
+    // Rebuild the new-invoice form so the selected IPC link is carried into the
+    // normal save path. No Job Entry write occurs here.
+    if (typeof fetchAndDisplayInvoices === 'function') {
+        fetchAndDisplayInvoices(po);
+    } else if (typeof resetInvoiceForm === 'function') {
+        resetInvoiceForm();
+    }
+
+    try {
+        const typeRaw = imIPCRecoveryText(record.for || record.type || 'IPC');
+        const displayType = typeRaw === 'IPC' ? 'IPC Processed' : typeRaw;
+        if (typeof imFormTitle !== 'undefined' && imFormTitle) {
+            imFormTitle.textContent = `Add New Invoice — ${displayType}`;
+        }
+    } catch (_) {}
+    return true;
+}
+
+async function imPromptIPCRecoveryBeforeNewInvoice(poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!po) return false;
+
+    // Existing Invoice editing and a deliberate Active Job conversion already
+    // have their own source identity; do not prompt a second time.
+    if (typeof currentlyEditingInvoiceKey !== 'undefined' && currentlyEditingInvoiceKey) return true;
+    if (typeof jobEntryToUpdateAfterInvoice !== 'undefined' && jobEntryToUpdateAfterInvoice) return true;
+    if (imIPCRecoveryLookupRunning) return false;
+
+    imIPCRecoveryLookupRunning = true;
+    try {
+        const records = await imFindOpenIPCJobEntriesForPO(po);
+        if (!records.length) return true;
+
+        const choice = await imAwaitIPCRecoveryChoice(records);
+        if (choice.action === 'cancel') return false;
+        if (choice.action === 'continue') {
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+            window.importedJobHistory = null;
+            return true;
+        }
+        return imPrepareIPCRecoveryInvoice(choice.record, po);
+    } finally {
+        imIPCRecoveryLookupRunning = false;
+    }
+}
+
+window.imPromptIPCRecoveryBeforeNewInvoice = imPromptIPCRecoveryBeforeNewInvoice;
 
 // ==========================================================================
 // 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)

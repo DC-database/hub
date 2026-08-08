@@ -309,6 +309,199 @@ async function imConfirmPocketTransfer() {
     }
 }
 
+// 11.9.10: Historical Paid rows can be copied into the compact Paid History
+// pocket after filtering Invoice Records. This is an idempotent index transfer;
+// it never changes the original Paid invoice record.
+let imPaidPocketTransferSourceItems = [];
+let imPaidPocketTransferExcludedIds = new Set();
+let imPaidPocketTransferCompleted = false;
+
+function imPaidPocketTransferValidation(items = imPocketTransferCurrentResultItems()) {
+    const list = Array.isArray(items) ? items : [];
+    if (!list.length) return { valid: false, message: 'Search Invoice Records first.' };
+    if (list.some(item => !item.po || !item.key)) {
+        return { valid: false, message: 'The result contains a row without a permanent Firebase invoice identity.' };
+    }
+    if (list.some(item => imPocketTransferNormalize(item.source || item.invoice?.source) === 'ecommit')) {
+        return { valid: false, message: 'The result contains ECommit-only rows. Filter saved Paid invoices only.' };
+    }
+    if (list.some(item => imPocketTransferNormalize(item.invoice?.status) !== 'paid')) {
+        return { valid: false, message: 'Filter Invoice Records to Paid before preparing the Paid History transfer.' };
+    }
+    return { valid: true, message: '' };
+}
+
+function imUpdatePaidPocketTransferButtonState() {
+    const button = document.getElementById('im-prepare-paid-pocket-transfer-btn');
+    if (!button) return;
+    const isSuperAdmin = imPocketTransferIsSuperAdmin();
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imPaidPocketTransferValidation(items);
+    button.classList.toggle('hidden', !isSuperAdmin || !validation.valid);
+    if (!isSuperAdmin) return;
+    button.disabled = !validation.valid;
+    button.title = validation.valid
+        ? `Prepare exactly ${items.length} filtered Paid invoice(s) for Paid History pocket transfer.`
+        : validation.message;
+    const label = button.querySelector('span');
+    if (label) label.textContent = validation.valid
+        ? `Transfer Paid to Pocket (${items.length})`
+        : 'Transfer Paid to Pocket';
+}
+
+function imPaidPocketTransferRemainingItems() {
+    return imPaidPocketTransferSourceItems.filter(item => !imPaidPocketTransferExcludedIds.has(item.id));
+}
+
+function imPaidPocketTransferSetStatus(message, tone = '') {
+    const status = document.getElementById('im-paid-pocket-transfer-status');
+    if (!status) return;
+    status.className = `im-pocket-transfer-status${tone ? ` is-${tone}` : ''}`;
+    status.textContent = message || '';
+}
+
+function imRenderPaidPocketTransferList() {
+    const body = document.getElementById('im-paid-pocket-transfer-table-body');
+    const originalCount = document.getElementById('im-paid-pocket-transfer-original-count');
+    const excludedCount = document.getElementById('im-paid-pocket-transfer-excluded-count');
+    const remainingCount = document.getElementById('im-paid-pocket-transfer-remaining-count');
+    const totalDisplay = document.getElementById('im-paid-pocket-transfer-total');
+    const transferButton = document.getElementById('im-paid-pocket-transfer-confirm-btn');
+    const resetButton = document.getElementById('im-paid-pocket-transfer-reset-btn');
+    if (!body) return;
+
+    const remaining = imPaidPocketTransferRemainingItems();
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    if (originalCount) originalCount.textContent = String(imPaidPocketTransferSourceItems.length);
+    if (excludedCount) excludedCount.textContent = String(imPaidPocketTransferExcludedIds.size);
+    if (remainingCount) remainingCount.textContent = String(remaining.length);
+    if (totalDisplay) totalDisplay.textContent = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (transferButton) transferButton.disabled = !remaining.length || imPaidPocketTransferCompleted;
+    if (resetButton) resetButton.disabled = !imPaidPocketTransferExcludedIds.size || imPaidPocketTransferCompleted;
+
+    if (!remaining.length) {
+        body.innerHTML = '<tr><td colspan="7" class="im-pocket-transfer-empty">All prepared invoices are excluded. Use Reset List to restore them.</td></tr>';
+        return;
+    }
+
+    body.innerHTML = remaining.map(item => {
+        const invoice = item.invoice || {};
+        const amount = imPocketTransferAmount(invoice);
+        const amountText = typeof formatCurrency === 'function'
+            ? formatCurrency(amount)
+            : amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const paidDateRaw = invoice.paidDate || invoice.actualPaidDate || invoice.releaseDate;
+        const paidDate = typeof formatToDDMMMYY === 'function'
+            ? formatToDDMMMYY(paidDateRaw)
+            : imPocketTransferText(paidDateRaw) || '---';
+        return `
+            <tr>
+                <td>${imPocketTransferSafe(invoice.invNumber || invoice.invoiceNo || invoice.invEntryID || 'N/A')}</td>
+                <td>${imPocketTransferSafe(item.po)}</td>
+                <td>${imPocketTransferSafe(invoice.vendorName || invoice.supplierName || 'N/A')}</td>
+                <td>${imPocketTransferSafe(invoice.site || 'N/A')}</td>
+                <td class="right-align">${imPocketTransferSafe(amountText)}</td>
+                <td>${imPocketTransferSafe(paidDate)}</td>
+                <td><button type="button" class="im-pocket-transfer-remove im-paid-pocket-transfer-remove" data-paid-transfer-id="${imPocketTransferSafe(encodeURIComponent(item.id))}" title="Exclude from this transfer only" aria-label="Exclude ${imPocketTransferSafe(invoice.invNumber || item.po)}"><i class="fa-solid fa-xmark"></i></button></td>
+            </tr>`;
+    }).join('');
+}
+
+function imOpenPaidPocketTransferModal() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can transfer Paid Invoice Records to the Paid History pocket.');
+        return;
+    }
+    const items = imPocketTransferCurrentResultItems();
+    const validation = imPaidPocketTransferValidation(items);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+
+    imPaidPocketTransferSourceItems = items;
+    imPaidPocketTransferExcludedIds = new Set();
+    imPaidPocketTransferCompleted = false;
+    const transferButton = document.getElementById('im-paid-pocket-transfer-confirm-btn');
+    if (transferButton) transferButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Transfer Remaining to Paid Pocket';
+    imPaidPocketTransferSetStatus('Remove anything you do not want to transfer, then confirm the remaining Paid rows.');
+    imRenderPaidPocketTransferList();
+    document.getElementById('im-paid-pocket-transfer-modal')?.classList.remove('hidden');
+}
+
+function imClosePaidPocketTransferModal() {
+    document.getElementById('im-paid-pocket-transfer-modal')?.classList.add('hidden');
+}
+
+async function imConfirmPaidPocketTransfer() {
+    if (!imPocketTransferIsSuperAdmin()) {
+        alert('Access Denied: Only Irwin/Super Admin can transfer Paid Invoice Records to the Paid History pocket.');
+        return;
+    }
+    const remaining = imPaidPocketTransferRemainingItems();
+    if (!remaining.length) {
+        alert('There are no remaining Paid invoices to transfer.');
+        return;
+    }
+    const validation = imPaidPocketTransferValidation(remaining);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+    if (!window.ibaPaymentPocket || typeof window.ibaPaymentPocket.transferFilteredPaidInvoices !== 'function') {
+        alert('The Paid History pocket service is unavailable. Refresh the system and try again.');
+        return;
+    }
+
+    const total = remaining.reduce((sum, item) => sum + imPocketTransferAmount(item.invoice), 0);
+    const totalText = typeof formatCurrency === 'function'
+        ? formatCurrency(total)
+        : total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const confirmed = confirm(
+        `Transfer exactly ${remaining.length} Paid invoice(s) to the Paid History pocket?\n\n` +
+        `Excluded: ${imPaidPocketTransferExcludedIds.size}\n` +
+        `Remaining Total: ${totalText}\n\n` +
+        'Original invoice records will not change. Re-running the transfer safely refreshes the same pocket records and will not create duplicates.'
+    );
+    if (!confirmed) return;
+
+    const transferButton = document.getElementById('im-paid-pocket-transfer-confirm-btn');
+    const resetButton = document.getElementById('im-paid-pocket-transfer-reset-btn');
+    if (transferButton) {
+        transferButton.disabled = true;
+        transferButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Transferring…';
+    }
+    if (resetButton) resetButton.disabled = true;
+    document.querySelectorAll('#im-paid-pocket-transfer-table-body .im-paid-pocket-transfer-remove').forEach(button => {
+        button.disabled = true;
+    });
+
+    try {
+        const result = await window.ibaPaymentPocket.transferFilteredPaidInvoices(remaining, progress => {
+            imPaidPocketTransferSetStatus(`Transferring ${progress.processed} of ${progress.total} Paid invoice(s)…`, 'working');
+        });
+        imPaidPocketTransferCompleted = true;
+        imPaidPocketTransferSetStatus(
+            `${result.total} Paid invoice(s) transferred to the Paid History pocket successfully. Existing matching pocket rows were refreshed in place, so duplicates were not created.`,
+            'success'
+        );
+        if (transferButton) transferButton.innerHTML = '<i class="fa-solid fa-circle-check"></i> Transfer Completed';
+    } catch (error) {
+        console.error('Invoice Records Paid pocket transfer failed:', error);
+        imPaidPocketTransferSetStatus(error.message || 'The Paid History transfer could not be completed.', 'error');
+        if (transferButton) {
+            transferButton.disabled = false;
+            transferButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Retry Transfer';
+        }
+        if (resetButton) resetButton.disabled = !imPaidPocketTransferExcludedIds.size;
+        document.querySelectorAll('#im-paid-pocket-transfer-table-body .im-paid-pocket-transfer-remove').forEach(button => {
+            button.disabled = false;
+        });
+    }
+}
+
 let imMarkPaidSourceItems = [];
 let imMarkPaidExcludedIds = new Set();
 let imMarkPaidCompleted = false;
@@ -379,6 +572,7 @@ function imUpdateMarkPaidButtonState() {
 
 function imUpdateFilteredResultActionStates() {
     imUpdatePocketTransferButtonState();
+    imUpdatePaidPocketTransferButtonState();
     imUpdateMarkPaidButtonState();
 }
 
@@ -551,18 +745,26 @@ async function imConfirmMarkPaid() {
 
 document.addEventListener('DOMContentLoaded', () => {
     const prepareButton = document.getElementById('im-prepare-pocket-transfer-btn');
+    const paidPocketPrepareButton = document.getElementById('im-prepare-paid-pocket-transfer-btn');
     const markPaidPrepareButton = document.getElementById('im-prepare-mark-paid-btn');
     const transferBody = document.getElementById('im-pocket-transfer-table-body');
+    const paidPocketTransferBody = document.getElementById('im-paid-pocket-transfer-table-body');
     const markPaidBody = document.getElementById('im-mark-paid-table-body');
     const resetButton = document.getElementById('im-pocket-transfer-reset-btn');
+    const paidPocketResetButton = document.getElementById('im-paid-pocket-transfer-reset-btn');
     const markPaidResetButton = document.getElementById('im-mark-paid-reset-btn');
     const confirmButton = document.getElementById('im-pocket-transfer-confirm-btn');
+    const paidPocketConfirmButton = document.getElementById('im-paid-pocket-transfer-confirm-btn');
     const markPaidConfirmButton = document.getElementById('im-mark-paid-confirm-btn');
     const clearButton = document.getElementById('im-reporting-clear-button');
 
     if (prepareButton && !prepareButton.dataset.pocketTransferBound) {
         prepareButton.dataset.pocketTransferBound = '1';
         prepareButton.addEventListener('click', imOpenPocketTransferModal);
+    }
+    if (paidPocketPrepareButton && !paidPocketPrepareButton.dataset.paidPocketTransferBound) {
+        paidPocketPrepareButton.dataset.paidPocketTransferBound = '1';
+        paidPocketPrepareButton.addEventListener('click', imOpenPaidPocketTransferModal);
     }
     if (markPaidPrepareButton && !markPaidPrepareButton.dataset.markPaidBound) {
         markPaidPrepareButton.dataset.markPaidBound = '1';
@@ -579,6 +781,19 @@ document.addEventListener('DOMContentLoaded', () => {
             imPocketTransferExcludedIds.add(itemId);
             imPocketTransferSetStatus('List updated. The excluded invoice will not be transferred.');
             imRenderPocketTransferList();
+        });
+    }
+    if (paidPocketTransferBody && !paidPocketTransferBody.dataset.paidPocketTransferBound) {
+        paidPocketTransferBody.dataset.paidPocketTransferBound = '1';
+        paidPocketTransferBody.addEventListener('click', event => {
+            const removeButton = event.target.closest('.im-paid-pocket-transfer-remove');
+            if (!removeButton || removeButton.disabled || imPaidPocketTransferCompleted) return;
+            let itemId = '';
+            try { itemId = decodeURIComponent(removeButton.dataset.paidTransferId || ''); } catch (_) {}
+            if (!itemId) return;
+            imPaidPocketTransferExcludedIds.add(itemId);
+            imPaidPocketTransferSetStatus('List updated. The excluded Paid invoice will not be transferred.');
+            imRenderPaidPocketTransferList();
         });
     }
     if (markPaidBody && !markPaidBody.dataset.markPaidBound) {
@@ -603,6 +818,15 @@ document.addEventListener('DOMContentLoaded', () => {
             imRenderPocketTransferList();
         });
     }
+    if (paidPocketResetButton && !paidPocketResetButton.dataset.paidPocketTransferBound) {
+        paidPocketResetButton.dataset.paidPocketTransferBound = '1';
+        paidPocketResetButton.addEventListener('click', () => {
+            if (imPaidPocketTransferCompleted) return;
+            imPaidPocketTransferExcludedIds = new Set();
+            imPaidPocketTransferSetStatus('All originally prepared Paid Invoice Records rows have been restored.');
+            imRenderPaidPocketTransferList();
+        });
+    }
     if (markPaidResetButton && !markPaidResetButton.dataset.markPaidBound) {
         markPaidResetButton.dataset.markPaidBound = '1';
         markPaidResetButton.addEventListener('click', () => {
@@ -616,6 +840,10 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmButton.dataset.pocketTransferBound = '1';
         confirmButton.addEventListener('click', imConfirmPocketTransfer);
     }
+    if (paidPocketConfirmButton && !paidPocketConfirmButton.dataset.paidPocketTransferBound) {
+        paidPocketConfirmButton.dataset.paidPocketTransferBound = '1';
+        paidPocketConfirmButton.addEventListener('click', imConfirmPaidPocketTransfer);
+    }
     if (markPaidConfirmButton && !markPaidConfirmButton.dataset.markPaidBound) {
         markPaidConfirmButton.dataset.markPaidBound = '1';
         markPaidConfirmButton.addEventListener('click', imConfirmMarkPaid);
@@ -624,6 +852,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (button.dataset.pocketTransferBound) return;
         button.dataset.pocketTransferBound = '1';
         button.addEventListener('click', imClosePocketTransferModal);
+    });
+    document.querySelectorAll('#im-paid-pocket-transfer-modal .modal-close-btn').forEach(button => {
+        if (button.dataset.paidPocketTransferBound) return;
+        button.dataset.paidPocketTransferBound = '1';
+        button.addEventListener('click', imClosePaidPocketTransferModal);
     });
     document.querySelectorAll('#im-mark-paid-modal .modal-close-btn').forEach(button => {
         if (button.dataset.markPaidBound) return;

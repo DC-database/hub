@@ -192,10 +192,15 @@
     });
     imPOSearchButtonBottom.addEventListener('click', () => handlePOSearch(imPOSearchInputBottom.value));
     if (imOpenInvoiceFormBtn) {
-        imOpenInvoiceFormBtn.addEventListener('click', () => {
+        imOpenInvoiceFormBtn.addEventListener('click', async () => {
             if (!currentPO) {
                 alert('Please search for a PO first.');
                 return;
+            }
+
+            if (typeof imPromptIPCRecoveryBeforeNewInvoice === 'function') {
+                const mayContinue = await imPromptIPCRecoveryBeforeNewInvoice(currentPO);
+                if (!mayContinue) return;
             }
             openIMInvoiceEntryModal();
         });
