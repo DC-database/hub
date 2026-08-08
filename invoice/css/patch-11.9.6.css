@@ -1,0 +1,229 @@
+/* ========================================================================== 
+   IBA 11.9.6 — Paid History PO Suggestions + Forgotten IPC Recovery
+   Functional additions only. Existing 11.9.5 visual system remains unchanged.
+   ========================================================================== */
+
+/* Payments: optional history search mode */
+#im-add-payment-modal .im-payment-history-mode {
+    margin: 10px 0 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(8, 136, 144, 0.24);
+    border-radius: 10px;
+    background: rgba(238, 251, 250, 0.86);
+}
+
+#im-add-payment-modal .im-payment-history-mode label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+#im-add-payment-modal .im-payment-history-mode input {
+    margin-top: 3px;
+    accent-color: #0f8c94;
+}
+
+#im-add-payment-modal .im-payment-history-mode span {
+    display: grid;
+    gap: 2px;
+    color: #12324f;
+}
+
+#im-add-payment-modal .im-payment-history-mode small {
+    color: #5b7085;
+    font-size: 0.78rem;
+    line-height: 1.35;
+}
+
+#im-add-payment-modal.is-paid-history-mode .im-payment-selected-total {
+    display: none;
+}
+
+#im-add-payment-modal.is-paid-history-mode .im-payment-search-actions {
+    margin-left: auto;
+}
+
+#im-add-payment-modal .im-payment-po-history-results tbody tr {
+    cursor: pointer;
+}
+
+#im-add-payment-modal .im-payment-po-history-results tbody tr:hover {
+    background: rgba(15, 140, 148, 0.07);
+}
+
+#im-add-payment-modal .im-payment-history-po-link {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: #075f9b;
+    font-weight: 800;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#im-add-payment-modal .im-payment-view-history-btn {
+    white-space: nowrap;
+    padding: 7px 10px;
+}
+
+/* Paid History detail modal */
+#im-paid-history-modal .im-paid-history-modal {
+    width: min(900px, calc(100vw - 28px));
+    max-width: 900px;
+}
+
+#im-paid-history-modal .im-paid-history-summary {
+    display: grid;
+    grid-template-columns: 1.5fr 0.7fr 0.7fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#im-paid-history-modal .im-paid-history-summary > div {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(15, 140, 148, 0.22);
+    border-radius: 10px;
+    background: #f8fffe;
+}
+
+#im-paid-history-modal .im-paid-history-summary span {
+    display: block;
+    margin-bottom: 3px;
+    color: #60758a;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+#im-paid-history-modal .im-paid-history-summary strong {
+    display: block;
+    color: #082f49;
+    overflow-wrap: anywhere;
+}
+
+#im-paid-history-modal .im-paid-history-table th,
+#im-paid-history-modal .im-paid-history-table td {
+    white-space: normal;
+}
+
+#im-paid-history-modal .im-paid-history-empty {
+    min-height: 190px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    color: #52677b;
+}
+
+#im-paid-history-modal .im-paid-history-empty.hidden {
+    display: none;
+}
+
+#im-paid-history-modal .im-paid-history-empty i {
+    font-size: 2rem;
+    color: #7b92a7;
+}
+
+#im-paid-history-modal .im-paid-history-empty strong {
+    color: #0b2d4a;
+}
+
+/* Invoice Entry: forgotten IPC selector */
+#im-ipc-recovery-modal .im-ipc-recovery-modal {
+    width: min(940px, calc(100vw - 28px));
+    max-width: 940px;
+}
+
+#im-ipc-recovery-modal .modal-content > p {
+    margin: 0 0 14px;
+    color: #344e65;
+    line-height: 1.5;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table th:first-child,
+#im-ipc-recovery-modal .im-ipc-recovery-table td:first-child {
+    width: 42px;
+    text-align: center;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table tbody tr {
+    cursor: pointer;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table tbody tr:hover {
+    background: rgba(15, 140, 148, 0.06);
+}
+
+#im-ipc-recovery-modal input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #0f8c94;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status.is-application {
+    color: #5b21b6;
+    background: #f0e9ff;
+    border: 1px solid #d8c5ff;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status.is-processed {
+    color: #08745f;
+    background: #e6f8f2;
+    border: 1px solid #b9eadc;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 11px 12px;
+    border: 1px solid #b8dde4;
+    border-radius: 10px;
+    background: #effbfc;
+    color: #19485b;
+    line-height: 1.45;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-note i {
+    margin-top: 2px;
+    color: #0f8c94;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+    #im-paid-history-modal .im-paid-history-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #im-paid-history-modal .im-paid-history-table-wrap,
+    #im-ipc-recovery-modal .table-wrapper {
+        overflow-x: auto;
+    }
+
+    #im-ipc-recovery-modal .im-ipc-recovery-actions > button {
+        flex: 1 1 100%;
+    }
+}
