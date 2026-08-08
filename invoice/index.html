@@ -159,6 +159,9 @@
     <link rel="stylesheet" href="css/patch-11.9.2.css?v=11.9.2">
     <link rel="stylesheet" href="css/patch-11.9.3.css?v=11.9.3">
     <link rel="stylesheet" href="css/patch-11.9.4.css?v=11.9.4">
+    <link rel="stylesheet" href="css/patch-11.9.8.css?v=11.9.8">
+    <link rel="stylesheet" href="css/patch-11.9.11.css?v=11.9.11">
+    <link rel="stylesheet" href="css/patch-11.9.12.css?v=11.9.12">
 
     <script src="js/app-tab-guard.js?v=11.0.9"></script>
 
@@ -1899,6 +1902,7 @@
                 <button id="im-reporting-download-btn" class="download-btn download-btn--teal" type="button" onclick="downloadReportingTableToExcel()" title="Download Finance Report"><i class="fa-solid fa-file-lines"></i><span>Finance</span></button>
                 <button id="im-download-excel-custom-btn" class="download-btn im-export-excel-btn" type="button" onclick="exportCurrentTableToExcel()" title="Export current results to Excel"><i class="fa-solid fa-file-excel"></i><span>Excel</span></button>
                 <button id="im-prepare-pocket-transfer-btn" class="download-btn im-pocket-transfer-trigger hidden" type="button" title="Prepare the current filtered With Accounts results for transfer"><i class="fa-solid fa-cart-arrow-down"></i><span>Prepare Pocket Transfer</span></button>
+                <button id="im-prepare-paid-pocket-transfer-btn" class="download-btn im-pocket-transfer-trigger hidden" type="button" title="Transfer the current filtered Paid results into the compact Paid History pocket"><i class="fa-solid fa-clock-rotate-left"></i><span>Transfer Paid to Pocket</span></button>
                 <button id="im-prepare-mark-paid-btn" class="download-btn im-mark-paid-trigger hidden" type="button" title="Prepare the current filtered With Accounts results to be marked Paid"><i class="fa-solid fa-calendar-check"></i><span>Prepare Mark as Paid</span></button>
                 <button id="im-refresh-reporting-button" class="refresh-btn im-reporting-refresh-mini" title="Force Full Refresh" type="button"><i class="fa-solid fa-cloud-arrow-down"></i><span>Refresh</span></button>
             </div>
@@ -2432,6 +2436,45 @@
     </div>
 
     <!-- ====================================================================== -->
+    <!-- INVOICE ENTRY - FORGOTTEN IPC RECOVERY -->
+    <!-- ====================================================================== -->
+    <div id="im-ipc-recovery-modal" class="modal-overlay hidden">
+        <div class="modal-container im-ipc-recovery-modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-link"></i> Existing IPC record found for this PO</h2>
+                <button class="modal-close-btn" type="button" aria-label="Cancel">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p>One or more unresolved <strong>IPC Application</strong> or <strong>IPC Processed</strong> Job Entry records use the same PO. Select the record that belongs to this physical invoice.</p>
+                <div class="table-wrapper">
+                    <table class="im-ipc-recovery-table">
+                        <thead>
+                            <tr>
+                                <th aria-label="Select"></th>
+                                <th>Status</th>
+                                <th>Reference</th>
+                                <th>Entered By</th>
+                                <th>Date</th>
+                                <th>Attention</th>
+                            </tr>
+                        </thead>
+                        <tbody id="im-ipc-recovery-results"></tbody>
+                    </table>
+                </div>
+                <div class="im-ipc-recovery-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span>The Job Entry changes only after the invoice saves successfully. It will remain in Job Records as <strong>Converted to Invoice</strong>.</span>
+                </div>
+            </div>
+            <div class="modal-footer im-ipc-recovery-actions">
+                <button id="im-ipc-recovery-convert" type="button" class="download-btn"><i class="fa-solid fa-file-circle-plus"></i> Convert Selected to Invoice</button>
+                <button id="im-ipc-recovery-continue" type="button" class="secondary-btn">Continue Without Converting</button>
+                <button id="im-ipc-recovery-cancel" type="button" class="secondary-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================== -->
     <!-- INVOICE RECORDS - SUPER ADMIN PAYMENT POCKET TRANSFER -->
     <!-- ====================================================================== -->
     <div id="im-pocket-transfer-modal" class="modal-overlay hidden">
@@ -2470,6 +2513,51 @@
                 <button id="im-pocket-transfer-reset-btn" class="secondary-btn" type="button"><i class="fa-solid fa-rotate-left"></i> Reset List</button>
                 <div>
                     <button id="im-pocket-transfer-confirm-btn" class="download-btn" type="button"><i class="fa-solid fa-cloud-arrow-up"></i> Transfer Remaining to Payment Pocket</button>
+                    <button class="secondary-btn modal-close-btn" type="button">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================== -->
+    <!-- INVOICE RECORDS - SUPER ADMIN PAID HISTORY POCKET TRANSFER -->
+    <!-- ====================================================================== -->
+    <div id="im-paid-pocket-transfer-modal" class="modal-overlay hidden">
+        <div class="modal-container im-pocket-transfer-modal">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> Transfer Paid Records to History Pocket</h2>
+                <button class="modal-close-btn" type="button" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-content">
+                <p class="im-pocket-transfer-help">This list contains only the latest filtered Paid Invoice Records result. Use X to exclude rows. Original invoice records will not be changed; matching pocket rows are refreshed in place so duplicates are not created.</p>
+                <div class="im-pocket-transfer-stats" aria-live="polite">
+                    <div><span>Original</span><strong id="im-paid-pocket-transfer-original-count">0</strong></div>
+                    <div><span>Excluded</span><strong id="im-paid-pocket-transfer-excluded-count">0</strong></div>
+                    <div><span>Remaining</span><strong id="im-paid-pocket-transfer-remaining-count">0</strong></div>
+                    <div><span>Remaining Total</span><strong id="im-paid-pocket-transfer-total">0.00</strong></div>
+                </div>
+                <div class="table-wrapper im-pocket-transfer-table-wrap">
+                    <table class="im-pocket-transfer-table">
+                        <thead>
+                            <tr>
+                                <th>Invoice No.</th>
+                                <th>PO No.</th>
+                                <th>Company</th>
+                                <th>Site</th>
+                                <th>Amount Paid</th>
+                                <th>Paid Date</th>
+                                <th aria-label="Exclude"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="im-paid-pocket-transfer-table-body"></tbody>
+                    </table>
+                </div>
+                <p id="im-paid-pocket-transfer-status" class="im-pocket-transfer-status" aria-live="polite"></p>
+            </div>
+            <div class="modal-footer im-pocket-transfer-footer">
+                <button id="im-paid-pocket-transfer-reset-btn" class="secondary-btn" type="button"><i class="fa-solid fa-rotate-left"></i> Reset List</button>
+                <div>
+                    <button id="im-paid-pocket-transfer-confirm-btn" class="download-btn" type="button"><i class="fa-solid fa-cloud-arrow-up"></i> Transfer Remaining to Paid Pocket</button>
                     <button class="secondary-btn modal-close-btn" type="button">Close</button>
                 </div>
             </div>
@@ -3461,7 +3549,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.9.5"></script>
+    <script src="app.js?v=11.9.6"></script>
     <script src="js/app-time-clock.js?v=11.7.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.8.7"></script>
@@ -3470,24 +3558,24 @@
     <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
     <script src="js/app-standard-job.js?v=11.0.4"></script>
     <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
-    <script src="js/app-payments.js?v=11.8.2"></script>
-    <script src="js/app-invoice-records.js?v=11.8.1"></script>
+    <script src="js/app-payments.js?v=11.9.12"></script>
+    <script src="js/app-invoice-records.js?v=11.9.10"></script>
     <script src="js/app-active-tasks.js?v=11.9.4"></script>
-    <script src="js/app-workdesk-dashboard.js?v=11.9.5"></script>
+    <script src="js/app-workdesk-dashboard.js?v=11.9.14"></script>
     <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
     <script src="js/app-reporting-actions.js?v=9.9.0"></script>
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
     <script src="js/app-modal-navigation-clear.js?v=11.4.0"></script>
-    <script src="js/app-invoice-entry-search.js?v=11.8.8"></script>
+    <script src="js/app-invoice-entry-search.js?v=11.9.6"></script>
     <script src="js/app-attention-validation.js?v=11.8.0"></script>
     <script src="js/app-batch-entry-ui.js?v=11.8.7"></script>
-    <script src="js/app-im-event-wiring.js?v=11.8.7"></script>
+    <script src="js/app-im-event-wiring.js?v=11.9.6"></script>
     <script src="js/app-history-transfer.js?v=11.8.7"></script>
     <script src="js/app-help.js?v=11.8.8"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '11.9.5';
+      window.IBA_SYSTEM_VERSION = '12.0.4';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
     <script src="js/app-version-checker.js?v=11.9.4"></script>

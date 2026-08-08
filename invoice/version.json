@@ -1,6 +1,5 @@
 {
-  "version": "11.9.5",
-  "releasedAt": "2026-08-05",
-  "title": "CEO Approval Dashboard Queue",
-  "message": "Adds exact CEO Approval invoices to the WorkDesk Dashboard by reusing the existing compact active-invoice index. No second pocket and no full invoice database scan are introduced."
+  "version": "12.0.4",
+  "updated": "2026-08-08",
+  "notes": "Paid History year selector now shows only year branches that actually exist in the Paid History pocket. Uses a shallow Firebase key lookup so it does not download Paid records just to build the dropdown; selected-year record reads remain unchanged. Existing With Accounts year/search behavior is untouched."
 }

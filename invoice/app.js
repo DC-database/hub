@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '11.9.5';
+const APP_VERSION = '12.0.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4510,6 +4510,9 @@ async function handleAddInvoice(e) {
                 // 10.4.0: Close/archive the original WorkDesk New Entry after it
                 // becomes an Invoice Management record. Do not copy For SRV/Pending
                 // back into the Job Entry, because that creates duplicate Active Tasks.
+                const conversionSource = (Array.isArray(allSystemEntries)
+                    ? allSystemEntries.find(entry => entry && entry.key === jobEntryToUpdateAfterInvoice)
+                    : null) || {};
                 const updates = {
                     remarks: 'Converted to Invoice',
                     status: 'Completed',
@@ -4519,6 +4522,9 @@ async function handleAddInvoice(e) {
                     linkedInvoicePO: currentPO,
                     invoiceWorkflowStatus: invoiceData.status || '',
                     linkedInvoiceStatus: invoiceData.status || '',
+                    invoiceConvertedFrom: conversionSource.for || conversionSource.type || 'Job Entry',
+                    invoiceConvertedBy: currentApprover?.Name || 'System',
+                    invoiceConvertedAt: firebase.database.ServerValue.TIMESTAMP,
                     dateResponded: formatDate(new Date()),
                     releaseDate: getTodayDateString(),
                     statusChangedAt: firebase.database.ServerValue.TIMESTAMP,
@@ -4528,6 +4534,16 @@ async function handleAddInvoice(e) {
                 updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
                 updates.updatedBy = currentApprover?.Name || 'System';
                 await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+                try {
+                    await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}/history`).push({
+                        action: 'Converted to Invoice',
+                        by: currentApprover?.Name || 'System',
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        note: `Converted ${updates.invoiceConvertedFrom} to Invoice Entry ${invoiceData.invEntryID || newKey} / PO ${currentPO}.`
+                    });
+                } catch (historyError) {
+                    console.warn('The IPC conversion audit note could not be added, but the Job Entry was converted successfully.', historyError);
+                }
                 try {
                     const local = (Array.isArray(allSystemEntries)
                         ? allSystemEntries.find(e => e && e.key === completedKey)
