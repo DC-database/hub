@@ -1,7 +1,7 @@
 /* ==========================================================================
    js/app-workdesk-dashboard.js
    IBA WorkDesk Dashboard Active Task Control Center
-   Version: 11.9.7
+   Version: 12.0.8
 
    8.3.6:
    - Replaced the old WorkDesk calendar/date dashboard with a clean view-only
@@ -173,6 +173,21 @@
    - Ready for Payment adds a strict Admin + Accounts/Accounting row action that
      marks one invoice Paid using the existing next-day, Friday-to-Saturday rule.
 
+   12.0.7:
+   - Reorganized the WorkDesk All Active Dashboard into three process-oriented groups:
+     Preliminary / Work in Progress, Approval Area, and Finance Area. Existing status
+     cards are reused without creating new workflow statuses.
+   - Preliminary contains For SRV, Pending, On Hold, IPC Application, IPC Processed,
+     and For Approval. Approval contains In Process, CEO Approval, and For Summary.
+     Finance contains Report, With Accounts, and a Paid History card.
+   - With Accounts continues to use the existing compact payment pocket in memory.
+     Paid count uses a shallow key-only read for the default Paid History year and does
+     not download the year's payment records until the user searches Paid History.
+   - Added Paid History dashboard view without changing the existing vendor/PO search
+     logic or year-specific Paid History reads.
+   - Card colors are explicitly aligned to the approved dashboard mockup while preserving
+     the existing status meanings and click behavior.
+
    11.9.5:
    - Added CEO Approval to the WorkDesk Dashboard compact invoice-status queues.
    - Counts and clicked-card details reuse invoice_tasks_by_user/All with exact
@@ -251,6 +266,12 @@ const WD_DASHBOARD_STATUS_PREFIX = '__STATUS__::';
 const WD_DASHBOARD_PERSON_PREFIX = '__PERSON__::';
 const WD_DASHBOARD_MY_STATUS_PREFIX = '__MY_STATUS__::';
 const WD_PAYMENT_POCKET_FILTER = '__PAYMENT_READY__';
+let wdPaymentPocketShowPaidHistory = false;
+let wdPaidHistoryDashboardCount = null;
+let wdPaidHistoryDashboardCountYear = '';
+let wdPaidHistoryDashboardCountLoadedAt = 0;
+let wdPaidHistoryDashboardCountPromise = null;
+let wdPaidHistoryDashboardCountYearPromise = null;
 let wdPaymentPocketItems = [];
 let wdPaymentPocketSubscriptionStarted = false;
 let wdPaymentPocketUnsubscribe = null;
@@ -289,6 +310,15 @@ if (typeof window !== 'undefined' && !window.__ibaPaidHistoryWorkdeskListenerBou
         }
         wdPaidHistoryIndexRows = [];
         wdPaymentHistoryVendorCache.clear();
+        const changedYears = years.length ? years : [wdPaidHistoryDashboardCountYear || wdPaymentHistoryDefaultYear()];
+        if (!years.length || years.includes(String(wdPaidHistoryDashboardCountYear))) {
+            wdPaidHistoryDashboardCount = null;
+            wdPaidHistoryDashboardCountLoadedAt = 0;
+            wdPaidHistoryDashboardCountYearPromise = null;
+            if (document.getElementById('wd-active-dashboard-cards')) {
+                wdPrimePaidHistoryDashboardCount(true);
+            }
+        }
     });
 }
 
@@ -844,9 +874,9 @@ function wdGetDashboardJobEntriesList() {
 }
 
 async function wdEnsureDashboardJobEntriesFetched(forceRefresh = false) {
-    // 9.4.8: WorkDesk Dashboard only needs Job Records for IPC follow-up.
-    // Do not call ensureAllEntriesFetched() here because that also downloads
-    // the full inventory transfer_entries tree from ibainvoice-3ea51.
+    // 12.0.8: WorkDesk only needs the two Job Entry families that feed the
+    // dashboard cards: Invoice intake and IPC. Never download the entire
+    // job_entries tree just to calculate New Entry / IPC counts or lists.
     const now = Date.now();
     if (!forceRefresh && wdDashboardJobEntriesCache.entries.length && (now - wdDashboardJobEntriesCache.savedAt) < WD_DASHBOARD_CACHE_TTL) {
         return wdDashboardJobEntriesCache.entries;
@@ -865,13 +895,25 @@ async function wdEnsureDashboardJobEntriesFetched(forceRefresh = false) {
     if (typeof db === 'undefined' || !db || !db.ref) return wdGetDashboardJobEntriesList();
 
     try {
-        const snap = await db.ref('job_entries').once('value');
-        const raw = snap.val() || {};
-        const entries = Object.keys(raw).map(key => ({ key, ...(raw[key] || {}), source: 'job_entry' }));
+        // The live Job Entry writer uses `for: 'Invoice'` and `for: 'IPC'` /
+        // `IPC Application` values. Because Firebase Realtime Database queries are
+        // case-sensitive, use the exact Invoice value plus one prefix-range query
+        // that captures IPC, IPC Application and IPC Processed in one read.
+        const invoiceQuery = db.ref('job_entries').orderByChild('for').equalTo('Invoice').once('value');
+        const ipcQuery = db.ref('job_entries').orderByChild('for').startAt('IPC').endAt('IPC\uf8ff').once('value');
+        const snapshots = await Promise.all([invoiceQuery, ipcQuery]);
+        const merged = new Map();
+        snapshots.forEach(snap => {
+            const raw = snap.val() || {};
+            Object.keys(raw).forEach(key => {
+                if (!merged.has(key)) merged.set(key, { key, ...(raw[key] || {}), source: 'job_entry' });
+            });
+        });
+        const entries = Array.from(merged.values());
         wdDashboardJobEntriesCache = { entries, savedAt: now };
         return entries;
     } catch (e) {
-        console.warn('WorkDesk dashboard could not read Job Records without inventory transfers:', e);
+        console.warn('WorkDesk dashboard could not read targeted Job Records:', e);
         return wdGetDashboardJobEntriesList();
     }
 }
@@ -1130,7 +1172,9 @@ function wdDashboardFilterExists(filterKey) {
 function wdDashboardSelectedLabel() {
     if (wdActiveDashboardSelectedStatus === WD_DASHBOARD_NONE) return 'Select a status card';
     if (wdActiveDashboardSelectedStatus === WD_DASHBOARD_ALL) return 'All Active Tasks';
-    if (wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER) return 'Ready for Payment';
+    if (wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER) {
+        return wdPaymentPocketShowPaidHistory ? 'Paid History' : 'Ready for Payment';
+    }
     if (wdActiveDashboardSelectedStatus.startsWith(WD_DASHBOARD_MY_STATUS_PREFIX)) {
         const target = wdActiveDashboardSelectedStatus.slice(WD_DASHBOARD_MY_STATUS_PREFIX.length);
         const found = wdPersonalDashboardTasks.find(t => wdNormalize(t.personalBucket || wdDashboardPersonalBucket(t.status, t.type)) === target);
@@ -2785,8 +2829,9 @@ async function wdBuildDashboardOverviewSourceTasks(forceRefresh = false) {
     const currentInvoiceTasks = await wdBuildInvoiceTaskLookupOverviewTasks(forceRefresh);
     currentInvoiceTasks.forEach(task => sourceMap.set(wdOverviewInvoiceIdentity(task), task));
 
-    try { await wdEnsureDashboardJobEntriesFetched(forceRefresh); }
-    catch (e) { console.warn('WorkDesk dashboard could not refresh Job Records:', e); }
+    // Job Entries are loaded only by the All Active count/list path that actually
+    // needs New Entry or IPC rows. Do not perform an extra read here just to warm
+    // a cache that the invoice source does not consume.
 
     return Array.from(sourceMap.values());
 }
@@ -3219,10 +3264,18 @@ function wdBindDashboardControls() {
             const card = e.target.closest('.wd-active-status-card');
             if (!card) return;
             const nextStatus = card.dataset.status || WD_DASHBOARD_ALL;
-            if (nextStatus === WD_PAYMENT_POCKET_FILTER && wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) {
+            const nextPaymentView = card.dataset.paymentView === 'paid' ? 'paid' : 'ready';
+            if (
+                nextStatus === WD_PAYMENT_POCKET_FILTER &&
+                (
+                    wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER ||
+                    wdPaymentPocketShowPaidHistory !== (nextPaymentView === 'paid')
+                )
+            ) {
                 wdPaymentPocketSelectedSite = '';
                 wdPaymentPocketSelectedYear = '';
                 wdPaymentPocketSelectedMonth = '';
+                wdPaymentPocketShowPaidHistory = nextPaymentView === 'paid';
                 wdPaymentHistorySelectedYear = wdPaymentHistoryDefaultYear();
                 wdResetPaymentHistorySearchState();
             }
@@ -3274,6 +3327,12 @@ function wdBindDashboardControls() {
                 wdPaidHistoryAvailableYearsPromise = null;
                 wdPaidHistoryIndexRows = [];
                 wdPaymentHistoryVendorCache.clear();
+                wdPaidHistoryDashboardCount = null;
+                wdPaidHistoryDashboardCountYear = '';
+                wdPaidHistoryDashboardCountLoadedAt = 0;
+                wdPaidHistoryDashboardCountPromise = null;
+                wdPaidHistoryDashboardCountYearPromise = null;
+                wdPaymentPocketShowPaidHistory = false;
                 try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
                 if (typeof cacheTimestamps !== 'undefined') {
                     cacheTimestamps.systemEntries = 0;
@@ -3928,9 +3987,25 @@ function wdDashboardSearchContextStatusKeys() {
     const search = wdDashboardSearchValue();
     if (!search || selected !== WD_DASHBOARD_NONE) return new Set();
 
-    let tasks = (typeof wdGetFilteredDashboardTasks === 'function')
-        ? wdGetFilteredDashboardTasks()
-        : [];
+    // Search only the data already present in the WorkDesk browser cache.
+    // Do not fetch Firebase again while the user types. This deliberately uses
+    // the same searchable fields as the dashboard list so partial vendor names
+    // such as "jot" match a vendor like "Jotun".
+    const sources = [];
+    if (wdCanSeeAllActiveDashboard()) {
+        sources.push(...(Array.isArray(wdActiveDashboardTasks) ? wdActiveDashboardTasks : []));
+    }
+    sources.push(...(Array.isArray(wdPersonalDashboardTasks) ? wdPersonalDashboardTasks : []));
+
+    const searchable = (task = {}) => [
+        task.po, task.ref, task.invNumber, task.invoiceNumber, task.invoiceNo, task.invEntryID,
+        task.vendorName, task.vendor, task.supplierName, task.supplier, task.supplierId,
+        task.site, task.status, task.remarks, task.currentStatus, task.bucket, task.personalBucket,
+        task.attention, task.note, task.details, task.currentNote, task.ipc, task.queueLabel,
+        task.queueText, task.type, task.group, task.amount
+    ].map(value => wdNormalize(value)).filter(Boolean).join(' ');
+
+    let tasks = sources.filter(task => searchable(task).includes(search));
 
     // In global Dashboard search mode, results are site-based even when one
     // matching item belongs to For Summary. If a site card is selected, highlight
@@ -3942,7 +4017,15 @@ function wdDashboardSearchContextStatusKeys() {
     }
 
     return new Set((Array.isArray(tasks) ? tasks : [])
-        .map(task => wdNormalize(wdDashboardTaskCategoryLabel(task)))
+        .flatMap(task => [
+            wdDashboardTaskCategoryLabel(task),
+            task?.status,
+            task?.currentStatus,
+            task?.bucket,
+            task?.personalBucket,
+            wdDashboardBucket(task?.status, task?.type)
+        ])
+        .map(value => wdNormalize(value))
         .filter(Boolean));
 }
 
@@ -3955,9 +4038,132 @@ function wdResetDashboardSearchAndSelection() {
     wdPaymentPocketSelectedSite = '';
     wdPaymentPocketSelectedYear = '';
     wdPaymentPocketSelectedMonth = '';
+    wdPaymentPocketShowPaidHistory = false;
     wdResetPaymentHistorySearchState();
     wdRenderDashboardCards();
     wdRenderDashboardList();
+}
+
+
+function wdPaidHistoryDashboardTargetYear() {
+    return wdPaymentHistoryDefaultYear();
+}
+
+async function wdLoadPaidHistoryDashboardCount(forceRefresh = false) {
+    const year = wdPaidHistoryDashboardTargetYear();
+    const now = Date.now();
+    if (
+        !forceRefresh &&
+        wdPaidHistoryDashboardCount != null &&
+        wdPaidHistoryDashboardCountYear === year &&
+        (now - wdPaidHistoryDashboardCountLoadedAt) < 5 * 60 * 1000
+    ) {
+        return wdPaidHistoryDashboardCount;
+    }
+    if (!forceRefresh && wdPaidHistoryDashboardCountYearPromise) {
+        return wdPaidHistoryDashboardCountYearPromise;
+    }
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.app?.options?.databaseURL) {
+        return wdPaidHistoryDashboardCount ?? 0;
+    }
+
+    const baseUrl = String(invoiceDb.app.options.databaseURL).replace(/\/$/, '');
+    const url = `${baseUrl}/${WD_PAYMENT_PAID_HISTORY_PATH}/${year}.json?shallow=true`;
+    wdPaidHistoryDashboardCountYearPromise = fetch(url, { cache: 'no-store' })
+        .then(response => {
+            if (!response.ok) throw new Error(`Paid History count lookup failed (${response.status})`);
+            return response.json();
+        })
+        .then(value => {
+            wdPaidHistoryDashboardCount = Object.keys(value || {}).length;
+            wdPaidHistoryDashboardCountYear = year;
+            wdPaidHistoryDashboardCountLoadedAt = Date.now();
+            return wdPaidHistoryDashboardCount;
+        })
+        .catch(error => {
+            console.warn(`WorkDesk Paid History count for ${year} could not be loaded:`, error);
+            return wdPaidHistoryDashboardCount ?? 0;
+        })
+        .finally(() => {
+            wdPaidHistoryDashboardCountYearPromise = null;
+        });
+    return wdPaidHistoryDashboardCountYearPromise;
+}
+
+function wdPrimePaidHistoryDashboardCount(forceRefresh = false) {
+    if (!wdCanSeePaymentPocket()) return;
+    wdLoadPaidHistoryDashboardCount(forceRefresh).then(() => {
+        if (document.getElementById('wd-active-dashboard-cards')) wdRenderDashboardCards();
+    });
+}
+
+function wdDashboardStatusButtonHtml(status, count, options = {}) {
+    const tone = wdStatusTone(status);
+    const filterKey = wdDashboardStatusFilterKey(status);
+    const searchKey = wdNormalize(status);
+    const searchContextMatch = options.searchStatusKeys?.has(searchKey);
+    const directActive = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus;
+    const active = (!options.shouldShowSearchCategoryContext && directActive) || searchContextMatch ? 'active' : '';
+    const searchContextClass = options.shouldShowSearchCategoryContext
+        ? (searchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
+        : '';
+    const hasCount = options.hasCount !== false;
+    const countLabel = options.loadingCount
+        ? '<i class="fa-solid fa-spinner fa-spin"></i>'
+        : (hasCount ? String(count ?? 0) : '—');
+    const microcopy = options.microcopy || wdStatusMicrocopy(status, Number(count) || 0);
+    const extraClass = options.extraClass || '';
+    return `
+        <button class="wd-active-status-card ${extraClass} tone-${tone} ${active} ${searchContextClass}"
+                data-status="${wdSafe(filterKey)}"
+                data-dashboard-label="${wdSafe(status)}"
+                type="button"
+                aria-label="Show ${wdSafe(status)} tasks">
+            <span class="wd-status-card-glow"></span>
+            <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
+            <span class="wd-status-meta">
+                <strong>${countLabel}</strong>
+                <em>${wdSafe(status)}</em>
+                <small>${wdSafe(microcopy)}</small>
+            </span>
+            <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+        </button>`;
+}
+
+function wdApplyApprovedDashboardCardPalette(root) {
+    if (!root) return;
+    const palette = {
+        'For SRV': '#e83f5b',
+        'Pending': '#f08a00',
+        'On Hold': '#ef4f2f',
+        'IPC Application': '#7a4bb3',
+        'IPC Processed': '#285f9f',
+        'For Approval': '#4f8e2f',
+        'In Process': '#0f5f9b',
+        'CEO Approval': '#7547a9',
+        'For Summary': '#17639d',
+        'Report': '#3f4c98',
+        'With Accounts': '#168398',
+        'Paid': '#2f8b57'
+    };
+    root.querySelectorAll('.wd-active-status-card[data-dashboard-label]').forEach(card => {
+        const label = card.getAttribute('data-dashboard-label') || '';
+        const color = palette[label];
+        const isSearchMuted = card.classList.contains('wd-search-category-muted');
+
+        // 12.1.1: During global vendor/PO search, make non-matching cards
+        // visibly grey and subdued instead of leaving their normal status color
+        // visible at reduced opacity. Matching cards keep their approved colors.
+        if (isSearchMuted) {
+            card.style.setProperty('background', '#9aa0a6', 'important');
+            card.style.setProperty('opacity', '0.40', 'important');
+            card.style.setProperty('filter', 'grayscale(100%)', 'important');
+        } else {
+            if (color) card.style.setProperty('background', color, 'important');
+            card.style.removeProperty('opacity');
+            card.style.removeProperty('filter');
+        }
+    });
 }
 
 function wdRenderDashboardCards() {
@@ -3975,24 +4181,29 @@ function wdRenderDashboardCards() {
     const shouldShowSearchCategoryContext = dashboardGlobalSearchMode && (
         searchStatusKeys.size > 0 || paymentSearchContextMatch
     );
-    const statusCounts = new Map();
 
+    const statusCounts = new Map();
     wdActiveDashboardTasks.forEach(task => {
         const bucket = task.bucket || wdDashboardBucket(task.status, task.type);
         if (bucket) statusCounts.set(bucket, (statusCounts.get(bucket) || 0) + 1);
     });
-
-    const statuses = wdSortStatuses(Array.from(statusCounts.keys()));
 
     const myStatusCounts = new Map();
     wdPersonalDashboardTasks.forEach(task => {
         const bucket = task.personalBucket || wdDashboardPersonalBucket(task.status, task.type);
         if (bucket) myStatusCounts.set(bucket, (myStatusCounts.get(bucket) || 0) + 1);
     });
-    const myStatuses = wdSortStatuses(Array.from(myStatusCounts.keys()));
-    let personalHtml = '';
-    if (myStatuses.length) {
-        myStatuses.forEach(status => {
+
+    const renderPersonal = () => {
+        const myStatuses = wdSortStatuses(Array.from(myStatusCounts.keys()));
+        if (!myStatuses.length) {
+            return `
+                <div class="wd-dashboard-mini-empty">
+                    <i class="fa-regular fa-circle-check"></i>
+                    No task is currently addressed to you.
+                </div>`;
+        }
+        return myStatuses.map(status => {
             const count = myStatusCounts.get(status) || 0;
             const tone = wdStatusTone(status);
             const filterKey = wdDashboardMyStatusFilterKey(status);
@@ -4002,8 +4213,12 @@ function wdRenderDashboardCards() {
             const searchContextClass = shouldShowSearchCategoryContext
                 ? (searchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
                 : '';
-            personalHtml += `
-                <button class="wd-active-status-card wd-person-task-card tone-${tone} ${active} ${searchContextClass}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show my ${wdSafe(status)} tasks">
+            return `
+                <button class="wd-active-status-card wd-person-task-card tone-${tone} ${active} ${searchContextClass}"
+                        data-status="${wdSafe(filterKey)}"
+                        data-dashboard-label="My ${wdSafe(status)}"
+                        type="button"
+                        aria-label="Show my ${wdSafe(status)} tasks">
                     <span class="wd-status-card-glow"></span>
                     <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
                     <span class="wd-status-meta">
@@ -4013,116 +4228,128 @@ function wdRenderDashboardCards() {
                     </span>
                     <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
                 </button>`;
-        });
-    } else {
-        personalHtml = `
-        <div class="wd-dashboard-mini-empty">
-            <i class="fa-regular fa-circle-check"></i>
-            No task is currently addressed to you.
-        </div>`;
-    }
+        }).join('');
+    };
+
     let sectionsHtml = `
         <section class="wd-dashboard-card-section wd-dashboard-person-section">
             <div class="wd-dashboard-card-section-head">
                 <span><i class="fa-solid fa-user-check"></i> My personal tasks</span>
                 <small>Only tasks directly addressed to your name</small>
             </div>
-            <div class="wd-dashboard-card-grid wd-dashboard-person-grid">${personalHtml}</div>
+            <div class="wd-dashboard-card-grid wd-dashboard-person-grid">${renderPersonal()}</div>
         </section>`;
 
     if (canSeeAllActive) {
-        // 9.4.6: Removed the All Active total-count KPI card from WorkDesk.
-        // The section now starts directly with the actionable status cards.
-        let activeHtml = '';
+        const previewStatuses = wdAllActiveDashboardLoaded
+            ? Array.from(statusCounts.keys())
+            : wdAllActiveStatusesToShowWhileLazy();
 
-        // 11.2.7: When verified tasks are loaded, use only buckets that actually
-        // have tasks. Do not merge fixed categories here, because that shows 0-count
-        // cards and makes the command board look inaccurate.
-        let activeStatusesToShow = wdAllActiveDashboardLoaded ? statuses : wdAllActiveStatusesToShowWhileLazy();
-        // 11.2.1: During background/live refresh, keep the section visible instead
-        // of rendering it empty while the verified set is being rebuilt.
-        if (!activeStatusesToShow.length && (wdAllActiveDashboardCountsLoading || wdAllActiveDashboardLoading || wdDashboardVerifiedRefreshRunning) && wdAllActiveHasStableVisibleCounts()) {
-            activeStatusesToShow = wdPreviewStatusesWithCount();
+        const fixedPreliminary = ['For SRV', 'Pending', 'On Hold', 'IPC Application', 'IPC Processed', 'For Approval'];
+        const fixedApproval = ['In Process', 'CEO Approval', 'For Summary'];
+        const fixedFinance = ['Report'];
+
+        const availableStatusSet = new Set(previewStatuses.map(wdNormalize));
+        const hasStatus = (status) => {
+            if (wdAllActiveDashboardLoaded) return statusCounts.has(status);
+            return availableStatusSet.has(wdNormalize(status));
+        };
+
+        const renderGroup = (statuses, extraClass = '') => statuses
+            .filter(hasStatus)
+            .map(status => {
+                const count = wdAllActiveDashboardLoaded
+                    ? (statusCounts.get(status) || wdAllActiveCountForStatus(status) || 0)
+                    : wdAllActiveCountForStatus(status);
+                const hasCount = wdAllActiveDashboardCountsLoaded || wdAllActiveDashboardLoaded;
+                const loadingCount = !hasCount && wdAllActiveDashboardCountsLoading;
+                const microcopy = wdAllActiveDashboardLoaded
+                    ? wdStatusMicrocopy(status, count)
+                    : (wdAllActiveDashboardCountsLoaded
+                        ? `Click to show sites • ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}`
+                        : 'Checking current count...');
+                return wdDashboardStatusButtonHtml(status, count, {
+                    searchStatusKeys,
+                    shouldShowSearchCategoryContext,
+                    hasCount,
+                    loadingCount,
+                    microcopy,
+                    extraClass
+                });
+            }).join('');
+
+        const preliminaryHtml = renderGroup(fixedPreliminary, 'wd-process-card wd-preliminary-card');
+        const approvalHtml = renderGroup(fixedApproval, 'wd-process-card wd-approval-card');
+        const reportHtml = renderGroup(fixedFinance, 'wd-process-card wd-finance-card');
+
+        if (preliminaryHtml) {
+            sectionsHtml += `
+                <section class="wd-dashboard-card-section wd-process-section wd-preliminary-section">
+                    <div class="wd-dashboard-card-section-head wd-process-section-head">
+                        <span><b class="wd-process-number">01</b><i class="fa-solid fa-clipboard-list"></i> Preliminary / Work in Progress</span>
+                        <small>Initial and operational work that still needs action or follow-up.</small>
+                    </div>
+                    <div class="wd-dashboard-card-grid wd-dashboard-status-grid wd-process-grid">${preliminaryHtml}</div>
+                </section>`;
         }
-        if (!activeStatusesToShow.length && wdAllActiveDashboardCountsLoaded && !wdAllActiveDashboardCountsLoading && !wdAllActiveDashboardLoading && !wdDashboardVerifiedRefreshRunning) {
-            activeHtml = `
-                <div class="wd-dashboard-mini-empty">
-                    <i class="fa-regular fa-circle-check"></i>
-                    No open system task is currently outside your personal queue.
-                </div>`;
+
+        if (approvalHtml) {
+            sectionsHtml += `
+                <section class="wd-dashboard-card-section wd-process-section wd-approval-section">
+                    <div class="wd-dashboard-card-section-head wd-process-section-head">
+                        <span><b class="wd-process-number">02</b><i class="fa-solid fa-user-check"></i> Approval Area</span>
+                        <small>Items moving through internal and management approval.</small>
+                    </div>
+                    <div class="wd-dashboard-card-grid wd-dashboard-status-grid wd-process-grid">${approvalHtml}</div>
+                </section>`;
         }
-        activeStatusesToShow.forEach(status => {
-            const count = wdAllActiveDashboardLoaded
-                ? (statusCounts.get(status) || wdAllActiveCountForStatus(status) || 0)
-                : wdAllActiveCountForStatus(status);
-            const tone = wdStatusTone(status);
-            const filterKey = wdDashboardStatusFilterKey(status);
-            const searchKey = wdNormalize(status);
-            const searchContextMatch = shouldShowSearchCategoryContext && searchStatusKeys.has(searchKey);
-            const directActive = filterKey === wdActiveDashboardSelectedStatus || status === wdActiveDashboardSelectedStatus;
-            const active = (!shouldShowSearchCategoryContext && directActive) || searchContextMatch ? 'active' : '';
-            const searchContextClass = shouldShowSearchCategoryContext
-                ? (searchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
-                : '';
-            const hasCount = wdAllActiveDashboardCountsLoaded || wdAllActiveDashboardLoaded;
-            const countLabel = (!hasCount && wdAllActiveDashboardCountsLoading) ? '<i class="fa-solid fa-spinner fa-spin"></i>' : (hasCount ? String(count) : '—');
-            const microcopy = wdAllActiveDashboardLoaded
-                ? wdStatusMicrocopy(status, count)
-                : (wdAllActiveDashboardCountsLoading && wdAllActiveDashboardCountsLoaded
-                    ? `Updating • cached ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}`
-                    : (wdAllActiveDashboardCountsLoaded ? `Click to show sites • ${wdCacheAgeText(wdAllActiveDashboardCountSavedAt)}` : 'Checking current count...'));
-            activeHtml += `
-                <button class="wd-active-status-card tone-${tone} ${active} ${searchContextClass}" data-status="${wdSafe(filterKey)}" type="button" aria-label="Show ${wdSafe(status)} tasks">
-                    <span class="wd-status-card-glow"></span>
-                    <span class="wd-status-icon"><i class="fa-solid ${wdStatusIcon(status)}"></i></span>
-                    <span class="wd-status-meta">
-                        <strong>${countLabel}</strong>
-                        <em>${wdSafe(status)}</em>
-                        <small>${wdSafe(microcopy)}</small>
-                    </span>
-                    <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
-                </button>`;
-        });
 
-        sectionsHtml += `
-            <section class="wd-dashboard-card-section wd-dashboard-active-section">
-                <div class="wd-dashboard-card-section-head">
-                    <span><i class="fa-solid fa-list-check"></i> All active tasks</span>
-                    <small>Open system tasks not assigned to you</small>
-                </div>
-                <div class="wd-dashboard-card-grid wd-dashboard-status-grid">${activeHtml}</div>
-            </section>`;
-    }
-
-    if (wdCanSeePaymentPocket()) {
         const paymentCount = wdPaymentPocketAccessibleItems().length;
         const paymentDirectActive = wdActiveDashboardSelectedStatus === WD_PAYMENT_POCKET_FILTER;
-        const paymentActive = paymentDirectActive || paymentSearchContextMatch ? 'active' : '';
-        const paymentSearchContextClass = shouldShowSearchCategoryContext
+        const paymentSearchClass = shouldShowSearchCategoryContext
             ? (paymentSearchContextMatch ? 'wd-search-category-match' : 'wd-search-category-muted')
             : '';
-        sectionsHtml += `
-            <section class="wd-dashboard-card-section wd-dashboard-payment-section">
-                <div class="wd-dashboard-card-section-head">
-                    <span><i class="fa-solid fa-money-check-dollar"></i> Accounts payment pocket</span>
-                    <small>Compact With Accounts records ready for payment processing</small>
-                </div>
-                <div class="wd-dashboard-card-grid wd-dashboard-payment-grid">
-                    <button class="wd-active-status-card wd-payment-pocket-card tone-payment ${paymentActive} ${paymentSearchContextClass}" data-status="${WD_PAYMENT_POCKET_FILTER}" type="button" aria-label="Show ${paymentCount} invoices ready for payment">
-                        <span class="wd-status-card-glow"></span>
-                        <span class="wd-status-icon"><i class="fa-solid fa-wallet"></i></span>
-                        <span class="wd-status-meta">
-                            <strong>${paymentCount}</strong>
-                            <em>Ready for Payment</em>
-                            <small>Payment pocket • newest first</small>
-                        </span>
-                        <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
-                    </button>
-                </div>
-            </section>`;
+
+        const withAccountsActive = paymentDirectActive && !wdPaymentPocketShowPaidHistory ? 'active' : '';
+
+        const withAccountsCard = `
+            <button class="wd-active-status-card wd-payment-pocket-card tone-payment wd-finance-card ${withAccountsActive} ${paymentSearchClass}"
+                    data-status="${WD_PAYMENT_POCKET_FILTER}" data-payment-view="ready"
+                    data-dashboard-label="With Accounts" type="button" aria-label="Show ${paymentCount} With Accounts invoices">
+                <span class="wd-status-card-glow"></span>
+                <span class="wd-status-icon"><i class="fa-solid fa-wallet"></i></span>
+                <span class="wd-status-meta">
+                    <strong>${paymentCount}</strong>
+                    <em>With Accounts</em>
+                    <small>Accounts payment pocket</small>
+                </span>
+                <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
+            </button>`;
+
+
+        if (reportHtml || wdCanSeePaymentPocket()) {
+            sectionsHtml += `
+                <section class="wd-dashboard-card-section wd-process-section wd-finance-section">
+                    <div class="wd-dashboard-card-section-head wd-process-section-head">
+                        <span><b class="wd-process-number">03</b><i class="fa-solid fa-coins"></i> Finance Area</span>
+                        <small>Reporting, Accounts processing, and completed payments.</small>
+                    </div>
+                    <div class="wd-dashboard-card-grid wd-dashboard-status-grid wd-process-grid wd-finance-grid">
+                        ${reportHtml}
+                        ${wdCanSeePaymentPocket() ? withAccountsCard : ''}
+                    </div>
+                </section>`;
+        }
     }
 
     cardsEl.innerHTML = sectionsHtml;
+
+    // 12.0.13 visual/search correction: the existing WorkDesk theme can override
+    // the per-card background colors. Apply the approved palette directly to
+    // the rendered status cards so the theme cannot flatten them to WorkDesk blue.
+    // No data, workflow, Firebase, count, or click logic is changed here.
+    wdApplyApprovedDashboardCardPalette(cardsEl);
+
 }
 
 function wdGetFilteredDashboardTasks() {
@@ -5750,7 +5977,63 @@ function wdRenderPaymentHistoryInline(searchText) {
         </section>`;
 }
 
+
+function wdRenderPaidHistoryDashboardList(listEl, titleEl, summaryEl) {
+    const searchInput = document.getElementById('wd-active-dashboard-search');
+    const query = wdText(searchInput?.value || '');
+    const year = wdPaymentHistoryNormalizeYear(wdPaymentHistorySelectedYear);
+    wdPaymentHistorySelectedYear = year;
+    const yearControl = wdPaymentHistoryYearSelectHtml();
+
+    if (titleEl) titleEl.textContent = 'Paid History';
+    if (summaryEl) {
+        summaryEl.textContent = `Paid History ${year} • ${wdPaidHistoryDashboardCountYear === year && wdPaidHistoryDashboardCount != null ? wdPaidHistoryDashboardCount : 'selected-year'} paid record${wdPaidHistoryDashboardCount === 1 ? '' : 's'}`;
+    }
+
+    if (!query) {
+        listEl.innerHTML = `
+            <section class="wd-paid-po-history-panel wd-paid-dashboard-history-panel" aria-live="polite">
+                <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
+                    <div>
+                        <span>Paid History</span>
+                        <strong>Search by PO or vendor</strong>
+                        <small>Select a Paid Year and search to find previously paid POs.</small>
+                    </div>
+                    ${yearControl}
+                </div>
+                <div class="wd-paid-po-history-empty">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <div>
+                        <strong>Search Paid History by PO or vendor</strong>
+                        <span>Type a PO number or part of the vendor name above. Only the selected year pocket will be checked.</span>
+                    </div>
+                </div>
+            </section>`;
+        return;
+    }
+
+    listEl.innerHTML = `
+        <section class="wd-paid-po-history-panel wd-paid-dashboard-history-panel is-loading" aria-live="polite">
+            ${wdRenderPaymentHistoryInline(query) || `
+                <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
+                    <div>
+                        <span>Paid History</span>
+                        <strong>Searching ${wdSafe(year)}</strong>
+                        <small>Only the selected year pocket is being checked.</small>
+                    </div>
+                    ${yearControl}
+                </div>
+                <div class="wd-paid-po-history-loading"><i class="fa-solid fa-spinner fa-spin"></i><div><strong>Searching Paid History…</strong><span>Only ${wdSafe(year)} is being checked.</span></div></div>
+            `}
+        </section>`;
+}
+
 function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
+    if (wdPaymentPocketShowPaidHistory) {
+        wdRenderPaidHistoryDashboardList(listEl, titleEl, summaryEl);
+        return;
+    }
+
     const searchInput = document.getElementById('wd-active-dashboard-search');
     const search = wdNormalize(searchInput?.value || '');
     const canMarkPaid = wdCanMarkPaymentPocketPaid();
