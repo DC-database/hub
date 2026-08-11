@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.0.4';
+const APP_VERSION = '12.0.6';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4513,9 +4513,15 @@ async function handleAddInvoice(e) {
                 const conversionSource = (Array.isArray(allSystemEntries)
                     ? allSystemEntries.find(entry => entry && entry.key === jobEntryToUpdateAfterInvoice)
                     : null) || {};
+                // The original IPC record becomes the same workflow state as the
+                // resulting invoice. Keep it for audit/history, but retire it from
+                // the active IPC workflow. Its business state is now Invoice plus
+                // the invoice's current status.
                 const updates = {
-                    remarks: 'Converted to Invoice',
-                    status: 'Completed',
+                    for: 'Invoice',
+                    type: 'Invoice',
+                    remarks: invoiceData.status || 'Pending',
+                    status: invoiceData.status || 'Pending',
                     convertedToInvoice: true,
                     archived: true,
                     linkedInvoiceKey: newKey,
@@ -4533,7 +4539,42 @@ async function handleAddInvoice(e) {
                 const completedKey = jobEntryToUpdateAfterInvoice;
                 updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
                 updates.updatedBy = currentApprover?.Name || 'System';
-                await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+
+                // Use the IPC records already found by the existing targeted PO
+                // lookup. A single multi-location update retires the entire IPC
+                // chain without another job_entries read.
+                const ipcChain = Array.isArray(window.ipcRecoveryConversionRecords)
+                    ? window.ipcRecoveryConversionRecords.filter(item => item && item.key)
+                    : [];
+                const jobUpdateMap = {};
+                const chainKeys = new Set([completedKey]);
+                ipcChain.forEach(item => chainKeys.add(item.key));
+
+                chainKeys.forEach(chainKey => {
+                    jobUpdateMap[`job_entries/${chainKey}/for`] = 'Invoice';
+                    jobUpdateMap[`job_entries/${chainKey}/type`] = 'Invoice';
+                    jobUpdateMap[`job_entries/${chainKey}/remarks`] = invoiceData.status || 'Pending';
+                    jobUpdateMap[`job_entries/${chainKey}/status`] = invoiceData.status || 'Pending';
+                    jobUpdateMap[`job_entries/${chainKey}/convertedToInvoice`] = true;
+                    jobUpdateMap[`job_entries/${chainKey}/archived`] = true;
+                    jobUpdateMap[`job_entries/${chainKey}/linkedInvoiceKey`] = newKey;
+                    jobUpdateMap[`job_entries/${chainKey}/linkedInvoicePO`] = currentPO;
+                    jobUpdateMap[`job_entries/${chainKey}/invoiceWorkflowStatus`] = invoiceData.status || '';
+                    jobUpdateMap[`job_entries/${chainKey}/linkedInvoiceStatus`] = invoiceData.status || '';
+                    jobUpdateMap[`job_entries/${chainKey}/invoiceConvertedFrom`] = chainKey === completedKey
+                        ? (conversionSource.for || conversionSource.type || 'Job Entry')
+                        : 'IPC Workflow';
+                    jobUpdateMap[`job_entries/${chainKey}/invoiceConvertedBy`] = currentApprover?.Name || 'System';
+                    jobUpdateMap[`job_entries/${chainKey}/invoiceConvertedAt`] = firebase.database.ServerValue.TIMESTAMP;
+                    jobUpdateMap[`job_entries/${chainKey}/dateResponded`] = formatDate(new Date());
+                    jobUpdateMap[`job_entries/${chainKey}/releaseDate`] = getTodayDateString();
+                    jobUpdateMap[`job_entries/${chainKey}/statusChangedAt`] = firebase.database.ServerValue.TIMESTAMP;
+                    jobUpdateMap[`job_entries/${chainKey}/statusQueueAt`] = firebase.database.ServerValue.TIMESTAMP;
+                    jobUpdateMap[`job_entries/${chainKey}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+                    jobUpdateMap[`job_entries/${chainKey}/updatedBy`] = currentApprover?.Name || 'System';
+                });
+
+                await db.ref().update(jobUpdateMap);
                 try {
                     await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}/history`).push({
                         action: 'Converted to Invoice',
@@ -4554,6 +4595,7 @@ async function handleAddInvoice(e) {
                 } catch (_) {}
 
                 jobEntryToUpdateAfterInvoice = null;
+                window.ipcRecoveryConversionRecords = null;
                 if (typeof imInvalidateActiveJobsSidebarCache === 'function') imInvalidateActiveJobsSidebarCache();
                 await populateActiveJobsSidebar(true);
 
@@ -5823,6 +5865,14 @@ async function handleGenerateSummary() {
         }
         snTotalNumeric.textContent = formatCurrency(currentPaymentTotal);
         snTotalInWords.textContent = numberToWords(currentPaymentTotal);
+        // Keep the optional footer note synchronized with the printable area.
+        const summaryCustomNotesInput = document.getElementById('summary-note-custom-notes-input');
+        const summaryPrintNotesSection = document.getElementById('sn-print-notes');
+        const summaryPrintNotesContent = document.getElementById('sn-print-notes-content');
+        const summaryCustomNote = summaryCustomNotesInput ? String(summaryCustomNotesInput.value || '').trim() : '';
+        if (summaryPrintNotesContent) summaryPrintNotesContent.textContent = summaryCustomNote;
+        if (summaryPrintNotesSection) summaryPrintNotesSection.classList.toggle('hidden', !summaryCustomNote);
+
         summaryNotePrintArea.classList.remove('hidden');
         autoFillSummarySrvIfWithAccounts();
 

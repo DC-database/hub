@@ -171,6 +171,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
+        /* 12.0.6: Summary Note print area and optional footer-note visibility */
+        @media print {
+            body * { visibility: hidden !important; }
+            #summary-note-printable-area,
+            #summary-note-printable-area * { visibility: visible !important; }
+            #summary-note-printable-area {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                min-width: 210mm !important;
+                min-height: 297mm !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+            }
+            #sn-print-notes { display: block !important; }
+            #sn-print-notes-content { white-space: pre-wrap !important; }
+            #summary-placeholder-msg,
+            .no-print { display: none !important; }
+        }
+
         @media screen {
             #dynamic-print-footer { display: none !important; }
         }
@@ -3549,7 +3571,7 @@
     <script src="js/app-utils.js?v=8.2.3"></script>
     <script src="js/app-vacation.js?v=8.2.3"></script>
     <script src="js/app-dom-refs.js?v=10.1.5"></script>
-    <script src="app.js?v=11.9.6"></script>
+    <script src="app.js?v=12.0.5"></script>
     <script src="js/app-time-clock.js?v=11.7.2"></script>
     <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
     <script src="js/app-navigation-settings.js?v=11.8.7"></script>
@@ -3567,15 +3589,15 @@
     <script src="js/app-report-workflow.js?v=8.2.3"></script>
     <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
     <script src="js/app-modal-navigation-clear.js?v=11.4.0"></script>
-    <script src="js/app-invoice-entry-search.js?v=11.9.6"></script>
+    <script src="js/app-invoice-entry-search.js?v=12.0.5"></script>
     <script src="js/app-attention-validation.js?v=11.8.0"></script>
     <script src="js/app-batch-entry-ui.js?v=11.8.7"></script>
-    <script src="js/app-im-event-wiring.js?v=11.9.6"></script>
+    <script src="js/app-im-event-wiring.js?v=12.0.5"></script>
     <script src="js/app-history-transfer.js?v=11.8.7"></script>
     <script src="js/app-help.js?v=11.8.8"></script>
 
     <script>
-      window.IBA_SYSTEM_VERSION = '12.0.4';
+      window.IBA_SYSTEM_VERSION = '12.0.6';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
     <script src="js/app-version-checker.js?v=11.9.4"></script>

@@ -1,5 +1,5 @@
 {
-  "version": "12.0.4",
-  "updated": "2026-08-08",
-  "notes": "Paid History year selector now shows only year branches that actually exist in the Paid History pocket. Uses a shallow Firebase key lookup so it does not download Paid records just to build the dropdown; selected-year record reads remain unchanged. Existing With Accounts year/search behavior is untouched."
+  "version": "12.0.6",
+  "updated": "2026-08-11",
+  "notes": "Summary Note Printout Footer Notes now print exactly as entered. IPC Application/IPC Processed records found by the existing targeted PO recovery lookup are converted into the Invoice workflow state after the invoice saves successfully, with the current invoice status copied back and the original job records retained as archived audit history without an additional job_entries read."
 }
