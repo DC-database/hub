@@ -1135,6 +1135,19 @@ function imPrepareIPCRecoveryInvoice(record, poNumber) {
     if (!record || !record.key || !po) return false;
 
     jobEntryToUpdateAfterInvoice = record.key;
+    // Keep the complete targeted IPC lookup result in memory. When the PO has
+    // both an IPC Application and IPC Processed record, the successful invoice
+    // conversion can retire the whole IPC chain without another Firebase read.
+    try {
+        window.ipcRecoveryConversionRecords = Array.isArray(window.ipcRecoveryConversionRecords)
+            ? window.ipcRecoveryConversionRecords
+            : [record];
+        if (!window.ipcRecoveryConversionRecords.some(item => item && item.key === record.key)) {
+            window.ipcRecoveryConversionRecords.push(record);
+        }
+    } catch (_) {
+        window.ipcRecoveryConversionRecords = [record];
+    }
 
     const poData = (typeof allPOData !== 'undefined' && allPOData && allPOData[po]) ? allPOData[po] : {};
     pendingJobEntryDataForInvoice = {
@@ -1205,7 +1218,13 @@ async function imPromptIPCRecoveryBeforeNewInvoice(poNumber) {
             jobEntryToUpdateAfterInvoice = null;
             pendingJobEntryDataForInvoice = null;
             window.importedJobHistory = null;
+            window.ipcRecoveryConversionRecords = null;
             return true;
+        }
+        try {
+            window.ipcRecoveryConversionRecords = Array.isArray(records) ? records.slice() : [choice.record];
+        } catch (_) {
+            window.ipcRecoveryConversionRecords = [choice.record];
         }
         return imPrepareIPCRecoveryInvoice(choice.record, po);
     } finally {

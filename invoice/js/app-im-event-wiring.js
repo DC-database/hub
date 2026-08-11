@@ -1247,28 +1247,36 @@ if (summaryNoteUpdateBtn) {
         }, 500));
     }
 
-// --- 3. DYNAMIC PRINT FOOTER ---
+// --- 3. SUMMARY PRINT FOOTER NOTES ---
+// The optional footer note is already part of the printable Summary Note area.
+// Keep the note inside that print area so the exact text entered by the user
+// is what appears on the printed A4 summary.
 if (summaryNotePrintBtn) {
     summaryNotePrintBtn.addEventListener('click', () => {
-        // 1. Create or find the print footer
-        let printFooter = document.getElementById('dynamic-print-footer');
-        if (!printFooter) {
-            printFooter = document.createElement('div');
-            printFooter.id = 'dynamic-print-footer';
-            document.body.appendChild(printFooter);
+        const input = document.getElementById('summary-note-custom-notes-input');
+        const printArea = document.getElementById('summary-note-printable-area');
+        const noteSection = document.getElementById('sn-print-notes');
+        const noteContent = document.getElementById('sn-print-notes-content');
+        const note = input ? String(input.value || '') : '';
+
+        // Always sync the live textarea value immediately before printing.
+        if (noteContent) {
+            noteContent.textContent = note;
+            noteContent.style.whiteSpace = 'pre-wrap';
         }
-        
-        // 2. Build the Footer Text
-        const vendorName = snVendorName ? snVendorName.textContent.trim() : '';
-        const d = new Date();
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const dateStr = `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`; 
-        
-        // Example: "Capital Trading 22-Apr-2026"
-        printFooter.innerText = `${vendorName} ${dateStr}`;
-        
-        // 3. Open Print Window
-        window.print();
+        if (noteSection) {
+            noteSection.classList.remove('hidden');
+            noteSection.style.display = note.trim() ? 'block' : 'none';
+        }
+        if (printArea) {
+            printArea.classList.remove('hidden');
+            printArea.style.display = 'block';
+        }
+
+        // Let the browser paint the updated print area before opening print preview.
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => window.print());
+        });
     });
 }
 
