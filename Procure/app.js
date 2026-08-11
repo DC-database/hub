@@ -180,12 +180,13 @@ searchInput.addEventListener('input', (e) => {
     matches.forEach(item => {
         const partNo = item["Part Code"] || item["Part code"] || "N/A"; const desc = item["Description"] || "N/A"; const uom = item["UOM"] || "EA"; const groupName = item["Group Name"] || item["Group name"] || "N/A"; const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
         const groupCode = item["Group Code"] || "N/A"; const seriesCode = item["Series"] || partNo.split('.')[1] || "";
+        const classValue = item["Class Code"] || item["Class"] || item["Class Name"] || "N/A";
         
-        const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeAct = String(actName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeAct = String(actName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeClass = String(classValue).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const div = document.createElement('div'); div.className = 'result-item';
         
         const safeKey = item.firebaseKey ? `'${item.firebaseKey}'` : null;
-        let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}')"><i class="fa-solid fa-plus"></i> Add</button>`;
+        let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}', '${safeClass}')"><i class="fa-solid fa-plus"></i> Add</button>`;
         
         if (safeKey) {
             actionButtons += `
@@ -202,22 +203,29 @@ searchInput.addEventListener('input', (e) => {
     });
 });
 
-window.addToCart = function(partCode, description, unit, groupName, actName) {
-    cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, comment: '', qty: 1, price: 0 });
-    searchInput.value = ''; searchResults.innerHTML = ''; renderCart(); saveSession();
+window.addToCart = function(partCode, description, unit, groupName, actName, classValue) {
+    // Keep the Class with the cart item even though Class is not displayed in the on-screen cart table.
+    if (!classValue || classValue === 'undefined') {
+        const sourceItem = allSearchableItems.find(i => String(i["Part Code"] || i["Part code"] || '') === String(partCode));
+        classValue = sourceItem ? (sourceItem["Class Code"] || sourceItem["Class"] || sourceItem["Class Name"] || 'N/A') : 'N/A';
+    }
+    cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, classValue: classValue, comment: '', qty: 1, price: 0 });
+    // Keep the search results open so the same item (or another matching item) can be added repeatedly without searching again.
+    renderCart(); saveSession();
 };
 
 function renderCart() {
     cartBody.innerHTML = ''; let grandTotal = 0;
     const previewBtn = document.getElementById('previewBtn');
     const saveBtnAction = document.getElementById('saveBtnAction');
+    const copyExcelBtn = document.getElementById('copyExcelBtn');
 
     if (cart.length === 0) {
         cartBody.innerHTML = '<tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>';
-        previewBtn.disabled = true; saveBtnAction.disabled = true; document.getElementById('grandTotalVal').textContent = "0.00"; return;
+        previewBtn.disabled = true; saveBtnAction.disabled = true; if (copyExcelBtn) copyExcelBtn.disabled = true; document.getElementById('grandTotalVal').textContent = "0.00"; return;
     }
 
-    previewBtn.disabled = false; saveBtnAction.disabled = false;
+    previewBtn.disabled = false; saveBtnAction.disabled = false; if (copyExcelBtn) copyExcelBtn.disabled = false;
     
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
@@ -261,6 +269,95 @@ function renderCart() {
     });
 }
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); saveSession(); };
+
+// ==========================================
+// COPY CART FOR EXCEL
+// ==========================================
+const copyExcelBtn = document.getElementById('copyExcelBtn');
+
+function getCartClassValue(item) {
+    // Prefer the exact Class stored on the cart item.
+    if (item.classValue && item.classValue !== 'N/A' && item.classValue !== 'undefined') {
+        // Export Class as the CODE only. Older cart rows may contain 'CODE - NAME'.
+        return String(item.classValue).split(' - ')[0].trim();
+    }
+
+    // Recover the original item so older/session-saved cart rows also get Class.
+    const sourceItem = allSearchableItems.find(i => String(i["Part Code"] || i["Part code"] || '') === String(item.partNo));
+    if (sourceItem) {
+        const directClass = sourceItem["Class Code"] || sourceItem["Class"] || sourceItem["Class Name"];
+        if (directClass && directClass !== 'N/A') return directClass;
+
+        // In the item database, Class can be represented through the item's Group Code.
+        const groupCode = sourceItem["Group Code"] || sourceItem["Group code"];
+        if (groupCode && dynamicActivityData[groupCode]) {
+            return dynamicActivityData[groupCode].classCode || 'N/A';
+        }
+    }
+
+    // Final fallback: use the cart's Group Code if a future item structure stores it.
+    if (item.groupCode && dynamicActivityData[item.groupCode]) {
+        return dynamicActivityData[item.groupCode].classCode || 'N/A';
+    }
+
+    return 'N/A';
+}
+
+function excelCellValue(value) {
+    // Keep pasted Excel cells clean and prevent accidental tabs/newlines from shifting columns.
+    return String(value ?? '').replace(/\t/g, ' ').replace(/[\r\n]+/g, ' ').trim();
+}
+
+async function copyCartForExcel() {
+    if (!cart.length) return;
+
+    const rows = cart.map((item, index) => {
+        const qty = Number(item.qty) || 0;
+        const price = Number(item.price) || 0;
+        const total = qty * price;
+        return [
+            index + 1,
+            item.partNo || '',
+            getCartClassValue(item),
+            item.description || '',
+            qty,
+            item.unit || '',
+            price.toFixed(2),
+            'Our',
+            total.toFixed(2),
+            item.comment || ''
+        ].map(excelCellValue).join('\t');
+    });
+
+    const excelText = rows.join('\r\n');
+
+    try {
+        await navigator.clipboard.writeText(excelText);
+    } catch (error) {
+        // Fallback for browsers where Clipboard API is unavailable or blocked.
+        const textarea = document.createElement('textarea');
+        textarea.value = excelText;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+    }
+
+    if (copyExcelBtn) {
+        const originalHtml = copyExcelBtn.innerHTML;
+        copyExcelBtn.classList.add('copied');
+        copyExcelBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied! Paste in Excel';
+        setTimeout(() => {
+            copyExcelBtn.classList.remove('copied');
+            copyExcelBtn.innerHTML = originalHtml;
+        }, 2200);
+    }
+}
+
+if (copyExcelBtn) copyExcelBtn.addEventListener('click', copyCartForExcel);
 
 // ==========================================
 // 4. NEW ITEMS MODAL (SESSION VIEW) - UPDATED WITH CLASS & CODES
@@ -412,7 +509,7 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
         
         allSearchableItems.push(newItemRecord); 
         sessionNewlyCreatedItems.push(newItemRecord); 
-        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName); 
+        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName, data.classCode); 
         
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
         saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 

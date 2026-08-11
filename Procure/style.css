@@ -61,6 +61,12 @@ body { background-color: var(--bg-color); color: var(--text-main); padding: 30px
 .clear-session-btn { background: #f1f5f9; color: var(--danger); border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s;}
 .clear-session-btn:hover { background: #fee2e2; border-color: #fca5a5; }
 
+.copy-excel-btn { background: #16a34a; color: white; border: 1px solid #15803d; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s, transform 0.1s; }
+.copy-excel-btn:hover:not(:disabled) { background: #15803d; }
+.copy-excel-btn:active:not(:disabled) { transform: translateY(1px); }
+.copy-excel-btn:disabled { background: #cbd5e1; border-color: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+.copy-excel-btn.copied { background: #0284c7; border-color: #0369a1; }
+
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
 th { background-color: #f8fafc; color: var(--text-light); font-weight: bold; }

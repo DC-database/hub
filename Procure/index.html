@@ -70,7 +70,10 @@
         <div class="cart-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="margin: 0;"><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
-                <button type="button" id="clearSessionBtn" class="clear-session-btn"><i class="fa-solid fa-eraser"></i> Clear Entire Cart</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" id="copyExcelBtn" class="copy-excel-btn" disabled><i class="fa-solid fa-copy"></i> Copy for Excel</button>
+                    <button type="button" id="clearSessionBtn" class="clear-session-btn"><i class="fa-solid fa-eraser"></i> Clear Entire Cart</button>
+                </div>
             </div>
             <div class="table-responsive">
                 <table id="cartTable">
