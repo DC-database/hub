@@ -1,0 +1,177 @@
+/* ========================================================================
+   12.0.10 — WorkDesk approved visual arrangement correction ONLY
+   Visual-only: card sizing, spacing, palette, group layout and dividers.
+   No workflow, Firebase, counts, click handlers, search or permissions.
+   ======================================================================== */
+
+#wd-dashboard .wd-process-section {
+    border: 1px solid rgba(15, 76, 117, 0.16) !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,0.97) !important;
+    box-shadow: 0 7px 20px rgba(15,46,71,0.055) !important;
+    padding: 12px 14px 15px !important;
+    margin: 0 0 14px !important;
+}
+
+#wd-dashboard .wd-process-section-head {
+    min-height: 30px !important;
+    margin-bottom: 12px !important;
+    padding: 0 2px 8px !important;
+    border-bottom-width: 1px !important;
+}
+
+#wd-dashboard .wd-process-section-head span {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+}
+
+#wd-dashboard .wd-process-section-head small {
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    opacity: 0.78 !important;
+}
+
+/* Compact fixed-width cards — matching the approved mockup rather than
+   stretching cards across the entire dashboard width. */
+#wd-dashboard .wd-process-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, 225px) !important;
+    grid-auto-rows: 104px !important;
+    gap: 12px !important;
+    justify-content: start !important;
+    align-items: stretch !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-active-status-card {
+    width: 225px !important;
+    min-width: 225px !important;
+    max-width: 225px !important;
+    height: 104px !important;
+    min-height: 104px !important;
+    max-height: 104px !important;
+    box-sizing: border-box !important;
+    border: 0 !important;
+    border-radius: 13px !important;
+    padding: 12px 13px !important;
+    box-shadow: 0 7px 16px rgba(15,46,71,0.10) !important;
+    transform: none !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-active-status-card:hover,
+#wd-dashboard .wd-process-grid .wd-active-status-card:focus-visible {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 10px 20px rgba(15,46,71,0.14) !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-status-icon {
+    width: 46px !important;
+    height: 46px !important;
+    flex: 0 0 46px !important;
+    border-radius: 50% !important;
+    background: rgba(0,31,61,0.27) !important;
+    box-shadow: none !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-status-meta strong {
+    font-size: 1.85rem !important;
+    line-height: 0.95 !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-status-meta em {
+    font-size: 0.88rem !important;
+    font-weight: 900 !important;
+    line-height: 1.05 !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-status-meta small {
+    font-size: 0.66rem !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0.02em !important;
+    text-transform: uppercase !important;
+}
+
+#wd-dashboard .wd-process-grid .wd-active-status-card :is(.wd-status-meta, .wd-status-meta strong, .wd-status-meta em, .wd-status-meta small, .wd-status-arrow, .wd-status-arrow i, .wd-status-icon, .wd-status-icon i) {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+}
+
+/* Exact per-card palette from the approved visual sample. */
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="For SRV"] { background: #e83f5b !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="Pending"] { background: #f08a00 !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="On Hold"] { background: #ef4f2f !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="IPC Application"] { background: #7a4bb3 !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="IPC Processed"] { background: #285f9f !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="For Approval"] { background: #4f8e2f !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="In Process"] { background: #0f5f9b !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="CEO Approval"] { background: #7547a9 !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="For Summary"] { background: #17639d !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="Report"] { background: #3f4c98 !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="With Accounts"] { background: #168398 !important; }
+#wd-dashboard .wd-process-grid .wd-active-status-card[data-dashboard-label="Paid"] { background: #2f8b57 !important; }
+
+#wd-dashboard .wd-process-grid .wd-active-status-card:is(:hover, :focus-visible, .active, .selected, .is-active, .wd-search-category-match) {
+    filter: brightness(1.035) !important;
+    outline: 2px solid rgba(255,255,255,0.22) !important;
+}
+
+/* Finance uses the same compact card width as the other groups. */
+#wd-dashboard .wd-finance-grid {
+    grid-template-columns: repeat(5, 225px) !important;
+}
+#wd-dashboard .wd-finance-grid .wd-finance-card,
+#wd-dashboard .wd-finance-grid .wd-payment-paid-card {
+    grid-column: span 1 !important;
+    width: 225px !important;
+    min-width: 225px !important;
+    max-width: 225px !important;
+}
+
+/* Keep the approved three-card order on one compact row when space allows. */
+#wd-dashboard .wd-approval-section .wd-process-grid,
+#wd-dashboard .wd-finance-section .wd-process-grid {
+    grid-template-columns: repeat(5, 225px) !important;
+}
+
+@media (max-width: 1280px) {
+    #wd-dashboard .wd-process-grid,
+    #wd-dashboard .wd-finance-grid,
+    #wd-dashboard .wd-approval-section .wd-process-grid,
+    #wd-dashboard .wd-finance-section .wd-process-grid {
+        grid-template-columns: repeat(4, 225px) !important;
+    }
+}
+
+@media (max-width: 1000px) {
+    #wd-dashboard .wd-process-grid,
+    #wd-dashboard .wd-finance-grid,
+    #wd-dashboard .wd-approval-section .wd-process-grid,
+    #wd-dashboard .wd-finance-section .wd-process-grid {
+        grid-template-columns: repeat(3, 225px) !important;
+    }
+}
+
+@media (max-width: 780px) {
+    #wd-dashboard .wd-process-section {
+        padding: 11px !important;
+        border-radius: 13px !important;
+    }
+    #wd-dashboard .wd-process-grid,
+    #wd-dashboard .wd-finance-grid,
+    #wd-dashboard .wd-approval-section .wd-process-grid,
+    #wd-dashboard .wd-finance-section .wd-process-grid {
+        grid-template-columns: 1fr !important;
+        grid-auto-rows: 104px !important;
+    }
+    #wd-dashboard .wd-process-grid .wd-active-status-card,
+    #wd-dashboard .wd-finance-grid .wd-finance-card,
+    #wd-dashboard .wd-finance-grid .wd-payment-paid-card {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+}
