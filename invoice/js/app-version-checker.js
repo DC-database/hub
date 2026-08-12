@@ -132,6 +132,10 @@
 
     function checkLatestVersion() {
         if (!CURRENT_VERSION) return;
+        // Local file testing (file://) cannot fetch ./version.json because Chrome
+        // blocks file-origin fetches by design. Skip the network check in local
+        // mode; the checker remains active normally under http/https.
+        if (window.location && window.location.protocol === 'file:') return;
         lastCheckAt = Date.now();
         var cacheBust = VERSION_URL.indexOf('?') === -1 ? '?' : '&';
         var url = VERSION_URL + cacheBust + 't=' + Date.now();

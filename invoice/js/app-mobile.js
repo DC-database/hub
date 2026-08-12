@@ -908,22 +908,12 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
     reportData.forEach((poData, index) => {
         const safePo = imMobileInvoiceSafeId(poData.poNumber) + '_' + index;
         const listId = `mobile-invoice-list-${safePo}`;
-        const invoices = poData.filteredInvoices || [];
+        const invoices = Array.isArray(poData.filteredInvoices) ? poData.filteredInvoices : [];
         const poValue = parseFloat(poData.poDetails?.Amount) || 0;
         const totalSRV = invoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
         const balance = poValue - totalSRV;
 
-        let cardClass = 'status-pending';
-        const allStatuses = invoices.map(inv => inv.status || '');
-        if (allStatuses.length && allStatuses.every(s => s === 'With Accounts' || s === 'Paid' || s === 'CLOSED')) {
-            cardClass = 'status-close';
-        } else if (allStatuses.some(s => s === 'Under Review' || s === 'In Process')) {
-            cardClass = 'status-open';
-        } else if (allStatuses.some(s => s === 'For IPC' || s === 'For SRV' || s === 'Original PO' || s === 'Epicore Value')) {
-            cardClass = 'status-new';
-        }
-
-        const invoiceCards = invoices.map((inv, invoiceIndex) => {
+        const invoiceCards = invoices.map((inv) => {
             const invPDFName = imPdfBase(inv.invName);
             const srvPDFName = imPdfBase(inv.srvName);
             const reportPDFName = imPdfBase(inv.reportName);
@@ -937,73 +927,56 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
             if (imHasPdfName(inv.reportName)) {
                 invButtons.push(`<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="im-tx-action-btn report-pdf-btn" onclick="event.stopPropagation();"><i class="fa-solid fa-file-lines"></i><span>REPORT</span></a>`);
             }
+            const status = String(inv.status || 'N/A');
+            const statusClass = 'status-' + status.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'status-na';
             return `
-                <li class="im-invoice-item">
-                    <span class="im-tx-timeline-index" aria-hidden="true">${invoiceIndex + 1}</span>
-                    <div class="im-tx-card-header">
-                        <div class="im-tx-invoice-main">
-                            <span class="im-tx-field-label">Invoice No.</span>
-                            <span class="im-tx-title">${escapeHtml(inv.invNumber || 'N/A')}</span>
-                        </div>
-                        <span class="im-tx-status">${escapeHtml(inv.status || 'N/A')}</span>
+                <li class="iba-mob-invoice-item">
+                    <div class="iba-mob-invoice-top">
+                        <div class="iba-mob-invoice-number">${escapeHtml(inv.invNumber || 'N/A')}</div>
+                        <span class="iba-mob-status ${statusClass}">${escapeHtml(status)}</span>
                     </div>
-                    <div class="im-tx-amount-panel">
-                        <span class="im-tx-field-label">Invoice Value</span>
+                    <div class="iba-mob-invoice-meta">
+                        <span><i class="fa-regular fa-calendar"></i>${formatToDDMMMYY(inv.releaseDate || inv.invoiceDate || '') || 'N/A'}</span>
                         <strong>${imAmountDisplay(inv.invValue, canViewAmounts)}</strong>
                     </div>
-                    <div class="im-tx-meta-line">
-                        <span>Release Date</span>
-                        <strong>${formatToDDMMMYY(inv.releaseDate || inv.invoiceDate || '') || 'N/A'}</strong>
+                    <div class="iba-mob-invoice-attention">
+                        <span><i class="fa-solid fa-user"></i>${escapeHtml(inv.attention || 'Not assigned')}</span>
+                        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
                     </div>
-                    <div class="im-tx-meta-line im-tx-attention-line">
-                        <span>Attention</span>
-                        <strong>${escapeHtml(inv.attention || 'Not assigned')}</strong>
-                    </div>
-                    ${invButtons.length ? `<div class="im-tx-actions">${invButtons.join('')}</div>` : '<div class="im-tx-no-pdf">No PDF attached</div>'}
+                    ${invButtons.length ? `<div class="iba-mob-invoice-actions">${invButtons.join('')}</div>` : ''}
                 </li>`;
         }).join('');
 
         mobileContainer.insertAdjacentHTML('beforeend', `
-            <article class="im-mobile-po-accordion ${cardClass}">
-                <button class="im-po-balance-card ${cardClass}" type="button" data-toggle-target="#${listId}" aria-expanded="false" aria-controls="${listId}">
-                    <div class="po-card-header">
-                        <div class="po-card-title-wrap">
-                            <span class="po-card-label">PO No.</span>
-                            <span class="po-card-ponum">${escapeHtml(poData.poNumber || 'N/A')}</span>
+            <article class="iba-mob-v2-po ${index === 0 ? 'is-first' : ''}">
+                <button class="iba-mob-v2-po-card" type="button" data-toggle-target="#${listId}" aria-expanded="false" aria-controls="${listId}">
+                    <div class="iba-mob-v2-po-head">
+                        <div>
+                            <span class="iba-mob-v2-label">PO NO.</span>
+                            <strong class="iba-mob-v2-po-number">${escapeHtml(poData.poNumber || 'N/A')}</strong>
                         </div>
-                        <div class="po-card-right-wrap">
-                            <span class="po-card-count">${invoices.length} Invoice${invoices.length === 1 ? '' : 's'}</span>
-                            <i class="fa-solid fa-chevron-down po-card-chevron" aria-hidden="true"></i>
+                        <div class="iba-mob-v2-po-count-wrap">
+                            <span class="iba-mob-v2-po-count">${invoices.length} Invoice${invoices.length === 1 ? '' : 's'}</span>
+                            <i class="fa-solid fa-chevron-down iba-mob-v2-po-chevron" aria-hidden="true"></i>
                         </div>
                     </div>
-                    <div class="po-card-vendor-block">
-                        <span class="po-card-label">Vendor</span>
+                    <div class="iba-mob-v2-vendor">
+                        <span class="iba-mob-v2-label">VENDOR</span>
                         <strong>${escapeHtml(poData.vendor || 'N/A')}</strong>
                     </div>
-                    <div class="po-card-body">
-                        <span class="po-card-site"><i class="fa-solid fa-location-dot"></i> Site ${escapeHtml(poData.site || 'N/A')}</span>
-                        <div class="po-card-grid">
-                            <div class="po-card-metric">
-                                <span class="po-card-label">PO Value</span>
-                                <span class="po-card-value">${imAmountDisplay(poValue, canViewAmounts)}</span>
-                            </div>
-                            <div class="po-card-metric">
-                                <span class="po-card-label">Invoiced</span>
-                                <span class="po-card-value">${imAmountDisplay(totalSRV, canViewAmounts)}</span>
-                            </div>
-                            <div class="po-card-metric balance-metric">
-                                <span class="po-card-label">Balance</span>
-                                <span class="po-card-value po-card-balance ${balance < 0 ? 'negative' : ''}">${imAmountDisplay(balance, canViewAmounts)}</span>
-                            </div>
-                        </div>
+                    <div class="iba-mob-v2-site"><i class="fa-solid fa-location-dot"></i><span>Site ${escapeHtml(poData.site || 'N/A')}</span></div>
+                    <div class="iba-mob-v2-metrics">
+                        <div><span class="iba-mob-v2-label">PO VALUE</span><strong>${imAmountDisplay(poValue, canViewAmounts)}</strong></div>
+                        <div><span class="iba-mob-v2-label">INVOICED</span><strong>${imAmountDisplay(totalSRV, canViewAmounts)}</strong></div>
+                        <div class="iba-mob-v2-balance"><span class="iba-mob-v2-label">BALANCE</span><strong>${imAmountDisplay(balance, canViewAmounts)}</strong></div>
                     </div>
                 </button>
-                <div id="${listId}" class="im-mobile-po-detail hidden-invoice-list">
-                    <div class="im-invoice-list-header">
+                <div id="${listId}" class="iba-mob-v2-po-detail hidden-invoice-list">
+                    <div class="iba-mob-v2-invoice-heading">
                         <h3>Invoice Entries</h3>
                         <span>${invoices.length} entr${invoices.length === 1 ? 'y' : 'ies'}</span>
                     </div>
-                    <ul class="im-invoice-list">${invoiceCards}</ul>
+                    <ul class="iba-mob-v2-invoice-list">${invoiceCards}</ul>
                 </div>
             </article>
         `);

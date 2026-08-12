@@ -1362,21 +1362,21 @@ if (summaryNotePrintBtn) {
     if (imFinancePrintReportBtn) imFinancePrintReportBtn.addEventListener('click', printFinanceReport);
 
     document.addEventListener('click', (e) => {
-        const card = e.target.closest('.im-po-balance-card');
+        const card = e.target.closest('.iba-mob-v2-po-card');
         if (card && card.dataset.toggleTarget) {
             const targetId = card.dataset.toggleTarget;
             const targetElement = document.querySelector(targetId);
-            const accordion = card.closest('.im-mobile-po-accordion');
+            const accordion = card.closest('.iba-mob-v2-po');
 
             if (targetElement) {
                 const isOpening = targetElement.classList.contains('hidden-invoice-list');
 
                 if (isOpening) {
-                    // 11.8.7: Mobile Invoice Records is a single-open accordion.
-                    document.querySelectorAll('.im-mobile-po-accordion.is-expanded').forEach(openAccordion => {
+                    // 12.3.0: Mobile Invoice Records uses only the detached mobile PO classes.
+                    document.querySelectorAll('#im-reporting-mobile-view .iba-mob-v2-po.is-expanded').forEach(openAccordion => {
                         if (openAccordion === accordion) return;
                         openAccordion.classList.remove('is-expanded');
-                        const openButton = openAccordion.querySelector('.im-po-balance-card[data-toggle-target]');
+                        const openButton = openAccordion.querySelector('.iba-mob-v2-po-card[data-toggle-target]');
                         const openDetail = openAccordion.querySelector('[id^="mobile-invoice-list-"]');
                         if (openButton) openButton.setAttribute('aria-expanded', 'false');
                         if (openDetail) openDetail.classList.add('hidden-invoice-list');
