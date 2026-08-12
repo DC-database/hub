@@ -1,0 +1,177 @@
+/* 12.1.3 — Mobile Invoice Records PO card contrast correction
+   Visual-only: preserves markup, click behavior, data flow, and Firebase logic.
+   Goal: match the approved dark Active Task-style mobile card. */
+
+@media (max-width: 900px) {
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card {
+    background: linear-gradient(180deg, #0d5f73 0%, #084f61 100%) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    border-top: 0 !important;
+    border-left: 1px solid rgba(255,255,255,.18) !important;
+    box-shadow: 0 10px 22px rgba(15, 23, 42, .16) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card::before,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card::before {
+    background: linear-gradient(90deg, rgba(255,255,255,.07), rgba(255,255,255,0)) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-label,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-label {
+    color: rgba(255,255,255,.78) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.78) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-ponum,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-ponum {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 950 !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-count,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-count {
+    background: rgba(255,255,255,.16) !important;
+    border: 1px solid rgba(255,255,255,.22) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  /* Vendor: no pale box; high-contrast accent like the Active Task card. */
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block {
+    background: rgba(255,255,255,.055) !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    box-shadow: none !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block .po-card-label,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block .po-card-label {
+    color: rgba(255,255,255,.72) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.72) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block strong,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-vendor-block strong {
+    color: #ffc107 !important;
+    -webkit-text-fill-color: #ffc107 !important;
+    font-weight: 950 !important;
+  }
+
+  /* Site: dark translucent surface, never white text on a pale background. */
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site {
+    background: rgba(255,255,255,.055) !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site i,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-site i {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  /* PO metrics: retain the information but use the same dark-card hierarchy. */
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric {
+    background: rgba(255,255,255,.055) !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    box-shadow: none !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric .po-card-label,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric .po-card-label {
+    color: rgba(255,255,255,.68) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.68) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric .po-card-value,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric .po-card-balance,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric .po-card-value {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 950 !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric {
+    background: rgba(255,193,7,.10) !important;
+    border-color: rgba(255,193,7,.30) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric .po-card-label,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric .po-card-label,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric .po-card-value,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view button.im-po-balance-card .po-card-metric.balance-metric .po-card-value {
+    color: #ffe08a !important;
+    -webkit-text-fill-color: #ffe08a !important;
+  }
+
+  /* Expanded invoice list: continue the same dark, high-contrast language. */
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-mobile-po-detail,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-mobile-po-detail {
+    background: #0a3441 !important;
+    border: 1px solid rgba(255,255,255,.14) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 22px rgba(15,23,42,.08) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-invoice-list-header,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-invoice-list-header {
+    background: #12374b !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    color: #ffffff !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-invoice-list-header h3,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-invoice-list-header span,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-invoice-list-header h3,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-invoice-list-header span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-invoice-item,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-invoice-item {
+    background: #0d2f3c !important;
+    border: 1px solid rgba(255,255,255,.13) !important;
+    border-left: 3px solid #0d9aa5 !important;
+    box-shadow: 0 7px 18px rgba(15,23,42,.12) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-field-label,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-field-label {
+    color: rgba(255,255,255,.68) !important;
+    -webkit-text-fill-color: rgba(255,255,255,.68) !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-title,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-title,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-meta-line strong,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-meta-line strong,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-amount-panel strong,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-amount-panel strong {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-status,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-status {
+    background: rgba(255,255,255,.10) !important;
+    border-color: rgba(255,255,255,.18) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-amount-panel,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-amount-panel,
+  body.iba-mobile-ui #im-reporting #im-reporting-mobile-view .im-tx-meta-line,
+  body.im-mobile-reporting-mode #im-reporting #im-reporting-mobile-view .im-tx-meta-line {
+    background: rgba(255,255,255,.055) !important;
+    border-color: rgba(255,255,255,.12) !important;
+    color: rgba(255,255,255,.72) !important;
+  }
+}
