@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.1.1';
+const APP_VERSION = '12.3.4';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4514,9 +4514,16 @@ async function handleAddInvoice(e) {
                     ? allSystemEntries.find(entry => entry && entry.key === jobEntryToUpdateAfterInvoice)
                     : null) || {};
                 const updates = {
+                    // 12.3.4: A successful IPC -> Invoice conversion must also
+                    // convert the WorkDesk Job Entry's type. Previously the record
+                    // was only archived/completed, leaving `for: IPC Application`
+                    // behind in Job Records and making the same PO appear to have
+                    // two different workflow identities.
+                    for: 'Invoice',
                     remarks: 'Converted to Invoice',
                     status: 'Completed',
                     convertedToInvoice: true,
+                    convertedFromFor: conversionSource.for || conversionSource.type || 'IPC Application',
                     archived: true,
                     linkedInvoiceKey: newKey,
                     linkedInvoicePO: currentPO,
@@ -4539,7 +4546,7 @@ async function handleAddInvoice(e) {
                         action: 'Converted to Invoice',
                         by: currentApprover?.Name || 'System',
                         timestamp: firebase.database.ServerValue.TIMESTAMP,
-                        note: `Converted ${updates.invoiceConvertedFrom} to Invoice Entry ${invoiceData.invEntryID || newKey} / PO ${currentPO}.`
+                        note: `Converted ${updates.invoiceConvertedFrom} to Invoice Entry ${invoiceData.invEntryID || newKey} / PO ${currentPO}. Job Entry type changed to Invoice.`
                     });
                 } catch (historyError) {
                     console.warn('The IPC conversion audit note could not be added, but the Job Entry was converted successfully.', historyError);

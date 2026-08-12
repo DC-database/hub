@@ -1,5 +1,1 @@
-{
-  "version": "12.1.1",
-  "updated": "2026-08-11",
-  "notes": "Paid History UI cleanup: removes the redundant Completed Payments header block while keeping a single selected-year control for the Paid History search flow. No Firebase read/write logic changed."
-}
+{"version":"12.3.5","patch":"12.3.5","description":"Help Center UI refresh"}

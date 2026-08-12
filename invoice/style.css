@@ -4863,159 +4863,7 @@ body.is-admin .legend-admin-only {
 }
 /* === END OF YEAR VIEW STYLES === */
 
-/* === NEW: IM Reporting Mobile View Styles === */
-#im-reporting-mobile-view {
-    display: none; /* Hidden by default on desktop */
-}
-
-/* ADD THIS NEW RULE to hide the invoice list */
-.hidden-invoice-list {
-    /* We use display: none to completely hide the content and collapse the space */
-    display: none !important;
-}
-
-/* Optional: Update the PO Card to better look like a button */
-.im-po-balance-card {
-    transition: background-color 0.2s; /* Add smooth transition */
-}
-.im-po-balance-card:hover {
-    background-color: #f8f9fa; /* Slightly highlight on hover/tap */
-}
-
-.im-mobile-report-container {
-    width: 100%;
-    margin-top: 20px;
-}
-
-/* Card style for PO Balance */
-.im-po-balance-card {
-    background-color: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    border: 1px solid #eee;
-}
-
-.im-po-balance-card h3 {
-    margin: 0;
-    font-size: 1.1rem;
-    color: #555;
-    font-weight: 600;
-}
-
-.im-po-balance-card .po-vendor {
-    font-size: 0.9rem;
-    color: #777;
-    margin-bottom: 15px;
-}
-
-.im-po-balance-card .po-value {
-    font-size: 2.2rem;
-    font-weight: 700;
-    color: #111;
-    margin: 5px 0;
-}
-
-.im-po-balance-card .po-site {
-    font-size: 0.9rem;
-    color: #555;
-    margin-top: 5px;
-}
-
-/* Header for Invoice List */
-.im-invoice-list-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    padding: 0 5px;
-}
-
-.im-invoice-list-header h2 {
-    margin: 0;
-    font-size: 1.2rem;
-    color: #333;
-}
-
-/* List for Invoices */
-.im-invoice-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-.im-invoice-item {
-    background-color: #fff;
-    border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border: 1px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.im-invoice-item .invoice-count {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background-color: var(--iba-base-tint-light);
-    color: var(--iba-base-blue);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 1.1rem;
-}
-
-.im-invoice-item .invoice-details {
-    flex-grow: 1;
-    display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 columns */
-    gap: 2px 10px;
-}
-
-.im-invoice-item .invoice-main-info {
-    grid-column: 1 / 2; /* Span 1 column */
-    font-weight: 600;
-    color: #333;
-    font-size: 0.95rem;
-}
-.im-invoice-item .invoice-main-info span {
-    font-weight: 500;
-    color: #666;
-    font-size: 0.85rem;
-    margin-left: 5px;
-}
-
-.im-invoice-item .invoice-amounts {
-    grid-column: 2 / 3; /* Span 1 column */
-    text-align: right;
-}
-
-.im-invoice-item .invoice-amounts .amount-value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #111;
-    display: block;
-}
-.im-invoice-item .invoice-amounts .amount-paid {
-    font-size: 0.8rem;
-    color: #28a745;
-    font-weight: 500;
-    display: block;
-}
-
-.im-invoice-item .invoice-status {
-    grid-column: 1 / 3; /* Span full width */
-    margin-top: 5px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-/* === END OF NEW STYLES === */
+/* 12.1.8: Legacy Invoice Records mobile card styles moved to css/invoice-mobile.css. */
 
 /* ... (this rule should already be there) ... */
 @media (max-width: 768px) {
@@ -5548,32 +5396,7 @@ body.is-admin .legend-admin-only {
     padding: 5px 12px;
     flex-shrink: 0;
 }
-/* === NEW: Mobile Report Card Status Colors === */
-
-.im-po-balance-card.status-pending {
-    background-color: #f7f9ff; /* Very light blue/periwinkle tint */
-    border-left: 5px solid var(--iba-secondary-periwinkle);
-}
-
-.im-po-balance-card.status-progress {
-    background-color: #e6f7ff; /* Light teal tint */
-    border-left: 5px solid var(--iba-secondary-teal);
-}
-
-.im-po-balance-card.status-complete {
-    background-color: #fffae0; /* Light gold tint */
-    border-left: 5px solid var(--iba-secondary-gold);
-}
-
-.im-po-balance-card:hover {
-    background-color: #f0f0f0; /* Default hover to keep it light */
-}
-/* Ensure hover colors respect the status theme */
-.im-po-balance-card.status-pending:hover { background-color: #e8ecf4; }
-.im-po-balance-card.status-progress:hover { background-color: #d8edf7; }
-.im-po-balance-card.status-complete:hover { background-color: #f7f4d3; }
-
-}
+/* 12.1.8: Legacy Invoice Records status hover rules removed; mobile styling is isolated in css/invoice-mobile.css. */
 
 /* === NEW: MOBILE DAY VIEW STYLES (Header, Title, Scroller) === */
 
@@ -5868,302 +5691,8 @@ body.is-admin .legend-admin-only {
   margin: 0 0 5px 0;
 }
 
-/* 2. PO Card (The "Credit Card" style) */
-.im-po-balance-card {
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 10px; /* Reduced margin */
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
-  border: none;
-  color: white;
-  position: relative;
-  overflow: hidden;
-}
+/* 12.1.8: All Invoice Records mobile card/transaction styles live in css/invoice-mobile.css. */
 
-/* [REPLACE this entire block around line 2250] */
-
-    /* --- PO Card Color Themes (NEW LOGIC) --- */
-
-    /* 1. Green ("Close"): All invoices are "With Accounts" or "Paid" */
-    .im-po-balance-card.status-close {
-      background: linear-gradient(135deg, #28a745, #1e7e34); /* Green */
-    }
-
-    /* 2. Light Blue ("Open"): Any invoice is "Under Review" */
-    .im-po-balance-card.status-open {
-      background: linear-gradient(135deg, var(--iba-secondary-periwinkle), #3b71c4); /* Light Blue */
-    }
-
-    /* 3. Yellow ("New"): Any invoice is "For IPC" or "For SRV" */
-    .im-po-balance-card.status-new {
-      background: linear-gradient(135deg, var(--iba-secondary-gold), #8a7300); /* Yellow/Gold */
-    }
-
-    /* 4. Light Red ("Pending"): Any invoice is "Pending" */
-    .im-po-balance-card.status-pending {
-      background: linear-gradient(135deg, var(--iba-secondary-terracotta), #a24227); /* Light Red/Terracotta */
-    }
-
-    /* 5. Default Blue (Other): (e.g., 'CEO Approval', 'Report') */
-    .im-po-balance-card.status-progress {
-      background: linear-gradient(135deg, var(--iba-secondary-teal), var(--iba-base-blue)); /* Default Blue/Teal */
-    }
-
-.im-po-balance-card .po-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 25px;
-}
-.im-po-balance-card .po-card-vendor {
-  font-size: 0.9rem;
-  font-weight: 300;
-  opacity: 0.8;
-  display: block;
-}
-.im-po-balance-card .po-card-ponum {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 2px 0 0 0;
-  letter-spacing: 0.5px;
-}
-.im-po-balance-card .po-card-chevron {
-  font-size: 1.2rem;
-  opacity: 0.9;
-  transition: transform 0.3s ease;
-  flex-shrink: 0;
-  padding: 5px;
-}
-
-.im-po-balance-card .po-card-body {
-  position: relative;
-}
-/* [ADD this new block to style.css around line 2280] */
-
-.im-po-balance-card .po-card-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two equal columns */
-  gap: 10px;
-  margin-bottom: 10px; /* Space before the site */
-}
-.im-po-balance-card .po-card-grid .po-card-value {
-  font-size: 1.2rem; /* Make font slightly smaller to fit */
-}
-/* [ADD this new block to style.css] */
-
-.im-po-balance-card .po-card-balance {
-    color: #f7cbf7 !important; /* <-- PASTE YOUR HEX CODE HERE (e.g., #FF0000 for bright red) */
-    font-style: italic;
-    font-size: 0.9rem !important; /* <-- ADD !important HERE TO FIX IT */
-}
-
-.im-po-balance-card .po-card-label {
-  font-size: 0.85rem;
-  font-weight: 300;
-  opacity: 0.8;
-  display: block;
-  margin-bottom: 2px;
-}
-.im-po-balance-card .po-card-value {
-  font-size: 1.9rem;
-  font-weight: 700;
-  display: block;
-  margin: 0;
-}
-.im-po-balance-card .po-card-site {
-  font-size: 0.9rem;
-  font-weight: 500;
-  display: block;
-  margin-top: 10px;
-  opacity: 0.9;
-}
-
-/* 3. Transaction List (The white cards) */
-.hidden-invoice-list {
-  display: none !important;
-}
-.im-invoice-list-header {
-  margin-bottom: 10px;
-  padding: 0 5px;
-}
-.im-invoice-list-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: #333;
-  font-weight: 700;
-}
-
-.im-invoice-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 25px; /* Space before the next PO card */
-}
-
-.im-invoice-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  background-color: #ffffff;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f0f0;
-}
-
-.im-tx-icon {
-  width: 45px;
-  height: 45px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-}
-.im-tx-icon.pending {
-  background-color: #fdeeee;
-  color: var(--iba-secondary-terracotta);
-}
-.im-tx-icon.paid {
-  background-color: #eaf7f0;
-  color: #28a745;
-}
-
-.im-tx-details {
-  flex-grow: 1;
-}
-.im-tx-details .im-tx-title {
-  display: block;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #222;
-}
-.im-tx-details .im-tx-subtitle {
-  display: block;
-  font-size: 0.85rem;
-  color: #777;
-}
-
-.im-tx-amount {
-  flex-shrink: 0;
-  text-align: right;
-}
-.im-tx-amount .im-tx-value {
-  font-size: 1rem;
-  font-weight: 700;
-}
-.im-tx-amount .im-tx-value.pending {
-  color: var(--iba-secondary-terracotta);
-}
-.im-tx-amount .im-tx-value.paid {
-  color: #28a745;
-}
-
-.im-invoice-item-empty {
-  font-size: 0.9rem;
-  color: #777;
-  padding: 10px 15px;
-}
-
-/* 4. OLD Mobile Report Styles (to be removed/hidden) */
-@media (max-width: 768px) {
-  /* These are the old styles, hide them */
-  #im-reporting-mobile-view .im-po-balance-card.status-pending,
-  #im-reporting-mobile-view .im-po-balance-card.status-progress,
-  #im-reporting-mobile-view .im-po-balance-card.status-complete {
-    border-left: none;
-  }
-
-  #im-reporting-mobile-view .im-invoice-item .invoice-count,
-  #im-reporting-mobile-view .im-invoice-item .invoice-details {
-    display: none;
-  }
-}
-/* --- FIX: Make Mobile Report PO Number Visible --- */
-.im-po-balance-card .po-card-ponum {
-  color: #FFFFFF; /* Makes the text white */
-  opacity: 0.9;    /* Makes it fully visible */
-}
-
-/* This makes the vendor name white too, just in case */
-.im-po-balance-card .po-card-vendor {
-  color: #FFFFFF;
-  opacity: 0.8;
-}
-
-/* --- FIX: Add Release Date to Mobile Transaction Card --- */
-.im-tx-details .im-tx-date {
-  display: block;
-  font-size: 0.8rem; /* Smaller font */
-  color: #888; /* Lighter color */
-  margin-top: 3px;
-}
-/* --- NEW: Mobile Report Legend --- */
-.im-mobile-legend {
-  display: none; /* Hidden on desktop */
-  gap: 15px;
-  margin-bottom: 20px;
-  padding: 0 5px;
-  flex-wrap: wrap;
-}
-.im-mobile-legend .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: #555;
-  font-weight: 500;
-}
-.im-mobile-legend .legend-color-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-}
-
-@media (max-width: 768px) {
-  .im-mobile-legend {
-    display: flex; /* Visible on mobile */
-  }
-
-  /* Hide the old desktop legend on mobile */
-  #im-reporting .reporting-legend {
-    display: none !important;
-  }
-}
-
-/* --- NEW: Mobile PDF Action Buttons --- */
-.im-tx-amount {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* Align to the right */
-  gap: 5px;
-}
-.im-tx-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 2px;
-}
-.im-tx-action-btn {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  text-decoration: none;
-  color: white;
-}
-.im-tx-action-btn.invoice-pdf-btn {
-  background-color: var(--iba-secondary-gold);
-  color: #212529;
-}
-.im-tx-action-btn.srv-pdf-btn {
-  background-color: var(--iba-secondary-teal);
-  color: white;
-}
-}
 /* --- NEW: Flip Phone Cover Screen Adjustments --- */
 @media (max-width: 400px) {
 
@@ -37920,4 +37449,281 @@ body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-
     #wd-dashboard .wd-process-grid {
         grid-template-columns: 1fr !important;
     }
+}
+
+
+/* ========================================================================
+   12.3.5 — HELP CENTER UI REFRESH
+   Visual-only. Keeps all existing Help Center IDs, tabs, search handlers,
+   Firebase/KB logic, admin functions and guide/FAQ rendering unchanged.
+   ======================================================================== */
+
+#invoice-management-view #im-help {
+  position: relative !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 22px 28px 40px !important;
+  box-sizing: border-box !important;
+  background: #f4f7fa !important;
+  color: #102a43 !important;
+  border-top: 3px solid #138f95 !important;
+  min-height: calc(100vh - 70px) !important;
+}
+
+#invoice-management-view #im-help > h1 {
+  margin: 0 !important;
+  padding: 0 0 12px !important;
+  color: #073b5c !important;
+  font-size: clamp(28px, 2.2vw, 38px) !important;
+  font-weight: 900 !important;
+  letter-spacing: -.02em !important;
+  border-bottom: 2px solid #f4a261 !important;
+}
+
+#invoice-management-view #im-help > h1::after {
+  content: "  Your central place for guides, FAQs and system help";
+  display: block !important;
+  margin-top: 7px !important;
+  color: #718096 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+#invoice-management-view #im-help > p {
+  max-width: 1100px !important;
+  margin: 15px 0 18px !important;
+  color: #52606d !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+}
+
+/* Top navigation tabs */
+#invoice-management-view #im-help .im-help-tabs {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn {
+  min-height: 48px !important;
+  border: 1px solid #d7e0e8 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  color: #073b5c !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  box-shadow: 0 2px 8px rgba(16,42,67,.06) !important;
+  transition: none !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn:hover {
+  transform: none !important;
+  box-shadow: 0 2px 8px rgba(16,42,67,.06) !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn.active {
+  background: #073b5c !important;
+  border-color: #073b5c !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(7,59,92,.16) !important;
+}
+
+/* Every tab panel uses the available width. */
+#invoice-management-view #im-help .im-help-tab-panel {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-panel[style*="max-width"] {
+  max-width: none !important;
+}
+
+/* Ask/search workspace */
+#invoice-management-view #im-help #im-help-tab-ask {
+  display: block !important;
+}
+
+#invoice-management-view #im-help .search-and-filter-group {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto auto !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  margin: 0 0 16px !important;
+  padding: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e2ec !important;
+  border-radius: 16px !important;
+  box-shadow: 0 5px 18px rgba(16,42,67,.07) !important;
+  box-sizing: border-box !important;
+}
+
+#invoice-management-view #im-help .search-bar-local {
+  min-height: 46px !important;
+  margin: 0 !important;
+  border: 1px solid #b8c7d6 !important;
+  border-radius: 11px !important;
+  background: #ffffff !important;
+}
+
+#invoice-management-view #im-help .search-bar-local input {
+  color: #102a43 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+#invoice-management-view #im-help #im-help-search-btn,
+#invoice-management-view #im-help #im-help-faq-search-btn {
+  min-width: 105px !important;
+  border-radius: 11px !important;
+  background: #138f95 !important;
+  border-color: #138f95 !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+#invoice-management-view #im-help #im-help-clear-btn,
+#invoice-management-view #im-help #im-help-faq-clear-btn {
+  min-width: 90px !important;
+  border-radius: 11px !important;
+  background: #073b5c !important;
+  border-color: #073b5c !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+#invoice-management-view #im-help .im-help-meta {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e2ec !important;
+  border-left: 4px solid #f4a261 !important;
+  border-radius: 12px !important;
+  color: #52606d !important;
+  margin-bottom: 14px !important;
+}
+
+/* Results become a proper responsive card grid. */
+#invoice-management-view #im-help .im-help-results {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+#invoice-management-view #im-help .im-help-results > .im-help-card {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 18px 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e2ec !important;
+  border-radius: 15px !important;
+  box-shadow: 0 4px 14px rgba(16,42,67,.06) !important;
+  color: #102a43 !important;
+}
+
+#invoice-management-view #im-help .im-help-results > .im-help-card:first-child {
+  border-top: 4px solid #138f95 !important;
+}
+
+#invoice-management-view #im-help .im-help-title h3 {
+  color: #073b5c !important;
+  font-size: 17px !important;
+  font-weight: 900 !important;
+}
+
+#invoice-management-view #im-help .im-help-snippet {
+  color: #52606d !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+#invoice-management-view #im-help .im-help-badge {
+  background: #eef5f7 !important;
+  color: #0b6670 !important;
+  border: 1px solid #cde1e4 !important;
+  font-weight: 800 !important;
+}
+
+/* Guides/FAQ intro cards */
+#invoice-management-view #im-help .form-container {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e2ec !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 14px rgba(16,42,67,.06) !important;
+}
+
+/* Admin remains functional but uses the same visual language. */
+#invoice-management-view #im-help #im-help-admin {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e2ec !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 14px rgba(16,42,67,.06) !important;
+}
+
+#invoice-management-view #im-help .im-help-inline-actions {
+  gap: 8px !important;
+}
+
+/* Back-to-module bar */
+#invoice-management-view #im-help #im-help-backbar {
+  padding: 0 0 12px !important;
+  margin: 0 !important;
+}
+
+#invoice-management-view #im-help #im-help-back-btn {
+  border-radius: 10px !important;
+  background: #073b5c !important;
+  color: #ffffff !important;
+  border-color: #073b5c !important;
+  font-weight: 800 !important;
+}
+
+/* Desktop: avoid the old narrow white Help canvas. */
+@media (min-width: 1100px) {
+  #invoice-management-view #im-help .im-help-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 850px) {
+  #invoice-management-view #im-help {
+    padding: 16px 14px 30px !important;
+  }
+
+  #invoice-management-view #im-help .im-help-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #invoice-management-view #im-help .search-and-filter-group {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  #invoice-management-view #im-help .search-bar-local {
+    grid-column: 1 / -1 !important;
+  }
+
+  #invoice-management-view #im-help .im-help-results {
+    grid-template-columns: 1fr !important;
+  }
+
+  #invoice-management-view #im-help > h1 {
+    font-size: 28px !important;
+  }
 }
