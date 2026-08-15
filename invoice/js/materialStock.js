@@ -123,10 +123,10 @@ const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
 // IMPORTANT: Firebase stores only a small text value.
 // The actual photo file stays in OneDrive/SharePoint to avoid Firebase Storage usage.
 const MS_MATERIAL_PHOTO_BASE_URL = 'https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/';
-const MS_MATERIAL_PHOTO_DEFAULT_EXT = '.jpg';
+const MS_MATERIAL_PHOTO_DEFAULT_EXT = '.jpeg';
 // PhotoIndex.csv lives in GitHub and contains one required column: photoName.
 // Browsing a private OneDrive folder directly is not possible from a static website without Microsoft Graph/API,
-// so this browser reads the GitHub PhotoIndex CSV, previews the generated OneDrive .jpg, and saves only the selected photoName.
+// so this browser reads the GitHub PhotoIndex CSV, previews the generated OneDrive .jpeg, and saves only the selected photoName.
 const MS_MATERIAL_PHOTO_INDEX_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/PhotoIndex.csv';
 const MS_MATERIAL_PHOTO_LIBRARY_DB_PATH = 'material_photo_library';
 const MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY = 'ms_material_photo_library_names';
@@ -160,7 +160,7 @@ function msNormalizePhotoName(value) {
     // Users should type only the filename, but this safely handles pasted local/path text.
     name = name.split(/[\\/]/).pop().trim();
 
-    // The system appends .jpg automatically, so keep only the clean base filename.
+    // The system appends .jpeg automatically, so keep only the clean base filename.
     name = name.replace(/\.(jpe?g|png|webp|gif)$/i, '').trim();
 
     // Avoid URL query/hash/path characters in saved file names. Spaces are allowed and encoded later.
@@ -253,7 +253,7 @@ function msBuildMaterialPhotoCard(item, canAttachPhoto) {
                 <div class="ms-photo-placeholder">
                     <i class="fa-regular fa-image" style="font-size:2rem; color:#9aa7b1;"></i>
                     <div style="font-weight:700; color:#6c757d; margin-top:8px;">No photo available</div>
-                    <div style="font-size:0.78rem; color:#89949e; margin-top:4px;">Browse the OneDrive photo library, preview, then attach the closest matching .jpg photo.</div>
+                    <div style="font-size:0.78rem; color:#89949e; margin-top:4px;">Browse the OneDrive photo library, preview, then attach the closest matching .jpeg photo.</div>
                     ${canAttachPhoto ? `<div class="ms-photo-actions" style="margin-top:10px;">${pickerBtn}</div>` : ''}
                 </div>
             </div>`;
@@ -585,7 +585,7 @@ async function msSavePhotoNameForItem(itemKey, photoName) {
         localStorage.removeItem(STOCK_CACHE_KEY);
         msCloseMaterialPhotoBrowser();
         renderMaterialStockTable(allMaterialStockData);
-        alert(`Photo attached: ${cleanName}.jpg`);
+        alert(`Photo attached: ${cleanName}.jpeg`);
     } catch (err) {
         console.error('Failed to attach photo:', err);
         alert('Could not attach photo. Please check your connection or permission.');
@@ -1927,7 +1927,7 @@ async function handleSaveNewMaterial() {
     const photoInputRaw = document.getElementById('ms-new-photo-url')?.value || '';
     const photoData = msPreparePhotoDataForSave(photoInputRaw);
     if (!photoData) {
-        alert('Invalid photo name. Type only the file name, for example: IBA-Sample. The system will add .jpg automatically.');
+        alert('Invalid photo name. Type only the file name, for example: IBA-Sample. The system will add .jpeg automatically.');
         btn.disabled = false;
         return;
     }
