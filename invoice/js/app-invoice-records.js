@@ -1038,6 +1038,17 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
 
     try {
         const rawSearchTerm = String(searchTerm || '').trim();
+
+        // 12.7.8: The five-part Invoice Records summary is only reliable when the
+        // search represents the complete PO/vendor picture. Do not show it when
+        // status, month, year, or site filters narrow the dataset, and do not show
+        // it for invoice-number/note searches.
+        const summaryEligibleSearch = !!rawSearchTerm
+            && !siteFilter
+            && !monthFilter
+            && !yearFilter
+            && !statusFilter;
+
         let fastPONumbers = null;
 
         // 10.5.0: If the user searches an exact PO, read only invoice_entries/{PO}.
@@ -1092,9 +1103,16 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 }
             }
 
-            const searchMatch = !searchText || poNumber.toLowerCase().includes(searchText) || vendor.toLowerCase().includes(searchText) || hasNoteMatch || hasInvoiceNumberMatch;
+            const poMatchBySearch = !!searchText && poNumber.toLowerCase().includes(searchText);
+            const vendorMatchBySearch = !!searchText && vendor.toLowerCase().includes(searchText);
+            const searchMatch = !searchText || poMatchBySearch || vendorMatchBySearch || hasNoteMatch || hasInvoiceNumberMatch;
             const siteMatch = !siteFilter || (site.toLowerCase() === siteFilter.toLowerCase());
-            return searchMatch && siteMatch;
+
+            // When the summary is eligible, only PO/vendor matches are allowed
+            // into the result set. This prevents an invoice-number/note match
+            // from accidentally producing a summary that looks complete.
+            const summarySearchMatch = !summaryEligibleSearch || poMatchBySearch || vendorMatchBySearch;
+            return searchMatch && siteMatch && summarySearchMatch;
         });
 
         for (const poNumber of filteredPONumbers) {
@@ -1431,6 +1449,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                                     <td class="im-entries-total-value im-money-paid">${totalAmountPaidDisplay}</td>
                                     <td colspan="4" class="im-entries-total-spacer"></td>
                                 </tr>
+                                ${summaryEligibleSearch ? `
                                 <tr class="im-records-summary-row">
                                     <td colspan="9" class="im-records-summary-cell">
                                         <div class="im-records-summary">
@@ -1456,7 +1475,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                                             </div>
                                         </div>
                                     </td>
-                                </tr>
+                                </tr>` : ''}
                             </tfoot>
                         </table>
                     </div>
