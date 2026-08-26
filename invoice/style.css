@@ -31207,6 +31207,16 @@ body #im-batch-search-modal #im-batch-modal-results {
     background: #ffffff !important;
 }
 
+/* 12.6.6 — Existing Invoice modal: restore normal mouse-wheel scrolling. */
+body #im-batch-search-modal #im-batch-modal-results {
+    max-height: 40vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+}
+
 body #im-batch-search-modal .batch-modal-result-summary {
     display: flex;
     flex-wrap: wrap;
@@ -37726,4 +37736,907 @@ body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-
   #invoice-management-view #im-help > h1 {
     font-size: 28px !important;
   }
+}
+
+
+/* ========================================================================
+   12.3.6 — HELP CENTER PREMIUM WORKSPACE
+   UI ONLY. Existing Help Center IDs, handlers, Firebase/KB logic and admin
+   functionality remain unchanged.
+   ======================================================================== */
+
+#invoice-management-view #im-help {
+  width: 100% !important;
+  max-width: none !important;
+  min-height: calc(100vh - 64px) !important;
+  box-sizing: border-box !important;
+  padding: 28px 34px 44px !important;
+  margin: 0 !important;
+  background: #f5f7f9 !important;
+  color: #17212b !important;
+  border-top: 0 !important;
+}
+
+/* Remove the old "back" navigation entirely. The main sidebar already owns
+   module navigation, so Help should be a destination, not a second router. */
+#invoice-management-view #im-help #im-help-backbar,
+#invoice-management-view #im-nav-workdesk {
+  display: none !important;
+}
+
+/* ---------- Header ---------- */
+#invoice-management-view #im-help > h1 {
+  position: relative !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  color: #116045 !important;
+  font-size: clamp(30px, 2.4vw, 42px) !important;
+  line-height: 1.05 !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.035em !important;
+}
+
+#invoice-management-view #im-help > h1::before {
+  content: "SUPPORT & KNOWLEDGE" !important;
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #e28a25 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  letter-spacing: .16em !important;
+}
+
+#invoice-management-view #im-help > h1::after {
+  content: "Find answers, guides and system knowledge in one place." !important;
+  display: block !important;
+  margin-top: 9px !important;
+  color: #66737f !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+}
+
+#invoice-management-view #im-help > p {
+  max-width: 900px !important;
+  margin: 8px 0 22px !important;
+  color: #7a8792 !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+/* ---------- Help navigation ---------- */
+#invoice-management-view #im-help .im-help-tabs {
+  width: 100% !important;
+  max-width: none !important;
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  margin: 0 0 20px !important;
+  padding: 5px !important;
+  background: #e9eef1 !important;
+  border: 1px solid #d8e0e5 !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn {
+  flex: 1 1 0 !important;
+  min-height: 44px !important;
+  padding: 10px 16px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: #52616d !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn:hover {
+  background: #ffffff !important;
+  color: #116045 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#invoice-management-view #im-help .im-help-tab-btn.active {
+  background: #116045 !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: 0 3px 10px rgba(17,96,69,.16) !important;
+}
+
+/* ---------- Ask workspace ---------- */
+#invoice-management-view #im-help .search-and-filter-group {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 110px 90px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  margin: 0 0 18px !important;
+  padding: 8px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9e1e6 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 6px 20px rgba(25,45,60,.06) !important;
+}
+
+#invoice-management-view #im-help .search-bar-local {
+  min-height: 48px !important;
+  margin: 0 !important;
+  border: 1px solid #ccd7dd !important;
+  border-radius: 11px !important;
+  background: #fdfefe !important;
+  box-shadow: none !important;
+}
+
+#invoice-management-view #im-help .search-bar-local input {
+  color: #1d2b35 !important;
+  font-size: 14px !important;
+  font-weight: 650 !important;
+}
+
+#invoice-management-view #im-help #im-help-search-btn,
+#invoice-management-view #im-help #im-help-faq-search-btn {
+  min-width: 0 !important;
+  min-height: 46px !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: #116045 !important;
+  color: #ffffff !important;
+  font-weight: 850 !important;
+}
+
+#invoice-management-view #im-help #im-help-clear-btn,
+#invoice-management-view #im-help #im-help-faq-clear-btn {
+  min-width: 0 !important;
+  min-height: 46px !important;
+  border: 1px solid #d5dee3 !important;
+  border-radius: 11px !important;
+  background: #ffffff !important;
+  color: #52616d !important;
+  font-weight: 800 !important;
+}
+
+/* Results: spacious, executive card grid. */
+#invoice-management-view #im-help .im-help-results {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+
+#invoice-management-view #im-help .im-help-results > .im-help-card {
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 20px !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3e8 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 5px 18px rgba(25,45,60,.055) !important;
+  color: #26343e !important;
+}
+
+#invoice-management-view #im-help .im-help-results > .im-help-card:first-child {
+  border-top: 3px solid #e28a25 !important;
+}
+
+#invoice-management-view #im-help .im-help-title h3 {
+  color: #173a32 !important;
+  font-size: 16px !important;
+  line-height: 1.3 !important;
+  font-weight: 900 !important;
+}
+
+#invoice-management-view #im-help .im-help-snippet {
+  color: #5f6d77 !important;
+  font-size: 13px !important;
+  line-height: 1.65 !important;
+}
+
+#invoice-management-view #im-help .im-help-badge {
+  background: #eef6f2 !important;
+  color: #116045 !important;
+  border: 1px solid #d4e8de !important;
+  font-weight: 850 !important;
+}
+
+/* Metadata/status strip */
+#invoice-management-view #im-help .im-help-meta {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  margin: 0 0 16px !important;
+  padding: 10px 13px !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3e8 !important;
+  border-left: 3px solid #e28a25 !important;
+  border-radius: 10px !important;
+  color: #65737e !important;
+}
+
+/* Guides / FAQ intro surfaces */
+#invoice-management-view #im-help .form-container {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3e8 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 5px 18px rgba(25,45,60,.055) !important;
+}
+
+/* Admin workspace */
+#invoice-management-view #im-help #im-help-admin {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #dbe3e8 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 5px 18px rgba(25,45,60,.055) !important;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  #invoice-management-view #im-help .im-help-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #invoice-management-view #im-help {
+    padding: 18px 14px 28px !important;
+  }
+
+  #invoice-management-view #im-help .im-help-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  #invoice-management-view #im-help .search-and-filter-group {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  #invoice-management-view #im-help .search-bar-local {
+    grid-column: 1 / -1 !important;
+  }
+
+  #invoice-management-view #im-help .im-help-results {
+    grid-template-columns: 1fr !important;
+  }
+
+  #invoice-management-view #im-help > h1 {
+    font-size: 30px !important;
+  }
+}
+
+
+/* ========================================================================
+   12.4.3 — HELP CENTER VISUAL OVERHAUL
+   Existing Help IDs and app-help.js are preserved. No module logic changed.
+   ======================================================================== */
+#im-help {
+  --help-navy:#062f57; --help-blue:#155b92; --help-green:#116045;
+  --help-orange:#e28a25; --help-bg:#f4f7f8; --help-text:#20313d;
+  --help-muted:#6b7a84; --help-border:#d8e1e6;
+  width:100%!important; max-width:none!important; min-height:calc(100vh - 64px)!important;
+  box-sizing:border-box!important; margin:0!important; padding:30px 36px 42px!important;
+  background:var(--help-bg)!important; color:var(--help-text)!important;
+}
+#im-help * { box-sizing:border-box!important; }
+#im-help .hidden { display:none!important; }
+#im-help #im-help-backbar { display:none!important; }
+
+#im-help .im-help-header {
+  display:flex!important; align-items:flex-start!important; justify-content:space-between!important;
+  gap:24px!important; padding:0 0 20px!important; border-bottom:1px solid var(--help-border)!important;
+}
+#im-help .im-help-eyebrow { margin-bottom:8px!important; color:var(--help-green)!important; font-size:10px!important; font-weight:950!important; letter-spacing:.18em!important; }
+#im-help #im-help-title { margin:0!important; color:var(--help-navy)!important; font-size:clamp(34px,3vw,46px)!important; line-height:1!important; font-weight:950!important; letter-spacing:-.045em!important; }
+#im-help .im-help-header-copy>p { margin:9px 0 0!important; max-width:760px!important; color:var(--help-muted)!important; font-size:13px!important; line-height:1.5!important; font-weight:600!important; }
+#im-help #im-help-admin-tab-btn { min-height:42px!important; padding:10px 15px!important; border:0!important; border-radius:11px!important; background:var(--help-green)!important; color:#fff!important; font-weight:900!important; }
+
+#im-help .im-help-search-hero {
+  margin-top:18px!important; padding:20px!important; background:#fff!important;
+  border:1px solid var(--help-border)!important; border-radius:17px!important;
+  box-shadow:0 8px 24px rgba(20,42,58,.06)!important;
+}
+#im-help .im-help-search-hero-copy { display:flex!important; align-items:center!important; gap:14px!important; margin-bottom:15px!important; }
+#im-help .im-help-search-icon {
+  flex:0 0 48px!important; width:48px!important; height:48px!important; display:grid!important; place-items:center!important;
+  border-radius:14px!important; background:#edf7f4!important; color:var(--help-green)!important; font-size:20px!important;
+}
+#im-help .im-help-search-hero-copy h2 { margin:0!important; color:var(--help-navy)!important; font-size:22px!important; line-height:1.15!important; font-weight:950!important; }
+#im-help .im-help-search-hero-copy p { margin:5px 0 0!important; color:var(--help-muted)!important; font-size:12px!important; font-weight:600!important; }
+#im-help .im-help-search-row { display:grid!important; grid-template-columns:minmax(0,1fr) 108px 88px!important; gap:10px!important; align-items:center!important; }
+#im-help .im-help-search-field { width:100%!important; min-height:50px!important; margin:0!important; background:#f9fbfc!important; border:1px solid #cbd8df!important; border-radius:11px!important; box-shadow:none!important; }
+#im-help .im-help-search-field input { color:#173142!important; font-size:14px!important; font-weight:650!important; }
+#im-help #im-help-search-btn { min-height:50px!important; border:0!important; border-radius:11px!important; background:var(--help-green)!important; color:#fff!important; font-weight:900!important; }
+#im-help #im-help-clear-btn { min-height:50px!important; border:1px solid #cbd8df!important; border-radius:11px!important; background:#fff!important; color:#52616d!important; font-weight:850!important; }
+
+#im-help .im-help-action-grid { display:grid!important; grid-template-columns:repeat(3,minmax(0,1fr))!important; gap:14px!important; margin-top:18px!important; }
+#im-help .im-help-action-card {
+  min-width:0!important; min-height:116px!important; display:flex!important; align-items:flex-start!important; gap:14px!important;
+  padding:19px!important; border:1px solid var(--help-border)!important; border-top:4px solid var(--help-green)!important;
+  border-radius:16px!important; background:#fff!important; color:var(--help-navy)!important; text-align:left!important;
+  box-shadow:0 6px 18px rgba(20,42,58,.05)!important; transform:none!important;
+}
+#im-help .guides-card { border-top-color:var(--help-blue)!important; }
+#im-help .faqs-card { border-top-color:var(--help-orange)!important; }
+#im-help .im-help-action-card.active { background:#f0f7f4!important; border-color:#cfe3da!important; }
+#im-help .im-help-action-icon {
+  flex:0 0 42px!important; width:42px!important; height:42px!important; display:grid!important; place-items:center!important;
+  border-radius:12px!important; background:#edf7f4!important; color:var(--help-green)!important; font-size:18px!important;
+}
+#im-help .guides-card .im-help-action-icon { background:#edf4fb!important; color:var(--help-blue)!important; }
+#im-help .faqs-card .im-help-action-icon { background:#fff3e7!important; color:var(--help-orange)!important; }
+#im-help .im-help-action-copy { min-width:0!important; display:flex!important; flex-direction:column!important; }
+#im-help .im-help-action-copy strong { color:var(--help-navy)!important; font-size:15px!important; line-height:1.25!important; font-weight:950!important; }
+#im-help .im-help-action-copy small { margin-top:5px!important; color:var(--help-muted)!important; font-size:11px!important; line-height:1.45!important; font-weight:650!important; }
+#im-help .im-help-action-copy b { margin-top:9px!important; color:var(--help-green)!important; font-size:10px!important; font-weight:900!important; }
+
+#im-help .im-help-featured-panel {
+  margin-top:18px!important; padding:17px!important; background:#fff!important;
+  border:1px solid var(--help-border)!important; border-radius:15px!important;
+  box-shadow:0 6px 18px rgba(20,42,58,.045)!important;
+}
+#im-help .im-help-section-heading { display:flex!important; align-items:center!important; justify-content:space-between!important; gap:12px!important; margin-bottom:12px!important; }
+#im-help .im-help-section-heading span:first-child { display:block!important; color:var(--help-green)!important; font-size:9px!important; font-weight:950!important; letter-spacing:.14em!important; }
+#im-help .im-help-section-heading h3 { margin:3px 0 0!important; color:var(--help-navy)!important; font-size:17px!important; font-weight:950!important; }
+#im-help .im-help-section-note { color:#7b8992!important; font-size:10px!important; font-weight:700!important; }
+#im-help .im-help-featured-grid { display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important; gap:10px!important; }
+#im-help .im-help-featured-card {
+  min-width:0!important; display:flex!important; align-items:center!important; gap:10px!important; padding:13px!important;
+  border:1px solid #d8e3e8!important; border-radius:12px!important; background:#f9fbfc!important;
+  color:var(--help-navy)!important; text-align:left!important; box-shadow:none!important;
+}
+#im-help .im-help-featured-card>i {
+  flex:0 0 31px!important; width:31px!important; height:31px!important; display:grid!important; place-items:center!important;
+  border-radius:9px!important; background:#edf7f4!important; color:var(--help-green)!important;
+}
+#im-help .im-help-featured-card span { min-width:0!important; }
+#im-help .im-help-featured-card strong { display:block!important; color:var(--help-navy)!important; font-size:11px!important; font-weight:900!important; }
+#im-help .im-help-featured-card small { display:block!important; margin-top:3px!important; color:var(--help-muted)!important; font-size:9px!important; line-height:1.35!important; font-weight:650!important; }
+
+#im-help .im-help-tab-panel { width:100%!important; max-width:none!important; margin-top:18px!important; }
+#im-help .im-help-tab-panel> .form-container,
+#im-help #im-help-admin { width:100%!important; max-width:none!important; }
+#im-help .im-help-results { width:100%!important; max-width:none!important; display:grid!important; grid-template-columns:repeat(3,minmax(0,1fr))!important; gap:14px!important; }
+#im-help .im-help-card { min-width:0!important; margin:0!important; padding:18px!important; background:#fff!important; border:1px solid var(--help-border)!important; border-radius:14px!important; box-shadow:0 5px 16px rgba(20,42,58,.045)!important; }
+#im-help .im-help-title h3 { color:var(--help-navy)!important; font-size:16px!important; font-weight:950!important; }
+#im-help .im-help-snippet { color:#60717d!important; font-size:13px!important; line-height:1.6!important; }
+#im-help .im-help-badge { background:#edf7f4!important; border:1px solid #d3e7dd!important; color:var(--help-green)!important; }
+
+/* Legacy tab-strip cannot appear because the new cards are the tab controls. */
+#im-help>.im-help-tabs { display:none!important; }
+
+@media (max-width:1100px) {
+  #im-help .im-help-featured-grid,#im-help .im-help-results { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+}
+@media (max-width:760px) {
+  #im-help { padding:20px 14px 30px!important; }
+  #im-help .im-help-header { flex-direction:column!important; }
+  #im-help .im-help-search-row { grid-template-columns:1fr 1fr!important; }
+  #im-help .im-help-search-field { grid-column:1/-1!important; }
+  #im-help .im-help-action-grid,#im-help .im-help-featured-grid,#im-help .im-help-results { grid-template-columns:1fr!important; }
+}
+
+
+/* ========================================================================
+   12.4.4 — HELP CENTER CLEAN SURFACE
+   Fixes the remaining "container inside container" appearance.
+   Functional panels stay connected, but inactive panels are truly hidden.
+   The Ask panel itself is transparent until results exist.
+   ======================================================================== */
+
+/* The tab panels are functional containers, not visual cards. */
+#im-help .im-help-tab-panel.hidden {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* The Ask panel should not create another white card beneath the main
+   Help Center search surface. */
+#im-help #im-help-tab-ask {
+  display: block !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* The metadata strip is populated only after a result exists. The legacy
+   inline display:none must win over the old Invoice Management skin. */
+#im-help #im-help-meta[style*="display:none"],
+#im-help #im-help-meta[style*="display: none"] {
+  display: none !important;
+}
+
+/* Result metadata becomes a compact information line when it is actually
+   populated by the search logic. */
+#im-help #im-help-meta:not([style*="display:none"]):not([style*="display: none"]) {
+  width: 100% !important;
+  margin: 14px 0 10px !important;
+  padding: 9px 12px !important;
+  background: #ffffff !important;
+  border: 1px solid #d8e1e6 !important;
+  border-left: 3px solid #e28a25 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+/* Do not paint the inactive/functional panel backgrounds. */
+#im-help .im-help-tab-panel,
+#im-help .im-help-tab-panel > .form-container {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* FAQ/Guide search surfaces only receive a card when that tab is actually
+   selected. */
+#im-help #im-help-tab-faqs:not(.hidden) .search-and-filter-group,
+#im-help #im-help-tab-guides:not(.hidden) > .form-container,
+#im-help #im-help-tab-admin:not(.hidden) #im-help-admin {
+  background: #ffffff !important;
+  border: 1px solid #d8e1e6 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 6px 18px rgba(20,42,58,.05) !important;
+}
+
+/* Keep the landing page's own search hero as the only search container. */
+#im-help .im-help-search-hero {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+
+/* ========================================================================
+   12.4.5 — HELP HOME PANEL ISOLATION
+   The existing Help JS uses .hidden, but the legacy stylesheet can repaint
+   functional panels. Use the active tab card as the authoritative visual
+   state so only the selected functional panel can appear.
+   ======================================================================== */
+
+/* On the Help landing page, only Ask's result panel is allowed to occupy
+   space. Guides/FAQs/Admin remain available to the existing JS but are
+   visually collapsed until their matching action card becomes active. */
+#im-help #im-help-tab-guides,
+#im-help #im-help-tab-faqs,
+#im-help #im-help-tab-admin {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Reveal exactly one functional panel when its existing tab button is active.
+   :has() is supported by the modern Chromium browsers used by the system. */
+#im-help:has(.guides-card.active) #im-help-tab-guides {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: 18px !important;
+  overflow: visible !important;
+  border: 0 !important;
+}
+
+#im-help:has(.faqs-card.active) #im-help-tab-faqs {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: 18px !important;
+  overflow: visible !important;
+  border: 0 !important;
+}
+
+#im-help:has(#im-help-admin-tab-btn.active) #im-help-tab-admin {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: 18px !important;
+  overflow: visible !important;
+}
+
+/* Ask remains the default landing workspace, but it has no extra legacy
+   search container because the new hero is the search UI. */
+#im-help #im-help-tab-ask {
+  display: block !important;
+  visibility: visible !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* If Ask is active, force all other legacy panels closed. */
+#im-help:has(.ask-card.active) #im-help-tab-guides,
+#im-help:has(.ask-card.active) #im-help-tab-faqs,
+#im-help:has(.ask-card.active) #im-help-tab-admin {
+  display: none !important;
+}
+
+/* Explicit contrast for all Help text so legacy global button/card rules
+   cannot produce white text on a white surface. */
+#im-help .im-help-search-hero,
+#im-help .im-help-featured-panel,
+#im-help .im-help-tab-panel,
+#im-help .im-help-tab-panel .form-container,
+#im-help .im-help-tab-panel .search-and-filter-group {
+  color: #20313d !important;
+}
+
+#im-help .im-help-tab-panel h1,
+#im-help .im-help-tab-panel h2,
+#im-help .im-help-tab-panel h3,
+#im-help .im-help-tab-panel h4,
+#im-help .im-help-tab-panel p,
+#im-help .im-help-tab-panel label,
+#im-help .im-help-tab-panel span,
+#im-help .im-help-tab-panel strong {
+  color: #20313d !important;
+}
+
+#im-help .im-help-tab-panel input {
+  color: #173142 !important;
+  background: #f9fbfc !important;
+}
+
+#im-help .im-help-tab-panel button {
+  color: #ffffff !important;
+  background: #116045 !important;
+}
+
+#im-help .im-help-tab-panel .secondary-btn {
+  color: #20313d !important;
+  background: #ffffff !important;
+  border-color: #cbd8df !important;
+}
+
+
+/* ========================================================================
+   12.4.6 — HELP CENTER ICON CONTRAST
+   Keep icon tiles white, but force the actual Font Awesome glyphs dark.
+   Prevent inherited global button/icon rules from making the glyph white.
+   ======================================================================== */
+
+/* Action-card icon containers */
+#im-help .im-help-action-card .im-help-action-icon {
+  background: #ffffff !important;
+  color: #062f57 !important;
+  border: 0 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+#im-help .im-help-action-card .im-help-action-icon i,
+#im-help .im-help-action-card .im-help-action-icon svg {
+  color: #062f57 !important;
+  fill: currentColor !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Preserve the section identity without sacrificing contrast */
+#im-help .guides-card .im-help-action-icon,
+#im-help .guides-card .im-help-action-icon i,
+#im-help .guides-card .im-help-action-icon svg {
+  color: #155b92 !important;
+}
+#im-help .faqs-card .im-help-action-icon,
+#im-help .faqs-card .im-help-action-icon i,
+#im-help .faqs-card .im-help-action-icon svg {
+  color: #062f57 !important;
+}
+
+/* Featured Help icon tiles */
+#im-help .im-help-featured-card > i {
+  display: grid !important;
+  place-items: center !important;
+  background: #ffffff !important;
+  color: #062f57 !important;
+  border: 0 !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+#im-help .im-help-featured-card > i::before {
+  color: #062f57 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+#im-help .im-help-featured-card:hover > i,
+#im-help .im-help-featured-card:focus-visible > i {
+  background: #ffffff !important;
+  color: #062f57 !important;
+}
+#im-help .im-help-featured-card:hover > i::before,
+#im-help .im-help-featured-card:focus-visible > i::before {
+  color: #062f57 !important;
+}
+
+/* Search icon tile */
+#im-help .im-help-search-icon,
+#im-help .im-help-search-icon i,
+#im-help .im-help-search-icon svg {
+  color: #116045 !important;
+  opacity: 1 !important;
+}
+
+/* Never let the global button hover rule recolor Help icons */
+#im-help button:hover .im-help-action-icon,
+#im-help button:focus-visible .im-help-action-icon {
+  color: #062f57 !important;
+  background: #ffffff !important;
+}
+#im-help button:hover .im-help-action-icon i,
+#im-help button:focus-visible .im-help-action-icon i,
+#im-help button:hover .im-help-action-icon svg,
+#im-help button:focus-visible .im-help-action-icon svg {
+  color: #062f57 !important;
+}
+
+
+/* ========================================================================
+   12.4.7 — HELP CENTER FINAL SEARCH / ICON ISOLATION
+   1) Remove the visual "container under the search field".
+   2) Hide legacy FAQ/Guide/Admin panels with higher specificity than the
+      old Invoice Management stylesheet.
+   3) Force Font Awesome glyph fill/text color so icons are visible without
+      hover.
+   ======================================================================== */
+
+/* The landing search is now a clean workspace: no second white card/line
+   underneath the actual search field. */
+#invoice-management-view #im-help .im-help-search-hero {
+  margin-top: 18px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+#invoice-management-view #im-help .im-help-search-hero-copy {
+  margin-bottom: 12px !important;
+}
+
+#invoice-management-view #im-help .im-help-search-row {
+  padding: 8px !important;
+  background: #ffffff !important;
+  border: 1px solid #d8e1e6 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 6px 18px rgba(20,42,58,.05) !important;
+}
+
+#invoice-management-view #im-help .im-help-search-field {
+  min-height: 48px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid #cbd8df !important;
+  border-radius: 10px !important;
+  background: #f9fbfc !important;
+  box-shadow: none !important;
+}
+
+#invoice-management-view #im-help .im-help-search-field input {
+  height: 100% !important;
+  min-height: 46px !important;
+  margin: 0 !important;
+  padding: 0 14px 0 42px !important;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #173142 !important;
+  -webkit-text-fill-color: #173142 !important;
+}
+
+/* Eliminate the nested/inner oval effect if any legacy pseudo-element or
+   generic input rule attempts to draw another outline. */
+#invoice-management-view #im-help .im-help-search-field::before,
+#invoice-management-view #im-help .im-help-search-field::after,
+#invoice-management-view #im-help .im-help-search-field input::before,
+#invoice-management-view #im-help .im-help-search-field input::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* These legacy panels have two-ID selectors in the old stylesheet, so use
+   the same specificity here. They must not occupy space on the landing
+   screen. */
+#invoice-management-view #im-help #im-help-tab-guides,
+#invoice-management-view #im-help #im-help-tab-faqs,
+#invoice-management-view #im-help #im-help-tab-admin {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* When the actual JS opens a panel, the active tab class is allowed to
+   reopen that exact panel. */
+#invoice-management-view #im-help:has(.guides-card.active) #im-help-tab-guides,
+#invoice-management-view #im-help:has(.faqs-card.active) #im-help-tab-faqs,
+#invoice-management-view #im-help:has(#im-help-admin-tab-btn.active) #im-help-tab-admin {
+  display: block !important;
+  visibility: visible !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-top: 18px !important;
+  padding: initial !important;
+  overflow: visible !important;
+}
+
+/* Icon contrast: force both the Font Awesome element and its generated
+   glyph. Hover must not be required to make the icon visible. */
+#invoice-management-view #im-help .im-help-action-card .im-help-action-icon,
+#invoice-management-view #im-help .im-help-action-card .im-help-action-icon i,
+#invoice-management-view #im-help .im-help-action-card .im-help-action-icon::before,
+#invoice-management-view #im-help .im-help-action-card .im-help-action-icon i::before {
+  background: #ffffff !important;
+  color: #062f57 !important;
+  -webkit-text-fill-color: #062f57 !important;
+  fill: #062f57 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  text-shadow: none !important;
+}
+
+#invoice-management-view #im-help .guides-card .im-help-action-icon,
+#invoice-management-view #im-help .guides-card .im-help-action-icon i,
+#invoice-management-view #im-help .guides-card .im-help-action-icon::before,
+#invoice-management-view #im-help .guides-card .im-help-action-icon i::before {
+  color: #155b92 !important;
+  -webkit-text-fill-color: #155b92 !important;
+  fill: #155b92 !important;
+}
+
+#invoice-management-view #im-help .im-help-featured-card > i,
+#invoice-management-view #im-help .im-help-featured-card > i::before {
+  background: #ffffff !important;
+  color: #062f57 !important;
+  -webkit-text-fill-color: #062f57 !important;
+  fill: #062f57 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Global button hover/focus rules cannot recolor the Help icons. */
+#invoice-management-view #im-help .im-help-action-card:hover .im-help-action-icon,
+#invoice-management-view #im-help .im-help-action-card:focus .im-help-action-icon,
+#invoice-management-view #im-help .im-help-featured-card:hover > i,
+#invoice-management-view #im-help .im-help-featured-card:focus > i {
+  background: #ffffff !important;
+  color: #062f57 !important;
+  -webkit-text-fill-color: #062f57 !important;
+}
+
+
+
+
+/* ========================================================================
+   12.7.7 — Invoice Records expanded PO five-part summary
+   Scope: ONLY the five-metric summary directly under each expanded
+   Invoice Records > Invoice Entries table.
+   Purpose: one clean white card per metric, dark readable text, and no
+   selection/inner colored highlight effect.
+   ======================================================================== */
+#invoice-management-view #im-reporting .im-nested-invoice-table tr.im-records-summary-row td.im-records-summary-cell {
+    padding: 10px !important;
+    border: 0 !important;
+    border-top: 0 !important;
+    background: #0f858c !important;
+    color: #102a43 !important;
+    -webkit-text-fill-color: #102a43 !important;
+    box-shadow: none !important;
+}
+
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    background: transparent !important;
+    background-image: none !important;
+}
+
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item {
+    min-width: 0 !important;
+    padding: 9px 11px !important;
+    border: 1px solid #d6e1e7 !important;
+    border-radius: 7px !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    box-shadow: 0 1px 2px rgba(15, 41, 63, 0.10) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    color: #102a43 !important;
+    -webkit-text-fill-color: #102a43 !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item,
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item * {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+}
+
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item .im-records-summary-label {
+    color: #27445c !important;
+    -webkit-text-fill-color: #27445c !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+    letter-spacing: .035em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item .im-records-summary-value {
+    color: #0b2239 !important;
+    -webkit-text-fill-color: #0b2239 !important;
+    font-size: 11px !important;
+    font-weight: 850 !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    white-space: nowrap !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+}
+
+/* Prevent browser selection highlight from making the summary look like
+   teal text boxes if the user happens to drag across the page. */
+#invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary ::selection {
+    background: transparent !important;
+    color: inherit !important;
+}
+
+@media (max-width: 1050px) {
+    #invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 700px) {
+    #invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary {
+        grid-template-columns: 1fr !important;
+    }
+    #invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item {
+        padding: 8px 10px !important;
+    }
 }

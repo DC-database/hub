@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.3.5';
+const APP_VERSION = '12.7.8';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1481,140 +1481,187 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
 // =========================================================
 // UPDATE MANAGER APPROVAL (Corrected: Saves to 'db' > 'manager_approved')
 // =========================================================
-async function updateManagerApprovalRecord(task, finalESN, finalPdfLink) {
+async function updateManagerApprovalRecord(task, finalESN) {
     const safePO = (task.originalPO || task.po || 'NO_PO').replace(/[.#$[\]]/g, '_');
     const safeInv = (task.originalKey || task.key || 'NO_KEY');
     const recordKey = `${safePO}_${safeInv}`;
-
-    // FIX: Use 'db' (ibainvoice-3ea51) as requested
     const dbRef = db.ref(`manager_approved/${recordKey}`);
 
     try {
         const snapshot = await dbRef.once('value');
-        let data = snapshot.val() || {};
+        const data = snapshot.val() || {};
 
         let slotIndex = 1;
         if (data.esn_1) slotIndex = 2;
         if (data.esn_2) slotIndex = 3;
-        
-        const isCEO = (currentApprover.Position || '').toLowerCase().includes('ceo');
+
+        const isCEO = (currentApprover?.Position || '').toLowerCase().includes('ceo');
         if (isCEO) slotIndex = 'ceo';
 
         const updates = {
             po: task.originalPO || task.po,
             inv_no: task.ref || task.invNumber,
             [`esn_${slotIndex}`]: finalESN,
-            [`pdf_${slotIndex}`]: finalPdfLink,
-            [`approver_${slotIndex}`]: currentApprover.Name,
+            [`approver_${slotIndex}`]: currentApprover?.Name || 'Unknown',
             [`date_${slotIndex}`]: new Date().toLocaleDateString('en-GB')
         };
 
         await dbRef.update(updates);
         console.log(`Saved Approval to Slot ${slotIndex} in ibainvoice-3ea51`);
-
     } catch (error) {
         console.error("Error saving manager approval:", error);
+        throw error;
     }
 }
+
+function buildApprovalWhatsAppMessage(tasks) {
+    const lines = [
+        "APPROVAL",
+        "",
+        "Approved Invoice(s):"
+    ];
+
+    tasks.forEach((task, index) => {
+        lines.push("");
+        lines.push(`ESN: ${task.esn || ''}`);
+        lines.push(`PO: ${task.originalPO || task.po || 'N/A'}`);
+        lines.push(`INV: ${task.ref || task.invNumber || task.invEntryID || task.originalKey || 'N/A'}`);
+        lines.push(`Vendor: ${task.vendorName || task.vendor || 'N/A'}`);
+        lines.push(`Site: ${task.site || task.site_name || task.siteName || 'N/A'}`);
+        lines.push(`Invoice Amount: QAR ${Number(task.amountPaid ?? task.amount ?? task.invoiceAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    });
+
+    return lines.join("\n");
+}
+
+function openApprovalPrintPage(tasks, approverName) {
+    const payload = {
+        title: "APPROVED",
+        approver: approverName || "Unknown",
+        date: new Date().toLocaleDateString('en-GB'),
+        tasks: tasks.map(t => ({
+            esn: t.esn || '',
+            po: t.originalPO || t.po || '',
+            inv: t.ref || t.invNumber || t.invEntryID || t.originalKey || '',
+            vendor: t.vendorName || t.vendor || '',
+            amount: Number(t.amountPaid ?? t.amount ?? t.invoiceAmount ?? 0) || 0
+        }))
+    };
+
+    localStorage.setItem('approvalPrintData', JSON.stringify(payload));
+    const url = 'receipt.html?print=approval';
+    const win = window.open(url, '_blank');
+    if (!win) {
+        alert("The approval print window was blocked. Please allow pop-ups for this site.");
+    }
+    return win;
+}
+
 
 // =========================================================
 // 2. MANAGER RECEIPT (SAFE STRINGS FIX)
 // =========================================================
 async function previewAndSendManagerReceipt() {
-    var mobileBtn = document.getElementById('mobile-send-manager-receipt-btn');
-    var desktopBtn = document.getElementById('desktop-finalize-btn');
+    const mobileBtn = document.getElementById('mobile-send-manager-receipt-btn');
+    const desktopBtn = document.getElementById('desktop-finalize-btn');
 
-    var receiptWindow = null;
-    try {
-        receiptWindow = window.open('', '_blank');
-        if (receiptWindow) {
-            receiptWindow.document.write('<html><body style="font-family:sans-serif;text-align:center;padding-top:50px;"><h3>Generating Receipt...</h3><p>Please wait...</p></body></html>');
-        }
-    } catch(e) { console.log("Popup blocked"); }
+    if (mobileBtn) { mobileBtn.disabled = true; mobileBtn.textContent = 'Finalizing...'; }
+    if (desktopBtn) { desktopBtn.disabled = true; desktopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...'; }
 
-    if (mobileBtn) { mobileBtn.disabled = true; mobileBtn.textContent = 'Syncing...'; }
-    if (desktopBtn) { desktopBtn.disabled = true; desktopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Syncing...'; }
+    // Open both windows immediately from the user click so popup blockers are less likely to interfere.
+    let printWindow = null;
+    let whatsappWindow = null;
+    try { printWindow = window.open('about:blank', '_blank'); } catch (e) {}
+    try { whatsappWindow = window.open('about:blank', '_blank'); } catch (e) {}
 
     try {
-        var approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
-        var rejectedTasks = managerProcessedTasks.filter(t => t.status === 'Rejected');
-
-        if (approvedTasks.length === 0 && rejectedTasks.length === 0) {
-            alert("No tasks to finalize.");
-            if (receiptWindow) receiptWindow.close();
-            if (mobileBtn) { mobileBtn.disabled = false; mobileBtn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Finalize & Send Receipt'; }
-            if (desktopBtn) { desktopBtn.disabled = false; desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt'; }
+        const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
+        if (!approvedTasks.length) {
+            alert("No approved tasks to finalize.");
+            if (printWindow) printWindow.close();
+            if (whatsappWindow) whatsappWindow.close();
             return;
         }
 
-        var baseSeriesNo = await getManagerSeriesNumber();
-        var approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
-        var finalESN = baseSeriesNo + "/" + approverName;
-        var safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
-        var bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
-        // FIXED LINE
-        var finalPdfLink = "https://firebasestorage.googleapis.com/v0/b/" + bucketName + "/o/receipts%2F" + safeFilename + ".pdf?alt=media";
+        const approverName = currentApprover?.Name
+            ? currentApprover.Name.toUpperCase().split(' ')[0]
+            : 'ADMIN';
 
-        var updatePromises = approvedTasks.map(task => {
-            var historyEntry = {
-                action: "Receipt Generated",
-                by: "System",
+        // Each approved invoice receives its own unique ESN.
+        for (const task of approvedTasks) {
+            const baseESN = await getManagerSeriesNumber();
+            const finalESN = `${baseESN}/${approverName}`;
+
+            await updateManagerApprovalRecord(task, finalESN);
+
+            const historyEntry = {
+                action: 'Approved',
+                by: currentApprover?.Name || 'System',
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 esn: finalESN,
-                pdfLink: finalPdfLink,
-                note: "Batch Finalized"
+                note: 'Approval Finalized'
             };
 
-            updateManagerApprovalRecord(task, finalESN, finalPdfLink);
-
             if (task.source === 'invoice') {
-                // FIXED LINES
-                var mainUpdate = invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey).update({ esn: finalESN });
-                var historyUpdate = invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey + '/history').push(historyEntry);
-                return Promise.all([mainUpdate, historyUpdate]);
-            } 
-            else if (task.source === 'job_entry') {
-                // FIXED LINES
-                var mainUpdate = db.ref('job_entries/' + task.key).update({ esn: finalESN });
-                var historyUpdate = db.ref('job_entries/' + task.key + '/history').push(historyEntry);
-                return Promise.all([mainUpdate, historyUpdate]);
+                const r = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`);
+                await r.update({ esn: finalESN });
+                await r.child('history').push(historyEntry);
+            } else if (task.source === 'job_entry') {
+                const r = db.ref(`job_entries/${task.key}`);
+                await r.update({ esn: finalESN });
+                await r.child('history').push(historyEntry);
             }
-        });
 
-        await Promise.all(updatePromises);
+            task.esn = finalESN;
+        }
 
-        approvedTasks.forEach(t => t.esn = finalESN);
+        const message = buildApprovalWhatsAppMessage(approvedTasks);
+        const waUrl = 'https://wa.me/?text=' + encodeURIComponent(message);
 
-        var receiptData = {
-            title: "Manager Approval",
-            approvedTasks: approvedTasks,
-            rejectedTasks: rejectedTasks,
-            seriesNo: finalESN,
-            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.5'
-        };
+        if (whatsappWindow) {
+            whatsappWindow.location.href = waUrl;
+        } else {
+            window.open(waUrl, '_blank');
+        }
 
-        localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
+        localStorage.setItem('approvalPrintData', JSON.stringify({
+            title: 'APPROVED',
+            approver: currentApprover?.Name || 'Unknown',
+            date: new Date().toLocaleDateString('en-GB'),
+            tasks: approvedTasks.map(t => ({
+                esn: t.esn,
+                po: t.originalPO || t.po || '',
+                inv: t.ref || t.invNumber || t.invEntryID || t.originalKey || '',
+                vendor: t.vendorName || t.vendor || '',
+                site: t.site || t.site_name || t.siteName || '',
+                amount: Number(t.amountPaid ?? t.amount ?? t.invoiceAmount ?? 0) || 0
+            }))
+        }));
 
-        if (receiptWindow) receiptWindow.location.href = 'receipt.html';
-        else window.open('receipt.html', '_blank');
+        if (printWindow) {
+            printWindow.location.href = 'receipt.html?print=approval';
+        } else {
+            openApprovalPrintPage(approvedTasks, currentApprover?.Name);
+        }
 
         managerProcessedTasks = [];
-        var mCont = document.getElementById('mobile-receipt-action-container');
-        if (mCont) mCont.classList.add('hidden');
+        const mobileContainer = document.getElementById('mobile-receipt-action-container');
+        if (mobileContainer) mobileContainer.classList.add('hidden');
         if (desktopBtn) desktopBtn.classList.add('hidden');
 
     } catch (error) {
-        console.error("Error:", error);
-        alert("Error syncing ESN.");
-        if (receiptWindow) receiptWindow.close();
+        console.error("Approval finalization error:", error);
+        alert("Finalize failed: " + (error?.message || error));
+        if (printWindow) printWindow.close();
+        if (whatsappWindow) whatsappWindow.close();
     } finally {
         if (mobileBtn) {
             mobileBtn.disabled = false;
-            mobileBtn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Finalize & Send Receipt';
+            mobileBtn.innerHTML = '<span style="font-size:1.2rem;margin-right:5px;">✓</span> Finalize & Send Approval';
         }
         if (desktopBtn) {
             desktopBtn.disabled = false;
-            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt';
+            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Approval';
         }
     }
 }
@@ -4571,6 +4618,9 @@ async function handleAddInvoice(e) {
 
         allSystemEntries = [];
         fetchAndDisplayInvoices(currentPO);
+
+        // 12.6.9: after a successful Invoice Entry add, return to the bottom Search PO field.
+        setTimeout(() => document.getElementById('im-po-search-input-bottom')?.focus(), 0);
         
         // WIPE MEMORY TO PREVENT LEAKS
         window.importedJobHistory = null;
@@ -6147,145 +6197,174 @@ async function handleCEOAction(status) {
 }
 
 // ==========================================================================
+
 // MANAGER ESN GENERATOR (5 Letters + 5 Digits Shuffled)
 // ==========================================================================
-async function getManagerSeriesNumber() {
+async function reserveUniqueESNBase(letterCount = 5, digitCount = 5) {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const digits = "0123456789";
-    let resultArr = [];
 
-    // 1. Get exactly 5 Random Letters
-    for (let i = 0; i < 5; i++) {
-        resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
+    // Use the existing manager_approved node for the uniqueness reservation.
+    // It is already part of the IBA approval workflow and does not require
+    // adding another Firebase path/rule.
+    const registryRoot = db.ref('manager_approved/esn_registry');
+
+    for (let attempt = 0; attempt < 30; attempt++) {
+        let chars = [];
+        for (let i = 0; i < letterCount; i++) {
+            chars.push(letters.charAt(Math.floor(Math.random() * letters.length)));
+        }
+        for (let i = 0; i < digitCount; i++) {
+            chars.push(digits.charAt(Math.floor(Math.random() * digits.length)));
+        }
+
+        // Fisher-Yates shuffle.
+        for (let i = chars.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [chars[i], chars[j]] = [chars[j], chars[i]];
+        }
+
+        const candidate = chars.join('');
+        const reservationRef = registryRoot.child(candidate);
+
+        try {
+            const result = await reservationRef.transaction(current => {
+                if (current !== null) return;
+                return {
+                    reserved: true,
+                    reservedAt: firebase.database.ServerValue.TIMESTAMP
+                };
+            });
+
+            if (result.committed) {
+                return candidate;
+            }
+        } catch (error) {
+            console.error("ESN reservation failed at manager_approved/esn_registry:", error);
+            throw new Error(`ESN reservation failed: ${error?.message || error}`);
+        }
     }
 
-    // 2. Get exactly 5 Random Digits
-    for (let i = 0; i < 5; i++) {
-        resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
-    }
-
-    // 3. Shuffle them together (e.g., A9K2P5M1X3)
-    const finalESN = resultArr.sort(() => 0.5 - Math.random()).join('');
-
-    return Promise.resolve(finalESN);
+    throw new Error("Unable to reserve a unique ESN after 30 attempts.");
 }
+
+
+async function getManagerSeriesNumber() {
+    return reserveUniqueESNBase(5, 5);
+}
+
 
 // ==========================================================================
 // CEO ESN GENERATOR (5 Letters + 6 Digits)
 // ==========================================================================
 async function getNextSeriesNumber() {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const digits = "0123456789";
-    let resultArr = [];
-
-    // 1. Get exactly 5 Random Letters
-    for (let i = 0; i < 5; i++) {
-        resultArr.push(letters.charAt(Math.floor(Math.random() * letters.length)));
-    }
-
-    // 2. Get exactly 6 Random Digits
-    for (let i = 0; i < 6; i++) {
-        resultArr.push(digits.charAt(Math.floor(Math.random() * digits.length)));
-    }
-
-    // 3. Shuffle them together so they are mixed (e.g. "A9B8C7D6E54")
-    const finalESN = resultArr.sort(() => 0.5 - Math.random()).join('');
-
-    return Promise.resolve(finalESN);
+    return reserveUniqueESNBase(5, 6);
 }
+
 
 // =========================================================
 // CEO RECEIPT GENERATOR (UPDATED: Title Changed to "CEO Approval")
 // =========================================================
 async function previewAndSendReceipt() {
-    // Check permissions
     const isCEO = (currentApprover?.Role || '').toLowerCase() === 'admin' &&
                   (currentApprover?.Position || '').toLowerCase().includes('ceo');
 
     if (!isCEO) {
-        alert("Access Denied: Only the CEO can send approval receipts.");
+        alert("Access Denied: Only the CEO can finalize CEO approvals.");
         return;
     }
 
-    const btn = document.getElementById('send-ceo-approval-receipt-btn') || document.getElementById('mobile-send-receipt-btn');
-    if(btn) { btn.disabled = true; btn.textContent = 'Syncing & Generating...'; }
+    const btn = document.getElementById('send-ceo-approval-receipt-btn') ||
+                document.getElementById('mobile-send-receipt-btn');
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Finalizing...'; }
+
+    let printWindow = null;
+    let whatsappWindow = null;
+    try { printWindow = window.open('about:blank', '_blank'); } catch (e) {}
+    try { whatsappWindow = window.open('about:blank', '_blank'); } catch (e) {}
 
     try {
         const approvedTasks = ceoProcessedTasks.filter(t => t.status === 'Approved');
-        const rejectedTasks = ceoProcessedTasks.filter(t => t.status === 'Rejected');
+        if (!approvedTasks.length) {
+            alert("No approved tasks to finalize.");
+            if (printWindow) printWindow.close();
+            if (whatsappWindow) whatsappWindow.close();
+            return;
+        }
 
-        // 1. Generate ONE Single ESN for the entire batch
-        const baseSeriesNo = await getNextSeriesNumber();
-        const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
-        const finalESN = `${baseSeriesNo}/${approverName}`;
-        
-        // Generate Link
-        const safeFilename = finalESN.replace(/[^a-zA-Z0-9]/g, '_'); 
-        const bucketName = "invoiceentry-b15a8.firebasestorage.app"; 
-        const finalPdfLink = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
+        const approverName = currentApprover?.Name
+            ? currentApprover.Name.toUpperCase().split(' ')[0]
+            : 'CEO';
 
-        console.log(`Syncing CEO Batch ESN: ${finalESN}`);
+        for (const task of approvedTasks) {
+            const baseESN = await getNextSeriesNumber();
+            const finalESN = `${baseESN}/${approverName}`;
 
-        // 2. Update EVERY approved task
-        const updatePromises = approvedTasks.map(task => {
-            
+            await updateManagerApprovalRecord(task, finalESN);
+
             const historyEntry = {
-                action: "Receipt Generated",
-                by: "System",
+                action: 'Approved',
+                by: currentApprover?.Name || 'System',
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 esn: finalESN,
-                pdfLink: finalPdfLink,
-                note: "CEO Batch Finalized"
+                note: 'CEO Approval Finalized'
             };
 
-            // A. SAVE TO MANAGER_APPROVED
-            updateManagerApprovalRecord(task, finalESN, finalPdfLink);
-
-            // B. STANDARD SAVE
             if (task.source === 'invoice') {
-                const mainUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({ esn: finalESN });
-                const historyUpdate = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(historyEntry);
-                return Promise.all([mainUpdate, historyUpdate]);
+                const r = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`);
+                await r.update({ esn: finalESN });
+                await r.child('history').push(historyEntry);
             } else if (task.source === 'job_entry') {
-                const mainUpdate = db.ref(`job_entries/${task.key}`).update({ esn: finalESN });
-                const historyUpdate = db.ref(`job_entries/${task.key}/history`).push(historyEntry);
-                return Promise.all([mainUpdate, historyUpdate]);
+                const r = db.ref(`job_entries/${task.key}`);
+                await r.update({ esn: finalESN });
+                await r.child('history').push(historyEntry);
             }
-        });
 
-        await Promise.all(updatePromises);
+            task.esn = finalESN;
+        }
 
-        // 3. Update local list
-        approvedTasks.forEach(t => t.esn = finalESN);
+        const message = buildApprovalWhatsAppMessage(approvedTasks);
+        const waUrl = 'https://wa.me/?text=' + encodeURIComponent(message);
 
-        const receiptData = {
-            approvedTasks: approvedTasks,
-            rejectedTasks: rejectedTasks,
-            seriesNo: finalESN, 
-            title: "CEO Approval", // <--- CHANGED HERE
-            appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '4.5'
-        };
+        if (whatsappWindow) whatsappWindow.location.href = waUrl;
+        else window.open(waUrl, '_blank');
 
-        localStorage.setItem('pendingReceiptData', JSON.stringify(receiptData));
-        window.open('receipt.html', '_blank');
+        localStorage.setItem('approvalPrintData', JSON.stringify({
+            title: 'APPROVED',
+            approver: currentApprover?.Name || 'CEO',
+            date: new Date().toLocaleDateString('en-GB'),
+            tasks: approvedTasks.map(t => ({
+                esn: t.esn,
+                po: t.originalPO || t.po || '',
+                inv: t.ref || t.invNumber || t.invEntryID || t.originalKey || '',
+                vendor: t.vendorName || t.vendor || '',
+                site: t.site || t.site_name || t.siteName || '',
+                amount: Number(t.amountPaid ?? t.amount ?? t.invoiceAmount ?? 0) || 0
+            }))
+        }));
+
+        if (printWindow) printWindow.location.href = 'receipt.html?print=approval';
+        else openApprovalPrintPage(approvedTasks, currentApprover?.Name);
 
         ceoProcessedTasks = [];
-        const mCont = document.getElementById('mobile-receipt-action-container');
-        if (mCont) mCont.classList.add('hidden');
+        const mobileContainer = document.getElementById('mobile-receipt-action-container');
+        if (mobileContainer) mobileContainer.classList.add('hidden');
         if (btn) btn.classList.add('hidden');
 
     } catch (error) {
-        console.error("Error preparing receipt:", error);
-        alert("Error syncing ESN to database.");
+        console.error("CEO approval finalization error:", error);
+        alert("Finalize failed: " + (error?.message || error));
+        if (printWindow) printWindow.close();
+        if (whatsappWindow) whatsappWindow.close();
     } finally {
-        if(btn) {
+        if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize';
+            btn.innerHTML = '<span style="font-size:1.2rem;margin-right:5px;">✓</span> Finalize & Send Approval';
         }
     }
 }
 
-// ==========================================================================
 // 24. INITIALIZATION & EVENT LISTENERS
 // ==========================================================================
 
@@ -6589,7 +6668,8 @@ try {
     const savedApproverKey = localStorage.getItem('approverKey');
 
     if (savedApproverKey) {
-        try { await ensureApproverDataCached(); } catch (e) { console.warn('Approver cache preload failed:', e); }
+        // Session restore only needs the saved user's record. Do not preload the
+        // entire approvers collection here; that can trigger a long-poll wait.
         currentApprover = await getApproverByKey(savedApproverKey);
         if (currentApprover) {
             console.log("Resuming session for:", currentApprover.Name);
