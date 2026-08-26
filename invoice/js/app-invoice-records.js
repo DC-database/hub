@@ -1584,6 +1584,32 @@ window.generateGithubStylePrintout = function(isDetailed) {
     let totalPOAmt = 0;
     let totalInvAmt = 0;
 
+    // 12.7.9: Keep the Detailed Report summary identical to the Invoice Records
+    // five-part summary. It is only valid for a complete PO/vendor search with
+    // no site/status/month/year narrowing filters.
+    const reportSearchTerm = String(document.getElementById('im-reporting-search')?.value || '').trim();
+    const reportSiteFilter = String(document.getElementById('im-reporting-site-filter')?.value || '').trim();
+    const reportStatusFilter = String(document.getElementById('im-reporting-status-filter')?.value || '').trim();
+    const reportMonthFilter = String(document.getElementById('im-reporting-month-filter')?.value || '').trim();
+    const reportYearFilter = String(document.getElementById('im-reporting-year-filter')?.value || '').trim();
+
+    const detailedSummaryEligible = !!reportSearchTerm
+        && !reportSiteFilter
+        && !reportStatusFilter
+        && !reportMonthFilter
+        && !reportYearFilter
+        && currentReportData.some(po => {
+            const term = reportSearchTerm.toLowerCase();
+            return String(po.poNumber || '').toLowerCase().includes(term)
+                || String(po.vendor || '').toLowerCase().includes(term);
+        });
+
+    let detailedTotalInvoice = 0;
+    let detailedConfirmedPaid = 0;
+    let detailedUnconfirmed = 0;
+    let detailedNotPaid = 0;
+    let detailedEpicoreValue = 0;
+
 let rowsHtml = '';
 currentReportData.forEach(poData => {
     const poVal = poData.poAmount || parseFloat(poData.poDetails?.Amount) || 0;
@@ -1592,12 +1618,25 @@ currentReportData.forEach(poData => {
     let invVal = 0;
     let poTotalPaid = 0;
     poData.filteredInvoices.forEach(i => {
-        invVal += parseFloat(i.invValue) || 0;
-        // ONLY add to paid total if INV. NO. does NOT contain "retention"
+        const value = parseFloat(i.invValue) || 0;
+        const paid = parseFloat(i.amountPaid) || 0;
+        const statusNorm = String(i.status || '').trim().toLowerCase();
+
+        invVal += value;
+
+        // Detailed report's Amt. Paid column total remains the existing
+        // retention-aware behavior for the per-PO subtotal.
         const invNoPrint = (i.invNumber || '').toLowerCase();
         if (!invNoPrint.includes('retention')) {
-            poTotalPaid += parseFloat(i.amountPaid) || 0;
+            poTotalPaid += paid;
         }
+
+        // Same five-part summary rules used by Invoice Records.
+        detailedTotalInvoice += value;
+        if (statusNorm === 'paid') detailedConfirmedPaid += paid;
+        else if (statusNorm === 'with accounts') detailedUnconfirmed += paid;
+        else if (statusNorm === 'epicore close' || statusNorm === 'epicor closed') detailedEpicoreValue += value;
+        else detailedNotPaid += value;
     });
     totalInvAmt += invVal;
 
@@ -1695,24 +1734,45 @@ currentReportData.forEach(poData => {
                 <tbody>${rowsHtml}</tbody>
             </table>
             
-            <div class="print-summary-box" style="display: flex; justify-content: flex-end; margin-top: 25px; page-break-inside: avoid;">
-                <div style="display: flex; gap: 20px; align-items: center; border: 2px solid #003A5C; border-radius: 8px; padding: 10px 20px; background-color: #ffffff;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 11px; color: #475569; font-weight: 800; text-transform: uppercase;">Grand Total PO Value:</span>
-                        <span style="font-size: 14px; color: #0f172a; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalPOAmt)}</span>
+            ${isDetailed && detailedSummaryEligible ? `
+            <div class="print-summary-box" style="margin-top:25px; page-break-inside:avoid; border:1px solid #cbd5e1; border-radius:10px; padding:12px; background:#f8fafc;">
+                <div style="font-size:12px; font-weight:800; color:#0f172a; text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px 2px;">Invoice Records Summary</div>
+                <div style="display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px;">
+                    <div style="background:#fff; border:1px solid #dbe3ea; border-radius:7px; padding:9px 10px;">
+                        <div style="font-size:9px; font-weight:800; color:#334155; text-transform:uppercase;">Total Invoice</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:4px;">QAR ${formatCurrency(detailedTotalInvoice)}</div>
                     </div>
-                    <div style="width: 2px; background: #cbd5e1; height: 16px;"></div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 11px; color: #475569; font-weight: 800; text-transform: uppercase;">Grand Total SRV:</span>
-                        <span style="font-size: 14px; color: #0f172a; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalInvAmt)}</span>
+                    <div style="background:#fff; border:1px solid #dbe3ea; border-radius:7px; padding:9px 10px;">
+                        <div style="font-size:9px; font-weight:800; color:#334155; text-transform:uppercase;">Confirmed Paid</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:4px;">QAR ${formatCurrency(detailedConfirmedPaid)}</div>
                     </div>
-                    <div style="width: 2px; background: #cbd5e1; height: 16px;"></div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 11px; color: #003A5C; font-weight: 800; text-transform: uppercase;">Total Outstanding:</span>
-                        <span style="font-size: 15px; color: #003A5C; font-family: monospace; font-weight: 800;">QAR ${formatCurrency(totalBalance)}</span>
+                    <div style="background:#fff; border:1px solid #dbe3ea; border-radius:7px; padding:9px 10px;">
+                        <div style="font-size:9px; font-weight:800; color:#334155; text-transform:uppercase;">Unconfirmed</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:4px;">QAR ${formatCurrency(detailedUnconfirmed)}</div>
+                    </div>
+                    <div style="background:#fff; border:1px solid #dbe3ea; border-radius:7px; padding:9px 10px;">
+                        <div style="font-size:9px; font-weight:800; color:#334155; text-transform:uppercase;">Not Paid</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:4px;">QAR ${formatCurrency(detailedNotPaid)}</div>
+                    </div>
+                    <div style="background:#fff; border:1px solid #dbe3ea; border-radius:7px; padding:9px 10px;">
+                        <div style="font-size:9px; font-weight:800; color:#334155; text-transform:uppercase;">Epicore Value</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; font-family:monospace; margin-top:4px;">QAR ${formatCurrency(detailedEpicoreValue)}</div>
                     </div>
                 </div>
             </div>
+            ` : ''}
+
+            ${!isDetailed || !detailedSummaryEligible ? `
+            <div class="print-summary-box" style="display:flex; justify-content:flex-end; margin-top:25px; page-break-inside:avoid;">
+                <div style="display:flex; gap:20px; align-items:center; border:2px solid #003A5C; border-radius:8px; padding:10px 20px; background-color:#ffffff;">
+                    <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:11px; color:#475569; font-weight:800; text-transform:uppercase;">Grand Total PO Value:</span><span style="font-size:14px; color:#0f172a; font-family:monospace; font-weight:800;">QAR ${formatCurrency(totalPOAmt)}</span></div>
+                    <div style="width:2px; background:#cbd5e1; height:16px;"></div>
+                    <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:11px; color:#475569; font-weight:800; text-transform:uppercase;">Grand Total SRV:</span><span style="font-size:14px; color:#0f172a; font-family:monospace; font-weight:800;">QAR ${formatCurrency(totalInvAmt)}</span></div>
+                    <div style="width:2px; background:#cbd5e1; height:16px;"></div>
+                    <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:11px; color:#003A5C; font-weight:800; text-transform:uppercase;">Total Outstanding:</span><span style="font-size:15px; color:#003A5C; font-family:monospace; font-weight:800;">QAR ${formatCurrency(totalBalance)}</span></div>
+                </div>
+            </div>
+            ` : ''}
 
         </body></html>
     `;
