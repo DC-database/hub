@@ -84,34 +84,35 @@ async function autoSetAttentionForStatus(status, siteCode, choicesInstance, grou
     } else if (st === 'report') {
         targetName = findPersonByKeyword('gio', true);
     } else if (st === 'for srv') {
-    // 11.7.2: Invoice Entry now uses the same Group-aware SRV routing as Batch Entry.
-    // Logistic ignores site and selects the Logistic-position user. Normal uses
-    // site-matched Site DC candidates. Every no-match case falls back to Irwin/delegate.
-    candidates = (typeof imBatchGetAttentionCandidatesForSRV === 'function')
-        ? await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue)
-        : getSiteMatchedAttentionCandidatesForSRV(siteCode);
-    candidates = candidates.filter(c => c && c.name && c.name.trim().length > 0);
-    if (candidates.length === 1) {
-        targetName = candidates[0].name;
-    } else if (candidates.length > 1) {
-        showCandidatePicker(candidates, 'Select Person for SRV', (selected) => {
-            // selected is the raw name
-            if (selected) {
-                const attentionSelect = document.getElementById('im-attention');
-                if (attentionSelect) {
-                    attentionSelect.value = selected;
-                    attentionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        // 12.7.0: Invoice Entry and Batch Entry share ONE SRV routing mechanism.
+        // Site is matched first; valid positions are Storekeeper, Site DC, Camp Boss, Logistic.
+        // Logistic group prefers a site-matched Logistic person. Normal uses the matching
+        // candidates and lets the user choose when more than one exists.
+        // Irwin is used only when there are no valid candidates.
+        candidates = (typeof imBatchGetAttentionCandidatesForSRV === 'function')
+            ? await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue)
+            : getSiteMatchedAttentionCandidatesForSRV(siteCode, groupValue);
+        candidates = candidates.filter(c => c && c.name && c.name.trim().length > 0);
+        if (candidates.length === 1) {
+            targetName = candidates[0].name;
+        } else if (candidates.length > 1) {
+            showCandidatePicker(candidates, 'Select Person for SRV', (selected) => {
+                if (selected) {
+                    const attentionSelect = document.getElementById('im-attention');
+                    if (attentionSelect) {
+                        attentionSelect.value = selected;
+                        attentionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    try {
+                        choicesInstance.clearChoices();
+                        choicesInstance.setChoices([{ value: selected, label: selected }], 'value', 'label', false);
+                        choicesInstance.setChoiceByValue(selected);
+                    } catch (e) { console.warn(e); }
                 }
-                try {
-                    choicesInstance.clearChoices();
-                    choicesInstance.setChoices([{ value: selected, label: selected }], 'value', 'label', false);
-                    choicesInstance.setChoiceByValue(selected);
-                } catch (e) { console.warn(e); }
-            }
-        });
-        return;
+            });
+            return;
+        }
     }
-}
 
     if (targetName) {
         try {
@@ -529,34 +530,15 @@ function imBatchFixedAttentionForStatus(statusValue) {
 async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
     await imBatchEnsureApproverData();
     const group = imBatchNormalizeGroup(groupValue);
-
-    // Logistic invoices go to the Logistic-position person regardless of site.
-    // Unknown/non-matching groups fall back to Irwin instead of trying site routing.
+    const allCandidates = getSiteMatchedAttentionCandidatesForSRV(siteCode, group);
+    if (allCandidates.length === 0) {
+        return [{ name: imBatchFallbackAttentionName(), position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
+    }
     if (imBatchIsLogisticGroup(group)) {
-        const logisticName = imBatchFindLogisticAttentionName();
-        return [{ name: logisticName, position: 'Logistic', group, role: 'logistic', site: 'All Sites' }];
+        const logisticCandidates = allCandidates.filter(c => imBatchPositionMatches(c.position, 'logistic'));
+        if (logisticCandidates.length > 0) return logisticCandidates;
     }
-    if (!imBatchIsNormalGroup(group)) {
-        const fallback = imBatchFallbackAttentionName();
-        return [{ name: fallback, position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
-    }
-
-    const wantedRole = 'site dc';
-    const candidates = [];
-    const seen = new Set();
-    imBatchApproverUsers().forEach((user) => {
-        if (!imBatchPositionMatches(user.position, wantedRole)) return;
-        if (!imBatchSiteMatches(user.site, siteCode)) return;
-        const name = (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(user.name) : user.name;
-        if (!name || seen.has(name)) return;
-        seen.add(name);
-        candidates.push({ name, position: user.position, group, role: wantedRole, site: user.site });
-    });
-    if (candidates.length === 0) {
-        const fallback = imBatchFallbackAttentionName();
-        return [{ name: fallback, position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
-    }
-    return candidates;
+    return allCandidates;
 }
 async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue, siteCode, groupValue, allowOverrideSearch = true) {
     if (!choicesInstance) return;
@@ -600,7 +582,7 @@ async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue
     // 11.4.5: keep automatic options, but also allow manual override.
     // This makes the Attention picker usable when the user intentionally assigns
     // a different responsible person before saving.
-    if (allowOverrideSearch) {
+    if (allowOverrideSearch && st !== 'for srv') {
         const existing = new Set(choices.map(c => imBatchNormalizeKey(c.value)));
         const manualChoices = imBatchApproverUsers()
             .filter(u => u && u.name && !existing.has(imBatchNormalizeKey(u.name)))
@@ -623,7 +605,7 @@ async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue,
         const candidates = await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue);
         if (candidates.length === 1) return candidates[0].name || '';
         const po = row && row.dataset ? (row.dataset.po || '') : '';
-        throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Multiple ${imBatchIsNormalGroup(groupValue) ? 'Site DC' : 'Logistic'} candidates are available.`);
+        throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Multiple site-matched SRV candidates are available.`);
     }
     if (st === 'ipc application') {
         if (attn) return attn;
@@ -666,10 +648,13 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
                 const statusKey = (filterStatus || '').toString().trim();
                 switch (statusKey) {
                     case 'For SRV':
+                        // 12.7.0: unified SRV positions; site match is mandatory.
+                        validPositions = ['Storekeeper', 'Site DC', 'Camp Boss', 'Logistic'];
+                        checkSite = true;
+                        break;
                     case 'No Need SRV':
-                        // Batch Entry rule: SRV should only suggest Site DC + Camp Boss (site-matched)
-                        validPositions = ['Site DC', 'Camp Boss'];
-                        checkSite = true; // Match User Site with PO Site
+                        validPositions = null;
+                        checkSite = false;
                         break;
                         
                     case 'IPC Application':
@@ -861,7 +846,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             // By default we keep Choices' own search behavior (search within the current suggested list).
             // When allowOverrideSearch = true, typing will search across ALL approvers (even if they don't match the auto-filter),
             // so you can select a temporary replacement without editing approver-site mappings.
-            if (allowOverrideSearch && choicesInstance.passedElement && choicesInstance.passedElement.element) {
+            if (allowOverrideSearch && String(filterStatus || '').trim().toLowerCase() !== 'for srv' && choicesInstance.passedElement && choicesInstance.passedElement.element) {
                 const element = choicesInstance.passedElement.element;
                 const outerEl = (choicesInstance.containerOuter && choicesInstance.containerOuter.element) ? choicesInstance.containerOuter.element : null;
                 const _safeAddEvt = (t, evt, fn) => { try { if (t && typeof t.addEventListener === 'function') t.addEventListener(evt, fn); } catch (e) {} };

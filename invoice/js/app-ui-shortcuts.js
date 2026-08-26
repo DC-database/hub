@@ -163,6 +163,9 @@ document.addEventListener('click', function(e) {
                     <button type="button" id="btn-smart-ipc" tabindex="-1" title="Generate IPC" style="padding: 0 8px; font-size: 10px; font-weight: 800; background: #003A5C; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         IPC
                     </button>
+                    <button type="button" id="btn-smart-ipc-final" tabindex="-1" title="Append .Final to IPC" style="padding: 0 8px; font-size: 10px; font-weight: 800; background: #6B4F9A; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        F
+                    </button>
                     <button type="button" id="btn-smart-five" tabindex="-1" title="Append to PO" style="padding: 0 8px; font-size: 10px; font-weight: 800; background: #00748C; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         FIVE
                     </button>
@@ -232,6 +235,24 @@ document.addEventListener('click', function(e) {
                     invInput.focus();
                 });
 
+                // --- IPC FINAL BUTTON ---
+                document.getElementById('btn-smart-ipc-final').addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    const currentVal = invInput.value.trim();
+                    if (!currentVal) return;
+                    if (/\.Final$/i.test(currentVal)) {
+                        invInput.focus();
+                        return;
+                    }
+                    // Only append .Final to an IPC-style value; do not alter normal invoice numbers.
+                    if (/\.IPC\/\d+$/i.test(currentVal)) {
+                        invInput.value = `${currentVal}.Final`;
+                        invInput.focus();
+                    } else {
+                        alert('The Invoice No. must be an IPC value such as 12345.IPC/05 before using F.');
+                    }
+                });
+
                 // --- 2. FIVE BUTTON LOGIC ---
                 document.getElementById('btn-smart-five').addEventListener('click', (ev) => {
                     ev.preventDefault();
@@ -273,7 +294,7 @@ window.imSendWhatsAppInquiry = function(invoiceNo, pdfUrl) {
 // --- SMART DOUBLE-CLICK TO COPY (INVOICE NAME & SRV NAME) ---
 document.addEventListener('dblclick', async (e) => {
     // Check if the thing you double-clicked is an input box named 'invName' or 'srvName'
-    if (e.target.tagName === 'INPUT' && (e.target.name === 'invName' || e.target.name === 'srvName')) {
+    if (e.target.tagName === 'INPUT' && (e.target.name === 'invName' || e.target.name === 'srvName' || e.target.id === 'summary-note-srv-input')) {
         
         const textToCopy = e.target.value.trim();
         

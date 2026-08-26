@@ -343,7 +343,12 @@ const WD_ACTIVE_EXACT_INVOICE_STATUS_MAP = {
     'pending': 'Pending',
     'unresolved': 'Unresolved',
     'ipc application': 'IPC Application',
-    'report': 'Report'
+    'report': 'Report',
+    // 12.5.0: For Approval is a live personal approval queue.
+    // It must be collected from invoice_tasks_by_user, shown in My Active Tasks,
+    // and participate in the same count/blink/color logic as other direct Attention tasks.
+    // 12.5.3: Shared All-queue fallback restores missing For Approval pointers.
+    'for approval': 'For Approval'
 };
 const WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
     'with accounts',
@@ -1117,12 +1122,35 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
     } catch (_) { /* ignore cache errors */ }
 
     try {
+        // 12.5.3: Personal approval recovery.
+        // The per-user invoice_tasks_by_user/{user} pointer can be incomplete while
+        // the shared All queue still contains the live For Approval record. Read the
+        // small shared queue as a fallback, but ONLY import For Approval rows whose
+        // source-of-truth Attention explicitly names the current user/delegate.
+        // This does not scan invoice_entries and does not broaden other invoice queues.
         const snapshots = await Promise.all(uniqueNames.map(async (name) => {
             const safeKey = wdActiveTaskSafeFirebaseKey(name);
-            if (!safeKey) return { name, safeKey, data: {} };
+            if (!safeKey) return { name, safeKey, data: {}, isApprovalFallback: false };
             const snap = await invoiceDb.ref(`invoice_tasks_by_user/${safeKey}`).once('value');
-            return { name, safeKey, data: snap.val() || {} };
+            return { name, safeKey, data: snap.val() || {}, isApprovalFallback: false };
         }));
+
+        let sharedApprovalInbox = {};
+        try {
+            const allSnap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
+            sharedApprovalInbox = allSnap.val() || {};
+        } catch (e) {
+            console.warn('Active Task could not load shared For Approval fallback:', e);
+        }
+
+        // Add the shared queue as a separate bucket. It is filtered before validation
+        // so an unrelated user's approval can never be removed from invoice_tasks_by_user/All.
+        snapshots.push({
+            name: '',
+            safeKey: 'All',
+            data: sharedApprovalInbox,
+            isApprovalFallback: true
+        });
 
         const seen = new Set();
         for (const bucket of snapshots) {
@@ -1130,6 +1158,25 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
             for (const invoiceKey in inbox) {
                 const task = inbox[invoiceKey] || {};
                 if (!task || typeof task !== 'object') continue;
+
+                const rawTaskStatus = task.status || task.remarks || task.Status || task.Remarks || '';
+                const isForApproval = wdActiveTaskQueueStatusNorm(rawTaskStatus) === 'for approval';
+
+                if (bucket.isApprovalFallback) {
+                    // Shared All is used ONLY to recover For Approval tasks.
+                    if (!isForApproval) continue;
+
+                    const rawAttention = task.attention || task.Attention || task.assignedTo || '';
+                    const matchedOwner = uniqueNames.find(name =>
+                        wdActiveTaskAttentionMentionsName(rawAttention, name)
+                    );
+                    if (!matchedOwner) continue;
+
+                    // The owner used for validation is the actual matched approver,
+                    // not the literal "All" bucket.
+                    bucket = { ...bucket, name: matchedOwner };
+                }
+
                 const poNumber = String(task.po || task.originalPO || '').trim();
                 const uniqueKey = `${poNumber}_${invoiceKey}`;
                 if (seen.has(uniqueKey)) continue;

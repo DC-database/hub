@@ -1,191 +1,87 @@
-// ==========================================================================
-// FILE: receipt.js
-// ORGANIZED WORKING COPY
-// PURPOSE: Approval receipt generation, QR code, PDF upload, and receipt data rendering.
-// SAFETY NOTE:
-//   - Original execution order is preserved.
-//   - No logic was intentionally changed.
-//   - Cleanup applied: consistent top map, trailing-space cleanup, blank-line cleanup.
-//
-// NAVIGATION MAP:
-// MAJOR SECTIONS FOUND:
-//   - Line     1: receipt.js (V7.2 - Layout Fix)
-//   - Line     3: 1. CONFIG
-//   - Line    31: 2. HELPERS
-//   - Line    38: 3. MAIN LOGIC
-//   - Line    95: CHANGED LAYOUT TO STACK VERTICALLY
-//
-// FUNCTION QUICK INDEX:
-//   - Line    25: ensureSignedIn()
-//   - Line    32: formatCurrency()
-//   - Line    74: populateList()
-//   - Line   121: autoSaveReceipt()
-// ==========================================================================
-
-// =====================================
-// receipt.js (V7.2 - Layout Fix)
-// =====================================
-
-// 1. CONFIG
-const invoiceFirebaseConfig = {
-  apiKey: "AIzaSyB5_CCTk-dvr_Lsv0K2ScPwHJkkCY7VoAM",
-  authDomain: "invoiceentry-b15a8.firebaseapp.com",
-  databaseURL: "https://invoiceentry-b15a8-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "invoiceentry-b15a8",
-  storageBucket: "invoiceentry-b15a8.firebasestorage.app",
-  messagingSenderId: "916998429537",
-  appId: "1:916998429537:web:6f4635d6d6e1cb98bb0320",
-  measurementId: "G-R409J22B97"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(invoiceFirebaseConfig);
-}
-const storage = firebase.storage();
-
-// Auth is required because Storage rules allow write only when request.auth != null.
-const auth = firebase.auth();
-
-async function ensureSignedIn() {
-    if (auth.currentUser) return auth.currentUser;
-    const cred = await auth.signInAnonymously();
-    return cred.user;
-}
-
-// 2. HELPERS
-function formatCurrency(value) {
-    const number = parseFloat(String(value).replace(/,/g, ''));
-    if (isNaN(number)) return 'N/A';
-    return number.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// 3. MAIN LOGIC
-document.addEventListener('DOMContentLoaded', async () => {
-    const receiptDataString = localStorage.getItem('pendingReceiptData');
-    if (!receiptDataString) {
-        document.body.innerHTML = '<h1>Error</h1><p>No data found.</p>';
-        return;
+// receipt.js — 12.6.2 Approval Preview
+(function () {
+    function esc(v) {
+        return String(v ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
     }
 
-    const receiptData = JSON.parse(receiptDataString);
-    const { approvedTasks, rejectedTasks, seriesNo } = receiptData;
-    const isInventory = receiptData.isInventory || false;
-
-    // A. Setup Text UI
-    document.getElementById('receipt-title').textContent = receiptData.title || 'Authorize Approval';
-    document.getElementById('footer-date').textContent = new Date().toLocaleDateString('en-GB');
-    document.querySelector('#footer-esn span').textContent = seriesNo;
-
-    // B. GENERATE QR CODE
-    const safeFilename = seriesNo.replace(/[^a-zA-Z0-9]/g, '_');
-    const bucketName = "invoiceentry-b15a8.firebasestorage.app";
-    const finalPdfUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/receipts%2F${safeFilename}.pdf?alt=media`;
-
-    const qrContainer = document.getElementById('receipt-qr-code');
-    if (qrContainer) {
-        qrContainer.innerHTML = '';
-        new QRCode(qrContainer, {
-            text: finalPdfUrl,
-            width: 100, // Slightly bigger for clarity
-            height: 100,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.M
+    function money(v) {
+        const n = Number(v || 0);
+        return n.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
         });
     }
 
-    // C. Populate Tables (New Vertical Layout)
-    const populateList = (tasks, sectionId, listId, totalId) => {
-        const section = document.getElementById(sectionId);
-        const listEl = document.getElementById(listId);
-        const totalEl = document.getElementById(totalId);
+    function getData() {
+        const raw = localStorage.getItem('approvalPrintData');
+        if (!raw) throw new Error('No approval print data is available.');
+        return JSON.parse(raw);
+    }
 
-        if (tasks.length === 0) {
-            section.style.display = 'none';
-            return;
-        }
-        section.style.display = 'block';
-
-        let html = '', total = 0;
-        tasks.forEach((task, idx) => {
-            const amt = parseFloat(task.amountPaid) || 0;
-            total += amt;
-            // Increased limit to 20 chars since we have a full line now
-            const vendor = (task.vendorName || 'N/A').substring(0, 20);
-            const invNum = task.invNumber || task.ref || task.invEntryID || 'N/A';
-            const poNum = task.po || 'N/A';
-            const valDisplay = isInventory ? amt : formatCurrency(amt);
-
-            // --- CHANGED LAYOUT TO STACK VERTICALLY ---
-            html += `
-                <div class="item">
-                    <div class="item-details">
-                        <div class="line-po"><strong>${idx+1}. PO:</strong> ${poNum}</div>
-                        <div class="line-inv">Inv: <strong>${invNum}</strong></div>
-                        <div class="line-vendor">${vendor}</div>
-                    </div>
-                    <div class="item-status ${sectionId.includes('approved') ? 'status-approved' : 'status-rejected'}">
-                        ${valDisplay}
-                    </div>
-                </div>
-            `;
-        });
-        listEl.innerHTML = html;
-        totalEl.textContent = isInventory ? total : `QR ${formatCurrency(total)}`;
-    };
-
-    populateList(approvedTasks, 'approved-section', 'receipt-approved-list', 'receipt-approved-total');
-    populateList(rejectedTasks, 'rejected-section', 'receipt-rejected-list', 'receipt-rejected-total');
-
-    // D. Auto-Save PDF
-    const sendBtn = document.getElementById('send-whatsapp-btn');
-    const statusText = document.getElementById('status-text');
-    let savedDownloadURL = null;
-
-    async function autoSaveReceipt() {
-        statusText.textContent = 'Auto-saving Receipt...';
-        statusText.style.color = '#fff';
-        sendBtn.disabled = true;
-
+    document.addEventListener('DOMContentLoaded', function () {
         try {
-            const element = document.getElementById('ceo-receipt-template');
+            const data = getData();
+            const title = document.getElementById('receipt-title');
+            const date = document.getElementById('footer-date');
+            const esn = document.getElementById('footer-esn');
 
-            const opt = {
-                margin: 0,
-                filename: `${safeFilename}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: {
-                    scale: 3,
-                    scrollY: 0,
-                    useCORS: true,
-                    letterRendering: true // Helps with text kerning
-                },
-                jsPDF: { unit: 'in', format: [3.6, 8], orientation: 'portrait' }
-            };
+            if (title) title.textContent = data.title || 'APPROVED';
+            if (date) date.textContent = data.date || new Date().toLocaleDateString('en-GB');
+            if (esn) esn.textContent = data.approver || '';
 
-            const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-            const storagePath = `receipts/${safeFilename}.pdf`;
-            const storageRef = storage.ref(storagePath);
-            await ensureSignedIn();
-            await storageRef.put(pdfBlob);
-            savedDownloadURL = await storageRef.getDownloadURL();
+            const list = document.getElementById('approved-print-list');
+            if (list) {
+                const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+                list.innerHTML = `
+                    <div class="approval-count">${tasks.length} approved item${tasks.length === 1 ? '' : 's'}</div>
+                    ${tasks.map((task) => `
+                        <div class="approval-item">
+                            <div class="approval-status">APPROVED</div>
+                            <div class="approval-esn">${esc(task.esn || '')}</div>
+                            <div class="approval-detail"><strong>PO:</strong> ${esc(task.po || 'N/A')}</div>
+                            <div class="approval-detail"><strong>INV:</strong> ${esc(task.inv || 'N/A')}</div>
+                            <div class="approval-detail"><strong>Vendor:</strong> ${esc(task.vendor || 'N/A')}</div>
+                            <div class="approval-detail"><strong>Site:</strong> ${esc(task.site || 'N/A')}</div>
+                            <div class="approval-detail"><strong>Amount:</strong> QAR ${money(task.amount)}</div>
+                        </div>
+                    `).join('')}
+                `;
+            }
 
-            statusText.textContent = 'Receipt Ready!';
-            statusText.style.color = '#90EE90';
-            sendBtn.disabled = false;
+            const send = document.getElementById('send-whatsapp-btn');
+            if (send) {
+                send.disabled = false;
+                send.addEventListener('click', function () {
+                    const lines = ['APPROVAL', ''];
+                    (data.tasks || []).forEach(task => {
+                        lines.push(`ESN: ${task.esn || ''}`);
+                        lines.push(`PO: ${task.po || 'N/A'}`);
+                        lines.push(`INV: ${task.inv || 'N/A'}`);
+                        lines.push(`Vendor: ${task.vendor || 'N/A'}`);
+                        lines.push(`Site: ${task.site || 'N/A'}`);
+                        lines.push(`Invoice Amount: QAR ${money(task.amount)}`);
+                        lines.push('');
+                    });
+                    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+                });
+            }
+
+            const print = document.getElementById('print-receipt-btn');
+            if (print) print.addEventListener('click', function () {
+                window.print();
+            });
+
+            const autoPrint = new URLSearchParams(window.location.search).get('autoprint');
+            if (autoPrint === '1') {
+                setTimeout(() => window.print(), 250);
+            }
         } catch (error) {
-            console.error(error);
-            statusText.textContent = 'Auto-save failed.';
-            statusText.style.color = '#ff6b6b';
+            document.body.innerHTML =
+                '<div style="font-family:Arial,sans-serif;text-align:center;padding:40px;">' +
+                '<h2>Approval Print Unavailable</h2><p>' +
+                esc(error.message || error) + '</p></div>';
         }
-    }
-
-    setTimeout(autoSaveReceipt, 1500);
-
-    sendBtn.addEventListener('click', () => {
-        if(savedDownloadURL) {
-            const msg = `Approval Receipt\nESN: ${seriesNo}\nLink: ${savedDownloadURL}`;
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-        } else { alert("Please wait for auto-save."); }
     });
-});
+})();

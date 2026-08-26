@@ -203,6 +203,9 @@
                 if (!mayContinue) return;
             }
             openIMInvoiceEntryModal();
+            // 12.6.9: when Add / Edit Invoice opens the modal from the main PO search,
+            // place the cursor directly in Invoice No. so entry can begin immediately.
+            setTimeout(() => document.getElementById('im-inv-no')?.focus(), 0);
         });
     }
 
@@ -212,7 +215,10 @@
 imPOSearchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        handlePOSearch(imPOSearchInput.value);
+        const searchPromise = handlePOSearch(imPOSearchInput.value);
+        Promise.resolve(searchPromise).finally(() => {
+            setTimeout(() => document.getElementById('im-inv-no')?.focus(), 0);
+        });
     } else if (e.code === 'Space' || e.key === ' ') {
         // Space bar now adds the selected items to the batch
         e.preventDefault();
@@ -223,9 +229,11 @@ imPOSearchInput.addEventListener('keydown', (e) => {
 // REPLACE WITH THIS UPDATED BLOCK:
 imPOSearchInputBottom.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-        // Still allows Enter to search
         e.preventDefault();
-        handlePOSearch(imPOSearchInputBottom.value);
+        const searchPromise = handlePOSearch(imPOSearchInputBottom.value);
+        Promise.resolve(searchPromise).finally(() => {
+            setTimeout(() => document.getElementById('im-inv-no')?.focus(), 0);
+        });
     } 
     else if (e.code === 'Space' || e.key === ' ') {
         // This makes the Spacebar run the "Add to Batch" function
@@ -279,7 +287,11 @@ if (imNewInvoiceForm) {
 // ---------------------------------------------
 
 
-    imUpdateInvoiceButton.addEventListener('click', handleUpdateInvoice);
+    imUpdateInvoiceButton.addEventListener('click', (event) => {
+        handleUpdateInvoice(event);
+        // 12.6.6: after Update, return to Search PO in the Invoice Entry modal.
+        setTimeout(() => (document.getElementById('im-po-search-input-bottom') || imPOSearchInput)?.focus(), 0);
+    });
     imClearFormButton.addEventListener('click', async () => {
         if (currentPO) {
             resetInvoiceForm();
@@ -299,6 +311,8 @@ if (imNewInvoiceForm) {
             if (imPOSearchInputBottom) imPOSearchInputBottom.value = '';
         }
         showIMSection('im-invoice-entry');
+        // 12.6.6: after Clear, return to Search PO in the Invoice Entry modal.
+        setTimeout(() => (document.getElementById('im-po-search-input-bottom') || imPOSearchInput)?.focus(), 0);
         if (typeof imEnsureActiveJobsSidebarVisibleAndLoaded === 'function') {
             setTimeout(() => imEnsureActiveJobsSidebarVisibleAndLoaded(true), 150);
         }
@@ -626,6 +640,8 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
             currentReportData = [];
             if (reportingCountDisplay) reportingCountDisplay.textContent = '';
             imUpdateInvoiceRecordsTotals([]);
+            // 12.6.6: return typing focus to Invoice Records search.
+            setTimeout(() => imReportingSearchInput?.focus(), 0);
         });
     }
 
@@ -953,9 +969,10 @@ if (settingsVacationCheckbox) {
                 return;
             }
 
-            // --- QUICK IPC BUTTON ---
-            if (e.target.classList.contains('btn-quick-ipc')) {
-                const card = e.target.closest('.batch-invoice-card');
+            // --- QUICK INVOICE BUTTONS ---
+            const quickIpcBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-ipc') : null;
+            if (quickIpcBtn && batchTableBody.contains(quickIpcBtn)) {
+                const card = quickIpcBtn.closest('.batch-invoice-card');
                 const po = card ? (card.dataset.po || '') : '';
                 const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
                 if (invInput) {
@@ -965,13 +982,50 @@ if (settingsVacationCheckbox) {
                 return;
             }
 
-            // --- QUICK FIVE BUTTON ---
-            if (e.target.classList.contains('btn-quick-five')) {
-                const card = e.target.closest('.batch-invoice-card');
+            const quickFBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-f') : null;
+            if (quickFBtn && batchTableBody.contains(quickFBtn)) {
+                const card = quickFBtn.closest('.batch-invoice-card');
+                const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
+                if (invInput) {
+                    const current = String(invInput.value || '').trim();
+                    if (current && /\.IPC\//i.test(current) && !/\.Final$/i.test(current)) {
+                        invInput.value = current + '.Final';
+                        invInput.focus();
+                    }
+                }
+                return;
+            }
+
+            const quickFiveBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-five') : null;
+            if (quickFiveBtn && batchTableBody.contains(quickFiveBtn)) {
+                const card = quickFiveBtn.closest('.batch-invoice-card');
                 const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
                 if (invInput) {
                     invInput.value = 'FIVE-';
                     invInput.focus();
+                }
+                return;
+            }
+
+            // --- QUICK STATUS BUTTONS ---
+            const quickReportBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-status-report') : null;
+            if (quickReportBtn && batchTableBody.contains(quickReportBtn)) {
+                const card = quickReportBtn.closest('.batch-invoice-card');
+                const statusSelect = card ? card.querySelector('select[name="status"]') : null;
+                if (statusSelect) {
+                    statusSelect.value = 'Report';
+                    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                return;
+            }
+
+            const quickSrvBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-status-srv') : null;
+            if (quickSrvBtn && batchTableBody.contains(quickSrvBtn)) {
+                const card = quickSrvBtn.closest('.batch-invoice-card');
+                const statusSelect = card ? card.querySelector('select[name="status"]') : null;
+                if (statusSelect) {
+                    statusSelect.value = 'For SRV';
+                    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
                 }
                 return;
             }
@@ -1214,15 +1268,14 @@ if (summaryNoteGenerateBtn) {
 
 if (summaryNoteUpdateBtn) {
     summaryNoteUpdateBtn.addEventListener('click', async () => {
-        // Two-mode update:
-        // - Cancel = Normal Update only
-        // - OK = Update & Send to Accounts (forces Status=With Accounts and copies SRV name)
         const sendToAccounts = confirm(
             "Update & Send to Accounts?\n\n" +
             "OK = Yes (Status: With Accounts + copy SRV Name)\n" +
             "Cancel = No (Normal Update only)"
         );
         await handleUpdateSummaryChanges(sendToAccounts);
+        // 12.6.6: after Update Data, keep the Current Note field ready.
+        setTimeout(() => summaryNoteCurrentInput?.focus(), 0);
     });
 }
 
@@ -1238,6 +1291,8 @@ if (summaryNoteUpdateBtn) {
             if (summaryNoteCountDisplay) summaryNoteCountDisplay.textContent = '';
             sessionStorage.removeItem('imSummaryPrevNote');
             sessionStorage.removeItem('imSummaryCurrNote');
+            // 12.6.6: after Clear, immediately type into Current Note.
+            setTimeout(() => summaryNoteCurrentInput?.focus(), 0);
         });
     }
 

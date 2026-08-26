@@ -230,27 +230,24 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
 
         let rows = '';
         historyData.forEach((h) => {
-            let qrButton = '';
+            let printButton = '';
             let currentEsn = h.esn;
-            let currentLink = h.pdfLink;
 
             if (!currentEsn && (h.action === 'Approved' || h.status === 'Approved') && sharedEsn) {
                 currentEsn = sharedEsn;
-                currentLink = sharedLink;
             }
 
-            if (currentEsn && currentLink) {
+            if (currentEsn && (h.action === 'Approved' || h.status === 'Approved')) {
                 const safeEsn = String(currentEsn).replace(/'/g, "\\'");
-                const safeLink = String(currentLink).replace(/'/g, "\\'");
-                qrButton = `
-                <button onclick="printHistorySticker('${safeEsn}', '${safeLink}')"
+                printButton = `
+                <button onclick="printHistorySticker('${safeEsn}')"
                         class="history-qr-btn"
-                        title="Print QR Sticker (${ibaHistoryText(currentEsn)})">
-                    <i class="fa-solid fa-qrcode"></i> Print
+                        title="Print Approval (${ibaHistoryText(currentEsn)})">
+                    <i class="fa-solid fa-print"></i> Print
                 </button>`;
             }
 
-            rows += ibaHistoryBuildRow(h, qrButton);
+            rows += ibaHistoryBuildRow(h, printButton);
         });
         tbody.innerHTML = rows;
 
@@ -290,62 +287,78 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
 // =========================================================
 // 3. PRINT HISTORY STICKER (MANAGER 1, 2, 3 LOGIC)
 // =========================================================
-window.printHistorySticker = function(esn, link) {
-    if (!esn || !link) {
-        alert("Error: ESN or Link missing for this record.");
+window.printHistorySticker = function(esn) {
+    if (!esn) {
+        alert("Error: ESN missing for this approval.");
         return;
     }
 
-    // 1. ASK FOR POSITION
     const pos = prompt(
         "Select Sticker Position on A4 Paper:\n\n" +
         "1 - Manager 1 (Bottom LEFT)\n" +
         "2 - Manager 2 (Bottom CENTER)\n" +
-        "3 - Manager 3 (Bottom RIGHT)", 
+        "3 - Manager 3 (Bottom RIGHT)",
         "1"
     );
 
-    if (!pos) return; // Cancelled
+    if (!pos) return;
 
-    // 2. DEFINE CSS POSITION
     let cssPosition = "";
-    if (pos === "1") cssPosition = "bottom: 20mm; left: 20mm;"; // Manager 1
-    else if (pos === "2") cssPosition = "bottom: 20mm; left: 50%; transform: translateX(-50%);"; // Manager 2
-    else if (pos === "3") cssPosition = "bottom: 20mm; right: 20mm;"; // Manager 3
+    if (pos === "1") cssPosition = "bottom: 20mm; left: 20mm;";
+    else if (pos === "2") cssPosition = "bottom: 20mm; left: 50%; transform: translateX(-50%);";
+    else if (pos === "3") cssPosition = "bottom: 20mm; right: 20mm;";
     else { alert("Invalid selection"); return; }
 
     const dateStr = new Date().toLocaleDateString('en-GB');
-
-    // 3. OPEN PRINT WINDOW
     const printWin = window.open('', '', 'width=600,height=600');
+    if (!printWin) {
+        alert("Please allow pop-ups to print the approval.");
+        return;
+    }
+
+    const safeEsn = String(esn).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    }[c]));
+
     printWin.document.write(`
         <html>
         <head>
-            <title>Print Sticker - ${esn}</title>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+            <title>Print Approval - ${safeEsn}</title>
             <style>
                 @page { size: A4; margin: 0; }
                 body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; }
-                
                 #sticker-container {
                     position: absolute;
-                    ${cssPosition} /* Applies the Manager 1/2/3 logic */
+                    ${cssPosition}
                     width: auto;
                     display: flex;
                     flex-direction: row;
                     align-items: center;
                     padding: 5px;
                     background: white;
-                    border: 1px dashed #ccc; /* Helper border, remove if unwanted */
                 }
-                .main-box { text-align: center; padding-right: 5px; border-right: 1px solid #000; }
-                .status-text { font-weight: 900; font-size: 14px; color: #28a745; margin-bottom: 2px; }
-                .esn-text { font-family: monospace; font-weight: bold; font-size: 10px; margin-top: 2px; }
-                .side-text { 
-                    writing-mode: vertical-rl; 
-                    text-orientation: mixed; 
-                    font-size: 8px; 
-                    font-weight: bold; 
+                .main-box {
+                    text-align: center;
+                    padding-right: 8px;
+                    border-right: 1px solid #000;
+                }
+                .status-text {
+                    font-weight: 900;
+                    font-size: 14px;
+                    color: #28a745;
+                    margin-bottom: 5px;
+                }
+                .esn-text {
+                    font-family: monospace;
+                    font-weight: bold;
+                    font-size: 10px;
+                    margin-top: 2px;
+                }
+                .side-text {
+                    writing-mode: vertical-rl;
+                    text-orientation: mixed;
+                    font-size: 8px;
+                    font-weight: bold;
                     margin-left: 5px;
                 }
             </style>
@@ -354,20 +367,12 @@ window.printHistorySticker = function(esn, link) {
             <div id="sticker-container">
                 <div class="main-box">
                     <div class="status-text">APPROVED</div>
-                    <div id="qrcode"></div>
-                    <div class="esn-text">${esn}</div>
+                    <div class="esn-text">${safeEsn}</div>
                 </div>
                 <div class="side-text">${dateStr}</div>
             </div>
             <script>
-                new QRCode(document.getElementById("qrcode"), {
-                    text: "${link}",
-                    width: 80,
-                    height: 80,
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-                // Wait for QR render then print
-                setTimeout(() => { window.print(); window.close(); }, 500);
+                setTimeout(() => { window.print(); window.close(); }, 150);
             <\/script>
         </body>
         </html>

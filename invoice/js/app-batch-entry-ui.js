@@ -247,11 +247,13 @@ async function handleAddPOToBatch() {
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important;">Inv No. 
-                        <div style="display: flex !important; gap: 3px !important;">
-                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0d7e85 !important; color: white !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">IPC</button>
-                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="padding: 2px 4px !important; font-size: 8px !important; font-weight: bold !important; background: #feb088 !important; color: #14293f !important; border: none !important; border-radius: 3px !important; cursor: pointer !important;">FIVE</button>
-                        </div>
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important; min-height: 22px !important;">
+                        <span>Inv No.</span>
+                        <span style="display: inline-flex !important; gap: 4px !important; align-items: center !important; flex: 0 0 auto !important;">
+                            <button type="button" class="btn-quick-ipc" data-po="${poNumber}" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #0d7e85 !important; color: white !important; border: 1px solid rgba(255,255,255,.35) !important; border-radius: 4px !important; cursor: pointer !important;">IPC</button>
+                            <button type="button" class="btn-quick-f" data-po="${poNumber}" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #ffffff !important; color: #0d7e85 !important; border: 1px solid #0d7e85 !important; border-radius: 4px !important; cursor: pointer !important;">F</button>
+                            <button type="button" class="btn-quick-five" data-po="${poNumber}" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #feb088 !important; color: #14293f !important; border: 1px solid rgba(20,41,63,.2) !important; border-radius: 4px !important; cursor: pointer !important;">FIVE</button>
+                        </span>
                     </label>
                     <input type="text" name="invNumber" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
                 </div>
@@ -265,7 +267,13 @@ async function handleAddPOToBatch() {
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important; margin: 0 !important; white-space: nowrap !important; min-height: 22px !important;">
+                        <span>Status</span>
+                        <span style="display: inline-flex !important; gap: 4px !important; align-items: center !important; flex: 0 0 auto !important;">
+                            <button type="button" class="btn-quick-status-report" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 8px !important; font-weight: 800 !important; background: #ffffff !important; color: #0d7e85 !important; border: 1px solid #ffffff !important; border-radius: 4px !important; cursor: pointer !important;">REPORT</button>
+                            <button type="button" class="btn-quick-status-srv" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 8px !important; font-weight: 800 !important; background: #feb088 !important; color: #14293f !important; border: 1px solid #feb088 !important; border-radius: 4px !important; cursor: pointer !important;">FOR SRV</button>
+                        </span>
+                    </label>
                     <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
                         <option value="For SRV">For SRV</option>
                         <option value="No Need SRV">No Need SRV</option>
@@ -414,12 +422,13 @@ async function addInvoiceToBatchTable(invData) {
             </div>
             
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: flex-end !important; margin: 0 !important; white-space: nowrap !important; height: 14px !important; line-height: 14px !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; justify-content: space-between !important; align-items: center !important; margin: 0 !important; white-space: nowrap !important; min-height: 22px !important; line-height: 20px !important;">
                     <span>Inv No.</span>
-                    <div style="display: flex !important; gap: 3px !important; height: 14px !important;">
-                        <button type="button" class="btn-quick-ipc" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #0d7e85 !important; color: white !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
-                        <button type="button" class="btn-quick-five" style="height: 14px !important; line-height: 14px !important; padding: 0 4px !important; font-size: 8px !important; font-weight: bold !important; background: #feb088 !important; color: #14293f !important; border: none !important; border-radius: 2px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
-                    </div>
+                    <span style="display: inline-flex !important; gap: 4px !important; align-items: center !important; flex: 0 0 auto !important;">
+                        <button type="button" class="btn-quick-ipc" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #0d7e85 !important; color: white !important; border: 1px solid rgba(255,255,255,.35) !important; border-radius: 4px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">IPC</button>
+                        <button type="button" class="btn-quick-f" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #ffffff !important; color: #0d7e85 !important; border: 1px solid #0d7e85 !important; border-radius: 4px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">F</button>
+                        <button type="button" class="btn-quick-five" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 9px !important; font-weight: 800 !important; background: #feb088 !important; color: #14293f !important; border: 1px solid rgba(20,41,63,.2) !important; border-radius: 4px !important; cursor: pointer !important; margin: 0 !important; box-sizing: border-box !important;">FIVE</button>
+                    </span>
                 </label>
                 <input type="text" name="invNumber" class="batch-input" value="${invData.invNumber || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
             </div>
@@ -433,7 +442,13 @@ async function addInvoiceToBatchTable(invData) {
             </div>
 
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Status</label>
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important; margin: 0 !important; white-space: nowrap !important; min-height: 22px !important;">
+                    <span>Status</span>
+                    <span style="display: inline-flex !important; gap: 4px !important; align-items: center !important; flex: 0 0 auto !important;">
+                        <button type="button" class="btn-quick-status-report" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 8px !important; font-weight: 800 !important; background: #ffffff !important; color: #0d7e85 !important; border: 1px solid #ffffff !important; border-radius: 4px !important; cursor: pointer !important;">REPORT</button>
+                        <button type="button" class="btn-quick-status-srv" style="height: 20px !important; line-height: 20px !important; padding: 0 7px !important; font-size: 8px !important; font-weight: 800 !important; background: #feb088 !important; color: #14293f !important; border: 1px solid #feb088 !important; border-radius: 4px !important; cursor: pointer !important;">FOR SRV</button>
+                    </span>
+                </label>
                 <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
                     <option value="For SRV">For SRV</option>
                     <option value="No Need SRV">No Need SRV</option>

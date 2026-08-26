@@ -797,8 +797,11 @@ function fetchAndDisplayInvoices(poNumber) {
     let invoiceCount = 0;
 
     let totalInvValueSum = 0;
-    let totalPaidWithRetention = 0;
-    let totalPaidWithoutRetention = 0;
+    let totalPaidEligible = 0;
+    let totalConfirmedPaid = 0;
+    let totalUnconfirmed = 0;
+    let totalNotPaid = 0;
+    let totalEpicoreValue = 0;
 
     if (invoicesData) {
         const invoices = Object.entries(invoicesData).map(([key, value]) => ({
@@ -829,13 +832,26 @@ function fetchAndDisplayInvoices(poNumber) {
             // NEW FIXED CODE
 const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
 const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
-const invNoText = (inv.invNumber || '').toLowerCase();  // ← CHANGED from inv.note to inv.invNumber
-totalInvValueSum += currentInvValue;
-totalPaidWithRetention += currentAmtPaid;
+const statusNorm = String(inv.status || '').trim().toLowerCase();
+const isPaidStatus = statusNorm === 'paid';
+const isWithAccountsStatus = statusNorm === 'with accounts';
+const isEpicoreStatus = statusNorm === 'epicore close' || statusNorm === 'epicor closed';
 
-// EXCLUDE 'retention' from the running total based on INV. NO.
-if (!invNoText.includes('retention')) {  // ← CHANGED variable name
-    totalPaidWithoutRetention += currentAmtPaid;
+totalInvValueSum += currentInvValue;
+
+// 12.6.9: Amt. Paid only counts finalized/recognized statuses.
+if (isPaidStatus || isWithAccountsStatus || isEpicoreStatus) {
+    totalPaidEligible += currentAmtPaid;
+}
+if (isPaidStatus) {
+    totalConfirmedPaid += currentAmtPaid;
+} else if (isWithAccountsStatus) {
+    totalUnconfirmed += currentAmtPaid;
+} else if (isEpicoreStatus) {
+    // Epicore SRV value is tracked separately because the actual payment amount is external.
+    totalEpicoreValue += currentInvValue;
+} else {
+    totalNotPaid += currentInvValue;
 }
 
             const row = document.createElement('tr');
@@ -915,11 +931,7 @@ if (!invNoText.includes('retention')) {  // ← CHANGED variable name
     if (footer) {
         const isAdminOrAccounting = isAdmin || isAccounting || isVacationDelegate;
 
-        let finalTotalPaid = totalPaidWithoutRetention;
-
-        if (Math.abs(totalPaidWithRetention - totalInvValueSum) < 0.01) {
-            finalTotalPaid = totalPaidWithRetention;
-        }
+        const finalTotalPaid = totalPaidEligible;
 
         document.getElementById('im-invoices-total-value').textContent = isAdminOrAccounting ? formatCurrency(totalInvValueSum) : '---';
         document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(finalTotalPaid) : '---';

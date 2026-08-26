@@ -88,41 +88,94 @@ try {
 // --- Authentication Helpers ---
 
 async function findApprover(identifier) {
-    const isEmail = identifier.includes('@');
+    const rawIdentifier = String(identifier || '').trim();
+    if (!rawIdentifier) return null;
+
+    const isEmail = rawIdentifier.includes('@');
     const searchKey = isEmail ? 'Email' : 'Mobile';
-    const searchValue = isEmail ? identifier : normalizeMobile(identifier);
+    const normalized = isEmail ? rawIdentifier.toLowerCase() : normalizeMobile(rawIdentifier);
 
-    // Cache check
-    if (!allApproverData) {
-        console.log("Caching approvers list for the first time...");
-        const snapshot = await db.ref('approvers').once('value');
-        allApproverData = snapshot.val();
+    // 12.7.2: Fast login lookup.
+    // Use the Realtime Database REST query first. If the database rules do not yet
+    // contain .indexOn for Mobile/Email, Firebase returns HTTP 400. That must NOT
+    // block a valid login, so we fall back to a direct REST read of /approvers.
+    // This fallback is only used when the indexed lookup is unavailable.
+    const baseUrl = String(db?.app?.options?.databaseURL || '').replace(/\/$/, '');
+    if (!baseUrl) return null;
+
+    const values = isEmail
+        ? [rawIdentifier]
+        : Array.from(new Set([rawIdentifier, normalized]));
+
+    function recordMatches(record, value) {
+        if (!record || typeof record !== 'object') return false;
+        const candidate = record[searchKey];
+        if (!candidate) return false;
+        return isEmail
+            ? String(candidate).trim().toLowerCase() === String(value).trim().toLowerCase()
+            : normalizeMobile(String(candidate)) === normalizeMobile(String(value));
     }
-    const approversData = allApproverData;
 
-    if (!approversData) return null;
-    for (const key in approversData) {
-        const record = approversData[key];
-        const dbValue = record[searchKey];
-        if (dbValue) {
-            if (isEmail) {
-                if (dbValue.toLowerCase() === searchValue.toLowerCase()) {
-                    return {
-                        key,
-                        ...record
-                    };
-                }
-            } else {
-                const normalizedDbMobile = dbValue.replace(/\D/g, '');
-                if (normalizedDbMobile === searchValue) {
-                    return {
-                        key,
-                        ...record
-                    };
+    async function fetchJson(url, timeoutMs = 4500) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    // 1) Fast indexed REST lookup.
+    for (const value of values) {
+        try {
+            const url = `${baseUrl}/approvers.json?orderBy=${encodeURIComponent(JSON.stringify(searchKey))}&equalTo=${encodeURIComponent(JSON.stringify(value))}`;
+            const data = await fetchJson(url, 3500);
+            if (!data || typeof data !== 'object') continue;
+            for (const [key, record] of Object.entries(data)) {
+                if (recordMatches(record, value)) return { key, ...record };
+            }
+        } catch (e) {
+            // HTTP 400 normally means the field is not indexed in Firebase rules.
+            // Continue to the compatibility fallback instead of rejecting login.
+            if (e?.name !== 'AbortError') console.warn('Fast approver lookup unavailable; using fallback:', e);
+            break;
+        }
+    }
+
+    // 2) Compatibility fallback: direct REST read, not the Firebase SDK long-poll.
+    // This avoids BrowserPollConnection delays during local file:// testing.
+    try {
+        const data = await fetchJson(`${baseUrl}/approvers.json`, 7000);
+        if (data && typeof data === 'object') {
+            for (const value of values) {
+                for (const [key, record] of Object.entries(data)) {
+                    if (recordMatches(record, value)) return { key, ...record };
                 }
             }
         }
+    } catch (e) {
+        if (e?.name !== 'AbortError') console.warn('Direct approver REST fallback failed:', e);
     }
+
+    // 3) Last-resort in-memory cache compatibility for users already loaded by the system.
+    try {
+        const data = (typeof getApproversDataSafe === 'function') ? getApproversDataSafe() : null;
+        if (data && typeof data === 'object') {
+            for (const value of values) {
+                for (const [key, record] of Object.entries(data)) {
+                    if (recordMatches(record, value)) return { key, ...record };
+                }
+            }
+        }
+    } catch (_) {}
+
     return null;
 }
 

@@ -281,6 +281,22 @@ window.handlePrintSticker = async function(key, type, poNumber) {
     var safePO = poNumber.replace(/[.#$[\]]/g, '_');
     var recordKey = safePO + "_" + key;
 
+    // 12.6.0 — Explicit sticker placement.
+    var printPosition = prompt(
+        "PRINT APPROVAL STICKER\n\n" +
+        "1 = LEFT\n" +
+        "2 = MIDDLE\n" +
+        "3 = RIGHT\n" +
+        "4 = AUTO (recommended for multiple stickers)",
+        "4"
+    );
+    if (printPosition === null) return;
+    printPosition = String(printPosition).trim();
+    if (!["1", "2", "3", "4"].includes(printPosition)) {
+        alert("Invalid choice. Enter 1, 2, 3, or 4.");
+        return;
+    }
+
     try {
         if (!allApproverData) {
             var snap = await db.ref('approvers').once('value');
@@ -323,6 +339,68 @@ window.handlePrintSticker = async function(key, type, poNumber) {
             return;
         }
 
+        // 12.6.0 — Determine PO and invoice sequence for the sticker.
+        var invoiceRecord = null;
+        var invoiceOrdinal = 1;
+        try {
+            var invSnap = await invoiceDb.ref('invoice_entries/' + poNumber + '/' + key).once('value');
+            invoiceRecord = invSnap.val() || {};
+
+            var allInvSnap = await invoiceDb.ref('invoice_entries/' + poNumber).once('value');
+            var allInv = allInvSnap.val() || {};
+
+            function getExplicitInvNumber(k, row) {
+                var candidates = [
+                    k,
+                    row.invEntryID,
+                    row.invoiceEntryID,
+                    row.entryID,
+                    row.invEntryNo,
+                    row.invoiceEntryNo,
+                    row.entryNo
+                ];
+                for (var n = 0; n < candidates.length; n++) {
+                    var match = String(candidates[n] || '').match(/(?:^|[^A-Z0-9])INV[-_ ]?(\d+)(?:$|[^0-9])/i);
+                    if (match) return parseInt(match[1], 10);
+                }
+                return null;
+            }
+
+            var explicitNo = getExplicitInvNumber(key, invoiceRecord);
+            if (explicitNo !== null && explicitNo > 0) {
+                invoiceOrdinal = explicitNo;
+            } else {
+                var rows = Object.keys(allInv).map(function(k) {
+                    return { key: k, data: allInv[k] || {} };
+                });
+
+                rows.sort(function(a, b) {
+                    var ad = Number(a.data.dateAdded || a.data.timestamp || a.data.enteredAt || 0);
+                    var bd = Number(b.data.dateAdded || b.data.timestamp || b.data.enteredAt || 0);
+
+                    if (ad && bd && ad !== bd) return ad - bd;
+                    if (ad && !bd) return -1;
+                    if (!ad && bd) return 1;
+
+                    return String(a.key).localeCompare(String(b.key), undefined, { numeric: true });
+                });
+
+                var foundIndex = rows.findIndex(function(row) { return row.key === key; });
+                if (foundIndex >= 0) invoiceOrdinal = foundIndex + 1;
+            }
+        } catch (ordinalError) {
+            console.warn("Invoice sequence lookup failed; using 01.", ordinalError);
+            invoiceOrdinal = 1;
+        }
+
+        var poDisplay = String(poNumber || 'N/A');
+        var ordinalDisplay = String(invoiceOrdinal).padStart(2, '0');
+
+        rawStickers.forEach(function(sticker) {
+            sticker.poDisplay = poDisplay;
+            sticker.invoiceOrdinal = ordinalDisplay;
+        });
+
         var middleZone = []; // Managers
         var ceoZone = [];    // CEO
 
@@ -337,11 +415,16 @@ window.handlePrintSticker = async function(key, type, poNumber) {
 
         var finalStickers = [];
 
-        // --- 1. CEO POSITION (Always Top Right) ---
-        ceoZone.forEach(function(s) {
-            // "Top Right above the right spot"
-            s.cssPosition = "bottom: 60mm; right: 15%; transform: translateX(50%);"; 
-            s.displayName = "CEO APPROVED";
+        // --- 1. CEO POSITION ---
+        ceoZone.forEach(function(s, i) {
+            if (printPosition === "1" || printPosition === "2" || printPosition === "3") {
+                var ceoLeft = printPosition === "1" ? 16 : (printPosition === "2" ? 50 : 84);
+                var ceoBottom = 20 + (i * 32);
+                s.cssPosition = "bottom: " + ceoBottom + "mm; left: " + ceoLeft + "%; transform: translateX(-50%);";
+            } else {
+                s.cssPosition = "bottom: 60mm; right: 15%; transform: translateX(50%);";
+            }
+            s.displayName = "APPROVED";
             finalStickers.push(s);
         });
 
@@ -378,7 +461,14 @@ window.handlePrintSticker = async function(key, type, poNumber) {
                 leftPercent = 15 + (i * (70 / (midCount - 1)));
             }
 
-            s.cssPosition = "bottom: 20mm; left: " + leftPercent + "%; transform: translateX(-50%);";
+            if (printPosition === "1" || printPosition === "2" || printPosition === "3") {
+                var selectedLeft = printPosition === "1" ? 16 : (printPosition === "2" ? 50 : 84);
+                // Explicit placement: stack multiple stickers vertically at the selected side.
+                var selectedBottom = 20 + (i * 32);
+                s.cssPosition = "bottom: " + selectedBottom + "mm; left: " + selectedLeft + "%; transform: translateX(-50%);";
+            } else {
+                s.cssPosition = "bottom: 20mm; left: " + leftPercent + "%; transform: translateX(-50%);";
+            }
             s.displayName = "APPROVED";
             finalStickers.push(s);
         });
@@ -400,30 +490,54 @@ function proceedToPrintMulti(stickerList) {
     });
 
     var printWindow = window.open('', '', 'width=1000,height=1200');
-    
-    var content = '<html><head><title>Multi-Sticker Print</title>';
-    content += '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>';
+    if (!printWindow) {
+        alert("Please allow pop-ups to print the approval.");
+        return;
+    }
+
+    var content = '<html><head><title>Approval Print</title>';
     content += '<style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: "Arial", sans-serif; } ';
-    content += '.sticker-box { position: absolute; width: auto; padding: 4px; display: flex; flex-direction: row; align-items: center; background: white; z-index: 100; } ';
-    content += '.main { display: flex; flex-direction: column; align-items: center; justify-content: center; padding-right: 5px; border-right: 1px solid #000; } ';
-    content += '.status { font-weight: 900; font-size: 12px; text-transform: uppercase; margin-bottom: 2px; color: #28a745; text-align: center; white-space: nowrap; } ';
-    content += '.esn { font-weight: bold; font-size: 8px; margin-top: 2px; font-family: monospace; white-space: nowrap; color: #000; text-align: center; } ';
-    content += '.side { width: 12px; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold; font-size: 8px; margin-left: 4px; height: 80px; color: #555; } ';
-    content += '.qr-target { width: 70px; height: 70px; display: flex; justify-content: center; }';
+    content += '.sticker-box { position: absolute; width: max-content; min-width: 48mm; padding: 2mm 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; z-index: 100; box-sizing: border-box; } ';
+    content += '.main { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; } ';
+    content += '.status { font-weight: 900; font-size: 8pt; text-transform: uppercase; margin: 0; color: #000; text-align: center; white-space: nowrap; font-family: "Courier New", monospace; } ';
+    content += '.approved-word { color: #16803c; } ';
+    content += '.po-part { color: #18324a; } ';
+    content += '.count-part { color: #d22b2b; } ';
+    content += '.esn { font-weight: bold; font-size: 8pt; margin-top: 1.5mm; font-family: "Courier New", monospace; white-space: nowrap; color: #000; text-align: center; } ';
+    content += '.approval-divider { width: 80%; border-top: 0.4pt dashed #000; margin: 1.5mm 0 1mm; } ';
+    content += '.side { width: auto; height: auto; display: block; font-weight: normal; font-size: 8pt; margin: 0; color: #000; font-family: "Courier New", monospace; text-align: center; writing-mode: horizontal-tb; }';
     content += '</style></head><body>';
     content += htmlStickers;
-    content += '<script>var boxes = document.querySelectorAll(".sticker-box"); boxes.forEach(function(box) { var link = box.dataset.link; var container = box.querySelector(".qr-target"); new QRCode(container, { text: link, width: 70, height: 70, correctLevel: QRCode.CorrectLevel.M }); }); setTimeout(function() { window.print(); }, 800);<\/script>';
+    content += '<script>setTimeout(function(){ window.print(); }, 150);<\/script>';
     content += '</body></html>';
 
     printWindow.document.write(content);
     printWindow.document.close();
 }
 
+
 function createStickerHTML(data, cssPosition) {
     var title = data.displayName || "APPROVED";
-    return '<div class="sticker-box" style="' + cssPosition + '" data-link="' + data.pdf + '">' +
-           '<div class="main"><div class="status">' + title + '</div><div class="qr-target"></div><div class="esn">' + data.esn + '</div></div>' +
-           '<div class="side">' + data.date + '</div></div>';
+    var po = String(data.poDisplay || data.po || "N/A");
+    var ordinal = String(data.invoiceOrdinal || "01").padStart(2, "0");
+
+    function esc(v) {
+        return String(v == null ? "" : v).replace(/[&<>"']/g, function(c) {
+            return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c];
+        });
+    }
+
+    var safeEsn = esc(data.esn || "");
+    var safeDate = esc(data.date || new Date().toLocaleDateString("en-GB"));
+
+    return '<div class="sticker-box" style="' + cssPosition + '">' +
+           '<div class="main">' +
+           '<div class="status"><span class="approved-word">' + esc(title) + '</span><span class="po-part">/' + esc(po) + '</span><span class="count-part">(' + esc(ordinal) + ')</span></div>' +
+           '<div class="esn">' + safeEsn + '</div>' +
+           '<div class="approval-divider"></div>' +
+           '<div class="side">' + safeDate + '</div>' +
+           '</div>' +
+           '</div>';
 }
 
 // --- Helper to actually open the window ---
@@ -434,20 +548,18 @@ function proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry) {
     const dateStr = new Date().toLocaleDateString('en-GB');
 
     const printWindow = window.open('', '', 'width=1000,height=1200');
+    if (!printWindow) {
+        alert("Please allow pop-ups to print the approval.");
+        return;
+    }
+
     printWindow.document.write(`
         <html>
         <head>
-            <title>Sticker Print - ${esnDisplay}</title>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+            <title>Approval Print - ${String(esnDisplay || '').replace(/[<>&"]/g, '')}</title>
             <style>
                 @page { size: A4; margin: 0; }
-                body { 
-                    margin: 0; padding: 0; 
-                    width: 210mm; height: 297mm; 
-                    position: relative; 
-                    font-family: 'Arial', sans-serif;
-                }
-                
+                body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: Arial, sans-serif; }
                 #sticker {
                     position: absolute;
                     width: auto;
@@ -456,48 +568,40 @@ function proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry) {
                     flex-direction: row;
                     box-sizing: border-box;
                     align-items: center;
-                    background: white; 
+                    background: white;
                     z-index: 100;
                 }
-
                 .pos-bottom-left { bottom: 20mm; left: 20mm; }
                 .pos-bottom-right { bottom: 20mm; right: 20mm; }
                 .pos-bottom-center { bottom: 20mm; left: 50%; transform: translateX(-50%); }
                 .pos-ceo-stack { bottom: 55mm; right: 20mm; }
-
-                .main { text-align: center; padding-right: 2px; }
-                .status { font-weight: 900; font-size: 16px; text-transform: uppercase; margin-bottom: 2px; color: ${statusColor}; }
-                .esn { font-weight: bold; font-size: 9px; margin-top: 5px; font-family: monospace; white-space: nowrap; color: #000; }
+                .main { text-align: center; padding-right: 6px; border-right: 1px solid #000; }
+                .status { font-weight: 900; font-size: 16px; text-transform: uppercase; margin-bottom: 3px; color: ${statusColor}; }
+                .esn { font-weight: bold; font-size: 9px; margin-top: 2px; font-family: monospace; white-space: nowrap; color: #000; }
                 .side {
                     width: 15px; display: flex; align-items: center; justify-content: center;
                     writing-mode: vertical-rl; text-orientation: mixed; font-weight: bold;
-                    font-size: 9px; margin: 0; height: 90px;
+                    font-size: 9px; margin-left: 5px; height: 55px;
                 }
-                #qrcode { margin: 2px auto; }
-                #qrcode img { display: block; margin: 0 auto; }
             </style>
         </head>
         <body>
             <div id="sticker" class="${positionClass}">
                 <div class="main">
                     <div class="status">${statusText}</div>
-                    <div id="qrcode"></div>
-                    <div class="esn">${esnDisplay}</div>
+                    <div class="esn">${String(esnDisplay || '').replace(/[<>&"]/g, '')}</div>
                 </div>
                 <div class="side">${dateStr}</div>
             </div>
             <script>
-                new QRCode(document.getElementById("qrcode"), {
-                    text: "${pdfLink}",
-                    width: 90, height: 90, correctLevel: QRCode.CorrectLevel.M
-                });
-                setTimeout(() => { window.print(); }, 700);
+                setTimeout(() => { window.print(); }, 150);
             <\/script>
         </body>
         </html>
     `);
     printWindow.document.close();
 }
+
 
 // =========================================================
 // HELPER: Save Approval to History List

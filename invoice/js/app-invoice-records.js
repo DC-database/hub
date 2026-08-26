@@ -1208,9 +1208,27 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         // GENERATE GRAND TOTALS
         let grandTotalPO = 0;
         let grandTotalInv = 0;
+        let grandConfirmedPaid = 0;
+        let grandUnconfirmed = 0;
+        let grandNotPaid = 0;
+        let grandEpicoreValue = 0;
+        let grandEligiblePaid = 0;
         currentReportData.forEach(poData => {
             grandTotalPO += (parseFloat(poData.poDetails?.Amount) || 0);
-            poData.filteredInvoices.forEach(i => grandTotalInv += parseFloat(i.invValue) || 0);
+            poData.filteredInvoices.forEach(i => {
+                const value = parseFloat(i.invValue) || 0;
+                const paid = parseFloat(i.amountPaid) || 0;
+                const statusNorm = String(i.status || '').trim().toLowerCase();
+                const isPaid = statusNorm === 'paid';
+                const isWithAccounts = statusNorm === 'with accounts';
+                const isEpicore = statusNorm === 'epicore close' || statusNorm === 'epicor closed';
+                grandTotalInv += value;
+                if (isPaid || isWithAccounts || isEpicore) grandEligiblePaid += paid;
+                if (isPaid) grandConfirmedPaid += paid;
+                else if (isWithAccounts) grandUnconfirmed += paid;
+                else if (isEpicore) grandEpicoreValue += value;
+                else grandNotPaid += value;
+            });
         });
         let grandTotalBalance = grandTotalPO - grandTotalInv;
 
@@ -1219,8 +1237,11 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             sleekBar.innerHTML = `
                 <div><strong>${currentReportData.length}</strong> Records Found</div>
                 <div>Total PO Value: <span class="highlight-val">QAR ${formatCurrency(grandTotalPO)}</span></div>
-                <div>Total SRV: <span class="highlight-val">QAR ${formatCurrency(grandTotalInv)}</span></div>
-                <div>Total Outstanding: <span class="outstanding-val" style="color: ${grandTotalBalance < 0 ? '#dc3545' : '#1e293b'}">QAR ${formatCurrency(grandTotalBalance)}</span></div>
+                <div>Total Invoice: <span class="highlight-val">QAR ${formatCurrency(grandTotalInv)}</span></div>
+                <div>Confirmed Paid: <span class="highlight-val">QAR ${formatCurrency(grandConfirmedPaid)}</span></div>
+                <div>Unconfirmed: <span class="highlight-val">QAR ${formatCurrency(grandUnconfirmed)}</span></div>
+                <div>Not Paid: <span class="highlight-val">QAR ${formatCurrency(grandNotPaid)}</span></div>
+                <div>Epicore Value: <span class="highlight-val">QAR ${formatCurrency(grandEpicoreValue)}</span></div>
             `;
         }
 
@@ -1254,8 +1275,11 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         let html = '';
         currentReportData.forEach(poData => {
             let totalInvValue = 0;
-            let totalPaidWithRetention = 0;
-            let totalPaidWithoutRetention = 0;
+            let totalEligiblePaid = 0;
+            let totalConfirmedPaid = 0;
+            let totalUnconfirmed = 0;
+            let totalNotPaid = 0;
+            let totalEpicoreValue = 0;
             let allWithAccounts = poData.filteredInvoices.length > 0;
 
             let innerRows = '';
@@ -1267,10 +1291,17 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 const invEntryDisplay = imInvoiceRecordEntryLabel(inv);
                 const invValue = parseFloat(inv.invValue) || 0;
                 const amountPaid = parseFloat(inv.amountPaid) || 0;
-                const invNoText = (inv.invNumber || '').toLowerCase();   // retention check on INV. NO.
+                const statusNorm = String(inv.status || '').trim().toLowerCase();
+                const isPaidStatus = statusNorm === 'paid';
+                const isWithAccountsStatus = statusNorm === 'with accounts';
+                const isEpicoreStatus = statusNorm === 'epicore close' || statusNorm === 'epicor closed';
                 totalInvValue += invValue;
-                totalPaidWithRetention += amountPaid;
-                if (!invNoText.includes('retention')) totalPaidWithoutRetention += amountPaid;
+                // 12.6.9: Amt. Paid total only counts Paid, With Accounts and Epicore Close.
+                if (isPaidStatus || isWithAccountsStatus || isEpicoreStatus) totalEligiblePaid += amountPaid;
+                if (isPaidStatus) totalConfirmedPaid += amountPaid;
+                else if (isWithAccountsStatus) totalUnconfirmed += amountPaid;
+                else if (isEpicoreStatus) totalEpicoreValue += invValue;
+                else totalNotPaid += invValue;
 
                 const releaseDateDisplay = formatToDDMMMYY(inv.releaseDate);
                 const invoiceDateDisplay = formatToDDMMMYY(inv.invoiceDate);
@@ -1342,13 +1373,8 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                 `;
             });
 
-            let finalTotalPaid = totalPaidWithoutRetention;
-            if (Math.abs(totalPaidWithRetention - totalInvValue) < 0.01) finalTotalPaid = totalPaidWithRetention;
+            const finalTotalPaid = totalEligiblePaid;
 
-            const diffValue = totalInvValue - finalTotalPaid;
-            const diffColor = (diffValue > 0.05) ? '#dc3545' : '#28a745'; 
-    
-            const diffDisplay = canViewAmounts ? `<strong>${formatCurrency(diffValue)}</strong>` : '---';
             const totalInvValueDisplay = canViewAmounts ? `<strong>${formatCurrency(totalInvValue)}</strong>` : '---';
             const totalAmountPaidDisplay = canViewAmounts ? `<strong>${formatCurrency(finalTotalPaid)}</strong>` : '---';
     
@@ -1403,8 +1429,33 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                                     <td colspan="3" class="im-entries-total-label">TOTAL</td>
                                     <td class="im-entries-total-value im-money-total">${totalInvValueDisplay}</td>
                                     <td class="im-entries-total-value im-money-paid">${totalAmountPaidDisplay}</td>
-                                    <td class="im-entries-total-balance" style="color: ${diffColor}; -webkit-text-fill-color: ${diffColor};">${diffDisplay}</td>
-                                    <td colspan="3" class="im-entries-total-spacer"></td>
+                                    <td colspan="4" class="im-entries-total-spacer"></td>
+                                </tr>
+                                <tr class="im-records-summary-row">
+                                    <td colspan="9" class="im-records-summary-cell">
+                                        <div class="im-records-summary">
+                                            <div class="im-records-summary-item">
+                                                <span class="im-records-summary-label">Total Invoice</span>
+                                                <strong class="im-records-summary-value">${canViewAmounts ? 'QAR ' + formatCurrency(totalInvValue) : '---'}</strong>
+                                            </div>
+                                            <div class="im-records-summary-item">
+                                                <span class="im-records-summary-label">Confirmed Paid</span>
+                                                <strong class="im-records-summary-value">${canViewAmounts ? 'QAR ' + formatCurrency(totalConfirmedPaid) : '---'}</strong>
+                                            </div>
+                                            <div class="im-records-summary-item">
+                                                <span class="im-records-summary-label">Unconfirmed</span>
+                                                <strong class="im-records-summary-value">${canViewAmounts ? 'QAR ' + formatCurrency(totalUnconfirmed) : '---'}</strong>
+                                            </div>
+                                            <div class="im-records-summary-item">
+                                                <span class="im-records-summary-label">Not Paid</span>
+                                                <strong class="im-records-summary-value">${canViewAmounts ? 'QAR ' + formatCurrency(totalNotPaid) : '---'}</strong>
+                                            </div>
+                                            <div class="im-records-summary-item">
+                                                <span class="im-records-summary-label">Epicore Value</span>
+                                                <strong class="im-records-summary-value">${canViewAmounts ? 'QAR ' + formatCurrency(totalEpicoreValue) : '---'}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>
