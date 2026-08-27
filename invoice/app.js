@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.7.9';
+const APP_VERSION = '12.8.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -1253,9 +1253,8 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
     if (taskData.attention) updates.note = `${updates.note} [Action by ${currentApprover.Name}]`;
 
-    // --- FIX: Create History Entry Object ---
     const historyEntry = {
-        action: status, // "Approved" or "Rejected"
+        action: status,
         by: currentApprover.Name,
         timestamp: firebase.database.ServerValue.TIMESTAMP,
         note: note || 'Mobile Action'
@@ -1263,24 +1262,44 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
 
     try {
         if (taskData.source === 'job_entry') {
+            // Preserve existing Job/Material approval behavior.
             await db.ref(`job_entries/${taskData.key}`).update(updates);
-            // Save History for Job
             await db.ref(`job_entries/${taskData.key}/history`).push(historyEntry);
-
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
-            // Save History for Invoice
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}/history`).push(historyEntry);
 
             const originalInvoice = (allInvoiceData && allInvoiceData[taskData.originalPO]) ? allInvoiceData[taskData.originalPO][taskData.originalKey] : {};
             const updatedInvoiceData = { ...originalInvoice, ...updates };
             await updateInvoiceTaskLookup(taskData.originalPO, taskData.originalKey, updatedInvoiceData, taskData.attention);
             updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, updates);
+
+            // Invoice Management: ESN is generated immediately on approval.
+            if (status === 'Approved') {
+                const approverName = currentApprover?.Name
+                    ? currentApprover.Name.toUpperCase().split(' ')[0]
+                    : 'ADMIN';
+                const baseESN = await getManagerSeriesNumber();
+                const finalESN = `${baseESN}/${approverName}`;
+
+                await updateManagerApprovalRecord(taskData, finalESN);
+                const esnHistory = {
+                    action: 'Approved',
+                    by: currentApprover?.Name || 'System',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    esn: finalESN,
+                    note: note || 'Invoice Approval'
+                };
+                await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update({ esn: finalESN });
+                await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}/history`).push(esnHistory);
+                updateLocalInvoiceCache(taskData.originalPO, taskData.originalKey, { esn: finalESN });
+                taskData.esn = finalESN;
+            }
         }
 
         taskData.status = status;
         taskData.amountPaid = amount;
-        managerProcessedTasks.push(taskData);
+        if (taskData.source === 'invoice') managerProcessedTasks.push(taskData);
 
         const taskIndex = userActiveTasks.findIndex(t => t.key === taskData.key);
         if (taskIndex > -1) userActiveTasks.splice(taskIndex, 1);
@@ -1288,8 +1307,10 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
         cardElement.style.transform = 'translateX(100%)';
         setTimeout(() => {
             cardElement.remove();
-            document.getElementById('mobile-receipt-action-container').classList.remove('hidden');
-            document.getElementById('mobile-send-manager-receipt-btn').classList.remove('hidden');
+            if (taskData.source === 'invoice' && status === 'Approved') {
+                document.getElementById('mobile-receipt-action-container')?.classList.remove('hidden');
+                document.getElementById('mobile-send-manager-receipt-btn')?.classList.remove('hidden');
+            }
         }, 300);
 
     } catch (error) {
@@ -1298,7 +1319,6 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
         cardElement.style.opacity = '1'; cardElement.style.pointerEvents = 'auto';
     }
 }
-
 
 window.processMobileTransferAction = async function(task, action, cardElement) {
     if (!task || !action) return;
@@ -1565,103 +1585,35 @@ async function previewAndSendManagerReceipt() {
     const mobileBtn = document.getElementById('mobile-send-manager-receipt-btn');
     const desktopBtn = document.getElementById('desktop-finalize-btn');
 
-    if (mobileBtn) { mobileBtn.disabled = true; mobileBtn.textContent = 'Finalizing...'; }
-    if (desktopBtn) { desktopBtn.disabled = true; desktopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Finalizing...'; }
-
-    // Open both windows immediately from the user click so popup blockers are less likely to interfere.
-    let printWindow = null;
-    let whatsappWindow = null;
-    try { printWindow = window.open('about:blank', '_blank'); } catch (e) {}
-    try { whatsappWindow = window.open('about:blank', '_blank'); } catch (e) {}
+    if (mobileBtn) { mobileBtn.disabled = true; mobileBtn.textContent = 'Preparing WhatsApp...'; }
+    if (desktopBtn) { desktopBtn.disabled = true; desktopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing WhatsApp...'; }
 
     try {
-        const approvedTasks = managerProcessedTasks.filter(t => t.status === 'Approved');
+        const approvedTasks = managerProcessedTasks.filter(t => t.source === 'invoice' && t.status === 'Approved' && t.esn);
         if (!approvedTasks.length) {
-            alert("No approved tasks to finalize.");
-            if (printWindow) printWindow.close();
-            if (whatsappWindow) whatsappWindow.close();
+            alert("No approved invoice is ready to send.");
             return;
-        }
-
-        const approverName = currentApprover?.Name
-            ? currentApprover.Name.toUpperCase().split(' ')[0]
-            : 'ADMIN';
-
-        // Each approved invoice receives its own unique ESN.
-        for (const task of approvedTasks) {
-            const baseESN = await getManagerSeriesNumber();
-            const finalESN = `${baseESN}/${approverName}`;
-
-            await updateManagerApprovalRecord(task, finalESN);
-
-            const historyEntry = {
-                action: 'Approved',
-                by: currentApprover?.Name || 'System',
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                esn: finalESN,
-                note: 'Approval Finalized'
-            };
-
-            if (task.source === 'invoice') {
-                const r = invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`);
-                await r.update({ esn: finalESN });
-                await r.child('history').push(historyEntry);
-            } else if (task.source === 'job_entry') {
-                const r = db.ref(`job_entries/${task.key}`);
-                await r.update({ esn: finalESN });
-                await r.child('history').push(historyEntry);
-            }
-
-            task.esn = finalESN;
         }
 
         const message = buildApprovalWhatsAppMessage(approvedTasks);
         const waUrl = 'https://wa.me/?text=' + encodeURIComponent(message);
-
-        if (whatsappWindow) {
-            whatsappWindow.location.href = waUrl;
-        } else {
-            window.open(waUrl, '_blank');
-        }
-
-        localStorage.setItem('approvalPrintData', JSON.stringify({
-            title: 'APPROVED',
-            approver: currentApprover?.Name || 'Unknown',
-            date: new Date().toLocaleDateString('en-GB'),
-            tasks: approvedTasks.map(t => ({
-                esn: t.esn,
-                po: t.originalPO || t.po || '',
-                inv: t.ref || t.invNumber || t.invEntryID || t.originalKey || '',
-                vendor: t.vendorName || t.vendor || '',
-                site: t.site || t.site_name || t.siteName || '',
-                amount: Number(t.amountPaid ?? t.amount ?? t.invoiceAmount ?? 0) || 0
-            }))
-        }));
-
-        if (printWindow) {
-            printWindow.location.href = 'receipt.html?print=approval';
-        } else {
-            openApprovalPrintPage(approvedTasks, currentApprover?.Name);
-        }
+        const waWindow = window.open(waUrl, '_blank');
+        if (!waWindow) window.location.href = waUrl;
 
         managerProcessedTasks = [];
-        const mobileContainer = document.getElementById('mobile-receipt-action-container');
-        if (mobileContainer) mobileContainer.classList.add('hidden');
-        if (desktopBtn) desktopBtn.classList.add('hidden');
-
+        document.getElementById('mobile-receipt-action-container')?.classList.add('hidden');
+        desktopBtn?.classList.add('hidden');
     } catch (error) {
-        console.error("Approval finalization error:", error);
-        alert("Finalize failed: " + (error?.message || error));
-        if (printWindow) printWindow.close();
-        if (whatsappWindow) whatsappWindow.close();
+        console.error("WhatsApp send error:", error);
+        alert("Unable to prepare WhatsApp message: " + (error?.message || error));
     } finally {
         if (mobileBtn) {
             mobileBtn.disabled = false;
-            mobileBtn.innerHTML = '<span style="font-size:1.2rem;margin-right:5px;">✓</span> Finalize & Send Approval';
+            mobileBtn.innerHTML = '<span style="font-size:1.1rem;margin-right:5px;">✓</span> Send to WhatsApp (Optional)';
         }
         if (desktopBtn) {
             desktopBtn.disabled = false;
-            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Approval';
+            desktopBtn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Send to WhatsApp (Optional)';
         }
     }
 }
@@ -1877,7 +1829,7 @@ if (jobVendorIdInput) {
 
 
 // =========================================================
-// 1. DESKTOP APPROVAL (FINAL: NO WHATSAPP, AUTO-RETURN TO SENDER)
+// 1. DESKTOP INVOICE APPROVAL (ESN IMMEDIATE; WHATSAPP OPTIONAL)
 // =========================================================
 async function handleDesktopApproval(task, action) {
     // 1. Prompt for Note
@@ -1938,19 +1890,45 @@ async function handleDesktopApproval(task, action) {
             updateLocalInvoiceCache(task.originalPO, task.originalKey, updates);
         }
 
-        // 4. Add to Manager's Batch Queue (For Receipt)
-        // Even though we sent it back, we keep a copy here for the Manager to print the receipt now.
+        // 4. Invoice approvals are final at the moment of approval.
+        // Generate and save the ESN immediately for Invoice Management only.
         task.status = action;
-        managerProcessedTasks.push(task);
+        if (task.source === 'invoice' && action === 'Approved') {
+            const approverName = currentApprover?.Name
+                ? currentApprover.Name.toUpperCase().split(' ')[0]
+                : 'ADMIN';
+            const baseESN = await getManagerSeriesNumber();
+            const finalESN = `${baseESN}/${approverName}`;
 
-        // 5. Reveal Finalize Button
-        var desktopBtn = document.getElementById('desktop-finalize-btn');
-        if (desktopBtn) {
-            desktopBtn.classList.remove('hidden');
-            desktopBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Finalize Batch & Send Receipt (' + managerProcessedTasks.length + ')';
+            await updateManagerApprovalRecord(task, finalESN);
+
+            const esnHistory = {
+                action: 'Approved',
+                by: currentApprover?.Name || 'System',
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                esn: finalESN,
+                note: note || 'Invoice Approval'
+            };
+
+            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}`).update({ esn: finalESN });
+            await invoiceDb.ref(`invoice_entries/${task.originalPO}/${task.originalKey}/history`).push(esnHistory);
+            updateLocalInvoiceCache(task.originalPO, task.originalKey, { esn: finalESN });
+            task.esn = finalESN;
         }
 
-        // 6. Remove row from table (It's done for the Manager)
+        // Keep the approved invoice available for the optional WhatsApp action.
+        if (task.source === 'invoice') {
+            managerProcessedTasks.push(task);
+        }
+
+        // Show only the optional WhatsApp action after an Invoice approval.
+        var desktopBtn = document.getElementById('desktop-finalize-btn');
+        if (desktopBtn && task.source === 'invoice' && action === 'Approved') {
+            desktopBtn.classList.remove('hidden');
+            desktopBtn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> Send to WhatsApp (Optional)';
+        }
+
+        // 5. Remove row from table (It's done for the Manager)
         var row = document.querySelector('tr[data-key="' + task.key + '"]');
         if (row) row.remove();
 
