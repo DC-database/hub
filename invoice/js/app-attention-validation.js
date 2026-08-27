@@ -582,7 +582,7 @@ async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue
     // 11.4.5: keep automatic options, but also allow manual override.
     // This makes the Attention picker usable when the user intentionally assigns
     // a different responsible person before saving.
-    if (allowOverrideSearch && st !== 'for srv') {
+    if (allowOverrideSearch) {
         const existing = new Set(choices.map(c => imBatchNormalizeKey(c.value)));
         const manualChoices = imBatchApproverUsers()
             .filter(u => u && u.name && !existing.has(imBatchNormalizeKey(u.name)))
@@ -846,7 +846,7 @@ async function populateAttentionDropdown(choicesInstance, filterStatus = null, f
             // By default we keep Choices' own search behavior (search within the current suggested list).
             // When allowOverrideSearch = true, typing will search across ALL approvers (even if they don't match the auto-filter),
             // so you can select a temporary replacement without editing approver-site mappings.
-            if (allowOverrideSearch && String(filterStatus || '').trim().toLowerCase() !== 'for srv' && choicesInstance.passedElement && choicesInstance.passedElement.element) {
+            if (allowOverrideSearch && choicesInstance.passedElement && choicesInstance.passedElement.element) {
                 const element = choicesInstance.passedElement.element;
                 const outerEl = (choicesInstance.containerOuter && choicesInstance.containerOuter.element) ? choicesInstance.containerOuter.element : null;
                 const _safeAddEvt = (t, evt, fn) => { try { if (t && typeof t.addEventListener === 'function') t.addEventListener(evt, fn); } catch (e) {} };
