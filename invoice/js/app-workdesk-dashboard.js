@@ -285,8 +285,12 @@ let wdPaymentHistorySearchResults = [];
 let wdPaymentHistorySelectedPO = '';
 let wdPaymentHistorySearchMessage = '';
 let wdPaymentHistorySelectedYear = String(new Date().getFullYear());
+let wdPaymentHistorySelectedSite = '';
 const wdPaymentHistoryVendorCache = new Map();
 let wdPaymentHistoryAutoSearchTimer = null;
+let wdGlobalPaidSearchTimer = null;
+let wdGlobalPaidSearchQuery = '';
+let wdGlobalPaidSearchHasMatch = false;
 let wdPaidHistoryIndexRows = [];
 const wdPaidHistoryYearCache = new Map();
 const wdPaidHistoryIndexPromiseByYear = new Map();
@@ -540,6 +544,57 @@ function wdPaymentPocketHasSearchMatch(searchValue) {
     const search = wdNormalize(searchValue);
     if (!search || !wdCanSeePaymentPocket()) return false;
     return wdPaymentPocketAccessibleItems().some(item => wdPaymentPocketSearchableText(item).includes(search));
+}
+
+// Global search payment hint: when a vendor/PO is found only in the selected
+// Paid History year, guide the user to the With Accounts card. The Paid History
+// search remains year-scoped and reuses the existing paid-history cache/index.
+function wdGlobalPaymentSearchHasMatch(searchValue) {
+    const search = wdNormalize(searchValue);
+    if (!search || !wdCanSeePaymentPocket()) return false;
+    if (wdPaymentPocketHasSearchMatch(search)) return true;
+    if (wdGlobalPaidSearchQuery === search) return wdGlobalPaidSearchHasMatch;
+    return false;
+}
+
+function wdScheduleGlobalPaidSearchHint() {
+    if (wdGlobalPaidSearchTimer) clearTimeout(wdGlobalPaidSearchTimer);
+    wdGlobalPaidSearchTimer = null;
+    const input = document.getElementById('wd-active-dashboard-search');
+    const query = wdText(input?.value || '');
+    const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
+    if (query.length < 2 || selected !== WD_DASHBOARD_NONE || !wdCanSeePaymentPocket()) {
+        wdGlobalPaidSearchQuery = '';
+        wdGlobalPaidSearchHasMatch = false;
+        return;
+    }
+    wdGlobalPaidSearchQuery = wdNormalize(query);
+    wdGlobalPaidSearchHasMatch = false;
+    wdGlobalPaidSearchTimer = setTimeout(async () => {
+        const searchAtStart = wdGlobalPaidSearchQuery;
+        try {
+            // Global dashboard search must use the same selected Paid Year the
+            // user will see when opening Payment Section. Do not silently force
+            // the current calendar year.
+            const selectedPaidYear = wdPaymentHistoryNormalizeYear(
+                wdPaymentHistorySelectedYear || wdPaymentHistoryDefaultYear()
+            );
+            const rows = await wdEnsurePaidHistoryIndexLoaded(selectedPaidYear);
+            if (wdNormalize(document.getElementById('wd-active-dashboard-search')?.value || '') !== searchAtStart) return;
+
+            // Payment Section is a single navigation target for both current
+            // With Accounts records and completed Paid History records. If the
+            // search exists in either source, the Payment Section card must be
+            // highlighted even when another WorkDesk card also matches.
+            const currentPaymentMatch = wdPaymentPocketHasSearchMatch(searchAtStart);
+            const paidHistoryMatch = wdPaidHistoryIndexMatches(searchAtStart, rows).length > 0;
+            wdGlobalPaidSearchHasMatch = currentPaymentMatch || paidHistoryMatch;
+        } catch (_) {
+            wdGlobalPaidSearchHasMatch = wdPaymentPocketHasSearchMatch(searchAtStart);
+        }
+        wdRenderDashboardCards();
+        wdRenderDashboardList();
+    }, 180);
 }
 
 function wdPaymentPocketDateSortValue(value) {
@@ -3250,6 +3305,28 @@ async function wdEnsureAdminAllActiveDashboardLoaded(forceRefresh = false) {
     });
 }
 
+function wdFocusDashboardResults() {
+    const list = document.getElementById('wd-active-dashboard-list');
+    if (!list || typeof list.scrollIntoView !== 'function') return;
+    requestAnimationFrame(() => {
+        try { list.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' }); }
+        catch (_) { list.scrollIntoView(true); }
+    });
+}
+
+// 12.8.4: When a site/vendor corkboard card is selected, focus the newly
+// rendered corkboard itself instead of leaving the user at the selector cards.
+function wdFocusCorkboardResults() {
+    const focusBoard = () => {
+        const board = document.querySelector('#wd-active-dashboard-list .wd-cork-board-site-filtered, #wd-active-dashboard-list .wd-cork-notes-board');
+        if (!board || typeof board.scrollIntoView !== 'function') return;
+        try { board.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' }); }
+        catch (_) { board.scrollIntoView(true); }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focusBoard);
+    else setTimeout(focusBoard, 0);
+}
+
 function wdBindDashboardControls() {
     const cardsEl = document.getElementById('wd-active-dashboard-cards');
     const refreshBtn = document.getElementById('wd-active-dashboard-refresh');
@@ -3294,6 +3371,7 @@ function wdBindDashboardControls() {
 
             wdRenderDashboardCards();
             wdRenderDashboardList();
+            wdFocusDashboardResults();
             if (nextStatus === WD_PAYMENT_POCKET_FILTER) {
                 wdFocusPaymentPocketResults();
                 wdSchedulePaymentHistoryAutoSearch();
@@ -3361,6 +3439,7 @@ function wdBindDashboardControls() {
             wdAllActiveCorkboardSelectedSiteKey = '';
             wdRenderDashboardCards();
             wdRenderDashboardList();
+            wdScheduleGlobalPaidSearchHint();
         });
         searchInput.addEventListener('keydown', async event => {
             if (event.key !== 'Enter' || wdActiveDashboardSelectedStatus !== WD_PAYMENT_POCKET_FILTER) return;
@@ -3443,6 +3522,7 @@ function wdBindDashboardControls() {
                 wdAllActiveCorkboardSelectedSiteKey = siteCard.dataset.siteKey || '';
                 wdRenderDashboardList();
                 wdRenderDashboardCards();
+                wdFocusCorkboardResults();
                 return;
             }
 
@@ -3458,10 +3538,19 @@ function wdBindDashboardControls() {
             const paidYearSelect = event.target.closest('#wd-paid-history-year-filter');
             if (paidYearSelect) {
                 wdPaymentHistorySelectedYear = wdPaymentHistoryNormalizeYear(paidYearSelect.value);
+                wdPaymentHistorySelectedSite = '';
                 wdPaymentHistorySearchState = 'idle';
                 wdPaymentHistorySearchResults = [];
                 wdPaymentHistorySearchMessage = '';
                 wdHandlePaymentPocketSearchSubmit({ paidYearChange: true });
+                return;
+            }
+
+            const paidHistorySiteSelect = event.target.closest('#wd-paid-history-site-filter');
+            if (paidHistorySiteSelect) {
+                wdPaymentHistorySelectedSite = paidHistorySiteSelect.value || '';
+                wdRenderDashboardList();
+                wdFocusPaymentPocketResults();
                 return;
             }
 
@@ -3983,9 +4072,8 @@ function wdDashboardTaskCategoryLabel(task = {}) {
 }
 
 function wdDashboardSearchContextStatusKeys() {
-    const selected = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
     const search = wdDashboardSearchValue();
-    if (!search || selected !== WD_DASHBOARD_NONE) return new Set();
+    if (!search) return new Set();
 
     // Search only the data already present in the WorkDesk browser cache.
     // Do not fetch Firebase again while the user types. This deliberately uses
@@ -4173,11 +4261,14 @@ function wdRenderDashboardCards() {
     const canSeeAllActive = wdCanSeeAllActiveDashboard();
     const dashboardSearch = wdDashboardSearchValue();
     const selectedFilter = wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE;
-    const dashboardGlobalSearchMode = !!dashboardSearch && selectedFilter === WD_DASHBOARD_NONE;
+    // Keep search-context highlighting active even after the user clicks a
+    // matching card. The selected card becomes active, but unrelated cards
+    // must remain greyed out until the search is cleared.
+    const dashboardGlobalSearchMode = !!dashboardSearch;
     const searchStatusKeys = dashboardGlobalSearchMode
         ? wdDashboardSearchContextStatusKeys()
         : new Set();
-    const paymentSearchContextMatch = dashboardGlobalSearchMode && wdPaymentPocketHasSearchMatch(dashboardSearch);
+    const paymentSearchContextMatch = dashboardGlobalSearchMode && wdGlobalPaymentSearchHasMatch(dashboardSearch);
     const shouldShowSearchCategoryContext = dashboardGlobalSearchMode && (
         searchStatusKeys.size > 0 || paymentSearchContextMatch
     );
@@ -4315,13 +4406,13 @@ function wdRenderDashboardCards() {
         const withAccountsCard = `
             <button class="wd-active-status-card wd-payment-pocket-card tone-payment wd-finance-card ${withAccountsActive} ${paymentSearchClass}"
                     data-status="${WD_PAYMENT_POCKET_FILTER}" data-payment-view="ready"
-                    data-dashboard-label="With Accounts" type="button" aria-label="Show ${paymentCount} With Accounts invoices">
+                    data-dashboard-label="Payment Section" type="button" aria-label="Open Payment Section">
                 <span class="wd-status-card-glow"></span>
                 <span class="wd-status-icon"><i class="fa-solid fa-wallet"></i></span>
                 <span class="wd-status-meta">
                     <strong>${paymentCount}</strong>
-                    <em>With Accounts</em>
-                    <small>Accounts payment pocket</small>
+                    <em>Payment Section</em>
+                    <small>With Accounts &amp; Paid History</small>
                 </span>
                 <span class="wd-status-arrow"><i class="fa-solid fa-arrow-right"></i></span>
             </button>`;
@@ -5492,6 +5583,7 @@ function wdResetPaymentHistorySearchState() {
     wdPaymentHistorySearchResults = [];
     wdPaymentHistorySelectedPO = '';
     wdPaymentHistorySearchMessage = '';
+    wdPaymentHistorySelectedSite = '';
 }
 
 function wdPaymentHistorySearchToken(value) {
@@ -5913,14 +6005,43 @@ function wdPaymentHistorySelectedResult() {
     return null;
 }
 
-function wdRenderPaymentHistoryInline(searchText) {
+function wdPaymentHistorySiteOptions(results = []) {
+    const sites = new Map();
+    (Array.isArray(results) ? results : []).forEach(result => {
+        const site = wdText(result?.site, 'N/A');
+        const key = wdNormalize(site);
+        if (key && !sites.has(key)) sites.set(key, site);
+    });
+    return Array.from(sites.values()).sort((a, b) => wdText(a).localeCompare(wdText(b), undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function wdPaymentHistoryFilteredResults(results = []) {
+    const selectedSite = wdNormalize(wdPaymentHistorySelectedSite);
+    return (Array.isArray(results) ? results : []).filter(result => !selectedSite || wdNormalize(result?.site) === selectedSite).slice().sort((a, b) =>
+        wdPaymentHistorySortValue(b) - wdPaymentHistorySortValue(a) || Number(b?.updatedAt || 0) - Number(a?.updatedAt || 0) ||
+        wdText(a?.company).localeCompare(wdText(b?.company), undefined, { sensitivity: 'base' }) ||
+        wdText(a?.po).localeCompare(wdText(b?.po), undefined, { numeric: true, sensitivity: 'base' })
+    );
+}
+
+function wdPaymentHistorySiteFilterHtml(results = []) {
+    const selected = wdNormalize(wdPaymentHistorySelectedSite);
+    const options = wdPaymentHistorySiteOptions(results);
+    return `<label class="wd-paid-history-site-control" for="wd-paid-history-site-filter"><span><i class="fa-solid fa-location-dot"></i> Site</span><select id="wd-paid-history-site-filter" aria-label="Filter Paid History by site"><option value="">All Sites</option>${options.map(site => `<option value="${wdSafe(site)}"${wdNormalize(site) === selected ? ' selected' : ''}>${wdSafe(site)}</option>`).join('')}</select></label>`;
+}
+
+function wdRenderPaymentHistoryInline(searchText, options = {}) {
     const query = wdText(searchText);
+    const currentWithAccountsMatch = options.currentWithAccountsMatch === true;
+    const paidHistoryMatch = options.paidHistoryMatch === true;
+    const paidHistoryMutedStyle = query && wdPaymentHistorySearchState === 'done' && !paidHistoryMatch && currentWithAccountsMatch
+        ? ' style="opacity:.48;filter:grayscale(100%);"' : '';
     if (!query || query.length < 2 || wdPaymentHistorySearchState === 'idle') return '';
     const yearControl = wdPaymentHistoryYearSelectHtml();
 
     if (wdPaymentHistorySearchState === 'loading') {
         return `
-            <section class="wd-paid-po-history-panel is-loading" aria-live="polite">
+            <section class="wd-paid-po-history-panel is-loading" aria-live="polite"${paidHistoryMutedStyle}>
                 <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
                     <div><span>Previously Paid POs</span><strong>Paid History ${wdSafe(wdPaymentHistorySelectedYear)}</strong><small>Only the selected year pocket is being read.</small></div>
                     ${yearControl}
@@ -5931,7 +6052,7 @@ function wdRenderPaymentHistoryInline(searchText) {
 
     if (wdPaymentHistorySearchState === 'error') {
         return `
-            <section class="wd-paid-po-history-panel is-error" aria-live="polite">
+            <section class="wd-paid-po-history-panel is-error" aria-live="polite"${paidHistoryMutedStyle}>
                 <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
                     <div><span>Previously Paid POs</span><strong>Paid History ${wdSafe(wdPaymentHistorySelectedYear)}</strong><small>The current With Accounts list is unchanged.</small></div>
                     ${yearControl}
@@ -5940,21 +6061,34 @@ function wdRenderPaymentHistoryInline(searchText) {
             </section>`;
     }
 
-    const results = Array.isArray(wdPaymentHistorySearchResults) ? wdPaymentHistorySearchResults : [];
-    if (!results.length) {
+    const rawResults = Array.isArray(wdPaymentHistorySearchResults) ? wdPaymentHistorySearchResults : [];
+    const siteOptionsHtml = wdPaymentHistorySiteFilterHtml(rawResults);
+    const results = wdPaymentHistoryFilteredResults(rawResults);
+    if (!rawResults.length) {
         return `
-            <section class="wd-paid-po-history-panel wd-paid-po-history-suggestions" aria-live="polite">
+            <section class="wd-paid-po-history-panel wd-paid-po-history-suggestions" aria-live="polite"${paidHistoryMutedStyle}>
                 <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
                     <div><span>Previously Paid POs</span><strong>Paid PO matches for “${wdSafe(query)}”</strong><small>${wdSafe(wdPaymentHistorySearchMessage || `No previously paid PO was found in ${wdPaymentHistorySelectedYear}.`)}</small></div>
-                    ${yearControl}
+                    <div class="wd-paid-history-filters">${siteOptionsHtml}${yearControl}</div>
                 </div>
                 <div class="wd-paid-po-history-empty"><i class="fa-regular fa-folder-open"></i><div><strong>No Paid History match in ${wdSafe(wdPaymentHistorySelectedYear)}</strong><span>Choose another Paid Year to search that year only. The current With Accounts results stay unchanged.</span></div></div>
             </section>`;
     }
 
+    if (!results.length) {
+        return `
+            <section class="wd-paid-po-history-panel wd-paid-po-history-suggestions" aria-live="polite"${paidHistoryMutedStyle}>
+                <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
+                    <div><span>Previously Paid POs</span><strong>No Paid PO matches this site</strong><small>${wdSafe(wdPaymentHistorySearchMessage)}</small></div>
+                    <div class="wd-paid-history-filters">${siteOptionsHtml}${yearControl}</div>
+                </div>
+                <div class="wd-paid-po-history-empty"><i class="fa-solid fa-location-dot"></i><div><strong>No paid result for ${wdSafe(wdPaymentHistorySelectedSite || 'the selected site')}</strong><span>Select All Sites or another site. Paid Year remains ${wdSafe(wdPaymentHistorySelectedYear)}.</span></div></div>
+            </section>`;
+    }
+
     const rows = results.map(result => `
         <tr>
-            <td><button type="button" class="wd-paid-po-history-open wd-paid-po-link" data-po="${wdSafe(result.po)}">${wdSafe(result.po)}</button></td>
+            <td class="wd-paid-po-history-po-cell"><span class="wd-paid-po-history-open wd-paid-po-link" role="button" tabindex="0" data-po="${wdSafe(result.po)}" style="display:inline !important;background:transparent !important;background-color:transparent !important;background-image:none !important;color:#173b54 !important;-webkit-text-fill-color:#173b54 !important;border:0 !important;box-shadow:none !important;padding:0 !important;margin:0 !important;font-weight:900 !important;text-decoration:none !important;">${wdSafe(result.po)}</span></td>
             <td>${wdSafe(result.company || 'Company unavailable')}</td>
             <td>${wdSafe(result.site || 'N/A')}</td>
             <td><strong>${result.total}</strong></td>
@@ -5963,10 +6097,10 @@ function wdRenderPaymentHistoryInline(searchText) {
         </tr>`).join('');
 
     return `
-        <section class="wd-paid-po-history-panel wd-paid-po-history-suggestions" aria-live="polite">
+        <section class="wd-paid-po-history-panel wd-paid-po-history-suggestions" aria-live="polite"${paidHistoryMutedStyle}>
             <div class="wd-paid-po-history-head wd-paid-history-head-with-year">
-                <div><span>Previously Paid POs</span><strong>Paid PO matches for “${wdSafe(query)}”</strong><small>${wdSafe(wdPaymentHistorySearchMessage)}</small></div>
-                ${yearControl}
+                <div><span>Previously Paid POs</span><strong>Paid PO matches for “${wdSafe(query)}”</strong><small>${results.length} matching PO${results.length === 1 ? '' : 's'} in ${wdSafe(wdPaymentHistorySelectedYear)}${wdPaymentHistorySelectedSite ? ` · ${wdSafe(wdPaymentHistorySelectedSite)}` : ' · All Sites'} · sorted newest to oldest</small></div>
+                <div class="wd-paid-history-filters">${siteOptionsHtml}${yearControl}</div>
             </div>
             <div class="table-wrapper wd-paid-po-history-table-wrap">
                 <table class="wd-paid-po-history-table">
@@ -6055,6 +6189,18 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         .filter(item => !wdPaymentPocketSelectedSite || wdNormalize(item?.site) === wdNormalize(wdPaymentPocketSelectedSite))
         .slice();
     const availableMonths = wdPaymentPocketAvailableMonths(siteItems, wdPaymentPocketSelectedYear);
+    // Month search highlighting is intentionally based ONLY on the current
+    // With Accounts list (siteItems). Paid History may highlight the overall
+    // Payment Section, but it must never make a month look like a match.
+    const withAccountsSearchItems = search
+        ? siteItems.filter(item => wdPaymentPocketSearchableText(item).includes(search))
+        : [];
+    const withAccountsSearchMonths = new Set(
+        withAccountsSearchItems
+            .map(item => wdPaymentPocketDateParts(item?.releaseDate)?.month)
+            .filter(month => Number.isInteger(month))
+    );
+    const paymentMonthSearchActive = Boolean(search);
     if (wdPaymentPocketSelectedMonth && !availableMonths.includes(Number(wdPaymentPocketSelectedMonth))) {
         wdPaymentPocketSelectedMonth = '';
     }
@@ -6081,7 +6227,14 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         summaryEl.textContent = `${items.length} ${search ? 'matching ' : ''}With Accounts invoice${items.length === 1 ? '' : 's'} · ${siteLabel} · ${periodLabel} · Invoice Value QAR ${totalText}`;
     }
 
-    const paidHistoryHtml = wdRenderPaymentHistoryInline(searchInput?.value || '');
+    const paidHistoryQuery = wdText(searchInput?.value || '');
+    const paymentCurrentSearchMatch = Boolean(search) && items.length > 0;
+    const paymentPaidHistorySearchMatch = Boolean(paidHistoryQuery && paidHistoryQuery.length >= 2) &&
+        wdPaymentHistorySearchState === 'done' && Array.isArray(wdPaymentHistorySearchResults) && wdPaymentHistorySearchResults.length > 0;
+    const paidHistoryHtml = wdRenderPaymentHistoryInline(paidHistoryQuery, {
+        currentWithAccountsMatch: paymentCurrentSearchMatch,
+        paidHistoryMatch: paymentPaidHistorySearchMatch
+    });
 
     if (!accessibleItems.length) {
         listEl.innerHTML = `
@@ -6108,7 +6261,7 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
         return `
             <tr>
                 <td><strong>${wdSafe(item?.invoiceNo || item?.invEntryID || 'N/A')}</strong></td>
-                <td>${wdSafe(item?.po || 'N/A')}</td>
+                <td class="wd-payment-pocket-po-cell"><span class="wd-payment-pocket-po-text">${wdSafe(item?.po || 'N/A')}</span></td>
                 <td>${wdSafe(item?.supplierName || 'N/A')}</td>
                 <td>${wdSafe(item?.site || 'N/A')}</td>
                 <td class="right-align">${wdSafe(amountText)}</td>
@@ -6137,15 +6290,22 @@ function wdRenderPaymentPocketList(listEl, titleEl, summaryEl) {
     const monthTabs = `
         <button class="wd-payment-pocket-month-tab${wdPaymentPocketSelectedMonth ? '' : ' active'}" type="button"
             data-payment-month="" role="tab" aria-selected="${wdPaymentPocketSelectedMonth ? 'false' : 'true'}">All Months</button>
-        ${availableMonths.map(month => `
-            <button class="wd-payment-pocket-month-tab${Number(wdPaymentPocketSelectedMonth) === month ? ' active' : ''}" type="button"
-                data-payment-month="${month}" role="tab" aria-selected="${Number(wdPaymentPocketSelectedMonth) === month ? 'true' : 'false'}">
+        ${availableMonths.map(month => {
+            const isSelected = Number(wdPaymentPocketSelectedMonth) === month;
+            const isSearchMatch = paymentMonthSearchActive && withAccountsSearchMonths.has(month);
+            const isSearchMuted = paymentMonthSearchActive && !isSearchMatch;
+            return `
+            <button class="wd-payment-pocket-month-tab${isSelected ? ' active' : ''}${isSearchMatch ? ' wd-payment-month-search-match' : ''}${isSearchMuted ? ' wd-payment-month-search-muted' : ''}" type="button"
+                data-payment-month="${month}" role="tab" aria-selected="${isSelected ? 'true' : 'false'}">
                 ${wdSafe(wdPaymentPocketMonthLabel(month, true))}
-            </button>
-        `).join('')}`;
+            </button>`;
+        }).join('')}`;
 
+    const paymentPocketIsSearchNoMatch = Boolean(search) && !items.length;
+
+    const paymentBoardMuted = Boolean(search) && !paymentCurrentSearchMatch && paymentPaidHistorySearchMatch;
     listEl.innerHTML = `
-        <div class="wd-payment-pocket-board">
+        <div class="wd-payment-pocket-board${paymentPocketIsSearchNoMatch ? ' is-no-match' : ''}${paymentBoardMuted ? ' wd-payment-search-muted' : ''}"${paymentBoardMuted ? ' style="opacity:.48;filter:grayscale(100%);"' : ''}>
             <div class="wd-payment-pocket-board-head">
                 <div>
                     <span>Accounts Payment Pocket</span>
@@ -6208,7 +6368,7 @@ function wdRenderDashboardList() {
 
     if (selected === WD_DASHBOARD_NONE && globalSearch) {
         const taskCategories = wdDashboardSearchContextStatusKeys();
-        const paymentMatched = wdPaymentPocketHasSearchMatch(globalSearch);
+        const paymentMatched = wdGlobalPaymentSearchHasMatch(globalSearch);
         const matchingCategories = taskCategories.size + (paymentMatched ? 1 : 0);
         if (titleEl) titleEl.textContent = matchingCategories ? 'Choose a highlighted card' : 'No matching category';
         if (summaryEl) {

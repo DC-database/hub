@@ -6,6 +6,7 @@
 // ============================================================================
 
 let paymentSearchResults = new Map();
+let paymentModalGlobalPaidDate = '';
 let paymentRestoredStorageKey = '';
 let paymentReadyIndex = new Map();
 let paymentReadyIndexLoadPromise = null;
@@ -1216,9 +1217,32 @@ function updatePaymentsCount() {
     }
 }
 
+function paymentGroupKey(vendor, paidDate) {
+    return `${paymentNormalize(vendor) || 'unknown'}|${paymentDateISO(paidDate) || 'no-date'}`;
+}
+
+function paymentGroupLabelDate(value) {
+    const normalized = paymentDateISO(value);
+    return normalized ? paymentDisplayDate(normalized) : 'No Paid Date';
+}
+
+function updatePaymentGroupSubtotal(groupId) {
+    const subtotalEl = document.querySelector(`[data-payment-group-subtotal="${groupId}"]`);
+    if (!subtotalEl) return;
+    let total = 0;
+    document.querySelectorAll(`#im-payments-table-body tr[data-payment-group-id="${groupId}"] .im-payment-amount-input`).forEach(input => {
+        total += paymentParseAmount(input.value);
+    });
+    subtotalEl.textContent = paymentCurrency(total);
+}
+
 function renderPaymentsCart() {
     if (!imPaymentsTableBody) return;
-    const items = paymentSortAndDedupeResults(paymentCartItems());
+    const items = paymentCartItems().slice().sort((a, b) => {
+        return paymentNaturalCompare(a.supplierName, b.supplierName) ||
+            paymentDateSortValue(a.paidDate) - paymentDateSortValue(b.paidDate) ||
+            paymentNaturalCompare(a.invoiceNo || a.invEntryID, b.invoiceNo || b.invEntryID);
+    });
     const canEditPaidDate = paymentCanCurrentUserEditPaidDate();
     const emptyState = document.getElementById('im-payment-cart-empty');
     const tableWrap = document.querySelector('#im-payments .im-payment-cart-table-wrap');
@@ -1233,14 +1257,40 @@ function renderPaymentsCart() {
     if (checkoutButton) checkoutButton.disabled = items.length === 0;
 
     let total = 0;
+    let currentGroupKey = '';
+    let groupIndex = 0;
     items.forEach(item => {
         item.releaseDate = paymentWithAccountsDateValue(item);
         item.paidDate = canEditPaidDate
             ? (paymentDateISO(item.paidDate) || paymentToday())
             : paymentToday();
+
+        const groupKey = paymentGroupKey(item.supplierName, item.paidDate);
+        if (groupKey !== currentGroupKey) {
+            currentGroupKey = groupKey;
+            const groupId = `payment-group-${++groupIndex}`;
+            const groupRow = document.createElement('tr');
+            groupRow.className = 'im-payment-vendor-group-row';
+            groupRow.dataset.paymentGroupKey = groupKey;
+            groupRow.dataset.paymentGroupId = groupId;
+            const groupCell = document.createElement('td');
+            groupCell.colSpan = 8;
+            groupCell.innerHTML = `
+                <div class="im-payment-vendor-group-heading">
+                    <div><i class="fa-solid fa-building"></i><strong>${escapeHtml(item.supplierName || 'Unknown Vendor')}</strong><span>Paid Date: ${paymentGroupLabelDate(item.paidDate)}</span></div>
+                    <div>Group Total: <strong data-payment-group-subtotal="${groupId}">QAR 0.00</strong></div>
+                </div>`;
+            groupRow.appendChild(groupCell);
+            imPaymentsTableBody.appendChild(groupRow);
+            items.forEach(groupItem => {
+                if (paymentGroupKey(groupItem.supplierName, groupItem.paidDate) === groupKey) groupItem.__paymentGroupId = groupId;
+            });
+        }
+
         const row = document.createElement('tr');
         row.dataset.key = item.id;
         row.dataset.po = item.po;
+        row.dataset.paymentGroupId = item.__paymentGroupId || '';
 
         const invoiceCell = document.createElement('td');
         invoiceCell.textContent = item.invoiceNo || item.invEntryID || 'N/A';
@@ -1262,11 +1312,13 @@ function renderPaymentsCart() {
             persistPaymentCart();
             const nextTotal = paymentCartItems().reduce((sum, current) => sum + (Number(current.amountPaid) || 0), 0);
             if (totalEl) totalEl.textContent = paymentCurrency(nextTotal);
+            updatePaymentGroupSubtotal(row.dataset.paymentGroupId);
         });
         amountInput.addEventListener('blur', () => {
             item.amountPaid = paymentParseAmount(amountInput.value);
             amountInput.value = paymentCurrency(item.amountPaid);
             persistPaymentCart();
+            updatePaymentGroupSubtotal(row.dataset.paymentGroupId);
         });
         amountCell.appendChild(amountInput);
 
@@ -1296,6 +1348,7 @@ function renderPaymentsCart() {
                 item.paidDate = normalizedDate;
                 paidDateInput.value = normalizedDate;
                 persistPaymentCart();
+                renderPaymentsCart();
             });
         }
         paidDateCell.appendChild(paidDateInput);
@@ -1326,6 +1379,10 @@ function renderPaymentsCart() {
         total += Number(item.amountPaid) || 0;
     });
 
+    // Calculate each displayed vendor/date group subtotal from the rendered rows.
+    imPaymentsTableBody.querySelectorAll('[data-payment-group-subtotal]').forEach(el => {
+        updatePaymentGroupSubtotal(el.dataset.paymentGroupSubtotal);
+    });
     if (totalEl) totalEl.textContent = paymentCurrency(total);
     updatePaymentsCount();
 }
@@ -1343,6 +1400,26 @@ function openPaymentSearchModal() {
     if (!canCurrentUserAccessPayments()) {
         alert('Access Denied: Payments requires an Admin role with a Finance, Accounts, or Accounting position.');
         return;
+    }
+    paymentModalGlobalPaidDate = paymentToday();
+    const globalPaidDateInput = document.getElementById('im-payment-modal-global-date');
+    if (globalPaidDateInput) {
+        globalPaidDateInput.value = paymentModalGlobalPaidDate;
+        globalPaidDateInput.max = paymentToday();
+        const canEditGlobalDate = paymentCanCurrentUserEditPaidDate();
+        globalPaidDateInput.disabled = !canEditGlobalDate;
+        globalPaidDateInput.title = canEditGlobalDate
+            ? 'This date applies to newly added invoices while this popup remains open.'
+            : 'Paid Date is locked to today for users without Accounts date-edit permission.';
+        globalPaidDateInput.onchange = () => {
+            const normalizedDate = paymentDateISO(globalPaidDateInput.value);
+            if (!normalizedDate || normalizedDate > paymentToday()) {
+                globalPaidDateInput.value = paymentModalGlobalPaidDate || paymentToday();
+                return;
+            }
+            paymentModalGlobalPaidDate = normalizedDate;
+            globalPaidDateInput.value = normalizedDate;
+        };
     }
     if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
     if (imPaymentModalResults) {
@@ -1465,7 +1542,7 @@ function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
         originalAttention: paymentText(invoiceData.attention),
         invoiceDate: paymentInvoiceDateValue(invoiceData),
         releaseDate: paymentWithAccountsDateValue(invoiceData),
-        paidDate: paymentToday()
+        paidDate: paymentModalGlobalPaidDate || paymentToday()
     };
 }
 
@@ -2032,7 +2109,9 @@ async function handleAddSelectedToPayments() {
         invoicesToPay[item.id] = {
             ...item,
             releaseDate: paymentWithAccountsDateValue(item),
-            paidDate: paymentToday()
+            // The popup global date applies only at the moment this invoice is added.
+            // After insertion, the cart row is independent from the popup date.
+            paidDate: paymentModalGlobalPaidDate || paymentToday()
         };
     });
     persistPaymentCart();
