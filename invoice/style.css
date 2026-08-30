@@ -14309,6 +14309,15 @@ body.im-modal-is-dragging {
 }
 
 
+/* 12.8.3 — Payments search modal: keep the main Payments table visible.
+   The modal remains open and the page stays dimmed, but the backdrop is no longer
+   blurred so newly-added rows can be seen immediately behind the modal. */
+body #im-add-payment-modal:not(.hidden) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(3, 18, 30, .22) !important;
+}
+
 /* ========================================================================
    8.5.5 — Modal + Batch Entry Premium UI Upgrade
    UI-only polish. Keeps all save/update/Firebase/workflow logic untouched.
@@ -38639,4 +38648,65 @@ body:not(.inventory-mode) #workdesk-view#workdesk-view #wd-dashboard .wd-active-
     #invoice-management-view #im-reporting .im-nested-invoice-table .im-records-summary .im-records-summary-item {
         padding: 8px 10px !important;
     }
+}
+
+
+/* 12.8.2 — Payments: popup global Paid Date + vendor/date payment groups */
+#im-add-payment-modal .im-payment-search-row {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, auto) auto;
+    align-items: end;
+}
+#im-add-payment-modal .im-payment-global-date-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 190px;
+}
+#im-add-payment-modal .im-payment-global-date-wrap label {
+    font-size: 0.78rem;
+    font-weight: 750;
+    color: #3d4b45;
+    margin: 0;
+}
+#im-add-payment-modal #im-payment-modal-global-date {
+    width: 100%;
+    min-height: 46px;
+    box-sizing: border-box;
+    padding: 9px 11px;
+    border: 1px solid #cbd8d2;
+    border-radius: 10px;
+    background: #fff;
+}
+#im-payments #im-payments-table .im-payment-vendor-group-row td {
+    padding: 9px 12px;
+    background: #edf5f1;
+    border-top: 2px solid #b9d2c7;
+    border-bottom: 1px solid #d6e5de;
+}
+#im-payments .im-payment-vendor-group-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    font-size: 0.88rem;
+}
+#im-payments .im-payment-vendor-group-heading > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+#im-payments .im-payment-vendor-group-heading i { opacity: .7; }
+#im-payments .im-payment-vendor-group-heading span {
+    font-weight: 600;
+    opacity: .72;
+    margin-left: 6px;
+}
+#im-payments .im-payment-vendor-group-heading > div:last-child {
+    white-space: nowrap;
+}
+@media (max-width: 760px) {
+    #im-add-payment-modal .im-payment-search-row { grid-template-columns: 1fr; }
+    #im-add-payment-modal .im-payment-global-date-wrap { min-width: 0; }
+    #im-payments .im-payment-vendor-group-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
 }

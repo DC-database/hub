@@ -365,6 +365,8 @@
 }
 </style>
 
+<link href="css/patch-12.8.4.css?v=12.8.4.1" rel="stylesheet"/>
+<link href="css/patch-12.8.4-announcement.css?v=12.8.4" rel="stylesheet"/>
 </head>
 <body>
 <audio id="login-sound" src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Open.mp3"></audio>
@@ -387,6 +389,23 @@
 <!-- ====================================================================== -->
 <!-- MAIN APPLICATION CONTAINER -->
 <!-- ====================================================================== -->
+<!-- ====================================================================== -->
+<!-- GENERAL IMPORTANT ANNOUNCEMENT (12.8.4) -->
+<!-- Reusable Super Admin announcement with optional countdown and automatic expiry. -->
+<!-- ====================================================================== -->
+<div id="general-important-announcement" class="general-important-announcement hidden" role="button" aria-live="polite" aria-expanded="true" tabindex="0" title="Click to expand or minimize">
+  <div class="gia-accent" aria-hidden="true"></div>
+  <div class="gia-icon" aria-hidden="true"><i class="fa-solid fa-bullhorn"></i></div>
+  <div class="gia-body">
+    <div class="gia-kicker">IBA TEAM ANNOUNCEMENT</div>
+    <div class="gia-title" id="gia-title">IBA TEAM ANNOUNCEMENT</div>
+    <div class="gia-message" id="gia-message"></div>
+    <div class="gia-countdown-wrap hidden" id="gia-countdown-wrap">
+      <span class="gia-countdown-label" id="gia-countdown-label">COUNTDOWN</span>
+      <span class="gia-countdown" id="gia-countdown">--:--:--</span>
+    </div>
+  </div>
+</div>
 <div id="app-container">
 <!-- ====================================================================== -->
 <!-- LOGIN VIEW - DESKTOP + MOBILE LOGIN -->
@@ -709,8 +728,8 @@
 <button class="download-btn hidden" id="send-ceo-approval-receipt-btn" type="button">
 <i class="fa-brands fa-whatsapp"></i> Send CEO Receipt
         </button>
-<button class="download-btn hidden" id="desktop-finalize-btn" style="background-color: #25D366; font-weight: bold; animation: pulse 2s infinite;">
-<i class="fa-solid fa-check-double"></i> Send to WhatsApp (Optional)
+<button class="download-btn hidden" id="desktop-finalize-btn" style="background-color: #00748C; font-weight: bold; animation: pulse 2s infinite;">
+<i class="fa-solid fa-check-double"></i> Finalize Batch &amp; Send Receipt
         </button>
 </div>
 <div id="financeBatchControls" style="display: none !important; margin-bottom: 15px; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #00748C; justify-content: space-between; align-items: center;">
@@ -745,10 +764,10 @@
 <div class="hidden-desktop" id="active-task-mobile-view"></div>
 <div class="hidden" id="mobile-receipt-action-container">
 <button class="whatsapp-float-btn hidden" id="mobile-send-receipt-btn" style="background-color: #25D366; font-weight: 800; animation: pulse 2s infinite;">
-<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Send to WhatsApp (Optional)
+<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize
         </button>
-<button class="whatsapp-float-btn hidden" id="mobile-send-manager-receipt-btn" style="background-color: #25D366; font-weight: 800; animation: pulse 2s infinite;">
-<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> Send to WhatsApp (Optional)
+<button class="whatsapp-float-btn hidden" id="mobile-send-manager-receipt-btn" style="background-color: #00748C; font-weight: 800; animation: pulse 2s infinite;">
+<span style="font-size: 1.2rem; margin-right: 5px;">🚨</span> REQUIRED: Click Here to Finalize
         </button>
 </div>
 </section>
@@ -1230,6 +1249,52 @@
 <button class="danger-btn" id="celebration-disable-btn" type="button">Turn Off</button>
 </div>
 <p class="error-message settings-message-line" id="celebration-settings-message"></p>
+</div>
+<!-- Super Admin: General Important Announcement Manager -->
+<div class="general-announcement-settings settings-card hidden" id="general-announcement-settings-container">
+  <div class="settings-card-header">
+    <div class="settings-card-icon"><i class="fa-solid fa-bullhorn"></i></div>
+    <div>
+      <h2>General Important Announcement</h2>
+      <p>Super Admin only. Reuse this notice for important system events, maintenance, deadlines, or company-wide announcements.</p>
+    </div>
+  </div>
+  <div class="settings-fields-grid">
+    <div class="form-group settings-span-2">
+      <div class="checkbox-group settings-toggle">
+        <input id="general-announcement-enabled" type="checkbox"/>
+        <label for="general-announcement-enabled"><span>Enable announcement</span><small>Visible to all logged-in users while active.</small></label>
+      </div>
+    </div>
+    <div class="form-group settings-span-2">
+      <label for="general-announcement-title">Title</label>
+      <input id="general-announcement-title" maxlength="120" placeholder="IBA TEAM ANNOUNCEMENT" type="text"/>
+    </div>
+    <div class="form-group settings-span-2">
+      <label for="general-announcement-message">Message</label>
+      <textarea id="general-announcement-message" maxlength="1000" rows="4" placeholder="Enter the important notice for everyone..."></textarea>
+    </div>
+    <div class="form-group">
+      <label for="general-announcement-start">Start Date &amp; Time (Asia/Qatar)</label>
+      <input id="general-announcement-start" type="datetime-local"/>
+    </div>
+    <div class="form-group">
+      <label for="general-announcement-end">End Date &amp; Time (Asia/Qatar)</label>
+      <input id="general-announcement-end" type="datetime-local"/>
+    </div>
+    <div class="form-group settings-span-2">
+      <div class="checkbox-group settings-toggle">
+        <input checked="" id="general-announcement-countdown" type="checkbox"/>
+        <label for="general-announcement-countdown"><span>Show countdown</span><small>Before the start, counts down to the start; once active, counts down to the expiry.</small></label>
+      </div>
+    </div>
+  </div>
+  <div class="settings-action-row general-announcement-actions">
+    <button class="secondary-btn" id="general-announcement-preview-btn" type="button"><i class="fa-regular fa-eye"></i> Preview</button>
+    <button id="general-announcement-save-btn" type="button"><i class="fa-solid fa-bullhorn"></i> Save Announcement</button>
+    <button class="danger-btn" id="general-announcement-disable-btn" type="button"><i class="fa-solid fa-power-off"></i> Turn Off</button>
+  </div>
+  <p class="error-message settings-message-line" id="general-announcement-message-line"></p>
 </div>
 <div class="settings-action-row main-settings-actions"><button id="update-settings-button" type="submit"><i class="fa-solid fa-floppy-disk"></i> Update Settings</button></div>
 <p class="error-message settings-message-line" id="settings-message"></p>
@@ -2356,6 +2421,10 @@
 </div>
 <div class="search-and-filter-group im-payment-search-row">
 <input autocomplete="off" id="im-payment-modal-po-input" placeholder="Search company name, PO, or invoice number..." type="text"/>
+<div class="im-payment-global-date-wrap">
+<label for="im-payment-modal-global-date">Paid Date</label>
+<input id="im-payment-modal-global-date" type="date" aria-label="Global Paid Date"/>
+</div>
 <button id="im-payment-modal-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
 </div>
 <div class="table-wrapper im-payment-search-results" id="im-payment-modal-results"><p>Press Search with the box empty to show every current With Accounts invoice.</p></div>
@@ -3371,7 +3440,7 @@
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=10.1.5"></script>
-<script src="app.js?v=12.8.0"></script>
+<script src="app.js?v=12.6.7"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/app-navigation-settings.js?v=12.7.3"></script>
@@ -3380,23 +3449,24 @@
 <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
 <script src="js/app-standard-job.js?v=11.0.4"></script>
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
-<script src="js/app-payments.js?v=11.9.12"></script>
+<script src="js/app-payments.js?v=12.8.2"></script>
 <script src="js/app-invoice-records.js?v=12.7.9"></script>
 <script src="js/app-active-tasks.js?v=11.9.4"></script>
 <script src="js/app-workdesk-dashboard.js?v=12.0.10"></script>
+<script src="js/app-general-announcement.js?v=12.8.4"></script>
 <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
 <script src="js/app-reporting-actions.js?v=9.9.0"></script>
 <script src="js/app-report-workflow.js?v=8.2.3"></script>
 <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
 <script src="js/app-modal-navigation-clear.js?v=11.4.0"></script>
 <script src="js/app-invoice-entry-search.js?v=12.0.5"></script>
-<script src="js/app-attention-validation.js?v=12.8.1"></script>
+<script src="js/app-attention-validation.js?v=11.8.0"></script>
 <script src="js/app-batch-entry-ui.js?v=12.7.3"></script>
 <script src="js/app-im-event-wiring.js?v=12.7.3"></script>
 <script src="js/app-history-transfer.js?v=11.8.7"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '12.8.1';
+      window.IBA_SYSTEM_VERSION = '12.8.4';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
