@@ -1,0 +1,357 @@
+/* 12.8.4 — General Important Announcement
+   Single source of truth for the system announcement UI.
+   Desktop: welcome floating card / minimized sidebar card / centered popup.
+   Mobile: completely hidden.
+*/
+.general-announcement-sidebar-host{
+  width:100%; padding:10px 8px 8px; box-sizing:border-box;
+  flex:0 0 auto!important; min-height:0!important; max-height:110px!important; overflow:visible!important;
+}
+.general-important-announcement{
+  position:relative; left:auto; top:auto; transform:none; width:100%; box-sizing:border-box;
+  display:flex; align-items:flex-start; overflow:hidden; border:1px solid rgba(255,255,255,.55);
+  border-radius:12px; background:rgba(255,255,255,.96); box-shadow:0 5px 16px rgba(0,0,0,.16);
+  color:#173b54; cursor:pointer; transition:all .22s ease;
+}
+.general-important-announcement.hidden{display:none!important}
+.general-important-announcement:focus-visible{outline:2px solid #ffd166;outline-offset:2px}
+.gia-accent{width:5px;background:#b91c1c;flex:0 0 5px;align-self:stretch}
+.gia-icon{width:30px;display:flex;align-items:flex-start;justify-content:center;padding-top:11px;color:#b91c1c;font-size:13px;flex:0 0 30px}
+.gia-body{padding:9px 9px 10px;min-width:0;flex:1}
+.gia-kicker{font-size:.53rem;font-weight:900;letter-spacing:.09em;color:#b91c1c;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gia-title{font-size:.78rem;font-weight:900;color:#0b2940;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gia-message{margin-top:5px;font-size:.70rem;line-height:1.38;color:#41596b;white-space:pre-wrap}
+.gia-countdown-wrap{position:relative;display:grid!important;grid-template-columns:26px 1fr!important;grid-template-rows:auto auto!important;align-items:center;column-gap:7px;row-gap:0;width:max-content;min-width:118px;max-width:100%;box-sizing:border-box;margin-top:8px;padding:5px 9px 6px 7px;border:1.5px solid #ef4444;border-radius:7px;background:#121a22;box-shadow:0 0 5px rgba(239,68,68,.72),inset 0 0 8px rgba(185,28,28,.16)}
+.gia-countdown-wrap.hidden{display:none!important}
+.gia-countdown-wrap::before{content:"\f073";grid-column:1;grid-row:1 / span 2;align-self:center;justify-self:center;font-family:"Font Awesome 6 Free","Font Awesome 5 Free";font-weight:900;font-size:13px;line-height:1;color:#ef4444;-webkit-text-fill-color:#ef4444}
+.gia-countdown-label{grid-column:2;grid-row:1;display:block;margin:0;padding:0;color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:.49rem;font-weight:900;line-height:1.05;letter-spacing:.055em;white-space:nowrap;text-shadow:none!important;opacity:1!important;filter:none!important}
+.gia-countdown{grid-column:2;grid-row:2;display:block;margin:1px 0 0;padding:0;color:#ffd21f!important;-webkit-text-fill-color:#ffd21f!important;font-variant-numeric:tabular-nums;font-size:.74rem;font-weight:900;line-height:1.05;letter-spacing:.015em;white-space:nowrap;text-shadow:0 0 5px rgba(255,210,31,.20);opacity:1!important;filter:none!important}
+.gia-countdown-wrap,.gia-countdown-label,.gia-countdown{isolation:isolate}
+.general-important-announcement.gia-collapsed .gia-message,.general-important-announcement.gia-collapsed .gia-kicker{display:none}
+.general-important-announcement.gia-collapsed .gia-body{padding:8px!important}
+.general-important-announcement.gia-collapsed .gia-title{font-size:.70rem!important;line-height:1.18;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.general-important-announcement.gia-collapsed .gia-icon{padding-top:9px}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed{
+  position:relative!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;transform:none!important;
+  width:100%!important;min-width:0!important;min-height:0!important;max-height:86px!important;height:auto!important;margin:0!important;overflow:hidden!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap{
+  min-width:112px!important;width:max-content!important;margin-top:4px!important;padding:4px 7px 5px 6px!important;
+  grid-template-columns:22px 1fr!important;column-gap:5px!important;background:#121a22!important;border:1.5px solid #ef4444!important;
+  box-shadow:0 0 5px rgba(239,68,68,.72),inset 0 0 8px rgba(185,28,28,.16)!important;opacity:1!important;filter:none!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap::before{font-size:11px!important;color:#ef4444!important;-webkit-text-fill-color:#ef4444!important;opacity:1!important;filter:none!important}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label{font-size:.48rem!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-weight:900!important;line-height:1.05!important;letter-spacing:.055em!important;text-shadow:none!important;opacity:1!important;filter:none!important}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown{font-size:.68rem!important;color:#ffd21f!important;-webkit-text-fill-color:#ffd21f!important;font-weight:900!important;line-height:1.05!important;letter-spacing:.015em!important;text-shadow:0 0 5px rgba(255,210,31,.20)!important;opacity:1!important;filter:none!important}
+.general-announcement-settings{grid-column:1/-1;margin-top:4px}
+.general-announcement-settings .settings-card-header p{max-width:760px}
+.general-announcement-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+#general-announcement-message-line{margin-top:8px}
+
+/* Main portal welcome card: separate from the original portal layout. */
+.general-important-announcement.gia-welcome-card{
+  position:fixed!important;width:340px!important;min-width:300px!important;max-width:360px!important;min-height:0!important;max-height:340px!important;margin:0!important;
+  z-index:10040!important;border-radius:18px!important;animation:gia-sidebar-breathe-strong 3.2s ease-in-out infinite!important;border-color:rgba(220,38,38,.85)!important;
+}
+.general-important-announcement.gia-welcome-card .gia-body{padding:20px!important}
+.general-important-announcement.gia-welcome-card .gia-title{font-size:1.12rem!important;white-space:normal!important}
+.general-important-announcement.gia-welcome-card .gia-message{font-size:.86rem!important;line-height:1.55!important}
+.general-important-announcement.gia-welcome-card .gia-countdown-wrap{margin-top:14px!important}
+
+/* Centered maximized reading view. */
+.general-important-announcement.gia-main-popup{
+  position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;
+  width:min(1284px,calc(100vw - 48px))!important;min-width:0!important;max-width:1284px!important;max-height:90vh;overflow:auto;
+  z-index:10050!important;border:2px solid rgba(185,28,28,.65)!important;border-radius:16px!important;background:rgba(255,255,255,.98)!important;
+  box-shadow:0 18px 55px rgba(0,0,0,.34)!important;animation:none!important;
+}
+.general-important-announcement.gia-main-popup .gia-body{padding:30px!important}
+.general-important-announcement.gia-main-popup .gia-title{font-size:1.775rem!important}
+.general-important-announcement.gia-main-popup .gia-message{font-size:1.42rem!important;line-height:1.5!important}
+.general-important-announcement.gia-main-popup .gia-countdown-wrap{margin-top:21px!important}
+
+/* Strong red breathing glow for visible desktop notices. */
+@keyframes gia-sidebar-breathe-strong{
+  0%,100%{box-shadow:0 5px 16px rgba(0,0,0,.16),0 0 0 0 rgba(220,38,38,0),0 0 0 0 rgba(220,38,38,0)}
+  50%{box-shadow:0 8px 28px rgba(220,38,38,.82),0 0 0 5px rgba(220,38,38,.28),0 0 34px 8px rgba(220,38,38,.58),0 0 68px 16px rgba(220,38,38,.28)}
+}
+.general-announcement-sidebar-host .general-important-announcement{animation:gia-sidebar-breathe-strong 3.2s ease-in-out infinite!important;border-color:rgba(220,38,38,.85)!important}
+
+/* Mobile: no announcement at all, including sidebar, welcome, and popup states. */
+@media(max-width:900px){
+  .general-announcement-sidebar-host{display:none!important}
+  #general-important-announcement{display:none!important}
+  #general-important-announcement.gia-main-popup,#general-important-announcement.gia-welcome-card{display:none!important}
+}
+
+/* 12.8.4 — Final minimized sidebar announcement contrast/layout fix.
+   Scope: collapsed side-panel card only. Maximize/welcome views are untouched. */
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed {
+  height:auto!important;
+  min-height:78px!important;
+  max-height:none!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-body {
+  min-height:0!important;
+  height:auto!important;
+  overflow:visible!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap {
+  position:relative!important;
+  z-index:2!important;
+  flex:0 0 auto!important;
+  overflow:visible!important;
+}
+
+/* Lock countdown colors against page/sidebar hover, focus and active inheritance. */
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus-visible .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown-label {
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+  filter:none!important;
+  text-shadow:none!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus-visible .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown {
+  color:#ffd21f!important;
+  -webkit-text-fill-color:#ffd21f!important;
+  opacity:1!important;
+  filter:none!important;
+  text-shadow:0 0 5px rgba(255,210,31,.20)!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus-visible .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown-wrap::before {
+  color:#ef4444!important;
+  -webkit-text-fill-color:#ef4444!important;
+  opacity:1!important;
+  filter:none!important;
+}
+
+/* Module-specific high-specificity guard: existing sidebar contrast rules must
+   never recolor the announcement countdown when the card is hovered. */
+body:not(.inventory-mode) #workdesk-view #workdesk-nav .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+body:not(.inventory-mode) #workdesk-view #workdesk-nav .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+body.inventory-mode #workdesk-view #workdesk-nav .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+body.inventory-mode #workdesk-view #workdesk-nav .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+#inventory-view .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+#inventory-view .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown {
+  opacity:1!important;
+  filter:none!important;
+}
+
+/* 12.8.4 — FINAL SIDEBAR COUNTDOWN COLOR LOCK
+   Prevent the module sidebar's generic text/hover rules from recoloring the
+   minimized announcement countdown. This intentionally targets only the
+   collapsed sidebar announcement. */
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-wrap,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown-wrap,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown-wrap {
+  background:#121a22!important;
+  color:#fff!important;
+  border-color:#ef4444!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+  filter:none!important;
+}
+
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown-label,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown-label {
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+  opacity:1!important;
+  filter:none!important;
+}
+
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown {
+  color:#ffd21f!important;
+  -webkit-text-fill-color:#ffd21f!important;
+  opacity:1!important;
+  filter:none!important;
+  text-shadow:0 0 5px rgba(255,210,31,.20)!important;
+}
+
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:focus .gia-countdown-wrap::before,
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed:active .gia-countdown-wrap::before {
+  color:#ef4444!important;
+  -webkit-text-fill-color:#ef4444!important;
+  opacity:1!important;
+  filter:none!important;
+}
+
+/* Extra specificity for WorkDesk / Inventory / Invoice Management sidebar
+   contrast layers that use wildcard descendant selectors. */
+body:not(.inventory-mode) #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label,
+body:not(.inventory-mode) #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+body.inventory-mode #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label,
+body.inventory-mode #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+#inventory-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label,
+#inventory-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown-label {
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+body:not(.inventory-mode) #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown,
+body:not(.inventory-mode) #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+body.inventory-mode #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown,
+body.inventory-mode #workdesk-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+#inventory-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown,
+#inventory-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown,
+#invoice-management-view > .workdesk-sidebar .general-announcement-sidebar-host .general-important-announcement.gia-collapsed:hover .gia-countdown {
+  color:#ffd21f!important;
+  -webkit-text-fill-color:#ffd21f!important;
+}
+
+/* 12.8.4 — MAXIMIZED ANNOUNCEMENT READING VIEW
+   Only the centered/maximized announcement is enlarged. The minimized
+   sidebar announcement above is intentionally left unchanged. */
+.general-important-announcement.gia-main-popup .gia-body{
+  padding:38px 44px 40px!important;
+}
+.general-important-announcement.gia-main-popup .gia-icon{
+  width:54px!important;
+  flex:0 0 54px!important;
+  padding-top:27px!important;
+  font-size:22px!important;
+}
+.general-important-announcement.gia-main-popup .gia-kicker{
+  font-size:.78rem!important;
+  line-height:1.15!important;
+  letter-spacing:.10em!important;
+  margin-bottom:8px!important;
+  color:#b91c1c!important;
+  -webkit-text-fill-color:#b91c1c!important;
+}
+.general-important-announcement.gia-main-popup .gia-title{
+  font-size:2.30rem!important;
+  line-height:1.18!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+}
+.general-important-announcement.gia-main-popup .gia-message{
+  margin-top:14px!important;
+  font-size:1.50rem!important;
+  line-height:1.52!important;
+}
+.general-important-announcement.gia-main-popup .gia-countdown-wrap{
+  grid-template-columns:48px 1fr!important;
+  column-gap:12px!important;
+  min-width:280px!important;
+  margin-top:25px!important;
+  padding:11px 18px 13px 13px!important;
+  border-width:2px!important;
+  border-radius:10px!important;
+  box-shadow:0 0 8px rgba(239,68,68,.82),inset 0 0 12px rgba(185,28,28,.18)!important;
+}
+.general-important-announcement.gia-main-popup .gia-countdown-wrap::before{
+  font-size:25px!important;
+  color:#ef4444!important;
+  -webkit-text-fill-color:#ef4444!important;
+}
+.general-important-announcement.gia-main-popup .gia-countdown-label{
+  font-size:.72rem!important;
+  line-height:1.05!important;
+  letter-spacing:.065em!important;
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+.general-important-announcement.gia-main-popup .gia-countdown{
+  margin-top:3px!important;
+  font-size:1.18rem!important;
+  line-height:1.05!important;
+  letter-spacing:.02em!important;
+  color:#ffd21f!important;
+  -webkit-text-fill-color:#ffd21f!important;
+  text-shadow:0 0 6px rgba(255,210,31,.24)!important;
+}
+
+/* Keep the enlarged reading view responsive without affecting the sidebar. */
+@media(max-width:900px){
+  .general-important-announcement.gia-main-popup .gia-body{padding:24px!important}
+  .general-important-announcement.gia-main-popup .gia-title{font-size:1.70rem!important}
+  .general-important-announcement.gia-main-popup .gia-message{font-size:1.08rem!important}
+  .general-important-announcement.gia-main-popup .gia-countdown-wrap{min-width:0!important}
+}
+
+/* 12.8.4 FINAL — COMPACT SIDEBAR ANNOUNCEMENT
+   Side-panel only. The maximized reading view is intentionally untouched.
+   Return the minimized announcement to the original compact footprint. */
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed{
+  min-height:0!important;
+  max-height:72px!important;
+  height:auto!important;
+  overflow:hidden!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-body{
+  padding:6px 7px!important;
+  min-height:0!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-title{
+  font-size:.68rem!important;
+  line-height:1.08!important;
+  -webkit-line-clamp:2!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-icon{
+  width:26px!important;
+  flex:0 0 26px!important;
+  padding-top:8px!important;
+  font-size:12px!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap{
+  min-width:100px!important;
+  margin-top:3px!important;
+  padding:3px 6px 4px 5px!important;
+  grid-template-columns:20px 1fr!important;
+  column-gap:4px!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-wrap::before{
+  font-size:10px!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown-label{
+  font-size:.40rem!important;
+  line-height:1.02!important;
+}
+.general-announcement-sidebar-host .general-important-announcement.gia-collapsed .gia-countdown{
+  font-size:.58rem!important;
+  line-height:1.02!important;
+}
+
+/* 12.8.4 — MAXIMIZED ANNOUNCEMENT GLASS ONLY
+   This selector intentionally matches the existing maximized-popup specificity.
+   Sidebar/collapsed announcement is not affected. */
+.general-important-announcement.gia-main-popup{
+  background:rgba(255,255,255,.46)!important;
+  background-color:rgba(255,255,255,.46)!important;
+  -webkit-backdrop-filter:blur(22px) saturate(135%)!important;
+  backdrop-filter:blur(22px) saturate(135%)!important;
+  box-shadow:
+    0 18px 55px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.72)!important;
+}
+
+/* Only the maximized popup's content layer is transparent so the glass can show through. */
+.general-important-announcement.gia-main-popup .gia-body{
+  background:transparent!important;
+}

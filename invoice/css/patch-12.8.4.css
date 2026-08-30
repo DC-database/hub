@@ -1,0 +1,248 @@
+/* IBA 12.8.4 — WorkDesk Paid History site filter + readable PO styling */
+#wd-dashboard .wd-paid-history-filters{display:inline-flex;align-items:flex-end;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+#wd-dashboard .wd-paid-history-site-control,#wd-dashboard .wd-paid-history-year-control{display:inline-flex;align-items:center;gap:7px}
+#wd-dashboard .wd-paid-history-site-control span,#wd-dashboard .wd-paid-history-year-control span{color:#35556f;font-size:.72rem;font-weight:900;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+#wd-dashboard .wd-paid-history-site-control select,#wd-dashboard .wd-paid-history-year-control select{min-height:34px;border:1px solid #c5d2dd;border-radius:8px;background:#fff;color:#173b54;padding:6px 30px 6px 9px;font-weight:800}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell{background:transparent!important}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link{background:transparent!important;color:#173b54!important;text-decoration:none;font-weight:900}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:hover,#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:focus-visible{color:#082f49!important;text-decoration:underline}
+@media(max-width:720px){#wd-dashboard .wd-paid-history-filters{width:100%;justify-content:flex-start}#wd-dashboard .wd-paid-history-site-control,#wd-dashboard .wd-paid-history-year-control{width:100%}#wd-dashboard .wd-paid-history-site-control select,#wd-dashboard .wd-paid-history-year-control select{flex:1}}
+
+/* 12.8.4 WorkDesk Paid / With Accounts visual cleanup */
+#wd-dashboard .wd-payment-pocket-tools{
+    display:flex!important;
+    align-items:center!important;
+    gap:14px!important;
+    flex-wrap:wrap!important;
+}
+#wd-dashboard .wd-payment-pocket-filter-group{
+    display:flex!important;
+    align-items:center!important;
+    gap:8px!important;
+    min-height:38px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+}
+#wd-dashboard .wd-payment-pocket-filter-group label{
+    margin:0!important;
+    white-space:nowrap!important;
+    font-weight:800!important;
+}
+#wd-dashboard .wd-payment-pocket-filter-group select{
+    min-height:36px!important;
+    height:36px!important;
+    border:1px solid #c5d2dd!important;
+    border-radius:8px!important;
+    background:#fff!important;
+    color:#173b54!important;
+    padding:6px 30px 6px 10px!important;
+    font-weight:800!important;
+    box-shadow:none!important;
+}
+#wd-dashboard .wd-payment-pocket-filter-note{margin-left:auto!important;}
+
+/* PO numbers should never appear as a blue selected/highlighted block. */
+#wd-dashboard .wd-payment-pocket-table td:nth-child(2),
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell{
+    background:transparent!important;
+    color:#173b54!important;
+}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link,
+#wd-dashboard .wd-payment-pocket-table td:nth-child(2) strong{
+    background:transparent!important;
+    color:#173b54!important;
+    text-decoration:none!important;
+    font-weight:900!important;
+    -webkit-appearance:none!important;
+    appearance:none!important;
+}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:hover,
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:focus-visible{
+    background:transparent!important;
+    color:#082f49!important;
+    text-decoration:underline!important;
+}
+
+/* When a search has no current With Accounts result, visibly mute the whole board. */
+#wd-dashboard .wd-payment-pocket-board.is-no-match{
+    background:#eef1f3!important;
+}
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-board-head,
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-tools,
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-month-tabs,
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-table-wrap{
+    opacity:.62!important;
+}
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-table-wrap{
+    background:#e4e7e9!important;
+}
+#wd-dashboard .wd-payment-pocket-board.is-no-match .wd-payment-pocket-no-match{
+    background:#e4e7e9!important;
+    color:#c62828!important;
+    font-style:italic!important;
+    font-weight:800!important;
+    text-align:center!important;
+    padding:24px 18px!important;
+}
+
+/* Paid History year and site controls: plain aligned controls, not cards. */
+#wd-dashboard .wd-paid-history-filters{
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-end!important;
+    gap:14px!important;
+    flex-wrap:wrap!important;
+}
+#wd-dashboard .wd-paid-history-site-control,
+#wd-dashboard .wd-paid-history-year-control{
+    display:flex!important;
+    align-items:center!important;
+    gap:8px!important;
+    min-height:34px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+}
+#wd-dashboard .wd-paid-history-site-control span,
+#wd-dashboard .wd-paid-history-year-control span{
+    white-space:nowrap!important;
+    font-weight:800!important;
+}
+
+/* Final PO number cleanup: keep PO text plain with no blue highlight/background. */
+#wd-dashboard .wd-payment-pocket-table td.wd-payment-pocket-po-cell{
+    background:transparent!important;
+    color:#173b54!important;
+}
+#wd-dashboard .wd-payment-pocket-table td.wd-payment-pocket-po-cell .wd-payment-pocket-po-text{
+    display:inline!important;
+    background:transparent!important;
+    background-color:transparent!important;
+    color:#173b54!important;
+    font-weight:800!important;
+    text-decoration:none!important;
+    border:0!important;
+    box-shadow:none!important;
+    padding:0!important;
+    margin:0!important;
+    border-radius:0!important;
+}
+#wd-dashboard .wd-payment-pocket-table td.wd-payment-pocket-po-cell .wd-payment-pocket-po-text::selection{
+    background:transparent!important;
+    color:#173b54!important;
+}
+
+
+/* 12.8.4 FINAL FIX — Paid History PO numbers are plain text, not buttons.
+   The clickable PO uses a span so browser/button styling cannot add the blue block. */
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link{
+    display:inline!important;
+    appearance:none!important;
+    -webkit-appearance:none!important;
+    background:none!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    color:#173b54!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    outline:0!important;
+    padding:0!important;
+    margin:0!important;
+    font:inherit!important;
+    font-weight:800!important;
+    line-height:inherit!important;
+    text-decoration:none!important;
+    cursor:pointer!important;
+    text-shadow:none!important;
+}
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:hover,
+#wd-dashboard .wd-paid-po-history-table .wd-paid-po-history-po-cell .wd-paid-po-link:focus{
+    background:none!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    color:#082f49!important;
+    text-decoration:underline!important;
+}
+
+/* 12.8.4 PO TEXT COLOR FINAL OVERRIDE — Paid History only.
+   Remove any inherited/global link/button styling, including white text fill. */
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link{
+    all:unset!important;
+    display:inline!important;
+    color:#173b54!important;
+    -webkit-text-fill-color:#173b54!important;
+    background:transparent!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
+    padding:0!important;
+    margin:0!important;
+    font:inherit!important;
+    font-weight:800!important;
+    line-height:inherit!important;
+    text-decoration:none!important;
+    text-shadow:none!important;
+    cursor:pointer!important;
+    vertical-align:baseline!important;
+}
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:hover,
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:focus,
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:focus-visible{
+    all:unset!important;
+    display:inline!important;
+    color:#082f49!important;
+    -webkit-text-fill-color:#082f49!important;
+    background:transparent!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    font:inherit!important;
+    font-weight:800!important;
+    line-height:inherit!important;
+    text-decoration:underline!important;
+    cursor:pointer!important;
+}
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link::selection{
+    background:transparent!important;
+    color:#173b54!important;
+    -webkit-text-fill-color:#173b54!important;
+}
+
+/* 12.8.4 ABSOLUTE PO VISIBILITY FIX — Paid History PO text must remain dark/readable. */
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell span.wd-paid-po-history-open.wd-paid-po-link,
+#wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell span.wd-paid-po-history-open.wd-paid-po-link:visited {
+    color:#173b54 !important;
+    -webkit-text-fill-color:#173b54 !important;
+    background:transparent !important;
+    background-color:transparent !important;
+    background-image:none !important;
+    border:0 !important;
+    box-shadow:none !important;
+    padding:0 !important;
+    margin:0 !important;
+    font-weight:900 !important;
+}
+
+/* Payment month search guidance: matches come ONLY from With Accounts. */
+#wd-dashboard .wd-payment-pocket-month-tab.wd-payment-month-search-match{
+    position:relative!important;
+    opacity:1!important;
+    filter:none!important;
+    font-weight:900!important;
+    box-shadow:0 0 0 2px rgba(22,131,152,.38), 0 3px 10px rgba(22,131,152,.22)!important;
+    transform:none!important;
+}
+#wd-dashboard .wd-payment-pocket-month-tab.wd-payment-month-search-muted{
+    opacity:.38!important;
+    filter:grayscale(100%)!important;
+    background:#e2e5e7!important;
+    color:#7b8389!important;
+    box-shadow:none!important;
+}
