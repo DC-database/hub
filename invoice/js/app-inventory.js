@@ -3331,8 +3331,11 @@ function updateInTransitReportButtonVisibility() {
 
         if (wdInTransitContactFilterSelect) {
             wdInTransitContactFilterSelect.style.display = show ? 'inline-flex' : 'none';
-            if (show) {
-                populateInTransitContactFilterOptions();
+            // 12.8.4 LIVE efficiency: do not read the full transfer_entries tree just
+            // to build an optional report filter. The filter is populated on demand
+            // when the In-Transit report is actually requested.
+            if (!show) {
+                try { wdInTransitContactFilterSelect.innerHTML = ''; } catch (_) {}
             }
         }
     } catch (e) {
@@ -3467,7 +3470,7 @@ async function printInventoryInTransitReport() {
         await ensureAllEntriesFetched(false);
 
         if (typeof populateInTransitContactFilterOptions === 'function') {
-            populateInTransitContactFilterOptions();
+            await populateInTransitContactFilterOptions();
         }
 
         const inTransitAll = getInTransitTransferEntries();

@@ -210,22 +210,27 @@ async function populateSiteDropdown() {
             selected: true
         }], 'value', 'label', true);
 
-        // 7.8.2: Always try to refresh Site.csv when opening the Add New Job modal.
-        // This prevents the site dropdown from staying stuck on old local/jsDelivr cache.
-        try {
-            console.log("Refreshing latest Site.csv for WorkDesk dropdown...");
-            const url = await getFirebaseCSVUrl('Site.csv');
-            if (url) {
-                const freshSites = await fetchAndParseSitesCSV(url);
-                if (freshSites && freshSites.length) {
-                    allSitesCSVData = freshSites;
-                    allSitesCache = null;
-                    cacheTimestamps.sitesCSV = Date.now();
-                    try { setCache('cached_SITES', allSitesCSVData); } catch (_) {}
+        // 12.8.4 LIVE efficiency: use the shared Site.csv cache while it is fresh.
+        // A live refresh is only needed when the cache is missing/stale, preventing
+        // repeated 127-site downloads whenever the Job Entry modal is revisited.
+        const siteCacheAge = Date.now() - Number((cacheTimestamps && cacheTimestamps.sitesCSV) || 0);
+        const siteCacheFresh = Array.isArray(allSitesCSVData) && allSitesCSVData.length > 0 && siteCacheAge >= 0 && siteCacheAge < (30 * 60 * 1000);
+        if (!siteCacheFresh) {
+            try {
+                console.log("Refreshing latest Site.csv for WorkDesk dropdown...");
+                const url = await getFirebaseCSVUrl('Site.csv');
+                if (url) {
+                    const freshSites = await fetchAndParseSitesCSV(url);
+                    if (freshSites && freshSites.length) {
+                        allSitesCSVData = freshSites;
+                        allSitesCache = null;
+                        cacheTimestamps.sitesCSV = Date.now();
+                        try { setCache('cached_SITES', allSitesCSVData); } catch (_) {}
+                    }
                 }
+            } catch (refreshError) {
+                console.warn('Site.csv live refresh failed. Falling back to cached site list if available.', refreshError);
             }
-        } catch (refreshError) {
-            console.warn('Site.csv live refresh failed. Falling back to cached site list if available.', refreshError);
         }
 
         const sites = allSitesCSVData;

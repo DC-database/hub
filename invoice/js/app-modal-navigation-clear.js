@@ -70,18 +70,12 @@ if (inventoryButton) {
         const stockTableBody = document.getElementById('ms-table-body');
         if(inventoryDefaultSection === 'wd-material-stock' && stockTableBody) stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Loading Inventory Data...</td></tr>';
 
-        if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false); 
-        if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
-        if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached();
-
-        if (typeof populateSiteDropdown === 'function') await populateSiteDropdown();
-        
-        if (!attentionSelectChoices) {
-             const dummyEl = document.createElement('select');
-             const tempChoices = new Choices(dummyEl);
-             if (typeof populateAttentionDropdown === 'function') await populateAttentionDropdown(tempChoices);
-        } else {
-             if (typeof populateAttentionDropdown === 'function') await populateAttentionDropdown(attentionSelectChoices);
+        // 12.8.4 LIVE efficiency: do not preload unrelated WorkDesk/Invoice data
+        // merely because the Inventory shell is opening. Material Stock loads its own
+        // stock/transfer data when showWorkdeskSection() reaches that section.
+        // Mobile Inventory opens Active Task, which owns the inventory-family load.
+        if (inventoryDefaultSection === 'wd-activetask' && typeof ensureAllEntriesFetched === 'function') {
+            await ensureAllEntriesFetched(false, { mode: 'inventory' });
         }
 
         // --- 4. POPULATE THE TABLE ---
