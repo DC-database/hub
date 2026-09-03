@@ -172,7 +172,7 @@ async function openTransferModal(type) {
 // 1.1 INVENTORY RESERVATION LOGIC
 // ==========================================================================
 async function fetchActiveTransfers() {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
     activeTransfersCache = [];
     try {
         const snap = await database.ref('transfer_entries').orderByChild('timestamp').once('value');
@@ -429,7 +429,7 @@ window.handleTransferAction = async (status, options = {}) => {
     };
     if(btn) { btn.disabled = true; setProgress("Checking Transfer..."); }
 
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     const generateStructuredESN = (letters, digits) => {
         const charSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -615,10 +615,10 @@ async function commitUpdate(db, key, updates, note, options = {}) {
     // Track last activity so other modules (e.g., Material Stock cache) can detect fresh changes
     // even when the original `timestamp` (created-at) remains unchanged.
     updates.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
-    const historyKey = db.ref(`transfer_entries/${key}/history`).push().key;
+    const historyKey = getInventoryDatabase().ref(`transfer_entries/${key}/history`).push().key;
     const atomicUpdates = { ...updates };
     if (historyKey) atomicUpdates[`history/${historyKey}`] = historyEntry;
-    await db.ref(`transfer_entries/${key}`).update(atomicUpdates);
+    await getInventoryDatabase().ref(`transfer_entries/${key}`).update(atomicUpdates);
 
     // 11.7.9: The Firebase write is authoritative, but the Inventory Active Task
     // must not redraw from its older five-minute browser cache. Apply the exact
@@ -668,7 +668,7 @@ async function runStockTransaction(id, qty, action, siteName) {
 
     // Sanitize Site Name for Firebase keys (cannot contain . # $ [ ] /)
     const safeSiteName = String(siteName).trim().replace(/[.#$[\]\/]/g, "");
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     try {
         // 2. Find the Item Key
@@ -693,6 +693,7 @@ async function runStockTransaction(id, qty, action, siteName) {
             const ref = database.ref(`material_stock/${key}`);
 
             // 3. ATOMIC TRANSACTION
+            let insufficientStock = false;
             const transactionResult = await ref.transaction((currentData) => {
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
@@ -701,8 +702,11 @@ async function runStockTransaction(id, qty, action, siteName) {
                     let currentVal = parseFloat(currentData.sites[safeSiteName] || 0);
 
                     if (action === 'Deduct') {
+                        // 12.8.5: never clamp an insufficient deduction to zero.
+                        // Abort the atomic transaction so another simultaneous user cannot
+                        // consume the same stock successfully.
+                        if (currentVal < amount) { insufficientStock = true; return; }
                         currentVal -= amount;
-                        if (currentVal < 0) currentVal = 0;
                     } else if (action === 'Add') {
                         currentVal += amount;
                     }
@@ -719,7 +723,20 @@ async function runStockTransaction(id, qty, action, siteName) {
                 return currentData;
             });
             if (!transactionResult || transactionResult.committed !== true) {
+                if (insufficientStock && action === 'Deduct') {
+                    throw new Error(`Insufficient stock at ${siteName}. Please check quantity.`);
+                }
                 throw new Error(`Stock item ${cleanId} could not be updated. Nothing was completed.`);
+            }
+            // Publish only after the permanent atomic transaction has committed.
+            try {
+                const committedItem = transactionResult.snapshot && transactionResult.snapshot.val ? transactionResult.snapshot.val() : null;
+                if (window.inventoryPocket) {
+                    await window.inventoryPocket.publishMaterialItem({ key, ...(committedItem || {}) }, key);
+                }
+            } catch (pocketError) {
+                // Pocket failure must never undo a successful permanent stock transaction.
+                console.warn('Inventory Pocket publish failed after committed stock update:', pocketError);
             }
             console.log(`Stock ${action}ed: ${amount} at ${safeSiteName}`);
             return true;
@@ -751,7 +768,7 @@ async function saveTransferEntry(e) {
     const shippingDate = document.getElementById('tf-shipping-date').value;
     const type = document.getElementById('tf-job-type').value;
     let controlNo = document.getElementById('tf-control-no').value;
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     // If the Control ID failed to generate (or is still generating), regenerate.
     if (!controlNo || String(controlNo).toLowerCase().includes('generating')) {
@@ -938,7 +955,7 @@ async function saveTransferEntry(e) {
 // 6. PRINT WAYBILL (UPDATED: Added SN Column)
 // ==========================================================================
 window.handlePrintWaybill = async function(entry) {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
     // Historically, the identifier has been stored under different keys
     // (controlNumber / controlId / ref). Printing must be resilient to all.
     const controlNo = String(entry.controlNumber || entry.controlId || entry.ref || '').trim();
@@ -1295,7 +1312,7 @@ async function generateSequentialTransferId(type) {
     const input = document.getElementById('tf-control-no');
     if (input) input.value = 'Generating...';
 
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     try {
         const counterRef = database.ref(`transfer_id_counters/${prefix}`);
@@ -1556,7 +1573,7 @@ function tfBindProductSearchPhotoPreview() {
 }
 
 async function initTransferDropdowns() {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), { searchEnabled: true, itemSelectText: '' });
     if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), { searchEnabled: true, itemSelectText: '' });
@@ -1583,13 +1600,24 @@ async function initTransferDropdowns() {
 
     tfBindProductSearchPhotoPreview();
 
-    document.getElementById('tf-product-select').addEventListener('change', () => {
+    document.getElementById('tf-product-select').addEventListener('change', async () => {
         const val = transferProductChoices.getValue(true);
-        const item = transferProductChoices._store.choices.find(c => c.value === val);
+        let item = transferProductChoices._store.choices.find(c => c.value === val);
         if (item && item.customProperties) {
-            document.getElementById('tf-product-name').value = item.customProperties.name;
-            document.getElementById('tf-details').value = item.customProperties.details;
-            updateFromSiteOptions(item.customProperties.sites);
+            // 12.8.5: Pocket overrides the browser snapshot when this product has a recent change.
+            try {
+                const pocketItem = window.inventoryPocket ? await window.inventoryPocket.getPocketMaterial(val) : null;
+                if (pocketItem) {
+                    item = { ...item, customProperties: { ...item.customProperties, ...pocketItem } };
+                    const data = Array.isArray(allMaterialStockData) ? allMaterialStockData : [];
+                    const idx = data.findIndex(x => String(x.productID || x.productId || '').trim() === String(val).trim());
+                    if (idx >= 0) data[idx] = { ...data[idx], ...pocketItem };
+                    if (typeof window.__ibaSetMaterialStockData === 'function') window.__ibaSetMaterialStockData(data);
+                }
+            } catch (pocketError) { console.warn('Pocket product refresh skipped:', pocketError); }
+            document.getElementById('tf-product-name').value = item.customProperties.name || '';
+            document.getElementById('tf-details').value = item.customProperties.details || '';
+            updateFromSiteOptions(item.customProperties.sites || {});
         }
     });
 
@@ -1600,7 +1628,7 @@ async function initTransferDropdowns() {
 
     let rawData = null;
     if (typeof allApproverData !== 'undefined' && allApproverData) { rawData = allApproverData; }
-    else { try { const snap = await database.ref('approvers').once('value'); rawData = snap.val(); } catch(e) {} }
+    else { try { const snap = await db.ref('approvers').once('value'); rawData = snap.val(); } catch(e) {} }
 
     if (rawData) {
         const allUsers = Object.values(rawData);

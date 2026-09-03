@@ -537,7 +537,7 @@ if (saveManualPOBtn) {
     if (tbody) tbody.innerHTML = '';
 
     try {
-        const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
+        const snapshot = await getInventoryDatabase().ref(`transfer_entries/${key}`).once('value');
         const entry = snapshot.val();
 
         if (!entry) throw new Error("Entry not found");
@@ -599,9 +599,9 @@ if (saveManualPOBtn) {
         console.log(`Reversing Stock -> Type: ${jobType}, Qty: ${qty}, ID: ${id}`);
 
         try {
-            let snapshot = await db.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
+            let snapshot = await getInventoryDatabase().ref('material_stock').orderByChild('productID').equalTo(id).once('value');
             if (!snapshot.exists()) {
-                snapshot = await db.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
+                snapshot = await getInventoryDatabase().ref('material_stock').orderByChild('productId').equalTo(id).once('value');
             }
 
             if (snapshot.exists()) {
@@ -647,7 +647,7 @@ if (saveManualPOBtn) {
                 let newGlobalStock = 0;
                 Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
 
-                await db.ref(`material_stock/${key}`).update({
+                await getInventoryDatabase().ref(`material_stock/${key}`).update({
                     sites: sites,
                     stockQty: newGlobalStock,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP
@@ -676,7 +676,7 @@ if (saveManualPOBtn) {
         // 1. PENDING TASK? Just Delete.
         if (!isCompleted) {
             if (confirm("Delete this pending request?")) {
-                await db.ref(`transfer_entries/${key}`).remove();
+                await getInventoryDatabase().ref(`transfer_entries/${key}`).remove();
                 alert("Request deleted.");
 
                 // Remove from local caches and refresh UI without reloading
@@ -757,7 +757,7 @@ if (saveManualPOBtn) {
 
         try {
             const currentUser = currentApprover ? currentApprover.Name : 'Unknown';
-            const newRef = db.ref('transfer_entries').push();
+            const newRef = getInventoryDatabase().ref('transfer_entries').push();
 
             // 6. CREATE REVERSAL DATA
             const reversalData = {
@@ -799,7 +799,7 @@ if (saveManualPOBtn) {
 
             // 7. SAVE & DELETE OLD
             await newRef.set(reversalData);
-            await db.ref(`transfer_entries/${key}`).remove();
+            await getInventoryDatabase().ref(`transfer_entries/${key}`).remove();
 
             alert(`Return Request Created for ${returnQty} units! Sent to Approver.`);
 
@@ -828,9 +828,9 @@ if (saveManualPOBtn) {
         console.log(`Stock Update: ${action} ${qty} at ${safeSiteName} for ${id}`);
 
         try {
-            let snapshot = await db.ref('material_stock').orderByChild('productID').equalTo(id).once('value');
+            let snapshot = await getInventoryDatabase().ref('material_stock').orderByChild('productID').equalTo(id).once('value');
             if (!snapshot.exists()) {
-                snapshot = await db.ref('material_stock').orderByChild('productId').equalTo(id).once('value');
+                snapshot = await getInventoryDatabase().ref('material_stock').orderByChild('productId').equalTo(id).once('value');
             }
 
             if (snapshot.exists()) {
@@ -853,7 +853,7 @@ if (saveManualPOBtn) {
                 let newGlobalStock = 0;
                 Object.values(sites).forEach(val => newGlobalStock += parseFloat(val) || 0);
 
-                await db.ref(`material_stock/${key}`).update({
+                await getInventoryDatabase().ref(`material_stock/${key}`).update({
                     sites: sites,
                     stockQty: newGlobalStock,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP

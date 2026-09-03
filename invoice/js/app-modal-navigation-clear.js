@@ -70,13 +70,10 @@ if (inventoryButton) {
         const stockTableBody = document.getElementById('ms-table-body');
         if(inventoryDefaultSection === 'wd-material-stock' && stockTableBody) stockTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px;">Loading Inventory Data...</td></tr>';
 
-        // 12.8.4 LIVE efficiency: do not preload unrelated WorkDesk/Invoice data
-        // merely because the Inventory shell is opening. Material Stock loads its own
-        // stock/transfer data when showWorkdeskSection() reaches that section.
-        // Mobile Inventory opens Active Task, which owns the inventory-family load.
-        if (inventoryDefaultSection === 'wd-activetask' && typeof ensureAllEntriesFetched === 'function') {
-            await ensureAllEntriesFetched(false, { mode: 'inventory' });
-        }
+        // Inventory is intentionally lazy-loaded here. Opening Inventory must not
+        // preload WorkDesk job entries, approver dropdowns, or the live Site.csv.
+        // Material Stock loads its own Inventory database/cache below. Mobile Active
+        // Tasks loads Inventory transfer data only when that screen actually needs it.
 
         // --- 4. POPULATE THE TABLE ---
         // Now that data is ready, run the logic to fill the table

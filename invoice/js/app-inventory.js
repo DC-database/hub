@@ -1492,13 +1492,13 @@ function renderInventoryMobileActiveTasks(tasks) {
         const status = document.getElementById('inv-mobile-material-status');
         if (status) status.textContent = 'Loading material records...';
         try {
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
 
             const [matSnap, moveSnap, siteSnap] = await Promise.all([
                 dbRef.ref('material_stock').once('value'),
                 dbRef.ref('transfer_entries').limitToLast(400).once('value'),
-                dbRef.ref('project_sites').once('value').catch(() => ({ val: () => null }))
+                db.ref('project_sites').once('value').catch(() => ({ val: () => null }))
             ]);
 
             const matObj = matSnap.val() || {};
@@ -1929,7 +1929,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         };
         try {
             if (status) status.textContent = 'Submitting transfer request...';
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
             await dbRef.ref(`inventory_requests/${code}`).set(payload);
             clearTransferRequestCart();
@@ -2371,7 +2371,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         const badge = document.getElementById('wd-inv-request-review-badge');
         if (!badge || !canAccessInventoryRequestReview()) return;
         try {
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) return;
             const snap = await dbRef.ref('inventory_requests').limitToLast(100).once('value');
             const data = snap.val() || {};
@@ -2407,7 +2407,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         if (status) status.textContent = `Loading ${label} requests...`;
         list.innerHTML = '';
         try {
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
             const snap = await dbRef.ref('inventory_requests').limitToLast(150).once('value');
             const data = snap.val() || {};
@@ -2494,7 +2494,7 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     async function loadInventoryRequestMaterialRows() {
-        const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+        const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
         if (!dbRef) throw new Error('Firebase database is not loaded.');
         const snap = await dbRef.ref('material_stock').once('value');
         const obj = snap.val() || {};
@@ -2600,7 +2600,7 @@ function renderInventoryMobileActiveTasks(tasks) {
         const ok = confirm(`Stock changed before this request was converted.\n\nFirst completed/converted requests take priority, so this request must be adjusted before it can continue.\n\nAdjust request quantity to current available stock?\n\n${changeLines}\n\nOK = continue with reduced qty.\nCancel = keep request pending so you can delete/reject or review it.`);
         if (!ok) return null;
 
-        const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+        const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
         if (!dbRef) throw new Error('Firebase database is not loaded.');
         const reviewer = invRequestUser();
         const adjustmentLog = {
@@ -2792,7 +2792,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 button.disabled = true;
                 button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Rejecting...';
             }
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
             const reqRef = dbRef.ref(`inventory_requests/${code}`);
             const snap = await reqRef.once('value');
@@ -2844,7 +2844,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 button.disabled = true;
                 button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Deleting...';
             }
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
             const reqRef = dbRef.ref(`inventory_requests/${code}`);
             const reqSnap = await reqRef.once('value');
@@ -2982,7 +2982,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 button.disabled = true;
                 button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
             }
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
             if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(false);
             const reqSnap = await dbRef.ref(`inventory_requests/${code}`).once('value');
@@ -3045,7 +3045,7 @@ function renderInventoryMobileActiveTasks(tasks) {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
             }
-            const dbRef = (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null;
+            const dbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : ((typeof getInventoryDatabase === 'function') ? getInventoryDatabase() : null);
             if (!dbRef) throw new Error('Firebase database is not loaded.');
 
             const reqSnap = await dbRef.ref(`inventory_requests/${code}`).once('value');
@@ -3331,11 +3331,8 @@ function updateInTransitReportButtonVisibility() {
 
         if (wdInTransitContactFilterSelect) {
             wdInTransitContactFilterSelect.style.display = show ? 'inline-flex' : 'none';
-            // 12.8.4 LIVE efficiency: do not read the full transfer_entries tree just
-            // to build an optional report filter. The filter is populated on demand
-            // when the In-Transit report is actually requested.
-            if (!show) {
-                try { wdInTransitContactFilterSelect.innerHTML = ''; } catch (_) {}
+            if (show) {
+                populateInTransitContactFilterOptions();
             }
         }
     } catch (e) {
@@ -3470,7 +3467,7 @@ async function printInventoryInTransitReport() {
         await ensureAllEntriesFetched(false);
 
         if (typeof populateInTransitContactFilterOptions === 'function') {
-            await populateInTransitContactFilterOptions();
+            populateInTransitContactFilterOptions();
         }
 
         const inTransitAll = getInTransitTransferEntries();

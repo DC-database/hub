@@ -2154,7 +2154,7 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
 
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
         shouldLoadJobEntries ? db.ref('job_entries').once('value') : Promise.resolve(null),
-        shouldLoadTransferEntries ? db.ref('transfer_entries').once('value') : Promise.resolve(null)
+        shouldLoadTransferEntries ? ((typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase()).ref('transfer_entries').once('value') : Promise.resolve(null)
     ]);
 
     const jobEntriesData = jobEntriesSnapshot && typeof jobEntriesSnapshot.val === 'function' ? (jobEntriesSnapshot.val() || {}) : null;

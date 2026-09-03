@@ -102,6 +102,10 @@
 
 let allMaterialStockData = [];
 let allTransferData = [];
+// 12.8.5: expose controlled access for the Inventory Pocket without exposing mutable globals.
+window.__ibaGetMaterialStockData = () => allMaterialStockData;
+window.__ibaSetMaterialStockData = (data) => { allMaterialStockData = Array.isArray(data) ? data : []; };
+
 let lastFilteredStockData = [];
 let msProductChoices = null;
 let lastTypedProductID = "";
@@ -390,7 +394,7 @@ async function msGetMaterialPhotoLibraryNames() {
 
     // 4) Optional Firebase text library. This is database text only, not Firebase Storage.
     try {
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         const snap = await database.ref(MS_MATERIAL_PHOTO_LIBRARY_DB_PATH).once('value');
         const value = snap.val();
         if (value) {
@@ -431,7 +435,7 @@ async function msRememberMaterialPhotoName(photoName) {
     try {
         const key = msPhotoLibraryKey(cleanName);
         if (!key) return;
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         await database.ref(`${MS_MATERIAL_PHOTO_LIBRARY_DB_PATH}/${key}`).set({
             photoName: cleanName,
             updatedBy: msGetCurrentMaterialUserName() || 'System',
@@ -565,7 +569,7 @@ async function msSavePhotoNameForItem(itemKey, photoName) {
     }
 
     try {
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         await database.ref(`material_stock/${itemKey}`).update({
             photoName: cleanName,
             photoUrl: null,
@@ -609,7 +613,7 @@ This will only delete the saved photo name/link from the system. It will NOT del
     }
 
     try {
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         await database.ref(`material_stock/${itemKey}`).update({
             photoName: null,
             photoUrl: null,
@@ -619,6 +623,7 @@ This will only delete the saved photo name/link from the system. It will NOT del
             photoRemovedAt: firebase.database.ServerValue.TIMESTAMP,
             lastUpdated: firebase.database.ServerValue.TIMESTAMP
         });
+        try { await window.inventoryPocket?.publishMaterialByKey(itemKey); } catch (pocketError) { console.warn('Inventory Pocket photo removal update failed:', pocketError); }
 
         if (item) {
             item.photoName = '';
@@ -1089,6 +1094,22 @@ async function populateMaterialStock(forceRefresh = false) {
 
     if (!tableBody) return;
 
+    // 12.8.5: one safety sync per Saturday-Thursday cycle. This is the controlled
+    // full refresh that covers records whose Pocket entry has already expired.
+    if (!forceRefresh && window.inventoryPocket && window.inventoryPocket.needsWeeklySync()) {
+        try {
+            const syncResult = await window.inventoryPocket.ensureWeeklySafetySync();
+            if (syncResult && syncResult.synced) {
+                renderCategoryTabs();
+                renderMaterialStockTable(allMaterialStockData);
+                await fetchTransfersOnly();
+                return;
+            }
+        } catch (syncError) {
+            console.warn('Inventory weekly safety sync skipped:', syncError);
+        }
+    }
+
     // NOTE: We cache the stock list for speed, but stock can change due to
     // Transfer/Restock/Usage/Return actions happening in other sessions.
     // To avoid showing outdated totals (e.g., Movement History updated but Stock Breakdown still old),
@@ -1121,7 +1142,7 @@ async function populateMaterialStock(forceRefresh = false) {
 
                     if (latestActivityTs && parsed.timestamp && latestActivityTs > parsed.timestamp) {
                         console.log("Stock cache is stale (newer transfers detected). Refreshing stock from DB...");
-                        const database = (typeof db !== 'undefined') ? db : firebase.database();
+                        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
                         const stockSnap = await database.ref('material_stock').once('value');
                         const stockData = stockSnap.val();
                         allMaterialStockData = [];
@@ -1151,7 +1172,7 @@ async function populateMaterialStock(forceRefresh = false) {
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Downloading stock data...</td></tr>';
 
     try {
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
         const [stockSnap, transferSnap] = await Promise.all([
             database.ref('material_stock').once('value'),
@@ -1191,7 +1212,7 @@ async function populateMaterialStock(forceRefresh = false) {
 }
 
 async function fetchTransfersOnly() {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
     try {
         const transferSnap = await database.ref('transfer_entries').orderByChild('timestamp').once('value');
         const tData = transferSnap.val();
@@ -1681,7 +1702,7 @@ window.handleDeleteMaterial = async function(key) {
     const confirmMsg = `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nThis cannot be undone. Proceed?`;
 
     if (confirm(confirmMsg)) {
-        const database = firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         const updates = {};
 
         updates[`material_stock/${key}`] = null;
@@ -1691,6 +1712,7 @@ window.handleDeleteMaterial = async function(key) {
 
         try {
             await database.ref().update(updates);
+            try { await window.inventoryPocket?.removeMaterialFromPocketByKey(key); } catch (pocketError) { console.warn('Inventory Pocket delete cleanup failed:', pocketError); }
             alert(`Master Delete Successful.\nRemoved: ${productName}`);
             localStorage.removeItem(STOCK_CACHE_KEY);
             populateMaterialStock(true);
@@ -1931,7 +1953,7 @@ async function handleSaveNewMaterial() {
         btn.disabled = false;
         return;
     }
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     try {
         if (editingItemKey) {
@@ -1966,6 +1988,7 @@ async function handleSaveNewMaterial() {
             }
 
             await database.ref(`material_stock/${editingItemKey}`).update(updates);
+            try { await window.inventoryPocket?.publishMaterialByKey(editingItemKey); } catch (pocketError) { console.warn('Inventory Pocket update failed:', pocketError); }
             if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
             alert("Item Updated Successfully!");
 
@@ -2015,7 +2038,10 @@ async function handleSaveNewMaterial() {
                 updatedBy: (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'System')
             };
 
-            await database.ref('material_stock').push(newMaterial);
+            const newMaterialRef = database.ref('material_stock').push();
+            const newMaterialKey = newMaterialRef.key;
+            await newMaterialRef.set(newMaterial);
+            try { await window.inventoryPocket?.publishMaterialItem({ key: newMaterialKey, ...newMaterial }, newMaterialKey); } catch (pocketError) { console.warn('Inventory Pocket create failed:', pocketError); }
             if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
             alert(`Success! Created: ${productID}`);
         }
@@ -2075,7 +2101,7 @@ function handleUploadCSV(event) {
         const text = e.target.result;
         const lines = text.split('\n');
 
-        const database = (typeof db !== 'undefined') ? db : firebase.database();
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : 'System';
 
         const idMap = new Map();
@@ -2208,6 +2234,10 @@ function handleUploadCSV(event) {
                 }
             }
             if (count > 0) await database.ref('material_stock').update(batch);
+            for (const updatedKey of updateKeys) {
+                try { await window.inventoryPocket?.publishMaterialItem(finalUpdates[updatedKey], updatedKey); }
+                catch (pocketError) { console.warn('Inventory Pocket CSV publish failed for ' + updatedKey + ':', pocketError); }
+            }
 
             alert("Upload Successful!");
             localStorage.removeItem("cached_MATERIAL_STOCK");
@@ -2306,7 +2336,7 @@ window.handleClearMaterialForm = function() {
 };
 
 window.initiateReturn = function(transferKey) {
-    const database = (typeof db !== 'undefined') ? db : firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
     database.ref(`transfer_entries/${transferKey}`).once('value').then(snap => {
         const originalTask = snap.val();
         if (!originalTask) {
@@ -2353,7 +2383,7 @@ async function handleBulkDelete() {
     btn.textContent = "Deleting...";
     btn.disabled = true;
 
-    const database = firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
     const updates = {};
     let transfersDeletedCount = 0;
 
@@ -2379,6 +2409,9 @@ async function handleBulkDelete() {
 
     try {
         await database.ref().update(updates);
+        try {
+            for (const box of checkedBoxes) await window.inventoryPocket?.removeMaterialFromPocketByKey(box.dataset.key);
+        } catch (pocketError) { console.warn('Inventory Pocket bulk delete cleanup failed:', pocketError); }
         alert(`Success!\n\nDeleted ${count} Stock Items.\nDeleted ${transfersDeletedCount} Related History Entries.`);
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
@@ -3345,11 +3378,12 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
 
             let total = 0; Object.values(sites).forEach(q => total += q);
 
-            await firebase.database().ref(`material_stock/${key}`).update({
+            await ((typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase()).ref(`material_stock/${key}`).update({
                 sites: sites,
                 stockQty: total,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             });
+            try { await window.inventoryPocket?.publishMaterialByKey(key); } catch (pocketError) { console.warn('Inventory Pocket stock update failed:', pocketError); }
 
             alert("Stock Updated Successfully.");
             document.getElementById('ms-add-stock-modal').classList.add('hidden');
@@ -3367,7 +3401,7 @@ window.deleteSiteStock = async function(key, siteToDelete) {
         return;
     }
 
-    const database = firebase.database();
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     try {
         const snapshot = await database.ref(`material_stock/${key}`).once('value');
@@ -3391,6 +3425,7 @@ window.deleteSiteStock = async function(key, siteToDelete) {
             lastUpdated: firebase.database.ServerValue.TIMESTAMP,
             updatedBy: "Irwin (Site Deleted)"
         });
+        try { await window.inventoryPocket?.publishMaterialByKey(key); } catch (pocketError) { console.warn('Inventory Pocket site delete update failed:', pocketError); }
 
         alert(`Success! Removed stock from ${siteToDelete}.`);
 
