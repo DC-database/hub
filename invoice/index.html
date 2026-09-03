@@ -1461,12 +1461,12 @@
 </div>
 <div class="im-po-details-compact hidden" id="im-modal-po-details">
 <div class="po-compact-grid">
-<div><label>PO:</label> <span class="im-po-no">---</span></div>
-<div><label>Site:</label> <span class="im-po-site">---</span></div>
-<div><label>Val:</label> <span class="im-po-value">---</span></div>
-<div><label>Vendor:</label> <span class="im-po-vendor">---</span></div>
+<div><span>PO:</span> <span class="im-po-no">---</span></div>
+<div><span>Site:</span> <span class="im-po-site">---</span></div>
+<div><span>Val:</span> <span class="im-po-value">---</span></div>
+<div><span>Vendor:</span> <span class="im-po-vendor">---</span></div>
 <div style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 4px; margin-top: 2px;">
-<label>PO Record:</label>
+<span>PO Record:</span>
 <span class="im-po-record im-po-record-status im-po-record-status-checking"><i class="fa-solid fa-circle-notch fa-spin"></i> Checking PO file...</span>
 </div>
 </div>
@@ -1497,31 +1497,31 @@
 <form class="hidden" id="im-new-invoice-form">
 <div class="form-grid-compact">
 <div class="form-group im-compact">
-<label>Entry ID</label>
+<label for="im-inv-entry-id">Entry ID</label>
 <input id="im-inv-entry-id" name="invEntryID" readonly="" style="background-color:#f0f0f0;" type="text"/>
 </div>
 <div class="form-group is-required">
-<label>Invoice No.</label>
+<label for="im-inv-no">Invoice No.</label>
 <input id="im-inv-no" name="invNumber" type="text"/>
 </div>
 <div class="form-group is-required">
-<label>Value</label>
+<label for="im-inv-value">Value</label>
 <input autocomplete="off" id="im-inv-value" inputmode="decimal" name="invValue" onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" placeholder="0.00" type="text"/>
 </div>
 <div class="form-group is-required">
-<label>Inv Date</label>
+<label for="im-invoice-date">Inv Date</label>
 <input id="im-invoice-date" name="invoiceDate" type="date"/>
 </div>
 <div class="form-group">
-<label>Amt Paid</label>
+<label for="im-amount-paid">Amt Paid</label>
 <input autocomplete="off" id="im-amount-paid" inputmode="decimal" name="amountPaid" onblur="formatCurrencyField(this)" onfocus="cleanCurrencyField(this)" placeholder="0.00" type="text"/>
 </div>
 <div class="form-group">
-<label>Release</label>
+<label for="im-release-date">Release</label>
 <input id="im-release-date" name="releaseDate" type="date"/>
 </div>
 <div class="form-group is-required">
-<label>Status</label>
+<label for="im-status">Status</label>
 <select id="im-status" name="status">
 <option value="For SRV">For SRV</option>
 <option value="No Need SRV">No Need SRV</option>
@@ -1546,11 +1546,11 @@
 </select>
 </div>
 <div class="form-group is-required" id="im-attention-group">
-<label>Attention</label>
+<label for="im-attention">Attention</label>
 <select id="im-attention" name="attention"></select>
 </div>
 <div class="form-group">
-<label>Invoice Name</label>
+<label for="im-inv-name">Invoice Name</label>
 <div style="display: flex; gap: 5px;">
 <input id="im-inv-name" name="invName" placeholder="Auto-generated..." type="text"/>
 <button class="action-btn" id="im-btn-view-invoice" style="background: #116045; color: white;" type="button">
@@ -1559,7 +1559,7 @@
 </div>
 </div>
 <div class="form-group">
-<label>SRV Name</label>
+<label for="im-srv-name">SRV Name</label>
 <div style="display: flex; gap: 5px;">
 <input id="im-srv-name" name="srvName" placeholder="Auto-generated..." type="text"/>
 <button class="action-btn" id="im-btn-view-srv" style="background: #116045; color: white;" type="button">
@@ -1569,7 +1569,7 @@
 </div>
 <div style="display: flex; gap: 15px; align-items: flex-end;">
 <div class="form-group" style="flex: 1;">
-<label>Report Name</label>
+<label for="im-report-name">Report Name</label>
 <div style="display: flex;">
 <input autocomplete="off" id="im-report-name" name="reportName" placeholder="Report Filename" style="border-top-right-radius: 0; border-bottom-right-radius: 0; width: 100%;" type="text"/>
 <button class="secondary-btn" id="btn-open-report-drive" style="border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: none; background-color: #e9ecef; color: #116045; padding: 0 15px;" title="Open Reports Folder in SharePoint" type="button">
@@ -1578,12 +1578,12 @@
 </div>
 </div>
 <div class="form-group" style="flex: 1;">
-<label>Details</label>
+<label for="im-details">Details</label>
 <input autocomplete="off" id="im-details" name="details" placeholder="Details" style="width: 100%;" type="text"/>
 </div>
 </div>
 <div class="form-group" style="flex: 1;">
-<label>Note</label>
+<label for="im-note">Note</label>
 <input autocomplete="off" id="im-note" name="note" placeholder="Enter note..." style="width: 100%;" type="text"/>
 </div>
 </div>
@@ -1778,14 +1778,14 @@
 <i class="fa-solid fa-pen-to-square"></i> Input Details
                 </h3>
 <div class="form-group">
-<label style="font-size: 0.8rem; font-weight: bold; color: #666;">PREVIOUS NOTE</label>
+<label style="font-size: 0.8rem; font-weight: bold; color: #666;" for="summary-note-previous-input">PREVIOUS NOTE</label>
 <div style="position: relative;">
 <i class="fa-solid fa-clock-rotate-left" style="position: absolute; left: 10px; top: 10px; color: #999;"></i>
 <input id="summary-note-previous-input" list="note-suggestions" placeholder="e.g. 1st Payment" style="padding-left: 30px; background: #f9f9f9; width: 100%;" type="text"/>
 </div>
 </div>
 <div class="form-group">
-<label style="font-size: 0.8rem; font-weight: bold; color: #116045;">CURRENT NOTE <span style="color:red;">*</span></label>
+<label style="font-size: 0.8rem; font-weight: bold; color: #116045;" for="summary-note-current-input">CURRENT NOTE <span style="color:red;">*</span></label>
 <div style="position: relative;">
 <i class="fa-solid fa-pen" style="position: absolute; left: 10px; top: 10px; color: #116045;"></i>
 <input id="summary-note-current-input" list="note-suggestions" placeholder="e.g. 2nd Payment" style="padding-left: 30px; background: #f2fff8; border: 2px solid #116045; font-weight: bold; width: 100%;" type="text"/>
@@ -1793,7 +1793,7 @@
 <small style="color: #666; font-size: 0.7rem;">(Tip: Use "Update &amp; Send to Accounts" to copy SRV Name)</small>
 </div>
 <div class="form-group">
-<label style="font-size: 0.8rem; font-weight: bold; color: #333;">SET STATUS</label>
+<label style="font-size: 0.8rem; font-weight: bold; color: #333;" for="summary-note-status-input">SET STATUS</label>
 <select id="summary-note-status-input" style="width: 100%;">
 <option value="">(Keep Existing)</option>
 <option style="font-weight: bold; color: green;" value="With Accounts">With Accounts</option>
@@ -1814,13 +1814,13 @@
 </select>
 </div>
 <div class="form-group">
-<label style="font-size: 0.8rem; font-weight: bold; color: #333;">SET SRV NAME</label>
+<label style="font-size: 0.8rem; font-weight: bold; color: #333;" for="summary-note-srv-input">SET SRV NAME</label>
 <input id="summary-note-srv-input" placeholder="SRV Name..." style="width: 100%;" type="text"/>
 </div>
 <datalist id="note-suggestions"></datalist>
 </div>
 <div class="form-group no-print" style="margin-bottom: 20px;">
-<label style="font-size: 0.8rem; color: #888;">Printout Footer Notes (Opt):</label>
+<label style="font-size: 0.8rem; color: #888;" for="summary-note-custom-notes-input">Printout Footer Notes (Opt):</label>
 <textarea id="summary-note-custom-notes-input" placeholder="Remarks..." rows="2" style="width: 100%; border: 1px solid #ddd;"></textarea>
 </div>
 <div style="flex-grow: 1;"></div>
@@ -2624,27 +2624,27 @@
                 </p>
 <form id="im-manual-po-form">
 <div class="form-group">
-<label>PO Number</label>
+<label for="manual-po-number">PO Number</label>
 <input id="manual-po-number" readonly="" style="background-color: #eee;" type="text"/>
 </div>
 <div class="form-group">
-<label>Supplier ID</label>
+<label for="manual-supplier-id">Supplier ID</label>
 <input id="manual-supplier-id" placeholder="Enter ID to search vendor..." type="text"/>
 </div>
 <div class="form-group" style="position: relative;">
-<label>Vendor Name</label>
+<label for="manual-vendor-name">Vendor Name</label>
 <input id="manual-vendor-name" list="manual-vendor-name-list" placeholder="Start typing vendor name..." style="background-color: #f9f9f9;" type="text"/>
 <datalist id="manual-vendor-name-list"></datalist>
 <div class="vendor-suggest-box hidden" id="manual-vendor-suggest-box"></div>
 </div>
 <div class="form-group">
-<label>Site / Project</label>
+<label for="manual-site-select">Site / Project</label>
 <select id="manual-site-select">
 <option value="">Select Site...</option>
 </select>
 </div>
 <div class="form-group">
-<label>Total PO Value</label>
+<label for="manual-po-amount">Total PO Value</label>
 <input id="manual-po-amount" placeholder="0.00" step="0.01" type="number"/>
 </div>
 </form>
@@ -2778,27 +2778,27 @@
 <div class="modal-content">
 <form id="ms-new-material-form">
 <div class="form-group">
-<label>Family (FF)</label>
+<label for="ms-new-family">Family (FF)</label>
 <select id="ms-new-family" style="background-color: #f0f8ff; border: 1px solid #00748C; font-weight: bold; width: 100%; padding: 10px;">
 <option disabled="" selected="" value="">Select Family</option>
 </select>
 </div>
 <div class="form-group">
-<label>Relationship (RR)</label>
+<label for="ms-new-relation">Relationship (RR)</label>
 <select id="ms-new-relation" style="background-color: #f0f8ff; border: 1px solid #00748C; font-weight: bold; width: 100%; padding: 10px;">
 <option disabled="" selected="" value="">Select Relationship</option>
 </select>
 </div>
 <div class="form-group">
-<label>Product Detail (Item Name)</label>
+<label for="ms-new-name">Product Detail (Item Name)</label>
 <input id="ms-new-name" placeholder="e.g. Marble Black Carrara 75 x 13 cm" required="" type="text"/>
 </div>
 <div class="form-group">
-<label>Product ID (Auto-Generated: FFRR.SSSSS)</label>
+<label for="ms-new-id-display">Product ID (Auto-Generated: FFRR.SSSSS)</label>
 <input id="ms-new-id-display" readonly="" style="background-color: #e9ecef; color: #555; font-weight: bold; cursor: not-allowed;" type="text"/>
 </div>
 <div class="form-group">
-<label>Photo Name (OneDrive / SharePoint)</label>
+<label for="ms-new-photo-url">Photo Name (OneDrive / SharePoint)</label>
 <div style="display:flex; gap:8px; align-items:center;">
 <input id="ms-new-photo-url" placeholder="e.g. IBA-Sample (system adds .jpg automatically)" style="flex:1;" type="text"/>
 <button class="secondary-btn" id="ms-browse-photo-btn" style="white-space:nowrap; padding:10px 12px;" type="button">
@@ -2813,7 +2813,7 @@
                     </small>
 </div>
 <div class="form-group">
-<label>Status</label>
+<label for="ms-new-status">Status</label>
 <select id="ms-new-status" style="width: 100%; padding: 10px;">
 <option value="Active">Active</option>
 <option value="Broken">Broken</option>
@@ -2822,13 +2822,13 @@
 </div>
 <div id="ms-stock-entry-row" style="display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
 <div class="form-group" style="flex: 60%;">
-<label>Opening Stock Site</label>
+<label for="ms-new-site-select">Opening Stock Site</label>
 <select id="ms-new-site-select" style="background-color: #fff; border: 1px solid #ccc; height: 45px; width: 100%;">
 <option value="Main Store">Main Store</option>
 </select>
 </div>
 <div class="form-group" style="flex: 40%;">
-<label>Quantity</label>
+<label for="ms-new-stock-qty">Quantity</label>
 <input id="ms-new-stock-qty" placeholder="0" step="any" style="height: 45px;" type="number"/>
 </div>
 </div>
@@ -2853,7 +2853,7 @@
 <div class="ms-photo-browser-target" id="ms-photo-browser-target">Choose a photo name for the current item.</div>
 <div class="ms-photo-browser-top dropdown-mode">
 <div class="form-group" style="margin-bottom:0;">
-<label>Search / Type Photo Name</label>
+<label for="ms-photo-browser-manual">Search / Type Photo Name</label>
 <input autocomplete="off" id="ms-photo-browser-manual" list="ms-photo-browser-options" placeholder="Start typing e.g. IBA-Truck" type="text"/>
 <datalist id="ms-photo-browser-options"></datalist>
 <small>Suggestions come from GitHub PhotoIndex.csv. Do not include .jpg; the folder path and extension are automatic.</small>
@@ -2882,30 +2882,30 @@
 <div class="modal-content">
 <input id="ms-add-key" type="hidden"/>
 <div class="form-group">
-<label>Product ID</label>
+<label for="ms-add-id">Product ID</label>
 <input id="ms-add-id" readonly="" style="background-color: #e9ecef;" type="text"/>
 </div>
 <div class="form-group">
-<label>Product Name</label>
+<label for="ms-add-name">Product Name</label>
 <input id="ms-add-name" readonly="" style="background-color: #e9ecef;" type="text"/>
 </div>
 <div class="form-group">
-<label>Details</label>
+<label for="ms-add-details">Details</label>
 <input id="ms-add-details" readonly="" style="background-color: #e9ecef;" type="text"/>
 </div>
 <div class="form-group">
-<label>Current Total Stock</label>
+<label for="ms-add-current-stock">Current Total Stock</label>
 <input id="ms-add-current-stock" readonly="" style="font-weight:bold; color:#003A5C;" type="text"/>
 </div>
 <div style="display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
 <div class="form-group" style="flex: 1;">
-<label>Select Site</label>
+<label for="ms-add-site-select">Select Site</label>
 <select id="ms-add-site-select" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
 <option value="Main Store">Main Store</option>
 </select>
 </div>
 <div class="form-group" style="flex: 1;">
-<label>Qty to Add (+/-)</label>
+<label for="ms-add-qty-input">Qty to Add (+/-)</label>
 <input id="ms-add-qty-input" placeholder="e.g. 50 or -10" style="width: 100%; padding: 10px; border: 1px solid #28a745; font-weight: bold;" type="number"/>
 </div>
 </div>
@@ -2940,38 +2940,38 @@
 <form id="transfer-job-form">
 <div class="transfer-2col-grid">
 <div class="transfer-col">
-<div class="form-group"><label>Job Type</label><input id="tf-job-type" readonly="" style="font-weight: bold; color: #003A5C;" type="text"/></div>
-<div class="form-group"><label>Control Number</label><input id="tf-control-no" readonly="" style="background-color: #e9ecef; font-weight: bold;" type="text"/></div>
+<div class="form-group"><label for="tf-job-type">Job Type</label><input id="tf-job-type" readonly="" style="font-weight: bold; color: #003A5C;" type="text"/></div>
+<div class="form-group"><label for="tf-control-no">Control Number</label><input id="tf-control-no" readonly="" style="background-color: #e9ecef; font-weight: bold;" type="text"/></div>
 <div class="form-group">
-<label>
+<label for="tf-product-select">
         Product Search
         <i class="fa-solid fa-sync" id="tf-refresh-stock-btn" style="cursor:pointer; color:#28a745; margin-left:8px;" title="Click to Refresh Stock Availability"></i>
 </label>
 <select id="tf-product-select"></select>
 </div>
-<div class="form-group"><label>Product Name</label><input id="tf-product-name" readonly="" type="text"/></div>
-<div class="form-group"><label>Details</label><input id="tf-details" readonly="" type="text"/></div>
-<div class="form-group"><label>Requestor</label><input id="tf-requestor" readonly="" type="text"/></div>
+<div class="form-group"><label for="tf-product-name">Product Name</label><input id="tf-product-name" readonly="" type="text"/></div>
+<div class="form-group"><label for="tf-details">Details</label><input id="tf-details" readonly="" type="text"/></div>
+<div class="form-group"><label for="tf-requestor">Requestor</label><input id="tf-requestor" readonly="" type="text"/></div>
 </div>
 <div class="transfer-col">
 <div style="display: flex; gap: 8px;">
-<div class="form-group" style="flex: 1;"><label>Shipping Date</label><input id="tf-shipping-date" type="date"/></div>
-<div class="form-group" style="flex: 1;"><label>Arrival Date</label><input id="tf-arrival-date" type="date"/></div>
+<div class="form-group" style="flex: 1;"><label for="tf-shipping-date">Shipping Date</label><input id="tf-shipping-date" type="date"/></div>
+<div class="form-group" style="flex: 1;"><label for="tf-arrival-date">Arrival Date</label><input id="tf-arrival-date" type="date"/></div>
 </div>
 <div class="form-group">
-<label style="color: #00748C;">Required Quantity</label>
+<label style="color: #00748C;" for="tf-req-qty">Required Quantity</label>
 <input id="tf-req-qty" step="any" style="background-color: #f0fbff; border-color: #00748C; font-weight: bold;" type="number"/>
 </div>
 <button class="hidden" id="tf-add-to-list-btn" style="width: 100%; background-color: #ffc107; color: #000; border: none; padding: 8px; border-radius: 4px; font-weight: bold; margin-bottom: 10px; cursor: pointer;" type="button">
 <i class="fa-solid fa-plus"></i> Add Item to Batch
                 </button>
-<div class="form-group"><label>From (Source Site)</label><select id="tf-from"></select></div>
-<div class="form-group"><label style="color: #d39e00; font-weight: bold;">Source Site Contact (Step 1)</label><select id="tf-source-contact"></select></div>
-<div class="form-group"><label>Approver / Admin (Step 2)</label><select id="tf-approver"></select></div>
-<div class="form-group"><label>To (Destination Site)</label><select id="tf-to"></select></div>
-<div class="form-group"><label>Receiver (Step 3)</label><select id="tf-receiver"></select></div>
-<div class="form-group"><label>Status</label><select id="tf-status"><option value="Pending Source">Pending Source</option><option value="Pending Admin">Pending Admin</option><option value="In Transit">In Transit</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option><option value="Rejected">Rejected</option></select></div>
-<div class="form-group"><label>Remarks</label><textarea id="tf-remarks" rows="1"></textarea></div>
+<div class="form-group"><label for="tf-from">From (Source Site)</label><select id="tf-from"></select></div>
+<div class="form-group"><label style="color: #d39e00; font-weight: bold;" for="tf-source-contact">Source Site Contact (Step 1)</label><select id="tf-source-contact"></select></div>
+<div class="form-group"><label for="tf-approver">Approver / Admin (Step 2)</label><select id="tf-approver"></select></div>
+<div class="form-group"><label for="tf-to">To (Destination Site)</label><select id="tf-to"></select></div>
+<div class="form-group"><label for="tf-receiver">Receiver (Step 3)</label><select id="tf-receiver"></select></div>
+<div class="form-group"><label for="tf-status">Status</label><select id="tf-status"><option value="Pending Source">Pending Source</option><option value="Pending Admin">Pending Admin</option><option value="In Transit">In Transit</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option><option value="Rejected">Rejected</option></select></div>
+<div class="form-group"><label for="tf-remarks">Remarks</label><textarea id="tf-remarks" rows="1"></textarea></div>
 </div>
 </div>
 </form>
@@ -3010,10 +3010,10 @@
 <input id="transfer-modal-key" type="hidden"/>
 <div id="transfer-modal-details" style="background: #f4f7fa; padding: 15px; border-radius: 4px; margin-bottom: 20px; line-height: 1.6;"></div>
 <div style="display: flex; gap: 10px;">
-<div class="form-group" style="flex: 1;"><label>Confirmed Quantity</label><input id="transfer-modal-qty" step="any" type="number"/></div>
-<div class="form-group hidden" id="transfer-modal-date-container" style="flex: 1;"><label style="color: #28a745; font-weight: bold;">Arrival Date</label><input id="transfer-modal-date" style="border: 2px solid #28a745; background-color: #f0fff4;" type="date"/></div>
+<div class="form-group" style="flex: 1;"><label for="transfer-modal-qty">Confirmed Quantity</label><input id="transfer-modal-qty" step="any" type="number"/></div>
+<div class="form-group hidden" id="transfer-modal-date-container" style="flex: 1;"><label style="color: #28a745; font-weight: bold;" for="transfer-modal-date">Arrival Date</label><input id="transfer-modal-date" style="border: 2px solid #28a745; background-color: #f0fff4;" type="date"/></div>
 </div>
-<div class="form-group"><label>Note / Remark</label><textarea id="transfer-modal-note" placeholder="Add a note..." rows="3"></textarea></div>
+<div class="form-group"><label for="transfer-modal-note">Note / Remark</label><textarea id="transfer-modal-note" placeholder="Add a note..." rows="3"></textarea></div>
 </div>
 <div class="modal-footer" style="justify-content: space-between;">
 <button class="delete-btn" id="transfer-modal-reject-btn">Reject</button>
@@ -3035,7 +3035,7 @@
 <div class="transfer-2col-grid">
 <div class="transfer-col">
 <div class="form-group">
-<label>Job Type</label>
+<label for="job-for">Job Type</label>
 <select id="job-for" name="for" onchange="toggleJobOtherInput(); if (typeof toggleJobInvoiceFields === 'function') toggleJobInvoiceFields();" required="">
 <option disabled="" selected="" value="">Select a Type</option>
 <option value="PR">PR</option>
@@ -3050,19 +3050,19 @@
 <input class="hidden" id="job-other-specify" placeholder="Type Job Name..." style="margin-top: 5px;" type="text"/>
 </div>
 <div class="form-group">
-<label>Reference</label>
+<label for="job-ref">Reference</label>
 <input id="job-ref" name="ref" placeholder="Ref No." type="text"/>
 </div>
 <div class="form-group">
-<label>PO Number</label>
+<label for="job-po">PO Number</label>
 <input id="job-po" name="po" placeholder="PO Number" type="text"/>
 </div>
 <div class="form-group">
-<label>Amount</label>
+<label for="job-amount">Amount</label>
 <input id="job-amount" name="amount" placeholder="0.00" step="0.01" type="number"/>
 </div>
 <div class="form-group" style="background: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px dashed #ccc; margin-bottom: 0 !important;">
-<label id="job-attachment-label" style="font-size: 0.8rem; margin-bottom: 3px; cursor: pointer; color: #00748C; transition: color 0.2s;" title="Click to open SharePoint">
+<label id="job-attachment-label" style="font-size: 0.8rem; margin-bottom: 3px; cursor: pointer; color: #00748C; transition: color 0.2s;" title="Click to open SharePoint" for="job-attachment">
 <i class="fa-solid fa-paperclip"></i> Attachment <span style="font-weight: normal; color: #666; font-size: 0.75rem;">(Click here to Upload)</span>
 </label>
 <div style="display: flex; gap: 5px; align-items: center;">
@@ -3074,11 +3074,11 @@
 </div>
 </div> <div class="transfer-col">
 <div class="form-group">
-<label>Site / Project No.</label>
+<label for="job-site">Site / Project No.</label>
 <select id="job-site" name="site"></select>
 </div>
 <div class="form-group hidden" id="job-group-container">
-<label>Group / Category</label>
+<label for="job-group">Group / Category</label>
 <select id="job-group" name="group">
 <option disabled="" selected="" value="">Select Group / Category</option>
 <option value="Normal">Normal</option>
@@ -3088,11 +3088,11 @@
 <small class="wd-field-helper">Shown only for Invoice jobs.</small>
 </div>
 <div class="form-group">
-<label>Attention</label>
+<label for="job-attention">Attention</label>
 <select id="job-attention" name="attention"></select>
 </div>
 <div class="form-group">
-<label>Status</label>
+<label for="job-status">Status</label>
 <input id="job-status" list="job-status-options" name="status" placeholder="Pending" type="text"/>
 <datalist id="job-status-options">
 <option value="IPC Issue"></option>
@@ -3105,24 +3105,24 @@
 </datalist>
 </div>
 <div class="form-group wd-current-note-field">
-<label>Current Note</label>
+<label for="job-current-note">Current Note</label>
 <textarea id="job-current-note" name="details" placeholder="Add a short reason or instruction for this task..." rows="3"></textarea>
 <small class="wd-field-helper">Use this for why/details. Keep Status as the workflow stage only.</small>
 </div>
 <!-- Invoice-only fields (does not affect other job types) -->
 <div class="hidden" id="job-invoice-fields" style="background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px dashed #ccc;">
 <div class="form-group" style="margin-bottom: 10px;">
-<label>Invoice Date</label>
+<label for="job-invoice-date">Invoice Date</label>
 <input id="job-invoice-date" name="invoiceDate" type="date"/>
 </div>
 <div class="form-group" style="margin-bottom: 10px; position: relative;">
-<label>Vendor Name</label>
+<label for="job-vendor-name">Vendor Name</label>
 <input id="job-vendor-name" list="job-vendor-name-list" name="vendorName" placeholder="Type vendor name..." type="text"/>
 <datalist id="job-vendor-name-list"></datalist>
 <div class="vendor-suggest-box hidden" id="job-vendor-suggest-box"></div>
 </div>
 <div class="form-group" style="margin-bottom: 0;">
-<label>Vendor ID</label>
+<label for="job-vendor-id">Vendor ID</label>
 <input id="job-vendor-id" name="vendorId" placeholder="Type vendor ID..." type="text"/>
 </div>
 <div style="margin-top: 6px; font-size: 0.75rem; color: #666;">
@@ -3280,13 +3280,13 @@
 <input id="process-report-po" type="hidden"/>
 <input id="process-report-inv" type="hidden"/>
 <div class="form-group">
-<label style="font-weight: bold; color: #003A5C;">Select Approver</label>
+<label style="font-weight: bold; color: #003A5C;" for="process-report-approver">Select Approver</label>
 <select id="process-report-approver" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">
 <option disabled="" selected="" value="">Select Manager / Finance...</option>
 </select>
 </div>
 <div class="form-group">
-<label>Note (Optional)</label>
+<label for="process-report-note">Note (Optional)</label>
 <textarea id="process-report-note" rows="3" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px;"></textarea>
 </div>
 </div>
@@ -3307,15 +3307,15 @@
 </div>
 <div class="modal-content">
 <div class="form-group">
-<label>PO or Vendor</label>
+<label for="im-mobile-search-term">PO or Vendor</label>
 <input id="im-mobile-search-term" placeholder="Type PO or Vendor..." type="text"/>
 </div>
 <div class="form-group">
-<label>Site</label>
+<label for="im-mobile-site-filter">Site</label>
 <select id="im-mobile-site-filter"><option value="">All Sites</option></select>
 </div>
 <div class="form-group">
-<label>Status</label>
+<label for="im-mobile-status-filter">Status</label>
 <select id="im-mobile-status-filter">
 <option value="">All Statuses</option>
 <option style="color: red; font-weight: bold;" value="Negative Balance">Negative Balance (Errors)</option>
@@ -3345,7 +3345,7 @@
 </select>
 </div>
 <div class="form-group">
-<label>Release Month</label>
+<label for="im-mobile-date-filter">Release Month</label>
 <select id="im-mobile-date-filter">
 <option value="">All Months</option>
 <option value="01">January</option>
@@ -3427,11 +3427,12 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
-<script src="js/materialStock.js?v=9.4.8"></script>
-<script src="js/transferLogic.js?v=11.8.0"></script>
+<script src="js/inventory-pocket.js?v=12.8.5"></script>
+<script src="js/materialStock.js?v=12.8.5"></script>
+<script src="js/transferLogic.js?v=12.8.6"></script>
 <script src="js/app-audio.js?v=8.2.3"></script>
 <script src="js/app-core.js?v=8.2.3"></script>
-<script src="js/app-inventory.js?v=11.8.3"></script>
+<script src="js/app-inventory.js?v=12.8.5"></script>
 <script src="js/app-invoice.js?v=11.5.8"></script>
 <script src="js/app-mobile.js?v=11.8.7"></script>
 <script src="js/app-finance.js?v=8.2.3"></script>
@@ -3440,13 +3441,13 @@
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=10.1.5"></script>
-<script src="app.js?v=12.6.7"></script>
+<script src="app.js?v=12.8.6"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/app-navigation-settings.js?v=12.7.3"></script>
-<script src="js/app-data-cache.js?v=11.5.3"></script>
+<script src="js/app-data-cache.js?v=12.8.5"></script>
 <script src="js/app-job-vendor.js?v=8.2.3"></script>
-<script src="js/app-workdesk-job-entry.js?v=12.8.4"></script>
+<script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
 <script src="js/app-standard-job.js?v=11.0.4"></script>
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
 <script src="js/app-payments.js?v=12.8.2"></script>
@@ -3458,15 +3459,15 @@
 <script src="js/app-reporting-actions.js?v=9.9.0"></script>
 <script src="js/app-report-workflow.js?v=8.2.3"></script>
 <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
-<script src="js/app-modal-navigation-clear.js?v=12.8.4"></script>
+<script src="js/app-modal-navigation-clear.js?v=12.8.6"></script>
 <script src="js/app-invoice-entry-search.js?v=12.0.5"></script>
 <script src="js/app-attention-validation.js?v=11.8.0"></script>
 <script src="js/app-batch-entry-ui.js?v=12.7.3"></script>
 <script src="js/app-im-event-wiring.js?v=12.7.3"></script>
-<script src="js/app-history-transfer.js?v=11.8.7"></script>
+<script src="js/app-history-transfer.js?v=12.8.6"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '12.8.5';
+      window.IBA_SYSTEM_VERSION = '12.8.6';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>

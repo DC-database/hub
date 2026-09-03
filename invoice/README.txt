@@ -1,16 +1,11 @@
-IBA 12.8.4 Live Efficiency Patch
+12.8.4 ANNOUNCEMENT-ONLY PATCH
 
-Purpose:
-- Keep Inventory launcher from preloading full Invoice Management invoice_entries.
-- Keep Inventory launcher from preloading WorkDesk job_entries unnecessarily.
-- Load Inventory family through ensureAllEntriesFetched(..., { mode: 'inventory' }).
-- Defer approver/site/Attention data until the specific Inventory function needs it.
-- Reuse cached Site.csv for up to 30 minutes instead of refreshing it on every WorkDesk startup/modal open.
+Replace only these two files in the existing 12.8.4 build:
+js/app-general-announcement.js
+css/patch-12.8.4-announcement.css
 
-Modified files only:
-- index.html
-- js/app-modal-navigation-clear.js
-- js/app-workdesk-job-entry.js
+This restores the previously working announcement positioning/behavior and changes only:
+- maximized popup approximately 30% larger
+- sidebar breathing glow red
 
-No Firebase rules, database paths, transaction/write logic, counters, or Inventory transfer mechanisms were changed.
-12.8.6 Inventory migration/test build is NOT included or modified by this patch.
+No other system files are included.

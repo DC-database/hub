@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.8.5';
+const APP_VERSION = '12.8.6';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3234,11 +3234,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         saveStockBtn.disabled = false;
                         return;
                     }
-                    const snap = await db.ref(`material_stock/${key}`).once('value');
+                    const snap = await getInventoryDatabase().ref(`material_stock/${key}`).once('value');
                     const cur = snap.val();
                     const newStock = (parseFloat(cur.stockQty) || 0) + inputQty;
                     const newBal = newStock - (parseFloat(cur.transferredQty) || 0);
-                    await db.ref(`material_stock/${key}`).update({
+                    await getInventoryDatabase().ref(`material_stock/${key}`).update({
                         stockQty: newStock,
                         balanceQty: newBal,
                         lastUpdated: firebase.database.ServerValue.TIMESTAMP
@@ -3256,10 +3256,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         balanceQty: bal,
                         lastUpdated: firebase.database.ServerValue.TIMESTAMP
                     };
-                    if (mode === 'edit' && key) await db.ref(`material_stock/${key}`).update(pl);
+                    if (mode === 'edit' && key) await getInventoryDatabase().ref(`material_stock/${key}`).update(pl);
                     else {
                         pl.updatedBy = currentUser.Name;
-                        await db.ref('material_stock').push(pl);
+                        await getInventoryDatabase().ref('material_stock').push(pl);
                     }
                     alert("Saved!");
                 }
@@ -3297,7 +3297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadMaterialStock() {
         stockTableBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
         try {
-            const snap = await db.ref('material_stock').once('value');
+            const snap = await getInventoryDatabase().ref('material_stock').once('value');
             const data = snap.val();
             tableDataCache = [];
             if (!data) {
@@ -3328,7 +3328,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     window.deleteStock = async function (key) {
         if (confirm("Delete?")) {
-            await db.ref(`material_stock/${key}`).remove();
+            await getInventoryDatabase().ref(`material_stock/${key}`).remove();
             loadMaterialStock();
             populateProductDropdowns();
         }
@@ -3365,7 +3365,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (let i = 1; i < lines.length; i++) {
                     const values = lines[i].split(',').map(val => val.trim().replace(/^"|"$/g, ''));
                     if (values.length >= 2) {
-                        const newKey = db.ref('material_stock').push().key;
+                        const newKey = getInventoryDatabase().ref('material_stock').push().key;
                         updates[newKey] = {
                             productId: values[0],
                             productName: values[1],
@@ -3381,7 +3381,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (successCount > 0) {
                     try {
-                        await db.ref('material_stock').update(updates);
+                        await getInventoryDatabase().ref('material_stock').update(updates);
                         alert(`Uploaded ${successCount} records.`);
                         loadMaterialStock();
                         populateProductDropdowns();
@@ -7424,7 +7424,7 @@ try {
 
                 try {
                     // 1. Fetch fresh data from Firebase
-                    const snapshot = await db.ref(`transfer_entries/${key}`).once('value');
+                    const snapshot = await getInventoryDatabase().ref(`transfer_entries/${key}`).once('value');
                     const val = snapshot.val();
 
                     if (val) {
