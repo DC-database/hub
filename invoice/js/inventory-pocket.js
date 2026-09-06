@@ -1,5 +1,5 @@
 /*
- * IBA Inventory Pocket — 12.8.5
+ * IBA Inventory Pocket — 12.8.7
  *
  * Inventory-only shared change pocket. The permanent material_stock / transfer_entries
  * database remains authoritative. This layer only keeps recently changed material records
@@ -13,6 +13,9 @@
     const POCKET_PATH = 'inventory_pocket';
     const WEEKLY_SYNC_KEY = 'iba_inventory_weekly_sync_v1';
     const POCKET_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+    const STOCK_CACHE_KEY = 'cached_MATERIAL_STOCK';
+    const STOCK_CACHE_SOURCE = 'full-material-stock-v2';
+    const STOCK_META_PATH = 'material_stock_meta';
 
     function getInventoryDb() {
         if (window.inventoryDb) return window.inventoryDb;
@@ -97,7 +100,10 @@
     }
 
     function mergePocketIntoLocal(item) {
-        if (!item || typeof window.__ibaGetMaterialStockData !== 'function') return;
+        // Pocket is an incremental patch layer only. Never let its partial records
+        // create or replace the authoritative browser cache before a complete
+        // material_stock dataset has been established.
+        if (!item || window.__ibaMaterialStockFullyLoaded !== true || typeof window.__ibaGetMaterialStockData !== 'function') return;
         const data = window.__ibaGetMaterialStockData();
         if (!Array.isArray(data)) return;
         const productID = clean(item.productID || item.productId);
@@ -106,7 +112,7 @@
         if (idx >= 0) data[idx] = merged;
         else data.push(merged);
         if (typeof window.__ibaSetMaterialStockData === 'function') window.__ibaSetMaterialStockData(data);
-        try { localStorage.setItem('cached_MATERIAL_STOCK', JSON.stringify({ data, timestamp: now() })); } catch (_) {}
+        try { localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({ data, timestamp: now(), complete: true, source: STOCK_CACHE_SOURCE })); } catch (_) {}
         try {
             const table = document.getElementById('ms-table-body');
             if (table && typeof window.renderMaterialStockTable === 'function') window.renderMaterialStockTable(data);
@@ -159,7 +165,15 @@
         const data = snap.val() || {};
         const list = Object.entries(data).map(([key, value]) => ({ key, ...(value || {}) }));
         if (typeof window.__ibaSetMaterialStockData === 'function') window.__ibaSetMaterialStockData(list);
-        try { localStorage.setItem('cached_MATERIAL_STOCK', JSON.stringify({ data: list, timestamp: now() })); } catch (_) {}
+        window.__ibaMaterialStockFullyLoaded = true;
+        try { localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({ data: list, timestamp: now(), complete: true, source: STOCK_CACHE_SOURCE })); } catch (_) {}
+        try {
+            await getInventoryDb().ref(STOCK_META_PATH).update({
+                count: list.length,
+                updatedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+        } catch (metaError) { console.warn('Material Stock metadata update failed during weekly sync:', metaError); }
+        try { window.inventoryPocket?.startPocketListener(); } catch (_) {}
         setSyncDone(weeklySyncId());
         return { synced: true, count: list.length };
     }
@@ -210,9 +224,10 @@
         POCKET_RETENTION_MS
     };
 
-    // Start only the lightweight Pocket listener. It reads only the small recent-change tree.
+    // Do not start Pocket or perform a full Pocket cleanup read on every page load.
+    // Material Stock starts the listener only after a complete stock cache/full load is ready.
+    // This prevents partial Pocket data from ever becoming the browser's master stock list.
     document.addEventListener('DOMContentLoaded', () => {
-        try { startPocketListener(); } catch (_) {}
-        try { cleanupExpiredPocketEntries(); } catch (_) {}
+        // Intentionally lightweight: no Firebase Pocket read here.
     });
 })();

@@ -98,7 +98,7 @@
 //   - Line  2409: deleteSiteStock()
 // ==========================================================================
 
-// materialStock.js - V10.16 (9.4.8: Firebase read optimization - no auto Material Stock download on login)
+// materialStock.js - 12.8.7 (Material Stock cache integrity + lightweight count validation)
 
 let allMaterialStockData = [];
 let allTransferData = [];
@@ -120,7 +120,30 @@ let msRequiredListToSite = ""; // optional destination site note for the require
 
 // Constants
 const STOCK_CACHE_KEY = "cached_MATERIAL_STOCK";
-const STOCK_CACHE_DURATION = 24 * 60 * 60 * 1000;
+const STOCK_CACHE_DURATION = 8 * 24 * 60 * 60 * 1000;
+const STOCK_CACHE_SOURCE = 'full-material-stock-v2';
+const STOCK_META_PATH = 'material_stock_meta';
+const STOCK_MIN_SAFE_CACHE_COUNT = 1700;
+window.__ibaMaterialStockFullyLoaded = false;
+
+async function msReadStockMeta(database) {
+    try {
+        const snap = await database.ref(STOCK_META_PATH).once('value');
+        return snap.val() || null;
+    } catch (e) {
+        console.warn('Material Stock metadata read failed:', e);
+        return null;
+    }
+}
+
+async function msWriteStockMeta(database, count) {
+    const safeCount = Math.max(0, Number(count) || 0);
+    await database.ref(STOCK_META_PATH).update({
+        count: safeCount,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
 
 
 // OneDrive / SharePoint photo support for Material Stock.
@@ -1088,7 +1111,18 @@ async function initMaterialStockSystem() {
 // ==========================================================================
 // 1. LOAD DATA
 // ==========================================================================
+let materialStockLoadPromise = null;
+
 async function populateMaterialStock(forceRefresh = false) {
+    // Prevent duplicate simultaneous Firebase stock downloads. Multiple startup/navigation
+    // paths can request Material Stock at nearly the same time; only the first request
+    // is allowed to perform the read. All other callers await the same promise.
+    if (materialStockLoadPromise) {
+        console.log('Material Stock load already in progress; reusing the existing load.');
+        return materialStockLoadPromise;
+    }
+
+    materialStockLoadPromise = (async () => {
     const tableBody = document.getElementById('ms-table-body');
     const tabsContainer = document.getElementById('ms-category-tabs');
 
@@ -1110,65 +1144,81 @@ async function populateMaterialStock(forceRefresh = false) {
         }
     }
 
-    // NOTE: We cache the stock list for speed, but stock can change due to
-    // Transfer/Restock/Usage/Return actions happening in other sessions.
-    // To avoid showing outdated totals (e.g., Movement History updated but Stock Breakdown still old),
-    // we treat the cache as stale when there are newer transfer entries than the cache timestamp.
+    // Browser cache is only trusted when it was created from a complete stock read.
+    // A lightweight Firebase metadata count is checked first so a corrupted/partial cache
+    // (for example 1 item + 100 Pocket records) can never be mistaken for the full stock.
     if (!forceRefresh) {
         const cached = localStorage.getItem(STOCK_CACHE_KEY);
         if (cached) {
             try {
                 const parsed = JSON.parse(cached);
                 const age = Date.now() - parsed.timestamp;
-                if (age < STOCK_CACHE_DURATION) {
-                    console.log("Loading Stock from Cache...");
-                    allMaterialStockData = parsed.data || [];
+                const cacheData = Array.isArray(parsed.data) ? parsed.data : [];
+                const cacheCount = cacheData.length;
+                const sourceValid = parsed.source === STOCK_CACHE_SOURCE;
 
-                    // Always refresh transfers (movement history)
-                    await fetchTransfersOnly();
+                if (age >= 0 && age < STOCK_CACHE_DURATION && sourceValid &&
+                    parsed.complete === true && cacheCount >= STOCK_MIN_SAFE_CACHE_COUNT) {
+                    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+                    const meta = await msReadStockMeta(database);
+                    const firebaseCount = meta && Number.isFinite(Number(meta.count)) ? Number(meta.count) : null;
 
-                    // If any transfer entry is newer than the cache timestamp, refresh stock from DB.
-                    // This keeps the UI accurate without requiring a manual page refresh.
-                    // Transfer entries keep the original `timestamp` (created-at). When a transfer is
-                    // approved/received, we update `lastUpdated`. Use the latest activity time so the
-                    // stock cache refreshes correctly after completions.
-                    let latestActivityTs = 0;
-                    if (Array.isArray(allTransferData) && allTransferData.length) {
-                        for (const t of allTransferData) {
-                            const ts = parseFloat(t.lastUpdated || t.timestamp || 0) || 0;
-                            if (ts > latestActivityTs) latestActivityTs = ts;
+                    if (firebaseCount !== null && firebaseCount !== cacheCount) {
+                        console.warn(`Material Stock cache count mismatch: browser=${cacheCount}, Firebase=${firebaseCount}. Rebuilding full cache...`);
+                    } else if (firebaseCount === null) {
+                        console.warn('Material Stock metadata is missing. Rebuilding full cache once to establish authoritative count.');
+                    } else {
+                        console.log(`Loading complete Stock cache (${cacheCount} items)...`);
+                        allMaterialStockData = cacheData;
+                        window.__ibaMaterialStockFullyLoaded = true;
+
+                        // Start Pocket only after the complete browser dataset is established.
+                        try { window.inventoryPocket?.startPocketListener(); } catch (_) {}
+
+                        // Always refresh transfers (movement history).
+                        await fetchTransfersOnly();
+
+                        // If any transfer entry is newer than the cache timestamp, refresh stock from DB.
+                        let latestActivityTs = 0;
+                        if (Array.isArray(allTransferData) && allTransferData.length) {
+                            for (const t of allTransferData) {
+                                const ts = parseFloat(t.lastUpdated || t.timestamp || 0) || 0;
+                                if (ts > latestActivityTs) latestActivityTs = ts;
+                            }
                         }
-                    }
 
-                    if (latestActivityTs && parsed.timestamp && latestActivityTs > parsed.timestamp) {
-                        console.log("Stock cache is stale (newer transfers detected). Refreshing stock from DB...");
-                        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
-                        const stockSnap = await database.ref('material_stock').once('value');
-                        const stockData = stockSnap.val();
-                        allMaterialStockData = [];
-                        if (stockData) {
-                            Object.keys(stockData).forEach(key => {
-                                allMaterialStockData.push({ key: key, ...stockData[key] });
-                            });
+                        if (latestActivityTs && parsed.timestamp && latestActivityTs > parsed.timestamp) {
+                            console.log("Stock cache is stale (newer transfers detected). Refreshing stock from DB...");
+                            const stockSnap = await database.ref('material_stock').once('value');
+                            const stockData = stockSnap.val();
+                            allMaterialStockData = [];
+                            if (stockData) {
+                                Object.keys(stockData).forEach(key => {
+                                    allMaterialStockData.push({ key: key, ...stockData[key] });
+                                });
+                            }
+                            await msWriteStockMeta(database, allMaterialStockData.length);
+                            localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({
+                                data: allMaterialStockData,
+                                timestamp: Date.now(),
+                                complete: true,
+                                source: STOCK_CACHE_SOURCE
+                            }));
                         }
 
-                        // Update cache timestamp after refresh
-                        localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({
-                            data: allMaterialStockData,
-                            timestamp: Date.now()
-                        }));
+                        renderCategoryTabs();
+                        renderMaterialStockTable(allMaterialStockData);
+                        return;
                     }
-
-                    renderCategoryTabs();
-                    // Show empty state by default (no heavy rendering) until user selects a tab or searches.
-                    renderMaterialStockTable(allMaterialStockData);
-                    return;
+                } else if (cached) {
+                    console.warn('Material Stock browser cache is missing completeness marker or is below the safe item threshold. Rebuilding full cache...');
                 }
             } catch (e) { console.error("Cache parse error", e); }
         }
     }
 
     if(tabsContainer) tabsContainer.innerHTML = '<span style="padding:10px;">Downloading data...</span>';
+
     tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Downloading stock data...</td></tr>';
 
     try {
@@ -1187,10 +1237,15 @@ async function populateMaterialStock(forceRefresh = false) {
             });
         }
 
+        await msWriteStockMeta(database, allMaterialStockData.length);
+        window.__ibaMaterialStockFullyLoaded = true;
         localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({
             data: allMaterialStockData,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            complete: true,
+            source: STOCK_CACHE_SOURCE
         }));
+        try { window.inventoryPocket?.startPocketListener(); } catch (_) {}
 
         const tData = transferSnap.val();
         allTransferData = [];
@@ -1208,6 +1263,13 @@ async function populateMaterialStock(forceRefresh = false) {
     } catch (error) {
         console.error("Error loading material stock:", error);
         if(tableBody) tableBody.innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Error loading data. Check connection.</td></tr>';
+    }
+    })();
+
+    try {
+        return await materialStockLoadPromise;
+    } finally {
+        materialStockLoadPromise = null;
     }
 }
 
@@ -1706,6 +1768,8 @@ window.handleDeleteMaterial = async function(key) {
         const updates = {};
 
         updates[`material_stock/${key}`] = null;
+        updates[`${STOCK_META_PATH}/count`] = firebase.database.ServerValue.increment(-1);
+        updates[`${STOCK_META_PATH}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
         relatedTransfers.forEach(t => {
             updates[`transfer_entries/${t.key}`] = null;
         });
@@ -2040,7 +2104,11 @@ async function handleSaveNewMaterial() {
 
             const newMaterialRef = database.ref('material_stock').push();
             const newMaterialKey = newMaterialRef.key;
-            await newMaterialRef.set(newMaterial);
+            const createUpdates = {};
+            createUpdates[`material_stock/${newMaterialKey}`] = newMaterial;
+            createUpdates[`${STOCK_META_PATH}/count`] = firebase.database.ServerValue.increment(1);
+            createUpdates[`${STOCK_META_PATH}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
+            await database.ref().update(createUpdates);
             try { await window.inventoryPocket?.publishMaterialItem({ key: newMaterialKey, ...newMaterial }, newMaterialKey); } catch (pocketError) { console.warn('Inventory Pocket create failed:', pocketError); }
             if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
             alert(`Success! Created: ${productID}`);
@@ -2234,6 +2302,12 @@ function handleUploadCSV(event) {
                 }
             }
             if (count > 0) await database.ref('material_stock').update(batch);
+            if (newCount > 0) {
+                await database.ref().update({
+                    [`${STOCK_META_PATH}/count`]: firebase.database.ServerValue.increment(newCount),
+                    [`${STOCK_META_PATH}/updatedAt`]: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
             for (const updatedKey of updateKeys) {
                 try { await window.inventoryPocket?.publishMaterialItem(finalUpdates[updatedKey], updatedKey); }
                 catch (pocketError) { console.warn('Inventory Pocket CSV publish failed for ' + updatedKey + ':', pocketError); }
@@ -2406,6 +2480,9 @@ async function handleBulkDelete() {
             });
         }
     });
+
+    updates[`${STOCK_META_PATH}/count`] = firebase.database.ServerValue.increment(-count);
+    updates[`${STOCK_META_PATH}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
 
     try {
         await database.ref().update(updates);
