@@ -1,7 +1,7 @@
 // ======================
 // Application Version
 // ======================
-const APP_VERSION = "v5.8 (Vendor CSV Auto-Fill + Vendor/Site Search)";
+const APP_VERSION = "v5.9 (Vendor CSV Auto-Fill + Vendor/Site Search)";
 
 // ======================
 // Firebase Configuration
@@ -1221,13 +1221,14 @@ async function generateReport(selectedPayment) {
       totalRetention += retention;
       totalPayment += paymentAmount;
       
-      // Previous payment total = sum only of completed/issued payments BEFORE this one.
-      // A payment is counted when it has either a Cheque No. OR a Date Paid.
-      // Rows with both fields empty are pending/unpaid and must not be included.
+      // Previous payment total = sum of every payment in the selected PVN range
+      // that has either a Cheque No. OR a Date Paid. The selected/current PVN
+      // is also included when it meets this condition. Payment date recency
+      // does not matter; the only qualification is Cheque No. OR Date Paid.
       const hasChequeNo = String(payment.chequeNo ?? '').trim() !== '';
       const hasDatePaid = String(payment.datePaid ?? '').trim() !== '';
 
-      if (index < payments.length - 1 && (hasChequeNo || hasDatePaid)) {
+      if (hasChequeNo || hasDatePaid) {
         totalPrevPayment += paymentAmount;
       }
       
