@@ -1020,6 +1020,21 @@ async function applyBackground(settings) {
 }
 applyBackground();
 
+const SHARED_BG_PATH = "appSettings/backgroundUrl";
+function saveSharedBackground(url) {
+    return db.ref(SHARED_BG_PATH).set(url || null);
+}
+db.ref(SHARED_BG_PATH).on("value", (snap) => {
+    const url = snap.val();
+    if (!url) return;
+    const s = loadUiSettings();
+    s.bgUrl = url;
+    saveUiSettings(s);
+    const input = document.getElementById('bgImageUrl');
+    if (input) input.value = url;
+    applyBackground(s);
+});
+
 const settingsModal = document.getElementById('settingsModal');
 const openSettingsBtn = document.getElementById('openSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -1047,6 +1062,7 @@ document.getElementById('saveBgBtn')?.addEventListener('click', () => {
     };
     saveUiSettings(s);
     applyBackground(s);
+    if (s.bgUrl) saveSharedBackground(s.bgUrl);
     settingsModal.classList.remove('active');
 });
 document.getElementById('bgImageFile')?.addEventListener('change', async (e) => {
@@ -1072,6 +1088,7 @@ document.getElementById('clearBgBtn')?.addEventListener('click', async () => {
     if (nameEl) nameEl.textContent = '';
     await clearBgFile();
     applyBackground(s);
+    saveSharedBackground(null);
 });
 
 document.getElementById('openFullCartBtn')?.addEventListener('click', () => {
@@ -1117,6 +1134,7 @@ document.getElementById('browseGithubPhotosBtn')?.addEventListener('click', asyn
                 saveUiSettings(s);
                 clearBgFile();
                 applyBackground(s);
+                saveSharedBackground(url);
             };
             grid.appendChild(img);
         });
