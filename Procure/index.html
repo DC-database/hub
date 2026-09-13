@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Procurement Hub</title>
+    <title>Procurement Hub 4.4</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     
@@ -13,10 +16,32 @@
 </head>
 <body>
 
-    <div class="app-container no-print">
-        <div class="header">
-            <h2><i class="fa-solid fa-cart-flatbed"></i> Material Requisition List</h2>
-            <p>Search for items to add to your list. If an item doesn't exist, create a new one.</p>
+    <div class="bg-layer" id="bgLayer"></div>
+    <div class="app-shell no-print">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark"><i class="fa-solid fa-layer-group"></i></div>
+                <div>
+                    <h1>Procurement Hub</h1>
+                    <p>Material requisition workspace · v4.4</p>
+                </div>
+            </div>
+            <div class="topbar-status">
+                <div id="catalogStatus" class="status-pill">Loading catalog…</div>
+                <button type="button" id="refreshCatalogBtn" class="ghost-btn" title="Re-download catalog from GitHub and Firebase">
+                    <i class="fa-solid fa-rotate"></i> Refresh catalog
+                </button>
+                <button type="button" id="openSettingsBtn" class="ghost-btn" title="Settings">
+                    <i class="fa-solid fa-gear"></i> Settings
+                </button>
+            </div>
+        </header>
+        <div class="app-container cart-hidden" id="appContainer">
+        <div class="workspace">
+        <section class="panel glass">
+        <div class="panel-head">
+            <h2>Requisition header</h2>
+            <p>Vendor and site are optional. Name and mobile are required before saving.</p>
         </div>
 
         <div class="requisition-details">
@@ -49,48 +74,59 @@
             </div>
         </div>
 
+        </section>
+        <section class="panel glass">
+        <div class="panel-head">
+            <h2>Find items</h2>
+            <p>Search the cached catalog. Clearing the cart does not delete the catalog cache.</p>
+        </div>
         <div class="search-section">
             <div class="search-bar">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="searchInput" placeholder="Search by Part No, Description, Group, or Activity..." autocomplete="off">
             </div>
             
-            <div style="display: flex; gap: 10px;">
-                <button type="button" id="viewNewItemsBtn" class="create-new-btn" style="background-color: #f59e0b;">
-                    <i class="fa-solid fa-list-check"></i> Session's New Items
+            <div class="search-actions">
+                <button type="button" id="clearSearchBtn" class="ghost-btn" title="Clear search only">
+                    <i class="fa-solid fa-xmark"></i> Clear search
                 </button>
-                <button type="button" id="openGeneratorBtn" class="create-new-btn">
-                    <i class="fa-solid fa-plus"></i> Item Not Found? Create New
+                <button type="button" id="viewNewItemsBtn" class="btn btn-amber">
+                    <i class="fa-solid fa-list-check"></i> Session new items
+                </button>
+                <button type="button" id="openGeneratorBtn" class="btn btn-success">
+                    <i class="fa-solid fa-plus"></i> Create item
                 </button>
             </div>
         </div>
-
+        <div id="searchMeta" class="search-meta"></div>
         <div id="searchResults" class="results-container"></div>
+        </section>
 
-        <div class="cart-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0;"><i class="fa-solid fa-clipboard-list"></i> Selected Items</h3>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" id="copyExcelBtn" class="copy-excel-btn" disabled><i class="fa-solid fa-copy"></i> Copy for Excel</button>
-                    <button type="button" id="clearSessionBtn" class="clear-session-btn"><i class="fa-solid fa-eraser"></i> Clear Entire Cart</button>
+        </div>
+        <aside class="panel glass cart-section cart-hidden-panel" id="cartPanel">
+            <div class="panel-head row">
+                <div>
+                    <h2>Selected items</h2>
+                    <p>Only this list is cleared. Catalog cache and header details stay.</p>
+                </div>
+                <div class="head-actions">
+                    <button type="button" id="openFullCartBtn" class="btn btn-dark"><i class="fa-solid fa-expand"></i> Full view</button>
+                    <button type="button" id="copyExcelBtn" class="btn btn-success-outline" disabled><i class="fa-solid fa-copy"></i> Copy for Excel</button>
+                    <button type="button" id="clearSessionBtn" class="btn btn-danger-outline"><i class="fa-solid fa-eraser"></i> Clear cart only</button>
                 </div>
             </div>
             <div class="table-responsive">
                 <table id="cartTable">
                     <thead>
                         <tr>
-                            <th width="5%">SN</th>
-                            <th width="15%">Part No</th>
-                            <th width="35%">Description</th>
-                            <th width="10%">Qty</th>
-                            <th width="10%">Unit</th>
-                            <th width="10%">Price</th>
-                            <th width="10%">Total</th>
-                            <th width="5%" class="action-col">Remove</th>
+                            <th width="10%">SN</th>
+                            <th width="22%">Part No</th>
+                            <th>Description</th>
+                            <th width="12%" class="action-col">Remove</th>
                         </tr>
                     </thead>
                     <tbody id="cartBody">
-                        <tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>
+                        <tr class="empty-row"><td colspan="4">No items added yet.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -98,17 +134,115 @@
                 <div class="grand-total">Grand Total: <span id="grandTotalVal">0.00</span></div>
                 
                 <div class="footer-actions">
-                    <button type="button" id="previewBtn" class="preview-btn" disabled><i class="fa-solid fa-eye"></i> Preview Draft</button>
-                    <button type="button" id="saveBtnAction" class="print-btn" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition</button>
+                    <button type="button" id="previewBtn" class="btn btn-muted" disabled><i class="fa-solid fa-eye"></i> Preview draft</button>
+                    <button type="button" id="saveBtnAction" class="btn btn-dark" disabled><i class="fa-solid fa-cloud-arrow-up"></i> Save requisition</button>
                 </div>
             </div>
+        </aside>
         </div>
     </div>
 
     <!-- NEW ITEMS MODAL (SESSION VIEW) - UPDATED COLUMNS -->
+
+
+    <div id="fullCartView" class="full-cart-view no-print">
+        <div class="full-cart-inner panel glass">
+            <div class="panel-head row">
+                <div>
+                    <h2>Selected items</h2>
+                    <p>Edit qty, unit, price, and optional comments here.</p>
+                </div>
+                <div class="head-actions">
+                    <button type="button" id="closeFullCartBtn" class="ghost-btn"><i class="fa-solid fa-arrow-left"></i> Back</button>
+                </div>
+            </div>
+            <div class="full-cart-table-wrap">
+                <table id="fullCartTable">
+                    <thead>
+                        <tr>
+                            <th>SN</th>
+                            <th>Part No</th>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                            <th>Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fullCartBody"></tbody>
+                </table>
+            </div>
+            <div class="cart-footer">
+                <div class="grand-total">Grand Total: <span id="fullGrandTotalVal">0.00</span></div>
+                <div class="footer-actions">
+                    <button type="button" id="fullCopyExcelBtn" class="btn btn-success-outline"><i class="fa-solid fa-copy"></i> Copy for Excel</button>
+                    <button type="button" id="fullPreviewBtn" class="btn btn-muted"><i class="fa-solid fa-eye"></i> Preview draft</button>
+                    <button type="button" id="fullSaveBtn" class="btn btn-dark"><i class="fa-solid fa-cloud-arrow-up"></i> Save requisition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="settingsModal" class="modal-overlay no-print">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button id="closeSettingsBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="section">
+                    <h3>Background image</h3>
+                    <p class="hint">Attach a photo from your computer, or paste a link. Attached photos stay in this browser only and are not uploaded to Firebase.</p>
+                    <div class="form-group">
+                        <label>Attach photo</label>
+                        <input type="file" id="bgImageFile" accept="image/*">
+                        <small id="bgFileName" class="hint"></small>
+                    </div>
+                    <div class="form-group">
+                        <label>Or image URL</label>
+                        <input type="url" id="bgImageUrl" placeholder="https://.../photo.jpg">
+                    </div>
+                    <div class="form-group">
+                        <label>Browse GitHub photo folder</label>
+                        <button type="button" id="browseGithubPhotosBtn" class="ghost-btn"><i class="fa-solid fa-images"></i> Load photos from GitHub</button>
+                        <div id="githubPhotoGrid" class="photo-grid"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Blur</label>
+                        <input type="range" id="bgBlur" min="0" max="24" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label>Dim overlay</label>
+                        <input type="range" id="bgDim" min="0" max="70" value="12">
+                    </div>
+                    <div class="submit-section" style="gap:10px;">
+                        <button type="button" id="clearBgBtn" class="ghost-btn">Remove background</button>
+                        <button type="button" id="saveBgBtn" class="save-btn">Apply background</button>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3>Item photo folder (OneDrive)</h3>
+                    <p class="hint">Folder path only. Name each file as the part code, e.g. <strong>101.12454.jpg</strong>. The app never uploads photos; it only reads this URL.</p>
+                    <div class="form-group">
+                        <label>Folder URL</label>
+                        <input type="url" id="photoFolderUrl" placeholder="https://.../Documents/DC Files/Photo/">
+                    </div>
+                    <div class="form-group">
+                        <label>File extension</label>
+                        <select id="photoExt">
+                            <option value="jpg">jpg</option>
+                            <option value="jpeg">jpeg</option>
+                            <option value="png">png</option>
+                            <option value="webp">webp</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="newItemsModal" class="modal-overlay no-print">
         <div class="modal-content" style="max-width: 1000px;">
-            <div class="modal-header" style="background-color: #f59e0b;">
+            <div class="modal-header">
                 <h2>Newly Created Items (Current Session)</h2>
                 <button id="closeNewItemsModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -186,7 +320,7 @@
                                     <option value="Day">Day</option>
                                     <option value="Doz">Doz</option>
                                     <option value="Dr">Dr</option>
-                                    <option value="Gal">Gal</option
+                                    <option value="Gal">Gal</option>
                                     <option value="Hrs">Hrs</option>
                                     <option value="Kg">Kg</option>
                                     <option value="Litre">Litre</option>
@@ -229,7 +363,7 @@
     <!-- EDIT EXISTING ITEM MODAL -->
     <div id="editItemModal" class="modal-overlay no-print">
         <div class="modal-content">
-            <div class="modal-header" style="background-color: #0284c7;">
+            <div class="modal-header">
                 <h2>Edit Custom Item</h2>
                 <button id="closeEditModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -287,7 +421,7 @@
                                     <option value="Day">Day</option>
                                     <option value="Doz">Doz</option>
                                     <option value="Dr">Dr</option>
-                                    <option value="Gal">Gal</option
+                                    <option value="Gal">Gal</option>
                                     <option value="Hrs">Hrs</option>
                                     <option value="Kg">Kg</option>
                                     <option value="Litre">Litre</option>

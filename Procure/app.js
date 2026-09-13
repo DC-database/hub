@@ -83,64 +83,166 @@ document.getElementById('createdBy').addEventListener('input', saveSession);
 document.getElementById('mobileNumber').addEventListener('input', saveSession);
 
 document.getElementById('clearSessionBtn').addEventListener('click', () => {
-    if(confirm("Are you sure you want to clear your entire cart?")) {
-        sessionStorage.removeItem('pr_session_data');
-        location.reload();
+    if(confirm("Clear selected items only? Vendor, site, your details, session new items, and the item catalog cache will stay.")) {
+        cart = [];
+        saveSession();
+        renderCart();
     }
 });
 
 // ==========================================
 // 1. INITIALIZATION
 // ==========================================
-async function initializeApp() {
-    const cacheBuster = "?v=" + new Date().getTime();
-    fetch(ITEMS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSearchableItems = results.data; legacyItems = results.data; }}); });
-    
-    fetch(ACTIVITY_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { 
-        Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { 
-            const mainFilter = document.getElementById('mainCategoryFilter'); 
-            const editMainFilter = document.getElementById('editMainCategoryFilter'); 
-            
-            mainFilter.innerHTML = '<option value="">-- Select Main Category --</option>'; 
-            editMainFilter.innerHTML = '<option value="">-- Select Main Category --</option>'; 
-            
-            results.data.forEach(row => { 
-                const groupCode = row["Group Code"]; const groupName = row["Group Name"]; 
-                const classCode = row["Class Code"] || "N/A"; const className = row["Class Name"] || "N/A"; 
-                const activityCode = row["Activity Code"] || "N/A"; const activityName = row["Activity Name"] || row["Activity"] || "Uncategorized"; 
-                
-                if(groupCode && groupName) { 
-                    dynamicActivityData[groupCode] = { groupName: groupName, classCode: classCode, className: className, activityCode: activityCode, activityName: activityName }; 
-                    const mainCat = activityName; 
-                    
-                    if (!activitiesMap[mainCat]) { 
-                        activitiesMap[mainCat] = []; 
-                        const option1 = document.createElement('option'); option1.value = mainCat; option1.textContent = mainCat; mainFilter.appendChild(option1); 
-                        const option2 = document.createElement('option'); option2.value = mainCat; option2.textContent = mainCat; editMainFilter.appendChild(option2); 
-                    } 
-                    if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) { activitiesMap[mainCat].push({ groupCode: groupCode, groupName: groupName }); }
-                } 
-            }); 
-        }}); 
-    });
-    
-    fetch(VENDORS_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allVendors = results.data; }}); });
-    fetch(SITE_CSV_URL + cacheBuster).then(res => res.text()).then(csvText => { Papa.parse(csvText, { header: true, skipEmptyLines: true, complete: function(results) { allSites = results.data; }}); });
-    
-    // Fetch custom items from Firebase
-    db.ref("items").once("value").then((snapshot) => {
-        if (snapshot.exists()) {
-            snapshot.forEach(childSnap => {
-                let itemData = childSnap.val();
-                itemData.firebaseKey = childSnap.key; 
-                allSearchableItems.push(itemData);
-            });
-        }
-    }).catch(error => console.error("Error loading Firebase items:", error));
+const CATALOG_CACHE_KEY = 'pr_catalog_cache_v1';
+const CATALOG_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const SEARCH_PAGE_SIZE = 40;
+let catalogReady = false;
+let searchLimit = SEARCH_PAGE_SIZE;
+let lastSearchQuery = '';
 
-    loadSession(); 
+function setCatalogStatus(text, cls) {
+    const el = document.getElementById('catalogStatus');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status-pill' + (cls ? ' ' + cls : '');
 }
-initializeApp();
+
+function parseCsv(text) {
+    return new Promise((resolve) => {
+        Papa.parse(text, { header: true, skipEmptyLines: true, complete: (results) => resolve(results.data || []) });
+    });
+}
+
+function applyActivityRows(rows) {
+    const mainFilter = document.getElementById('mainCategoryFilter');
+    const editMainFilter = document.getElementById('editMainCategoryFilter');
+    mainFilter.innerHTML = '<option value="">-- Select Main Category --</option>';
+    editMainFilter.innerHTML = '<option value="">-- Select Main Category --</option>';
+    dynamicActivityData = {};
+    activitiesMap = {};
+    rows.forEach(row => {
+        const groupCode = row["Group Code"]; const groupName = row["Group Name"];
+        const classCode = row["Class Code"] || "N/A"; const className = row["Class Name"] || "N/A";
+        const activityCode = row["Activity Code"] || "N/A"; const activityName = row["Activity Name"] || row["Activity"] || "Uncategorized";
+        if (groupCode && groupName) {
+            dynamicActivityData[groupCode] = { groupName, classCode, className, activityCode, activityName };
+            const mainCat = activityName;
+            if (!activitiesMap[mainCat]) {
+                activitiesMap[mainCat] = [];
+                const option1 = document.createElement('option'); option1.value = mainCat; option1.textContent = mainCat; mainFilter.appendChild(option1);
+                const option2 = document.createElement('option'); option2.value = mainCat; option2.textContent = mainCat; editMainFilter.appendChild(option2);
+            }
+            if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) {
+                activitiesMap[mainCat].push({ groupCode, groupName });
+            }
+        }
+    });
+}
+
+function readCatalogCache() {
+    try {
+        const raw = localStorage.getItem(CATALOG_CACHE_KEY);
+        if (!raw) return null;
+        const cache = JSON.parse(raw);
+        if (!cache || !cache.savedAt) return null;
+        if (Date.now() - cache.savedAt > CATALOG_TTL_MS) return { ...cache, stale: true };
+        return cache;
+    } catch (err) {
+        return null;
+    }
+}
+
+function writeCatalogCache(payload) {
+    try {
+        localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ ...payload, savedAt: Date.now() }));
+    } catch (err) {
+        console.warn('Catalog cache not saved (storage full or blocked).', err);
+    }
+}
+
+async function fetchText(url) {
+    const res = await fetch(url, { cache: 'force-cache' });
+    if (!res.ok) throw new Error('Failed to fetch ' + url);
+    return res.text();
+}
+
+async function loadFirebaseItems(force) {
+    const cache = readCatalogCache();
+    if (!force && cache && !cache.stale && Array.isArray(cache.firebaseItems)) {
+        return cache.firebaseItems;
+    }
+    const snapshot = await db.ref("items").once("value");
+    const items = [];
+    if (snapshot.exists()) {
+        snapshot.forEach(childSnap => {
+            const itemData = childSnap.val() || {};
+            itemData.firebaseKey = childSnap.key;
+            items.push(itemData);
+        });
+    }
+    return items;
+}
+
+async function loadRemoteCatalog(forceNetwork) {
+    setCatalogStatus('Downloading catalog…', 'warn');
+    const cacheBuster = forceNetwork ? ('?v=' + Date.now()) : '';
+    const [itemsText, activityText, vendorsText, sitesText, firebaseItems] = await Promise.all([
+        fetchText(ITEMS_CSV_URL + cacheBuster),
+        fetchText(ACTIVITY_CSV_URL + cacheBuster),
+        fetchText(VENDORS_CSV_URL + cacheBuster),
+        fetchText(SITE_CSV_URL + cacheBuster),
+        loadFirebaseItems(forceNetwork)
+    ]);
+    const items = await parseCsv(itemsText);
+    const activities = await parseCsv(activityText);
+    const vendors = await parseCsv(vendorsText);
+    const sites = await parseCsv(sitesText);
+    writeCatalogCache({ items, activities, vendors, sites, firebaseItems });
+    return { items, activities, vendors, sites, firebaseItems, fromCache: false };
+}
+
+function applyCatalog(data, sourceLabel) {
+    legacyItems = data.items || [];
+    allVendors = data.vendors || [];
+    allSites = data.sites || [];
+    applyActivityRows(data.activities || []);
+    allSearchableItems = [...legacyItems, ...(data.firebaseItems || [])];
+    catalogReady = true;
+    const count = allSearchableItems.length;
+    setCatalogStatus(`${count.toLocaleString()} items · ${sourceLabel}`, 'ready');
+}
+
+async function initializeApp(forceRefresh) {
+    loadSession();
+    try {
+        const cache = readCatalogCache();
+        if (!forceRefresh && cache && cache.items) {
+            applyCatalog(cache, cache.stale ? 'cached (refreshing)' : 'cached');
+            if (!cache.stale) return;
+        }
+        const fresh = await loadRemoteCatalog(!!forceRefresh);
+        applyCatalog(fresh, 'live');
+    } catch (err) {
+        console.error(err);
+        const cache = readCatalogCache();
+        if (cache && cache.items) {
+            applyCatalog(cache, 'cached fallback');
+        } else {
+            setCatalogStatus('Catalog failed to load', 'warn');
+        }
+    }
+}
+initializeApp(false);
+
+const refreshCatalogBtn = document.getElementById('refreshCatalogBtn');
+if (refreshCatalogBtn) {
+    refreshCatalogBtn.addEventListener('click', async () => {
+        refreshCatalogBtn.disabled = true;
+        await initializeApp(true);
+        refreshCatalogBtn.disabled = false;
+        if (searchInput.value.trim().length >= 2) renderSearchResults(searchInput.value);
+    });
+}
 
 // ==========================================
 // 2. VENDOR & SITE AUTOCOMPLETE
@@ -173,34 +275,98 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.autocomplete
 // 3. SHOPPING CART & SEARCH LOGIC
 // ==========================================
 const searchInput = document.getElementById('searchInput'); const searchResults = document.getElementById('searchResults'); const cartBody = document.getElementById('cartBody');
-searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim(); searchResults.innerHTML = ''; if (query.length < 2) return; 
-    const matches = allSearchableItems.filter(item => { return String(item["Part Code"]||item["Part code"]||"").toLowerCase().includes(query) || String(item["Description"]||item["description"]||"").toLowerCase().includes(query) || String(item["Group Name"]||item["Group name"]||"").toLowerCase().includes(query) || String(item["Activity Name"]||item["Activity name"]||item["Activity"]||"").toLowerCase().includes(query); }).slice(0, 15); 
-    if (matches.length === 0) { searchResults.innerHTML = '<div class="no-results">No items found. Click "Create New" to generate a part code.</div>'; return; }
-    matches.forEach(item => {
-        const partNo = item["Part Code"] || item["Part code"] || "N/A"; const desc = item["Description"] || "N/A"; const uom = item["UOM"] || "EA"; const groupName = item["Group Name"] || item["Group name"] || "N/A"; const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
-        const groupCode = item["Group Code"] || "N/A"; const seriesCode = item["Series"] || partNo.split('.')[1] || "";
+function itemSearchText(item) {
+    return [
+        item["Part Code"] || item["Part code"],
+        item["Description"] || item["description"],
+        item["Group Name"] || item["Group name"],
+        item["Group Code"] || item["Group code"],
+        item["Class Code"] || item["Class"] || item["Class Name"],
+        item["Activity Name"] || item["Activity name"] || item["Activity"],
+        item["UOM"]
+    ].map(v => String(v || '').toLowerCase()).join(' ');
+}
+
+function renderSearchResults(rawQuery) {
+    const meta = document.getElementById('searchMeta');
+    const query = String(rawQuery || '').toLowerCase().trim();
+    searchResults.innerHTML = '';
+    if (query.length < 2) {
+        if (meta) meta.textContent = catalogReady ? `${allSearchableItems.length.toLocaleString()} items ready` : 'Catalog still loading…';
+        return;
+    }
+    if (!catalogReady) {
+        searchResults.innerHTML = '<div class="no-results">Catalog is still loading. Try again in a moment.</div>';
+        return;
+    }
+    if (query !== lastSearchQuery) {
+        lastSearchQuery = query;
+        searchLimit = SEARCH_PAGE_SIZE;
+    }
+    const tokens = query.split(/\s+/).filter(Boolean);
+    const matches = allSearchableItems.filter(item => {
+        const hay = itemSearchText(item);
+        return tokens.every(tok => hay.includes(tok));
+    });
+    if (meta) meta.textContent = matches.length ? `Showing ${Math.min(matches.length, searchLimit)} of ${matches.length} matches` : 'No matches';
+    if (matches.length === 0) {
+        searchResults.innerHTML = '<div class="no-results">No items found. Click Create item to generate a part code.</div>';
+        return;
+    }
+    matches.slice(0, searchLimit).forEach(item => {
+        const partNo = item["Part Code"] || item["Part code"] || "N/A";
+        const desc = item["Description"] || item["description"] || "N/A";
+        const uom = item["UOM"] || "EA";
+        const groupName = item["Group Name"] || item["Group name"] || "N/A";
+        const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
+        const groupCode = item["Group Code"] || item["Group code"] || "N/A";
+        const seriesCode = item["Series"] || String(partNo).split('.')[1] || "";
         const classValue = item["Class Code"] || item["Class"] || item["Class Name"] || "N/A";
-        
-        const safeDesc = String(desc).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeGroup = String(groupName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeAct = String(actName).replace(/'/g, "\\'").replace(/"/g, '&quot;'); const safeClass = String(classValue).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const div = document.createElement('div'); div.className = 'result-item';
-        
+        const safeDesc = String(desc).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeGroup = String(groupName).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeAct = String(actName).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeClass = String(classValue).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const div = document.createElement('div');
+        div.className = 'result-item';
         const safeKey = item.firebaseKey ? `'${item.firebaseKey}'` : null;
         let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}', '${safeClass}')"><i class="fa-solid fa-plus"></i> Add</button>`;
-        
         if (safeKey) {
-            actionButtons += `
-                <button onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" style="background: #f59e0b; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-left: 5px;" title="Edit Item"><i class="fa-solid fa-pen"></i></button>
-                <button onclick="deleteFirebaseItem(${safeKey})" style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; margin-left: 5px;" title="Delete Item"><i class="fa-solid fa-trash"></i></button>
-            `;
+            actionButtons += `<button class="icon-btn edit" onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" title="Edit item"><i class="fa-solid fa-pen"></i></button><button class="icon-btn delete" onclick="deleteFirebaseItem(${safeKey})" title="Delete item"><i class="fa-solid fa-trash"></i></button>`;
         }
-
-        div.innerHTML = `
-            <div class="result-info"><strong>${partNo}</strong> - ${desc} <em>(${uom})</em><br><span style="font-size: 12px; color: #64748b; margin-top: 4px; display: inline-block;"><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div>
-            <div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>
-        `;
+        const photo = itemPhotoUrl(partNo);
+        div.innerHTML = `<div class="result-info" style="display:flex;gap:12px;align-items:center;"><img class="item-thumb" src="${photo}" alt="" onerror="this.style.display='none'"><div><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
         searchResults.appendChild(div);
     });
+    if (matches.length > searchLimit) {
+        const more = document.createElement('div');
+        more.className = 'no-results';
+        more.innerHTML = `<button class="ghost-btn" id="showMoreResults">Show more (${matches.length - searchLimit} remaining)</button>`;
+        searchResults.appendChild(more);
+        document.getElementById('showMoreResults').onclick = () => {
+            searchLimit += SEARCH_PAGE_SIZE;
+            renderSearchResults(rawQuery);
+        };
+    }
+}
+
+let searchTimer = null;
+
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+if (clearSearchBtn) {
+    clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        lastSearchQuery = '';
+        searchLimit = SEARCH_PAGE_SIZE;
+        searchResults.innerHTML = '';
+        const meta = document.getElementById('searchMeta');
+        if (meta) meta.textContent = catalogReady ? `${allSearchableItems.length.toLocaleString()} items ready` : '';
+        searchInput.focus();
+    });
+}
+
+searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => renderSearchResults(e.target.value), 80);
 });
 
 window.addToCart = function(partCode, description, unit, groupName, actName, classValue) {
@@ -210,63 +376,106 @@ window.addToCart = function(partCode, description, unit, groupName, actName, cla
         classValue = sourceItem ? (sourceItem["Class Code"] || sourceItem["Class"] || sourceItem["Class Name"] || 'N/A') : 'N/A';
     }
     cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, classValue: classValue, comment: '', qty: 1, price: 0 });
-    // Keep the search results open so the same item (or another matching item) can be added repeatedly without searching again.
     renderCart(); saveSession();
+    const wrap = document.querySelector('#cartPanel .table-responsive');
+    const last = document.querySelector('#cartBody tr:last-child');
+    if (wrap && last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 };
+
+function unitOptionsHtml(item) {
+    const units = ['Annual', 'Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Pkts', 'Rolls', 'Set', 'Sum', 'Ton', 'Trip'];
+    let unitOptions = ''; let found = false;
+    units.forEach(u => { if (item.unit && u.toLowerCase() === item.unit.toLowerCase()) { unitOptions += `<option value="${u}" selected>${u}</option>`; found = true; } else { unitOptions += `<option value="${u}">${u}</option>`; } });
+    if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
+    return unitOptions;
+}
+
+function setCartVisible(show) {
+    const box = document.getElementById('appContainer');
+    const panel = document.getElementById('cartPanel');
+    if (box) box.classList.toggle('cart-hidden', !show);
+    if (panel) panel.classList.toggle('cart-hidden-panel', !show);
+}
+
+function bindFullCartEditors() {
+    document.querySelectorAll('#fullCartBody .qty-input, #fullCartBody .price-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+            const idx = e.target.dataset.index; const field = e.target.dataset.field;
+            cart[idx][field] = parseFloat(e.target.value) || 0; saveSession();
+            const rowNode = e.target.closest('tr'); const totalNode = rowNode.querySelector('.row-total');
+            const newTotal = cart[idx].qty * cart[idx].price;
+            if (totalNode) totalNode.textContent = newTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+            let newGrand = 0; cart.forEach(i => newGrand += (i.qty * i.price));
+            const g1 = document.getElementById('grandTotalVal');
+            const g2 = document.getElementById('fullGrandTotalVal');
+            if (g1) g1.textContent = newGrand.toLocaleString('en-US', {minimumFractionDigits: 2});
+            if (g2) g2.textContent = newGrand.toLocaleString('en-US', {minimumFractionDigits: 2});
+        });
+    });
+    document.querySelectorAll('#fullCartBody .unit-input, #fullCartBody .cart-comment-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const field = e.target.classList.contains('unit-input') ? 'unit' : 'comment';
+            cart[e.target.dataset.index][field] = e.target.value; saveSession();
+        });
+    });
+}
+
+function renderFullCart() {
+    const body = document.getElementById('fullCartBody');
+    if (!body) return;
+    body.innerHTML = '';
+    let grandTotal = 0;
+    cart.forEach((item, index) => {
+        const total = item.qty * item.price; grandTotal += total;
+        const comment = String(item.comment || '').replace(/"/g, '&quot;');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
+            <td>${item.description}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${comment}" data-index="${index}"></td>
+            <td><input type="number" min="1" class="calc-input qty-input" value="${item.qty}" data-index="${index}" data-field="qty"></td>
+            <td><select class="calc-input unit-input" data-index="${index}">${unitOptionsHtml(item)}</select></td>
+            <td><input type="number" min="0" step="0.01" class="calc-input price-input" value="${item.price}" data-index="${index}" data-field="price"></td>
+            <td class="row-total">${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td class="action-col"><button class="remove-btn" onclick="removeFromCart(${index})"><i class="fa-solid fa-trash"></i></button></td>
+        `;
+        body.appendChild(tr);
+    });
+    const g2 = document.getElementById('fullGrandTotalVal');
+    if (g2) g2.textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+    bindFullCartEditors();
+}
 
 function renderCart() {
     cartBody.innerHTML = ''; let grandTotal = 0;
     const previewBtn = document.getElementById('previewBtn');
     const saveBtnAction = document.getElementById('saveBtnAction');
     const copyExcelBtn = document.getElementById('copyExcelBtn');
+    setCartVisible(cart.length > 0);
 
     if (cart.length === 0) {
-        cartBody.innerHTML = '<tr class="empty-row"><td colspan="8">No items added to the list yet.</td></tr>';
-        previewBtn.disabled = true; saveBtnAction.disabled = true; if (copyExcelBtn) copyExcelBtn.disabled = true; document.getElementById('grandTotalVal').textContent = "0.00"; return;
+        cartBody.innerHTML = '<tr class="empty-row"><td colspan="4">No items added yet.</td></tr>';
+        previewBtn.disabled = true; saveBtnAction.disabled = true; if (copyExcelBtn) copyExcelBtn.disabled = true;
+        document.getElementById('grandTotalVal').textContent = "0.00";
+        document.getElementById('fullCartView')?.classList.remove('active');
+        document.body.classList.remove('full-cart-open');
+        return;
     }
 
     previewBtn.disabled = false; saveBtnAction.disabled = false; if (copyExcelBtn) copyExcelBtn.disabled = false;
-    
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
-        const units = ['Annual', 'Bag', 'Box', 'Bun', 'Day', 'Doz', 'Dr', 'Gal', 'Hrs', 'Kg', 'Litre', 'Lm', 'm2', 'm3', 'Mon', 'Pcs', 'Pkts', 'Rolls', 'Set', 'Sum', 'Ton', 'Trip'];
-        let unitOptions = ''; let found = false;
-        units.forEach(u => { if (item.unit && u.toLowerCase() === item.unit.toLowerCase()) { unitOptions += `<option value="${u}" selected>${u}</option>`; found = true; } else { unitOptions += `<option value="${u}">${u}</option>`; } });
-        if (!found) { unitOptions += `<option value="${item.unit || 'EA'}" selected>${item.unit || 'EA'}</option>`; }
-
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
-            <td>${item.description}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${item.comment}" data-index="${index}"></td>
-            <td><input type="number" min="1" class="calc-input qty-input" value="${item.qty}" data-index="${index}" data-field="qty"></td>
-            <td><select class="calc-input unit-input" data-index="${index}">${unitOptions}</select></td>
-            <td><input type="number" min="0" step="0.01" class="calc-input price-input" value="${item.price}" data-index="${index}" data-field="price"></td>
-            <td class="row-total">${total.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+            <td><strong>${item.partNo}</strong></td>
+            <td>${item.description}</td>
             <td class="action-col"><button class="remove-btn" onclick="removeFromCart(${index})"><i class="fa-solid fa-trash"></i></button></td>
         `;
         cartBody.appendChild(tr);
     });
-
     document.getElementById('grandTotalVal').textContent = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
-    
-    document.querySelectorAll('.qty-input, .price-input').forEach(input => {
-        input.addEventListener('input', (e) => {
-            const idx = e.target.dataset.index; const field = e.target.dataset.field;
-            cart[idx][field] = parseFloat(e.target.value) || 0; saveSession();
-            const rowNode = e.target.closest('tr'); const totalNode = rowNode.querySelector('.row-total'); const newTotal = cart[idx].qty * cart[idx].price;
-            totalNode.textContent = newTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
-            let newGrand = 0; cart.forEach(i => newGrand += (i.qty * i.price));
-            document.getElementById('grandTotalVal').textContent = newGrand.toLocaleString('en-US', {minimumFractionDigits: 2});
-        });
-    });
-
-    document.querySelectorAll('.unit-input, .cart-comment-input').forEach(input => {
-        input.addEventListener('change', (e) => {
-            const field = e.target.classList.contains('unit-input') ? 'unit' : 'comment';
-            cart[e.target.dataset.index][field] = e.target.value; saveSession();
-        });
-    });
+    if (document.getElementById('fullCartView')?.classList.contains('active')) renderFullCart();
 }
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); saveSession(); };
 
@@ -508,7 +717,16 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
         await newRef.set(newItemRecord);
         
         allSearchableItems.push(newItemRecord); 
-        sessionNewlyCreatedItems.push(newItemRecord); 
+        sessionNewlyCreatedItems.push(newItemRecord);
+        const cache = readCatalogCache() || {};
+        cache.firebaseItems = (cache.firebaseItems || []).concat([newItemRecord]);
+        writeCatalogCache({
+            items: cache.items || legacyItems,
+            activities: cache.activities,
+            vendors: cache.vendors || allVendors,
+            sites: cache.sites || allSites,
+            firebaseItems: cache.firebaseItems
+        }); 
         addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName, data.classCode); 
         
         document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
@@ -718,4 +936,191 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
         }, 1000);
         
     } catch (error) { console.error(error); alert("Database Error. Check connection."); } finally { saveBtnAction.disabled = false; saveBtnAction.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Save Requisition'; }
+});
+
+// ==========================================
+// SETTINGS: BACKGROUND IMAGE
+// ==========================================
+
+const DEFAULT_PHOTO_FOLDER = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/";
+
+function itemPhotoUrl(partNo) {
+    const s = loadUiSettings();
+    let base = (s.photoFolder || DEFAULT_PHOTO_FOLDER).trim();
+    if (!base) return '';
+    if (!base.endsWith('/')) base += '/';
+    const ext = (s.photoExt || 'jpg').replace('.', '');
+    const file = encodeURIComponent(String(partNo || '').trim()) + '.' + ext;
+    return base + file;
+}
+const UI_SETTINGS_KEY = 'pr_ui_settings_v1';
+
+function loadUiSettings() {
+    try { return JSON.parse(localStorage.getItem(UI_SETTINGS_KEY) || '{}'); }
+    catch (e) { return {}; }
+}
+function saveUiSettings(s) {
+    localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(s));
+}
+const BG_DB = 'pr_bg_db';
+function openBgDb() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(BG_DB, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('bg');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+async function saveBgFile(file) {
+    const db = await openBgDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction('bg', 'readwrite');
+        tx.objectStore('bg').put(file, 'file');
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+}
+async function loadBgFile() {
+    try {
+        const db = await openBgDb();
+        return await new Promise((resolve) => {
+            const tx = db.transaction('bg', 'readonly');
+            const req = tx.objectStore('bg').get('file');
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    } catch (e) { return null; }
+}
+async function clearBgFile() {
+    try {
+        const db = await openBgDb();
+        await new Promise((resolve) => {
+            const tx = db.transaction('bg', 'readwrite');
+            tx.objectStore('bg').delete('file');
+            tx.oncomplete = resolve;
+            tx.onerror = resolve;
+        });
+    } catch (e) {}
+}
+let currentBgObjectUrl = '';
+async function applyBackground(settings) {
+    const s = settings || loadUiSettings();
+    document.documentElement.style.setProperty('--bg-blur', (s.bgBlur ?? 2) + 'px');
+    document.documentElement.style.setProperty('--bg-dim', String((s.bgDim ?? 12) / 100));
+    const file = await loadBgFile();
+    if (file) {
+        if (currentBgObjectUrl) URL.revokeObjectURL(currentBgObjectUrl);
+        currentBgObjectUrl = URL.createObjectURL(file);
+        document.documentElement.style.setProperty('--bg-image', `url("${currentBgObjectUrl}")`);
+        return;
+    }
+    const url = (s.bgUrl || '').trim();
+    if (url) document.documentElement.style.setProperty('--bg-image', `url("${url.replace(/"/g, '')}")`);
+    else document.documentElement.style.removeProperty('--bg-image');
+}
+applyBackground();
+
+const settingsModal = document.getElementById('settingsModal');
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+if (openSettingsBtn && settingsModal) {
+    openSettingsBtn.addEventListener('click', () => {
+        const s = loadUiSettings();
+        document.getElementById('bgImageUrl').value = s.bgUrl || '';
+        document.getElementById('bgBlur').value = s.bgBlur ?? 2;
+        document.getElementById('bgDim').value = s.bgDim ?? 12;
+        document.getElementById('photoFolderUrl').value = s.photoFolder || DEFAULT_PHOTO_FOLDER;
+        document.getElementById('photoExt').value = s.photoExt || 'jpg';
+        const nameEl = document.getElementById('bgFileName');
+        loadBgFile().then(f => { if (nameEl) nameEl.textContent = f ? ('Attached: ' + (f.name || 'photo')) : ''; });
+        settingsModal.classList.add('active');
+    });
+}
+if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+document.getElementById('saveBgBtn')?.addEventListener('click', () => {
+    const s = {
+        bgUrl: document.getElementById('bgImageUrl').value.trim(),
+        bgBlur: Number(document.getElementById('bgBlur').value),
+        bgDim: Number(document.getElementById('bgDim').value),
+        photoFolder: document.getElementById('photoFolderUrl').value.trim() || DEFAULT_PHOTO_FOLDER,
+        photoExt: document.getElementById('photoExt').value
+    };
+    saveUiSettings(s);
+    applyBackground(s);
+    settingsModal.classList.remove('active');
+});
+document.getElementById('bgImageFile')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    await saveBgFile(file);
+    const s = loadUiSettings();
+    s.bgUrl = '';
+    saveUiSettings(s);
+    document.getElementById('bgImageUrl').value = '';
+    const nameEl = document.getElementById('bgFileName');
+    if (nameEl) nameEl.textContent = 'Attached: ' + file.name;
+    applyBackground(s);
+});
+document.getElementById('clearBgBtn')?.addEventListener('click', async () => {
+    const s = loadUiSettings();
+    s.bgUrl = '';
+    saveUiSettings(s);
+    document.getElementById('bgImageUrl').value = '';
+    const fileInput = document.getElementById('bgImageFile');
+    if (fileInput) fileInput.value = '';
+    const nameEl = document.getElementById('bgFileName');
+    if (nameEl) nameEl.textContent = '';
+    await clearBgFile();
+    applyBackground(s);
+});
+
+document.getElementById('openFullCartBtn')?.addEventListener('click', () => {
+    renderFullCart();
+    document.getElementById('fullCartView').classList.add('active');
+    document.body.classList.add('full-cart-open');
+});
+document.getElementById('closeFullCartBtn')?.addEventListener('click', () => {
+    document.getElementById('fullCartView').classList.remove('active');
+    document.body.classList.remove('full-cart-open');
+    renderCart();
+});
+document.getElementById('fullPreviewBtn')?.addEventListener('click', () => document.getElementById('previewBtn')?.click());
+document.getElementById('fullSaveBtn')?.addEventListener('click', () => document.getElementById('saveBtnAction')?.click());
+
+document.getElementById('fullCopyExcelBtn')?.addEventListener('click', copyCartForExcel);
+
+const GITHUB_PHOTO_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
+const GITHUB_PHOTO_RAW = "https://raw.githubusercontent.com/DC-database/hub/main/photo/";
+
+document.getElementById('browseGithubPhotosBtn')?.addEventListener('click', async () => {
+    const grid = document.getElementById('githubPhotoGrid');
+    if (!grid) return;
+    grid.innerHTML = '<p class="hint">Loading photos…</p>';
+    try {
+        const res = await fetch(GITHUB_PHOTO_API);
+        const files = await res.json();
+        const images = (Array.isArray(files) ? files : []).filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name));
+        if (!images.length) { grid.innerHTML = '<p class="hint">No images found in /photo.</p>'; return; }
+        grid.innerHTML = '';
+        images.forEach(f => {
+            const url = f.download_url || (GITHUB_PHOTO_RAW + f.name);
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = f.name;
+            img.title = f.name;
+            img.onclick = () => {
+                grid.querySelectorAll('img').forEach(i => i.classList.remove('selected'));
+                img.classList.add('selected');
+                document.getElementById('bgImageUrl').value = url;
+                const s = loadUiSettings();
+                s.bgUrl = url;
+                saveUiSettings(s);
+                clearBgFile();
+                applyBackground(s);
+            };
+            grid.appendChild(img);
+        });
+    } catch (err) {
+        grid.innerHTML = '<p class="hint">Could not list GitHub folder. Check the repo is public.</p>';
+    }
 });
