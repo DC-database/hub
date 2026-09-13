@@ -447,6 +447,8 @@ function renderFullCart() {
 }
 
 function renderCart() {
+    const cartBody = document.getElementById('cartBody');
+    if (!cartBody) return;
     cartBody.innerHTML = ''; let grandTotal = 0;
     const previewBtn = document.getElementById('previewBtn');
     const saveBtnAction = document.getElementById('saveBtnAction');
