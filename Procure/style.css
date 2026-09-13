@@ -391,3 +391,21 @@ body.full-cart-open .app-shell { visibility: hidden; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; margin-top: 10px; }
 .photo-grid img { width: 100%; height: 72px; object-fit: cover; border-radius: 8px; cursor: pointer; border: 2px solid transparent; }
 .photo-grid img.selected, .photo-grid img:hover { border-color: #0f766e; }
+
+.requisition-details .suggestions-box,
+.req-input-group .suggestions-box {
+    background: #ffffff !important;
+    color: #0f172a !important;
+}
+.requisition-details .suggestion-item,
+.req-input-group .suggestion-item {
+    color: #0f172a !important;
+}
+.requisition-details .suggestion-item:hover,
+.req-input-group .suggestion-item:hover {
+    background: #ecfdf5 !important;
+    color: #0f172a !important;
+}
+.requisition-details .selected-display {
+    color: #e2e8f0 !important;
+}
