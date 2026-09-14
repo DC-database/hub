@@ -1384,6 +1384,7 @@
 </button>
 <ul class="im-nav-submenu">
 <li class="im-nav-reporting"><a data-section="im-reporting" href="#"><i class="fa-solid fa-chart-line"></i> Invoice Records</a></li>
+<li class="im-nav-po-closeout"><a data-section="im-po-closeout" href="#"><i class="fa-solid fa-clipboard-check"></i> PO Close Out</a></li>
 <li class="im-nav-payments desktop-only-li"><a class="hidden" data-section="im-payments" href="#" id="payments-nav-link"><i class="fa-solid fa-money-check-dollar"></i> Payments</a></li>
 <li class="im-nav-finance-report desktop-only-li">
 <a class="external-link" href="https://port.iba.com.qa/Epicore/" id="im-finance-report-nav-link" rel="noopener" target="_blank">
@@ -2013,6 +2014,35 @@
 </div>
 <div class="hidden" id="im-reporting-mobile-view"></div> <!--  ← PASTE THIS LINE HERE -->
 </section> <!-- closing im-reporting -->
+<section class="workdesk-section hidden" id="im-po-closeout">
+<div class="header">
+<div class="header-top im-reporting-hero-layout">
+<div class="header-title im-reporting-hero-copy">
+<h1>PO Close Out</h1>
+<p class="im-reporting-hero-subtitle">Site confirmations for remaining PO balance. Search, sort by site, then mark <strong>Close Out Done</strong> when the remaining qty is actually closed.</p>
+<div class="im-reporting-hero-meta">
+<span class="im-found-count-chip" id="po-closeout-count-display"></span>
+</div>
+</div>
+</div>
+</div>
+<form id="im-po-closeout-form" onsubmit="return false;" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
+<div class="search-box" style="flex:0 0 220px;max-width:220px;min-width:160px;margin:0;">
+<i class="fa-solid fa-keyboard search-icon"></i>
+<input autocomplete="off" id="im-po-closeout-search" placeholder="Search PO or site..." type="text"/>
+</div>
+<select id="im-po-closeout-site-sort" style="height:38px;width:150px;max-width:150px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:13px;">
+<option value="">All Sites</option>
+</select>
+<button class="primary-btn" id="im-po-closeout-search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+<button class="secondary-btn" id="im-po-closeout-clear-btn" type="button"><i class="fa-solid fa-eraser"></i> Clear</button>
+</form>
+<div id="im-po-closeout-tabs" style="display:flex;gap:8px;margin:14px 0 8px;">
+<button type="button" id="im-po-closeout-tab-waiting" class="primary-btn" data-tab="waiting">Waiting Site</button>
+<button type="button" id="im-po-closeout-tab-ready" class="secondary-btn" data-tab="ready">Ready to close</button>
+</div>
+<div id="im-po-closeout-list" style="margin-top:8px;"></div>
+</section>
 <section class="workdesk-section hidden" id="im-payments">
 <div class="im-standard-hero im-hero-payments">
 <div class="im-standard-hero-main">
@@ -3433,7 +3463,7 @@
 <script src="js/app-audio.js?v=8.2.3"></script>
 <script src="js/app-core.js?v=8.2.3"></script>
 <script src="js/app-inventory.js?v=12.8.5"></script>
-<script src="js/app-invoice.js?v=11.5.8"></script>
+<script src="js/app-invoice.js?v=12.8.8"></script>
 <script src="js/app-mobile.js?v=11.8.7"></script>
 <script src="js/app-finance.js?v=8.2.3"></script>
 <script src="js/app-chat.js?v=11.6.0"></script>
@@ -3441,18 +3471,19 @@
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=10.1.5"></script>
-<script src="app.js?v=12.8.6"></script>
+<script src="app.js?v=12.8.16"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
-<script src="js/app-navigation-settings.js?v=12.7.3"></script>
+<script src="js/app-navigation-settings.js?v=12.8.10"></script>
 <script src="js/app-data-cache.js?v=12.8.5"></script>
 <script src="js/app-job-vendor.js?v=8.2.3"></script>
 <script src="js/app-workdesk-job-entry.js?v=10.1.6"></script>
 <script src="js/app-standard-job.js?v=11.0.4"></script>
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
 <script src="js/app-payments.js?v=12.8.2"></script>
-<script src="js/app-invoice-records.js?v=12.7.9"></script>
-<script src="js/app-active-tasks.js?v=11.9.4"></script>
+<script src="js/app-invoice-records.js?v=12.8.14"></script>
+<script src="js/app-po-closeout.js?v=12.8.16"></script>
+<script src="js/app-active-tasks.js?v=12.8.8"></script>
 <script src="js/app-workdesk-dashboard.js?v=12.0.10"></script>
 <script src="js/app-general-announcement.js?v=12.8.4"></script>
 <script src="js/app-workdesk-reporting.js?v=11.5.1"></script>
@@ -3460,14 +3491,14 @@
 <script src="js/app-report-workflow.js?v=8.2.3"></script>
 <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
 <script src="js/app-modal-navigation-clear.js?v=12.8.6"></script>
-<script src="js/app-invoice-entry-search.js?v=12.0.5"></script>
+<script src="js/app-invoice-entry-search.js?v=12.8.16"></script>
 <script src="js/app-attention-validation.js?v=11.8.0"></script>
-<script src="js/app-batch-entry-ui.js?v=12.7.3"></script>
+<script src="js/app-batch-entry-ui.js?v=12.8.16"></script>
 <script src="js/app-im-event-wiring.js?v=12.7.3"></script>
 <script src="js/app-history-transfer.js?v=12.8.6"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '12.8.7';
+      window.IBA_SYSTEM_VERSION = '12.9.0';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>

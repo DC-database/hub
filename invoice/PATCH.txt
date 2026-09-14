@@ -1,0 +1,7 @@
+12.8.16 patch
+js/app-po-closeout.js
+js/app-batch-entry-ui.js
+js/app-invoice-entry-search.js
+index.html
+app.js
+version.json

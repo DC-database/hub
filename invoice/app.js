@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.8.7';
+const APP_VERSION = '12.9.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -603,9 +603,7 @@ async function handleSRVDone(btn, key) {
 
     try {
         if (typeof ensureInvoiceDataFetched === 'function') {
-            await ensureInvoiceDataFetched(false);
-        } else if (typeof ensureAllEntriesFetched === 'function') {
-            await ensureAllEntriesFetched(false);
+            await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
         }
 
         const keyStr = String(key || '').trim();
@@ -632,6 +630,18 @@ async function handleSRVDone(btn, key) {
 
             poNumber = String(poNumber || '').trim().toUpperCase();
             const candidateInvoiceKey = String(invoiceKey || '').trim();
+            const cachedInv = (typeof allInvoiceData !== 'undefined' && allInvoiceData
+                && poNumber && candidateInvoiceKey
+                && allInvoiceData[poNumber]
+                && allInvoiceData[poNumber][candidateInvoiceKey])
+                ? allInvoiceData[poNumber][candidateInvoiceKey]
+                : null;
+            if (cachedInv && typeof window.poCloseoutBeforeSrvDone === 'function') {
+                const closeoutGateFast = await window.poCloseoutBeforeSrvDone(poNumber, candidateInvoiceKey, cachedInv);
+                if (!closeoutGateFast || closeoutGateFast.proceed === false) {
+                    return;
+                }
+            }
 
             const resolveInvoiceEntry = async () => {
                 if (!poNumber) return { resolvedKey: null, invData: null };
@@ -678,6 +688,13 @@ async function handleSRVDone(btn, key) {
             invoiceKey = resolvedKey;
             sender = (invData && (invData.enteredBy || invData.originEnteredBy)) || 'Accounting';
             oldAttention = (taskFromList.attention || (invData ? invData.attention : '') || '');
+
+            if (typeof window.poCloseoutBeforeSrvDone === 'function') {
+                const closeoutGate = await window.poCloseoutBeforeSrvDone(poNumber, invoiceKey, invData || {});
+                if (!closeoutGate || closeoutGate.proceed === false) {
+                    return;
+                }
+            }
 
             const updates = { status: 'SRV Done', attention: '', lastUpdated: firebase.database.ServerValue.TIMESTAMP };
             await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
@@ -4770,7 +4787,12 @@ async function handleUpdateInvoice(e) {
         await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
 
         if (newStatus !== oldStatus && window.logInvoiceHistory) {
-            await window.logInvoiceHistory(currentPO, currentlyEditingInvoiceKey, newStatus, invoiceData.note);
+            await window.logInvoiceHistory(
+                currentPO,
+                currentlyEditingInvoiceKey,
+                newStatus || invoiceData.status || oldStatus || 'Updated',
+                invoiceData.note || ''
+            );
         }
 
         alert('Invoice updated successfully!');
@@ -7615,6 +7637,16 @@ try {
                 const btnKey = e.target.getAttribute('data-key');
                 const effectiveKey = btnKey || key;
                 await handleSRVDone(e.target, effectiveKey);
+                return;
+            }
+
+            if (e.target.classList.contains('po-closeout-btn')) {
+                e.stopPropagation();
+                const btnKey = e.target.getAttribute('data-key');
+                const effectiveKey = btnKey || key;
+                if (typeof window.handlePOCloseOutDone === 'function') {
+                    await window.handlePOCloseOutDone(e.target, effectiveKey);
+                }
                 return;
             }
 
