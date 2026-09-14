@@ -36,6 +36,7 @@ function isInvoiceTaskActive(invoiceData) {
         'canceled',
         'completed',
         'done'
+        // PO Close Out stays ACTIVE so Site can confirm remaining qty
     ]);
 
     if (!status) return false;

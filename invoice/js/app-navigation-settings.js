@@ -631,6 +631,8 @@ function showIMSection(sectionId) {
     const canAccessInvoiceWrite = isSuperAdmin;
     const canAccessSummaryNote = isSuperAdmin;
     const canAccessInvoiceRecords = isAdmin || isSuperAdmin || isVacationDelegate;
+    const poCloseoutNav = document.querySelector('#im-nav .im-nav-po-closeout');
+    if (poCloseoutNav) poCloseoutNav.style.display = isSuperAdmin ? '' : 'none';
     const canAccessPayments = (typeof canCurrentUserAccessPayments === 'function')
         ? canCurrentUserAccessPayments()
         : false;
@@ -679,6 +681,13 @@ function showIMSection(sectionId) {
     if (sectionId === 'im-reporting' && !canAccessInvoiceRecords) {
         alert('Access Denied: Invoice Records is Admin only.');
         return;
+    }
+    if (sectionId === 'im-po-closeout') {
+        const isIrwinOnly = userName === String(SUPER_ADMIN_NAME || 'Irwin').trim().toLowerCase();
+        if (!isIrwinOnly) {
+            alert('Access Denied: PO Close Out is Super Admin only.');
+            return;
+        }
     }
 
     if (sectionId === 'im-payments' && !canAccessPayments) {
@@ -900,6 +909,12 @@ try {
 
         const canPrintInvoiceReport = isAdminRole || isAccountingPos;
         if (imReportingPrintBtn) imReportingPrintBtn.disabled = !canPrintInvoiceReport;
+    }
+
+    if (sectionId === 'im-po-closeout') {
+        if (typeof window.renderPOCloseOutList === 'function') {
+            window.renderPOCloseOutList(true);
+        }
     }
 
     if (sectionId === 'im-payments') {

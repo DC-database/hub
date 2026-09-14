@@ -348,7 +348,8 @@ const WD_ACTIVE_EXACT_INVOICE_STATUS_MAP = {
     // It must be collected from invoice_tasks_by_user, shown in My Active Tasks,
     // and participate in the same count/blink/color logic as other direct Attention tasks.
     // 12.5.3: Shared All-queue fallback restores missing For Approval pointers.
-    'for approval': 'For Approval'
+    'for approval': 'For Approval',
+    'po close out': 'PO Close Out'
 };
 const WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
     'with accounts',
@@ -863,7 +864,9 @@ function renderWorkdeskActiveTaskTable(tasks) {
             actionsCell.innerHTML = '<button class="ceo-approve-btn wd-row-action wd-action-gold" data-key="' + wdUiEscape(task.key) + '">Make Approval</button>';
         } else {
             let actionsHTML = '';
-            if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
+            if (task.remarks === 'PO Close Out') {
+                actionsHTML += `<button class="po-closeout-btn wd-row-action wd-action-srv" data-key="${wdUiEscape(task.key)}">PO Close Out</button>`;
+            } else if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
                 actionsHTML += `<button class="srv-done-btn wd-row-action wd-action-srv" data-key="${wdUiEscape(task.key)}">SRV Done</button>`;
                 actionsHTML += `<button class="modify-btn wd-row-action wd-action-process" data-key="${wdUiEscape(task.key)}">Process</button>`;
             } else {

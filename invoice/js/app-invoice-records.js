@@ -1362,7 +1362,21 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
                         </button>`;
                     }
 
-                    actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${reportViewLink} ${srvPDFLink} ${historyBtn} ${stickerBtn} ${waBtn}</div>`;
+                    let poCloseOutBtn = '';
+                    try {
+                        const isIrwin = (currentApprover?.Name || '').trim().toLowerCase() === String(SUPER_ADMIN_NAME || 'Irwin').trim().toLowerCase();
+                        const readyDot = (typeof window.poCloseoutReadyDotHTML === 'function')
+                            ? window.poCloseoutReadyDotHTML(inv)
+                            : '';
+                        const canCloseOut = isIrwin && typeof window.poCloseoutIsQualified === 'function' && window.poCloseoutIsQualified(poData.poNumber, inv);
+                        const alreadyPending = !!(inv.poCloseoutPending || String(inv.status || '').toLowerCase() === 'po close out');
+                        if (readyDot) poCloseOutBtn += readyDot;
+                        if (canCloseOut && !alreadyPending) {
+                            poCloseOutBtn += `<button type="button" class="action-btn po-closeout-send-btn" style="background:#b45309;color:#fff;" title="Send remaining qty confirmation to Site" onclick="event.stopPropagation(); window.sendPOCloseOutToSite('${poData.poNumber}', '${inv.key}')">PO Close Out</button>`;
+                        }
+                    } catch (_) {}
+
+                    actionButtonsHTML = `<div class="modern-action-group im-record-actions">${editBtn} ${invPDFLink} ${reportViewLink} ${srvPDFLink} ${historyBtn} ${stickerBtn} ${waBtn} ${poCloseOutBtn}</div>`;
                 } else if (isEcommitRecord && canEditInvoiceEntry) {
                     actionButtonsHTML = `<span style="font-size:0.8rem; color:#6f42c1; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-file-import"></i> Click to Import</span>`;
                 }

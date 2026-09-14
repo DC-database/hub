@@ -650,7 +650,10 @@ async function proceedWithPOLoading(poNumber, poData) {
     const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
 
     // Update UI Labels
-    document.querySelectorAll('.im-po-no').forEach(el => el.textContent = poNumber);
+    document.querySelectorAll('.im-po-no').forEach(el => {
+        const dot = (typeof window.poCloseoutReadyDotHTML === 'function') ? window.poCloseoutReadyDotHTML(poNumber) : '';
+        el.innerHTML = dot ? `${dot} ${poNumber}` : poNumber;
+    });
     document.querySelectorAll('.im-po-site').forEach(el => el.textContent = poData['Project ID'] || 'N/A');
     document.querySelectorAll('.im-po-value').forEach(el => el.textContent = canViewAmounts ? `QAR ${formatCurrency(poData.Amount)}` : '---');
     document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = poData['Supplier Name'] || 'N/A');
@@ -895,8 +898,9 @@ if (isPaidStatus) {
             }
 
             // ADDED ${reportPDFLink} TO THE ROW BELOW
+            const readyDot = (typeof window.poCloseoutReadyDotHTML === 'function') ? window.poCloseoutReadyDotHTML(inv) : '';
             row.innerHTML = `
-                <td>${inv.invEntryID || ''}</td>
+                <td>${readyDot ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;">${readyDot}<span>${inv.invEntryID || ''}</span></div>` : (inv.invEntryID || '')}</td>
                 <td>${inv.invNumber || ''}</td>
                 <td>${invoiceDateDisplay}</td>
                 <td>${invValueDisplay}</td>

@@ -235,7 +235,8 @@ async function handleAddPOToBatch() {
             <div class="batch-card-header" style="background: linear-gradient(135deg, #14293f 0%, #16495a 52%, #0d7e85 100%) !important; border-bottom: 4px solid #feb088 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
                 
                 <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                    <i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #ffd5bf !important; font-size: 0.75rem !important;">(New)</span>
+                    ${(typeof window.poCloseoutReadyDotHTML === 'function' && window.poCloseoutReadyDotHTML(poNumber)) ? `<div style="margin-bottom:4px;line-height:0;">${window.poCloseoutReadyDotHTML(poNumber)}</div>` : ''}
+                    <div><i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #ffd5bf !important; font-size: 0.75rem !important;">(New)</span></div>
                 </div>
 
                 <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
@@ -410,7 +411,8 @@ async function addInvoiceToBatchTable(invData) {
         <div class="batch-card-header" style="background: linear-gradient(135deg, #14293f 0%, #16495a 52%, #0d7e85 100%) !important; border-bottom: 4px solid #feb088 !important; padding: 12px 15px !important; display: flex !important; flex-wrap: nowrap !important; gap: 15px !important; align-items: flex-end !important; overflow-x: auto !important; overflow-y: hidden !important;">
             
             <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
-                <i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #ffd5bf !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span>
+                ${(typeof window.poCloseoutReadyDotHTML === 'function' && window.poCloseoutReadyDotHTML(invData)) ? `<div style="margin-bottom:4px;line-height:0;">${window.poCloseoutReadyDotHTML(invData)}</div>` : ''}
+                <div><i class="fa-solid fa-hashtag"></i> ${invData.po} <span class="existing-indicator" style="color: #ffd5bf !important; font-size: 0.75rem !important;">(Existing: ${invData.invEntryID})</span></div>
             </div>
 
             <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
