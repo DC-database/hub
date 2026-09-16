@@ -281,19 +281,22 @@
     window.poCloseoutIsQualified = isQualified;
     window.poCloseoutRemaining = remainingOnPO;
 
-    window.poCloseoutIsReadyToClose = function (inv) {
+    window.poCloseoutIsReadyToClose = function (inv, poNumber) {
         if (!inv) return false;
         const c = inv.poCloseout || {};
         if (c.hoClosed === true || inv.poCloseoutHoClosed === true) return false;
+        const po = String(poNumber || inv.po || inv.po_number || inv.poNumber || '').trim().toUpperCase();
+        if (po && !isQualified(po, inv)) return false;
         return inv.poCloseoutHoPending === true || (c.status === 'confirmed' && c.remainingNeeded === false);
     };
 
     window.poCloseoutPOHasReady = function (poNumber) {
         const po = String(poNumber || '').trim().toUpperCase();
+        if (!isQualified(po)) return false;
         const bucket = (typeof allInvoiceData !== 'undefined' && allInvoiceData)
             ? (allInvoiceData[po] || allInvoiceData[poNumber] || {})
             : {};
-        return Object.values(bucket || {}).some(inv => window.poCloseoutIsReadyToClose(inv));
+        return Object.values(bucket || {}).some(inv => window.poCloseoutIsReadyToClose(inv, po));
     };
 
     window.poCloseoutReadyDotHTML = function (invOrPo, invoiceKey) {
@@ -301,7 +304,8 @@
         if (typeof invOrPo === 'string') {
             ready = window.poCloseoutPOHasReady(invOrPo);
         } else {
-            ready = window.poCloseoutIsReadyToClose(invOrPo) || window.poCloseoutPOHasReady(invOrPo && (invOrPo.po || invOrPo.po_number));
+            const po = invOrPo && (invOrPo.po || invOrPo.po_number || invOrPo.poNumber);
+            ready = window.poCloseoutIsReadyToClose(invOrPo, po) || window.poCloseoutPOHasReady(po);
         }
         if (!ready) return '';
         return `<span class="po-closeout-ready-dot" title="This PO needs close out" style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.28);pointer-events:none;"></span>`;
@@ -311,11 +315,50 @@
      * Called from handleSRVDone BEFORE status is written.
      * Returns { proceed: true } after optional prompt, or { proceed: false } if cancelled.
      */
+    function askSrvDoneConfirm(poNumber) {
+        return new Promise((resolve) => {
+            let el = document.getElementById('po-srv-confirm-modal');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'po-srv-confirm-modal';
+                el.style.cssText = 'display:none;position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.55);align-items:center;justify-content:center;padding:16px;';
+                el.innerHTML = `
+                    <div style="width:min(460px,100%);background:#fff;border-radius:16px;box-shadow:0 20px 50px rgba(15,23,42,.28);overflow:hidden;font-family:inherit;">
+                        <div style="padding:16px 18px;background:#14293f;color:#fff;">
+                            <div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75;">Active Task</div>
+                            <div id="po-srv-confirm-title" style="font-weight:800;font-size:18px;margin-top:4px;">Confirm SRV Done</div>
+                        </div>
+                        <div style="padding:18px;">
+                            <p id="po-srv-confirm-copy" style="margin:0 0 16px;color:#334155;line-height:1.45;font-size:14px;"></p>
+                            <div style="display:flex;gap:8px;">
+                                <button type="button" id="po-srv-confirm-ok" style="flex:1;background:#0d7e85;color:#fff;border:0;border-radius:10px;padding:11px 12px;font-weight:800;cursor:pointer;">Proceed</button>
+                                <button type="button" id="po-srv-confirm-cancel" style="flex:1;background:#e2e8f0;color:#0f172a;border:0;border-radius:10px;padding:11px 12px;font-weight:800;cursor:pointer;">Cancel</button>
+                            </div>
+                        </div>
+                    </div>`;
+                document.body.appendChild(el);
+            }
+            document.getElementById('po-srv-confirm-title').textContent = poNumber ? `PO ${poNumber}` : 'Confirm SRV Done';
+            document.getElementById('po-srv-confirm-copy').textContent =
+                'Are you sure this SRV is complete? Click Proceed only if you are ready. Click Cancel if this was pressed by mistake.';
+            el.style.display = 'flex';
+            const done = (ok) => {
+                el.style.display = 'none';
+                resolve(!!ok);
+            };
+            document.getElementById('po-srv-confirm-ok').onclick = () => done(true);
+            document.getElementById('po-srv-confirm-cancel').onclick = () => done(false);
+            el.onclick = (e) => { if (e.target === el) done(false); };
+        });
+    }
+
     window.poCloseoutBeforeSrvDone = async function (poNumber, invoiceKey, invData) {
         try {
             if (!poNumber || !invoiceKey) return { proceed: true };
-            if (alreadyDecided(invData)) return { proceed: true };
-            if (!isQualified(poNumber, invData)) return { proceed: true };
+            if (alreadyDecided(invData) || !isQualified(poNumber, invData)) {
+                const ok = await askSrvDoneConfirm(poNumber);
+                return { proceed: !!ok };
+            }
             const info = { poNumber, ...remainingOnPO(poNumber, invData), mode: 'srv' };
             const needed = await askSiteDecision(info);
             if (needed === null) return { proceed: false };
