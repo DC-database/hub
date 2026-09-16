@@ -1,7 +1,6 @@
-12.8.16 patch
-js/app-po-closeout.js
-js/app-batch-entry-ui.js
-js/app-invoice-entry-search.js
+12.8.18 patch
+SRV Done Proceed/Cancel when PO has no remaining balance
 index.html
 app.js
 version.json
+js/app-po-closeout.js

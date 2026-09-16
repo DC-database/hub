@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '12.9.0';
+const APP_VERSION = '12.9.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -636,11 +636,13 @@ async function handleSRVDone(btn, key) {
                 && allInvoiceData[poNumber][candidateInvoiceKey])
                 ? allInvoiceData[poNumber][candidateInvoiceKey]
                 : null;
+            let srvConfirmDone = false;
             if (cachedInv && typeof window.poCloseoutBeforeSrvDone === 'function') {
                 const closeoutGateFast = await window.poCloseoutBeforeSrvDone(poNumber, candidateInvoiceKey, cachedInv);
                 if (!closeoutGateFast || closeoutGateFast.proceed === false) {
                     return;
                 }
+                srvConfirmDone = true;
             }
 
             const resolveInvoiceEntry = async () => {
@@ -689,7 +691,7 @@ async function handleSRVDone(btn, key) {
             sender = (invData && (invData.enteredBy || invData.originEnteredBy)) || 'Accounting';
             oldAttention = (taskFromList.attention || (invData ? invData.attention : '') || '');
 
-            if (typeof window.poCloseoutBeforeSrvDone === 'function') {
+            if (!srvConfirmDone && typeof window.poCloseoutBeforeSrvDone === 'function') {
                 const closeoutGate = await window.poCloseoutBeforeSrvDone(poNumber, invoiceKey, invData || {});
                 if (!closeoutGate || closeoutGate.proceed === false) {
                     return;
