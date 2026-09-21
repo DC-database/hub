@@ -335,10 +335,16 @@ async function sessionStillActive(user) {
     return String(snap.val().sessionId || '') === String(user.sessionId);
 }
 
+function refreshSearchActions() {
+    const input = document.getElementById('searchInput');
+    if (input && input.value.trim().length >= 2) renderSearchResults(input.value);
+}
+
 function forceLocalSignOut(message) {
     currentAccessUser = null;
     saveAccessSession(null);
     applyAccessUI();
+    refreshSearchActions();
     if (message) alert(message);
 }
 
@@ -415,6 +421,7 @@ document.getElementById('closeAccessBtn')?.addEventListener('click', () => {
 document.getElementById('accessSignOutBtn')?.addEventListener('click', async () => {
     await clearLiveSession(currentAccessUser || readAccessSession());
     forceLocalSignOut();
+    refreshSearchActions();
     document.getElementById('accessModal')?.classList.remove('active');
 });
 document.getElementById('accessChangeOwnPasswordBtn')?.addEventListener('click', async () => {
@@ -457,6 +464,7 @@ document.getElementById('accessLoginBtn')?.addEventListener('click', async () =>
         ensureSuperAdminRecord();
     }
     applyAccessUI();
+    refreshSearchActions();
     if (document.getElementById('createdBy') && currentAccessUser.name && !document.getElementById('createdBy').value) {
         document.getElementById('createdBy').value = currentAccessUser.name;
     }
