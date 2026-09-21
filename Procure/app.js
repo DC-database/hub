@@ -927,7 +927,19 @@ window.addToCart = function(partCode, description, unit, groupName, actName, cla
         classValue = sourceItem ? (sourceItem["Class Code"] || sourceItem["Class"] || sourceItem["Class Name"] || 'N/A') : 'N/A';
     }
     const sourceItem = allSearchableItems.find(i => String(i["Part Code"] || i["Part code"] || '') === String(partCode));
-    cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, classValue: classValue, comment: '', qty: 1, price: 0, photoUrl: itemPhotoUrl(partCode, sourceItem) });
+    cart.push({
+        partNo: partCode,
+        description: description,
+        unit: unit,
+        groupName: groupName,
+        actName: actName,
+        classValue: classValue,
+        comment: '',
+        qty: 1,
+        price: 0,
+        photoFile: (sourceItem && (sourceItem.PhotoFile || sourceItem.photoFile || sourceItem.photoName)) || '',
+        photoUrl: itemPhotoUrl(partCode, sourceItem)
+    });
     renderCart(); saveSession();
     const wrap = document.querySelector('#cartPanel .table-responsive');
     const last = document.querySelector('#cartBody tr:last-child');
@@ -972,6 +984,17 @@ function bindFullCartEditors() {
     });
 }
 
+function cartPhotoHtml(item) {
+    const source = allSearchableItems.find(i => itemPartCode(i) === String(item.partNo || ''));
+    const fileName = item.photoFile || (source && (source.PhotoFile || source.photoFile || source.photoName)) || '';
+    const urls = photoUrlCandidates(fileName);
+    if (!urls.length) return '';
+    const first = String(urls[0]).replace(/"/g, '&quot;');
+    const alts = urls.slice(1).join('|').replace(/"/g, '&quot;');
+    const title = `${item.partNo || ''} | ${item.description || ''}`;
+    return `<img class="item-thumb" src="${first}" alt="" referrerpolicy="no-referrer" data-alts="${alts}" onclick="openPhotoView(this.src, '${String(title).replace(/'/g, "\\'")}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">`;
+}
+
 function renderFullCart() {
     const body = document.getElementById('fullCartBody');
     if (!body) return;
@@ -983,7 +1006,7 @@ function renderFullCart() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td>${item.photoUrl ? `<img class="item-thumb" src="${item.photoUrl}" alt="" referrerpolicy="no-referrer" onclick="openPhotoView('${String(item.photoUrl).replace(/'/g, '')}', '${item.partNo}')" onerror="if(!this.dataset.alt){this.dataset.alt=1;this.src=this.src.replace(/\\.jpeg$/i,'.jpg');}else{this.style.background='#e2e8f0';}">` : ''}</td>
+            <td>${cartPhotoHtml(item)}</td>
             <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
             <td>${item.description}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${comment}" data-index="${index}"></td>
             <td><input type="number" min="1" class="calc-input qty-input" value="${item.qty}" data-index="${index}" data-field="qty"></td>
