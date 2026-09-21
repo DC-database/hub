@@ -992,7 +992,7 @@ function cartPhotoHtml(item) {
     const first = String(urls[0]).replace(/"/g, '&quot;');
     const alts = urls.slice(1).join('|').replace(/"/g, '&quot;');
     const title = `${item.partNo || ''} | ${item.description || ''}`;
-    return `<img class="item-thumb" src="${first}" alt="" referrerpolicy="no-referrer" data-alts="${alts}" onclick="openPhotoView(this.src, '${String(title).replace(/'/g, "\\'")}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">`;
+    return `<img class="item-thumb" src="${first}" alt="" referrerpolicy="no-referrer" data-alts="${alts}" onclick="openCartPhotoShow(${cart.indexOf(item)})" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">`;
 }
 
 function renderFullCart() {
@@ -1866,21 +1866,52 @@ function composePhotoUrl(fileName) {
     return photoUrlCandidates(fileName)[0] || '';
 }
 
-window.openPhotoView = function(url, title) {
-    if (!url) return;
-    const modal = document.getElementById('photoViewModal');
+let photoShowList = [];
+let photoShowIndex = 0;
+
+function showPhotoAt(index) {
+    if (!photoShowList.length) return;
+    photoShowIndex = (index + photoShowList.length) % photoShowList.length;
+    const item = photoShowList[photoShowIndex];
     const img = document.getElementById('photoViewImage');
     const heading = document.getElementById('photoViewTitle');
-    if (heading) heading.textContent = title || 'Photo';
+    const count = document.getElementById('photoViewCount');
+    if (heading) heading.textContent = item.title || 'Photo';
     if (img) {
         img.setAttribute('referrerpolicy', 'no-referrer');
-        img.src = url;
+        img.src = item.url;
     }
-    if (modal) modal.classList.add('active');
+    if (count) count.textContent = (photoShowIndex + 1) + ' / ' + photoShowList.length;
+}
+
+window.openPhotoView = function(url, title) {
+    if (!url) return;
+    photoShowList = [{ url, title: title || 'Photo' }];
+    showPhotoAt(0);
+    document.getElementById('photoViewModal')?.classList.add('active');
+};
+
+window.openCartPhotoShow = function(startIndex) {
+    photoShowList = cart.map((item) => {
+        const source = allSearchableItems.find(i => itemPartCode(i) === String(item.partNo || ''));
+        const fileName = item.photoFile || (source && (source.PhotoFile || source.photoFile || source.photoName)) || '';
+        const url = photoUrlCandidates(fileName)[0] || item.photoUrl || '';
+        return url ? { url, title: (item.partNo || '') + ' | ' + (item.description || '') } : null;
+    }).filter(Boolean);
+    if (!photoShowList.length) return;
+    const item = cart[startIndex];
+    const source = item && allSearchableItems.find(i => itemPartCode(i) === String(item.partNo || ''));
+    const fileName = item ? (item.photoFile || (source && (source.PhotoFile || source.photoFile || source.photoName)) || '') : '';
+    const startUrl = photoUrlCandidates(fileName)[0] || (item && item.photoUrl) || '';
+    const found = photoShowList.findIndex((row) => row.url === startUrl);
+    showPhotoAt(found >= 0 ? found : 0);
+    document.getElementById('photoViewModal')?.classList.add('active');
 };
 document.getElementById('closePhotoViewBtn')?.addEventListener('click', () => {
     document.getElementById('photoViewModal')?.classList.remove('active');
 });
+document.getElementById('photoViewPrevBtn')?.addEventListener('click', () => showPhotoAt(photoShowIndex - 1));
+document.getElementById('photoViewNextBtn')?.addEventListener('click', () => showPhotoAt(photoShowIndex + 1));
 document.getElementById('createItemPhotoPreview')?.addEventListener('click', () => {
     const img = document.getElementById('createItemPhotoPreview');
     if (img && img.src && img.style.display !== 'none') openPhotoView(img.src, document.getElementById('previewPartCode')?.textContent || 'Photo');
