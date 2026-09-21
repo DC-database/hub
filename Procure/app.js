@@ -881,9 +881,11 @@ function renderSearchResults(rawQuery) {
             const keyArg = item.firebaseKey ? `'${item.firebaseKey}'` : 'null';
             actionButtons += `<button class="icon-btn edit" onclick="updateItemPhoto(${keyArg}, '${partNo}')" title="Update photo link"><i class="fa-solid fa-image"></i></button>`;
         }
-        const photo = itemPhotoUrl(partNo, item);
-        const safePhoto = String(photo || '').replace(/"/g, '&quot;');
-        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" onclick="openPhotoView('${safePhoto}', '${partNo}')" onerror="if(!this.dataset.alt){this.dataset.alt=1;this.src=this.src.replace(/\\.jpeg$/i,'.jpg');}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
+        const fileName = item.PhotoFile || item.photoFile || item.photoName || '';
+        const photoUrls = photoUrlCandidates(fileName);
+        const safePhoto = String(photoUrls[0] || '').replace(/"/g, '&quot;');
+        const safeAlts = photoUrls.slice(1).join('|').replace(/"/g, '&quot;');
+        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" data-alts="${safeAlts}" onclick="openPhotoView(this.src, '${partNo}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
         searchResults.appendChild(div);
     });
     if (matches.length > searchLimit) {
@@ -1823,14 +1825,22 @@ function photoFolderBase() {
     return base;
 }
 
-function composePhotoUrl(fileName) {
+function photoUrlCandidates(fileName) {
     const base = photoFolderBase();
-    if (!base) return '';
-    const s = loadUiSettings();
-    let name = String(fileName || '').trim().replace(/\s+/g, '');
-    if (!name) return '';
-    name = name.replace(/\.(jpg|jpeg|png|webp)$/i, '');
-    return base + name + '.jpeg';
+    if (!base || !fileName) return [];
+    const stem = String(fileName).trim().replace(/\.(jpg|jpeg|png|webp)$/i, '');
+    if (!stem) return [];
+    const names = [stem, stem.replace(/\s+/g, '')].filter((name, idx, arr) => name && arr.indexOf(name) === idx);
+    const urls = [];
+    names.forEach((name) => {
+        urls.push(base + encodeURIComponent(name + '.jpg'));
+        urls.push(base + encodeURIComponent(name + '.jpeg'));
+    });
+    return urls;
+}
+
+function composePhotoUrl(fileName) {
+    return photoUrlCandidates(fileName)[0] || '';
 }
 
 window.openPhotoView = function(url, title) {
