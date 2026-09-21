@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Procurement Hub 4.4</title>
+    <title>Procurement Hub 7.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
@@ -13,6 +13,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -23,7 +24,7 @@
                 <div class="brand-mark"><i class="fa-solid fa-layer-group"></i></div>
                 <div>
                     <h1>Procurement Hub</h1>
-                    <p>Material requisition workspace · v5.9</p>
+                    <p>Material requisition workspace · v7.0</p>
                 </div>
             </div>
             <div class="topbar-status">
@@ -31,7 +32,10 @@
                 <button type="button" id="refreshCatalogBtn" class="ghost-btn" title="Re-download catalog from GitHub and Firebase">
                     <i class="fa-solid fa-rotate"></i> Refresh catalog
                 </button>
-                <button type="button" id="openSettingsBtn" class="ghost-btn" title="Settings">
+                <button type="button" id="openAccessBtn" class="ghost-btn" title="Sign in for add, edit, and delete access">
+                    <i class="fa-solid fa-user-lock"></i> <span id="accessBtnLabel">Sign in</span>
+                </button>
+                <button type="button" id="openSettingsBtn" class="ghost-btn" title="Settings" style="display:none;">
                     <i class="fa-solid fa-gear"></i> Settings
                 </button>
             </div>
@@ -91,7 +95,7 @@
                     <i class="fa-solid fa-xmark"></i> Clear search
                 </button>
                 <button type="button" id="viewNewItemsBtn" class="btn btn-amber">
-                    <i class="fa-solid fa-list-check"></i> Session new items
+                    <i class="fa-solid fa-list-check"></i> Recent new items
                 </button>
                 <button type="button" id="openGeneratorBtn" class="btn btn-success">
                     <i class="fa-solid fa-plus"></i> Create item
@@ -111,7 +115,8 @@
                 </div>
                 <div class="head-actions">
                     <button type="button" id="openFullCartBtn" class="btn btn-dark"><i class="fa-solid fa-expand"></i> Full view</button>
-                    <button type="button" id="copyExcelBtn" class="btn btn-success-outline" disabled><i class="fa-solid fa-copy"></i> Copy for Excel</button>
+                    <button type="button" id="copyReqEntryBtn" class="btn btn-req-outline" disabled><i class="fa-solid fa-copy"></i> Requisition Entry</button>
+                    <button type="button" id="copyExcelBtn" class="btn btn-success-outline" disabled><i class="fa-solid fa-copy"></i> Purchase Entry</button>
                     <button type="button" id="clearSessionBtn" class="btn btn-danger-outline"><i class="fa-solid fa-eraser"></i> Clear cart only</button>
                 </div>
             </div>
@@ -161,6 +166,7 @@
                     <thead>
                         <tr>
                             <th>SN</th>
+                            <th>Photo</th>
                             <th>Part No</th>
                             <th>Description</th>
                             <th>Qty</th>
@@ -176,9 +182,38 @@
             <div class="cart-footer">
                 <div class="grand-total">Grand Total: <span id="fullGrandTotalVal">0.00</span></div>
                 <div class="footer-actions">
-                    <button type="button" id="fullCopyExcelBtn" class="btn btn-success-outline"><i class="fa-solid fa-copy"></i> Copy for Excel</button>
+                    <button type="button" id="fullCopyReqEntryBtn" class="btn btn-req-outline"><i class="fa-solid fa-copy"></i> Requisition Entry</button>
+                    <button type="button" id="fullCopyExcelBtn" class="btn btn-success-outline"><i class="fa-solid fa-copy"></i> Purchase Entry</button>
                     <button type="button" id="fullPreviewBtn" class="btn btn-muted"><i class="fa-solid fa-eye"></i> Preview draft</button>
                     <button type="button" id="fullSaveBtn" class="btn btn-dark"><i class="fa-solid fa-cloud-arrow-up"></i> Save requisition</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="accessModal" class="modal-overlay no-print">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2 id="accessModalTitle">Catalog access</h2>
+                <button id="closeAccessBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="accessSignedInBox" class="section" style="display:none;">
+                    <p class="hint" id="accessSignedInText"></p>
+                    <div class="form-group">
+                        <label>Change my password</label>
+                        <input type="password" id="accessOwnPassword" placeholder="New password" autocomplete="new-password">
+                    </div>
+                    <div class="submit-section" style="gap:10px;">
+                        <button type="button" id="accessChangeOwnPasswordBtn" class="save-btn">Save my password</button>
+                        <button type="button" id="accessSignOutBtn" class="ghost-btn">Sign out</button>
+                    </div>
+                </div>
+                <div id="accessLoginBox" class="section">
+                    <h3>Sign in</h3>
+                    <p class="hint">Login is mobile number + password only. Name is not used to sign in.</p>
+                    <div class="form-group"><label>Mobile number</label><input type="text" id="accessLoginMobile" autocomplete="username"></div>
+                    <div class="form-group"><label>Password</label><input type="password" id="accessLoginPassword" autocomplete="current-password"></div>
+                    <div class="submit-section"><button type="button" id="accessLoginBtn" class="save-btn">Sign in</button></div>
                 </div>
             </div>
         </div>
@@ -220,18 +255,71 @@
                         <button type="button" id="saveBgBtn" class="save-btn">Apply background</button>
                     </div>
                 </div>
+                <div class="section" id="userAccessSection" style="display:none;">
+                    <h3>User access</h3>
+                    <p class="hint">Stored in requisition Firebase at <strong>appAccess/users</strong>. Login is name + mobile. Flags: add, edit, delete, photo.</p>
+                    <div class="form-group">
+                        <label>Full name</label>
+                        <input type="text" id="accessNewName" placeholder="User full name" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile number</label>
+                        <input type="text" id="accessNewMobile" placeholder="Must match login mobile" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="text" id="accessNewPassword" placeholder="Set or reset this user's password" autocomplete="off">
+                    </div>
+                    <div class="form-group" style="display:flex; flex-wrap:wrap; gap:14px; flex-direction:row; align-items:center;">
+                        <label style="text-transform:none; letter-spacing:0; font-size:13px;"><input type="checkbox" id="accessNewAdd"> Add items</label>
+                        <label style="text-transform:none; letter-spacing:0; font-size:13px;"><input type="checkbox" id="accessNewEdit"> Edit items</label>
+                        <label style="text-transform:none; letter-spacing:0; font-size:13px;"><input type="checkbox" id="accessNewDelete"> Delete items</label>
+                        <label style="text-transform:none; letter-spacing:0; font-size:13px;"><input type="checkbox" id="accessNewPhoto"> Update photos</label>
+                        <label style="text-transform:none; letter-spacing:0; font-size:13px;"><input type="checkbox" id="accessNewAdmin"> Admin</label>
+                    </div>
+                    <div class="submit-section" style="gap:10px;">
+                        <button type="button" id="saveAccessUserBtn" class="save-btn">Save user access</button>
+                    </div>
+                    <div id="accessUserList" class="hint" style="margin-top:12px;"></div>
+                </div>
+                <div class="section">
+                    <h3>Catalog source &amp; Firebase import</h3>
+                    <p class="hint">GitHub Item.csv is read-only. Import those rows (or your Excel file) into Firebase to edit, correct, or delete them. After import, matching Part Codes use the Firebase record so search does not show duplicates.</p>
+                    <div id="catalogImportStats" class="hint">Catalog stats will appear after the catalog loads.</div>
+                    <div class="form-group">
+                        <label>When Part Code already exists in Firebase</label>
+                        <select id="importConflictMode">
+                            <option value="skip">Skip existing (safe default)</option>
+                            <option value="overwrite">Overwrite Firebase with file values</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Upload Excel or CSV</label>
+                        <input type="file" id="catalogImportFile" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                        <small class="hint">Expected columns: Part Code, Series, Description, UOM, Group Code, Group Name, Class Code, Class Name, Activity Code, Activity Name</small>
+                    </div>
+                    <div class="submit-section" style="gap:10px; flex-wrap:wrap;">
+                        <button type="button" id="importGithubItemsBtn" class="save-btn"><i class="fa-solid fa-cloud-arrow-up"></i> Import GitHub Item.csv</button>
+                        <button type="button" id="importFileItemsBtn" class="ghost-btn"><i class="fa-solid fa-file-excel"></i> Import uploaded file</button>
+                    </div>
+                    <div id="catalogImportProgress" class="hint" style="margin-top:10px;"></div>
+                </div>
                 <div class="section">
                     <h3>Item photo folder (OneDrive)</h3>
-                    <p class="hint">Folder path only. Name each file as the part code, e.g. <strong>101.12454.jpg</strong>. The app never uploads photos; it only reads this URL.</p>
+                    <p class="hint">OneDrive folder is the image host. Put an Excel/CSV of all file names on GitHub. Staff pick a file name; the hub reads <strong>folder + file name</strong>.</p>
                     <div class="form-group">
-                        <label>Folder URL</label>
+                        <label>OneDrive folder URL</label>
                         <input type="url" id="photoFolderUrl" placeholder="https://.../Documents/DC Files/Photo/">
                     </div>
                     <div class="form-group">
-                        <label>File extension</label>
+                        <label>GitHub photo list CSV</label>
+                        <input type="url" id="photoListUrl" placeholder="https://raw.githubusercontent.com/DC-database/hub/main/PhotoIndex.csv">
+                    </div>
+                    <div class="form-group">
+                        <label>Default file extension</label>
                         <select id="photoExt">
+                            <option value="jpeg" selected>jpeg</option>
                             <option value="jpg">jpg</option>
-                            <option value="jpeg">jpeg</option>
                             <option value="png">png</option>
                             <option value="webp">webp</option>
                         </select>
@@ -240,10 +328,42 @@
             </div>
         </div>
     </div>
+    <div id="photoViewModal" class="modal-overlay no-print">
+        <div class="modal-content" style="max-width: 820px; text-align:center;">
+            <div class="modal-header">
+                <h2 id="photoViewTitle">Photo</h2>
+                <button id="closePhotoViewBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <img id="photoViewImage" alt="Item photo" referrerpolicy="no-referrer" style="max-width:100%; max-height:70vh; border-radius:12px; object-fit:contain;">
+            </div>
+        </div>
+    </div>
+    <div id="photoPickerModal" class="modal-overlay no-print">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2 id="photoPickerTitle">Choose photo</h2>
+                <button id="closePhotoPickerBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="hint">Search the OneDrive file-name list from GitHub. The saved photo is folder URL + selected file name.</p>
+                <div class="form-group">
+                    <label>Search photo name</label>
+                    <input type="text" id="photoPickerSearch" placeholder="Type photo name from PhotoIndex, e.g. CHIPPING HAMMER" autocomplete="off">
+                </div>
+                <div id="photoPickerList" class="suggestions-box" style="position:relative; top:auto; max-height:280px; display:block;"></div>
+                <p class="hint" id="photoPickerChosen">No photo selected yet.</p>
+                <div class="submit-section" style="gap:10px; margin-top:12px;">
+                    <button type="button" id="photoPickerSaveBtn" class="save-btn">Save photo tag</button>
+                    <button type="button" id="photoPickerClearBtn" class="ghost-btn">Clear photo tag</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div id="newItemsModal" class="modal-overlay no-print">
         <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header">
-                <h2>Newly Created Items (Current Session)</h2>
+                <h2>Recently Created Items</h2>
                 <button id="closeNewItemsModalBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
@@ -344,12 +464,17 @@
                     <div class="preview-section">
                         <div class="preview-text">
                             <h3>Generated Part Code</h3>
-                            <p id="seriesStatusText">Checked against GitHub & Firebase</p>
+                            <p id="seriesStatusText">Checked against Firebase catalog</p>
                         </div>
                         <div class="preview-code">
                             <div id="previewPartCode">XXXXX.XXXXXX</div>
                             <div id="previewSeries" class="series-text">Series: ------</div>
                         </div>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label>Photo preview</label>
+                        <img id="createItemPhotoPreview" class="item-thumb" alt="" style="width:88px;height:88px;display:none;">
+                        <small class="hint" id="createItemPhotoHint">Uses OneDrive folder + part code file name, or a chosen PhotoIndex file after save.</small>
                     </div>
 
                     <div class="submit-section">

@@ -1,27 +1,11 @@
 // ==========================================
-// FIREBASE CONFIG 1: ITEM DATABASE (Original)
-// ==========================================
-const firebaseConfig = {
-    apiKey: "AIzaSyCPTuMQO1u4sWpV31614VQUEZKmnIIfm70",
-    authDomain: "material-8f545.firebaseapp.com",
-    databaseURL: "https://material-8f545-default-rtdb.firebaseio.com",
-    projectId: "material-8f545",
-    storageBucket: "material-8f545.firebasestorage.app",
-    messagingSenderId: "563088704699",
-    appId: "1:563088704699:web:e82a5bbca68e8483a3159e",
-    measurementId: "G-F44DEZEX0Q"
-};
-
-if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-const db = firebase.database(); 
-
-// ==========================================
-// FIREBASE CONFIG 2: REQUISITIONS DATABASE (NEW)
+// FIREBASE: requisition-bf146 only
+// items, requisitions, access, and app settings
 // ==========================================
 const firebaseConfigReq = {
     apiKey: "AIzaSyCxQKz3MOzyyKsJQhB54ZO1EKH_9QPkI44",
     authDomain: "requisition-bf146.firebaseapp.com",
-    databaseURL: "https://requisition-bf146-default-rtdb.firebaseio.com", 
+    databaseURL: "https://requisition-bf146-default-rtdb.firebaseio.com",
     projectId: "requisition-bf146",
     storageBucket: "requisition-bf146.firebasestorage.app",
     messagingSenderId: "419583502521",
@@ -29,8 +13,8 @@ const firebaseConfigReq = {
     measurementId: "G-D60S6XVEGQ"
 };
 
-const reqApp = firebase.initializeApp(firebaseConfigReq, "RequisitionApp");
-const dbReq = reqApp.database(); 
+if (!firebase.apps.length) { firebase.initializeApp(firebaseConfigReq); }
+const dbReq = firebase.database(); 
 
 // ==========================================
 // URLs & GLOBALS
@@ -47,6 +31,475 @@ let sessionNewlyCreatedItems = [];
 
 let currentGroupCode = null; let generatedSeries = null; let generatedPartCode = null;
 let selectedVendor = { id: '', name: '' }; let selectedSite = { code: '', name: '' };
+
+// ==========================================
+// USER ACCESS (stored in requisition Firebase)
+// ==========================================
+const ACCESS_PATH = 'appAccess/users';
+const ACCESS_SESSION_PATH = 'appAccess/sessions';
+const ACCESS_SESSION_KEY = 'pr_access_session_v1';
+const SUPER_ADMIN = { name: 'irwin', mobile: '50992023' };
+let currentAccessUser = null;
+
+function normalizeMobile(value) {
+    return String(value || '').replace(/\D/g, '');
+}
+
+function accessUserKey(mobile) {
+    return normalizeMobile(mobile) || '';
+}
+
+function accessFlag(value) {
+    if (value === true || value === 1) return true;
+    const text = String(value ?? '').trim().toLowerCase();
+    return text === 'true' || text === 'yes' || text === '1' || text === 'y';
+}
+
+function normalizeAccessRecord(key, raw) {
+    const row = raw || {};
+    const name = String(row.name || row.Name || row['full name'] || row['Full name'] || '').trim();
+    const mobile = String(row.mobile || row['mobile number'] || row.mobileNumber || row.Mobile || row['Mobile number'] || key || '').trim();
+    const canAdd = accessFlag(row.add ?? row.Add ?? row.canAdd);
+    const canEdit = accessFlag(row.edit ?? row.Edit ?? row.canEdit);
+    const canDelete = accessFlag(row.delete ?? row.Delete ?? row.canDelete);
+    const canPhoto = accessFlag(row.photo ?? row.Photo ?? row.canPhoto);
+    const isAdmin = accessFlag(row.admin ?? row.isAdmin ?? row.Admin) || (canAdd && canEdit && canDelete);
+    return { key, name, mobile, canAdd, canEdit, canDelete, canPhoto, isAdmin };
+}
+
+function isSuperAdminIdentity(name, mobile) {
+    return String(name || '').trim().toLowerCase() === SUPER_ADMIN.name
+        && normalizeMobile(mobile) === SUPER_ADMIN.mobile;
+}
+
+function superAdminRecord() {
+    return {
+        key: SUPER_ADMIN.mobile,
+        name: 'irwin',
+        mobile: SUPER_ADMIN.mobile,
+        canAdd: true,
+        canEdit: true,
+        canDelete: true,
+        canPhoto: true,
+        isAdmin: true
+    };
+}
+
+function findAccessMatch(users, name, mobile) {
+    const wantName = String(name || '').trim().toLowerCase();
+    const wantMobile = normalizeMobile(mobile);
+    if (!wantName || !wantMobile) return null;
+    if (isSuperAdminIdentity(wantName, wantMobile)) return superAdminRecord();
+    for (const key of Object.keys(users || {})) {
+        const user = normalizeAccessRecord(key, users[key]);
+        if (user.name.toLowerCase() === wantName && normalizeMobile(user.mobile) === wantMobile) return user;
+    }
+    return null;
+}
+
+function findAccessByMobile(users, mobile) {
+    const wantMobile = normalizeMobile(mobile);
+    if (!wantMobile) return null;
+    for (const key of Object.keys(users || {})) {
+        const raw = users[key] || {};
+        const user = normalizeAccessRecord(key, raw);
+        if (normalizeMobile(user.mobile) === wantMobile) {
+            return { ...user, password: String(raw.password || raw.Password || raw.pin || '') };
+        }
+    }
+    if (wantMobile === SUPER_ADMIN.mobile) {
+        return { ...superAdminRecord(), password: '' };
+    }
+    return null;
+}
+
+function passwordsMatch(stored, typed) {
+    return String(stored || '') === String(typed || '');
+}
+
+function canAddItems() { return !!(currentAccessUser && (currentAccessUser.isAdmin || currentAccessUser.canAdd)); }
+function canEditItems() { return !!(currentAccessUser && (currentAccessUser.isAdmin || currentAccessUser.canEdit)); }
+function canDeleteItems() { return !!(currentAccessUser && (currentAccessUser.isAdmin || currentAccessUser.canDelete)); }
+function canUpdatePhotos() { return !!(currentAccessUser && (currentAccessUser.isAdmin || currentAccessUser.canPhoto)); }
+function isAccessAdmin() { return !!(currentAccessUser && currentAccessUser.isAdmin); }
+
+function denyAccess(action) {
+    alert('You do not have permission to ' + action + '. Sign in with an account that has this access.');
+}
+
+function saveAccessSession(user) {
+    if (!user) {
+        localStorage.removeItem(ACCESS_SESSION_KEY);
+        sessionStorage.removeItem(ACCESS_SESSION_KEY);
+        return;
+    }
+    const payload = JSON.stringify({
+        key: user.key,
+        mobile: user.mobile,
+        name: user.name,
+        sessionId: user.sessionId || ''
+    });
+    localStorage.setItem(ACCESS_SESSION_KEY, payload);
+    sessionStorage.setItem(ACCESS_SESSION_KEY, payload);
+}
+
+function readAccessSession() {
+    try {
+        return JSON.parse(localStorage.getItem(ACCESS_SESSION_KEY) || sessionStorage.getItem(ACCESS_SESSION_KEY) || 'null');
+    }
+    catch (err) { return null; }
+}
+
+const TAB_LOCK_KEY = 'pr_hub_active_tab';
+const TAB_ID = 'tab_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+let isPrimaryTab = true;
+
+function readTabLock() {
+    try { return JSON.parse(localStorage.getItem(TAB_LOCK_KEY) || 'null'); }
+    catch (err) { return null; }
+}
+
+function claimTabLock() {
+    const lock = readTabLock();
+    const lockFresh = !!(lock && lock.id && (Date.now() - Number(lock.at || 0) < 10000));
+    if (lockFresh && lock.id !== TAB_ID) {
+        isPrimaryTab = false;
+        return false;
+    }
+    try {
+        localStorage.setItem(TAB_LOCK_KEY, JSON.stringify({ id: TAB_ID, at: Date.now() }));
+        isPrimaryTab = true;
+        return true;
+    } catch (err) {
+        isPrimaryTab = true;
+        return true;
+    }
+}
+
+claimTabLock();
+setInterval(() => {
+    if (isPrimaryTab) claimTabLock();
+    else claimTabLock();
+}, 4000);
+window.addEventListener('beforeunload', () => {
+    const lock = readTabLock();
+    if (lock && lock.id === TAB_ID) localStorage.removeItem(TAB_LOCK_KEY);
+});
+window.addEventListener('storage', (e) => {
+    if (e.key === ACCESS_SESSION_KEY) refreshCurrentAccessUser();
+    if (e.key === TAB_LOCK_KEY) claimTabLock();
+});
+
+async function loadAccessUsers() {
+    const snap = await dbReq.ref(ACCESS_PATH).once('value');
+    return snap.exists() ? (snap.val() || {}) : {};
+}
+
+function applyAccessUI() {
+    const label = document.getElementById('accessBtnLabel');
+    if (label) label.textContent = currentAccessUser ? (currentAccessUser.name || 'Signed in') : 'Sign in';
+
+    const settingsBtn = document.getElementById('openSettingsBtn');
+    if (settingsBtn) settingsBtn.style.display = isAccessAdmin() ? '' : 'none';
+
+    const createBtn = document.getElementById('openGeneratorBtn');
+    if (createBtn) {
+        createBtn.style.display = canAddItems() ? '' : 'none';
+        createBtn.title = canAddItems() ? 'Create item' : 'Sign in with Add access to create items';
+    }
+
+    const adminSection = document.getElementById('userAccessSection');
+    if (adminSection) adminSection.style.display = isAccessAdmin() ? '' : 'none';
+
+    const importGithub = document.getElementById('importGithubItemsBtn');
+    const importFile = document.getElementById('importFileItemsBtn');
+    if (importGithub) importGithub.style.display = canAddItems() ? '' : 'none';
+    if (importFile) importFile.style.display = canAddItems() ? '' : 'none';
+
+    const signedBox = document.getElementById('accessSignedInBox');
+    const loginBox = document.getElementById('accessLoginBox');
+    const signedText = document.getElementById('accessSignedInText');
+    if (currentAccessUser && signedBox && signedText) {
+        const rights = [
+            currentAccessUser.isAdmin ? 'Admin' : null,
+            currentAccessUser.canAdd ? 'Add' : null,
+            currentAccessUser.canEdit ? 'Edit' : null,
+            currentAccessUser.canDelete ? 'Delete' : null,
+            currentAccessUser.canPhoto ? 'Photo' : null
+        ].filter(Boolean).join(', ') || 'Read only';
+        signedText.textContent = `${currentAccessUser.name} · ${currentAccessUser.mobile} · ${rights}`;
+        signedBox.style.display = '';
+        if (loginBox) loginBox.style.display = 'none';
+    } else if (signedBox) {
+        signedBox.style.display = 'none';
+        if (loginBox) loginBox.style.display = '';
+    }
+
+}
+
+function renderAccessUserList(users) {
+    const box = document.getElementById('accessUserList');
+    if (!box) return;
+    const list = Object.keys(users || {}).map((key) => normalizeAccessRecord(key, users[key]));
+    if (!list.length) {
+        box.textContent = 'No access users yet.';
+        return;
+    }
+    box.innerHTML = list.map((user) => {
+        const rights = [
+            user.isAdmin ? 'Admin' : null,
+            user.canAdd ? 'Add' : null,
+            user.canEdit ? 'Edit' : null,
+            user.canDelete ? 'Delete' : null,
+            user.canPhoto ? 'Photo' : null
+        ].filter(Boolean).join(' · ') || 'Read only';
+        return `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12);">
+            <div><strong>${user.name || 'User'}</strong><br>${user.mobile || user.key} · ${rights}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button type="button" class="ghost-btn" data-edit-access="${user.key}">Edit</button>
+                <button type="button" class="ghost-btn" data-clear-pass="${user.key}">Clear password</button>
+                <button type="button" class="ghost-btn" data-remove-access="${user.key}">Remove</button>
+            </div>
+        </div>`;
+    }).join('');
+    box.querySelectorAll('[data-edit-access]').forEach((btn) => {
+        btn.onclick = () => {
+            const key = btn.getAttribute('data-edit-access');
+            const user = list.find((row) => row.key === key);
+            if (!user) return;
+            document.getElementById('accessNewName').value = user.name || '';
+            document.getElementById('accessNewMobile').value = user.mobile || '';
+            if (document.getElementById('accessNewPassword')) document.getElementById('accessNewPassword').value = '';
+            document.getElementById('accessNewAdd').checked = !!user.canAdd;
+            document.getElementById('accessNewEdit').checked = !!user.canEdit;
+            document.getElementById('accessNewDelete').checked = !!user.canDelete;
+            if (document.getElementById('accessNewPhoto')) document.getElementById('accessNewPhoto').checked = !!user.canPhoto;
+            document.getElementById('accessNewAdmin').checked = !!user.isAdmin;
+        };
+    });
+    box.querySelectorAll('[data-clear-pass]').forEach((btn) => {
+        btn.onclick = async () => {
+            const key = btn.getAttribute('data-clear-pass');
+            if (!confirm('Clear this password? They can set a new one at next login.')) return;
+            await dbReq.ref(ACCESS_PATH).child(key).update({ password: '', updatedAt: new Date().toISOString() });
+            alert('Password cleared. They can enter a new password next time they sign in.');
+        };
+    });
+    box.querySelectorAll('[data-remove-access]').forEach((btn) => {
+        btn.onclick = async () => {
+            const key = btn.getAttribute('data-remove-access');
+            if (!confirm('Remove this user access?')) return;
+            await dbReq.ref(ACCESS_PATH).child(key).remove();
+            if (currentAccessUser && currentAccessUser.key === key) {
+                currentAccessUser = null;
+                saveAccessSession(null);
+            }
+            applyAccessUI();
+            renderAccessUserList(await loadAccessUsers());
+        };
+    });
+}
+
+function newSessionId() {
+    return 'ses_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+}
+
+function liveSessionRef(mobile) {
+    return dbReq.ref(ACCESS_SESSION_PATH).child(accessUserKey(mobile) || 'unknown');
+}
+
+async function writeLiveSession(user) {
+    if (!user || !user.mobile || !user.sessionId) return;
+    await liveSessionRef(user.mobile).set({
+        sessionId: user.sessionId,
+        name: user.name || '',
+        mobile: user.mobile,
+        at: new Date().toISOString()
+    });
+}
+
+async function clearLiveSession(user) {
+    if (!user || !user.mobile || !user.sessionId) return;
+    try {
+        const snap = await liveSessionRef(user.mobile).once('value');
+        if (snap.exists() && String(snap.val().sessionId || '') === String(user.sessionId)) {
+            await liveSessionRef(user.mobile).remove();
+        }
+    } catch (err) {}
+}
+
+async function sessionStillActive(user) {
+    if (!user || !user.mobile || !user.sessionId) return false;
+    const snap = await liveSessionRef(user.mobile).once('value');
+    if (!snap.exists()) return false;
+    return String(snap.val().sessionId || '') === String(user.sessionId);
+}
+
+function forceLocalSignOut(message) {
+    currentAccessUser = null;
+    saveAccessSession(null);
+    applyAccessUI();
+    if (message) alert(message);
+}
+
+async function ensureSuperAdminRecord() {
+    const key = SUPER_ADMIN.mobile;
+    const record = {
+        name: 'irwin',
+        mobile: SUPER_ADMIN.mobile,
+        'mobile number': SUPER_ADMIN.mobile,
+        add: true,
+        edit: true,
+        delete: true,
+        admin: true,
+        updatedAt: new Date().toISOString()
+    };
+    try {
+        await dbReq.ref(ACCESS_PATH).child(key).update(record);
+    } catch (err) {
+        console.warn('Could not save super admin record.', err);
+    }
+}
+
+async function refreshCurrentAccessUser() {
+    const session = readAccessSession();
+    if (!session || !session.key) {
+        currentAccessUser = null;
+        applyAccessUI();
+        return;
+    }
+    if (session.sessionId) {
+        if (!(await sessionStillActive(session))) {
+            forceLocalSignOut('Signed out because this account signed in on another browser.');
+            return;
+        }
+    } else {
+        session.sessionId = newSessionId();
+        saveAccessSession(session);
+        await writeLiveSession(session);
+    }
+    if (isSuperAdminIdentity(session.name, session.mobile || session.key)) {
+        currentAccessUser = { ...superAdminRecord(), sessionId: session.sessionId || '' };
+        applyAccessUI();
+        ensureSuperAdminRecord();
+        return;
+    }
+    const snap = await dbReq.ref(ACCESS_PATH).child(session.key).once('value');
+    if (!snap.exists()) {
+        forceLocalSignOut();
+        return;
+    }
+    currentAccessUser = { ...normalizeAccessRecord(session.key, snap.val()), sessionId: session.sessionId || '' };
+    applyAccessUI();
+}
+
+async function initializeAccess() {
+    try {
+        await refreshCurrentAccessUser();
+        setInterval(() => {
+            if (currentAccessUser) refreshCurrentAccessUser();
+        }, 15000);
+    } catch (err) {
+        console.warn('Access list could not load.', err);
+        applyAccessUI();
+    }
+}
+
+document.getElementById('openAccessBtn')?.addEventListener('click', () => {
+    applyAccessUI();
+    document.getElementById('accessModal')?.classList.add('active');
+});
+document.getElementById('closeAccessBtn')?.addEventListener('click', () => {
+    document.getElementById('accessModal')?.classList.remove('active');
+});
+document.getElementById('accessSignOutBtn')?.addEventListener('click', async () => {
+    await clearLiveSession(currentAccessUser || readAccessSession());
+    forceLocalSignOut();
+    document.getElementById('accessModal')?.classList.remove('active');
+});
+document.getElementById('accessChangeOwnPasswordBtn')?.addEventListener('click', async () => {
+    if (!currentAccessUser) { denyAccess('change password'); return; }
+    const next = (document.getElementById('accessOwnPassword')?.value || '').trim();
+    if (next.length < 4) { alert('Password must be at least 4 characters.'); return; }
+    await dbReq.ref(ACCESS_PATH).child(currentAccessUser.key || accessUserKey(currentAccessUser.mobile)).update({
+        password: next,
+        updatedAt: new Date().toISOString()
+    });
+    document.getElementById('accessOwnPassword').value = '';
+    alert('Your password was updated.');
+});
+document.getElementById('accessLoginBtn')?.addEventListener('click', async () => {
+    const mobile = (document.getElementById('accessLoginMobile')?.value || '').trim();
+    const password = (document.getElementById('accessLoginPassword')?.value || '').trim();
+    if (!mobile || !password) { alert('Enter mobile number and password.'); return; }
+    const users = await loadAccessUsers();
+    const matched = findAccessByMobile(users, mobile);
+    if (!matched) {
+        alert('No access record matches that mobile number.');
+        return;
+    }
+    if (matched.password) {
+        if (!passwordsMatch(matched.password, password)) {
+            alert('Mobile or password is not correct.');
+            return;
+        }
+    } else {
+        await dbReq.ref(ACCESS_PATH).child(matched.key || accessUserKey(matched.mobile)).update({
+            password,
+            updatedAt: new Date().toISOString()
+        });
+    }
+    currentAccessUser = { ...matched, sessionId: newSessionId() };
+    delete currentAccessUser.password;
+    saveAccessSession(currentAccessUser);
+    await writeLiveSession(currentAccessUser);
+    if (matched.isAdmin && normalizeMobile(matched.mobile) === SUPER_ADMIN.mobile) {
+        ensureSuperAdminRecord();
+    }
+    applyAccessUI();
+    if (document.getElementById('createdBy') && currentAccessUser.name && !document.getElementById('createdBy').value) {
+        document.getElementById('createdBy').value = currentAccessUser.name;
+    }
+    if (document.getElementById('mobileNumber') && currentAccessUser.mobile && !document.getElementById('mobileNumber').value) {
+        document.getElementById('mobileNumber').value = currentAccessUser.mobile;
+    }
+    saveSession();
+    document.getElementById('accessModal')?.classList.remove('active');
+});
+document.getElementById('saveAccessUserBtn')?.addEventListener('click', async () => {
+    if (!isAccessAdmin()) { denyAccess('manage users'); return; }
+    const name = (document.getElementById('accessNewName')?.value || '').trim();
+    const mobile = (document.getElementById('accessNewMobile')?.value || '').trim();
+    const key = accessUserKey(mobile);
+    if (!name || !key) { alert('Name and mobile are required.'); return; }
+    const isAdmin = !!document.getElementById('accessNewAdmin')?.checked;
+    const record = {
+        name,
+        mobile,
+        'mobile number': mobile,
+        add: isAdmin || !!document.getElementById('accessNewAdd')?.checked,
+        edit: isAdmin || !!document.getElementById('accessNewEdit')?.checked,
+        delete: isAdmin || !!document.getElementById('accessNewDelete')?.checked,
+        photo: isAdmin || !!document.getElementById('accessNewPhoto')?.checked,
+        admin: isAdmin,
+        updatedAt: new Date().toISOString()
+    };
+    const password = (document.getElementById('accessNewPassword')?.value || '').trim();
+    if (password) record.password = password;
+    await dbReq.ref(ACCESS_PATH).child(key).update(record);
+    document.getElementById('accessNewName').value = '';
+    document.getElementById('accessNewMobile').value = '';
+    if (document.getElementById('accessNewPassword')) document.getElementById('accessNewPassword').value = '';
+    document.getElementById('accessNewAdd').checked = false;
+    document.getElementById('accessNewEdit').checked = false;
+    document.getElementById('accessNewDelete').checked = false;
+    if (document.getElementById('accessNewPhoto')) document.getElementById('accessNewPhoto').checked = false;
+    document.getElementById('accessNewAdmin').checked = false;
+    renderAccessUserList(await loadAccessUsers());
+    alert('User access saved.');
+});
+
+initializeAccess();
 
 // ==========================================
 // SESSION STORAGE LOGIC
@@ -93,7 +546,8 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
 // ==========================================
 // 1. INITIALIZATION
 // ==========================================
-const CATALOG_CACHE_KEY = 'pr_catalog_cache_v1';
+const CATALOG_CACHE_KEY = 'pr_catalog_cache_v2';
+const CATALOG_VERSION_PATH = 'appSettings/catalogVersion';
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const SEARCH_PAGE_SIZE = 40;
 let catalogReady = false;
@@ -152,11 +606,46 @@ function readCatalogCache() {
     }
 }
 
+function slimFirebaseItems(items) {
+    return (items || []).map((item) => ({
+        "Part Code": item["Part Code"] || item["Part code"] || '',
+        "Description": item["Description"] || '',
+        "UOM": item["UOM"] || '',
+        "Series": item["Series"] || '',
+        "Group Code": item["Group Code"] || '',
+        "Group Name": item["Group Name"] || '',
+        "Class Code": item["Class Code"] || '',
+        "Class Name": item["Class Name"] || '',
+        "Activity Code": item["Activity Code"] || '',
+        "Activity Name": item["Activity Name"] || '',
+        PhotoFile: item.PhotoFile || '',
+        firebaseKey: item.firebaseKey || null
+    }));
+}
+
 function writeCatalogCache(payload) {
+    const slim = {
+        ...payload,
+        items: [],
+        firebaseItems: slimFirebaseItems(payload.firebaseItems || []),
+        savedAt: Date.now()
+    };
     try {
-        localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({ ...payload, savedAt: Date.now() }));
+        localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify(slim));
     } catch (err) {
-        console.warn('Catalog cache not saved (storage full or blocked).', err);
+        try {
+            localStorage.removeItem(CATALOG_CACHE_KEY);
+            localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({
+                activities: payload.activities || [],
+                vendors: payload.vendors || [],
+                sites: payload.sites || [],
+                firebaseItems: slim.firebaseItems,
+                catalogVersion: payload.catalogVersion || 0,
+                savedAt: Date.now()
+            }));
+        } catch (err2) {
+            console.warn('Catalog cache not saved (storage full or blocked).', err2);
+        }
     }
 }
 
@@ -171,7 +660,7 @@ async function loadFirebaseItems(force) {
     if (!force && cache && !cache.stale && Array.isArray(cache.firebaseItems)) {
         return cache.firebaseItems;
     }
-    const snapshot = await db.ref("items").once("value");
+    const snapshot = await dbReq.ref("items").once("value");
     const items = [];
     if (snapshot.exists()) {
         snapshot.forEach(childSnap => {
@@ -183,42 +672,84 @@ async function loadFirebaseItems(force) {
     return items;
 }
 
+async function getCatalogVersion() {
+    try {
+        const snap = await dbReq.ref(CATALOG_VERSION_PATH).once('value');
+        return Number(snap.val() || 0);
+    } catch (err) {
+        return 0;
+    }
+}
+
+async function bumpCatalogVersion() {
+    const next = Date.now();
+    try { await dbReq.ref(CATALOG_VERSION_PATH).set(next); } catch (err) {}
+    return next;
+}
+
 async function loadRemoteCatalog(forceNetwork) {
     setCatalogStatus('Downloading catalog…', 'warn');
     const cacheBuster = forceNetwork ? ('?v=' + Date.now()) : '';
-    const [itemsText, activityText, vendorsText, sitesText, firebaseItems] = await Promise.all([
-        fetchText(ITEMS_CSV_URL + cacheBuster),
+    const [activityText, vendorsText, sitesText, firebaseItems, catalogVersion] = await Promise.all([
         fetchText(ACTIVITY_CSV_URL + cacheBuster),
         fetchText(VENDORS_CSV_URL + cacheBuster),
         fetchText(SITE_CSV_URL + cacheBuster),
-        loadFirebaseItems(forceNetwork)
+        loadFirebaseItems(true),
+        getCatalogVersion()
     ]);
-    const items = await parseCsv(itemsText);
     const activities = await parseCsv(activityText);
     const vendors = await parseCsv(vendorsText);
     const sites = await parseCsv(sitesText);
-    writeCatalogCache({ items, activities, vendors, sites, firebaseItems });
-    return { items, activities, vendors, sites, firebaseItems, fromCache: false };
+    writeCatalogCache({ items: [], activities, vendors, sites, firebaseItems, catalogVersion });
+    return { items: [], activities, vendors, sites, firebaseItems, catalogVersion, fromCache: false };
+}
+
+function itemPartCode(item) {
+    return String((item && (item["Part Code"] || item["Part code"])) || "").trim();
+}
+
+function mergeCatalogItems(githubItems, firebaseItems) {
+    const map = new Map();
+    (githubItems || []).forEach((item) => {
+        const code = itemPartCode(item);
+        if (code) map.set(code, item);
+    });
+    (firebaseItems || []).forEach((item) => {
+        const code = itemPartCode(item);
+        if (code) map.set(code, item); // Firebase wins so imported/edited rows become writable
+        else if (item && item.firebaseKey) map.set("key:" + item.firebaseKey, item);
+    });
+    return Array.from(map.values());
 }
 
 function applyCatalog(data, sourceLabel) {
     legacyItems = data.items || [];
     allVendors = data.vendors || [];
     allSites = data.sites || [];
-    applyActivityRows(data.activities || []);
-    allSearchableItems = [...legacyItems, ...(data.firebaseItems || [])];
+    if ((data.activities || []).length) applyActivityRows(data.activities);
+    const firebaseItems = data.firebaseItems || [];
+    allSearchableItems = firebaseItems.slice();
     catalogReady = true;
     const count = allSearchableItems.length;
-    setCatalogStatus(`${count.toLocaleString()} items · ${sourceLabel}`, 'ready');
+    const writable = firebaseItems.filter(item => item && item.firebaseKey).length;
+    setCatalogStatus(`${count.toLocaleString()} items · Firebase · ${sourceLabel}`, 'ready');
+    updateCatalogImportStats(legacyItems.length, firebaseItems.length, count);
 }
 
 async function initializeApp(forceRefresh) {
     loadSession();
     try {
         const cache = readCatalogCache();
-        if (!forceRefresh && cache && cache.items) {
-            applyCatalog(cache, cache.stale ? 'cached (refreshing)' : 'cached');
-            if (!cache.stale) return;
+        const extraTab = !isPrimaryTab;
+        if (extraTab && cache && Array.isArray(cache.firebaseItems)) {
+            applyCatalog(cache, 'cached · extra tab');
+            setCatalogStatus((allSearchableItems.length || 0).toLocaleString() + ' items · cached extra tab', 'warn');
+            return;
+        }
+        if (!forceRefresh && cache && Array.isArray(cache.firebaseItems)) {
+            const remoteVersion = await getCatalogVersion();
+            applyCatalog(cache, cache.catalogVersion === remoteVersion ? 'cached' : 'cached (updating)');
+            if (cache.catalogVersion === remoteVersion) return;
         }
         const fresh = await loadRemoteCatalog(!!forceRefresh);
         applyCatalog(fresh, 'live');
@@ -237,6 +768,10 @@ initializeApp(false);
 const refreshCatalogBtn = document.getElementById('refreshCatalogBtn');
 if (refreshCatalogBtn) {
     refreshCatalogBtn.addEventListener('click', async () => {
+        if (!isPrimaryTab) {
+            alert('Another Procurement Hub tab is already open. This tab uses the local cache so Firebase is not downloaded again.');
+            return;
+        }
         refreshCatalogBtn.disabled = true;
         await initializeApp(true);
         refreshCatalogBtn.disabled = false;
@@ -331,10 +866,16 @@ function renderSearchResults(rawQuery) {
         const safeKey = item.firebaseKey ? `'${item.firebaseKey}'` : null;
         let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}', '${safeClass}')"><i class="fa-solid fa-plus"></i> Add</button>`;
         if (safeKey) {
-            actionButtons += `<button class="icon-btn edit" onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" title="Edit item"><i class="fa-solid fa-pen"></i></button><button class="icon-btn delete" onclick="deleteFirebaseItem(${safeKey})" title="Delete item"><i class="fa-solid fa-trash"></i></button>`;
+            if (canEditItems()) actionButtons += `<button class="icon-btn edit" onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" title="Edit item"><i class="fa-solid fa-pen"></i></button>`;
+            if (canDeleteItems()) actionButtons += `<button class="icon-btn delete" onclick="deleteFirebaseItem(${safeKey})" title="Delete item"><i class="fa-solid fa-trash"></i></button>`;
         }
-        const photo = itemPhotoUrl(partNo);
-        div.innerHTML = `<div class="result-info" style="display:flex;gap:12px;align-items:center;"><img class="item-thumb" src="${photo}" alt="" onerror="this.style.display='none'"><div><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
+        if (canUpdatePhotos()) {
+            const keyArg = item.firebaseKey ? `'${item.firebaseKey}'` : 'null';
+            actionButtons += `<button class="icon-btn edit" onclick="updateItemPhoto(${keyArg}, '${partNo}')" title="Update photo link"><i class="fa-solid fa-image"></i></button>`;
+        }
+        const photo = itemPhotoUrl(partNo, item);
+        const safePhoto = String(photo || '').replace(/"/g, '&quot;');
+        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" onclick="openPhotoView('${safePhoto}', '${partNo}')" onerror="if(!this.dataset.alt){this.dataset.alt=1;this.src=this.src.replace(/\\.jpeg$/i,'.jpg');}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
         searchResults.appendChild(div);
     });
     if (matches.length > searchLimit) {
@@ -375,7 +916,8 @@ window.addToCart = function(partCode, description, unit, groupName, actName, cla
         const sourceItem = allSearchableItems.find(i => String(i["Part Code"] || i["Part code"] || '') === String(partCode));
         classValue = sourceItem ? (sourceItem["Class Code"] || sourceItem["Class"] || sourceItem["Class Name"] || 'N/A') : 'N/A';
     }
-    cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, classValue: classValue, comment: '', qty: 1, price: 0 });
+    const sourceItem = allSearchableItems.find(i => String(i["Part Code"] || i["Part code"] || '') === String(partCode));
+    cart.push({ partNo: partCode, description: description, unit: unit, groupName: groupName, actName: actName, classValue: classValue, comment: '', qty: 1, price: 0, photoUrl: itemPhotoUrl(partCode, sourceItem) });
     renderCart(); saveSession();
     const wrap = document.querySelector('#cartPanel .table-responsive');
     const last = document.querySelector('#cartBody tr:last-child');
@@ -431,6 +973,7 @@ function renderFullCart() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
+            <td>${item.photoUrl ? `<img class="item-thumb" src="${item.photoUrl}" alt="" referrerpolicy="no-referrer" onclick="openPhotoView('${String(item.photoUrl).replace(/'/g, '')}', '${item.partNo}')" onerror="if(!this.dataset.alt){this.dataset.alt=1;this.src=this.src.replace(/\\.jpeg$/i,'.jpg');}else{this.style.background='#e2e8f0';}">` : ''}</td>
             <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
             <td>${item.description}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${comment}" data-index="${index}"></td>
             <td><input type="number" min="1" class="calc-input qty-input" value="${item.qty}" data-index="${index}" data-field="qty"></td>
@@ -453,18 +996,23 @@ function renderCart() {
     const previewBtn = document.getElementById('previewBtn');
     const saveBtnAction = document.getElementById('saveBtnAction');
     const copyExcelBtn = document.getElementById('copyExcelBtn');
+    const copyReqEntryBtn = document.getElementById('copyReqEntryBtn');
     setCartVisible(cart.length > 0);
 
     if (cart.length === 0) {
         cartBody.innerHTML = '<tr class="empty-row"><td colspan="4">No items added yet.</td></tr>';
-        previewBtn.disabled = true; saveBtnAction.disabled = true; if (copyExcelBtn) copyExcelBtn.disabled = true;
+        previewBtn.disabled = true; saveBtnAction.disabled = true;
+        if (copyExcelBtn) copyExcelBtn.disabled = true;
+        if (copyReqEntryBtn) copyReqEntryBtn.disabled = true;
         document.getElementById('grandTotalVal').textContent = "0.00";
         document.getElementById('fullCartView')?.classList.remove('active');
         document.body.classList.remove('full-cart-open');
         return;
     }
 
-    previewBtn.disabled = false; saveBtnAction.disabled = false; if (copyExcelBtn) copyExcelBtn.disabled = false;
+    previewBtn.disabled = false; saveBtnAction.disabled = false;
+    if (copyExcelBtn) copyExcelBtn.disabled = false;
+    if (copyReqEntryBtn) copyReqEntryBtn.disabled = false;
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
         const tr = document.createElement('tr');
@@ -519,6 +1067,33 @@ function excelCellValue(value) {
     return String(value ?? '').replace(/\t/g, ' ').replace(/[\r\n]+/g, ' ').trim();
 }
 
+async function writeClipboardText(excelText) {
+    try {
+        await navigator.clipboard.writeText(excelText);
+    } catch (error) {
+        const textarea = document.createElement('textarea');
+        textarea.value = excelText;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+    }
+}
+
+function flashCopied(btn) {
+    if (!btn) return;
+    const originalHtml = btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied! Paste in Excel';
+    setTimeout(() => {
+        btn.classList.remove('copied');
+        btn.innerHTML = originalHtml;
+    }, 2200);
+}
+
 async function copyCartForExcel() {
     if (!cart.length) return;
 
@@ -540,35 +1115,50 @@ async function copyCartForExcel() {
         ].map(excelCellValue).join('\t');
     });
 
-    const excelText = rows.join('\r\n');
+    await writeClipboardText(rows.join('\r\n'));
+    flashCopied(copyExcelBtn);
+    flashCopied(document.getElementById('fullCopyExcelBtn'));
+}
 
-    try {
-        await navigator.clipboard.writeText(excelText);
-    } catch (error) {
-        // Fallback for browsers where Clipboard API is unavailable or blocked.
-        const textarea = document.createElement('textarea');
-        textarea.value = excelText;
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-        document.execCommand('copy');
-        textarea.remove();
-    }
+async function copyRequisitionEntry() {
+    if (!cart.length) return;
 
-    if (copyExcelBtn) {
-        const originalHtml = copyExcelBtn.innerHTML;
-        copyExcelBtn.classList.add('copied');
-        copyExcelBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copied! Paste in Excel';
-        setTimeout(() => {
-            copyExcelBtn.classList.remove('copied');
-            copyExcelBtn.innerHTML = originalHtml;
-        }, 2200);
-    }
+    const blankIfMissing = (value) => {
+        const text = String(value ?? '').trim();
+        if (!text || text === 'N/A' || text === 'No Vendor Selected') return '';
+        return text;
+    };
+    const vendorId = blankIfMissing(selectedVendor && selectedVendor.id);
+    const vendorName = blankIfMissing(selectedVendor && selectedVendor.name);
+
+    const rows = [];
+    cart.forEach((item, index) => {
+        const qty = Number(item.qty) || 0;
+        const price = Number(item.price) || 0;
+        const total = qty * price;
+        rows.push([
+            index + 1,
+            '',
+            item.partNo || '',
+            item.description || '',
+            getCartClassValue(item),
+            qty,
+            item.unit || '',
+            price.toFixed(2),
+            total.toFixed(2),
+            item.comment || '',
+            vendorId,
+            vendorName
+        ].map(excelCellValue).join('\t'));
+    });
+
+    await writeClipboardText(rows.join('\r\n'));
+    flashCopied(document.getElementById('copyReqEntryBtn'));
+    flashCopied(document.getElementById('fullCopyReqEntryBtn'));
 }
 
 if (copyExcelBtn) copyExcelBtn.addEventListener('click', copyCartForExcel);
+document.getElementById('copyReqEntryBtn')?.addEventListener('click', copyRequisitionEntry);
 
 // ==========================================
 // 4. NEW ITEMS MODAL (SESSION VIEW) - UPDATED WITH CLASS & CODES
@@ -577,32 +1167,79 @@ const newItemsModal = document.getElementById('newItemsModal');
 const viewNewItemsBtn = document.getElementById('viewNewItemsBtn');
 const closeNewItemsModalBtn = document.getElementById('closeNewItemsModalBtn');
 
-if(viewNewItemsBtn && newItemsModal) {
-    viewNewItemsBtn.addEventListener('click', () => {
-        const tbody = document.getElementById('newItemsTableBody');
-        tbody.innerHTML = '';
-        if(sessionNewlyCreatedItems.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No new items were generated during this session.</td></tr>';
-            document.getElementById('printNewItemsBtn').disabled = true;
-        } else {
-            sessionNewlyCreatedItems.forEach(item => {
-                // Combine Codes with Names for display
-                const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : item["Activity Name"];
-                const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : item["Group Name"];
-                const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
+const RECENT_ITEMS_PATH = 'recentItems';
+let sharedRecentItems = [];
 
-                tbody.innerHTML += `<tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><strong>${item["Part Code"]}</strong></td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["Description"]}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["UOM"]}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${actText}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${groupText}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${classText}</td>
-                </tr>`;
-            });
-            document.getElementById('printNewItemsBtn').disabled = false;
-        }
+function recentItemPayload(item) {
+    return {
+        "Part Code": item["Part Code"] || '',
+        "Description": item["Description"] || '',
+        "UOM": item["UOM"] || '',
+        "Activity Code": item["Activity Code"] || '',
+        "Activity Name": item["Activity Name"] || '',
+        "Group Code": item["Group Code"] || '',
+        "Group Name": item["Group Name"] || '',
+        "Class Code": item["Class Code"] || '',
+        "Class Name": item["Class Name"] || '',
+        "CreatedAt": item["CreatedAt"] || new Date().toISOString(),
+        firebaseKey: item.firebaseKey || null
+    };
+}
+
+async function publishRecentItem(item) {
+    if (!item || !item.firebaseKey) return;
+    await dbReq.ref(RECENT_ITEMS_PATH).child(item.firebaseKey).set(recentItemPayload(item));
+}
+
+async function loadSharedRecentItems() {
+    const snap = await dbReq.ref(RECENT_ITEMS_PATH).once('value');
+    const rows = [];
+    if (snap.exists()) {
+        snap.forEach((child) => {
+            rows.push({ firebaseKey: child.key, ...(child.val() || {}) });
+        });
+    }
+    rows.sort((a, b) => String(b.CreatedAt || '').localeCompare(String(a.CreatedAt || '')));
+    sharedRecentItems = rows.slice(0, 200);
+    return sharedRecentItems;
+}
+
+function renderRecentItemsTable(list, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    list.forEach(item => {
+        const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : (item["Activity Name"] || '');
+        const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : (item["Group Name"] || '');
+        const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
+        tbody.innerHTML += `<tr>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><strong>${item["Part Code"]}</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["Description"] || ''}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["UOM"] || ''}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${actText}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${groupText}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${classText}</td>
+        </tr>`;
+    });
+}
+
+if(viewNewItemsBtn && newItemsModal) {
+    viewNewItemsBtn.addEventListener('click', async () => {
+        const tbody = document.getElementById('newItemsTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Loading recent items…</td></tr>';
         newItemsModal.classList.add('active');
+        try {
+            const list = await loadSharedRecentItems();
+            if (!list.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No recently created items yet.</td></tr>';
+                document.getElementById('printNewItemsBtn').disabled = true;
+            } else {
+                renderRecentItemsTable(list, 'newItemsTableBody');
+                document.getElementById('printNewItemsBtn').disabled = false;
+            }
+        } catch (err) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Could not load recent items.</td></tr>';
+        }
     });
 }
 
@@ -616,7 +1253,8 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
     
     const tbody = document.getElementById('printNewItemsTableBody');
     tbody.innerHTML = '';
-    sessionNewlyCreatedItems.forEach(item => {
+    const printList = sharedRecentItems.length ? sharedRecentItems : sessionNewlyCreatedItems;
+    printList.forEach(item => {
         // Combine Codes with Names for printing
         const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : item["Activity Name"];
         const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : item["Group Name"];
@@ -643,7 +1281,11 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
 const modal = document.getElementById('generatorModal'); 
 const openBtn = document.getElementById('openGeneratorBtn'); 
 const closeBtn = document.getElementById('closeModalBtn');
-if (openBtn && modal) openBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.add('active'); });
+if (openBtn && modal) openBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!canAddItems()) { denyAccess('add items'); return; }
+    modal.classList.add('active');
+});
 if (closeBtn && modal) closeBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.remove('active'); });
 
 const mainCategoryFilter = document.getElementById('mainCategoryFilter');
@@ -686,14 +1328,14 @@ activitySearch.addEventListener('input', (e) => {
 async function calculateNextSeries(groupCode) {
     saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
     try {
-        legacyItems.forEach(item => { 
+        allSearchableItems.forEach(item => { 
             if (item["Series"]) {
                 const sNum = parseInt(item["Series"], 10); 
                 if (!isNaN(sNum) && sNum > highestSeries) highestSeries = sNum; 
             }
         });
         
-        const snap = await db.ref("items").orderByChild("Series").limitToLast(1).once("value");
+        const snap = await dbReq.ref("items").orderByChild("Series").limitToLast(1).once("value");
         if (snap.exists()) {
             snap.forEach((childSnap) => { 
                 const sNum = parseInt(childSnap.val().Series, 10); 
@@ -703,23 +1345,32 @@ async function calculateNextSeries(groupCode) {
         
         generatedSeries = (highestSeries + 1).toString(); generatedPartCode = `${groupCode}.${generatedSeries}`;
         document.getElementById('previewPartCode').textContent = generatedPartCode; document.getElementById('previewSeries').textContent = `Series: ${generatedSeries}`;
+        const previewImg = document.getElementById('createItemPhotoPreview');
+        if (previewImg) {
+            previewImg.src = itemPhotoUrl(generatedPartCode);
+            previewImg.style.display = '';
+            previewImg.onerror = () => { previewImg.style.display = 'none'; };
+        }
         saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart";
     } catch (err) { console.error(err); alert("Error calculating series."); }
 }
 
 document.getElementById('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault(); if(!currentGroupCode || !generatedSeries) return;
+    if (!canAddItems()) { denyAccess('add items'); return; }
     const data = dynamicActivityData[currentGroupCode]; const itemDesc = document.getElementById('description').value; const itemUOM = document.getElementById('uom').value;
     const newItemRecord = { "Part Code": generatedPartCode, "Series": generatedSeries, "Description": itemDesc, "UOM": itemUOM, "Group Code": currentGroupCode, "Group Name": data.groupName, "Class Code": data.classCode, "Class Name": data.className, "Activity Code": data.activityCode, "Activity Name": data.activityName, "CreatedAt": new Date().toISOString() };
     try {
         saveBtn.disabled = true; saveBtn.textContent = "Saving...";
         
-        const newRef = db.ref("items").push();
+        const newRef = dbReq.ref("items").push();
         newItemRecord.firebaseKey = newRef.key;
         await newRef.set(newItemRecord);
         
         allSearchableItems.push(newItemRecord); 
         sessionNewlyCreatedItems.push(newItemRecord);
+        await publishRecentItem(newItemRecord);
+        await bumpCatalogVersion();
         const cache = readCatalogCache() || {};
         cache.firebaseItems = (cache.firebaseItems || []).concat([newItemRecord]);
         writeCatalogCache({
@@ -741,9 +1392,12 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 // 6. FIREBASE ITEM MANAGEMENT (EDIT/DELETE)
 // ==========================================
 window.deleteFirebaseItem = async function(key) {
+    if (!canDeleteItems()) { denyAccess('delete items'); return; }
     if(confirm("Are you sure you want to permanently delete this item from the database?")) {
         try {
-            await db.ref("items").child(key).remove();
+            await dbReq.ref("items").child(key).remove();
+            await dbReq.ref(RECENT_ITEMS_PATH).child(key).remove().catch(() => {});
+            await bumpCatalogVersion();
             allSearchableItems = allSearchableItems.filter(item => item.firebaseKey !== key);
             document.getElementById('searchInput').dispatchEvent(new Event('input'));
             alert("Item deleted successfully.");
@@ -790,6 +1444,7 @@ editActivitySearch.addEventListener('click', () => { showEditActivitySuggestions
 editActivitySearch.addEventListener('input', (e) => { showEditActivitySuggestions(e.target.value); });
 
 window.openEditModal = function(key, partCode, series, desc, uom, groupCode) {
+    if (!canEditItems()) { denyAccess('edit items'); return; }
     document.getElementById('editFirebaseKey').value = key;
     editCurrentSeries = series || partCode.split('.')[1]; 
     editCurrentGroupCode = groupCode;
@@ -822,7 +1477,8 @@ window.openEditModal = function(key, partCode, series, desc, uom, groupCode) {
 document.getElementById('closeEditModalBtn').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('editItemModal').classList.remove('active'); });
 
 document.getElementById('editItemForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
+    if (!canEditItems()) { denyAccess('edit items'); return; }
     const saveBtn = document.getElementById('saveEditBtn');
     saveBtn.disabled = true; saveBtn.textContent = "Updating...";
 
@@ -847,7 +1503,8 @@ document.getElementById('editItemForm').addEventListener('submit', async (e) => 
     };
 
     try {
-        await db.ref("items").child(key).update(updateData);
+        await dbReq.ref("items").child(key).update(updateData);
+        await bumpCatalogVersion();
         
         const itemIndex = allSearchableItems.findIndex(item => item.firebaseKey === key);
         if(itemIndex > -1) {
@@ -941,20 +1598,375 @@ document.getElementById('saveBtnAction').addEventListener('click', async () => {
 });
 
 // ==========================================
+// CATALOG IMPORT (GitHub / Excel -> Firebase)
+// ==========================================
+function updateCatalogImportStats(githubCount, firebaseCount, mergedCount) {
+    const el = document.getElementById('catalogImportStats');
+    if (!el) return;
+    el.innerHTML = `GitHub Item.csv: <strong>${Number(githubCount || 0).toLocaleString()}</strong> · Firebase items: <strong>${Number(firebaseCount || 0).toLocaleString()}</strong> · Searchable after merge: <strong>${Number(mergedCount || 0).toLocaleString()}</strong>`;
+}
+
+function setImportProgress(text) {
+    const el = document.getElementById('catalogImportProgress');
+    if (el) el.textContent = text || '';
+}
+
+function normalizeHeader(name) {
+    return String(name || '').replace(/^\uFEFF/, '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function pickField(row, aliases) {
+    if (!row) return '';
+    for (const alias of aliases) {
+        if (row[alias] != null && String(row[alias]).trim() !== '') return String(row[alias]).trim();
+    }
+    const wanted = aliases.map(normalizeHeader);
+    for (const key of Object.keys(row)) {
+        if (wanted.includes(normalizeHeader(key)) && row[key] != null && String(row[key]).trim() !== '') {
+            return String(row[key]).trim();
+        }
+    }
+    return '';
+}
+
+function normalizeCatalogRow(row) {
+    const partCode = pickField(row, ['Part Code', 'Part code', 'Part No', 'Part Number']);
+    if (!partCode) return null;
+    const groupCode = pickField(row, ['Group Code', 'Group code']);
+    const series = pickField(row, ['Series']) || (partCode.includes('.') ? partCode.split('.').slice(1).join('.') : '');
+    const activityMeta = (groupCode && dynamicActivityData[groupCode]) ? dynamicActivityData[groupCode] : null;
+    return {
+        "Part Code": partCode,
+        "Series": series,
+        "Description": pickField(row, ['Description', 'description', 'Item Description']),
+        "UOM": pickField(row, ['UOM', 'Unit', 'Unit of Measure']) || 'Pcs',
+        "Group Code": groupCode,
+        "Group Name": pickField(row, ['Group Name', 'Group name']) || (activityMeta ? activityMeta.groupName : ''),
+        "Class Code": pickField(row, ['Class Code', 'Class']) || (activityMeta ? activityMeta.classCode : ''),
+        "Class Name": pickField(row, ['Class Name']) || (activityMeta ? activityMeta.className : ''),
+        "Activity Code": pickField(row, ['Activity Code']) || (activityMeta ? activityMeta.activityCode : ''),
+        "Activity Name": pickField(row, ['Activity Name', 'Activity']) || (activityMeta ? activityMeta.activityName : '')
+    };
+}
+
+function firebaseItemKeyFromPartCode(partCode) {
+    return 'imp_' + String(partCode || '').replace(/[.#$\[\]\/]/g, '_');
+}
+
+async function parseCatalogFile(file) {
+    const name = (file && file.name || '').toLowerCase();
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+        if (typeof XLSX === 'undefined') throw new Error('Excel library failed to load. Use CSV or refresh the page.');
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+    }
+    const text = await file.text();
+    return parseCsv(text);
+}
+
+async function writeFirebaseBatches(updatesList, onProgress) {
+    const BATCH = 400;
+    for (let i = 0; i < updatesList.length; i += BATCH) {
+        const chunk = updatesList.slice(i, i + BATCH);
+        const payload = {};
+        chunk.forEach(({ key, record }) => { payload['items/' + key] = record; });
+        await dbReq.ref().update(payload);
+        if (onProgress) onProgress(Math.min(i + BATCH, updatesList.length), updatesList.length);
+    }
+}
+
+async function importRowsToFirebase(rawRows, sourceLabel) {
+    const modeEl = document.getElementById('importConflictMode');
+    const mode = modeEl ? modeEl.value : 'skip';
+    const normalized = [];
+    const seen = new Set();
+    (rawRows || []).forEach((row) => {
+        const item = normalizeCatalogRow(row);
+        if (!item) return;
+        if (seen.has(item["Part Code"])) return;
+        seen.add(item["Part Code"]);
+        normalized.push(item);
+    });
+    if (!normalized.length) throw new Error('No usable rows found. Check that the file has a Part Code column.');
+
+    setImportProgress(`Preparing ${normalized.length.toLocaleString()} rows from ${sourceLabel}…`);
+    const existing = await loadFirebaseItems(true);
+    const byCode = new Map();
+    existing.forEach((item) => {
+        const code = itemPartCode(item);
+        if (code) byCode.set(code, item);
+    });
+
+    const writes = [];
+    let skipped = 0;
+    let overwrites = 0;
+    const now = new Date().toISOString();
+    normalized.forEach((item) => {
+        const current = byCode.get(item["Part Code"]);
+        if (current && current.firebaseKey) {
+            if (mode === 'skip') { skipped += 1; return; }
+            writes.push({
+                key: current.firebaseKey,
+                record: { ...current, ...item, firebaseKey: current.firebaseKey, UpdatedAt: now, Source: sourceLabel }
+            });
+            overwrites += 1;
+            return;
+        }
+        const key = firebaseItemKeyFromPartCode(item["Part Code"]);
+        writes.push({
+            key,
+            record: { ...item, firebaseKey: key, CreatedAt: now, Source: sourceLabel }
+        });
+    });
+
+    if (!writes.length) {
+        setImportProgress(`Nothing to import. ${skipped.toLocaleString()} existing Part Codes were skipped.`);
+        return { imported: 0, skipped, overwrites, total: normalized.length };
+    }
+
+    await writeFirebaseBatches(writes, (done, total) => {
+        setImportProgress(`Writing ${done.toLocaleString()} / ${total.toLocaleString()} Firebase records…`);
+    });
+    const catalogVersion = await bumpCatalogVersion();
+
+    const freshFirebase = await loadFirebaseItems(true);
+    const cache = readCatalogCache() || {};
+    writeCatalogCache({
+        items: cache.items || legacyItems,
+        activities: cache.activities,
+        vendors: cache.vendors || allVendors,
+        sites: cache.sites || allSites,
+        firebaseItems: freshFirebase,
+        catalogVersion
+    });
+    applyCatalog({
+        items: cache.items || legacyItems,
+        activities: cache.activities || [],
+        vendors: cache.vendors || allVendors,
+        sites: cache.sites || allSites,
+        firebaseItems: freshFirebase
+    }, 'imported');
+
+    setImportProgress(`Done. Imported/updated ${writes.length.toLocaleString()} · skipped ${skipped.toLocaleString()} · source ${sourceLabel}. Refresh catalog if search looks stale.`);
+    return { imported: writes.length, skipped, overwrites, total: normalized.length };
+}
+
+document.getElementById('importGithubItemsBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('importGithubItemsBtn');
+    if (!canAddItems()) { denyAccess('import items'); return; }
+    if (!confirm('Import the public GitHub Item.csv into Firebase now? Existing Firebase Part Codes will follow the conflict setting below.')) return;
+    btn.disabled = true;
+    try {
+        setImportProgress('Downloading GitHub Item.csv…');
+        const text = await fetchText(ITEMS_CSV_URL + '?v=' + Date.now());
+        const rows = await parseCsv(text);
+        const result = await importRowsToFirebase(rows, 'github-import');
+        alert(`Import finished.\nImported/updated: ${result.imported}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
+    } catch (err) {
+        console.error(err);
+        setImportProgress('Import failed: ' + (err.message || err));
+        alert('Import failed: ' + (err.message || err));
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('importFileItemsBtn')?.addEventListener('click', async () => {
+    const input = document.getElementById('catalogImportFile');
+    const btn = document.getElementById('importFileItemsBtn');
+    if (!canAddItems()) { denyAccess('import items'); return; }
+    if (!input || !input.files || !input.files[0]) {
+        alert('Choose an Excel or CSV file first.');
+        return;
+    }
+    if (!confirm('Import the selected file into Firebase now? Existing Firebase Part Codes will follow the conflict setting below.')) return;
+    btn.disabled = true;
+    try {
+        setImportProgress('Reading file…');
+        const rows = await parseCatalogFile(input.files[0]);
+        const result = await importRowsToFirebase(rows, 'excel-import');
+        alert(`Import finished.\nImported/updated: ${result.imported}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
+    } catch (err) {
+        console.error(err);
+        setImportProgress('Import failed: ' + (err.message || err));
+        alert('Import failed: ' + (err.message || err));
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+// ==========================================
 // SETTINGS: BACKGROUND IMAGE
 // ==========================================
 
 const DEFAULT_PHOTO_FOLDER = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/";
+const DEFAULT_PHOTO_LIST_URL = "https://raw.githubusercontent.com/DC-database/hub/main/PhotoIndex.csv";
+const PHOTO_LIST_CACHE_KEY = 'pr_photo_list_v1';
+let photoFileList = [];
+let photoPickerContext = { key: null, partNo: '' };
+let photoPickerSelected = '';
 
-function itemPhotoUrl(partNo) {
+function photoFolderBase() {
     const s = loadUiSettings();
     let base = (s.photoFolder || DEFAULT_PHOTO_FOLDER).trim();
-    if (!base) return '';
-    if (!base.endsWith('/')) base += '/';
-    const ext = (s.photoExt || 'jpg').replace('.', '');
-    const file = encodeURIComponent(String(partNo || '').trim()) + '.' + ext;
-    return base + file;
+    if (base && !base.endsWith('/')) base += '/';
+    return base;
 }
+
+function composePhotoUrl(fileName) {
+    const base = photoFolderBase();
+    if (!base) return '';
+    const s = loadUiSettings();
+    let name = String(fileName || '').trim().replace(/\s+/g, '');
+    if (!name) return '';
+    name = name.replace(/\.(jpg|jpeg|png|webp)$/i, '');
+    return base + name + '.jpeg';
+}
+
+window.openPhotoView = function(url, title) {
+    if (!url) return;
+    const modal = document.getElementById('photoViewModal');
+    const img = document.getElementById('photoViewImage');
+    const heading = document.getElementById('photoViewTitle');
+    if (heading) heading.textContent = title || 'Photo';
+    if (img) {
+        img.setAttribute('referrerpolicy', 'no-referrer');
+        img.src = url;
+    }
+    if (modal) modal.classList.add('active');
+};
+document.getElementById('closePhotoViewBtn')?.addEventListener('click', () => {
+    document.getElementById('photoViewModal')?.classList.remove('active');
+});
+document.getElementById('createItemPhotoPreview')?.addEventListener('click', () => {
+    const img = document.getElementById('createItemPhotoPreview');
+    if (img && img.src && img.style.display !== 'none') openPhotoView(img.src, document.getElementById('previewPartCode')?.textContent || 'Photo');
+});
+
+function itemPhotoUrl(partNo, item) {
+    const fileName = item && (item.PhotoFile || item.photoFile || item.photoName);
+    if (!fileName) return '';
+    const bare = String(fileName).replace(/\.[a-z0-9]+$/i, '');
+    if (/^\d+(\.\d+)?$/.test(bare)) return '';
+    return composePhotoUrl(fileName);
+}
+
+function extractPhotoFileName(row) {
+    return String(
+        row.photoName || row.PhotoName || row.File || row.file || row.Filename || row.filename ||
+        row.Name || row.name || row.Photo || row.photo || row['File Name'] || row['file name'] || ''
+    ).trim();
+}
+
+async function loadPhotoFileList(force) {
+    if (!force && photoFileList.length) return photoFileList;
+    try {
+        const cached = JSON.parse(localStorage.getItem(PHOTO_LIST_CACHE_KEY) || 'null');
+        if (!force && cached && Array.isArray(cached.files) && Date.now() - cached.savedAt < 12 * 60 * 60 * 1000) {
+            photoFileList = cached.files;
+            return photoFileList;
+        }
+    } catch (err) {}
+    const s = loadUiSettings();
+    const url = (s.photoListUrl || DEFAULT_PHOTO_LIST_URL).trim();
+    const text = await fetchText(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now());
+    const rows = await parseCsv(text);
+    const files = [];
+    rows.forEach((row) => {
+        const name = extractPhotoFileName(row);
+        if (name) files.push(name);
+    });
+    photoFileList = Array.from(new Set(files));
+    try { localStorage.setItem(PHOTO_LIST_CACHE_KEY, JSON.stringify({ files: photoFileList, savedAt: Date.now() })); } catch (err) {}
+    return photoFileList;
+}
+
+function renderPhotoPickerList(query) {
+    const box = document.getElementById('photoPickerList');
+    if (!box) return;
+    let q = String(query || '').toLowerCase().trim();
+    if (/^\d+(\.\d+)?$/.test(q)) q = '';
+    const matches = photoFileList.filter((name) => !q || name.toLowerCase().includes(q)).slice(0, 120);
+    if (!photoFileList.length) {
+        box.innerHTML = '<div class="suggestion-item">No photo list loaded. Check GitHub PhotoIndex.csv.</div>';
+        return;
+    }
+    if (!matches.length) {
+        box.innerHTML = '<div class="suggestion-item">No file name matches.</div>';
+        return;
+    }
+    box.innerHTML = matches.map((name) => `<div class="suggestion-item" data-photo-file="${String(name).replace(/"/g, '&quot;')}">${name}</div>`).join('');
+    box.querySelectorAll('[data-photo-file]').forEach((el) => {
+        el.onclick = () => {
+            photoPickerSelected = el.getAttribute('data-photo-file') || '';
+            const label = document.getElementById('photoPickerChosen');
+            if (label) label.textContent = 'Selected: ' + photoPickerSelected + '  →  click Save photo tag';
+            box.querySelectorAll('.suggestion-item').forEach((row) => row.style.background = '');
+            el.style.background = '#dbeafe';
+        };
+    });
+}
+
+async function savePickedPhoto(fileName) {
+    const partNo = photoPickerContext.partNo;
+    const current = allSearchableItems.find(i => (photoPickerContext.key && i.firebaseKey === photoPickerContext.key) || itemPartCode(i) === String(partNo));
+    const itemKey = photoPickerContext.key || (current && current.firebaseKey) || firebaseItemKeyFromPartCode(partNo);
+    const photoURL = composePhotoUrl(fileName, partNo);
+    await dbReq.ref('items').child(itemKey).update({
+        "Part Code": partNo,
+        PhotoFile: fileName || '',
+        PhotoURL: photoURL,
+        firebaseKey: itemKey,
+        PhotoUpdatedAt: new Date().toISOString()
+    });
+    if (current) {
+        current.PhotoFile = fileName || '';
+        current.PhotoURL = photoURL;
+        current.firebaseKey = itemKey;
+    } else {
+        allSearchableItems.push({ "Part Code": partNo, PhotoFile: fileName || '', PhotoURL: photoURL, firebaseKey: itemKey });
+    }
+    document.getElementById('photoPickerModal')?.classList.remove('active');
+    if (document.getElementById('searchInput').value.trim().length >= 2) {
+        renderSearchResults(document.getElementById('searchInput').value);
+    }
+}
+
+window.updateItemPhoto = async function(key, partNo) {
+    if (!canUpdatePhotos()) { denyAccess('update photos'); return; }
+    photoPickerContext = { key, partNo };
+    const title = document.getElementById('photoPickerTitle');
+    if (title) title.textContent = 'Choose photo for ' + partNo;
+    const search = document.getElementById('photoPickerSearch');
+    if (search) search.value = '';
+    document.getElementById('photoPickerModal')?.classList.add('active');
+    const box = document.getElementById('photoPickerList');
+    if (box) box.innerHTML = '<div class="suggestion-item">Loading photo list…</div>';
+    try {
+        await loadPhotoFileList(true);
+        renderPhotoPickerList('');
+    } catch (err) {
+        if (box) box.innerHTML = '<div class="suggestion-item">Could not load GitHub PhotoIndex.csv.</div>';
+    }
+};
+
+document.getElementById('closePhotoPickerBtn')?.addEventListener('click', () => {
+    document.getElementById('photoPickerModal')?.classList.remove('active');
+});
+document.getElementById('photoPickerSearch')?.addEventListener('input', (e) => {
+    renderPhotoPickerList(e.target.value);
+});
+document.getElementById('photoPickerSaveBtn')?.addEventListener('click', () => {
+    if (!photoPickerSelected) { alert('Click a photo name first, then Save photo tag.'); return; }
+    savePickedPhoto(photoPickerSelected);
+});
+document.getElementById('photoPickerClearBtn')?.addEventListener('click', () => {
+    photoPickerSelected = '';
+    savePickedPhoto('');
+});
+
 const UI_SETTINGS_KEY = 'pr_ui_settings_v1';
 
 function loadUiSettings() {
@@ -1024,9 +2036,9 @@ applyBackground();
 
 const SHARED_BG_PATH = "appSettings/backgroundUrl";
 function saveSharedBackground(url) {
-    return db.ref(SHARED_BG_PATH).set(url || null);
+    return dbReq.ref(SHARED_BG_PATH).set(url || null);
 }
-db.ref(SHARED_BG_PATH).on("value", (snap) => {
+if (isPrimaryTab) dbReq.ref(SHARED_BG_PATH).on("value", (snap) => {
     const url = snap.val();
     if (!url) return;
     const s = loadUiSettings();
@@ -1037,19 +2049,34 @@ db.ref(SHARED_BG_PATH).on("value", (snap) => {
     applyBackground(s);
 });
 
+const SHARED_PHOTO_FOLDER_PATH = "appSettings/photoFolder";
+if (isPrimaryTab) dbReq.ref(SHARED_PHOTO_FOLDER_PATH).on("value", (snap) => {
+    const folder = snap.val();
+    if (!folder) return;
+    const s = loadUiSettings();
+    s.photoFolder = folder;
+    saveUiSettings(s);
+    const input = document.getElementById('photoFolderUrl');
+    if (input) input.value = folder;
+});
+
 const settingsModal = document.getElementById('settingsModal');
 const openSettingsBtn = document.getElementById('openSettingsBtn');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 if (openSettingsBtn && settingsModal) {
     openSettingsBtn.addEventListener('click', () => {
+        if (!isAccessAdmin()) { denyAccess('open settings'); return; }
         const s = loadUiSettings();
         document.getElementById('bgImageUrl').value = s.bgUrl || '';
         document.getElementById('bgBlur').value = s.bgBlur ?? 2;
         document.getElementById('bgDim').value = s.bgDim ?? 12;
         document.getElementById('photoFolderUrl').value = s.photoFolder || DEFAULT_PHOTO_FOLDER;
-        document.getElementById('photoExt').value = s.photoExt || 'jpg';
+        document.getElementById('photoListUrl').value = s.photoListUrl || DEFAULT_PHOTO_LIST_URL;
+        document.getElementById('photoExt').value = s.photoExt || 'jpeg';
         const nameEl = document.getElementById('bgFileName');
         loadBgFile().then(f => { if (nameEl) nameEl.textContent = f ? ('Attached: ' + (f.name || 'photo')) : ''; });
+        applyAccessUI();
+        if (isAccessAdmin()) loadAccessUsers().then(renderAccessUserList);
         settingsModal.classList.add('active');
     });
 }
@@ -1060,11 +2087,13 @@ document.getElementById('saveBgBtn')?.addEventListener('click', () => {
         bgBlur: Number(document.getElementById('bgBlur').value),
         bgDim: Number(document.getElementById('bgDim').value),
         photoFolder: document.getElementById('photoFolderUrl').value.trim() || DEFAULT_PHOTO_FOLDER,
+        photoListUrl: document.getElementById('photoListUrl').value.trim() || DEFAULT_PHOTO_LIST_URL,
         photoExt: document.getElementById('photoExt').value
     };
     saveUiSettings(s);
     applyBackground(s);
     if (s.bgUrl) saveSharedBackground(s.bgUrl);
+    dbReq.ref(SHARED_PHOTO_FOLDER_PATH).set(s.photoFolder || null);
     settingsModal.classList.remove('active');
 });
 document.getElementById('bgImageFile')?.addEventListener('change', async (e) => {
@@ -1107,6 +2136,7 @@ document.getElementById('fullPreviewBtn')?.addEventListener('click', () => docum
 document.getElementById('fullSaveBtn')?.addEventListener('click', () => document.getElementById('saveBtnAction')?.click());
 
 document.getElementById('fullCopyExcelBtn')?.addEventListener('click', copyCartForExcel);
+document.getElementById('fullCopyReqEntryBtn')?.addEventListener('click', copyRequisitionEntry);
 
 const GITHUB_PHOTO_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
 const GITHUB_PHOTO_RAW = "https://raw.githubusercontent.com/DC-database/hub/main/photo/";

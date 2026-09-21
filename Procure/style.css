@@ -63,10 +63,12 @@ input, select, button { font-family: inherit; }
 .search-meta { min-height: 18px; margin: 8px 0 6px; font-size: 12px; color: #6b7380; }
 .results-container { background: #fff; border: 1px solid #e6e1d8; border-radius: 14px; max-height: 320px; overflow-y: auto; }
 .results-container:empty { display: none; }
-.result-item { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e6e1d8; }
+.result-item { display: flex; justify-content: flex-start; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e6e1d8; }
 .result-item:last-child { border-bottom: none; }
-.result-info { font-size: 14px; }
-.result-info strong { font-family: "IBM Plex Mono", monospace; color: #0f766e; }
+.result-photo { width: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; }
+.result-info { flex: 1; min-width: 0; font-size: 14px; }
+.result-actions { margin-left: auto; }
+.result-info strong { font-family: "IBM Plex Mono", monospace; color: #dc2626; }
 .result-info span { display: inline-block; margin-top: 4px; color: #6b7380; font-size: 12px; }
 .no-results { padding: 22px; text-align: center; color: #6b7380; }
 .btn, .ghost-btn, .save-btn, .add-btn, .remove-btn { border: 0; cursor: pointer; border-radius: 11px; font-weight: 650; display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 13px; }
@@ -74,6 +76,7 @@ input, select, button { font-family: inherit; }
 .btn-success { background: #0f766e; color: #fff; }
 .btn-amber { background: #b45309; color: #fff; }
 .btn-success-outline { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.btn-req-outline { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .btn-danger-outline { background: #fff1f0; color: #b42318; border: 1px solid #fecaca; }
 .btn-muted { background: #eef1f4; color: #334155; }
 .btn-dark { background: #14181f; color: #f8fafc; }
@@ -191,7 +194,7 @@ body::after {
 }
 .panel.glass .result-item { border-bottom-color: rgba(255,255,255,0.14); }
 .panel.glass .result-info span { color: rgba(255,255,255,0.72); }
-.panel.glass .result-info strong { color: #9ef0de; }
+.panel.glass .result-info strong { color: #ef4444; }
 .panel.glass .grand-total span { color: #9ef0de; }
 .panel.glass .cart-footer { border-top-color: rgba(255,255,255,0.2); }
 .panel.glass .req-input-group input,
@@ -235,7 +238,10 @@ input[type=range] { width: 100%; }
     .cart-section { position: relative; top: 0; max-height: none; }
 }
 
-.item-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; background: rgba(255,255,255,.5); border: 1px solid rgba(255,255,255,.7); flex-shrink: 0; }
+.item-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; background: rgba(255,255,255,.5); border: 1px solid rgba(255,255,255,.7); flex-shrink: 0; cursor: pointer; }
+#fullCartTable th:nth-child(2),
+#fullCartTable td:nth-child(2) { width: 86px; text-align: center; vertical-align: middle; }
+#fullCartTable .item-thumb { width: 64px; height: 64px; display: block; margin: 0 auto; }
 
 /* Keep scroll, hide the bar */
 .no-print, .no-print * {
@@ -407,5 +413,46 @@ body.full-cart-open .app-shell { visibility: hidden; }
     color: #0f172a !important;
 }
 .requisition-details .selected-display {
-    color: #e2e8f0 !important;
+    color: #9ca3af !important;
+}
+
+.panel.glass,
+.panel.glass .panel-head h2,
+.panel.glass .panel-head p,
+.panel.glass .result-info,
+.panel.glass .result-info span,
+.panel.glass td,
+.panel.glass th,
+.panel.glass .grand-total,
+.panel.glass .search-meta,
+.panel.glass .selected-display,
+.topbar h1,
+.topbar p,
+.status-pill {
+    text-shadow: 0 1px 2px rgba(0,0,0,.72), 0 0 8px rgba(0,0,0,.28);
+}
+
+.panel.glass .result-info strong,
+#cartTable strong,
+#fullCartTable strong {
+    color: #ef4444 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,.8);
+}
+
+.req-input-group input,
+.search-bar input,
+.form-group input,
+.form-group select,
+.calc-input,
+.unit-input,
+.cart-comment-input {
+    color: #111827 !important;
+}
+.req-input-group input::placeholder,
+.search-bar input::placeholder,
+.form-group input::placeholder,
+.calc-input::placeholder,
+.cart-comment-input::placeholder {
+    color: #9ca3af !important;
+    opacity: 1;
 }
