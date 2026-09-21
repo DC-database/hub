@@ -879,13 +879,13 @@ function renderSearchResults(rawQuery) {
         }
         if (canUpdatePhotos()) {
             const keyArg = item.firebaseKey ? `'${item.firebaseKey}'` : 'null';
-            actionButtons += `<button class="icon-btn edit" onclick="updateItemPhoto(${keyArg}, '${partNo}')" title="Update photo link"><i class="fa-solid fa-image"></i></button>`;
+            actionButtons += `<button class="icon-btn edit" onclick="updateItemPhoto(${keyArg}, '${partNo}', '${safeDesc}')" title="Update photo link"><i class="fa-solid fa-image"></i></button>`;
         }
         const fileName = item.PhotoFile || item.photoFile || item.photoName || '';
         const photoUrls = photoUrlCandidates(fileName);
         const safePhoto = String(photoUrls[0] || '').replace(/"/g, '&quot;');
         const safeAlts = photoUrls.slice(1).join('|').replace(/"/g, '&quot;');
-        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" data-alts="${safeAlts}" onclick="openPhotoView(this.src, '${partNo}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> — ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
+        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" data-alts="${safeAlts}" onclick="openPhotoView(this.src, '${partNo} | ${safeDesc}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> | ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}${fileName ? ` &nbsp;|&nbsp; photo: ${fileName}` : ''}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
         searchResults.appendChild(div);
     });
     if (matches.length > searchLimit) {
@@ -1830,7 +1830,7 @@ function photoUrlCandidates(fileName) {
     if (!base || !fileName) return [];
     const stem = String(fileName).trim().replace(/\.(jpg|jpeg|png|webp)$/i, '');
     if (!stem) return [];
-    const names = [stem, stem.replace(/\s+/g, '')].filter((name, idx, arr) => name && arr.indexOf(name) === idx);
+    const names = [stem, stem.replace(/[\s_]+/g, '-'), stem.replace(/[\s_-]+/g, '')].filter((name, idx, arr) => name && arr.indexOf(name) === idx);
     const urls = [];
     names.forEach((name) => {
         urls.push(base + encodeURIComponent(name + '.jpg'));
@@ -1906,7 +1906,12 @@ function renderPhotoPickerList(query) {
     if (!box) return;
     let q = String(query || '').toLowerCase().trim();
     if (/^\d+(\.\d+)?$/.test(q)) q = '';
-    const matches = photoFileList.filter((name) => !q || name.toLowerCase().includes(q)).slice(0, 120);
+    const qKey = q.replace(/[\s_-]+/g, '');
+    const matches = photoFileList.filter((name) => {
+        if (!q) return true;
+        const lower = name.toLowerCase();
+        return lower.includes(q) || lower.replace(/[\s_-]+/g, '').includes(qKey);
+    }).slice(0, 120);
     if (!photoFileList.length) {
         box.innerHTML = '<div class="suggestion-item">No photo list loaded. Check GitHub PhotoIndex.csv.</div>';
         return;
@@ -1952,19 +1957,20 @@ async function savePickedPhoto(fileName) {
     }
 }
 
-window.updateItemPhoto = async function(key, partNo) {
+window.updateItemPhoto = async function(key, partNo, itemName) {
     if (!canUpdatePhotos()) { denyAccess('update photos'); return; }
-    photoPickerContext = { key, partNo };
+    const label = String(itemName || '').trim();
+    photoPickerContext = { key, partNo, itemName: label };
     const title = document.getElementById('photoPickerTitle');
-    if (title) title.textContent = 'Choose photo for ' + partNo;
+    if (title) title.textContent = partNo + (label ? ' | ' + label : '');
     const search = document.getElementById('photoPickerSearch');
-    if (search) search.value = '';
+    if (search) search.value = label;
     document.getElementById('photoPickerModal')?.classList.add('active');
     const box = document.getElementById('photoPickerList');
     if (box) box.innerHTML = '<div class="suggestion-item">Loading photo list…</div>';
     try {
         await loadPhotoFileList(true);
-        renderPhotoPickerList('');
+        renderPhotoPickerList(label);
     } catch (err) {
         if (box) box.innerHTML = '<div class="suggestion-item">Could not load GitHub PhotoIndex.csv.</div>';
     }
