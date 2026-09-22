@@ -14882,6 +14882,25 @@ body #im-add-payment-modal:not(.hidden) {
 #history-modal .history-modal-container {
     max-width: 940px !important;
     width: min(940px, calc(100vw - 26px)) !important;
+    max-height: min(82vh, 720px) !important;
+}
+#history-modal .history-modal-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+}
+#history-modal .history-modal-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+#history-modal #history-modal-expand-btn {
+    height: 32px !important;
+    padding: 0 12px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
 }
 
 #history-modal .history-modal-header::before {
@@ -14972,9 +14991,49 @@ body #im-add-payment-modal:not(.hidden) {
     padding: 0 !important;
     border: 1px solid rgba(148, 163, 184, .24) !important;
     border-radius: 24px !important;
-    overflow: hidden !important;
+    overflow: auto !important;
+    max-height: 320px !important;
     background: rgba(255, 255, 255, .94) !important;
     box-shadow: 0 20px 48px rgba(15, 46, 71, .09) !important;
+}
+#history-modal.history-modal-expanded {
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    padding: 12px !important;
+}
+#history-modal.history-modal-expanded .history-modal-container {
+    width: min(1100px, calc(100vw - 24px)) !important;
+    max-width: min(1100px, calc(100vw - 24px)) !important;
+    height: 92vh !important;
+    max-height: 92vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#history-modal.history-modal-expanded .history-modal-header,
+#history-modal.history-modal-expanded .modal-footer {
+    flex: 0 0 auto !important;
+    position: relative !important;
+    bottom: auto !important;
+}
+#history-modal.history-modal-expanded .modal-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#history-modal.history-modal-expanded .history-modal-summary {
+    flex: 0 0 auto !important;
+}
+#history-modal.history-modal-expanded .history-table-wrapper,
+#history-modal.history-modal-expanded .table-wrapper {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: auto !important;
 }
 
 #history-modal .history-premium-table {
@@ -34497,6 +34556,31 @@ body #history-modal.modal-overlay:not(.hidden) .history-premium-table {
     #wd-dashboard .wd-payment-pocket-filter-note {
         padding-left: 0;
     }
+}
+
+/* 12.8.23 — Compact vs Maximize must actually change height */
+body #history-modal.modal-overlay:not(.hidden) > .modal-container.history-modal-container {
+    height: auto !important;
+    max-height: min(82vh, 720px) !important;
+}
+body #history-modal.modal-overlay:not(.hidden) .history-table-wrapper.table-wrapper {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    max-height: 320px !important;
+}
+body #history-modal.modal-overlay.history-modal-expanded:not(.hidden) > .modal-container.history-modal-container {
+    height: 92vh !important;
+    max-height: 92vh !important;
+}
+body #history-modal.modal-overlay.history-modal-expanded:not(.hidden) > .history-modal-container > .modal-content {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+}
+body #history-modal.modal-overlay.history-modal-expanded:not(.hidden) .history-table-wrapper.table-wrapper {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 520px !important;
+    max-height: none !important;
 }
 
 /* ========================================================================== */

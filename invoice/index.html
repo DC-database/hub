@@ -140,7 +140,7 @@
     </script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" rel="stylesheet">
-<link href="style.css?v=12.7.8" rel="stylesheet"/>
+<link href="style.css?v=12.8.23" rel="stylesheet"/>
 <link href="css/patch-12.0.10.css?v=12.0.10" rel="stylesheet"/>
 <link href="css/transfer_stock.css?v=10.5.7" rel="stylesheet"/>
 <link href="css/mobile.css?v=11.8.7" rel="stylesheet"/>
@@ -2772,7 +2772,10 @@
 <div class="modal-container history-modal-container">
 <div class="modal-header history-modal-header">
 <h2 id="history-modal-title">Invoice Status History</h2>
-<button class="modal-close-btn" onclick="document.getElementById('history-modal').classList.add('hidden')">×</button>
+<div class="history-modal-header-actions">
+<button type="button" class="secondary-btn" id="history-modal-expand-btn" onclick="window.toggleInvoiceHistoryExpand()">Maximize</button>
+<button class="modal-close-btn" onclick="window.closeInvoiceHistoryModal()">×</button>
+</div>
 </div>
 <div class="modal-content">
 <div class="hidden history-loader" id="history-modal-loader">Loading history timeline...</div>
@@ -2792,7 +2795,8 @@
 </div>
 </div>
 <div class="modal-footer">
-<button class="secondary-btn modal-close-btn" onclick="document.getElementById('history-modal').classList.add('hidden')">Close</button>
+<button class="secondary-btn" type="button" onclick="window.toggleInvoiceHistoryExpand()" id="history-modal-expand-btn-footer">Maximize</button>
+<button class="secondary-btn modal-close-btn" onclick="window.closeInvoiceHistoryModal()">Close</button>
 </div>
 </div>
 </div>
@@ -3471,7 +3475,7 @@
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=10.1.5"></script>
-<script src="app.js?v=12.8.18"></script>
+<script src="app.js?v=12.8.23"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/app-navigation-settings.js?v=12.8.10"></script>
@@ -3495,10 +3499,10 @@
 <script src="js/app-attention-validation.js?v=11.8.0"></script>
 <script src="js/app-batch-entry-ui.js?v=12.8.16"></script>
 <script src="js/app-im-event-wiring.js?v=12.7.3"></script>
-<script src="js/app-history-transfer.js?v=12.8.6"></script>
+<script src="js/app-history-transfer.js?v=12.8.23"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '12.9.1';
+      window.IBA_SYSTEM_VERSION = '12.9.7';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
