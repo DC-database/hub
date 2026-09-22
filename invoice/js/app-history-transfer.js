@@ -51,6 +51,61 @@ function ibaHistorySetModalTitle(text) {
     if (title) title.textContent = text || 'Status History';
 }
 
+window.setInvoiceHistoryExpanded = function (expanded) {
+    const modal = document.getElementById('history-modal');
+    const container = modal ? modal.querySelector('.history-modal-container') : null;
+    const content = modal ? modal.querySelector('.modal-content') : null;
+    const wrapper = modal ? modal.querySelector('.history-table-wrapper') : null;
+    const buttons = [
+        document.getElementById('history-modal-expand-btn'),
+        document.getElementById('history-modal-expand-btn-footer')
+    ];
+    if (!modal) return;
+    modal.classList.toggle('history-modal-expanded', !!expanded);
+    if (expanded) {
+        if (container) {
+            container.style.setProperty('height', '92vh', 'important');
+            container.style.setProperty('max-height', '92vh', 'important');
+        }
+        if (content) {
+            content.style.setProperty('flex', '1 1 auto', 'important');
+            content.style.setProperty('min-height', '0', 'important');
+        }
+        if (wrapper) {
+            wrapper.style.setProperty('max-height', 'none', 'important');
+            wrapper.style.setProperty('min-height', '520px', 'important');
+            wrapper.style.setProperty('height', 'auto', 'important');
+            wrapper.style.setProperty('flex', '1 1 auto', 'important');
+        }
+    } else {
+        if (container) {
+            container.style.setProperty('height', 'auto', 'important');
+            container.style.setProperty('max-height', '720px', 'important');
+        }
+        if (wrapper) {
+            wrapper.style.setProperty('max-height', '320px', 'important');
+            wrapper.style.setProperty('min-height', '0', 'important');
+            wrapper.style.setProperty('height', 'auto', 'important');
+            wrapper.style.setProperty('flex', '0 0 auto', 'important');
+        }
+    }
+    buttons.forEach((btn) => {
+        if (btn) btn.textContent = expanded ? 'Compact' : 'Maximize';
+    });
+};
+
+window.toggleInvoiceHistoryExpand = function () {
+    const modal = document.getElementById('history-modal');
+    window.setInvoiceHistoryExpanded(!(modal && modal.classList.contains('history-modal-expanded')));
+};
+
+window.closeInvoiceHistoryModal = function () {
+    const modal = document.getElementById('history-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    window.setInvoiceHistoryExpanded(false);
+};
+
 function ibaHistoryRenderSummary(items, contextLabel, referenceLabel) {
     const summary = document.getElementById('history-modal-summary');
     if (!summary) return;
@@ -140,6 +195,7 @@ window.showInvoiceHistory = async function (poNumber, invoiceKey) {
 
     ibaHistorySetModalTitle('Invoice Status History');
     if (modal) modal.classList.remove('hidden');
+    if (typeof window.setInvoiceHistoryExpanded === 'function') window.setInvoiceHistoryExpanded(false);
     if (loader) loader.classList.remove('hidden');
     if (summary) summary.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
@@ -532,6 +588,7 @@ if (saveManualPOBtn) {
 
     ibaHistorySetModalTitle('Inventory Movement History');
     if (modal) modal.classList.remove('hidden');
+    if (typeof window.setInvoiceHistoryExpanded === 'function') window.setInvoiceHistoryExpanded(false);
     if (loader) loader.classList.remove('hidden');
     if (summary) summary.innerHTML = '';
     if (tbody) tbody.innerHTML = '';
