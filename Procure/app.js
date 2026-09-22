@@ -565,7 +565,9 @@ let lastSearchQuery = '';
 function setCatalogStatus(text, cls) {
     const el = document.getElementById('catalogStatus');
     if (!el) return;
-    el.textContent = text;
+    const hide = cls === 'ready' || /cached/i.test(String(text || ''));
+    el.style.display = hide ? 'none' : '';
+    el.textContent = hide ? '' : text;
     el.className = 'status-pill' + (cls ? ' ' + cls : '');
 }
 
@@ -1971,11 +1973,11 @@ function renderPhotoPickerList(query) {
         return lower.includes(q) || lower.replace(/[\s_-]+/g, '').includes(qKey);
     }).slice(0, 120);
     if (!photoFileList.length) {
-        box.innerHTML = '<div class="suggestion-item">No photo list loaded. Check GitHub PhotoIndex.csv.</div>';
+        box.innerHTML = '<div class="suggestion-item photo-empty">No photo list loaded. Check GitHub PhotoIndex.csv.</div>';
         return;
     }
     if (!matches.length) {
-        box.innerHTML = '<div class="suggestion-item">No file name matches.</div>';
+        box.innerHTML = '<div class="suggestion-item photo-empty">No matching photo names</div>';
         return;
     }
     box.innerHTML = matches.map((name) => `<div class="suggestion-item" data-photo-file="${String(name).replace(/"/g, '&quot;')}">${name}</div>`).join('');
@@ -2040,6 +2042,19 @@ document.getElementById('closePhotoPickerBtn')?.addEventListener('click', () => 
 document.getElementById('photoPickerSearch')?.addEventListener('input', (e) => {
     renderPhotoPickerList(e.target.value);
 });
+document.getElementById('photoPickerSearch')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (!photoPickerSelected) {
+        const first = document.querySelector('#photoPickerList [data-photo-file]');
+        if (first) {
+            photoPickerSelected = first.getAttribute('data-photo-file') || '';
+            const label = document.getElementById('photoPickerChosen');
+            if (label) label.textContent = 'Selected: ' + photoPickerSelected;
+        }
+    }
+    if (photoPickerSelected) savePickedPhoto(photoPickerSelected);
+});
 document.getElementById('photoPickerSaveBtn')?.addEventListener('click', () => {
     if (!photoPickerSelected) { alert('Click a photo name first, then Save photo tag.'); return; }
     savePickedPhoto(photoPickerSelected);
@@ -2048,6 +2063,20 @@ document.getElementById('photoPickerClearBtn')?.addEventListener('click', () => 
     photoPickerSelected = '';
     savePickedPhoto('');
 });
+
+function bindEnterToClick(inputIds, buttonId) {
+    inputIds.forEach((id) => {
+        document.getElementById(id)?.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            document.getElementById(buttonId)?.click();
+        });
+    });
+}
+bindEnterToClick(['accessLoginMobile', 'accessLoginPassword'], 'accessLoginBtn');
+bindEnterToClick(['accessOwnPassword'], 'accessChangeOwnPasswordBtn');
+bindEnterToClick(['accessNewName', 'accessNewMobile', 'accessNewPassword'], 'saveAccessUserBtn');
+bindEnterToClick(['bgImageUrl', 'photoFolderUrl', 'photoListUrl'], 'saveBgBtn');
 
 const UI_SETTINGS_KEY = 'pr_ui_settings_v1';
 
