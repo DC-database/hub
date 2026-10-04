@@ -1437,20 +1437,26 @@ function renderMaterialStockTable(data) {
     // [FIX] Use strict null check (currentApprover && ...)
     const isAdmin = (currentApprover && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (currentApprover && currentApprover.Name === 'Irwin');
+    const canMergeStock = isIrwin || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic');
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     // Super Admin replacement: allow edit actions in Inventory (no delete)
     const isEditor = (isAdmin || isVacationDelegate);
     const canAttachPhoto = isEditor || msCanAttachMaterialPhoto();
 
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
+    const mergeBtn = document.getElementById('ms-merge-selected-btn');
     if (bulkBtn) {
         if (isIrwin) bulkBtn.classList.remove('hidden');
         else bulkBtn.classList.add('hidden');
     }
+    if (mergeBtn) {
+        if (canMergeStock) mergeBtn.classList.remove('hidden');
+        else mergeBtn.classList.add('hidden');
+    }
 
     const tableHeadRow = document.querySelector('#ms-table thead tr');
     if (tableHeadRow) {
-        if (isIrwin) {
+        if (canMergeStock) {
             if(!document.getElementById('ms-select-all-header')) {
                 tableHeadRow.children[0].innerHTML = '<input type="checkbox" id="ms-select-all-header" style="cursor:pointer;">';
                 setTimeout(() => {
@@ -1571,15 +1577,17 @@ function renderMaterialStockTable(data) {
             // Delete remains Irwin-only
             if (isIrwin) {
                 actionButtons += `<button type="button" class="delete-btn ms-row-action-btn ms-delete-btn" data-key="${item.key}" title="Delete Item"><i class="fa-solid fa-trash"></i><span>Delete</span></button>`;
-                firstColContent = `
-                    <div class="ms-row-selector">
-                        <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
-                        <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
-                    </div>
-                `;
             }
         } else {
             actionButtons = addToRequiredBtn + `<span class="ms-view-only-note">View Only</span>`;
+        }
+        if (canMergeStock) {
+            firstColContent = `
+                <div class="ms-row-selector">
+                    <input type="checkbox" class="ms-row-checkbox" data-key="${item.key}" data-name="${item.productName}">
+                    <button class="ms-expand-btn" onclick="toggleStockDetail('${uniqueId}', this)">+</button>
+                </div>
+            `;
         }
 
         actionButtons = `<div class="ms-row-actions">${actionButtons}</div>`;
@@ -2098,6 +2106,14 @@ async function handleSaveNewMaterial() {
 // ==========================================================================
 // 7. CSV UPLOAD
 // ==========================================================================
+function msCanUpdateTitles() {
+    const user = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : {};
+    const role = String(user.Role || user.role || '').trim().toLowerCase();
+    const position = String(user.Position || user.position || '').trim().toLowerCase();
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    return role === 'admin' || isVacationDelegate || position.includes('logistic');
+}
+
 function handleDownloadTitles() {
     const rows = Array.isArray(lastFilteredStockData) ? lastFilteredStockData : [];
     if (!rows.length) {
@@ -2316,11 +2332,8 @@ function handleUploadCSV(event) {
 }
 
 function handleUploadTitles(event) {
-    const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
-    const isAdminUser = String(role).trim().toLowerCase() === 'admin';
-    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    if (!isAdminUser && !isVacationDelegate) {
-        alert('Access Denied: You do not have permission to update titles.');
+    if (!msCanUpdateTitles()) {
+        alert('Access Denied: Only Admin or Logistic can update titles.');
         event.target.value = '';
         return;
     }
@@ -2589,6 +2602,101 @@ async function handleBulkDelete() {
     } finally {
         btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete Selected';
         btn.disabled = false;
+    }
+}
+
+function msProductSequence(item) {
+    const id = String(item.productID || item.productId || '').trim();
+    const parts = id.split('.').map((part) => parseInt(part, 10));
+    return { id, parts };
+}
+
+async function handleMergeSelected() {
+    const canMerge = (currentApprover && currentApprover.Name === 'Irwin')
+        || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic');
+    if (!canMerge) {
+        alert('Only Irwin or Logistic can merge stock items.');
+        return;
+    }
+    const checked = Array.from(document.querySelectorAll('.ms-row-checkbox:checked'));
+    if (checked.length < 2) {
+        alert('Tick at least two items to merge.');
+        return;
+    }
+    const items = checked.map((box) => allMaterialStockData.find((item) => item.key === box.dataset.key)).filter(Boolean);
+    if (items.length < 2) {
+        alert('The ticked items are not loaded. Refresh Material Stock and try again.');
+        return;
+    }
+    items.sort((a, b) => {
+        const left = msProductSequence(a).parts;
+        const right = msProductSequence(b).parts;
+        const len = Math.max(left.length, right.length);
+        for (let i = 0; i < len; i++) {
+            const diff = (left[i] || 0) - (right[i] || 0);
+            if (diff) return diff;
+        }
+        return msProductSequence(a).id.localeCompare(msProductSequence(b).id);
+    });
+    const main = items[0];
+    const others = items.slice(1);
+    const mainId = String(main.productID || main.productId || '').trim();
+    const otherIds = others.map((item) => String(item.productID || item.productId || '').trim());
+    if (!confirm(`Merge into the lowest ID ${mainId}?\n\n${otherIds.join('\n')}\n\nStock and history move to ${mainId}. The other cards become zero so you can delete them.`)) return;
+    const btn = document.getElementById('ms-merge-selected-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Merging...'; }
+    const sites = { ...(main.sites || {}) };
+    others.forEach((item) => {
+        Object.entries(item.sites || {}).forEach(([site, qty]) => {
+            const amount = parseFloat(qty) || 0;
+            if (!amount) return;
+            sites[site] = (parseFloat(sites[site]) || 0) + amount;
+        });
+    });
+    let total = 0;
+    Object.values(sites).forEach((qty) => { total += parseFloat(qty) || 0; });
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    const updates = {};
+    updates[`material_stock/${main.key}/sites`] = sites;
+    updates[`material_stock/${main.key}/stockQty`] = total;
+    updates[`material_stock/${main.key}/balanceQty`] = total;
+    updates[`material_stock/${main.key}/lastUpdated`] = Date.now();
+    others.forEach((item) => {
+        updates[`material_stock/${item.key}/sites`] = {};
+        updates[`material_stock/${item.key}/stockQty`] = 0;
+        updates[`material_stock/${item.key}/balanceQty`] = 0;
+        updates[`material_stock/${item.key}/mergedInto`] = mainId;
+        updates[`material_stock/${item.key}/lastUpdated`] = Date.now();
+    });
+    const idSet = new Set(otherIds);
+    let historyCount = 0;
+    (allTransferData || []).forEach((entry) => {
+        const pid = String(entry.productID || entry.productId || '').trim();
+        if (!idSet.has(pid) || !entry.key) return;
+        updates[`transfer_entries/${entry.key}/productID`] = mainId;
+        updates[`transfer_entries/${entry.key}/productId`] = mainId;
+        updates[`transfer_entries/${entry.key}/productName`] = main.productName || '';
+        updates[`transfer_entries/${entry.key}/mergedFrom`] = pid;
+        historyCount++;
+    });
+    try {
+        const keys = Object.keys(updates);
+        for (let i = 0; i < keys.length; i += 400) {
+            const batch = {};
+            keys.slice(i, i + 400).forEach((key) => { batch[key] = updates[key]; });
+            await database.ref().update(batch);
+        }
+        alert(`Merged into ${mainId}.\nStock is now ${total}.\n${historyCount} history records moved.\nThe other cards are zero. Tick them and use Delete Selected.`);
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+    } catch (error) {
+        console.error(error);
+        alert('Merge failed: ' + (error && error.message ? error.message : error));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-code-merge"></i> Merge Selected';
+        }
     }
 }
 
@@ -3524,6 +3632,11 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
 
     const bulkDeleteBtn = document.getElementById('ms-bulk-delete-btn');
     if (bulkDeleteBtn) bulkDeleteBtn.addEventListener('click', handleBulkDelete);
+    const mergeSelectedBtn = document.getElementById('ms-merge-selected-btn');
+    if (mergeSelectedBtn && mergeSelectedBtn.dataset.bound !== '1') {
+        mergeSelectedBtn.dataset.bound = '1';
+        mergeSelectedBtn.addEventListener('click', handleMergeSelected);
+    }
 
     const saveStockBtn = document.getElementById('ms-save-stock-btn');
     if(saveStockBtn) {
