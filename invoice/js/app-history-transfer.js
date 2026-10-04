@@ -650,8 +650,29 @@ if (saveManualPOBtn) {
         if (!id || !qty) return;
 
         // Sanitize Site Names
-        const safeFrom = fromSite ? fromSite.replace(/[.#$[\]]/g, "_") : null;
-        const safeTo = toSite ? toSite.replace(/[.#$[\]]/g, "_") : null;
+        const canonicalSite = (name) => {
+            if (typeof window.stockCanonicalSiteKey === 'function') return window.stockCanonicalSiteKey(name);
+            const raw = String(name || '').trim();
+            if (!raw) return '';
+            if (raw.toLowerCase() === 'main store') return 'Main Store';
+            return raw.split(/\s+-\s+/)[0].trim().replace(/[.#$[\]\/]/g, '');
+        };
+        const foldSite = (sites, siteName, delta) => {
+            const key = canonicalSite(siteName);
+            if (!key) return;
+            let total = 0;
+            Object.keys(sites).forEach((siteKey) => {
+                const same = typeof window.stockSiteKeysMatch === 'function'
+                    ? window.stockSiteKeysMatch(siteKey, key)
+                    : canonicalSite(siteKey) === key;
+                if (!same) return;
+                total += parseFloat(sites[siteKey]) || 0;
+                if (siteKey !== key) delete sites[siteKey];
+            });
+            sites[key] = Math.max(0, total + delta);
+        };
+        const safeFrom = canonicalSite(fromSite);
+        const safeTo = canonicalSite(toSite);
 
         console.log(`Reversing Stock -> Type: ${jobType}, Qty: ${qty}, ID: ${id}`);
 
@@ -672,32 +693,12 @@ if (saveManualPOBtn) {
 
                 // A. USAGE or RETURN (Original: Deducted Source -> Reversal: ADD Source)
                 if (jobType === 'Usage' || jobType === 'Return') {
-                    if (safeFrom) {
-                        let current = parseFloat(sites[safeFrom] || 0);
-                        sites[safeFrom] = current + amount; // Add back to source
-                    }
-                }
-
-                // B. RESTOCK (Original: Added Dest -> Reversal: DEDUCT Dest)
-                else if (jobType === 'Restock') {
-                    if (safeTo) {
-                        let current = parseFloat(sites[safeTo] || 0);
-                        sites[safeTo] = current - amount;
-                        if (sites[safeTo] < 0) sites[safeTo] = 0;
-                    }
-                }
-
-                // C. TRANSFER (Original: Moved Source->Dest -> Reversal: Move Dest->Source)
-                else {
-                    // Default to Transfer logic if type is missing
-                    if (safeFrom && safeTo) {
-                        let curFrom = parseFloat(sites[safeFrom] || 0);
-                        let curTo = parseFloat(sites[safeTo] || 0);
-
-                        sites[safeFrom] = curFrom + amount; // Return to source
-                        sites[safeTo] = curTo - amount; // Remove from dest
-                        if (sites[safeTo] < 0) sites[safeTo] = 0;
-                    }
+                    if (safeFrom) foldSite(sites, safeFrom, amount);
+                } else if (jobType === 'Restock') {
+                    if (safeTo) foldSite(sites, safeTo, -amount);
+                } else if (safeFrom && safeTo) {
+                    foldSite(sites, safeFrom, amount);
+                    foldSite(sites, safeTo, -amount);
                 }
 
                 // Recalculate Global Total
@@ -881,7 +882,14 @@ if (saveManualPOBtn) {
         if (!id || !qty || !siteName) return;
 
         // Sanitize Site Name
-        const safeSiteName = siteName.replace(/[.#$[\]]/g, "_");
+        const canonicalSite = (name) => {
+            if (typeof window.stockCanonicalSiteKey === 'function') return window.stockCanonicalSiteKey(name);
+            const raw = String(name || '').trim();
+            if (!raw) return '';
+            if (raw.toLowerCase() === 'main store') return 'Main Store';
+            return raw.split(/\s+-\s+/)[0].trim().replace(/[.#$[\]\/]/g, '');
+        };
+        const safeSiteName = canonicalSite(siteName);
         console.log(`Stock Update: ${action} ${qty} at ${safeSiteName} for ${id}`);
 
         try {
@@ -895,7 +903,15 @@ if (saveManualPOBtn) {
                 const key = Object.keys(data)[0];
                 const item = data[key];
                 let sites = item.sites || {};
-                let currentSiteStock = parseFloat(sites[safeSiteName] || 0);
+                let currentSiteStock = 0;
+                Object.keys(sites).forEach((siteKey) => {
+                    const same = typeof window.stockSiteKeysMatch === 'function'
+                        ? window.stockSiteKeysMatch(siteKey, safeSiteName)
+                        : canonicalSite(siteKey) === safeSiteName;
+                    if (!same) return;
+                    currentSiteStock += parseFloat(sites[siteKey]) || 0;
+                    if (siteKey !== safeSiteName) delete sites[siteKey];
+                });
                 const amount = parseFloat(qty);
 
                 if (action === 'Deduct') {

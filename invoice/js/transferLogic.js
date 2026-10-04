@@ -652,6 +652,23 @@ function applyTransferUpdateToLocalCaches(key, updates) {
 
 // *** RENAMED FUNCTION TO AVOID CONFLICT WITH APP.JS ***
 // This uses Firebase Transactions to ensure 100% accurate math even with concurrent updates.
+function stockCanonicalSiteKey(siteName) {
+    const raw = String(siteName || '').trim();
+    if (!raw) return '';
+    if (raw.toLowerCase() === 'main store') return 'Main Store';
+    const code = raw.split(/\s+-\s+/)[0].trim();
+    return code.replace(/[.#$[\]\/]/g, '').trim();
+}
+
+function stockSiteKeysMatch(a, b) {
+    const left = stockCanonicalSiteKey(a);
+    const right = stockCanonicalSiteKey(b);
+    return !!left && left === right;
+}
+
+window.stockCanonicalSiteKey = stockCanonicalSiteKey;
+window.stockSiteKeysMatch = stockSiteKeysMatch;
+
 async function runStockTransaction(id, qty, action, siteName) {
     if (id === undefined || id === null || qty === undefined || qty === null || !siteName) {
         console.error("Missing params for stock update", { id, qty, siteName });
@@ -667,7 +684,8 @@ async function runStockTransaction(id, qty, action, siteName) {
     }
 
     // Sanitize Site Name for Firebase keys (cannot contain . # $ [ ] /)
-    const safeSiteName = String(siteName).trim().replace(/[.#$[\]\/]/g, "");
+    const canonicalSite = stockCanonicalSiteKey(siteName);
+    const safeSiteName = canonicalSite || String(siteName || '').trim().replace(/[.#$[\]\/]/g, '');
     const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
     try {
@@ -698,8 +716,13 @@ async function runStockTransaction(id, qty, action, siteName) {
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
 
-                    // Use the sanitized site key consistently
-                    let currentVal = parseFloat(currentData.sites[safeSiteName] || 0);
+                    // Fold "178" and "178 - Lusail..." into one bucket before adding or deducting.
+                    let currentVal = 0;
+                    Object.keys(currentData.sites).forEach((siteKey) => {
+                        if (!stockSiteKeysMatch(siteKey, safeSiteName)) return;
+                        currentVal += parseFloat(currentData.sites[siteKey]) || 0;
+                        if (siteKey !== safeSiteName) delete currentData.sites[siteKey];
+                    });
 
                     if (action === 'Deduct') {
                         // 12.8.5: never clamp an insufficient deduction to zero.

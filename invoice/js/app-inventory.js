@@ -224,17 +224,29 @@ function filterAndRenderInventoryJobRecords(baseEntries = null) {
                 check(entry.jobType) ||
                 check(entry.ref) ||
                 check(entry.po) ||
+                check(entry.controlId) ||
+                check(entry.controlNumber) ||
                 check(entry.amount) ||
                 check(entry.site) ||
                 check(entry.attention) ||
                 check(entry.enteredBy) ||
                 check(entry.date) ||
                 check(entry.vendorName) ||
-                check(entry.controlId) ||
                 check(entry.productName) ||
+                check(entry.productID) ||
+                check(entry.productId) ||
+                check(entry.details) ||
                 check(entry.contactName) ||
                 check(entry.sourceSite) ||
-                check(entry.destinationSite)
+                check(entry.destinationSite) ||
+                check(entry.fromSite) ||
+                check(entry.toSite) ||
+                check(entry.fromLocation) ||
+                check(entry.toLocation) ||
+                check(entry.receiver) ||
+                check(entry.approver) ||
+                check(entry.sourceContact) ||
+                check(entry.remarks)
             );
         });
     }
@@ -346,8 +358,8 @@ function renderInventoryJobRecordsTable(entries) {
             <td class="inv-control-cell">${controlCell}</td>
             <td class="inv-product-cell">${esc(entry.productName || '')}</td>
             <td class="inv-route-cell">${esc(entry.site || '')}</td>
-            <td class="inv-qty-cell">${esc(entry.orderedQty || 0)}</td>
-            <td class="inv-qty-cell">${esc(entry.deliveredQty || 0)}</td>
+            <td class="inv-qty-cell">${esc(entry.orderedQty || entry.requiredQty || 0)}</td>
+            <td class="inv-qty-cell">${esc(entry.receivedQty || entry.deliveredQty || 0)}</td>
             <td>${esc(entry.shippingDate || '')}</td>
             <td>${esc(entry.arrivalDate || '')}</td>
             <td>${esc(entry.contactName || '')}</td>
@@ -379,8 +391,8 @@ function renderInventoryJobRecordsTable(entries) {
             const n = parseFloat(val);
             return Number.isFinite(n) ? n : 0;
         };
-        const totalOrdered = items.reduce((acc, x) => acc + sumNum(x.orderedQty), 0);
-        const totalDelivered = items.reduce((acc, x) => acc + sumNum(x.deliveredQty), 0);
+        const totalOrdered = items.reduce((acc, x) => acc + sumNum(x.orderedQty || x.requiredQty), 0);
+        const totalDelivered = items.reduce((acc, x) => acc + sumNum(x.receivedQty || x.deliveredQty), 0);
 
         const groupRow = document.createElement('tr');
         groupRow.className = `inventory-group-row inv-job-group-row ${invTypeClass(items[0]?.for || items[0]?.jobType)}`;

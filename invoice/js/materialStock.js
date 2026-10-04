@@ -1361,6 +1361,59 @@ window.filterStockByCategory = function(category) {
 // ==========================================================================
 // RENDER TABLE (Fixed: Safe Null Checks for currentApprover)
 // ==========================================================================
+function msCanonSiteKey(site) {
+    const raw = String(site || '').trim();
+    if (!raw) return '';
+    if (raw.toLowerCase() === 'main store') return 'Main Store';
+    return raw.split(/\s+-\s+/)[0].trim().replace(/[.#$[\]\/]/g, '');
+}
+
+function msDisplayStockFromReceipts(item, transfers) {
+    const net = {};
+    (transfers || []).forEach((t) => {
+        const done = t.remarks === 'Completed' || t.remarks === 'Received';
+        if (!done) return;
+        const type = t.jobType || t.for || 'Transfer';
+        const qty = parseFloat(t.receivedQty || t.orderedQty || t.requiredQty || 0) || 0;
+        if (!qty) return;
+        const to = msCanonSiteKey(t.toLocation || t.toSite);
+        const from = msCanonSiteKey(t.fromLocation || t.fromSite);
+        if ((type === 'Transfer' || type === 'Return' || type === 'Restock') && to) {
+            net[to] = (net[to] || 0) + qty;
+        }
+        if ((type === 'Transfer' || type === 'Usage' || type === 'Return') && from) {
+            net[from] = (net[from] || 0) - qty;
+        }
+    });
+    const stored = {};
+    if (item && item.sites) {
+        Object.entries(item.sites).forEach(([site, qty]) => {
+            const key = msCanonSiteKey(site);
+            if (!key) return;
+            stored[key] = (stored[key] || 0) + (parseFloat(qty) || 0);
+        });
+    }
+    const rows = [];
+    let total = 0;
+    new Set([...Object.keys(stored), ...Object.keys(net)]).forEach((site) => {
+        const onHand = stored[site] || 0;
+        const expected = net[site];
+        const shown = (typeof expected === 'number' && expected > onHand) ? expected : onHand;
+        if (!shown) return;
+        rows.push({ site, qty: shown });
+        total += shown;
+    });
+    if (!rows.length) {
+        const legacy = parseFloat(item && item.stockQty) || 0;
+        if (legacy) return { total: legacy, rows: [{ site: 'Unassigned', qty: legacy }] };
+    }
+    return { total, rows };
+}
+
+window.msAlignCompletedReceiptGap = function () {
+    return Promise.resolve();
+};
+
 function renderMaterialStockTable(data) {
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
@@ -1414,13 +1467,22 @@ function renderMaterialStockTable(data) {
         }
     }
 
+    const msCanonSite = (site) => {
+        if (typeof window.stockCanonicalSiteKey === 'function') return window.stockCanonicalSiteKey(site);
+        const raw = String(site || '').trim();
+        if (!raw) return '';
+        if (raw.toLowerCase() === 'main store') return 'Main Store';
+        return raw.split(/\s+-\s+/)[0].trim().replace(/[.#$[\]\/]/g, '');
+    };
+
     const getSiteDisplayName = (siteCode) => {
         if (siteCode === "Main Store") return "Main Store";
+        const code = msCanonSite(siteCode);
         const cachedSites = localStorage.getItem('cached_SITES');
         if (cachedSites) {
             try {
                 const sitesData = JSON.parse(cachedSites).data || [];
-                const found = sitesData.find(s => s.site == siteCode);
+                const found = sitesData.find(s => s.site == siteCode || s.site == code);
                 if (found) return `<span style="color:#00748C; font-weight:bold;">${found.site}</span> - ${found.description}`;
             } catch (e) {}
         }
@@ -1452,18 +1514,36 @@ function renderMaterialStockTable(data) {
     });
 
     // --- SAVE FILTERED DATA FOR REPORTING ---
-    lastFilteredStockData = filtered;
+    const stockByProduct = new Map();
+    filtered.forEach((item) => {
+        const productId = String(item.productID || item.productId || item.key || '').trim();
+        const current = stockByProduct.get(productId);
+        if (!current) {
+            stockByProduct.set(productId, item);
+            return;
+        }
+        const currentUpdated = parseFloat(current.lastUpdated || 0) || 0;
+        const nextUpdated = parseFloat(item.lastUpdated || 0) || 0;
+        const currentQty = parseFloat(current.stockQty || 0) || 0;
+        const nextQty = parseFloat(item.stockQty || 0) || 0;
+        if (nextUpdated > currentUpdated || (nextUpdated === currentUpdated && nextQty > currentQty)) {
+            stockByProduct.set(productId, item);
+        }
+    });
+    const uniqueFiltered = Array.from(stockByProduct.values());
 
-    if (countDisplay) countDisplay.textContent = `(Total: ${filtered.length})`;
+    lastFilteredStockData = uniqueFiltered;
+
+    if (countDisplay) countDisplay.textContent = `(Total: ${uniqueFiltered.length})`;
 
     tableBody.innerHTML = '';
 
-    if (filtered.length === 0) {
+    if (uniqueFiltered.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777;">No materials found.</td></tr>';
         return;
     }
 
-    filtered.forEach(item => {
+    uniqueFiltered.forEach(item => {
         // 1. PRE-CALCULATE HISTORY
         const stockID = String(item.productID || item.productId || '').trim();
         const productTransfers = allTransferData.filter(t => {
@@ -1471,94 +1551,8 @@ function renderMaterialStockTable(data) {
             return transferID === stockID;
         });
 
-        // 2. GENERATE SITE BREAKDOWN
-        let totalStock = 0;
-        let breakdownRows = '';
-        let hasSites = false;
-
-        if (siteFilterVal !== 'All') totalStock = parseFloat(item.sites[siteFilterVal] || 0);
-
-        if (item.sites) {
-            Object.entries(item.sites).forEach(([site, qty]) => {
-                const q = parseFloat(qty);
-
-                // Filter Check
-                if (siteFilterVal !== 'All' && site !== siteFilterVal) return;
-
-                // --- SMART LOGIC: Hide 0 qty sites UNLESS there's a pending transfer ---
-                const hasPendingTransaction = productTransfers.some(t => {
-                    const isPending = (t.remarks !== 'Completed' && t.remarks !== 'Received');
-                    const involvesSite = (t.toLocation === site || t.toSite === site || t.fromLocation === site || t.fromSite === site);
-                    return isPending && involvesSite;
-                });
-
-                if (q !== 0 || hasPendingTransaction) {
-                    hasSites = true;
-                    if (siteFilterVal === 'All') totalStock += q;
-
-                    let deleteSiteAction = '';
-                    if (isIrwin && q === 0) {
-                        deleteSiteAction = `<span onclick="deleteSiteStock('${item.key}', '${site}')" style="color:red; font-weight:bold; cursor:pointer; margin-left:10px; float:right;" title="Delete ONLY this site stock">[x]</span>`;
-                    }
-
-                    breakdownRows += `
-                        <tr>
-                            <td style="width: 70%; padding-left: 20px;">
-                                ${getSiteDisplayName(site)} ${deleteSiteAction}
-                            </td>
-                            <td style="width: 30%; font-weight:bold;">${q}</td>
-                        </tr>`;
-                }
-            });
-        }
-
-        if (!hasSites && siteFilterVal === 'All') {
-            const legacyStock = parseFloat(item.stockQty) || 0;
-            totalStock = legacyStock;
-            breakdownRows = `<tr><td style="padding-left: 20px;">Unassigned (Global)</td><td>${legacyStock}</td></tr>`;
-        }
-
-        // 3. GENERATE HISTORY ROWS
-        let historyRows = '';
-        if (productTransfers.length === 0) {
-            historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; font-style:italic; padding: 20px;">No movement history found.</td></tr>';
-        } else {
-            productTransfers.forEach(t => {
-                const date = t.shippingDate || new Date(t.timestamp).toISOString().split('T')[0];
-                const type = t.jobType || t.for || 'Transfer';
-                let route = '-';
-
-                if (type === 'Transfer') route = `${t.fromLocation || t.fromSite} -> ${t.toLocation || t.toSite}`;
-                else if (type === 'Restock') route = `<span style="color:#28a745;">+ Add to ${t.toLocation || t.toSite}</span>`;
-                else if (type === 'Return') route = `<span style="color:#dc3545;">- Return from ${t.fromLocation || t.fromSite}</span>`;
-                else if (type === 'Usage') route = `<span style="color:#6f42c1;">- Used at ${t.fromLocation || t.fromSite}</span>`;
-
-                const qtyReceived = t.receivedQty || 0;
-
-                let actionBtn = '';
-                const isCompleted = (t.remarks === 'Completed' || t.remarks === 'Received');
-
-                // [FIX] Safe check for currentUser inside the loop
-                const currentUser = (currentApprover) ? currentApprover.Name : '';
-                const isMyReceipt = (t.receiver === currentUser);
-
-                if (isCompleted && isMyReceipt && type !== 'Return') {
-                    actionBtn = `<button class="secondary-btn" onclick="initiateReturn('${t.key}')" style="padding:2px 8px; font-size:0.75rem; background-color:#ffc107; color:#212529; border:none; border-radius:4px; cursor:pointer;" title="Return this item"><i class="fa-solid fa-rotate-left"></i> Return</button>`;
-                }
-
-                historyRows += `
-                    <tr>
-                        <td style="font-size:0.85rem;">${date}</td>
-                        <td style="font-size:0.85rem; font-weight:600;">${type}</td>
-                        <td style="font-size:0.85rem;">${route}</td>
-                        <td style="font-size:0.85rem; text-align:center; font-weight:bold;">${qtyReceived}</td>
-                        <td style="font-size:0.85rem;">${t.enteredBy || 'System'}</td>
-                        <td style="font-size:0.85rem;">${t.remarks}</td>
-                        <td style="text-align:center;">${actionBtn}</td>
-                    </tr>
-                `;
-            });
-        }
+        const displayStock = msDisplayStockFromReceipts(item, productTransfers);
+        const totalStock = displayStock.total;
 
         const uniqueId = `detail-${item.key}`;
         let actionButtons = '';
@@ -1597,6 +1591,7 @@ function renderMaterialStockTable(data) {
         const hasPhotoIcon = msGetMaterialPhotoUrl(item) ? ' <i class="fa-regular fa-image" title="Photo available" style="color:#00748C; margin-left:6px;"></i>' : '';
 
         const parentRow = document.createElement('tr');
+        parentRow.dataset.key = item.key || '';
         parentRow.classList.add('ms-parent-row');
         parentRow.innerHTML = `
             <td class="ms-cell-expand">${firstColContent}</td>
@@ -1623,42 +1618,9 @@ function renderMaterialStockTable(data) {
         const childRow = document.createElement('tr');
         childRow.id = uniqueId;
         childRow.className = 'stock-child-row hidden';
-        childRow.innerHTML = `
-            <td colspan="7" style="padding: 15px 25px; background-color: #fcfcfc;">
-                <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start;">
-                    <div style="flex: 0 0 250px; min-width: 230px;">
-                        <h4 style="margin: 0 0 10px 0; color: #00748C; border-bottom: 2px solid #00748C; padding-bottom: 5px;">
-                            <i class="fa-regular fa-image"></i> Item Photo
-                        </h4>
-                        ${materialPhotoCard}
-                    </div>
-                    <div style="flex: 1; min-width: 300px;">
-                        <h4 style="margin: 0 0 10px 0; color: #003A5C; border-bottom: 2px solid #003A5C; padding-bottom: 5px;">
-                            <i class="fa-solid fa-cubes"></i> Current Stock Breakdown
-                        </h4>
-                        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
-                            <table class="stock-detail-table" style="width: 100%; margin: 0;">
-                                <thead style="background:#f0f0f0; position: sticky; top: 0;"><tr><th>Site</th><th>Qty</th></tr></thead>
-                                <tbody>${breakdownRows}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div style="flex: 2; min-width: 400px;">
-                        <h4 style="margin: 0 0 10px 0; color: #6f42c1; border-bottom: 2px solid #6f42c1; padding-bottom: 5px;">
-                            <i class="fa-solid fa-clock-rotate-left"></i> Movement History
-                        </h4>
-                        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; background: #fff;">
-                            <table class="stock-detail-table" style="width: 100%; margin: 0;">
-                                <thead style="background:#f0f0f0; position: sticky; top: 0;">
-                                    <tr><th>Date</th><th>Type</th><th>Route</th><th style="text-align:center;">Qty</th><th>By</th><th>Status</th><th>Action</th></tr>
-                                </thead>
-                                <tbody>${historyRows}</tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </td>
-        `;
+        childRow.dataset.itemKey = item.key || '';
+        childRow.dataset.ready = '0';
+        childRow.innerHTML = '<td colspan="7" style="padding:12px 25px; color:#777;">Open this row to load stock and movement history.</td>';
 
         tableBody.appendChild(parentRow);
         tableBody.appendChild(childRow);
@@ -2363,6 +2325,31 @@ window.openAddStockModal = function (key) {
 // 9. HELPERS (Fixed: Accordion Effect)
 // ==========================================================================
 
+window.msFillStockDetail = function (row) {
+    if (!row || row.dataset.ready === '1') return;
+    const item = (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).find((entry) => entry.key === row.dataset.itemKey);
+    if (!item) return;
+    const stockID = String(item.productID || item.productId || '').trim();
+    const productTransfers = (Array.isArray(allTransferData) ? allTransferData : []).filter((t) => String(t.productID || t.productId || '').trim() === stockID);
+    const displayStock = msDisplayStockFromReceipts(item, productTransfers);
+    let breakdownRows = displayStock.rows.map((row) => `<tr><td style="padding-left:20px;">${row.site}</td><td style="font-weight:bold;">${row.qty}</td></tr>`).join('');
+    if (!breakdownRows) breakdownRows = '<tr><td style="padding-left:20px;">No site stock</td><td>0</td></tr>';
+    let historyRows = '';
+    if (!productTransfers.length) {
+        historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; padding:20px;">No movement history found.</td></tr>';
+    } else {
+        productTransfers.forEach((t) => {
+            const date = t.shippingDate || (t.timestamp ? new Date(t.timestamp).toISOString().split('T')[0] : '');
+            const type = t.jobType || t.for || 'Transfer';
+            const route = type === 'Transfer' ? `${t.fromLocation || t.fromSite || ''} -> ${t.toLocation || t.toSite || ''}` : (t.toLocation || t.toSite || t.fromLocation || t.fromSite || '-');
+            historyRows += `<tr><td>${date}</td><td>${type}</td><td>${route}</td><td style="text-align:center; font-weight:bold;">${t.receivedQty || 0}</td><td>${t.enteredBy || 'System'}</td><td>${t.remarks || ''}</td><td></td></tr>`;
+        });
+    }
+    const photo = typeof msBuildMaterialPhotoCard === 'function' ? msBuildMaterialPhotoCard(item, true) : '';
+    row.innerHTML = `<td colspan="7" style="padding:15px 25px; background:#fcfcfc;"><div style="display:flex; gap:24px; flex-wrap:wrap;"><div style="flex:0 0 250px;">${photo}</div><div style="flex:1; min-width:300px;"><h4 style="margin:0 0 10px; color:#003A5C;">Current Stock Breakdown</h4><table class="stock-detail-table" style="width:100%;"><thead><tr><th>Site</th><th>Qty</th></tr></thead><tbody>${breakdownRows}</tbody></table></div><div style="flex:2; min-width:400px;"><h4 style="margin:0 0 10px; color:#6f42c1;">Movement History</h4><table class="stock-detail-table" style="width:100%;"><thead><tr><th>Date</th><th>Type</th><th>Route</th><th>Qty</th><th>By</th><th>Status</th><th></th></tr></thead><tbody>${historyRows}</tbody></table></div></div></td>`;
+    row.dataset.ready = '1';
+};
+
 window.toggleStockDetail = function(rowId, btn) {
     // 1. Auto-Minimize Others (Close all other open rows)
     const allOpenRows = document.querySelectorAll('.stock-child-row:not(.hidden)');
@@ -2381,6 +2368,9 @@ window.toggleStockDetail = function(rowId, btn) {
     // 2. Toggle Current Item
     const row = document.getElementById(rowId);
     if (row) {
+        if (row.dataset.ready !== '1' && typeof window.msFillStockDetail === 'function') {
+            window.msFillStockDetail(row);
+        }
         row.classList.toggle('hidden');
         btn.textContent = row.classList.contains('hidden') ? '+' : '-';
     }
@@ -3373,8 +3363,11 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
 
     // --- SEARCH LOGIC ---
     const msSearchInput = document.getElementById('ms-search-input');
-    if (msSearchInput) {
-        msSearchInput.addEventListener('input', () => {
+        if (msSearchInput && msSearchInput.dataset.bound !== '1') {
+        msSearchInput.dataset.bound = '1';
+        msSearchInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
             renderMaterialStockTable(allMaterialStockData);
         });
     }
@@ -3385,38 +3378,22 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
     const msCountDisplay = document.getElementById('ms-total-count');
     const msTabs = document.getElementById('ms-category-tabs');
 
-    if (msClearBtn) {
+    if (msClearBtn && msClearBtn.dataset.bound !== '1') {
+        msClearBtn.dataset.bound = '1';
         msClearBtn.addEventListener('click', () => {
-            // 1. Clear Search Input
             if (msSearchInput) {
                 msSearchInput.value = '';
+                msSearchInput.disabled = false;
+                msSearchInput.readOnly = false;
                 msSearchInput.focus();
             }
 
-            // 2. Wipe Table
-            if (msTableBody) {
-                msTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above.</td></tr>';
-            }
-
-            // 3. Reset Counts
-            if (msCountDisplay) {
-                msCountDisplay.textContent = '';
-            }
-
-            // 4. Reset Category Tabs
-            if (msTabs) {
-                msTabs.querySelectorAll('.active').forEach(tab => {
-                    tab.classList.remove('active');
-                    tab.style.borderBottomColor = 'transparent';
-                    tab.style.color = '#555';
-                });
-            }
             currentCategoryFilter = null;
             lastFilteredStockData = [];
-
-            // 5. NEW: Reset Site Filter to "All"
             const siteFilter = document.getElementById('ms-site-filter');
-            if(siteFilter) siteFilter.value = 'All';
+            if (siteFilter) siteFilter.value = 'All';
+            if (typeof renderCategoryTabs === 'function') renderCategoryTabs();
+            renderMaterialStockTable(allMaterialStockData);
         });
     }
 
