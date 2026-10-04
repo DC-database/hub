@@ -701,7 +701,9 @@
                     waitingHo,
                     remark: c.remark || inv.note || '',
                     attention: inv.attention || '',
-                    confirmedBy: c.confirmedBy || ''
+                    confirmedBy: c.confirmedBy || '',
+                    sentAt: inv.poCloseoutRequestedAt || c.requestedAt || '',
+                    confirmedAt: c.confirmedAt || ''
                 });
             });
         });
@@ -732,6 +734,8 @@
             remark: extra && extra.remark || c.remark || inv.note || '',
             attention: extra && extra.attention || inv.attention || '',
             confirmedBy: extra && extra.confirmedBy || c.confirmedBy || '',
+            sentAt: extra && extra.sentAt || inv.poCloseoutRequestedAt || c.requestedAt || '',
+            confirmedAt: extra && extra.confirmedAt || c.confirmedAt || '',
             hoClosed
         };
     }
@@ -827,6 +831,125 @@
             });
         }
         applyTabStyle();
+        bindReportButtons();
+    }
+
+    function reportDate(value) {
+        const n = Number(value);
+        const d = Number.isFinite(n) && n > 0 ? new Date(n) : new Date(value);
+        if (!d || Number.isNaN(d.getTime())) return '';
+        const pad = (v) => String(v).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function reportRows(which) {
+        const pack = window._poCloseoutReport || { waiting: [], ready: [] };
+        if (which === 'both') return { waiting: pack.waiting || [], ready: pack.ready || [] };
+        const tab = which || window._poCloseoutTab || 'waiting';
+        return tab === 'ready' ? (pack.ready || []) : (pack.waiting || []);
+    }
+
+    function reportTitle(which) {
+        return which === 'ready' ? 'Ready to close' : 'Waiting Site';
+    }
+
+    function csvCell(value) {
+        return `"${String(value == null ? '' : value).replace(/"/g, '""')}"`;
+    }
+
+    function reportLine(row, section) {
+        return [
+            section,
+            row.poNumber,
+            row.invNumber,
+            row.vendor,
+            row.site,
+            money(row.poValue),
+            money(row.invoiceValue),
+            money(row.remaining),
+            row.attention,
+            reportDate(row.sentAt),
+            row.confirmedBy,
+            reportDate(row.confirmedAt),
+            row.remark
+        ].map(csvCell).join(',');
+    }
+
+    function downloadCloseoutExcel(which) {
+        const header = ['Section','PO','Invoice','Vendor','Site','PO Value','Invoiced','Remaining','Sent To','Sent Date','Confirmed By','Confirmed Date','Remark'];
+        const lines = [header.map(csvCell).join(',')];
+        if (which === 'both') {
+            const both = reportRows('both');
+            both.waiting.forEach((row) => lines.push(reportLine(row, 'Waiting Site')));
+            both.ready.forEach((row) => lines.push(reportLine(row, 'Ready to close')));
+        } else {
+            const tab = which || window._poCloseoutTab || 'waiting';
+            reportRows(tab).forEach((row) => lines.push(reportLine(row, reportTitle(tab))));
+        }
+        if (lines.length < 2) {
+            alert('This report has no rows. Load the list first, or clear the search.');
+            return;
+        }
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = which === 'both' ? 'PO-Close-Out-both.csv' : `PO-Close-Out-${which || window._poCloseoutTab || 'waiting'}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
+    function printCloseoutTab() {
+        const tab = window._poCloseoutTab || 'waiting';
+        const rows = reportRows(tab);
+        if (!rows.length) {
+            alert('This tab has no rows to print.');
+            return;
+        }
+        const title = reportTitle(tab);
+        const body = rows.map((row) => `
+            <tr>
+                <td>${row.poNumber || ''}</td>
+                <td>${row.invNumber || ''}</td>
+                <td>${row.vendor || ''}</td>
+                <td>${row.site || ''}</td>
+                <td>${money(row.poValue)}</td>
+                <td>${money(row.invoiceValue)}</td>
+                <td>${money(row.remaining)}</td>
+                <td>${tab === 'ready' ? (row.confirmedBy || '') : (row.attention || '')}</td>
+                <td>${tab === 'ready' ? reportDate(row.confirmedAt) : reportDate(row.sentAt)}</td>
+            </tr>`).join('');
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert('Allow pop-ups to print this report.');
+            return;
+        }
+        win.document.write(`<!doctype html><html><head><title>PO Close Out - ${title}</title>
+            <style>body{font-family:Arial,sans-serif;padding:24px;color:#14293f}h1{margin:0 0 4px}p{margin:0 0 16px;color:#475569}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5e1;padding:6px 8px;font-size:12px;text-align:left}th{background:#14293f;color:#fff}</style>
+            </head><body><h1>PO Close Out</h1><p>${title} · ${rows.length} record(s) · ${reportDate(Date.now())}</p>
+            <table><thead><tr><th>PO</th><th>Invoice</th><th>Vendor</th><th>Site</th><th>PO Value</th><th>Invoiced</th><th>Remaining</th><th>${tab === 'ready' ? 'Confirmed by' : 'Sent to'}</th><th>${tab === 'ready' ? 'Confirmed date' : 'Sent date'}</th></tr></thead><tbody>${body}</tbody></table>
+            </body></html>`);
+        win.document.close();
+        win.focus();
+        win.print();
+    }
+
+    function bindReportButtons() {
+        const printBtn = document.getElementById('im-po-closeout-print-btn');
+        const excelBtn = document.getElementById('im-po-closeout-excel-btn');
+        const bothBtn = document.getElementById('im-po-closeout-excel-both-btn');
+        if (printBtn && printBtn.dataset.bound !== '1') {
+            printBtn.dataset.bound = '1';
+            printBtn.addEventListener('click', printCloseoutTab);
+        }
+        if (excelBtn && excelBtn.dataset.bound !== '1') {
+            excelBtn.dataset.bound = '1';
+            excelBtn.addEventListener('click', () => downloadCloseoutExcel(window._poCloseoutTab || 'waiting'));
+        }
+        if (bothBtn && bothBtn.dataset.bound !== '1') {
+            bothBtn.dataset.bound = '1';
+            bothBtn.addEventListener('click', () => downloadCloseoutExcel('both'));
+        }
     }
 
     window.renderPOCloseOutList = async function (forceFetch) {
@@ -865,8 +988,11 @@
         });
         rows.sort((a, b) => String(a.site || '').localeCompare(String(b.site || '')) || String(a.poNumber).localeCompare(String(b.poNumber)));
         const tab = window._poCloseoutTab || 'waiting';
-        const waitingCount = rows.filter(r => r.waitingSite).length;
-        const readyCount = rows.filter(r => r.waitingHo).length;
+        const waitingRows = rows.filter(r => r.waitingSite);
+        const readyRows = rows.filter(r => r.waitingHo);
+        window._poCloseoutReport = { waiting: waitingRows, ready: readyRows, filteredAt: Date.now() };
+        const waitingCount = waitingRows.length;
+        const readyCount = readyRows.length;
         rows = rows.filter(r => tab === 'ready' ? r.waitingHo : r.waitingSite);
         const tabWaiting = document.getElementById('im-po-closeout-tab-waiting');
         const tabReady = document.getElementById('im-po-closeout-tab-ready');

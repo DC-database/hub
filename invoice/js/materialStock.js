@@ -2098,6 +2098,28 @@ async function handleSaveNewMaterial() {
 // ==========================================================================
 // 7. CSV UPLOAD
 // ==========================================================================
+function handleDownloadTitles() {
+    const rows = Array.isArray(lastFilteredStockData) ? lastFilteredStockData : [];
+    if (!rows.length) {
+        alert('Search or choose a family first. Download Titles only uses the rows on the screen.');
+        return;
+    }
+    const lines = ['Product ID,New Title'];
+    rows.forEach((item) => {
+        const id = String(item.productID || item.productId || '').trim();
+        const name = String(item.productName || '').replace(/"/g, '""');
+        if (!id) return;
+        lines.push(`"${id}","${name}"`);
+    });
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Material_Titles.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
 function handleGetTemplate() {
     const headers = ["Product ID", "Item Name", "F", "RRR", "Stock", "Site"];
     const row1 = "1.104.00150,Concrete Blocks 200mm,1,104,500,Site 175";
@@ -2288,6 +2310,85 @@ function handleUploadCSV(event) {
                 uploadBtn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Upload CSV';
             }
             document.getElementById('ms-csv-file-input').value = '';
+        }
+    };
+    reader.readAsText(file);
+}
+
+function handleUploadTitles(event) {
+    const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
+    const isAdminUser = String(role).trim().toLowerCase() === 'admin';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    if (!isAdminUser && !isVacationDelegate) {
+        alert('Access Denied: You do not have permission to update titles.');
+        event.target.value = '';
+        return;
+    }
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async function (e) {
+        const lines = String(e.target.result || '').split(/\r?\n/);
+        const idMap = new Map();
+        (allMaterialStockData || []).forEach((item) => {
+            const pid = String(item.productID || item.productId || '').trim();
+            if (pid) idMap.set(pid, item);
+        });
+        const titleUpdates = {};
+        const nameById = {};
+        let missing = 0;
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+            const pID = cols[0];
+            const pName = cols[1];
+            if (!pID || !pName || pID.toLowerCase() === 'product id' || pID.toLowerCase() === 'id') continue;
+            const existing = idMap.get(pID);
+            if (!existing || !existing.key) { missing++; continue; }
+            titleUpdates[`material_stock/${existing.key}/productName`] = pName;
+            titleUpdates[`material_stock/${existing.key}/lastUpdated`] = Date.now();
+            nameById[pID] = pName;
+            existing.productName = pName;
+        }
+        const titleCount = Object.keys(nameById).length;
+        if (!titleCount) {
+            alert('No matching product IDs found. Use two columns: Product ID, New Title.');
+            event.target.value = '';
+            return;
+        }
+        if (!confirm(`Update ${titleCount} titles?\n\nQuantity and transaction quantities will not change.${missing ? `\n${missing} IDs were not found.` : ''}`)) {
+            event.target.value = '';
+            return;
+        }
+        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+        const btn = document.getElementById('ms-upload-titles-btn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving titles...'; }
+        try {
+            await database.ref().update(titleUpdates);
+            const transferUpdates = {};
+            (allTransferData || []).forEach((t) => {
+                const pid = String(t.productID || t.productId || '').trim();
+                if (nameById[pid] && t.key) transferUpdates[`transfer_entries/${t.key}/productName`] = nameById[pid];
+            });
+            const transferKeys = Object.keys(transferUpdates);
+            for (let i = 0; i < transferKeys.length; i += 400) {
+                const batch = {};
+                transferKeys.slice(i, i + 400).forEach((key) => { batch[key] = transferUpdates[key]; });
+                await database.ref().update(batch);
+            }
+            alert(`Titles updated: ${titleCount}. Quantity was not changed.`);
+            localStorage.removeItem('cached_MATERIAL_STOCK');
+            if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+        } catch (err) {
+            console.error(err);
+            alert('Title update failed: ' + (err && err.message ? err.message : err));
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-pen"></i> Update Titles';
+            }
+            event.target.value = '';
         }
     };
     reader.readAsText(file);
@@ -3356,6 +3457,18 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
     if (uploadBtn && fileInput) {
         uploadBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', handleUploadCSV);
+    }
+    const titleBtn = document.getElementById('ms-upload-titles-btn');
+    const titleInput = document.getElementById('ms-title-file-input');
+    const titleDownloadBtn = document.getElementById('ms-download-titles-btn');
+    if (titleBtn && titleInput && titleBtn.dataset.bound !== '1') {
+        titleBtn.dataset.bound = '1';
+        titleBtn.addEventListener('click', () => titleInput.click());
+        titleInput.addEventListener('change', handleUploadTitles);
+    }
+    if (titleDownloadBtn && titleDownloadBtn.dataset.bound !== '1') {
+        titleDownloadBtn.dataset.bound = '1';
+        titleDownloadBtn.addEventListener('click', handleDownloadTitles);
     }
 
     const clearBtn = document.getElementById('ms-clear-form-btn');
