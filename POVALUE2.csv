@@ -33875,7 +33875,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 20269,59698,10239,Abdel Latif,176,"2,850.00",06-Aug-25,Eng. Mohammed Gomaa,H.Abbas,FALSE
 20271,59699,10239,Abdel Latif,176,500,04-Aug-25,Eng. Mohammed Gomaa,H.Abbas,FALSE
 20245,59700,19999,Cash,176,365.08,04-Aug-25,Eng. Mohammed Gomaa,H.Abbas,FALSE
-19236,59701,30318,Aqua Proof Trading & Cotracting Co.,181,"97,102.23",05-Aug-25,Eng. Seif Awwad,Cyril,FALSE
+19236,59701,30318,Aqua Proof Trading & Cotracting Co.,181,"97,102.32",05-Aug-25,Eng. Seif Awwad,Cyril,FALSE
 20243,59702,19999,Cash,176,410,04-Aug-25,Eng. Mohammed Gomaa,H.Abbas,FALSE
 ,59703,19999,Cash,100,227.25,04-Aug-25,IBA Head Office,H.Abbas,FALSE
 20244,59704,11541,Al Kuwaiti Stores W.L.L.,176,"1,024.75",04-Aug-25,Eng. Mohammed Gomaa,Cyril,FALSE
@@ -39103,7 +39103,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,65089,11466,Cozmo Travel,100,"3,160.00",11-Jul-26,IBA Head Office,H.Abbas,FALSE
 22550,65090,11541,Al Kuwaiti Stores W.L.L.,173,"1,707.50",11-Jul-26,Eng. Khamis Farhan,H.Abbas,FALSE
 ,65091,19999,Cash,100,"5,500.00",11-Jul-26,IBA Head Office,i.reza,FALSE
-,65092,10245,Don Construction Products - Qatar W.L.L,181,"2,400.00",11-Jul-26,Abdul Muqeed Mohamed,Awais,TRUE
+,65092,10245,Don Construction Products - Qatar W.L.L,181,"2,400.00",11-Jul-26,Abdul Muqeed Mohamed,Awais,FALSE
 ,65093,11786,BIN ARBAID TRANSPORTATION & EQUIPMENT WLL,176,0,11-Jul-26,Eng. Mohammed Gomaa,i.reza,FALSE
 ,65094,10234,Qatar Fuel (WOQOD),100,"5,844.01",30-Jun-26,IBA Head Office,i.reza,FALSE
 ,65095,10234,Qatar Fuel (WOQOD),M4,"3,516.47",30-Jun-26,IBA Head Office,i.reza,FALSE
@@ -39411,7 +39411,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,65400,19999,Cash,M9,120,30-Jul-26,IBA Head Office,i.reza,FALSE
 ,65401,11573,Al-Feroz Int'l Trading W.L.L.,M9,"5,800.00",30-Jul-26,Abdul Muqeed Mohamed,Cyril,FALSE
 22639,65402,10245,Don Construction Products - Qatar W.L.L,181,410,30-Jul-26,Abdul Muqeed Mohamed,Cyril,FALSE
-,65403,30528,Star City Pest Control & Cleaning,M9,980.00,01-Aug-26,Abdul Muqeed Mohamed,Awais,FALSE
+,65403,30528,Star City Pest Control & Cleaning,M9,980,01-Aug-26,Abdul Muqeed Mohamed,Awais,FALSE
 22640,65404,19999,Cash,173,450,01-Aug-26,Eng. Khamis Farhan,i.reza,FALSE
 ,65405,19999,Cash,100,"3,150.00",01-Aug-26,IBA Head Office,i.reza,FALSE
 ,65406,19999,Cash,100,"4,898.63",01-Aug-26,IBA Head Office,i.reza,FALSE
@@ -39537,7 +39537,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,65527,10126,Hempel Paints,129,"1,311.00",08-Aug-26,Abdul Muqeed Mohamed,Cyril,FALSE
 22671,65528,10245,Don Construction Products - Qatar W.L.L,173,"2,400.00",09-Aug-26,Eng. Khamis Farhan,Cyril,FALSE
 22669,65530,11732,Nay Trading Co. W.L.L.,173,"1,750.00",08-Aug-26,Danish Behlim,m.saad,TRUE
-22667,65531,11285,Olive Office Trading,173,"4,120.00",08-Aug-26,Kanapathipillai Sandrakumar,m.saad,TRUE
+22667,65531,11285,Olive Office Trading,173,"4,120.00",08-Aug-26,Kanapathipillai Sandrakumar,m.saad,FALSE
 ,65532,10245,Don Construction Products - Qatar W.L.L,M9,"4,800.00",08-Aug-26,Abdul Muqeed Mohamed,Awais,FALSE
 22678,65533,11847,United Gulf Cement Company,173,"6,750.00",09-Aug-26,Eng. Khamis Farhan,m.saad,FALSE
 ,65534,19999,Cash,100,"23,279.00",09-Aug-26,IBA Head Office,i.reza,FALSE
@@ -40258,31 +40258,31 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66267,11488,GoDo Delivery,100,"26,250.00",15-Sep-26,IBA Head Office,Irwin,FALSE
 22854,66268,11843,ASTRON Certification WLL,178,"1,200.00",15-Sep-26,Eng. Seif Awwad,i.reza,TRUE
 ,66271,19999,Cash,100,"2,400.00",15-Sep-26,IBA Head Office,i.reza,TRUE
-,66272,19999,Cash,123,570.00,16-Sep-26,IBA Head Office,Cyril,FALSE
+,66272,19999,Cash,123,570,16-Sep-26,IBA Head Office,Cyril,FALSE
 22824,66273,11414,Doha Technical Laboratories,170,"3,110.00",16-Sep-26,Syed Jebran Pasha,Cyril,TRUE
 22861,66274,19999,Cash,178,610,16-Sep-26,Eng. Seif Awwad,i.reza,FALSE
 ,66275,19999,Cash,100,"1,583.00",16-Sep-26,IBA Head Office,H.Abbas,FALSE
 22886,66276,19999,Cash,173,500,16-Sep-26,Eng. Khamis Farhan,i.reza,FALSE
-22870,66277,10137,Qatar Building Co,173,540.00,16-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
+22870,66277,10137,Qatar Building Co,173,540,16-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
 22870,66278,30449,Evergreen Signage and Contracting W.L.L.,173,1140,16-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
 ,66279,19999,Cash,129,96,16-Sep-26,IBA Head Office,i.reza,FALSE
 ,66280,19999,Cash,123,"1,400.00",16-Sep-26,IBA Head Office,Cyril,TRUE
 ,66281,19999,Cash,100,80,16-Sep-26,IBA Head Office,i.reza,FALSE
-22866,66282,19999,Cash,173,815.00,16-Sep-26,Eng. Khamis Farhan,H.Abbas,FALSE
+22866,66282,19999,Cash,173,815,16-Sep-26,Eng. Khamis Farhan,H.Abbas,FALSE
 22885,66284,19999,Cash,176,38,16-Sep-26,Eng. Mohammed Gomaa,H.Abbas,FALSE
 ,66285,11559,UAQ Safety Training Centre,178,880,16-Sep-26,IBA Head Office,i.reza,FALSE
 ,66286,19999,Cash,100,725,16-Sep-26,IBA Head Office,i.reza,FALSE
 22865,66287,19999,Cash,173,159,16-Sep-26,Eng. Ahmed Aboushanab,H.Abbas,FALSE
 22777,66288,31076,#N/A,173,50400,17-Sep-26,Eng. Khamis Farhan,Awais,TRUE
 ,66289,19999,Cash,M17,197,17-Sep-26,IBA Head Office,i.reza,FALSE
-22861,66290,19999,Cash,178,18.00,17-Sep-26,Eng. Mohammed Gomaa,Cyril,TRUE
+22861,66290,19999,Cash,178,18,17-Sep-26,Eng. Mohammed Gomaa,Cyril,TRUE
 22895,66291,11836,Consort Trading L.L.C,176,117.39,17-Sep-26,Eng. Mohammed Gomaa,Cyril,TRUE
 22908,66292,10243,Al Obaidly Trading & Services W.L.L.,176,108,17-Sep-26,Eng. Mohammed Gomaa,H.Abbas,FALSE
 ,66293,31056,Kanaan Fire and Saftey W.L.L,M169,6000,17-Sep-26,IBA Head Office,Irwin,TRUE
 ,66294,30533,AL LIRA ALZAHABIA TRADING CONTRACTING & TRANS.,176,250,17-Sep-26,Eng. Mohammed Gomaa,i.reza,FALSE
 22856,66295,11779,Gulf Crown Furniture & Services WLL,173,"7,000.00",19-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
 22899,66296,19999,Cash,178,324,19-Sep-26,Eng. Seif Awwad,i.reza,FALSE
-,66297,19999,Cash,100,20.00,19-Sep-26,IBA Head Office,i.reza,FALSE
+,66297,19999,Cash,100,20,19-Sep-26,IBA Head Office,i.reza,FALSE
 ,66298,19999,Cash,100,40,19-Sep-26,IBA Head Office,i.reza,FALSE
 ,66299,19999,Cash,100,70,19-Sep-26,IBA Head Office,i.reza,FALSE
 ,66300,11472,Computer Plus,100,50,19-Sep-26,IBA Head Office,H.Abbas,FALSE
@@ -40295,23 +40295,23 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66307,19999,Cash,100,287.5,19-Sep-26,IBA Head Office,H.Abbas,FALSE
 22898,66308,11541,Al Kuwaiti Stores W.L.L.,173,4250.5,20-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
 22898,66309,10245,Don Construction Products - Qatar W.L.L,173,500,20-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
-,66310,19999,Cash,100,500.00,19-Sep-26,IBA Head Office,i.reza,TRUE
+,66310,19999,Cash,100,500,19-Sep-26,IBA Head Office,i.reza,TRUE
 22884,66311,19999,Cash,173,1128,19-Sep-26,Eng. Khamis Farhan,i.reza,FALSE
 ,66312,19999,Cash,100,1200,19-Sep-26,IBA Head Office,i.reza,FALSE
 ,66313,11837,Cal Power SRL,184,"164,250.00",21-Sep-26,Eng. Sahaya Edwin,Cyril,TRUE
-,66314,19999,Cash,100,237.00,20-Sep-26,IBA Head Office,i.reza,FALSE
+,66314,19999,Cash,100,237,20-Sep-26,IBA Head Office,i.reza,FALSE
 ,66315,11699,Chabros Trading Co. WLL,173,"7,901.00",20-Sep-26,Eng. Khamis Farhan,Awais,TRUE
 22909,66316,11335,Dutest Qatar W.L.L,178,460,20-Sep-26,Eng. Seif Awwad,Cyril,TRUE
 22909,66317,11254,New Tools and Bolts Trading,178,"1,065.00",20-Sep-26,Eng. Seif Awwad,Cyril,TRUE
 22918,66318,11353,Castle for Building Material Co. W.L.L,178,270,20-Sep-26,Eng. Seif Awwad,Cyril,TRUE
-,66319,19999,Cash,100,290.00,20-Sep-26,IBA Head Office,i.reza,FALSE
+,66319,19999,Cash,100,290,20-Sep-26,IBA Head Office,i.reza,FALSE
 ,66320,19999,Cash,100,40,20-Sep-26,IBA Head Office,i.reza,FALSE
 22904,66321,11676,Waves Engineering,178,4000,22-Sep-26,Eng. Sirajuddin Salimuddin,Cyril,FALSE
 ,66322,19999,Cash,100,71,20-Sep-26,IBA Head Office,i.reza,FALSE
-,66323,19999,Cash,100,110.00,20-Sep-26,IBA Head Office,i.reza,FALSE
+,66323,19999,Cash,100,110,20-Sep-26,IBA Head Office,i.reza,FALSE
 22920,66324,11832,Casting Trading Contracting & Services,170,2660,20-Sep-26,Eng. Seif Awwad,i.reza,FALSE
 ,66325,19999,Cash,100,222,20-Sep-26,IBA Head Office,i.reza,FALSE
-,66326,19999,Cash,100,190.00,20-Sep-26,IBA Head Office,i.reza,FALSE
+,66326,19999,Cash,100,190,20-Sep-26,IBA Head Office,i.reza,FALSE
 22901,66327,19999,Cash,173,590,20-Sep-26,Eng. Khamis Farhan,H.Abbas,FALSE
 22911,66328,19999,Cash,173,215,20-Sep-26,Eng. Khamis Farhan,H.Abbas,FALSE
 ,66329,19999,Cash,100,360,20-Sep-26,IBA Head Office,i.reza,FALSE
@@ -40322,23 +40322,23 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66334,19999,Cash,100,149.44,21-Sep-26,IBA Head Office,H.Abbas,FALSE
 ,66335,19999,Cash,M169,"25,100.00",21-Sep-26,IBA Head Office,H.Abbas,FALSE
 22914,66336,19999,Cash,170,100,21-Sep-26,Eng. Seif Awwad,i.reza,FALSE
-,66337,19999,Cash,100,250.00,21-Sep-26,IBA Head Office,H.Abbas,FALSE
+,66337,19999,Cash,100,250,21-Sep-26,IBA Head Office,H.Abbas,FALSE
 ,66338,19999,Cash,M40,283,21-Sep-26,IBA Head Office,H.Abbas,FALSE
 22929,66339,11732,Nay Trading Co. W.L.L.,178,75,21-Sep-26,Eng. Seif Awwad,Cyril,TRUE
 22917,66340,19999,Cash,178,221,21-Sep-26,Eng. Seif Awwad,i.reza,FALSE
 22900,66341,10239,Abdel Latif,178,1200,21-Sep-26,Eng. Seif Awwad,i.reza,TRUE
 ,66342,30449,Evergreen Signage and Contracting W.L.L.,178,5400,21-Sep-26,Eng. Seif Awwad,Awais,TRUE
-22915,66343,19999,Cash,1111,50.00,21-Sep-26,IBA Head Office,i.reza,FALSE
+22915,66343,19999,Cash,1111,50,21-Sep-26,IBA Head Office,i.reza,FALSE
 ,66344,30171,IBA Aluminium,173,"70,500.00",22-Sep-26,Eng. Khamis Farhan,Awais,TRUE
 ,66345,19999,Cash,100,5,21-Sep-26,IBA Head Office,i.reza,FALSE
-,66346,19999,Cash,100,50.00,21-Sep-26,IBA Head Office,i.reza,FALSE
+,66346,19999,Cash,100,50,21-Sep-26,IBA Head Office,i.reza,FALSE
 ,66347,19999,Cash,166,118,22-Sep-26,Abdul Muqeed Mohamed,H.Abbas,FALSE
 ,66348,19999,Cash,169,107,22-Sep-26,Abdul Muqeed Mohamed,H.Abbas,FALSE
 ,66349,19999,Cash,100,1950,22-Sep-26,IBA Head Office,i.reza,FALSE
 22894,66350,11848,Al Jazira For Safety Security & Cont. LLC,170,3300,22-Sep-26,Syed Jebran Pasha,Cyril,FALSE
 ,66351,10221,Sports Corner,1061,"2,996.00",22-Sep-26,Hassan Abdollah,Awais,TRUE
-,66352,19999,Cash,100,40.00,22-Sep-26,IBA Head Office,i.reza,FALSE
-,66353,19999,Cash,100,40.00,22-Sep-26,IBA Head Office,i.reza,FALSE
+,66352,19999,Cash,100,40,22-Sep-26,IBA Head Office,i.reza,FALSE
+,66353,19999,Cash,100,40,22-Sep-26,IBA Head Office,i.reza,FALSE
 ,66354,19999,Cash,100,20,22-Sep-26,IBA Head Office,i.reza,FALSE
 ,66355,19999,Cash,100,36,22-Sep-26,IBA Head Office,i.reza,FALSE
 ,66356,19999,Cash,100,100,22-Sep-26,IBA Head Office,i.reza,FALSE
@@ -40351,9 +40351,9 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66363,19999,Cash,100,35,22-Sep-26,IBA Head Office,i.reza,FALSE
 22932,66364,10245,Don Construction Products - Qatar W.L.L,173,2100,23-Sep-26,Eng. Khamis Farhan,Cyril,TRUE
 ,66365,31003,Teyseer Motors W.L.L,100,2750,22-Sep-26,IBA Head Office,i.reza,TRUE
-,66366,39123,United Cooperation General Trading WLL,100,"3,200.00",22-Sep-26,IBA Head Office,i.reza,TRUE
+,66366,39123,United Cooperation General Trading WLL,100,"3,200.00",22-Sep-26,IBA Head Office,i.reza,FALSE
 22937,66367,10239,Abdel Latif,178,"3,000.00",22-Sep-26,Eng. Seif Awwad,i.reza,TRUE
-,66368,19999,Cash,100,100.00,22-Sep-26,IBA Head Office,i.reza,FALSE
+,66368,19999,Cash,100,100,22-Sep-26,IBA Head Office,i.reza,FALSE
 ,66369,19999,Cash,100,100,22-Sep-26,IBA Head Office,i.reza,FALSE
 ,66370,19999,Cash,100,100,22-Sep-26,IBA Head Office,i.reza,FALSE
 22927,66371,19999,Cash,178,573,23-Sep-26,Eng. Seif Awwad,H.Abbas,FALSE
@@ -40505,7 +40505,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 22953,66519,11351,Jotun Paints Qatar,173,6650,01-Oct-26,Eng. Khamis Farhan,Cyril,TRUE
 22975,66520,11541,Al Kuwaiti Stores W.L.L.,170,14376.05,01-Oct-26,Eng. Ahmed Aboushanab,Cyril,TRUE
 ,66521,19999,Cash,100,350,01-Oct-26,IBA Head Office,i.reza,FALSE
-,66522,11777,Computer Mart Trading,100,1975,01-Oct-26,IBA Head Office,H.Abbas,TRUE
+,66522,11777,Computer Mart Trading,100,1975,01-Oct-26,IBA Head Office,H.Abbas,FALSE
 ,66523,19999,Cash,100,650,01-Oct-26,IBA Head Office,i.reza,FALSE
 ,66524,19999,Cash,170,450,01-Oct-26,IBA Head Office,i.reza,FALSE
 ,66525,19999,Cash,M169,350,01-Oct-26,IBA Head Office,i.reza,FALSE
@@ -40525,7 +40525,7 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66539,30528,Star City Pest Control & Cleaning,177,9380,01-Oct-26,Eng. Seif Awwad,Awais,TRUE
 22988,66540,11304,SunTech Trading Co. W.L.L,178,435,03-Oct-26,Eng. Seif Awwad,Awais,TRUE
 22985,66541,10140,Qatar National Cement Co,184,477.84,03-Oct-26,Saeb N Z Abuwatfa,H.Abbas,FALSE
-22989,66542,10140,Qatar National Cement Co,178,4006.2,03-Oct-26,Eng. Seif Awwad,H.Abbas,TRUE
+22989,66542,10140,Qatar National Cement Co,178,4006.2,03-Oct-26,Eng. Seif Awwad,H.Abbas,FALSE
 22986,66543,11852,ASAS Construction Chemical Factory,170,690,03-Oct-26,Syed Jebran Pasha,H.Abbas,TRUE
 22973,66544,19999,Cash,173,275,03-Oct-26,Eng. Khamis Farhan,Awais,FALSE
 22991,66545,11318,Aamal Cement Industries W.L.L,177,1280,03-Oct-26,Eng. Khamis Farhan,Awais,TRUE
@@ -40549,5 +40549,33 @@ ReqNum,PO,Supplier ID,Supplier Name,Project ID,     Amount     ,Order Date,Buyer
 ,66563,19999,Cash,173,4250,03-Oct-26,IBA Head Office,i.reza,FALSE
 ,66564,17769,Ibn Firnas Trading & Contracting,100,775,03-Oct-26,IBA Head Office,i.reza,TRUE
 23007,66565,19999,Cash,176,1309.5,04-Oct-26,Eng. Mohammed Gomaa,H.Abbas,TRUE
-,66566,11353,Castle for Building Material Co. W.L.L,177,13800,04-Oct-26,Eng. Seif Awwad,Awais,TRUE
+,66566,11353,Castle for Building Material Co. W.L.L,177,13700,04-Oct-26,Eng. Seif Awwad,Awais,TRUE
 22972,66567,19999,Cash,100,20,04-Oct-26,IBA Head Office,i.reza,FALSE
+,66568,19999,Cash,100,373,04-Oct-26,IBA Head Office,i.reza,TRUE
+,66569,19999,Cash,100,146,04-Oct-26,IBA Head Office,i.reza,FALSE
+,66570,19999,Cash,M17,113.05,04-Oct-26,IBA Head Office,i.reza,FALSE
+,66571,19999,Cash,91,7400,04-Oct-26,IBA Head Office,H.Abbas,FALSE
+23009,66572,19999,Cash,178,57.5,04-Oct-26,Eng. Seif Awwad,H.Abbas,TRUE
+22987,66573,11304,SunTech Trading Co. W.L.L,123,1299,04-Oct-26,Danish Behlim,H.Abbas,TRUE
+,66574,19999,Cash,100,357,04-Oct-26,IBA Head Office,i.reza,TRUE
+,66575,19999,Cash,100,35,04-Oct-26,IBA Head Office,i.reza,FALSE
+23008,66576,11237,Aslak Trading & General Contracting,184,645,04-Oct-26,Eng. Sahaya Edwin,H.Abbas,TRUE
+,66577,19999,Cash,100,20000,04-Oct-26,IBA Head Office,Irwin,FALSE
+22994,66578,31011,GMS Trading,173,10500,04-Oct-26,Eng. Khamis Farhan,Awais,TRUE
+,66579,19999,Cash,100,1700,04-Oct-26,IBA Head Office,Irwin,FALSE
+22860,66580,19999,Cash,173,0,04-Oct-26,Eng. Khamis Farhan,Awais,TRUE
+22860,66581,19999,Cash,173,52722,04-Oct-26,Eng. Khamis Farhan,Awais,TRUE
+22997,66582,11335,Dutest Qatar W.L.L,178,600,04-Oct-26,Eng. Seif Awwad,H.Abbas,TRUE
+23003,66583,10130,Khalifa Steel Industries Co,184,51200,04-Oct-26,Saeb N Z Abuwatfa,H.Abbas,TRUE
+,66584,19999,Cash,100,200,04-Oct-26,IBA Head Office,i.reza,FALSE
+,66585,11471,Grand Store Trading and Contracting,184,4600,04-Oct-26,Saeb N Z Abuwatfa,H.Abbas,TRUE
+,66586,19999,Cash,100,140,04-Oct-26,IBA Head Office,i.reza,FALSE
+,66587,19999,Cash,178,620,04-Oct-26,IBA Head Office,m.saad,FALSE
+,66588,31003,Teyseer Motors W.L.L,100,700,04-Oct-26,IBA Head Office,i.reza,TRUE
+22990,66589,10140,Qatar National Cement Co,170,953.04,05-Oct-26,Syed Jebran Pasha,H.Abbas,TRUE
+22996,66590,10140,Qatar National Cement Co,173,3347.52,05-Oct-26,Eng. Khamis Farhan,Awais,TRUE
+22992,66591,10245,Don Construction Products - Qatar W.L.L,173,8000,05-Oct-26,Eng. Khamis Farhan,H.Abbas,TRUE
+23006,66592,11732,Nay Trading Co. W.L.L.,173,390,05-Oct-26,Eng. Khamis Farhan,H.Abbas,TRUE
+23014,66593,39125,Equipment Trading & Contracting Co. WLL,A 147,1800,05-Oct-26,Muhammed Siddique,H.Abbas,TRUE
+,66594,19999,Cash,176,120,05-Oct-26,IBA Head Office,i.reza,TRUE
+,66595,19999,Cash,100,75,05-Oct-26,IBA Head Office,i.reza,FALSE

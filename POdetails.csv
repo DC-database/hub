@@ -378,14 +378,14 @@ PO #,Class Description
 25363,Electrical Sundries
 25364,Site Consumables
 25365,Electrical Sundries
-25366,Joinery
+25366,Ironmongry
 25367,Formwork
 25368,Site Consumables
 25370,Site Consumables
 25371,Site Consumables
 25372,Finishing Sundries
 25373,Finishing Sundries
-25374,Joinery
+25374,Ironmongry
 25375,Heaters
 25376,HVAC
 25377,Electrical Sundries
@@ -550,7 +550,7 @@ PO #,Class Description
 25541,Shuttering Carpentry Sundries
 25542,Shuttering Carpentry Sundries
 25543,Site Consumables
-25544,Health & Safety
+25544,HSE
 25545,Site Consumables
 25546,Vehicle & Equipment
 25547,Finishing Sundries
@@ -638,7 +638,7 @@ PO #,Class Description
 25629,Insurance Fees
 25630,HSE
 25631,Electrical Sundries
-25632,Joinery
+25632,Ironmongry
 25633,Fees
 25634,HSE
 25635,Heaters
@@ -805,8 +805,8 @@ PO #,Class Description
 25797,Consulting Fees
 25798,Gypsum
 25799,Bank Charges
-25800,Joinery
-25801,Joinery
+25800,Ironmongry
+25801,Ironmongry
 25802,Electrical Sundries
 25803,Painting Sundries
 25804,MEP
@@ -908,7 +908,7 @@ PO #,Class Description
 25905,
 25906,Rebar
 25907,Site Consumables
-25908,Metal Works Sundries
+25908,Site Consumables
 25909,Precast Concrete
 25910,
 25911,Refreshments
@@ -1052,7 +1052,7 @@ PO #,Class Description
 26054,Shuttering Carpentry Sundries
 26055,Reinforcement Sundries
 26056,Gypsum
-26057,Joinery
+26057,Ironmongry
 26058,Electrical Sundries
 26059,Office Consumables
 26060,Plumbing & Drainage Sundries
@@ -1115,7 +1115,7 @@ PO #,Class Description
 26117,
 26118,Cement
 26119,Vehicle & Equipment
-26120,Joinery
+26120,Ironmongry
 26121,Site Consumables
 26122,
 26123,Refreshments
@@ -1171,7 +1171,7 @@ PO #,Class Description
 26174,Excavation
 26175,Fire Fighting
 26176,Refreshments
-26177,Joinery
+26177,Ironmongry
 26178,MEP
 26179,MEP
 26180,Miscellaneous
@@ -1182,7 +1182,7 @@ PO #,Class Description
 26185,Refreshments
 26186,Vehicle & Equipment
 26187,HSE
-26188,Health & Safety
+26188,HSE
 26189,Other Expenses
 26190,
 26191,HVAC
@@ -1204,7 +1204,7 @@ PO #,Class Description
 26207,Internal Work
 26208,
 26209,Rebar
-26210,Joinery
+26210,Ironmongry
 26211,Metal Works
 26212,MEP
 26213,Refreshments
@@ -1257,8 +1257,8 @@ PO #,Class Description
 26261,ASSET
 26262,Other Expenses
 26263,Diesel & Petrol
-26264,Health & Safety
-26265,Health & Safety
+26264,HSE
+26265,HSE
 26266,Fees
 26267,Metal Works
 26268,Metal Works
@@ -1269,7 +1269,7 @@ PO #,Class Description
 26273,
 26274,HVAC
 26275,Shuttering Carpentry Subcon
-26277,Health & Safety
+26277,HSE
 26278,Refreshments
 26279,Switchgear
 26280,Consumables
@@ -1314,10 +1314,10 @@ PO #,Class Description
 26319,Consulting Fees
 26320,Office Consumables
 26321,Vehicle & Equipment
-26322,Health & Safety
+26322,HSE
 26323,Incentives
 26324,Vehicle & Equipment
-26325,Health & Safety
+26325,HSE
 26326,HSE
 26327,Signage
 26328,Other Expenses
@@ -1348,12 +1348,12 @@ PO #,Class Description
 26353,
 26354,Excavation
 26355,HSE
-26356,Health & Safety
-26357,Health & Safety
-26358,Health & Safety
-26359,Health & Safety
+26356,HSE
+26357,HSE
+26358,HSE
+26359,HSE
 26360,Precast
-26363,Plumbing & Drainage Sundries
+26363,Shuttering Carpentry Sundries
 26364,Plumbing & Drainage Sundries
 26365,Office Consumables
 26367,Roadworks
@@ -1386,7 +1386,7 @@ PO #,Class Description
 26394,Formwork
 26395,Formwork
 26396,Formwork
-26397,Health & Safety
+26397,HSE
 26398,HSE
 26399,HSE
 26400,Consulting Fees
@@ -1503,12 +1503,12 @@ PO #,Class Description
 26514,Miscellaneous
 26515,Site Consumables
 26516,Diesel & Petrol
-26517,Health & Safety
+26517,HSE
 26518,Precast Concrete
 26519,Rebar
 26520,HSE
 26521,Finishing Sundries
-26522,Electrical Sundries
+26522,Site Consumables
 26523,Miscellaneous
 26524,Site Consumables
 26525,Heaters
@@ -1898,7 +1898,7 @@ PO #,Class Description
 26931,HSE
 26932,HSE
 26933,Roadworks
-26934,Office Consumables
+26934,Site Consumables
 26935,Waterproofing Sundries
 26936,Site Consumables
 26937,Office Consumables
@@ -1953,7 +1953,7 @@ PO #,Class Description
 26988,Site Consumables
 26990,Refreshments
 26991,Site Consumables
-26992,Joinery
+26992,Ironmongry
 26993,Paint Material
 26994,Painting Sundries
 26995,Light Fittings
@@ -2242,7 +2242,7 @@ PO #,Class Description
 27291,Miscellaneous
 27292,Garbage removal
 27293,Refreshments
-27294,Joinery
+27294,Ironmongry
 27295,Consulting Fees
 27296,Consulting Fees
 27297,Finishing Sundries
@@ -2260,7 +2260,7 @@ PO #,Class Description
 27310,Office Consumables
 27311,Office Consumables
 27312,Refreshments
-27313,Electrical Sundries
+27313,Site Consumables
 27314,
 27315,MEP
 27316,Electrical Sundries
@@ -2328,7 +2328,7 @@ PO #,Class Description
 27379,Office Expenses
 27380,
 27381,Block
-27382,Plumbing & Drainage Sundries
+27382,Site Consumables
 27383,Block
 27384,Plumbing & Drainage Sundries
 27385,Consumables
@@ -2378,7 +2378,7 @@ PO #,Class Description
 27429,HVAC
 27430,Refreshments
 27431,Drainage
-27432,Joinery
+27432,Ironmongry
 27433,Vehicle & Equipment
 27434,Metal Works
 27435,Site Consumables
@@ -2484,7 +2484,7 @@ PO #,Class Description
 27538,Site Consumables
 27539,HSE
 27540,Site Consumables
-27541,Office Consumables
+27541,Site Consumables
 27542,
 27543,Block Work Sundries
 27544,Site Consumables
@@ -2574,8 +2574,8 @@ PO #,Class Description
 27629,MEP
 27630,MEP
 27631,Switchgear
-27632,Health & Safety
-27633,Health & Safety
+27632,HSE
+27633,HSE
 27634,Plumbing & Drainage Sundries
 27635,Site Consumables
 27636,Paint Material
@@ -2591,9 +2591,9 @@ PO #,Class Description
 27646,Charge
 27647,Charge
 27648,Charge
-27649,Health & Safety
-27650,Health & Safety
-27651,Health & Safety
+27649,HSE
+27650,HSE
+27651,HSE
 27652,Garbage removal
 27654,Tanks
 27655,Finishing Sundries
@@ -2679,7 +2679,7 @@ PO #,Class Description
 27736,Paint Material
 27737,Paint Material
 27738,Block
-27739,Plumbing & Drainage Sundries
+27739,Site Consumables
 27740,Miscellaneous
 27741,Miscellaneous
 27742,Paint Material
@@ -2990,7 +2990,7 @@ PO #,Class Description
 28055,LPG
 28056,Refreshments
 28057,Manholes/Gratings
-28058,Plumbing & Drainage Sundries
+28058,Site Consumables
 28059,Site Consumables
 28060,
 28061,Plaster Work
@@ -3210,7 +3210,7 @@ PO #,Class Description
 28277,Site Consumables
 28278,Painting Sundries
 28279,Site Consumables
-28280,Joinery
+28280,Ironmongry
 28281,HSE
 28282,HSE
 28283,Office Consumables
@@ -3278,7 +3278,7 @@ PO #,Class Description
 28347,Paint Material
 28348,Site Consumables
 28349,HSE
-28350,Joinery
+28350,Ironmongry
 28351,Light Fittings
 28352,Site Consumables
 28353,Parts
@@ -3592,10 +3592,10 @@ PO #,Class Description
 28667,Granite & Marble
 28668,Paint Material
 28669,Precast Concrete
-28670,Joinery
+28670,Ironmongry
 28671,Gypsum
 28672,Screed Finishing
-28673,Plumbing & Drainage Sundries
+28673,Shuttering Carpentry Sundries
 28674,Geotechnical Report
 28675,Manholes/Gratings
 28676,External Manpower
@@ -3669,7 +3669,7 @@ PO #,Class Description
 28744,Office Consumables
 28745,Painting Sundries
 28746,Formwork
-28747,Office Consumables
+28747,Site Consumables
 28748,Plaster Work Sundries
 28749,Plant
 28750,Site Consumables
@@ -3774,7 +3774,7 @@ PO #,Class Description
 28850,HSE
 28851,Consumables
 28852,HSE
-28853,Plumbing & Drainage Sundries
+28853,Site Consumables
 28854,Plumbing & Drainage Sundries
 28855,Light Fittings
 28856,Pipes
@@ -3799,7 +3799,7 @@ PO #,Class Description
 28875,Paint Material
 28876,Painting Sundries
 28877,Waterproofing.
-28878,Health & Safety
+28878,HSE
 28879,Parts
 28880,Paint Material
 28881,Vehicle & Equipment
@@ -4197,7 +4197,7 @@ PO #,Class Description
 29278,Driver
 29279,Driver
 29280,Sanitary Ware
-29281,Joinery
+29281,Ironmongry
 29282,HSE
 29283,HSE
 29284,Plaster Work Sundries
@@ -4270,7 +4270,7 @@ PO #,Class Description
 29351,Metal Works
 29352,Vehicle & Equipment
 29353,Site Consumables
-29354,Plumbing & Drainage Sundries
+29354,Site Consumables
 29355,Signage
 29356,Office Consumables
 29357,Rebar
@@ -4293,7 +4293,7 @@ PO #,Class Description
 29374,Site Consumables
 29375,Sanitary Ware
 29376,Shuttering Carpentry Sundries
-29377,Office Consumables
+29377,Site Consumables
 29378,Site Consumables
 29379,Plaster Work Sundries
 29380,Block
@@ -4503,7 +4503,7 @@ PO #,Class Description
 29585,Site Consumables
 29586,Paint Material
 29587,Immigration Fees
-29588,Plumbing & Drainage Sundries
+29588,Site Consumables
 29589,Miscellaneous
 29590,Site Consumables
 29591,
@@ -4765,7 +4765,7 @@ PO #,Class Description
 29851,Consulting Fees
 29852,Plumbing & Drainage Sundries
 29853,HSE
-29854,Joinery
+29854,Ironmongry
 29855,Other Expenses
 29856,Site Consumables
 29857,Metal Works Sundries
@@ -4981,7 +4981,7 @@ PO #,Class Description
 30070,Electrical Sundries
 30071,Vehicle & Equipment
 30072,Site Consumables
-30073,Plumbing & Drainage Sundries
+30073,Site Consumables
 30074,Miscellaneous
 30075,Plumbing & Drainage Sundries
 30076,Vehicle & Equipment
@@ -5049,7 +5049,7 @@ PO #,Class Description
 30139,Vehicle & Equipment
 30140,Vehicle & Equipment
 30141,Site Consumables
-30142,Plumbing & Drainage Sundries
+30142,Site Consumables
 30143,Roadworks
 30144,Waterproofing Sundries
 30145,Site Consumables
@@ -5143,7 +5143,7 @@ PO #,Class Description
 30236,Paint Material
 30237,Reinforcement Sundries
 30238,Consumables
-30239,Plumbing & Drainage Sundries
+30239,Shuttering Carpentry Sundries
 30240,Site Consumables
 30241,Site Consumables
 30242,Refreshments
@@ -5218,7 +5218,7 @@ PO #,Class Description
 30313,Miscellaneous
 30314,Plaster Work Sundries
 30315,Geotechnical Report
-30316,Plumbing & Drainage Sundries
+30316,Site Consumables
 30317,Office Consumables
 30318,Administrative Fees
 30319,Consulting Fees
@@ -5280,7 +5280,7 @@ PO #,Class Description
 30376,
 30377,Site Consumables
 30378,Paint Material
-30379,Office Consumables
+30379,Site Consumables
 30380,Electrical Sundries
 30381,Ceramic & Porcelain
 30382,Office Consumables
@@ -5330,7 +5330,7 @@ PO #,Class Description
 30429,Electrical Sundries
 30430,Refreshments
 30431,Electrical Sundries
-30432,Plumbing & Drainage Sundries
+30432,Site Consumables
 30433,Site Consumables
 30434,Electrical Sundries
 30435,Site Consumables
@@ -5600,7 +5600,7 @@ PO #,Class Description
 30705,Waterproofing Sundries
 30706,Paint Material
 30707,Office Consumables
-30708,Office Consumables
+30708,Site Consumables
 30709,Signages
 30710,Ceramic & Porcelain
 30711,Garbage removal
@@ -5783,7 +5783,7 @@ PO #,Class Description
 30892,Office Expenses
 30893,Site Consumables
 30894,Formwork
-30895,Office Consumables
+30895,Site Consumables
 30896,Other Expenses
 30897,Office Consumables
 30898,Block
@@ -6119,7 +6119,7 @@ PO #,Class Description
 31240,Vehicle Related Fees
 31241,Immigration Fees
 31242,
-31243,Health & Safety
+31243,HSE
 31244,Medical Fees
 31245,Rebar
 31246,
@@ -6201,7 +6201,7 @@ PO #,Class Description
 31325,Diesel & Petrol
 31326,Water Supply
 31327,Plumbing & Drainage Sundries
-31328,Plumbing & Drainage Sundries
+31328,Site Consumables
 31329,Electrical Sundries
 31330,Site Consumables
 31331,Diesel & Petrol
@@ -6221,11 +6221,11 @@ PO #,Class Description
 31345,Parts
 31346,Plaster Work Sundries
 31347,Site Related Fees
-31348,Health & Safety
+31348,HSE
 31349,Paint Material
 31350,Paint Material
 31351,Plaster Work Sundries
-31352,Office Consumables
+31352,Site Consumables
 31353,Diesel & Petrol
 31354,Vehicle & Equipment
 31355,Vehicle & Equipment
@@ -6463,7 +6463,7 @@ PO #,Class Description
 31598,Gypsum
 31599,Office Consumables
 31600,Site Consumables
-31601,Other Expenses
+31601,HSE
 31602,Block
 31603,Plumbing & Drainage Sundries
 31604,Garbage removal
@@ -6845,7 +6845,7 @@ PO #,Class Description
 31985,Refreshments
 31986,HSE
 31987,Dewatering
-31988,Electrical Sundries
+31988,Site Consumables
 31989,Office Consumables
 31990,Administrative Fees
 31991,Office Expenses
@@ -6865,7 +6865,7 @@ PO #,Class Description
 32005,Site Consumables
 32006,HSE
 32007,Administrative Fees
-32008,Plumbing & Drainage Sundries
+32008,Site Consumables
 32009,Dewatering
 32010,Formwork
 32011,Electrical Sundries
@@ -6983,14 +6983,14 @@ PO #,Class Description
 32123,Parts
 32124,Metal Works
 32125,Rebar
-32126,Joinery
+32126,Ironmongry
 32127,Rebar
 32128,Site Consumables
 32129,Tanks
 32130,
 32131,Painting Sundries
 32132,Geotechnical Report
-32133,Health & Safety
+32133,HSE
 32134,Administrative Fees
 32135,Miscellaneous
 32136,Office Consumables
@@ -7005,7 +7005,7 @@ PO #,Class Description
 32145,Fees
 32146,Site Consumables
 32147,Electrical Sundries
-32148,Office Consumables
+32148,Site Consumables
 32149,Refreshments
 32150,Other Expenses
 32151,Electrical Sundries
@@ -7061,7 +7061,7 @@ PO #,Class Description
 32201,Dewatering
 32202,Dewatering
 32203,Dewatering
-32204,Sanitary Ware
+32204,Site Consumables
 32205,Refreshments
 32206,HSE
 32207,Geotechnical Report
@@ -7111,7 +7111,7 @@ PO #,Class Description
 32253,Vehicle & Equipment
 32254,Finishing Sundries
 32255,Site Consumables
-32256,Office Consumables
+32256,Site Consumables
 32257,Office Expenses
 32258,Diesel & Petrol
 32259,Diesel & Petrol
@@ -7391,7 +7391,7 @@ PO #,Class Description
 32540,Electrical Sundries
 32541,Finishing Sundries
 32542,Vehicle & Equipment
-32543,Electrical Sundries
+32543,Site Consumables
 32544,Switchgear
 32545,Immigration Fees
 32546,HSE
@@ -7453,7 +7453,7 @@ PO #,Class Description
 32603,Electrical Sundries
 32604,Plaster Work Sundries
 32605,Plaster Work Sundries
-32606,Office Consumables
+32606,Site Consumables
 32607,Garbage removal
 32608,Vehicle & Equipment
 32609,Site Consumables
@@ -7510,7 +7510,7 @@ PO #,Class Description
 32661,Water Supply
 32662,Painting Sundries
 32663,Painting
-32664,Health & Safety
+32664,HSE
 32665,Dewatering
 32666,Site Consumables
 32667,Finishing Sundries
@@ -7671,7 +7671,7 @@ PO #,Class Description
 32825,Electrical Sundries
 32826,Shuttering Carpentry Sundries
 32827,Paint Material
-32828,Office Consumables
+32828,Site Consumables
 32829,Garbage removal
 32830,HVAC
 32831,Site Consumables
@@ -7812,7 +7812,7 @@ PO #,Class Description
 32969,Site Consumables
 32970,Site Consumables
 32971,HSE
-32972,Office Consumables
+32972,Site Consumables
 32973,Finishing Sundries
 32974,Site Consumables
 32975,Internal Work
@@ -7835,7 +7835,7 @@ PO #,Class Description
 32993,Flooring
 32994,Vehicle & Equipment
 32995,Water Supply
-32996,Health & Safety
+32996,HSE
 32997,HVAC
 32998,
 32999,Paint Material
@@ -7878,7 +7878,7 @@ PO #,Class Description
 33038,
 33039,Vehicle & Equipment
 33040,Sanitary Ware
-33041,Joinery
+33041,Ironmongry
 33042,HSE
 33043,HSE
 33044,Garbage removal
@@ -7972,7 +7972,7 @@ PO #,Class Description
 33133,Insurance Fees
 33134,Sand
 33135,Ceramic & Porcelain
-33136,Plumbing & Drainage Sundries
+33136,Site Consumables
 33137,Electrical Sundries
 33138,Ceramic & Porcelain
 33139,Fees
@@ -8132,7 +8132,7 @@ PO #,Class Description
 33295,Fees
 33296,Other Expenses
 33297,Signage
-33298,Joinery
+33298,Ironmongry
 33299,Light Fittings
 33300,Paint Material
 33301,Site Consumables
@@ -8202,7 +8202,7 @@ PO #,Class Description
 33365,HSE
 33366,Shuttering Carpentry Sundries
 33367,Shuttering Carpentry Sundries
-33368,Joinery
+33368,Ironmongry
 33369,Paint Material
 33371,Incentives
 33372,Vehicle & Equipment
@@ -8296,7 +8296,7 @@ PO #,Class Description
 33461,Finishing Sundries
 33462,Driver
 33463,Incentives
-33464,Joinery
+33464,Ironmongry
 33465,Internal Work
 33466,Metal Works
 33467,Consumables
@@ -8335,7 +8335,7 @@ PO #,Class Description
 33500,Water Supply
 33501,Plaster Work Sundries
 33502,Miscellaneous
-33503,Reinforcement Sundries
+33503,Site Consumables
 33504,Miscellaneous
 33505,HSE
 33506,Miscellaneous
@@ -8443,7 +8443,7 @@ PO #,Class Description
 33610,Site Consumables
 33611,Tools & Parts
 33612,Formwork
-33613,Joinery
+33613,Ironmongry
 33614,Furniture / Equipments
 33615,Diesel & Petrol
 33616,Cables & Wires
@@ -8608,7 +8608,7 @@ PO #,Class Description
 33779,Finishing Sundries
 33780,HSE
 33781,Parts
-33782,Joinery
+33782,Ironmongry
 33783,Consumables
 33784,Consumables
 33785,HVAC
@@ -8860,7 +8860,7 @@ PO #,Class Description
 34032,Site Related Fees
 34033,Consumables
 34034,Office Consumables
-34035,Health & Safety
+34035,HSE
 34036,Electrical Sundries
 34037,Office Expenses
 34039,Site Consumables
@@ -8915,7 +8915,7 @@ PO #,Class Description
 34089,Plumbing & Drainage Sundries
 34090,Vehicle & Equipment
 34091,Water Supply
-34092,Plumbing & Drainage Sundries
+34092,Site Consumables
 34093,Office Expenses
 34094,Electrical Sundries
 34095,Office Consumables
@@ -8990,7 +8990,7 @@ PO #,Class Description
 34165,Site Consumables
 34166,Vehicle & Equipment
 34167,Plumbing & Drainage Sundries
-34168,Plumbing & Drainage Sundries
+34168,Site Consumables
 34169,Rebar
 34170,HSE
 34171,Shuttering Carpentry Sundries
@@ -9062,7 +9062,7 @@ PO #,Class Description
 34237,Other Expenses
 34238,Light Fittings
 34239,Office Expenses
-34240,Electrical Sundries
+34240,Site Consumables
 34241,Refreshments
 34242,Vehicle & Equipment
 34243,Site Consumables
@@ -9078,14 +9078,14 @@ PO #,Class Description
 34253,HVAC
 34255,Vehicle & Equipment
 34256,Consumables
-34257,Plumbing & Drainage Sundries
+34257,Site Consumables
 34258,Vehicle & Equipment
 34259,Water Supply
 34260,Cement
 34261,Electrical Sundries
 34262,Office Consumables
 34263,Fees
-34264,Electrical Sundries
+34264,Site Consumables
 34265,HSE
 34266,Shuttering Carpentry Sundries
 34267,HSE
@@ -9208,7 +9208,7 @@ PO #,Class Description
 34386,Concrete
 34387,Miscellaneous
 34388,Site Consumables
-34389,Electrical Sundries
+34389,Site Consumables
 34390,Fees
 34391,Rebar
 34392,Site Consumables
@@ -9301,7 +9301,7 @@ PO #,Class Description
 34480,Shuttering Carpentry Sundries
 34481,Miscellaneous
 34482,Electrical Sundries
-34483,Electrical Sundries
+34483,Site Consumables
 34484,
 34485,
 34486,Plaster Work Sundries
@@ -9333,7 +9333,7 @@ PO #,Class Description
 34513,Fees
 34514,Other Expenses
 34515,Waterproofing Sundries
-34516,Electrical Sundries
+34516,Site Consumables
 34517,HVAC
 34518,Vehicle & Equipment
 34519,Rebar
@@ -9368,7 +9368,7 @@ PO #,Class Description
 34549,Water Supply
 34550,Finishing Sundries
 34551,Office Consumables
-34552,Health & Safety
+34552,HSE
 34553,Pumps
 34554,Pumps
 34555,Formwork
@@ -9520,7 +9520,7 @@ PO #,Class Description
 34702,Site Consumables
 34703,Refreshments
 34704,Miscellaneous
-34705,Electrical Sundries
+34705,Site Consumables
 34706,Other Expenses
 34707,
 34708,Painting Sundries
@@ -9574,7 +9574,7 @@ PO #,Class Description
 34758,Vehicle & Equipment
 34759,
 34760,Miscellaneous
-34761,Block Work Sundries
+34761,Concrete
 34762,Paint Material
 34763,Paint Material
 34764,Swimming Pool
@@ -9671,7 +9671,7 @@ PO #,Class Description
 34857,Site Consumables
 34858,Site Consumables
 34859,Sanitary Ware
-34860,Electrical Sundries
+34860,Site Consumables
 34861,Medical Fees
 34862,Refreshments
 34863,Refreshments
@@ -9766,7 +9766,7 @@ PO #,Class Description
 34953,Light Fittings
 34954,Refreshments
 34955,Site Consumables
-34956,Office Consumables
+34956,Site Consumables
 34957,HSE
 34958,Formwork
 34959,Tools & Parts
@@ -9866,7 +9866,7 @@ PO #,Class Description
 35053,Metal Works
 35054,Vehicle & Equipment
 35055,Site Consumables
-35056,Health & Safety
+35056,HSE
 35057,HSE
 35058,Site Consumables
 35059,HSE
@@ -9896,7 +9896,7 @@ PO #,Class Description
 35083,Site Consumables
 35084,Water Supply
 35085,Site Consumables
-35086,Office Consumables
+35086,Site Consumables
 35087,Refreshments
 35088,Electrical Sundries
 35092,Painting Sundries
@@ -9960,7 +9960,7 @@ PO #,Class Description
 35150,Dewatering
 35151,Site Consumables
 35152,
-35153,Plumbing & Drainage Sundries
+35153,Site Consumables
 35154,Concrete
 35155,Vehicle & Equipment
 35156,Switchgear
@@ -10048,7 +10048,7 @@ PO #,Class Description
 35240,Consulting Fees
 35241,Other Expenses
 35242,Sanitary Ware
-35243,Electrical Sundries
+35243,Site Consumables
 35244,Refreshments
 35245,HSE
 35246,HSE
@@ -10086,7 +10086,7 @@ PO #,Class Description
 35278,Waterproofing.
 35279,Metal Works
 35280,Electrical Sundries
-35281,Plumbing & Drainage Sundries
+35281,Site Consumables
 35282,Site Consumables
 35283,Block
 35284,Metal Works
@@ -10335,7 +10335,7 @@ PO #,Class Description
 35527,Site Consumables
 35528,Finishing Sundries
 35529,Plaster Work Sundries
-35530,Office Consumables
+35530,Site Consumables
 35531,Insurance Fees
 35532,Vehicle & Equipment
 35533,Vehicle & Equipment
@@ -10343,7 +10343,7 @@ PO #,Class Description
 35535,Refreshments
 35536,Water Supply
 35537,Tools & Parts
-35538,Health & Safety
+35538,HSE
 35539,Site Consumables
 35540,Pumps
 35541,Block Work Sundries
@@ -10453,7 +10453,7 @@ PO #,Class Description
 35646,Skilled Labour
 35647,Unskilled Labour
 35648,Plant
-35649,Plumbing & Drainage Sundries
+35649,Site Consumables
 35650,
 35651,Vehicle & Equipment
 35652,Vehicle & Equipment
@@ -10649,7 +10649,7 @@ PO #,Class Description
 35843,Administrative Fees
 35844,Administrative Fees
 35845,Electrical Sundries
-35846,Plumbing & Drainage Sundries
+35846,Site Consumables
 35847,Cables & Wires
 35848,Ceramic & Porcelain
 35849,Refreshments
@@ -10713,7 +10713,7 @@ PO #,Class Description
 35907,
 35908,Waterproofing Sundries
 35909,Site Consumables
-35910,Office Consumables
+35910,Site Consumables
 35911,Skilled Labour
 35912,Plumbing & Drainage Sundries
 35913,Miscellaneous
@@ -10912,7 +10912,7 @@ PO #,Class Description
 36106,Charge
 36107,Dewatering
 36108,Site Consumables
-36109,Office Consumables
+36109,Site Consumables
 36110,Block Work Sundries
 36111,Site Consumables
 36112,Site Consumables
@@ -10930,7 +10930,7 @@ PO #,Class Description
 36124,Signages
 36125,Tools & Parts
 36126,Vehicle Related Fees
-36127,Joinery
+36127,Ironmongry
 36128,Electrical Sundries
 36129,Administrative Fees
 36130,HSE
@@ -11154,7 +11154,7 @@ PO #,Class Description
 36351,Site Consumables
 36352,Metal Works Sundries
 36353,Site Consumables
-36354,Joinery
+36354,Ironmongry
 36355,Site Consumables
 36356,Site Consumables
 36357,HSE
@@ -11166,7 +11166,7 @@ PO #,Class Description
 36363,Cables & Wires
 36364,Site Consumables
 36365,Waterproofing Sundries
-36366,Health & Safety
+36366,HSE
 36367,Office Consumables
 36368,HSE
 36369,Other Expenses
@@ -11205,7 +11205,7 @@ PO #,Class Description
 36402,Sanitary Ware
 36403,Plumbing & Drainage Sundries
 36404,Electrical Sundries
-36405,Electrical Sundries
+36405,Site Consumables
 36406,Electrical Sundries
 36407,Refreshments
 36408,Paint Material
@@ -11269,7 +11269,7 @@ PO #,Class Description
 36466,Vehicle & Equipment
 36467,Paint Material
 36468,Paint Material
-36469,Office Consumables
+36469,Site Consumables
 36470,Vehicle & Equipment
 36471,
 36472,Site Consumables
@@ -11351,7 +11351,7 @@ PO #,Class Description
 36548,Plaster Work Sundries
 36549,HSE
 36550,Rebar
-36551,Electrical Sundries
+36551,Site Consumables
 36552,Finishing Sundries
 36553,Electrical Sundries
 36554,Site Consumables
@@ -11418,7 +11418,7 @@ PO #,Class Description
 36615,Shuttering Carpentry Sundries
 36616,Plaster Work Sundries
 36617,Block Work Sundries
-36618,Plumbing & Drainage Sundries
+36618,Site Consumables
 36619,Miscellaneous
 36620,MEP
 36621,Waterproofing.
@@ -11485,14 +11485,14 @@ PO #,Class Description
 36683,Miscellaneous
 36684,
 36685,Paint Material
-36686,Plumbing & Drainage Sundries
+36686,Site Consumables
 36687,Electrical Sundries
 36688,Paint Material
 36689,Site Consumables
 36690,Waterproofing Sundries
 36691,Finishing Sundries
 36692,Site Consumables
-36693,Office Consumables
+36693,Site Consumables
 36694,Refreshments
 36695,Sanitary Ware
 36696,Metal Works
@@ -11553,7 +11553,7 @@ PO #,Class Description
 36752,Water Supply
 36753,Water Supply
 36754,Site Consumables
-36755,Plumbing & Drainage Sundries
+36755,Site Consumables
 36756,Water Supply
 36757,Site Consumables
 36758,Plumbing & Drainage Sundries
@@ -11574,7 +11574,7 @@ PO #,Class Description
 36773,ELV
 36774,Site Consumables
 36775,Formwork
-36776,Plumbing & Drainage Sundries
+36776,Site Consumables
 36777,Site Consumables
 36778,Plaster Work Sundries
 36779,Finishing Sundries
@@ -11598,8 +11598,8 @@ PO #,Class Description
 36798,Plaster Work Sundries
 36799,HVAC
 36800,Parts
-36801,Joinery
-36802,Joinery
+36801,Ironmongry
+36802,Ironmongry
 36803,Ceramic & Porcelain
 36804,Granite & Marble
 36805,Softscape (Landscape)
@@ -11757,7 +11757,7 @@ PO #,Class Description
 36957,Driver
 36958,ELV
 36959,Driver
-36960,Electrical Sundries
+36960,Site Consumables
 36961,Electrical Sundries
 36962,Electrical Sundries
 36963,Finishing Sundries
@@ -11779,7 +11779,7 @@ PO #,Class Description
 36979,Paint Material
 36980,Paint Material
 36981,Paint Material
-36982,Electrical Sundries
+36982,Site Consumables
 36983,
 36984,Waterproofing.
 36985,Administrative Fees
@@ -11814,7 +11814,7 @@ PO #,Class Description
 37015,Administrative Fees
 37016,Insurance Fees
 37017,Site Consumables
-37018,Office Consumables
+37018,Site Consumables
 37019,Waterproofing Sundries
 37020,Formwork
 37021,Site Consumables
@@ -12162,7 +12162,7 @@ PO #,Class Description
 37365,Block Work
 37366,Plaster Work
 37367,Other Expenses
-37368,Office Consumables
+37368,Site Consumables
 37369,Other Expenses
 37370,Miscellaneous
 37371,Site Consumables
@@ -12201,7 +12201,7 @@ PO #,Class Description
 37404,Plaster Work Sundries
 37405,Metal Works
 37406,Finishing Sundries
-37407,Plumbing & Drainage Sundries
+37407,Site Consumables
 37408,Water Supply
 37409,Block Work
 37410,Waterproofing Sundries
@@ -12473,7 +12473,7 @@ PO #,Class Description
 37678,Other Expenses
 37679,Administrative Fees
 37680,Plumbing & Drainage Sundries
-37681,Health & Safety
+37681,HSE
 37682,Sanitary Ware
 37683,Site Consumables
 37684,Other Expenses
@@ -12557,7 +12557,7 @@ PO #,Class Description
 37762,Block Work Sundries
 37763,Office Consumables
 37764,Sand
-37765,Office Consumables
+37765,Site Consumables
 37766,Plaster Work Sundries
 37767,Miscellaneous
 37768,Garbage removal
@@ -12868,7 +12868,7 @@ PO #,Class Description
 38075,Paint Material
 38076,Site Consumables
 38077,Painting Sundries
-38078,Office Consumables
+38078,Site Consumables
 38079,Plaster Work Sundries
 38080,Light Fittings
 38081,Rebar
@@ -13071,7 +13071,7 @@ PO #,Class Description
 38279,Sand
 38280,HVAC
 38281,Other Expenses
-38282,Joinery
+38282,Ironmongry
 38283,Administrative Fees
 38284,Driver
 38285,Driver
@@ -13220,7 +13220,7 @@ PO #,Class Description
 38428,Site Consumables
 38429,Shuttering Carpentry Sundries
 38430,Cables & Wires
-38431,Office Consumables
+38431,Site Consumables
 38432,Rebar
 38433,HVAC
 38435,Site Consumables
@@ -13243,7 +13243,7 @@ PO #,Class Description
 38452,Diesel & Petrol
 38453,Diesel & Petrol
 38454,Diesel & Petrol
-38455,Plumbing & Drainage Sundries
+38455,Site Consumables
 38456,Vehicle & Equipment
 38457,Water Supply
 38458,Diesel & Petrol
@@ -13295,7 +13295,7 @@ PO #,Class Description
 38504,Office Consumables
 38505,Diesel & Petrol
 38506,Diesel & Petrol
-38507,Health & Safety
+38507,HSE
 38508,Diesel & Petrol
 38509,Diesel & Petrol
 38510,Diesel & Petrol
@@ -13393,7 +13393,7 @@ PO #,Class Description
 38602,Site Consumables
 38603,Site Consumables
 38604,Parts
-38605,Plumbing & Drainage Sundries
+38605,Site Consumables
 38606,Site Consumables
 38607,Finishing Sundries
 38608,Finishing Sundries
@@ -13572,7 +13572,7 @@ PO #,Class Description
 38782,Charge
 38783,
 38784,Site Consumables
-38785,Plumbing & Drainage Sundries
+38785,Site Consumables
 38786,Miscellaneous
 38787,Painting Sundries
 38788,Electrical Sundries
@@ -13649,7 +13649,7 @@ PO #,Class Description
 38860,Other Expenses
 38861,Paint Material
 38862,Site Consumables
-38863,Pipes
+38863,Plumbing & Drainage Sundries
 38864,Fire Fighting Materials
 38865,Geotechnical Report
 38866,Office Expenses
@@ -13680,12 +13680,12 @@ PO #,Class Description
 38891,Tiling Work
 38892,Electrical Sundries
 38893,Parts
-38894,Joinery
+38894,Ironmongry
 38895,Vehicle & Equipment
 38896,Steel Fabrication Work
 38897,Shuttering Carpentry
 38898,Plaster Work
-38899,Plumbing & Drainage Sundries
+38899,Site Consumables
 38900,Painting Work
 38901,Plaster Work
 38902,Plaster Work
@@ -13833,7 +13833,7 @@ PO #,Class Description
 39045,Consumables
 39046,Light Fittings
 39047,Charge
-39048,Joinery
+39048,Ironmongry
 39049,Air Condition Material
 39050,Metal Works
 39051,
@@ -13961,7 +13961,7 @@ PO #,Class Description
 39174,Plaster Work Sundries
 39175,Painting Sundries
 39176,Site Consumables
-39177,Pipes
+39177,Plumbing & Drainage Sundries
 39178,Site Consumables
 39179,Garbage removal
 39180,Site Consumables
@@ -14026,7 +14026,7 @@ PO #,Class Description
 39239,Parts
 39240,Site Consumables
 39241,Site Consumables
-39242,Pipes
+39242,Plumbing & Drainage Sundries
 39243,Charge
 39244,Electrical Sundries
 39245,Fees
@@ -14054,7 +14054,7 @@ PO #,Class Description
 39268,HSE
 39269,Ceramic & Porcelain
 39270,HVAC
-39271,Pipes
+39271,Plumbing & Drainage Sundries
 39272,Excavation
 39273,Refreshments
 39274,Site Consumables
@@ -14129,7 +14129,7 @@ PO #,Class Description
 39343,HSE
 39344,Incentives
 39345,Shuttering Carpentry Sundries
-39346,Joinery
+39346,Ironmongry
 39347,Water Supply
 39348,Site Consumables
 39349,Vehicle & Equipment
@@ -14317,7 +14317,7 @@ PO #,Class Description
 39531,Driver
 39532,Unskilled Labour
 39533,Unskilled Labour
-39534,Plumbing & Drainage Sundries
+39534,Site Consumables
 39535,SCREED WORK
 39536,Consumables
 39537,Sand
@@ -14332,7 +14332,7 @@ PO #,Class Description
 39546,Electrical Sundries
 39547,Furniture / Equipments
 39548,Office Expenses
-39549,Plumbing & Drainage Sundries
+39549,Site Consumables
 39550,Site Consumables
 39551,Plaster Work Sundries
 39552,Paint Material
@@ -14824,7 +14824,7 @@ PO #,Class Description
 40038,HVAC
 40039,Fees
 40040,Miscellaneous
-40041,Joinery
+40041,Ironmongry
 40042,Finishing Sundries
 40043,Site Consumables
 40044,Finishing Sundries
@@ -14879,7 +14879,7 @@ PO #,Class Description
 40094,
 40095,HVAC
 40096,Site Consumables
-40097,Plumbing & Drainage Sundries
+40097,Site Consumables
 40098,Electrical Sundries
 40099,Electrical Sundries
 40100,Site Consumables
@@ -15122,7 +15122,7 @@ PO #,Class Description
 40337,Plumbing & Drainage Sundries
 40338,Plumbing & Drainage Sundries
 40339,Waterproofing.
-40340,Plumbing & Drainage Sundries
+40340,Site Consumables
 40341,Site Consumables
 40342,Ceramic & Porcelain
 40343,
@@ -15205,7 +15205,7 @@ PO #,Class Description
 40420,Site Consumables
 40421,
 40422,Site Consumables
-40423,Plumbing & Drainage Sundries
+40423,Site Consumables
 40424,
 40425,Site Consumables
 40426,Steel Fabrication Work
@@ -15280,7 +15280,7 @@ PO #,Class Description
 40496,Driver
 40497,Watchman
 40498,Façade
-40499,Plumbing & Drainage Sundries
+40499,Site Consumables
 40500,Vehicle & Equipment
 40501,Parts
 40502,Parts
@@ -15297,7 +15297,7 @@ PO #,Class Description
 40513,HVAC
 40514,Site Consumables
 40515,Office Consumables
-40516,Joinery
+40516,Ironmongry
 40517,Site Consumables
 40518,Cables & Wires
 40519,HSE
@@ -15391,7 +15391,7 @@ PO #,Class Description
 40607,Paint Material
 40608,Office Expenses
 40609,MEP
-40610,Joinery
+40610,Ironmongry
 40611,Miscellaneous
 40612,Concrete
 40613,Miscellaneous
@@ -15457,7 +15457,7 @@ PO #,Class Description
 40674,Insurance Fees
 40675,Block Work Sundries
 40676,Shuttering Carpentry Sundries
-40677,Office Consumables
+40677,Site Consumables
 40678,Plaster Work Sundries
 40679,Paint Material
 40680,Finishing Sundries
@@ -15549,7 +15549,7 @@ PO #,Class Description
 40772,Vehicle & Equipment
 40773,Site Consumables
 40774,Site Consumables
-40775,Plumbing & Drainage Sundries
+40775,Site Consumables
 40776,Anti termite control
 40777,Miscellaneous
 40778,Parts
@@ -15884,7 +15884,7 @@ PO #,Class Description
 41108,Site Consumables
 41109,Plaster Work Sundries
 41110,Site Consumables
-41111,Shuttering Carpentry Sundries
+41111,Finishing Sundries
 41112,Site Consumables
 41113,Paint Material
 41114,Light Fittings
@@ -15913,7 +15913,7 @@ PO #,Class Description
 41137,Concrete
 41138,Electrical Sundries
 41139,Immigration Fees
-41140,Plumbing & Drainage Sundries
+41140,Site Consumables
 41141,Immigration Fees
 41142,Immigration Fees
 41143,Immigration Fees
@@ -16129,7 +16129,7 @@ PO #,Class Description
 41353,Site Consumables
 41354,Shuttering Carpentry Sundries
 41355,Site Consumables
-41356,Shuttering Carpentry Sundries
+41356,Finishing Sundries
 41357,Block Work Sundries
 41358,Paint Material
 41359,Paint Material
@@ -16179,11 +16179,11 @@ PO #,Class Description
 41403,Fire Fighting Materials
 41404,Rebar
 41405,Site Consumables
-41406,Office Consumables
+41406,Site Consumables
 41407,
 41408,
 41409,Elevators
-41410,Shuttering Carpentry Sundries
+41410,Finishing Sundries
 41411,Metal Works Sundries
 41412,Refreshments
 41413,
@@ -16356,7 +16356,7 @@ PO #,Class Description
 41580,Garbage removal
 41581,Internal Work
 41582,Office Expenses
-41583,Plumbing & Drainage Sundries
+41583,Site Consumables
 41584,Furniture / Equipments
 41585,Rebar
 41586,
@@ -16496,7 +16496,7 @@ PO #,Class Description
 41721,Office Consumables
 41722,Office Consumables
 41723,
-41724,Shuttering Carpentry Sundries
+41724,Finishing Sundries
 41725,Painting Sundries
 41726,Administration
 41727,HSE
@@ -16540,8 +16540,8 @@ PO #,Class Description
 41769,Site Consumables
 41770,Block
 41771,HSE
-41772,Health & Safety
-41773,Joinery
+41772,HSE
+41773,Ironmongry
 41774,Anti termite control
 41775,Rebar
 41776,Cables & Wires
@@ -16633,7 +16633,7 @@ PO #,Class Description
 41862,Light Fittings
 41863,Vehicle & Equipment
 41864,
-41865,Plumbing & Drainage Sundries
+41865,Site Consumables
 41866,Diesel & Petrol
 41867,Site Consumables
 41868,Site Consumables
@@ -16652,7 +16652,7 @@ PO #,Class Description
 41881,HSE
 41882,Formwork
 41883,Electrical Sundries
-41884,Plumbing & Drainage Sundries
+41884,Site Consumables
 41885,Electrical Sundries
 41886,Paint Material
 41887,Plaster Work Sundries
@@ -16886,9 +16886,9 @@ PO #,Class Description
 42115,Site Related Fees
 42116,Administrative Fees
 42117,Site Consumables
-42118,Plumbing & Drainage Sundries
+42118,Site Consumables
 42119,Pipes
-42120,Plumbing & Drainage Sundries
+42120,Site Consumables
 42121,Electrical Sundries
 42122,Parts
 42123,Water Supply
@@ -16963,7 +16963,7 @@ PO #,Class Description
 42192,Site Consumables
 42193,Sand
 42194,Refreshments
-42195,Metal Works Sundries
+42195,Site Consumables
 42196,Other Expenses
 42197,Parts
 42198,Consumables
@@ -17054,7 +17054,7 @@ PO #,Class Description
 42285,Site Consumables
 42286,Finishing Sundries
 42287,Site Consumables
-42288,Shuttering Carpentry Sundries
+42288,Finishing Sundries
 42289,Site Consumables
 42290,Gypsum
 42291,Sanitary Ware
@@ -17073,7 +17073,7 @@ PO #,Class Description
 42304,Vehicle & Equipment
 42305,Charge
 42306,Parts
-42307,Plumbing & Drainage Sundries
+42307,Site Consumables
 42308,Other Expenses
 42309,Site Consumables
 42310,Consumables
@@ -17181,7 +17181,7 @@ PO #,Class Description
 42412,Water Supply
 42413,Concrete
 42414,Plumbing & Drainage Sundries
-42415,Plumbing & Drainage Sundries
+42415,Site Consumables
 42416,Miscellaneous
 42417,Miscellaneous
 42418,Miscellaneous
@@ -17322,7 +17322,7 @@ PO #,Class Description
 42554,Plaster Work Sundries
 42555,Concrete
 42556,Site Consumables
-42557,Health & Safety
+42557,HSE
 42558,Site Consumables
 42559,Site Consumables
 42560,HSE
@@ -17390,7 +17390,7 @@ PO #,Class Description
 42622,Paint Material
 42623,Site Consumables
 42624,Plaster Work
-42625,Shuttering Carpentry Sundries
+42625,Finishing Sundries
 42626,Block Work
 42627,Charge
 42628,Office Expenses
@@ -17544,7 +17544,7 @@ PO #,Class Description
 42777,Office Expenses
 42778,Site Consumables
 42779,Paint Material
-42780,Office Consumables
+42780,Site Consumables
 42781,Rebar
 42782,Parts
 42783,Administrative Fees
@@ -17565,7 +17565,7 @@ PO #,Class Description
 42798,Metal Works
 42799,Site Consumables
 42800,Metal Works
-42801,Sanitary Ware
+42801,Site Consumables
 42802,Site Consumables
 42803,Site Consumables
 42804,Refreshments
@@ -17604,7 +17604,7 @@ PO #,Class Description
 42837,Garbage removal
 42838,Electrical Sundries
 42839,Plumbing & Drainage Sundries
-42840,Pipes
+42840,Plumbing & Drainage Sundries
 42841,Plaster Work Sundries
 42842,Water Supply
 42843,Water Supply
@@ -17683,7 +17683,7 @@ PO #,Class Description
 42917,Pipes
 42918,Sanitary Ware
 42919,Site Consumables
-42920,Office Consumables
+42920,Site Consumables
 42921,Sanitary Ware
 42922,Vehicle & Equipment
 42923,Sand
@@ -17733,7 +17733,7 @@ PO #,Class Description
 42967,Plaster Work Sundries
 42968,Miscellaneous
 42969,Formwork
-42970,Shuttering Carpentry Sundries
+42970,Finishing Sundries
 42971,Finishing Sundries
 42972,Electrical Sundries
 42973,Office Expenses
@@ -17895,10 +17895,10 @@ PO #,Class Description
 43130,Granite & Marble
 43131,Office Consumables
 43132,Finishing Sundries
-43133,Shuttering Carpentry Sundries
+43133,Finishing Sundries
 43134,
 43135,Block
-43136,Plumbing & Drainage Sundries
+43136,Site Consumables
 43137,Pumps
 43138,Vehicle & Equipment
 43139,HSE
@@ -17941,7 +17941,7 @@ PO #,Class Description
 43177,Plumbing & Drainage Sundries
 43178,Office Consumables
 43179,Water Supply
-43180,Shuttering Carpentry Sundries
+43180,Finishing Sundries
 43181,Site Consumables
 43182,Site Consumables
 43183,Finishing Sundries
@@ -18073,7 +18073,7 @@ PO #,Class Description
 43309,Site Consumables
 43310,Site Consumables
 43311,Electrical Sundries
-43312,Paint Material
+43312,Painting Sundries
 43313,Site Consumables
 43314,Paint Material
 43315,Tools & Parts
@@ -18142,7 +18142,7 @@ PO #,Class Description
 43378,Fees
 43379,Vehicle & Equipment
 43380,Charge
-43381,Shuttering Carpentry Sundries
+43381,Finishing Sundries
 43382,Block
 43383,Paint Material
 43384,Garbage removal
@@ -18222,7 +18222,7 @@ PO #,Class Description
 43458,Other Expenses
 43459,Vehicle Related Fees
 43460,Site Consumables
-43461,Electrical Sundries
+43461,Site Consumables
 43462,Office Consumables
 43463,Block
 43464,Office Consumables
@@ -18248,7 +18248,7 @@ PO #,Class Description
 43484,Diesel & Petrol
 43485,Diesel & Petrol
 43486,Diesel & Petrol
-43487,Plumbing & Drainage Sundries
+43487,Site Consumables
 43488,Electrical Sundries
 43489,Finishing Sundries
 43490,Plaster Work Sundries
@@ -18287,7 +18287,7 @@ PO #,Class Description
 43524,Site Consumables
 43525,Electrical Sundries
 43526,
-43527,Shuttering Carpentry Sundries
+43527,Finishing Sundries
 43528,Site Consumables
 43529,Refreshments
 43530,Parts
@@ -18417,7 +18417,7 @@ PO #,Class Description
 43655,Administration
 43656,Plumbing & Drainage Sundries
 43657,ELV
-43658,Plumbing & Drainage Sundries
+43658,Site Consumables
 43659,Plumbing & Drainage Sundries
 43660,Plumbing & Drainage Sundries
 43661,Plumbing & Drainage Sundries
@@ -18467,7 +18467,7 @@ PO #,Class Description
 43706,Site Consumables
 43707,Paint Material
 43708,Cables & Wires
-43709,Office Consumables
+43709,Site Consumables
 43710,HSE
 43711,Vehicle & Equipment
 43712,Site Consumables
@@ -18642,9 +18642,9 @@ PO #,Class Description
 43883,Plaster Work Sundries
 43884,HSE
 43885,Plumbing & Drainage Sundries
-43886,Plumbing & Drainage Sundries
-43887,Pipes
-43888,Shuttering Carpentry Sundries
+43886,Site Consumables
+43887,Plumbing & Drainage Sundries
+43888,Finishing Sundries
 43889,Vehicle & Equipment
 43890,Miscellaneous
 43891,
@@ -18759,7 +18759,7 @@ PO #,Class Description
 44000,Sand
 44001,Site Consumables
 44002,Shuttering Carpentry Sundries
-44003,Electrical Sundries
+44003,Site Consumables
 44004,Sanitary Ware
 44005,Mirrors & Glazing
 44006,Skilled Labour
@@ -18811,7 +18811,7 @@ PO #,Class Description
 44052,Refreshments
 44053,Rebar
 44054,Finishing Sundries
-44055,Shuttering Carpentry Sundries
+44055,Finishing Sundries
 44056,Paint Material
 44057,Site Consumables
 44058,
@@ -18861,7 +18861,7 @@ PO #,Class Description
 44102,Electrical Sundries
 44103,Site Consumables
 44104,Electrical Sundries
-44105,Electrical Sundries
+44105,Site Consumables
 44106,Refreshments
 44107,Granite & Marble
 44108,Other Expenses
@@ -18913,7 +18913,7 @@ PO #,Class Description
 44154,Parts
 44155,Parts
 44156,Water Supply
-44157,Plumbing & Drainage Sundries
+44157,Site Consumables
 44158,Water Supply
 44159,Water Supply
 44160,Water Supply
@@ -18958,7 +18958,7 @@ PO #,Class Description
 44200,Shuttering Carpentry Sundries
 44201,Site Consumables
 44202,HVAC
-44203,Plumbing & Drainage Sundries
+44203,Site Consumables
 44204,Other Expenses
 44205,Other Expenses
 44206,Other Expenses
@@ -18974,7 +18974,7 @@ PO #,Class Description
 44217,Plumbing & Drainage Sundries
 44218,Vehicle & Equipment
 44219,Fees
-44220,Plumbing & Drainage Sundries
+44220,Site Consumables
 44221,Painting
 44222,Refreshments
 44223,Fees
@@ -19012,7 +19012,7 @@ PO #,Class Description
 44256,Joinery
 44257,Water Supply
 44258,Water Supply
-44259,Plumbing & Drainage Sundries
+44259,Site Consumables
 44260,Concrete
 44261,Charge
 44262,HSE
@@ -19076,7 +19076,7 @@ PO #,Class Description
 44321,Site Consumables
 44322,Office Consumables
 44323,HSE
-44324,Shuttering Carpentry Sundries
+44324,Finishing Sundries
 44325,Office Consumables
 44326,Site Consumables
 44327,Waterproofing Sundries
@@ -19120,7 +19120,7 @@ PO #,Class Description
 44366,Plumbing & Drainage Sundries
 44367,Office Consumables
 44368,Refreshments
-44369,Shuttering Carpentry Sundries
+44369,Finishing Sundries
 44370,Switchgear
 44371,Ceramic & Porcelain
 44372,Fees
@@ -19247,7 +19247,7 @@ PO #,Class Description
 44499,Site Consumables
 44500,Sand
 44501,Finishing Sundries
-44502,Plumbing & Drainage Sundries
+44502,Site Consumables
 44503,Site Consumables
 44504,Site Consumables
 44505,Administrative Fees
@@ -19259,7 +19259,7 @@ PO #,Class Description
 44511,HVAC
 44512,HVAC
 44513,Formwork
-44514,Shuttering Carpentry Sundries
+44514,Finishing Sundries
 44515,Site Consumables
 44516,Office Consumables
 44517,
@@ -19291,7 +19291,7 @@ PO #,Class Description
 44548,HSE
 44549,Miscellaneous
 44550,
-44551,Shuttering Carpentry Sundries
+44551,Finishing Sundries
 44552,
 44553,Flooring
 44554,Water Supply
@@ -19381,7 +19381,7 @@ PO #,Class Description
 44642,Other Expenses
 44643,Painting Sundries
 44644,
-44645,Shuttering Carpentry Sundries
+44645,Finishing Sundries
 44646,Signage
 44647,Site Consumables
 44648,Flooring
@@ -19411,7 +19411,7 @@ PO #,Class Description
 44673,Concrete
 44674,Unskilled Labour
 44675,Unskilled Labour
-44676,Joinery
+44676,Ironmongry
 44677,Site Consumables
 44678,Administrative Fees
 44679,Fees
@@ -19752,7 +19752,7 @@ PO #,Class Description
 45029,Electrical Sundries
 45030,Electrical Sundries
 45031,Air Condition Material
-45032,Shuttering Carpentry Sundries
+45032,Finishing Sundries
 45033,Plaster Work Sundries
 45034,HSE
 45035,Office Consumables
@@ -19843,7 +19843,7 @@ PO #,Class Description
 45123,Waterproofing.
 45124,
 45125,Vehicle Related Fees
-45126,Joinery
+45126,Ironmongry
 45127,Immigration Fees
 45128,Immigration Fees
 45129,Painting Sundries
@@ -19928,7 +19928,7 @@ PO #,Class Description
 45211,HSE
 45212,Parts
 45213,HSE
-45214,Joinery
+45214,Ironmongry
 45215,HSE
 45216,Site Consumables
 45217,Vehicle & Equipment
@@ -19952,7 +19952,7 @@ PO #,Class Description
 45235,Furniture / Equipments
 45236,Sand
 45237,Painting Sundries
-45238,Office Consumables
+45238,Site Consumables
 45239,Vehicle & Equipment
 45240,Plaster Work Sundries
 45241,Metal Works
@@ -19984,7 +19984,7 @@ PO #,Class Description
 45267,Site Consumables
 45268,
 45269,
-45270,Plumbing & Drainage Sundries
+45270,Site Consumables
 45271,Site Consumables
 45272,Rebar
 45273,Painting Sundries
@@ -20212,8 +20212,8 @@ PO #,Class Description
 45499,Water Supply
 45500,Concrete
 45501,Other Expenses
-45502,Plumbing & Drainage Sundries
-45503,Plumbing & Drainage Sundries
+45502,Site Consumables
+45503,Site Consumables
 45504,Plumbing & Drainage Sundries
 45505,Plumbing & Drainage Sundries
 45506,Water Supply
@@ -20339,7 +20339,7 @@ PO #,Class Description
 45629,Rebar
 45630,Formwork
 45631,Site Consumables
-45632,Joinery
+45632,Ironmongry
 45633,Office Consumables
 45634,Water Supply
 45635,HVAC
@@ -20462,7 +20462,7 @@ PO #,Class Description
 45754,Site Consumables
 45755,Finishing Sundries
 45756,Paint Material
-45757,Paint Material
+45757,Painting Sundries
 45758,Fees
 45759,Consumables
 45760,Flooring
@@ -20635,7 +20635,7 @@ PO #,Class Description
 45930,Site Consumables
 45931,Other Expenses
 45932,Vehicle & Equipment
-45933,Shuttering Carpentry Sundries
+45933,Finishing Sundries
 45934,Waterproofing Sundries
 45935,Site Consumables
 45936,Site Consumables
@@ -20905,11 +20905,11 @@ PO #,Class Description
 46206,Office Consumables
 46207,Refreshments
 46209,Site Consumables
-46210,Plumbing & Drainage Sundries
+46210,Site Consumables
 46211,Ceramic & Porcelain
 46212,Office Consumables
 46213,Office Consumables
-46214,Plumbing & Drainage Sundries
+46214,Site Consumables
 46215,Block
 46216,Office Consumables
 46217,HVAC
@@ -21076,7 +21076,7 @@ PO #,Class Description
 46387,HSE
 46388,Metal Works Sundries
 46389,Electrical Sundries
-46390,Office Consumables
+46390,Site Consumables
 46391,Site Consumables
 46392,Fees
 46393,HSE
@@ -21157,7 +21157,7 @@ PO #,Class Description
 46471,Tiling Work
 46472,Tiling Work
 46473,Site Consumables
-46474,Shuttering Carpentry Sundries
+46474,Finishing Sundries
 46475,Garbage removal
 46476,Precast Concrete
 46477,Plumbing
@@ -21344,7 +21344,7 @@ PO #,Class Description
 46664,Site Consumables
 46665,Plumbing & Drainage Sundries
 46666,Granite & Marble
-46667,Shuttering Carpentry Sundries
+46667,Finishing Sundries
 46668,Painting Sundries
 46669,Office Consumables
 46670,Charge
@@ -21398,7 +21398,7 @@ PO #,Class Description
 46719,Electrical Sundries
 46720,Granite & Marble
 46721,Site Consumables
-46722,Joinery
+46722,Ironmongry
 46723,Generators
 46724,Fees
 46725,Plant
@@ -21461,7 +21461,7 @@ PO #,Class Description
 46782,Water Supply
 46783,Light Fittings
 46784,Paint Material
-46785,Shuttering Carpentry Sundries
+46785,Finishing Sundries
 46786,Waterproofing Sundries
 46787,Fees
 46788,Consumables
@@ -21516,7 +21516,7 @@ PO #,Class Description
 46840,Sand
 46841,Painting Sundries
 46842,Site Consumables
-46843,Paint Material
+46843,Painting Sundries
 46845,Electrical Works
 46846,Waterproofing Sundries
 46847,Immigration Fees
@@ -21565,7 +21565,7 @@ PO #,Class Description
 46891,Site Consumables
 46892,Site Consumables
 46893,
-46894,Joinery
+46894,Ironmongry
 46895,Finishing Sundries
 46896,Waterproofing Sundries
 46897,Rebar
@@ -21602,7 +21602,7 @@ PO #,Class Description
 46929,Plumbing & Drainage Sundries
 46930,Sanitary Ware
 46931,Plumbing & Drainage Sundries
-46932,Office Consumables
+46932,Site Consumables
 46933,Other Expenses
 46934,Fees
 46935,Refreshments
@@ -21695,7 +21695,7 @@ PO #,Class Description
 47022,Site Consumables
 47023,Manholes/Gratings
 47024,Sand
-47025,Shuttering Carpentry Sundries
+47025,Finishing Sundries
 47026,HSE
 47027,Refreshments
 47028,Tiling Work
@@ -21874,7 +21874,7 @@ PO #,Class Description
 47204,Plant
 47205,Plant
 47206,Plant
-47207,Shuttering Carpentry Sundries
+47207,Finishing Sundries
 47208,Site Consumables
 47209,Waterproofing Sundries
 47210,Painting Sundries
@@ -22015,7 +22015,7 @@ PO #,Class Description
 47353,Vehicle & Equipment
 47354,Vehicle & Equipment
 47355,Plaster Work Sundries
-47356,Paint Material
+47356,Painting Sundries
 47357,Plant
 47358,Plant
 47359,Water Supply
@@ -22023,9 +22023,9 @@ PO #,Class Description
 47361,Vehicle & Equipment
 47362,Finishing Sundries
 47363,Other Expenses
-47364,Sanitary Ware
-47365,Sanitary Ware
-47366,Sanitary Ware
+47364,Site Consumables
+47365,Site Consumables
+47366,Site Consumables
 47367,Electrician
 47368,Metal Works
 47369,Diesel & Petrol
@@ -22118,7 +22118,7 @@ PO #,Class Description
 47457,Vehicle & Equipment
 47458,Refreshments
 47459,Water Supply
-47460,Pipes
+47460,Plumbing & Drainage Sundries
 47461,Vehicle & Equipment
 47462,Site Consumables
 47463,Other Expenses
@@ -22184,7 +22184,7 @@ PO #,Class Description
 47525,HSE
 47526,Light Fittings
 47527,Site Consumables
-47528,Plumbing & Drainage Sundries
+47528,Site Consumables
 47529,Electrical Sundries
 47530,Finishing Sundries
 47531,Shuttering Carpentry Sundries
@@ -22278,7 +22278,7 @@ PO #,Class Description
 47626,Plumbing & Drainage Sundries
 47627,Light Fittings
 47628,HSE
-47629,Shuttering Carpentry Sundries
+47629,Finishing Sundries
 47630,Waterproofing Sundries
 47631,Vehicle & Equipment
 47632,Tiling Work
@@ -22328,7 +22328,7 @@ PO #,Class Description
 47683,Site Consumables
 47684,Site Consumables
 47685,Block Work Sundries
-47686,Plumbing & Drainage Sundries
+47686,Site Consumables
 47688,Site Consumables
 47689,Air Condition Material
 47690,Plumbing & Drainage Sundries
@@ -22377,7 +22377,7 @@ PO #,Class Description
 47734,Administrative Fees
 47735,Electrical Sundries
 47736,Administrative Fees
-47737,Joinery
+47737,Ironmongry
 47738,Water Supply
 47739,Administrative Fees
 47740,Other Expenses
@@ -22409,9 +22409,9 @@ PO #,Class Description
 47768,Electrician
 47769,Paint Material
 47770,Finishing Sundries
-47771,Plumbing & Drainage Sundries
+47771,Site Consumables
 47772,Vehicle & Equipment
-47773,Plumbing & Drainage Sundries
+47773,Site Consumables
 47774,Shuttering Carpentry Sundries
 47775,HSE
 47776,Site Consumables
@@ -22643,7 +22643,7 @@ PO #,Class Description
 48008,Vehicle & Equipment
 48009,Furniture / Equipments
 48010,Plumbing & Drainage Sundries
-48011,Plumbing & Drainage Sundries
+48011,Site Consumables
 48012,Site Consumables
 48013,Electrical Sundries
 48014,Cables & Wires
@@ -22834,7 +22834,7 @@ PO #,Class Description
 48209,Concrete
 48210,Other Expenses
 48211,Paint Material
-48212,Office Consumables
+48212,Site Consumables
 48213,Site Consumables
 48214,Site Consumables
 48215,Plaster Work Sundries
@@ -22864,7 +22864,7 @@ PO #,Class Description
 48239,Electrical Sundries
 48240,Finishing Sundries
 48241,
-48242,Shuttering Carpentry Sundries
+48242,Finishing Sundries
 48243,Furniture / Equipments
 48244,Furniture / Equipments
 48245,Miscellaneous..
@@ -22968,7 +22968,7 @@ PO #,Class Description
 48350,Other Expenses
 48351,Sanitary Ware
 48353,Plumbing & Drainage Sundries
-48354,Plumbing & Drainage Sundries
+48354,Site Consumables
 48355,Site Consumables
 48356,Plumbing & Drainage Sundries
 48357,Vehicle & Equipment
@@ -23001,7 +23001,7 @@ PO #,Class Description
 48385,Vehicle & Equipment
 48386,Finishing Sundries
 48387,Miscellaneous
-48388,Pipes
+48388,Plumbing & Drainage Sundries
 48389,Switchgear
 48390,Administrative Fees
 48391,Administrative Fees
@@ -23212,7 +23212,7 @@ PO #,Class Description
 48606,Electrical Sundries
 48608,Plumbing
 48609,Site Consumables
-48610,Plumbing & Drainage Sundries
+48610,Site Consumables
 48611,Vehicle & Equipment
 48612,Painting Sundries
 48613,Other Expenses
@@ -23279,7 +23279,7 @@ PO #,Class Description
 48674,Electrical Sundries
 48675,Site Consumables
 48676,Site Consumables
-48677,Shuttering Carpentry Sundries
+48677,Finishing Sundries
 48678,Site Consumables
 48679,Site Consumables
 48680,Paint Material
@@ -23307,7 +23307,7 @@ PO #,Class Description
 48702,Plumbing & Drainage Sundries
 48703,HSE
 48704,Precast Concrete
-48705,Joinery
+48705,Ironmongry
 48706,Fees
 48707,HVAC
 48708,Electrical Sundries
@@ -23662,7 +23662,7 @@ PO #,Class Description
 49069,Plumbing & Drainage
 49070,Vehicle & Equipment
 49071,Vehicle & Equipment
-49072,Plumbing & Drainage Sundries
+49072,Site Consumables
 49073,Office Expenses
 49074,Rebar
 49075,Water Supply
@@ -23693,7 +23693,7 @@ PO #,Class Description
 49104,HSE
 49105,Site Consumables
 49106,HSE
-49107,Plumbing & Drainage Sundries
+49107,Site Consumables
 49108,Epoxy
 49109,Site Consumables
 49110,Paint Material
@@ -23846,7 +23846,7 @@ PO #,Class Description
 49263,Electrical Sundries
 49264,Paint Material
 49265,Site Consumables
-49266,Plumbing & Drainage Sundries
+49266,Site Consumables
 49267,Office Consumables
 49268,Concrete
 49269,Finishing Sundries
@@ -23890,7 +23890,7 @@ PO #,Class Description
 49308,Parts
 49309,Electrical Sundries
 49310,Plumbing & Drainage Sundries
-49311,Plumbing & Drainage Sundries
+49311,Site Consumables
 49312,Office Consumables
 49313,Site Consumables
 49315,Waterproofing.
@@ -24064,7 +24064,7 @@ PO #,Class Description
 49499,Site Consumables
 49500,Site Consumables
 49501,Site Consumables
-49502,Shuttering Carpentry Sundries
+49502,Finishing Sundries
 49503,Site Consumables
 49504,Finishing Sundries
 49505,Site Consumables
@@ -24233,7 +24233,7 @@ PO #,Class Description
 49680,Electrical Sundries
 49681,Parts
 49682,Electrical Sundries
-49683,Plumbing & Drainage Sundries
+49683,Site Consumables
 49684,Plumbing & Drainage Sundries
 49685,Electrical Sundries
 49686,Electrical Sundries
@@ -24410,7 +24410,7 @@ PO #,Class Description
 49863,Sanitary Ware
 49864,Epoxy
 49865,Garbage removal
-49866,Shuttering Carpentry Sundries
+49866,Finishing Sundries
 49867,Site Consumables
 49868,Parts
 49869,Blinds
@@ -24739,7 +24739,7 @@ PO #,Class Description
 50208,Sand
 50209,Refreshments
 50210,Vehicle & Equipment
-50211,Plumbing & Drainage Sundries
+50211,Site Consumables
 50212,Electrical Sundries
 50213,Plumbing & Drainage Sundries
 50214,Office Expenses
@@ -24770,7 +24770,7 @@ PO #,Class Description
 50241,Parts
 50242,Water Supply
 50243,Electrical Sundries
-50244,Shuttering Carpentry Sundries
+50244,Finishing Sundries
 50245,HSE
 50246,Site Consumables
 50247,Tools & Parts
@@ -24881,7 +24881,7 @@ PO #,Class Description
 50359,Tools & Parts
 50360,Furniture / Equipments
 50361,Medical Fees
-50362,Plumbing & Drainage Sundries
+50362,Site Consumables
 50363,Epoxy
 50364,Electrical Sundries
 50365,HSE
@@ -24958,7 +24958,7 @@ PO #,Class Description
 50437,HSE
 50438,Ceramic & Porcelain
 50440,Miscellaneous
-50441,Shuttering Carpentry Sundries
+50441,Finishing Sundries
 50442,Other Expenses
 50443,Metal Works Sundries
 50445,Electrician
@@ -25552,7 +25552,7 @@ PO #,Class Description
 51060,Electrical Sundries
 51061,Site Consumables
 51062,Formwork
-51063,Paint Material
+51063,Painting Sundries
 51064,Refreshments
 51065,Finishing Sundries
 51066,Electrical Sundries
@@ -25614,7 +25614,7 @@ PO #,Class Description
 51129,Plant
 51130,Vehicle & Equipment
 51131,Plumbing & Drainage Sundries
-51132,Shuttering Carpentry Sundries
+51132,Finishing Sundries
 51133,Site Consumables
 51134,HSE
 51135,Refreshments
@@ -25995,9 +25995,9 @@ PO #,Class Description
 51520,Office Consumables
 51521,Site Consumables
 51522,Plumbing & Drainage Sundries
-51523,Plumbing & Drainage Sundries
+51523,Site Consumables
 51524,Sanitary Ware
-51525,Plumbing & Drainage Sundries
+51525,Site Consumables
 51526,Office Consumables
 51527,Electrical Sundries
 51528,Plumbing & Drainage Sundries
@@ -26226,7 +26226,7 @@ PO #,Class Description
 51761,Medical Fees
 51762,Office Expenses
 51764,Site Consumables
-51765,Plumbing & Drainage Sundries
+51765,Site Consumables
 51766,Paint Material
 51767,Charge
 51768,Vehicle & Equipment
@@ -26378,7 +26378,7 @@ PO #,Class Description
 51915,HVAC
 51916,Plumbing & Drainage Sundries
 51917,Vehicle & Equipment
-51918,Joinery
+51918,Ironmongry
 51919,Furniture / Equipments
 51920,Other Expenses
 51921,Paint Material
@@ -26420,7 +26420,7 @@ PO #,Class Description
 51959,HSE
 51960,Water Supply
 51961,Electrical Sundries
-51962,Shuttering Carpentry Sundries
+51962,Finishing Sundries
 51963,Site Consumables
 51964,Fees
 51965,Plumbing & Drainage Sundries
@@ -26915,7 +26915,7 @@ PO #,Class Description
 52460,Electrical Works
 52461,Water Supply
 52462,Paint Material
-52463,Plumbing & Drainage Sundries
+52463,Site Consumables
 52464,Office Expenses
 52465,HSE
 52467,Sand
@@ -26999,7 +26999,7 @@ PO #,Class Description
 52545,Site Consumables
 52546,Pumps
 52547,Vehicle Related Fees
-52548,Joinery
+52548,Ironmongry
 52549,Site Consumables
 52550,Site Consumables
 52551,Site Consumables
@@ -27140,7 +27140,7 @@ PO #,Class Description
 52690,Site Consumables
 52691,Vehicle & Equipment
 52692,Fees
-52693,Plumbing & Drainage Sundries
+52693,Site Consumables
 52694,Refreshments
 52695,Painting Works
 52696,Site Consumables
@@ -27279,7 +27279,7 @@ PO #,Class Description
 52832,Ironmongry
 52833,Other Expenses
 52834,HSE
-52835,Garbage removal
+52835,
 52836,Vehicle & Equipment
 52837,Tyres
 52838,Miscellaneous
@@ -27299,7 +27299,7 @@ PO #,Class Description
 52852,Painting Sundries
 52853,HSE
 52854,Metal Works
-52855,Sand
+52855,
 52856,Plumbing & Drainage Sundries
 52857,HSE
 52858,Other Expenses
@@ -27314,7 +27314,7 @@ PO #,Class Description
 52867,Electrical Sundries
 52868,Finishing Sundries
 52869,Other Expenses
-52870,Pumps
+52870,
 52871,Excavation
 52872,Site Consumables
 52873,Office Expenses
@@ -27334,7 +27334,7 @@ PO #,Class Description
 52887,Site Consumables
 52888,ELV
 52889,
-52890,Cement
+52890,
 52891,HVAC
 52892,Shuttering Carpentry Sundries
 52893,Site Consumables
@@ -27433,7 +27433,7 @@ PO #,Class Description
 52998,Site Related Fees
 52999,Plumbing & Drainage Sundries
 53000,Painting Sundries
-53001,Paint Material
+53001,Painting Sundries
 53002,HSE
 53003,HSE
 53004,Miscellaneous
@@ -27593,7 +27593,7 @@ PO #,Class Description
 53161,Site Consumables
 53162,Immigration Fees
 53163,Immigration Fees
-53164,Fuel Tank Works
+53164,
 53165,Immigration Fees
 53166,Generators
 53167,Other Expenses
@@ -27775,7 +27775,7 @@ PO #,Class Description
 53346,Plaster Work Sundries
 53347,Finishing Sundries
 53348,Anti termite control
-53349,Fees
+53349,
 53350,Electrical Sundries
 53351,Office Consumables
 53352,Office Consumables
@@ -27908,8 +27908,8 @@ PO #,Class Description
 53481,Tyres
 53482,Water Supply
 53483,Plumbing & Drainage Sundries
-53484,Plumbing & Drainage Sundries
-53485,Plumbing & Drainage Sundries
+53484,Site Consumables
+53485,Site Consumables
 53486,Office Consumables
 53487,Consumables
 53488,Formwork
@@ -28179,9 +28179,9 @@ PO #,Class Description
 53757,Cement
 53758,Site Consumables
 53759,
-53760,Shuttering Carpentry Sundries
+53760,Finishing Sundries
 53761,
-53762,Geotechnical Report
+53762,
 53763,HVAC
 53764,HSE
 53765,HSE
@@ -28207,7 +28207,6 @@ PO #,Class Description
 53795,Cladding Work
 53796,Rebar
 53797,Rebar
-53798,
 53799,Other Expenses
 53800,Electrical Sundries
 53801,MEP Materials
@@ -28287,7 +28286,7 @@ PO #,Class Description
 53878,Administrative Fees
 53879,Other Expenses
 53880,Medical Fees
-53881,Plumbing & Drainage Sundries
+53881,Site Consumables
 53882,Plaster Work Sundries
 53883,
 53884,Site Consumables
@@ -28304,7 +28303,7 @@ PO #,Class Description
 53895,Other Expenses
 53896,Site Consumables
 53897,Site Consumables
-53898,Plumbing & Drainage Sundries
+53898,Site Consumables
 53899,Garbage removal
 53900,Site Consumables
 53901,Waterproofing Sundries
@@ -28416,7 +28415,7 @@ PO #,Class Description
 54012,Electrical Sundries
 54013,Water Supply
 54014,Consulting Fees
-54015,Plumbing & Drainage Sundries
+54015,Site Consumables
 54016,Paint Material
 54017,Site Consumables
 54018,Vehicle & Equipment
@@ -28603,7 +28602,7 @@ PO #,Class Description
 54208,HSE
 54209,HSE
 54210,HSE
-54211,Block Work Sundries
+54211,Concrete
 54212,HSE
 54213,Plumbing & Drainage Sundries
 54214,Office Expenses
@@ -28614,7 +28613,7 @@ PO #,Class Description
 54219,Vehicle & Equipment
 54220,Vehicle & Equipment
 54221,Vehicle & Equipment
-54222,Consulting Fees
+54222,
 54223,
 54224,Fees
 54225,Consumables
@@ -28781,7 +28780,7 @@ PO #,Class Description
 54396,Vehicle & Equipment
 54397,Geotechnical Report
 54398,Geotechnical Report
-54399,Cement
+54399,
 54400,Waterproofing Sundries
 54401,Office Expenses
 54402,HSE
@@ -28881,7 +28880,6 @@ PO #,Class Description
 54499,Site Consumables
 54500,Vehicle & Equipment
 54501,Office Consumables
-54502,
 54503,HSE
 54504,HSE
 54505,Painting Sundries
@@ -28912,9 +28910,9 @@ PO #,Class Description
 54531,Parts
 54532,Miscellaneous
 54533,Office Expenses
-54534,Shuttering Carpentry Sundries
+54534,Finishing Sundries
 54535,HSE
-54536,Shuttering Carpentry Sundries
+54536,Finishing Sundries
 54537,
 54538,Site Consumables
 54539,Electrical Sundries
@@ -28945,9 +28943,9 @@ PO #,Class Description
 54564,Electrical Sundries
 54565,Waterproofing Sundries
 54566,Metal Works Sundries
-54567,Electrical Sundries
-54568,Site Consumables
-54569,Site Consumables
+54567,
+54568,
+54569,
 54570,Site Consumables
 54571,Vehicle & Equipment
 54572,Site Consumables
@@ -29020,7 +29018,7 @@ PO #,Class Description
 54640,Rebar
 54641,Waterproofing Sundries
 54642,Metal Works Sundries
-54643,Cement
+54643,
 54644,Medical Fees
 54645,Immigration Fees
 54646,Immigration Fees
@@ -29047,7 +29045,7 @@ PO #,Class Description
 54667,Water Supply
 54668,Office Consumables
 54669,Vehicle & Equipment
-54670,Plumbing & Drainage Sundries
+54670,Site Consumables
 54671,Site Consumables
 54672,Cables & Wires
 54673,Refreshments
@@ -29058,7 +29056,7 @@ PO #,Class Description
 54679,Site Consumables
 54680,Vehicle & Equipment
 54681,Vehicle & Equipment
-54682,Plumbing & Drainage Sundries
+54682,Site Consumables
 54683,Plumbing & Drainage Sundries
 54684,Office Consumables
 54685,Electrical Sundries
@@ -29111,7 +29109,7 @@ PO #,Class Description
 54735,Shuttering Carpentry Sundries
 54736,Fire Alarm
 54737,Paint Material
-54739,Paint Material
+54739,Painting Sundries
 54740,Site Consumables
 54741,Vehicle & Equipment
 54742,Legal Fees
@@ -29165,11 +29163,10 @@ PO #,Class Description
 54792,Refreshments
 54793,Vehicle & Equipment
 54794,Vehicle & Equipment
-54795,Vehicle & Equipment
+54795,
 54796,Immigration Fees
 54797,Reinforcement Sundries
 54798,Finishing Sundries
-54799,
 54800,Block
 54801,Site Consumables
 54802,Sand
@@ -29224,7 +29221,7 @@ PO #,Class Description
 54851,Other Expenses
 54852,Parts
 54853,Tyres
-54854,Site Consumables
+54854,
 54855,Site Consumables
 54856,Vehicle & Equipment
 54857,Site Consumables
@@ -29363,7 +29360,6 @@ PO #,Class Description
 54991,Sanitary Ware
 54992,Water Supply
 54993,Site Consumables
-54994,Site Consumables
 54995,Site Consumables
 54996,Site Consumables
 54997,Tyres
@@ -29407,7 +29403,7 @@ PO #,Class Description
 55036,Office Consumables
 55037,Cables & Wires
 55038,Parts
-55039,Electrical Sundries
+55039,
 55040,Electrical Sundries
 55041,
 55042,Waterproofing Sundries
@@ -29548,7 +29544,7 @@ PO #,Class Description
 55180,Painting Sundries
 55181,Electrical Sundries
 55182,Office Consumables
-55183,Plumbing & Drainage Sundries
+55183,Site Consumables
 55184,Plaster Work Sundries
 55185,Electrical Sundries
 55186,Site Consumables
@@ -29666,7 +29662,7 @@ PO #,Class Description
 55299,Cement
 55300,Vehicle & Equipment
 55301,Light Fittings
-55302,Plumbing & Drainage Sundries
+55302,Site Consumables
 55303,ELV
 55304,ELV
 55305,ELV
@@ -29718,7 +29714,6 @@ PO #,Class Description
 55353,Refreshments
 55354,Diesel & Petrol
 55355,Site Related Fees
-55356,Administrative Fees
 55357,Administrative Fees
 55358,Administrative Fees
 55359,Administrative Fees
@@ -29760,7 +29755,6 @@ PO #,Class Description
 55395,Other Expenses
 55396,
 55397,Block
-55398,Other Expenses
 55399,Office Consumables
 55400,Appliances
 55401,HSE
@@ -29902,7 +29896,7 @@ PO #,Class Description
 55542,Vehicle & Equipment
 55543,Electrical Sundries
 55544,Fire Alarm
-55545,Plumbing & Drainage Sundries
+55545,Site Consumables
 55546,Plaster Work Sundries
 55547,Paint Material
 55549,Block Work
@@ -29986,7 +29980,6 @@ PO #,Class Description
 55628,Site Consumables
 55629,Painting Sundries
 55630,HSE
-55631,
 55632,Office Consumables
 55633,Vehicle & Equipment
 55634,Site Consumables
@@ -30056,7 +30049,7 @@ PO #,Class Description
 55698,Consulting Fees
 55699,Metal Works Sundries
 55700,Vehicle & Equipment
-55701,Plumbing & Drainage Sundries
+55701,Site Consumables
 55702,Vehicle & Equipment
 55703,Joinery
 55704,HSE
@@ -30150,7 +30143,7 @@ PO #,Class Description
 55796,Electrical Sundries
 55797,Office Expenses
 55798,Plumbing & Drainage Sundries
-55800,HSE
+55800,
 55801,Paint Material
 55802,
 55803,Vehicle & Equipment
@@ -30193,14 +30186,14 @@ PO #,Class Description
 55840,Site Consumables
 55841,Plumbing & Drainage Sundries
 55842,Site Consumables
-55843,Other Expenses
+55843,
 55844,Plaster Work Sundries
 55845,HSE
 55846,HSE
 55847,Other Expenses
 55848,
 55849,
-55850,Shuttering Carpentry Sundries
+55850,Finishing Sundries
 55851,Paint Material
 55852,
 55853,Plumbing
@@ -30338,7 +30331,7 @@ PO #,Class Description
 55985,Finishing Sundries
 55986,Water Supply
 55987,Waterproofing Sundries
-55988,Shuttering Carpentry Sundries
+55988,Finishing Sundries
 55989,Site Consumables
 55990,Site Consumables
 55991,Granite & Marble
@@ -30451,7 +30444,7 @@ PO #,Class Description
 56103,Fees
 56104,Air Condition Material
 56105,Refreshments
-56106,Plumbing & Drainage Sundries
+56106,Site Consumables
 56107,Plumbing & Drainage Sundries
 56108,Electrical Sundries
 56109,Insurance Fees
@@ -30480,7 +30473,7 @@ PO #,Class Description
 56132,Plumbing & Drainage Sundries
 56133,Finishing Sundries
 56134,Finishing Sundries
-56135,Plumbing & Drainage
+56135,Site Consumables
 56136,Metal Works Sundries
 56137,Other Expenses
 56138,Site Related Fees
@@ -30734,7 +30727,7 @@ PO #,Class Description
 56396,Parts
 56397,HSE
 56398,Vehicle & Equipment
-56399,Electrical Sundries
+56399,Site Consumables
 56400,Shuttering Carpentry Sundries
 56401,Electrical Sundries
 56402,Joinery
@@ -30746,7 +30739,7 @@ PO #,Class Description
 56409,Finishing Sundries
 56410,Charge
 56411,Site Consumables
-56412,Plumbing & Drainage
+56412,Site Consumables
 56413,Site Consumables
 56414,Other Expenses
 56415,Electrical Sundries
@@ -30766,7 +30759,7 @@ PO #,Class Description
 56429,Parts
 56430,Parts
 56431,Office Expenses
-56432,Shuttering Carpentry Sundries
+56432,
 56433,Site Consumables
 56434,Furniture / Equipments
 56435,Appliances
@@ -31073,7 +31066,7 @@ PO #,Class Description
 56743,Insurance Fees
 56744,Insurance Fees
 56745,Site Consumables
-56746,Shuttering Carpentry Sundries
+56746,Finishing Sundries
 56747,Vehicle & Equipment
 56748,Cement
 56749,MEP Materials
@@ -31157,10 +31150,10 @@ PO #,Class Description
 56829,Shuttering Carpentry Sundries
 56830,Parts
 56831,Site Consumables
-56832,Vehicle & Equipment
+56832,
 56833,HSE
 56834,Vehicle & Equipment
-56835,Plumbing & Drainage Sundries
+56835,Site Consumables
 56836,Metal Works
 56837,Consumables
 56838,Paint Material
@@ -31222,7 +31215,7 @@ PO #,Class Description
 56894,HSE
 56895,Charge
 56896,Fees
-56897,Paint Material
+56897,Painting Sundries
 56898,Vehicle & Equipment
 56899,Electrical Sundries
 56900,Plumbing & Drainage Sundries
@@ -31253,7 +31246,7 @@ PO #,Class Description
 56925,Office Consumables
 56926,Tyres
 56927,Parts
-56928,Plumbing & Drainage Sundries
+56928,Site Consumables
 56929,Pumps
 56930,Garbage removal
 56931,Parts
@@ -31440,7 +31433,7 @@ PO #,Class Description
 57117,
 57118,Electrical Sundries
 57119,Plaster Work Sundries
-57120,Plumbing & Drainage Sundries
+57120,Site Consumables
 57121,Air Condition Material
 57122,Coring Works
 57123,Site Consumables
@@ -31604,7 +31597,7 @@ PO #,Class Description
 57289,Other Expenses
 57290,Granite & Marble
 57291,Other Expenses
-57292,Other Expenses
+57292,
 57293,Other Expenses
 57294,
 57295,HSE
@@ -31973,7 +31966,7 @@ PO #,Class Description
 57676,Site Consumables
 57677,Incentives
 57678,Softscape (Landscape)
-57679,Shuttering Carpentry Sundries
+57679,Finishing Sundries
 57680,Rebar
 57681,Block Work Sundries
 57682,
@@ -32002,7 +31995,7 @@ PO #,Class Description
 57708,Office Consumables
 57709,Electrical Sundries
 57710,Site Consumables
-57711,Signages
+57711,
 57712,Vehicle & Equipment
 57713,Vehicle & Equipment
 57714,Finishing Sundries
@@ -32021,7 +32014,7 @@ PO #,Class Description
 57727,Site Consumables
 57728,Office Consumables
 57729,HSE
-57730,Office Consumables
+57730,Site Consumables
 57731,Electrical Sundries
 57732,Site Consumables
 57733,Office Consumables
@@ -32034,7 +32027,7 @@ PO #,Class Description
 57740,Other Expenses
 57741,Air Condition Material
 57742,Consumables
-57743,Formwork
+57743,
 57744,Parts
 57745,Rebar
 57746,Tanks
@@ -32175,7 +32168,7 @@ PO #,Class Description
 57891,Vehicle & Equipment
 57892,Vehicle & Equipment
 57893,Formwork
-57894,Block Work Sundries
+57894,Concrete
 57895,Fees
 57896,HVAC
 57898,Electrical Works
@@ -32234,7 +32227,7 @@ PO #,Class Description
 57954,Tools & Parts
 57955,Plumbing & Drainage Sundries
 57956,Plumbing & Drainage Sundries
-57957,Vehicle & Equipment
+57957,
 57958,Site Consumables
 57959,Office Expenses
 57961,Vehicle & Equipment
@@ -32292,7 +32285,7 @@ PO #,Class Description
 58016,
 58017,Precast Concrete
 58018,Electrical Sundries
-58019,Shuttering Carpentry Sundries
+58019,Finishing Sundries
 58020,Water Supply
 58021,
 58022,HSE
@@ -32411,7 +32404,7 @@ PO #,Class Description
 58142,Parts
 58143,Electrical Sundries
 58144,Ceramic & Porcelain
-58145,HSE
+58145,
 58146,Electrical Sundries
 58147,Parts
 58148,Site Consumables
@@ -32443,7 +32436,7 @@ PO #,Class Description
 58174,Ceramic & Porcelain
 58175,Refreshments
 58176,Painting Sundries
-58177,Health & Safety
+58177,HSE
 58178,Site Related Fees
 58179,Painting Sundries
 58180,Sanitary Ware
@@ -32532,9 +32525,9 @@ PO #,Class Description
 58267,Site Consumables
 58268,HVAC
 58269,
-58270,Electrical Sundries
+58270,Site Consumables
 58271,HSE
-58272,Plumbing & Drainage Sundries
+58272,Site Consumables
 58273,Site Consumables
 58274,Other Expenses
 58275,Ceramic & Porcelain
@@ -32582,7 +32575,6 @@ PO #,Class Description
 58318,Consumables
 58319,Consumables
 58320,
-58321,Formwork
 58322,Consumables
 58323,
 58324,Consumables
@@ -32858,7 +32850,7 @@ PO #,Class Description
 58605,Paint Material
 58606,Office Consumables
 58607,Vehicle & Equipment
-58608,Shuttering Carpentry Sundries
+58608,Finishing Sundries
 58609,Paint Material
 58610,
 58611,Electrical Sundries
@@ -32871,7 +32863,7 @@ PO #,Class Description
 58618,
 58619,Vehicle & Equipment
 58620,Finishing Sundries
-58621,Electrical Sundries
+58621,Site Consumables
 58622,
 58623,Paint Material
 58624,
@@ -33037,7 +33029,7 @@ PO #,Class Description
 58795,Fees
 58796,Reinforcement Sundries
 58797,Steel Fabrication Work
-58798,Office Expenses
+58798,
 58799,Metal Works
 58800,Site Consumables
 58801,Site Consumables
@@ -33087,7 +33079,7 @@ PO #,Class Description
 58846,Site Consumables
 58847,Office Consumables
 58848,Site Consumables
-58849,Shuttering Carpentry Sundries
+58849,Finishing Sundries
 58850,Site Consumables
 58851,Water Supply
 58852,Water Supply
@@ -33124,7 +33116,7 @@ PO #,Class Description
 58883,Sanitary Ware
 58884,Painting Work
 58885,Tiling Work
-58886,Waterproofing Sundries
+58886,
 58887,Plaster Work
 58888,Plaster Work
 58889,Skilled Labour
@@ -33240,12 +33232,12 @@ PO #,Class Description
 59001,HSE
 59002,Site Consumables
 59003,Other Expenses
-59004,Shuttering Carpentry Sundries
+59004,Finishing Sundries
 59005,Paint Material
 59006,Painting Sundries
 59007,Electrical Sundries
 59008,Reinforcement Sundries
-59009,Joinery
+59009,Ironmongry
 59010,Cables & Wires
 59011,Signage
 59012,Manholes/Gratings
@@ -33355,7 +33347,7 @@ PO #,Class Description
 59122,Medical Fees
 59123,Immigration Fees
 59124,Immigration Fees
-59125,
+59125,Immigration Fees
 59127,Electrical Sundries
 59128,Site Consumables
 59129,HVAC
@@ -33436,7 +33428,7 @@ PO #,Class Description
 59205,Finishing Sundries
 59207,Vehicle & Equipment
 59208,Site Consumables
-59209,Shuttering Carpentry Sundries
+59209,Finishing Sundries
 59210,Tools & Parts
 59211,Site Consumables
 59212,Paint Material
@@ -33597,7 +33589,7 @@ PO #,Class Description
 59377,Vehicle & Equipment
 59378,Gypsum Work
 59379,Site Consumables
-59380,Pipes
+59380,Plumbing & Drainage Sundries
 59381,Site Consumables
 59383,Miscellaneous
 59384,Vehicle & Equipment
@@ -33829,7 +33821,7 @@ PO #,Class Description
 59619,Site Consumables
 59620,Site Consumables
 59621,Painting Sundries
-59622,Shuttering Carpentry Sundries
+59622,Finishing Sundries
 59623,Electrical Sundries
 59624,Parts
 59625,Plaster Work Sundries
@@ -33869,7 +33861,7 @@ PO #,Class Description
 59685,Finishing Sundries
 59686,Vehicle & Equipment
 59687,Vehicle & Equipment
-59688,Joinery
+59688,Ironmongry
 59689,Charge
 59690,Other Expenses
 59691,Anti termite control
@@ -33963,7 +33955,7 @@ PO #,Class Description
 59784,Electrical Sundries
 59785,Metal Works
 59786,Electrical Sundries
-59787,Plumbing & Drainage Sundries
+59787,Site Consumables
 59788,Office Consumables
 59789,Water Supply
 59790,Steel Fabrication Work
@@ -34157,7 +34149,6 @@ PO #,Class Description
 59987,Plaster Work Sundries
 59988,Site Consumables
 59989,Other Expenses
-59990,
 59991,HSE
 59992,Diesel & Petrol
 59993,HVAC
@@ -34401,7 +34392,7 @@ PO #,Class Description
 60239,Internal Work
 60241,Site Consumables
 60242,Finishing Sundries
-60243,Plumbing & Drainage Sundries
+60243,Site Consumables
 60244,Formwork
 60245,Site Consumables
 60246,Other Expenses
@@ -34459,7 +34450,6 @@ PO #,Class Description
 60299,HSE
 60300,Formwork
 60301,Plumbing & Drainage Sundries
-60302,
 60303,Other Expenses
 60304,Cement
 60305,Parts
@@ -34631,7 +34621,7 @@ PO #,Class Description
 60480,
 60481,Cement
 60482,Finishing Sundries
-60483,Vehicle & Equipment
+60483,
 60484,Office Consumables
 60485,Office Consumables
 60486,Plaster Work Sundries
@@ -34649,7 +34639,7 @@ PO #,Class Description
 60498,
 60499,ELV
 60500,Plant
-60501,Plumbing & Drainage Sundries
+60501,Site Consumables
 60503,Office Expenses
 60504,Skilled Labour
 60505,Site Consumables
@@ -34682,7 +34672,7 @@ PO #,Class Description
 60534,Charge
 60535,Charge
 60536,Electrical Sundries
-60537,Plumbing & Drainage Sundries
+60537,Site Consumables
 60538,
 60539,Parts
 60540,
@@ -34753,7 +34743,7 @@ PO #,Class Description
 60608,Tanks
 60609,Other Expenses
 60610,Granite & Marble
-60611,Vehicle & Equipment
+60611,
 60612,Site Related Fees
 60613,Plant
 60614,Vehicle & Equipment
@@ -34775,7 +34765,7 @@ PO #,Class Description
 60630,HVAC
 60631,
 60632,Finishing Sundries
-60634,Site Consumables
+60634,
 60635,Charge
 60636,Sanitary Ware
 60638,Parts
@@ -34834,7 +34824,6 @@ PO #,Class Description
 60693,Excavation
 60694,Other Expenses
 60695,Finishing Sundries
-60696,
 60697,HSE
 60698,Shuttering Carpentry Sundries
 60699,Vehicle & Equipment
@@ -34854,7 +34843,7 @@ PO #,Class Description
 60714,Driver
 60715,Shuttering Carpentry Sundries
 60716,Electrical Sundries
-60717,Parts
+60717,
 60718,Vehicle & Equipment
 60719,Signage
 60720,Parts
@@ -34874,7 +34863,7 @@ PO #,Class Description
 60735,Fees
 60736,Refreshments
 60737,Electrical Sundries
-60738,Joinery
+60738,Ironmongry
 60739,Cement
 60740,Plumbing & Drainage Sundries
 60741,Rebar
@@ -35098,7 +35087,7 @@ PO #,Class Description
 60975,Diesel & Petrol
 60976,Painting Works
 60977,Plumbing & Drainage Sundries
-60978,Plumbing & Drainage Sundries
+60978,Site Consumables
 60979,Site Consumables
 60981,Joinery
 60982,Plumbing & Drainage Sundries
@@ -35136,7 +35125,7 @@ PO #,Class Description
 61016,Water Supply
 61017,Refreshments
 61018,Vehicle & Equipment
-61019,Plumbing & Drainage Sundries
+61019,Site Consumables
 61020,Fees
 61021,HVAC
 61023,Water Supply
@@ -35373,7 +35362,7 @@ PO #,Class Description
 61263,Site Consumables
 61264,
 61265,Site Consumables
-61266,Paint Material
+61266,Painting Sundries
 61267,Light Fittings
 61268,Parts
 61269,Office Consumables
@@ -35396,7 +35385,7 @@ PO #,Class Description
 61289,Furniture / Equipments
 61290,Refreshments
 61291,Site Consumables
-61292,Shuttering Carpentry Sundries
+61292,Finishing Sundries
 61293,Formwork
 61294,Consulting Fees
 61295,Consulting Fees
@@ -35521,7 +35510,7 @@ PO #,Class Description
 61418,Sanitary Ware
 61419,Water Supply
 61420,Sanitary Ware
-61421,Plumbing & Drainage Sundries
+61421,Site Consumables
 61422,Water Supply
 61423,Water Supply
 61424,Consumables
@@ -35531,7 +35520,7 @@ PO #,Class Description
 61429,Anti termite control
 61430,Refreshments
 61431,Rebar
-61432,Shuttering Carpentry Sundries
+61432,Finishing Sundries
 61433,Parts
 61434,Site Consumables
 61435,Charge
@@ -35588,15 +35577,13 @@ PO #,Class Description
 61487,Sanitary Ware
 61488,Office Consumables
 61489,
-61490,
 61491,Site Consumables
-61493,Office Consumables
 61494,
 61495,Water Supply
 61496,Water Supply
 61497,Refreshments
 61498,Geotechnical Report
-61499,Site Related Fees
+61499,
 61500,Formwork
 61501,Site Consumables
 61502,Charge
@@ -35617,7 +35604,7 @@ PO #,Class Description
 61518,Diesel & Petrol
 61520,Diesel & Petrol
 61521,Diesel & Petrol
-61522,Joinery
+61522,Ironmongry
 61523,Diesel & Petrol
 61524,Diesel & Petrol
 61525,Diesel & Petrol
@@ -35655,7 +35642,7 @@ PO #,Class Description
 61559,Metal Works
 61560,Tyres
 61562,HSE
-61563,Electrical Sundries
+61563,Site Consumables
 61564,Cables & Wires
 61565,Site Consumables
 61566,HSE
@@ -35670,7 +35657,7 @@ PO #,Class Description
 61576,Epoxy
 61578,Plaster Work
 61580,Consumables
-61581,Paint Material
+61581,Painting Sundries
 61582,Consumables
 61583,Site Consumables
 61584,Consumables
@@ -35810,7 +35797,7 @@ PO #,Class Description
 61722,Charge
 61723,
 61724,Site Consumables
-61725,Plumbing & Drainage Sundries
+61725,Site Consumables
 61726,Site Consumables
 61727,Swimming Pool
 61729,Parts
@@ -35830,7 +35817,7 @@ PO #,Class Description
 61743,Vehicle & Equipment
 61744,Tiling Work
 61745,Site Consumables
-61746,Paint Material
+61746,Painting Sundries
 61747,Refreshments
 61748,Refreshments
 61749,Light Fittings
@@ -35935,12 +35922,12 @@ PO #,Class Description
 61849,Anti termite control
 61850,Office Consumables
 61851,Site Consumables
-61852,Plumbing & Drainage Sundries
+61852,Site Consumables
 61853,Parts
 61854,Parts
 61855,Electrical Sundries
 61856,Site Consumables
-61857,Plumbing & Drainage Sundries
+61857,Site Consumables
 61858,Water Supply
 61859,Gypsum Work
 61860,Water Supply
@@ -35959,7 +35946,7 @@ PO #,Class Description
 61873,Painting Sundries
 61874,Fees
 61875,Diesel & Petrol
-61876,Plumbing & Drainage Sundries
+61876,Site Consumables
 61877,Consumables
 61878,Office Expenses
 61879,Vehicle & Equipment
@@ -36068,7 +36055,7 @@ PO #,Class Description
 61984,Vehicle & Equipment
 61985,Waterproofing Sundries
 61986,Consumables
-61987,Shuttering Carpentry Sundries
+61987,Finishing Sundries
 61988,Painting Sundries
 61989,Diesel & Petrol
 61990,Tyres
@@ -36275,10 +36262,10 @@ PO #,Class Description
 62196,Site Consumables
 62197,Parts
 62198,Charge
-62199,Shuttering Carpentry Sundries
+62199,Finishing Sundries
 62200,Site Consumables
 62201,Light Fittings
-62202,Plumbing & Drainage Sundries
+62202,Site Consumables
 62203,Site Consumables
 62204,Electrical Sundries
 62205,Vehicle & Equipment
@@ -36322,7 +36309,7 @@ PO #,Class Description
 62244,Pipes
 62245,
 62246,Softscape (Landscape)
-62247,Plumbing & Drainage
+62247,Site Consumables
 62248,Site Consumables
 62249,Softscape (Landscape)
 62250,Charge
@@ -36337,7 +36324,7 @@ PO #,Class Description
 62259,Site Consumables
 62260,Sanitary Ware
 62261,Finishing Sundries
-62262,Block
+62262,
 62263,Electrical Sundries
 62264,Consulting Fees
 62265,Electrical Sundries
@@ -36559,7 +36546,7 @@ PO #,Class Description
 62485,Miscellaneous
 62486,Paint Material
 62487,Metal Works Sundries
-62488,Shuttering Carpentry Sundries
+62488,Finishing Sundries
 62489,Anti termite control
 62491,Charge
 62492,
@@ -36712,9 +36699,8 @@ PO #,Class Description
 62641,Shuttering Carpentry Sundries
 62642,Site Consumables
 62643,Other Expenses
-62644,Health & Safety
+62644,HSE
 62645,Mirrors & Glazing
-62646,Office Expenses
 62647,Other Expenses
 62648,
 62649,Consumables
@@ -36722,7 +36708,6 @@ PO #,Class Description
 62651,Parts
 62652,Vehicle & Equipment
 62653,Vehicle & Equipment
-62654,
 62655,Painting Sundries
 62656,Office Consumables
 62657,Vehicle & Equipment
@@ -36781,7 +36766,7 @@ PO #,Class Description
 62712,Water Supply
 62713,HSE
 62714,Site Consumables
-62715,
+62715,Metal Works
 62716,Plaster Work Sundries
 62717,Fees
 62718,Fees
@@ -36796,7 +36781,7 @@ PO #,Class Description
 62727,Parts
 62728,Parts
 62729,Charge
-62730,Plumbing & Drainage Sundries
+62730,Site Consumables
 62731,Plumbing & Drainage Sundries
 62732,Site Consumables
 62733,Vehicle & Equipment
@@ -36824,7 +36809,7 @@ PO #,Class Description
 62755,HSE
 62756,Furniture / Equipments
 62757,HVAC
-62758,Paint Material
+62758,Painting Sundries
 62759,Site Consumables
 62760,Consumables
 62761,Finishing Sundries
@@ -36919,7 +36904,7 @@ PO #,Class Description
 62853,Site Consumables
 62854,Vehicle & Equipment
 62855,Plumbing & Drainage Sundries
-62856,Plumbing & Drainage Sundries
+62856,Site Consumables
 62857,Site Consumables
 62858,Administrative Fees
 62859,
@@ -37084,14 +37069,14 @@ PO #,Class Description
 63021,Site Consumables
 63022,Miscellaneous
 63023,HSE
-63024,Plumbing & Drainage Sundries
+63024,Site Consumables
 63025,Vehicle & Equipment
 63026,Paint Material
 63027,Light Fittings
 63028,MEP
 63029,Sand
 63030,Dewatering
-63031,Paint Material
+63031,Painting Sundries
 63032,Site Consumables
 63033,Office Consumables
 63034,Tanks
@@ -37135,7 +37120,6 @@ PO #,Class Description
 63073,Consulting Fees
 63074,HSE
 63075,HSE
-63076,HSE
 63077,HSE
 63079,HSE
 63080,Miscellaneous
@@ -37217,7 +37201,6 @@ PO #,Class Description
 63157,Softscape (Landscape)
 63158,Softscape (Landscape)
 63159,
-63160,
 63161,Plaster Work Sundries
 63162,Softscape (Landscape)
 63163,Light Fittings
@@ -37480,10 +37463,10 @@ PO #,Class Description
 63423,Site Consumables
 63424,Finishing Sundries
 63425,Parts
-63426,Shuttering Carpentry Sundries
+63426,Finishing Sundries
 63427,HSE
 63428,HSE
-63429,Gypsum
+63429,
 63430,Granite & Marble
 63431,Mirrors & Glazing
 63432,Cables & Wires
@@ -37545,12 +37528,12 @@ PO #,Class Description
 63489,Cement
 63490,Site Consumables
 63491,Site Consumables
-63492,Shuttering Carpentry Sundries
+63492,Finishing Sundries
 63493,Site Consumables
 63494,Plumbing & Drainage Sundries
 63495,Office Consumables
 63496,Sanitary Ware
-63497,
+63497,Dewatering
 63498,Finishing Sundries
 63499,Waterproofing Sundries
 63500,Site Consumables
@@ -37742,7 +37725,7 @@ PO #,Class Description
 63688,Parts
 63689,
 63690,Swimming Pool
-63691,Paint Material
+63691,Painting Sundries
 63692,Cables & Wires
 63693,Finishing Sundries
 63694,Plumbing & Drainage Sundries
@@ -37784,7 +37767,7 @@ PO #,Class Description
 63730,Ceramic & Porcelain
 63731,Office Consumables
 63732,Charge
-63733,Parts
+63733,
 63734,Plaster Work Sundries
 63735,Fees
 63736,Finishing Sundries
@@ -38113,7 +38096,7 @@ PO #,Class Description
 64067,Office Expenses
 64068,Plumbing & Drainage
 64069,Waterproofing work
-64070,Consulting Fees
+64070,
 64071,Metal Works
 64072,Consumables
 64073,Paint Material
@@ -38170,7 +38153,7 @@ PO #,Class Description
 64125,Site Consumables
 64126,Electrical Sundries
 64127,Site Consumables
-64128,Cables & Wires
+64128,
 64129,Joinery
 64130,Finishing
 64131,Rebar
@@ -38182,7 +38165,7 @@ PO #,Class Description
 64139,Rebar
 64140,HSE
 64141,Parts
-64142,Parts
+64142,
 64143,HSE
 64144,HVAC
 64145,Vehicle & Equipment
@@ -38193,7 +38176,7 @@ PO #,Class Description
 64150,Paint Material
 64151,Sanitary Ware
 64152,
-64153,
+64153,Painting Works
 64154,Tiling Work
 64155,Tiling Work
 64156,Plaster Work
@@ -38218,7 +38201,7 @@ PO #,Class Description
 64176,Cables & Wires
 64177,LABORATORY TESTING
 64178,Light Fittings
-64179,Joinery
+64179,Ironmongry
 64180,Parts
 64181,HSE
 64182,Parts
@@ -38237,7 +38220,7 @@ PO #,Class Description
 64195,Charge
 64196,Other Expenses
 64197,Office Consumables
-64198,Plumbing & Drainage Sundries
+64198,Site Consumables
 64199,Site Consumables
 64200,Vehicle & Equipment
 64201,Parts
@@ -38249,7 +38232,7 @@ PO #,Class Description
 64207,Tyres
 64208,Swimming Pool
 64209,Site Consumables
-64210,Paint Material
+64210,Painting Sundries
 64211,Paint Material
 64212,Parts
 64213,Ironmongry
@@ -38282,7 +38265,7 @@ PO #,Class Description
 64240,Charge
 64241,Other Expenses
 64242,Paint Material
-64243,Electrical Sundries
+64243,Site Consumables
 64244,Charge
 64245,Site Consumables
 64246,Other Expenses
@@ -38393,7 +38376,7 @@ PO #,Class Description
 64352,Medical Fees
 64353,Medical Fees
 64354,Charge
-64355,Paint Material
+64355,Painting Sundries
 64356,Vehicle & Equipment
 64357,Paint Material
 64358,Site Consumables
@@ -38456,7 +38439,6 @@ PO #,Class Description
 64415,Charge
 64416,Vehicle & Equipment
 64417,Consumables
-64418,
 64419,Waterproofing Sundries
 64420,HSE
 64421,HSE
@@ -38495,7 +38477,7 @@ PO #,Class Description
 64455,HSE
 64456,Parts
 64457,Site Consumables
-64458,Concrete
+64458,
 64459,Consulting Fees
 64460,
 64461,Other Expenses
@@ -38551,7 +38533,7 @@ PO #,Class Description
 64511,Joinery
 64512,Diesel & Petrol
 64514,Parts
-64515,Consumables
+64515,
 64516,Water Supply
 64517,Office Consumables
 64518,Sanitary Ware
@@ -38608,7 +38590,6 @@ PO #,Class Description
 64569,Air Condition Material
 64570,Refreshments
 64571,Electrical Sundries
-64572,
 64573,Vehicle & Equipment
 64574,Vehicle & Equipment
 64575,Sand
@@ -38642,7 +38623,7 @@ PO #,Class Description
 64603,Site Related Fees
 64604,Immigration Fees
 64605,Administrative Fees
-64606,Plumbing & Drainage Sundries
+64606,Site Consumables
 64607,Charge
 64608,Vehicle & Equipment
 64609,Vehicle & Equipment
@@ -38709,7 +38690,7 @@ PO #,Class Description
 64670,Parts
 64671,Vehicle & Equipment
 64672,Tools & Parts
-64673,Joinery
+64673,Ironmongry
 64674,Site Consumables
 64675,Plaster Work Sundries
 64676,Finishing Sundries
@@ -38784,8 +38765,8 @@ PO #,Class Description
 64745,Air Condition Material
 64746,Vehicle & Equipment
 64747,Site Consumables
-64748,Rebar
-64749,
+64748,
+64749,Plumbing & Drainage Sundries
 64750,Site Consumables
 64751,Refreshments
 64752,Vehicle & Equipment
@@ -38849,7 +38830,7 @@ PO #,Class Description
 64813,Charge
 64814,HSE
 64815,Parts
-64816,Shuttering Carpentry Sundries
+64816,Finishing Sundries
 64817,Parts
 64818,Office Consumables
 64819,Parts
@@ -38878,7 +38859,7 @@ PO #,Class Description
 64843,Vehicle & Equipment
 64844,Other Expenses
 64845,Site Consumables
-64846,Shuttering Carpentry Sundries
+64846,Finishing Sundries
 64847,Formwork
 64848,
 64849,
@@ -38926,7 +38907,7 @@ PO #,Class Description
 64891,Site Consumables
 64892,Parts
 64893,Charge
-64894,Concrete
+64894,
 64895,Concrete
 64896,Signages
 64897,Other Expenses
@@ -38989,8 +38970,7 @@ PO #,Class Description
 64955,Site Consumables
 64956,Vehicle & Equipment
 64957,Joinery
-64958,Waterproofing work
-64959,
+64958,
 64961,Office Consumables
 64962,Signages
 64963,LABORATORY TESTING
@@ -39044,7 +39024,7 @@ PO #,Class Description
 65011,Site Consumables
 65012,Parts
 65013,Site Consumables
-65014,Shuttering Carpentry Sundries
+65014,Finishing Sundries
 65015,
 65016,
 65017,
@@ -39092,7 +39072,7 @@ PO #,Class Description
 65059,Waterproofing
 65060,Site Consumables
 65061,Waterproofing
-65062,Waterproofing
+65062,
 65063,Site Consumables
 65064,Vehicle & Equipment
 65065,Charge
@@ -39102,7 +39082,7 @@ PO #,Class Description
 65069,Vehicle Related Fees
 65070,Immigration Fees
 65071,Administrative Fees
-65072,Shuttering Carpentry Sundries
+65072,Finishing Sundries
 65073,Light Fittings
 65074,Shuttering Carpentry Sundries
 65075,HSE
@@ -39163,7 +39143,7 @@ PO #,Class Description
 65130,Consumables
 65131,Consumables
 65132,Consumables
-65133,Consumables
+65133,
 65134,Consumables
 65135,Consumables
 65136,
@@ -39231,13 +39211,13 @@ PO #,Class Description
 65198,Vehicle & Equipment
 65199,Parts
 65200,Parts
-65201,Block
+65201,
 65202,Block
 65203,Site Consumables
 65204,Site Consumables
 65205,HVAC
 65206,Site Consumables
-65207,Anti termite control
+65207,
 65208,Plumbing & Drainage Sundries
 65209,Vehicle & Equipment
 65210,Other Expenses
@@ -39249,7 +39229,7 @@ PO #,Class Description
 65216,Refreshments
 65217,LABORATORY TESTING
 65218,Sanitary Ware
-65219,Shuttering Carpentry Sundries
+65219,Finishing Sundries
 65220,Plaster Work Sundries
 65221,Finishing Sundries
 65222,
@@ -39262,7 +39242,7 @@ PO #,Class Description
 65230,Plumbing & Drainage Sundries
 65231,Cables & Wires
 65232,Light Fittings
-65233,Plumbing & Drainage Sundries
+65233,
 65234,Vehicle & Equipment
 65235,Parts
 65236,Refreshments
@@ -39353,7 +39333,7 @@ PO #,Class Description
 65322,Paint Material
 65323,Other Expenses
 65324,Vehicle & Equipment
-65325,
+65325,Parts
 65326,Vehicle & Equipment
 65327,Site Consumables
 65328,Vehicle & Equipment
@@ -39361,7 +39341,7 @@ PO #,Class Description
 65330,Site Consumables
 65331,Finishing Sundries
 65332,Tiling Work
-65333,Joinery
+65333,Ironmongry
 65334,Parts
 65335,Parts
 65336,Parts
@@ -39390,7 +39370,7 @@ PO #,Class Description
 65359,HSE
 65360,Parts
 65361,Parts
-65362,Paint Material
+65362,Painting Sundries
 65363,Parts
 65364,Consumables
 65365,Refreshments
@@ -39402,8 +39382,8 @@ PO #,Class Description
 65371,Furniture / Equipments
 65372,Charge
 65373,Plumbing & Drainage Sundries
-65374,Shuttering Carpentry Sundries
-65375,
+65374,Finishing Sundries
+65375,Consulting Fees
 65376,Plant
 65377,Block
 65378,Refreshments
@@ -39467,7 +39447,7 @@ PO #,Class Description
 65437,LABORATORY TESTING
 65438,Parts
 65439,Office Consumables
-65440,Plumbing & Drainage Sundries
+65440,Site Consumables
 65441,Consumables
 65442,Consumables
 65443,Parts
@@ -39483,7 +39463,7 @@ PO #,Class Description
 65453,Consumables
 65454,Vehicle & Equipment
 65455,Vehicle & Equipment
-65456,
+65456,Vehicle & Equipment
 65457,Office Expenses
 65458,
 65459,Site Consumables
@@ -39504,7 +39484,7 @@ PO #,Class Description
 65475,Consumables
 65476,ELV
 65477,ELV
-65478,
+65478,Finishing Sundries
 65479,HSE
 65480,HSE
 65481,LABORATORY TESTING
@@ -39512,7 +39492,7 @@ PO #,Class Description
 65483,Site Consumables
 65484,Vehicle & Equipment
 65485,
-65486,
+65486,Rebar
 65487,Ironmongry
 65488,HVAC
 65489,Parts
@@ -39537,7 +39517,7 @@ PO #,Class Description
 65508,HSE
 65509,
 65510,Parts
-65511,Plumbing & Drainage
+65511,Site Consumables
 65512,HVAC
 65513,Office Consumables
 65514,Office Consumables
@@ -39579,13 +39559,13 @@ PO #,Class Description
 65551,HSE
 65552,Ceramic & Porcelain
 65553,Parts
-65554,
+65554,Electrical Sundries
 65555,Site Consumables
 65556,Plant
 65557,Water Supply
 65558,Water Supply
 65559,Site Consumables
-65560,
+65560,HSE
 65561,Water Supply
 65562,Office Expenses
 65563,Water Supply
@@ -39598,14 +39578,14 @@ PO #,Class Description
 65571,Vehicle & Equipment
 65572,Plant
 65573,Vehicle & Equipment
-65574,
+65574,Vehicle & Equipment
 65575,Site Consumables
 65576,Parts
 65577,Signage
 65578,Cables & Wires
 65579,Manholes/Gratings
 65580,Refreshments
-65581,
+65581,Finishing Sundries
 65582,Finishing Sundries
 65583,Finishing Sundries
 65584,Site Consumables
@@ -39632,7 +39612,7 @@ PO #,Class Description
 65607,Charge
 65608,Charge
 65609,Parts
-65610,
+65610,Plant
 65611,Vehicle & Equipment
 65612,Parts
 65613,Vehicle & Equipment
@@ -39656,7 +39636,6 @@ PO #,Class Description
 65632,Plant
 65633,Site Consumables
 65634,Site Consumables
-65636,
 65637,Finishing Sundries
 65639,Sand
 65640,Parts
@@ -39727,7 +39706,7 @@ PO #,Class Description
 65708,Site Consumables
 65709,Granite & Marble
 65710,Parts
-65711,Waterproofing Sundries
+65711,
 65712,Painting Sundries
 65713,
 65714,Site Consumables
@@ -39735,8 +39714,8 @@ PO #,Class Description
 65716,Office Consumables
 65717,
 65718,Site Consumables
-65719,
-65720,
+65719,Rebar
+65720,Site Consumables
 65721,
 65722,Site Consumables
 65723,Parts
@@ -39746,7 +39725,7 @@ PO #,Class Description
 65727,Plumbing & Drainage Sundries
 65728,Miscellaneous
 65729,Block Work Sundries
-65730,
+65730,Vehicle & Equipment
 65731,Site Consumables
 65732,Consumables
 65733,Vehicle & Equipment
@@ -39845,7 +39824,7 @@ PO #,Class Description
 65827,
 65828,Site Related Fees
 65829,Refreshments
-65830,Shuttering Carpentry Sundries
+65830,Finishing Sundries
 65831,Finishing Sundries
 65832,Site Consumables
 65833,Paint Material
@@ -39863,10 +39842,10 @@ PO #,Class Description
 65845,Vehicle & Equipment
 65846,Site Consumables
 65847,Cladding Work
-65848,
-65849,
-65850,
-65851,
+65848,Site Consumables
+65849,Anti termite control
+65850,Formwork
+65851,LABORATORY TESTING
 65852,Metal Works
 65853,Metal Works
 65854,Diesel & Petrol
@@ -39927,7 +39906,7 @@ PO #,Class Description
 65909,Consumables
 65910,Consumables
 65911,Parts
-65912,
+65912,Concrete
 65913,Consumables
 65914,Vehicle & Equipment
 65915,Site Consumables
@@ -39958,7 +39937,7 @@ PO #,Class Description
 65941,Other Expenses
 65942,Plant
 65943,Plant
-65944,
+65944,Plant
 65945,Plant
 65946,ELV
 65947,Office Consumables
@@ -39972,28 +39951,630 @@ PO #,Class Description
 65955,Parts
 65956,HVAC
 65957,Site Consumables
-65958,
+65958,Block
 65959,Site Consumables
-65960,
-65961,
+65960,Parts
+65961,Air Condition Material
 65962,Parts
 65963,Ironmongry
-65964,
-65965,
-65966,
+65964,Site Consumables
+65965,Paint Material
+65966,Parts
 65967,Parts
 65968,Parts
-65969,
-65970,
-65971,
+65969,Site Consumables
+65970,Site Consumables
+65971,HSE
 65972,Parts
-65973,
+65973,Parts
 65974,Consumables
 65975,Pumps
 65976,Consumables
 65977,Refreshments
 65978,Tiling Work
-65979,
-65980,
-65981,
-65982,
+65979,Consumables
+65980,Vehicle & Equipment
+65981,Vehicle & Equipment
+65982,Consulting Fees
+65983,Site Consumables
+65984,Office Consumables
+65985,Painting Sundries
+65986,Parts
+65987,Site Consumables
+65988,Light Fittings
+65989,Site Consumables
+65990,Miscellaneous
+65991,Air Condition Material
+65992,Charge
+65993,Vehicle & Equipment
+65995,Refreshments
+65996,
+65997,Site Consumables
+65998,Signage
+65999,Charge
+66000,Parts
+66001,Light Fittings
+66002,Parts
+66003,Air Condition Material
+66005,Parts
+66006,Parts
+66007,Vehicle & Equipment
+66008,Refreshments
+66009,Charge
+66010,Parts
+66011,Consumables
+66012,Consumables
+66013,Consumables
+66014,Diesel & Petrol
+66015,Parts
+66016,Vehicle & Equipment
+66017,Consumables
+66018,Consumables
+66019,Site Consumables
+66020,Granite & Marble
+66021,Parts
+66022,Parts
+66023,Vehicle & Equipment
+66024,Joinery
+66025,HSE
+66026,Cables & Wires
+66027,Site Consumables
+66028,Diesel & Petrol
+66029,Site Consumables
+66030,LPG
+66031,LPG
+66032,Site Related Fees
+66033,Shuttering Carpentry Sundries
+66034,Site Consumables
+66035,Metal Works Sundries
+66036,Other Expenses
+66037,Insurance Fees
+66038,Vehicle & Equipment
+66039,Insurance Fees
+66040,Insurance Fees
+66041,Insurance Fees
+66042,Insurance Fees
+66043,Insurance Fees
+66044,Insurance Fees
+66045,Diesel & Petrol
+66046,
+66048,Softscape (Landscape)
+66049,Consumables
+66050,Other Expenses
+66051,Parts
+66052,Parts
+66053,Refreshments
+66054,Charge
+66055,Charge
+66056,Vehicle & Equipment
+66057,Consulting Fees
+66058,Site Consumables
+66059,Diesel & Petrol
+66060,Water Supply
+66061,Excavation
+66062,Vehicle & Equipment
+66063,HSE
+66064,Water Supply
+66065,HSE
+66066,HSE
+66067,HSE
+66068,Water Supply
+66069,Tyres
+66070,Concrete
+66071,Vehicle & Equipment
+66072,Parts
+66073,Parts
+66074,Parts
+66075,Site Consumables
+66076,Consumables
+66077,Consumables
+66078,Consumables
+66079,Consumables
+66080,Parts
+66081,LABORATORY TESTING
+66082,Finishing Sundries
+66083,Parts
+66084,Light Fittings
+66085,Site Consumables
+66086,Electrical Sundries
+66087,Plaster Work Sundries
+66088,Fees
+66089,Other Expenses
+66090,LABORATORY TESTING
+66091,Waterproofing Sundries
+66092,Site Consumables
+66093,Refreshments
+66094,Site Consumables
+66095,Site Consumables
+66096,Parts
+66097,Parts
+66098,Parts
+66099,Electrical Sundries
+66100,Parts
+66101,Other Expenses
+66102,Office Consumables
+66103,Electrical Sundries
+66104,LABORATORY TESTING
+66105,ELV
+66106,Immigration Fees
+66107,Immigration Fees
+66108,Administrative Fees
+66109,Administrative Fees
+66110,Vehicle Related Fees
+66111,Administrative Fees
+66112,Immigration Fees
+66113,Medical Fees
+66114,Immigration Fees
+66115,Swimming Pool
+66116,Parts
+66117,Vehicle & Equipment
+66118,Diesel & Petrol
+66119,Sand
+66120,Sand
+66121,Immigration Fees
+66122,Administrative Fees
+66123,Administrative Fees
+66124,Medical Fees
+66125,Administrative Fees
+66126,Administrative Fees
+66127,Cement
+66128,Site Consumables
+66129,LABORATORY TESTING
+66130,LABORATORY TESTING
+66131,Sand
+66132,Sand
+66133,Tiling Work
+66134,Tiling Work
+66135,Painting Works
+66136,Tiling Work
+66137,Painting Work
+66138,SCREED WORK
+66139,Block Work
+66140,Block Work
+66141,SCREED WORK
+66142,Diesel & Petrol
+66143,Diesel & Petrol
+66144,SCREED WORK
+66145,Diesel & Petrol
+66146,Diesel & Petrol
+66147,Diesel & Petrol
+66148,Diesel & Petrol
+66149,Diesel & Petrol
+66150,Diesel & Petrol
+66151,Diesel & Petrol
+66152,Diesel & Petrol
+66153,Diesel & Petrol
+66154,Diesel & Petrol
+66155,Diesel & Petrol
+66156,Diesel & Petrol
+66157,Diesel & Petrol
+66158,Diesel & Petrol
+66159,Diesel & Petrol
+66160,Diesel & Petrol
+66161,Diesel & Petrol
+66162,Site Consumables
+66163,Site Consumables
+66164,Site Consumables
+66166,
+66167,Tiling Work
+66168,Parts
+66169,Miscellaneous
+66170,
+66171,Consumables
+66172,Electrical Sundries
+66173,Vehicle & Equipment
+66174,
+66175,Vehicle & Equipment
+66176,Metal Works
+66177,Block
+66178,
+66179,
+66180,Site Consumables
+66181,Vehicle & Equipment
+66182,Parts
+66183,Parts
+66184,Consumables
+66185,Consumables
+66186,Vehicle & Equipment
+66187,Plaster Work Sundries
+66188,
+66189,Office Consumables
+66190,MEP
+66191,HVAC
+66192,Other Expenses
+66193,Other Expenses
+66194,Other Expenses
+66195,Parts
+66196,Administrative Fees
+66197,Parts
+66198,Vehicle & Equipment
+66199,Vehicle & Equipment
+66200,Refreshments
+66201,Charge
+66202,Charge
+66203,Metal Works
+66204,Driver
+66205,Driver
+66206,Driver
+66207,Finishing Sundries
+66208,
+66209,Driver
+66210,Driver
+66211,Driver
+66212,Miscellaneous
+66213,Parts
+66214,Charge
+66215,Consumables
+66216,Parts
+66217,Consumables
+66218,Consumables
+66219,Refreshments
+66220,Refreshments
+66221,Consumables
+66222,Electrical Sundries
+66223,Parts
+66224,
+66226,Cables & Wires
+66227,Charge
+66228,Vehicle & Equipment
+66229,Site Consumables
+66230,Site Consumables
+66231,Site Consumables
+66232,Site Consumables
+66233,Site Consumables
+66234,Painting Sundries
+66235,Refreshments
+66236,Refreshments
+66237,Plumbing & Drainage Sundries
+66238,Air Condition Material
+66239,Site Consumables
+66240,MEP
+66241,HSE
+66242,HSE
+66243,Vehicle & Equipment
+66244,LABORATORY TESTING
+66245,Finishing Sundries
+66246,Site Consumables
+66248,Site Consumables
+66249,Site Consumables
+66250,Ironmongry
+66251,Charge
+66252,Vehicle & Equipment
+66253,Sand
+66254,Vehicle & Equipment
+66255,Vehicle & Equipment
+66256,Parts
+66257,HVAC
+66258,Sand
+66259,Other Expenses
+66260,Electrical Sundries
+66261,Concrete
+66262,Parts
+66263,Parts
+66264,Refreshments
+66265,Parts
+66266,Site Consumables
+66267,Other Expenses
+66268,HSE
+66271,Vehicle & Equipment
+66272,HSE
+66273,LABORATORY TESTING
+66274,Site Consumables
+66275,Site Consumables
+66276,Inspection
+66277,External Works Sundries
+66278,HSE
+66279,Refreshments
+66280,HSE
+66281,Vehicle & Equipment
+66282,Plaster Work Sundries
+66284,Refreshments
+66285,Inspection
+66286,Plant
+66287,Electrical Sundries
+66288,Painting Works
+66289,Vehicle & Equipment
+66290,Ironmongry
+66291,Ironmongry
+66292,Site Consumables
+66293,Fees
+66294,Vehicle & Equipment
+66295,Furniture / Equipments
+66296,Site Consumables
+66297,Charge
+66298,Charge
+66299,Vehicle & Equipment
+66300,Office Expenses
+66301,Vehicle & Equipment
+66302,HSE
+66303,Consumables
+66304,Consumables
+66305,Parts
+66306,Refreshments
+66307,Refreshments
+66308,Site Consumables
+66309,Waterproofing Sundries
+66310,
+66311,Vehicle & Equipment
+66312,Vehicle & Equipment
+66313,ELV
+66314,Parts
+66315,Ironmongry
+66316,Site Consumables
+66317,Site Consumables
+66318,Formwork
+66319,Parts
+66320,Charge
+66321,Shuttering Carpentry Sundries
+66322,Consumables
+66323,Parts
+66324,Vehicle & Equipment
+66325,Consumables
+66326,Parts
+66327,Site Consumables
+66328,Site Consumables
+66329,Parts
+66330,HSE
+66331,HSE
+66332,Plumbing & Drainage Sundries
+66333,
+66334,Fees
+66335,Site Related Fees
+66336,Refreshments
+66337,Insurance
+66338,Site Related Fees
+66339,HSE
+66340,Refreshments
+66341,Vehicle & Equipment
+66342,Signage
+66343,
+66344,Metal Works
+66345,Charge
+66346,Diesel & Petrol
+66347,Site Consumables
+66348,Finishing Sundries
+66349,Parts
+66350,Signage
+66351,Flooring
+66352,Charge
+66353,Charge
+66354,Charge
+66355,Parts
+66356,Diesel & Petrol
+66357,Parts
+66358,Parts
+66359,Metal Works Sundries
+66360,Miscellaneous
+66361,HSE
+66362,Vehicle & Equipment
+66363,Parts
+66364,Finishing Sundries
+66365,Plant
+66366,Plant
+66367,Vehicle & Equipment
+66368,Diesel & Petrol
+66369,Diesel & Petrol
+66370,Diesel & Petrol
+66371,Site Consumables
+66372,Site Consumables
+66373,HVAC
+66374,Formwork
+66375,Diesel & Petrol
+66376,Diesel & Petrol
+66377,Diesel & Petrol
+66378,
+66379,Parts
+66380,Cement
+66381,Parts
+66382,Cement
+66383,Site Consumables
+66384,Parts
+66385,Vehicle & Equipment
+66386,Swimming Pool
+66387,Parts
+66388,Office Consumables
+66389,HSE
+66390,Electrical Sundries
+66391,Administrative Fees
+66392,Administrative Fees
+66393,Administrative Fees
+66394,Signage
+66395,Vehicle & Equipment
+66396,Vehicle & Equipment
+66397,Waterproofing Sundries
+66398,Office Expenses
+66399,Office Consumables
+66400,Site Consumables
+66401,Electrical Sundries
+66402,Block
+66403,Ironmongry
+66404,Site Consumables
+66405,Water Supply
+66406,Signage
+66407,Water Supply
+66408,Water Supply
+66409,Parts
+66410,Parts
+66411,Refreshments
+66412,Charge
+66413,Parts
+66414,Parts
+66415,Consumables
+66416,Consumables
+66417,Parts
+66418,Parts
+66419,Parts
+66420,Parts
+66421,Diesel & Petrol
+66422,Parts
+66423,Vehicle & Equipment
+66424,Parts
+66425,Consumables
+66426,Site Consumables
+66427,Office Consumables
+66428,Reinforcement Sundries
+66429,Electrical Sundries
+66430,Concrete
+66431,HSE
+66432,Site Consumables
+66433,
+66434,Diesel & Petrol
+66435,Diesel & Petrol
+66436,Diesel & Petrol
+66437,Charge
+66438,Charge
+66439,Plant
+66440,Site Consumables
+66442,Formwork
+66443,Shuttering Carpentry Sundries
+66444,Other Expenses
+66445,Site Consumables
+66446,Paint Material
+66448,Gypsum
+66449,Site Consumables
+66450,HSE
+66451,HSE
+66452,HSE
+66453,Charge
+66454,Charge
+66455,MEP
+66456,Vehicle & Equipment
+66457,Plant
+66458,Site Consumables
+66459,Façade
+66460,Office Consumables
+66461,Charge
+66462,Other Expenses
+66463,Vehicle & Equipment
+66464,Parts
+66465,Other Expenses
+66466,
+66467,Consumables
+66468,Parts
+66469,Consumables
+66470,Vehicle & Equipment
+66471,Parts
+66472,Air Condition Material
+66473,Vehicle & Equipment
+66474,Light Fittings
+66475,Other Expenses
+66476,Light Fittings
+66477,Light Fittings
+66478,Electrical Sundries
+66479,Refreshments
+66480,Waterproofing work
+66481,Site Consumables
+66482,Refreshments
+66483,Finishing Sundries
+66484,Site Consumables
+66485,Plaster Work Sundries
+66486,
+66487,
+66488,Plaster Work Sundries
+66489,
+66490,Office Consumables
+66491,Ceramic & Porcelain
+66492,Plant
+66493,Plant
+66494,Inspection
+66495,Site Consumables
+66496,
+66497,Office Consumables
+66498,MEP
+66499,Charge
+66500,Vehicle & Equipment
+66501,Parts
+66502,Parts
+66503,Parts
+66504,Vehicle & Equipment
+66505,Vehicle & Equipment
+66506,Parts
+66507,Consumables
+66508,Site Consumables
+66509,Other Expenses
+66510,Charge
+66511,Charge
+66512,Parts
+66513,Charge
+66514,Charge
+66515,Parts
+66516,Finishing Sundries
+66517,
+66518,Paint Material
+66519,Paint Material
+66520,Site Consumables
+66521,Vehicle & Equipment
+66522,Office Expenses
+66523,Vehicle & Equipment
+66524,Vehicle & Equipment
+66525,Vehicle & Equipment
+66526,Refreshments
+66527,Site Consumables
+66528,Charge
+66529,Parts
+66530,HSE
+66531,Plant
+66532,Driver
+66533,Driver
+66534,Parts
+66535,Driver
+66536,Driver
+66537,Driver
+66538,Parts
+66539,Anti termite control
+66540,Shuttering Carpentry Sundries
+66541,Sand
+66542,Sand
+66543,Waterproofing Sundries
+66544,Block Work Sundries
+66545,Block
+66546,Office Consumables
+66547,Plant
+66548,Consulting Fees
+66549,Tiling Work
+66550,Tiling Work
+66551,Painting Works
+66552,Tiling Work
+66553,Painting Work
+66554,Interlock Work
+66555,Painting Work
+66556,Interlock Work
+66557,Steel Fabrication Work
+66558,Shuttering Carpentry
+66559,Block Work
+66560,Water Supply
+66561,Water Supply
+66562,Water Supply
+66563,Water Supply
+66564,
+66565,
+66566,
+66567,Diesel & Petrol
+66568,Parts
+66569,Parts
+66570,Parts
+66571,Administrative Fees
+66572,
+66573,
+66574,
+66575,Consumables
+66576,
+66577,Other Expenses
+66578,
+66579,Other Expenses
+66580,
+66581,
+66582,
+66583,
+66584,Parts
+66585,
+66586,Parts
+66587,Site Related Fees
+66588,
+66589,
+66590,Sand
+66591,
+66592,
+66593,
+66594,
+66595,Parts
