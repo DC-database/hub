@@ -911,8 +911,11 @@ function imIsInvoiceRecordsSectionVisible() {
 function imScheduleInvoiceRecordsExactPOBackgroundRefresh(searchTerm) {
     // 10.6.3: Exact PO searches should display Firebase/local results quickly.
     // ECommit.csv is large, so complete/merge Epicor/SRV records in the background.
-    if (!searchTerm || imRecordsHasEcommitLoaded()) return;
-    if (window.__imRecordsEcommitBackgroundLoading) return;
+    if (imRecordsHasEcommitLoaded()) return false;
+    if (window.__imRecordsEcommitBackgroundLoading) return true;
+    // 13.0.1 patch 7: if ECommit.csv could not be loaded, do not retry in a loop.
+    if (Date.now() - Number(window.__imRecordsEcommitLastAttemptAt || 0) < 2 * 60 * 1000) return false;
+    window.__imRecordsEcommitLastAttemptAt = Date.now();
 
     window.__imRecordsEcommitBackgroundLoading = true;
     setTimeout(async () => {
@@ -928,6 +931,7 @@ function imScheduleInvoiceRecordsExactPOBackgroundRefresh(searchTerm) {
             window.__imRecordsEcommitBackgroundLoading = false;
         }
     }, 100);
+    return true;
 }
 
 async function imEnsureInvoiceRecordsLightDataFetched(forceRefresh = false, options = {}) {
@@ -969,6 +973,14 @@ async function imTryFastInvoiceRecordsPOSearch(searchTerm) {
 
     await imEnsureInvoiceRecordsLightDataFetched(false, { includeEcommit: false });
 
+    // 13.0.1 patch 7: only try the direct Firebase read when the term really is a PO
+    // (known in POVALUE2 / ECommit / already loaded, or all digits). Invoice numbers like
+    // INV-889 or one-word vendors no longer cost a wasted read before the real search.
+    const knownPO = !!((allPOData && allPOData[poNumber]) ||
+        (allEcommitDataProcessed && allEcommitDataProcessed[poNumber]) ||
+        (allInvoiceData && allInvoiceData[poNumber]));
+    if (!knownPO && !/^\d+$/.test(poNumber)) return null;
+
     let firebaseInvoicesForPO = {};
     try {
         if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
@@ -993,6 +1005,180 @@ async function imTryFastInvoiceRecordsPOSearch(searchTerm) {
     return [poNumber];
 }
 
+
+// ==========================================================================
+// 13.0.1 patch 7: SMART INVOICE RECORDS SEARCH
+//   Vendor / partial-PO search (no filters): matching POs are found in POVALUE2
+//     (already loaded), then ONLY those POs are read live from Firebase.
+//   Note / invoice-number / filtered search: a saved copy of all invoices in the
+//     browser (IndexedDB, max 6 hours old) is used ONLY to find which POs match;
+//     those POs are then read live, so every number shown is current.
+//   Falls back to the original full download when there is no saved copy yet,
+//   when more than 150 POs match, or for "Negative Balance".
+// ==========================================================================
+const IM_REC_IDB_NAME = 'iba_invoice_records';
+const IM_REC_IDB_STORE = 'snapshot';
+const IM_REC_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const IM_REC_LIVE_PO_LIMIT = 150;
+const IM_REC_PO_FRESH_MS = 60 * 1000;
+let imRecSnapshot = null;           // { savedAt, data }
+const imRecPoFreshAt = {};          // PO -> time it was last read live in this tab
+
+function imRecIdbOpen() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) { reject(new Error('IndexedDB not available')); return; }
+        const req = indexedDB.open(IM_REC_IDB_NAME, 1);
+        req.onupgradeneeded = () => { try { req.result.createObjectStore(IM_REC_IDB_STORE); } catch (_) {} };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function imRecIdbGet() {
+    const db = await imRecIdbOpen();
+    try {
+        return await new Promise((resolve, reject) => {
+            const tx = db.transaction(IM_REC_IDB_STORE, 'readonly');
+            const req = tx.objectStore(IM_REC_IDB_STORE).get('invoice_entries');
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+    } finally { try { db.close(); } catch (_) {} }
+}
+
+async function imRecIdbPut(value) {
+    const db = await imRecIdbOpen();
+    try {
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(IM_REC_IDB_STORE, 'readwrite');
+            tx.objectStore(IM_REC_IDB_STORE).put(value, 'invoice_entries');
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    } finally { try { db.close(); } catch (_) {} }
+}
+
+async function imRecGetSnapshot() {
+    const fresh = (snap) => snap && snap.data && (Date.now() - Number(snap.savedAt || 0)) < IM_REC_SNAPSHOT_MAX_AGE_MS;
+    if (fresh(imRecSnapshot)) return imRecSnapshot;
+    try {
+        const stored = await imRecIdbGet();
+        if (fresh(stored)) { imRecSnapshot = stored; return stored; }
+    } catch (e) { console.warn('Invoice Records saved copy unavailable:', e); }
+    return null;
+}
+
+// Called after a full invoice_entries download: keep it for the next 6 hours.
+function imRecSaveSnapshotFromMemory() {
+    try {
+        if (window.__invoiceEntriesFullLoaded !== true || !allInvoiceData) return;
+        if (imRecSnapshot && (Date.now() - Number(imRecSnapshot.savedAt || 0)) < 5 * 60 * 1000) return;
+        const value = { savedAt: Date.now(), data: allInvoiceData };
+        imRecSnapshot = value;
+        imRecIdbPut(value).catch((e) => console.warn('Invoice Records saved copy could not be stored:', e));
+    } catch (_) {}
+}
+window.imRecSaveSnapshotFromMemory = imRecSaveSnapshotFromMemory;
+
+function imRecInvoiceMatchesFilters(inv, f) {
+    if (f.statusFilter && inv.status !== f.statusFilter) return false;
+    if (f.monthFilter || f.yearFilter) {
+        const rDate = inv.releaseDate || inv.invoiceDate || '';
+        if (!rDate) return false;
+        const [rYear, rMonth] = String(rDate).split('-');
+        if (f.monthFilter && rMonth !== f.monthFilter) return false;
+        if (f.yearFilter && rYear !== f.yearFilter) return false;
+    }
+    return true;
+}
+
+async function imRecReadPOsLive(poList) {
+    if (!allInvoiceData) allInvoiceData = {};
+    const now = Date.now();
+    const todo = poList.filter((po) => !(imRecPoFreshAt[po] && now - imRecPoFreshAt[po] < IM_REC_PO_FRESH_MS));
+    for (let i = 0; i < todo.length; i += 25) {
+        const batch = todo.slice(i, i + 25);
+        const snaps = await Promise.all(batch.map((po) => invoiceDb.ref(`invoice_entries/${po}`).once('value')));
+        snaps.forEach((snap, idx) => {
+            const po = batch[idx];
+            allInvoiceData[po] = snap.val() || {};
+            imRecPoFreshAt[po] = Date.now();
+        });
+    }
+}
+
+async function imTrySmartInvoiceRecordsSearch(rawSearchTerm, filters, ui = {}) {
+    try {
+        // Everything already in memory from a full download in this tab: no download needed.
+        if (window.__invoiceEntriesFullLoaded === true) return null;
+        if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return null;
+        const f = filters || {};
+        const text = String(rawSearchTerm || '').trim().toLowerCase();
+        const hasFilters = !!(f.siteFilter || f.monthFilter || f.yearFilter || f.statusFilter);
+        if (!text && !hasFilters) return null;
+        if (f.statusFilter === 'Negative Balance') return null;
+
+        await imEnsureInvoiceRecordsLightDataFetched(false, { includeEcommit: false });
+        const allPOs = allPOData || {};
+        const ecommit = allEcommitDataProcessed || {};
+        const live = allInvoiceData || {};
+        // Same rule as the result filter: with no filters only PO / vendor matches count.
+        const poVendorOnly = !!text && !hasFilters;
+        const candidates = new Set();
+
+        if (text) {
+            Object.keys(allPOs).forEach((po) => {
+                const vendor = String((allPOs[po] || {})['Supplier Name'] || '').toLowerCase();
+                if (po.toLowerCase().includes(text) || vendor.includes(text)) candidates.add(po);
+            });
+            Object.keys(ecommit).forEach((po) => { if (po.toLowerCase().includes(text)) candidates.add(po); });
+            Object.keys(live).forEach((po) => { if (po.toLowerCase().includes(text)) candidates.add(po); });
+        }
+
+        if (!poVendorOnly) {
+            if (!ui.silent && ui.contentArea) ui.contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Searching saved invoice copy...</div>';
+            const snap = await imRecGetSnapshot();
+            if (!snap) return null; // no saved copy yet: full download once, then it is saved
+            const data = snap.data || {};
+            const poKeys = new Set([...Object.keys(data), ...Object.keys(live)]);
+            poKeys.forEach((po) => {
+                // POs already read live in this tab are newer than the saved copy.
+                const invoices = Object.values((imRecPoFreshAt[po] && live[po]) ? live[po] : (data[po] || live[po] || {}));
+                const hit = invoices.some((inv) => {
+                    if (!inv) return false;
+                    if (!imRecInvoiceMatchesFilters(inv, f)) return false;
+                    if (!text) return true;
+                    return String(inv.note || '').toLowerCase().includes(text) ||
+                        String(inv.invNumber == null ? '' : inv.invNumber).toLowerCase().includes(text);
+                });
+                if (hit) candidates.add(po);
+            });
+            Object.keys(ecommit).forEach((po) => {
+                const hit = (ecommit[po] || []).some((inv) => inv && imRecInvoiceMatchesFilters(inv, f) &&
+                    (!text || String(inv.invNumber == null ? '' : inv.invNumber).toLowerCase().includes(text)));
+                if (hit) candidates.add(po);
+            });
+        }
+
+        if (f.siteFilter) {
+            const want = String(f.siteFilter).toLowerCase();
+            Array.from(candidates).forEach((po) => {
+                const site = String((allPOs[po] || {})['Project ID'] || 'N/A').toLowerCase();
+                if (site !== want) candidates.delete(po);
+            });
+        }
+
+        if (candidates.size > IM_REC_LIVE_PO_LIMIT) return null;
+        if (candidates.size) {
+            if (!ui.silent && ui.contentArea) ui.contentArea.innerHTML = `<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading ${candidates.size} matching PO(s)...</div>`;
+            await imRecReadPOsLive(Array.from(candidates));
+        }
+        return Array.from(candidates);
+    } catch (error) {
+        console.warn('Smart Invoice Records search failed, using full search:', error);
+        return null;
+    }
+}
 
 async function populateInvoiceReporting(searchTerm = '', options = {}) {
     const openCard = document.querySelector('#im-reporting-content .invoice-card.expanded');
@@ -1057,12 +1243,23 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             fastPONumbers = await imTryFastInvoiceRecordsPOSearch(rawSearchTerm);
         }
 
+        // 13.0.1 patch 7: vendor / partial PO / note / invoice-number / filtered searches
+        // read only the matching POs instead of the whole invoice database.
         if (!fastPONumbers) {
-            if (rawSearchTerm && imLooksLikeExactPOSearch(rawSearchTerm) && !silent && contentArea) {
-                contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> PO not found directly. Running deeper search...</div>';
+            fastPONumbers = await imTrySmartInvoiceRecordsSearch(
+                rawSearchTerm,
+                { siteFilter, monthFilter, yearFilter, statusFilter },
+                { silent, contentArea }
+            );
+        }
+
+        if (!fastPONumbers) {
+            if (!silent && contentArea && window.__invoiceEntriesFullLoaded !== true) {
+                contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Loading all invoices (saved for the next 6 hours)...</div>';
             }
             await ensureInvoiceDataFetched();
-        } else if (rawSearchTerm && !imRecordsHasEcommitLoaded()) {
+            imRecSaveSnapshotFromMemory();
+        } else if (!imRecordsHasEcommitLoaded()) {
             imScheduleInvoiceRecordsExactPOBackgroundRefresh(rawSearchTerm);
         }
 
@@ -1198,8 +1395,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         }
 
        if (currentReportData.length === 0) {
-            if (fastPONumbers && rawSearchTerm && !imRecordsHasEcommitLoaded()) {
-                imScheduleInvoiceRecordsExactPOBackgroundRefresh(rawSearchTerm);
+            if (fastPONumbers && !imRecordsHasEcommitLoaded() && imScheduleInvoiceRecordsExactPOBackgroundRefresh(rawSearchTerm)) {
                 if (contentArea) contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Checking Epicor/SRV records for this PO...</div>';
                 const sleekBar = document.getElementById('im-sleek-totals-bar');
                 if (sleekBar) sleekBar.innerHTML = '<span>Checking Epicor/SRV records...</span>';

@@ -1368,23 +1368,76 @@ function msCanonSiteKey(site) {
     return raw.split(/\s+-\s+/)[0].trim().replace(/[.#$[\]\/]/g, '');
 }
 
-function msDisplayStockFromReceipts(item, transfers) {
+// ==========================================================================
+// 13.0.1 patch 3: ONE STOCK RULE
+//   The card's site quantities (material_stock/<key>/sites) ARE the stock.
+//   Table, stock report, transfer form and deductions all use that same number.
+//   Movement history is used only as a CROSS-CHECK, computed with exactly the same
+//   timing the workflow uses to change the card:
+//     Transfer : source -approved when authorized (In Transit), destination +received on receipt
+//     Restock  : destination +received on receipt
+//     Usage    : source -approved when authorized, final = -actual used on confirmation
+//     Return   : of Restock -> source -approved; of Usage -> source +approved;
+//                otherwise like a Transfer
+//     Rejected / pending (not yet authorized) entries move nothing.
+//   A reversal entry that carries originalMovement also re-applies the deleted original,
+//   so deleting a completed record does not break the cross-check.
+// ==========================================================================
+const MS_OPEN_STATUSES = ['Pending', 'Pending Source', 'Pending Admin', 'In Transit', 'Pending Confirmation'];
+
+function msHistoryNetBySite(transfers) {
     const net = {};
+    const add = (site, qty) => {
+        const key = msCanonSiteKey(site);
+        if (!key || !qty) return;
+        net[key] = (net[key] || 0) + qty;
+    };
+    const num = (v) => parseFloat(v) || 0;
     (transfers || []).forEach((t) => {
-        const done = t.remarks === 'Completed' || t.remarks === 'Received';
-        if (!done) return;
-        const type = t.jobType || t.for || 'Transfer';
-        const qty = parseFloat(t.receivedQty || t.orderedQty || t.requiredQty || 0) || 0;
-        if (!qty) return;
-        const to = msCanonSiteKey(t.toLocation || t.toSite);
-        const from = msCanonSiteKey(t.fromLocation || t.fromSite);
-        if ((type === 'Transfer' || type === 'Return' || type === 'Restock') && to) {
-            net[to] = (net[to] || 0) + qty;
+        if (!t) return;
+        const state = String(t.remarks || t.status || '').trim();
+        const done = state === 'Completed' || state === 'Received';
+        const inTransit = state === 'In Transit';
+        const pendConf = state === 'Pending Confirmation';
+        const type = String(t.jobType || t.for || 'Transfer').trim();
+        const from = t.fromLocation || t.fromSite;
+        const to = t.toLocation || t.toSite;
+        const approved = num(t.approvedQty) || num(t.orderedQty) || num(t.requiredQty);
+        const received = num(t.receivedQty) || approved;
+
+        // Original record that was deleted when this reversal was created.
+        const om = t.originalMovement;
+        if (om && typeof om === 'object') {
+            const oType = String(om.jobType || '').trim();
+            const oApproved = num(om.approvedQty) || num(om.receivedQty);
+            const oReceived = num(om.receivedQty) || oApproved;
+            if (oType === 'Transfer') { add(om.from, -oApproved); add(om.to, oReceived); }
+            else if (oType === 'Restock') { add(om.to, oReceived); }
+            else if (oType === 'Usage') { add(om.from, -oReceived); }
         }
-        if ((type === 'Transfer' || type === 'Usage' || type === 'Return') && from) {
-            net[from] = (net[from] || 0) - qty;
+
+        if (type === 'Transfer') {
+            if (inTransit || done) add(from, -approved);
+            if (done) add(to, received);
+        } else if (type === 'Restock') {
+            if (done) add(to, received);
+        } else if (type === 'Usage') {
+            if (pendConf) add(from, -approved);
+            else if (done) add(from, -received);
+        } else if (type === 'Return') {
+            const orig = String(t.originalJobType || '').trim();
+            if (orig === 'Restock') { if (done) add(from, -approved); }
+            else if (orig === 'Usage') { if (done) add(from, approved); }
+            else {
+                if (inTransit || done) add(from, -approved);
+                if (done) add(to, received);
+            }
         }
     });
+    return net;
+}
+
+function msDisplayStockFromReceipts(item, transfers) {
     const stored = {};
     if (item && item.sites) {
         Object.entries(item.sites).forEach(([site, qty]) => {
@@ -1393,21 +1446,31 @@ function msDisplayStockFromReceipts(item, transfers) {
             stored[key] = (stored[key] || 0) + (parseFloat(qty) || 0);
         });
     }
+    const net = msHistoryNetBySite(transfers);
+    const openCount = (transfers || []).filter((t) => MS_OPEN_STATUSES.includes(String((t && (t.remarks || t.status)) || '').trim())).length;
     const rows = [];
     let total = 0;
+    let hasGap = false;
     new Set([...Object.keys(stored), ...Object.keys(net)]).forEach((site) => {
-        const onHand = stored[site] || 0;
-        const expected = net[site];
-        const shown = (typeof expected === 'number' && expected > onHand) ? expected : onHand;
-        if (!shown) return;
-        rows.push({ site, qty: shown });
-        total += shown;
+        const onCard = stored[site] || 0;
+        const expected = (typeof net[site] === 'number') ? net[site] : null;
+        // Gap = history proves MORE arrived here than the card holds (a lost stock update).
+        // 13.0.1 patch 4: once a site was confirmed in Stock Check, it stops warning until
+        // either the card qty or the history qty changes again.
+        const ack = item && item.checkedSites && item.checkedSites[site];
+        const acknowledged = !!ack && Math.abs((parseFloat(ack.card) || 0) - onCard) < 1e-9 &&
+            expected !== null && Math.abs((parseFloat(ack.history) || 0) - expected) < 1e-9;
+        const gap = expected !== null && expected > onCard && !acknowledged;
+        if (!onCard && !gap) return;
+        if (gap) hasGap = true;
+        rows.push({ site, qty: onCard, stored: onCard, expected, gap });
+        total += onCard;
     });
     if (!rows.length) {
         const legacy = parseFloat(item && item.stockQty) || 0;
-        if (legacy) return { total: legacy, rows: [{ site: 'Unassigned', qty: legacy }] };
+        if (legacy) return { total: legacy, rows: [{ site: 'Unassigned', qty: legacy, stored: legacy, expected: null, gap: false }], hasGap: false, openCount };
     }
-    return { total, rows };
+    return { total, rows, hasGap, openCount };
 }
 
 window.msAlignCompletedReceiptGap = function () {
@@ -1415,6 +1478,10 @@ window.msAlignCompletedReceiptGap = function () {
 };
 
 function renderMaterialStockTable(data) {
+    try {
+        const scBtn = document.getElementById('ms-stock-check-btn');
+        if (scBtn) scBtn.classList.toggle('hidden', !msCanAlignStock());
+    } catch (_) {}
     const tableBody = document.getElementById('ms-table-body');
     const searchInput = document.getElementById('ms-search-input');
     const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
@@ -1520,23 +1587,20 @@ function renderMaterialStockTable(data) {
     });
 
     // --- SAVE FILTERED DATA FOR REPORTING ---
-    const stockByProduct = new Map();
+    // 13.0.1 patch 2: de-duplicate by the real Firebase key only. Previously cards that
+    // share the same Product ID were silently hidden (only the newest was shown) while the
+    // transfer form could pick the hidden one. Now every real card is shown and flagged.
+    const stockByKey = new Map();
     filtered.forEach((item) => {
-        const productId = String(item.productID || item.productId || item.key || '').trim();
-        const current = stockByProduct.get(productId);
-        if (!current) {
-            stockByProduct.set(productId, item);
-            return;
-        }
+        const rowKey = String(item.key || item.productID || item.productId || '').trim();
+        const current = stockByKey.get(rowKey);
+        if (!current) { stockByKey.set(rowKey, item); return; }
         const currentUpdated = parseFloat(current.lastUpdated || 0) || 0;
         const nextUpdated = parseFloat(item.lastUpdated || 0) || 0;
-        const currentQty = parseFloat(current.stockQty || 0) || 0;
-        const nextQty = parseFloat(item.stockQty || 0) || 0;
-        if (nextUpdated > currentUpdated || (nextUpdated === currentUpdated && nextQty > currentQty)) {
-            stockByProduct.set(productId, item);
-        }
+        if (nextUpdated >= currentUpdated) stockByKey.set(rowKey, item);
     });
-    const uniqueFiltered = Array.from(stockByProduct.values());
+    const uniqueFiltered = Array.from(stockByKey.values());
+    const msIdCardCount = msCountCardsByProductId();
 
     lastFilteredStockData = uniqueFiltered;
 
@@ -1559,6 +1623,13 @@ function renderMaterialStockTable(data) {
 
         const displayStock = msDisplayStockFromReceipts(item, productTransfers);
         const totalStock = displayStock.total;
+        const gapIcon = displayStock.hasGap
+            ? ' <i class="fa-solid fa-triangle-exclamation" style="color:#f0ad4e; margin-left:4px;" title="Movement history shows more stock than this card holds at some site. Open the row to check."></i>'
+            : '';
+        const dupCount = msIdCardCount.get(stockID) || 0;
+        const dupBadge = dupCount > 1
+            ? ` <span style="display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px; background:#fff3cd; color:#8a6100; font-size:0.75rem; font-weight:700;" title="${dupCount} cards use this same Product ID. Tick them and use Merge Selected.">Duplicate ID x${dupCount}</span>`
+            : '';
 
         const uniqueId = `detail-${item.key}`;
         let actionButtons = '';
@@ -1603,11 +1674,11 @@ function renderMaterialStockTable(data) {
         parentRow.classList.add('ms-parent-row');
         parentRow.innerHTML = `
             <td class="ms-cell-expand">${firstColContent}</td>
-            <td class="ms-cell-code"><span class="ms-product-code">${item.productID || item.productId}</span></td>
+            <td class="ms-cell-code"><span class="ms-product-code">${item.productID || item.productId}</span>${dupBadge}</td>
             <td class="ms-cell-detail"><div class="ms-product-title"><strong>${item.productName}</strong>${hasPhotoIcon}</div></td>
             <td class="ms-cell-family"><span class="ms-family-badge">${familyDisplay}</span></td>
             <td class="ms-cell-relation"><span class="ms-relation-text">${relationshipDisplay || '-'}</span></td>
-            <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span></td>
+            <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span>${gapIcon}</td>
             <td class="ms-cell-actions">${actionButtons}</td>
         `;
 
@@ -1727,11 +1798,17 @@ window.handleDeleteMaterial = async function(key) {
     const productID = item.productID || item.productId;
     const productName = item.productName;
 
-    const relatedTransfers = allTransferData.filter(t =>
+    // 13.0.1 patch 2: keep the history when another card still uses this Product ID
+    // (duplicate cards / same-ID merge), otherwise deleting the empty card wipes the history.
+    const idStillUsed = allMaterialStockData.some(other => other.key !== key &&
+        String(other.productID || other.productId || '').trim() === String(productID || '').trim());
+    const relatedTransfers = idStillUsed ? [] : allTransferData.filter(t =>
         (t.productID === productID || t.productId === productID)
     );
 
-    const confirmMsg = `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nThis cannot be undone. Proceed?`;
+    const confirmMsg = idStillUsed
+        ? `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nAnother card still uses this Product ID, so the movement history will be KEPT. Only this card is deleted.\n\nProceed?`
+        : `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nThis cannot be undone. Proceed?`;
 
     if (confirm(confirmMsg)) {
         const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
@@ -2446,8 +2523,23 @@ window.msFillStockDetail = function (row) {
     const stockID = String(item.productID || item.productId || '').trim();
     const productTransfers = (Array.isArray(allTransferData) ? allTransferData : []).filter((t) => String(t.productID || t.productId || '').trim() === stockID);
     const displayStock = msDisplayStockFromReceipts(item, productTransfers);
-    let breakdownRows = displayStock.rows.map((row) => `<tr><td style="padding-left:20px;">${row.site}</td><td style="font-weight:bold;">${row.qty}</td></tr>`).join('');
+    // 13.0.1 patch 2: show when a site qty comes from movement history but is NOT on the card.
+    // Only the card qty can be transferred, so this explains "No stock available" in the form,
+    // and Irwin / Logistic can align the card with one click.
+    const canAlign = msCanAlignStock();
+    let breakdownRows = displayStock.rows.map((r) => {
+        if (!r.gap) return `<tr><td style="padding-left:20px;">${r.site}</td><td style="font-weight:bold;">${r.qty}</td></tr>`;
+        const alignBtn = canAlign
+            ? ` <button type="button" class="secondary-btn ms-align-site-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" style="margin-left:8px; padding:3px 10px; font-size:0.78rem; background:#00748C; color:#fff; border:none; border-radius:6px; cursor:pointer;" title="Set the card qty at this site to the qty from completed movement history">Align</button>`
+            : '';
+        return `<tr><td style="padding-left:20px;">${r.site}</td><td><strong>${r.qty}</strong>
+            <div style="margin-top:3px; font-size:0.78rem; color:#8a6100;"><i class="fa-solid fa-triangle-exclamation"></i> Movement history says ${r.expected} should be here, card has ${r.stored}.${alignBtn}</div></td></tr>`;
+    }).join('');
     if (!breakdownRows) breakdownRows = '<tr><td style="padding-left:20px;">No site stock</td><td>0</td></tr>';
+    const dupCards = (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).filter((x) => String(x.productID || x.productId || '').trim() === stockID);
+    if (dupCards.length > 1) {
+        breakdownRows += `<tr><td colspan="2" style="padding:8px 20px; font-size:0.8rem; color:#8a6100; background:#fff8e1;"><i class="fa-solid fa-clone"></i> ${dupCards.length} cards use Product ID ${msEscapeHtml(stockID)}. Tick them in the list and use Merge Selected so transfers use one card.</td></tr>`;
+    }
     let historyRows = '';
     if (!productTransfers.length) {
         historyRows = '<tr><td colspan="7" style="text-align:center; color:#999; padding:20px;">No movement history found.</td></tr>';
@@ -2462,7 +2554,122 @@ window.msFillStockDetail = function (row) {
     const photo = typeof msBuildMaterialPhotoCard === 'function' ? msBuildMaterialPhotoCard(item, true) : '';
     row.innerHTML = `<td colspan="7" style="padding:15px 25px; background:#fcfcfc;"><div style="display:flex; gap:24px; flex-wrap:wrap;"><div style="flex:0 0 250px;">${photo}</div><div style="flex:1; min-width:300px;"><h4 style="margin:0 0 10px; color:#003A5C;">Current Stock Breakdown</h4><table class="stock-detail-table" style="width:100%;"><thead><tr><th>Site</th><th>Qty</th></tr></thead><tbody>${breakdownRows}</tbody></table></div><div style="flex:2; min-width:400px;"><h4 style="margin:0 0 10px; color:#6f42c1;">Movement History</h4><table class="stock-detail-table" style="width:100%;"><thead><tr><th>Date</th><th>Type</th><th>Route</th><th>Qty</th><th>By</th><th>Status</th><th></th></tr></thead><tbody>${historyRows}</tbody></table></div></div></td>`;
     row.dataset.ready = '1';
+    row.querySelectorAll('.ms-align-site-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            msAlignSiteToHistory(btn.getAttribute('data-key'), btn.getAttribute('data-site'), btn);
+        });
+    });
 };
+
+// ==========================================================================
+// 13.0.1 patch 2: DUPLICATE ID COUNT + ALIGN CARD QTY TO MOVEMENT HISTORY
+// ==========================================================================
+function msCountCardsByProductId() {
+    const counts = new Map();
+    (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).forEach((x) => {
+        const id = String(x.productID || x.productId || '').trim();
+        if (!id || !x.key) return;
+        counts.set(id, (counts.get(id) || 0) + 1);
+    });
+    return counts;
+}
+
+function msCanAlignStock() {
+    const who = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : null;
+    if (!who) return false;
+    if (who.Name === 'Irwin') return true;
+    return String(who.Position || who.position || '').toLowerCase().includes('logistic');
+}
+
+async function msAlignSiteToHistory(key, site, btn) {
+    if (!msCanAlignStock()) { alert('Only Irwin or Logistic can align stock.'); return; }
+    const item = (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).find((x) => x.key === key);
+    if (!item) { alert('Item not loaded. Refresh Material Stock and try again.'); return; }
+    const productID = String(item.productID || item.productId || '').trim();
+    const siteKey = msCanonSiteKey(site);
+    if (!siteKey) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking...'; }
+    const resetBtn = () => { if (btn) { btn.disabled = false; btn.textContent = 'Align'; } };
+
+    // Re-check against the LATEST history and the LATEST card before changing anything.
+    try { await fetchTransfersOnly(); } catch (_) {}
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    let live;
+    try { live = (await database.ref(`material_stock/${key}`).once('value')).val(); }
+    catch (e) { resetBtn(); alert('Could not read the card. Check connection. Nothing was changed.'); return; }
+    if (!live || String(live.productID || live.productId || '').trim() !== productID) {
+        resetBtn(); localStorage.removeItem(STOCK_CACHE_KEY);
+        alert('This card is out of date in this browser. Refresh Material Stock and try again. Nothing was changed.');
+        return;
+    }
+    const transfers = (Array.isArray(allTransferData) ? allTransferData : []).filter((t) => String(t.productID || t.productId || '').trim() === productID);
+    const check = msDisplayStockFromReceipts({ key, ...live }, transfers);
+    const target = check.rows.find((r) => r.site === siteKey);
+    if (!target || !target.gap || typeof target.expected !== 'number') {
+        resetBtn();
+        alert(`Site ${siteKey} is already correct on the card. Nothing to align.`);
+        if (typeof populateMaterialStock === 'function') { localStorage.removeItem(STOCK_CACHE_KEY); populateMaterialStock(true); }
+        return;
+    }
+    const before = target.stored;
+    const after = target.expected;
+    const openNote = check.openCount ? `\n\nNote: ${check.openCount} open transaction(s) for this product are already counted in this check.` : '';
+    const ok = confirm(`ALIGN STOCK\n\nProduct: ${productID} - ${live.productName || ''}\nSite: ${siteKey}\n\nCard qty now: ${before}\nMovement history: ${after}\nWill add: ${after - before}${openNote}\n\nOnly do this if the material is physically at this site.`);
+    if (!ok) { resetBtn(); return; }
+    if (btn) btn.textContent = 'Saving...';
+
+    let changed = false;
+    try {
+        const result = await database.ref(`material_stock/${key}`).transaction((current) => {
+            if (!current) return current;
+            if (!current.sites) current.sites = {};
+            let siteVal = 0;
+            Object.keys(current.sites).forEach((k) => {
+                if (msCanonSiteKey(k) !== siteKey) return;
+                siteVal += parseFloat(current.sites[k]) || 0;
+                if (k !== siteKey) delete current.sites[k];
+            });
+            // 13.0.1 patch 3: only proceed if the card still has exactly what was shown in the
+            // confirm box. If anything moved meanwhile, abort and let the user re-check.
+            if (Math.abs(siteVal - before) > 1e-9 || siteVal >= after) return;
+            current.sites[siteKey] = siteVal + (after - before);
+            let total = 0;
+            Object.values(current.sites).forEach((v) => { total += parseFloat(v) || 0; });
+            current.stockQty = total;
+            current.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+            return current;
+        });
+        changed = !!(result && result.committed && result.snapshot && result.snapshot.exists());
+    } catch (e) {
+        console.error('Align failed:', e);
+        resetBtn();
+        alert('Align failed: ' + (e && e.message ? e.message : e));
+        return;
+    }
+    if (!changed) {
+        resetBtn();
+        alert('Nothing was changed: this card changed while you were checking. The list will refresh, please check again.');
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+        return;
+    }
+    // Audit trail (separate node, so it never adds weight to the stock download).
+    try {
+        await database.ref('stock_adjustments').push({
+            productID, key, site: siteKey, before, after,
+            reason: 'Align card qty to completed movement history',
+            by: (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'Unknown',
+            at: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch (logError) { console.warn('Stock adjustment log failed:', logError); }
+    try { await window.inventoryPocket?.publishMaterialByKey(key); } catch (pocketError) { console.warn('Inventory Pocket publish after align failed:', pocketError); }
+    alert(`Aligned. ${productID} at ${siteKey} is now ${after}.\nIt is now available in the transfer form.`);
+    localStorage.removeItem(STOCK_CACHE_KEY);
+    if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+}
+window.msAlignSiteToHistory = msAlignSiteToHistory;
 
 window.toggleStockDetail = function(rowId, btn) {
     // 1. Auto-Minimize Others (Close all other open rows)
@@ -2572,7 +2779,14 @@ async function handleBulkDelete() {
 
         updates[`material_stock/${key}`] = null;
 
-        if (productID && productID.trim() !== "") {
+        // 13.0.1 patch 2: if another card (not being deleted) still uses this Product ID,
+        // the history belongs to that card too, so it must NOT be deleted.
+        const deletingKeys = new Set(Array.from(checkedBoxes).map((b) => b.dataset.key));
+        const idStillUsed = !!productID && allMaterialStockData.some((other) =>
+            !deletingKeys.has(other.key) &&
+            String(other.productID || other.productId || '').trim() === String(productID).trim());
+
+        if (productID && productID.trim() !== "" && !idStillUsed) {
             const relatedTransfers = allTransferData.filter(t => {
                 const tID = (t.productID || t.productId || "").toString().trim();
                 const sID = productID.toString().trim();
@@ -2636,7 +2850,10 @@ async function handleMergeSelected() {
             const diff = (left[i] || 0) - (right[i] || 0);
             if (diff) return diff;
         }
-        return msProductSequence(a).id.localeCompare(msProductSequence(b).id);
+        const byId = msProductSequence(a).id.localeCompare(msProductSequence(b).id);
+        if (byId) return byId;
+        // 13.0.1 patch 2: same Product ID on several cards -> keep the card holding the most stock.
+        return (parseFloat(b.stockQty) || 0) - (parseFloat(a.stockQty) || 0);
     });
     const main = items[0];
     const others = items.slice(1);
@@ -2645,59 +2862,399 @@ async function handleMergeSelected() {
     if (!confirm(`Merge into the lowest ID ${mainId}?\n\n${otherIds.join('\n')}\n\nStock and history move to ${mainId}. The other cards become zero so you can delete them.`)) return;
     const btn = document.getElementById('ms-merge-selected-btn');
     if (btn) { btn.disabled = true; btn.textContent = 'Merging...'; }
-    const sites = { ...(main.sites || {}) };
-    others.forEach((item) => {
-        Object.entries(item.sites || {}).forEach(([site, qty]) => {
-            const amount = parseFloat(qty) || 0;
-            if (!amount) return;
-            sites[site] = (parseFloat(sites[site]) || 0) + amount;
-        });
-    });
-    let total = 0;
-    Object.values(sites).forEach((qty) => { total += parseFloat(qty) || 0; });
     const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
-    const updates = {};
-    updates[`material_stock/${main.key}/sites`] = sites;
-    updates[`material_stock/${main.key}/stockQty`] = total;
-    updates[`material_stock/${main.key}/balanceQty`] = total;
-    updates[`material_stock/${main.key}/lastUpdated`] = Date.now();
-    others.forEach((item) => {
-        updates[`material_stock/${item.key}/sites`] = {};
-        updates[`material_stock/${item.key}/stockQty`] = 0;
-        updates[`material_stock/${item.key}/balanceQty`] = 0;
-        updates[`material_stock/${item.key}/mergedInto`] = mainId;
-        updates[`material_stock/${item.key}/lastUpdated`] = Date.now();
-    });
-    const idSet = new Set(otherIds);
-    let historyCount = 0;
-    (allTransferData || []).forEach((entry) => {
-        const pid = String(entry.productID || entry.productId || '').trim();
-        if (!idSet.has(pid) || !entry.key) return;
-        updates[`transfer_entries/${entry.key}/productID`] = mainId;
-        updates[`transfer_entries/${entry.key}/productId`] = mainId;
-        updates[`transfer_entries/${entry.key}/productName`] = main.productName || '';
-        updates[`transfer_entries/${entry.key}/mergedFrom`] = pid;
-        historyCount++;
-    });
+    const resetMergeBtn = () => { if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-code-merge"></i> Merge Selected'; } };
+    const who = (currentApprover && currentApprover.Name) || 'Unknown';
+
+    // 13.0.1 patch 3: ATOMIC MERGE
+    //  Step 1  each other card is emptied in its own transaction and its exact site qty captured
+    //  Step 2  the captured qty is added to the main card in one transaction
+    //  If step 2 fails, every emptied card gets its qty back (rollback).
+    //  A stock movement made by someone else at the same moment can never be lost or doubled.
+    const canonSite = (site) => (typeof window.stockCanonicalSiteKey === 'function')
+        ? window.stockCanonicalSiteKey(site)
+        : msCanonSiteKey(site);
+    const foldInto = (target, sites, sign) => {
+        Object.entries(sites || {}).forEach(([site, qty]) => {
+            const amount = (parseFloat(qty) || 0) * sign;
+            const key = canonSite(site) || String(site || '').trim().replace(/[.#$[\]\/]/g, '');
+            if (!key || !amount) return;
+            target[key] = (parseFloat(target[key]) || 0) + amount;
+        });
+    };
+    const runTx = async (key, fn) => {
+        const res = await database.ref(`material_stock/${key}`).transaction(fn);
+        return !!(res && res.committed && res.snapshot && res.snapshot.exists());
+    };
+    const giveBack = async (taken) => {
+        for (const t of taken) {
+            try {
+                await runTx(t.key, (cur) => {
+                    if (!cur) return cur;
+                    if (!cur.sites) cur.sites = {};
+                    const folded = {};
+                    foldInto(folded, cur.sites, 1);
+                    foldInto(folded, t.sites, 1);
+                    cur.sites = folded;
+                    let tot = 0; Object.values(folded).forEach((v) => { tot += parseFloat(v) || 0; });
+                    cur.stockQty = tot; cur.balanceQty = tot;
+                    cur.mergedInto = null; cur.mergedAt = null;
+                    cur.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+                    return cur;
+                });
+            } catch (e) { console.error('Merge rollback failed for', t.key, t.sites, e); }
+        }
+    };
+
+    const taken = [];
     try {
+        // Main card must exist and still be this product.
+        const mainLive = (await database.ref(`material_stock/${main.key}`).once('value')).val();
+        if (!mainLive || String(mainLive.productID || mainLive.productId || '').trim() !== mainId || mainLive.mergedInto) {
+            resetMergeBtn(); localStorage.removeItem(STOCK_CACHE_KEY);
+            alert(`Card ${mainId} is out of date in this browser or was already merged. Refresh Material Stock and try again. Nothing was changed.`);
+            return;
+        }
+
+        // Step 1: empty each other card atomically.
+        for (const item of others) {
+            const expectId = String(item.productID || item.productId || '').trim();
+            let captured = null;
+            let problem = '';
+            const ok = await runTx(item.key, (cur) => {
+                captured = null; problem = '';
+                if (!cur) return cur;
+                if (String(cur.productID || cur.productId || '').trim() !== expectId) { problem = 'changed'; return; }
+                if (cur.mergedInto) { problem = 'already merged into ' + cur.mergedInto; return; }
+                captured = { ...(cur.sites || {}) };
+                cur.sites = {};
+                cur.stockQty = 0;
+                cur.balanceQty = 0;
+                cur.mergedInto = mainId;
+                cur.mergedAt = firebase.database.ServerValue.TIMESTAMP;
+                cur.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+                return cur;
+            });
+            if (!ok) {
+                await giveBack(taken);
+                resetMergeBtn(); localStorage.removeItem(STOCK_CACHE_KEY);
+                alert(`Could not merge ${expectId}${problem ? ' (' + problem + ')' : ''}. Everything was put back. Refresh Material Stock and try again.`);
+                if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+                return;
+            }
+            taken.push({ key: item.key, id: expectId, sites: captured || {} });
+        }
+
+        // Step 2: add everything to the main card atomically.
+        const addAll = {};
+        taken.forEach((t) => foldInto(addAll, t.sites, 1));
+        let mainTotal = 0;
+        const okMain = await runTx(main.key, (cur) => {
+            if (!cur) return cur;
+            const folded = {};
+            foldInto(folded, cur.sites, 1);
+            foldInto(folded, addAll, 1);
+            Object.keys(folded).forEach((k) => { if (!folded[k]) delete folded[k]; });
+            cur.sites = folded;
+            let tot = 0; Object.values(folded).forEach((v) => { tot += parseFloat(v) || 0; });
+            cur.stockQty = tot; cur.balanceQty = tot;
+            cur.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+            mainTotal = tot;
+            return cur;
+        });
+        if (!okMain) {
+            await giveBack(taken);
+            resetMergeBtn();
+            alert(`Could not add the stock to ${mainId}. Everything was put back. Nothing was merged.`);
+            localStorage.removeItem(STOCK_CACHE_KEY);
+            if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+            return;
+        }
+
+        // Merge log (exact quantities moved, for audit / manual recovery).
+        try {
+            await database.ref('stock_merges').push({
+                mainId, mainKey: main.key,
+                merged: taken.map((t) => ({ id: t.id, key: t.key, sites: t.sites })),
+                by: who, at: firebase.database.ServerValue.TIMESTAMP
+            });
+        } catch (logError) { console.warn('Merge log failed:', logError); }
+
+        // Step 3: history follows the stock.
+        await fetchTransfersOnly();
+        const idSet = new Set(taken.map((t) => t.id));
+        idSet.delete(mainId);
+        const updates = {};
+        let historyCount = 0;
+        (allTransferData || []).forEach((entry) => {
+            const pid = String(entry.productID || entry.productId || '').trim();
+            if (!idSet.has(pid) || !entry.key) return;
+            updates[`transfer_entries/${entry.key}/productID`] = mainId;
+            updates[`transfer_entries/${entry.key}/productId`] = mainId;
+            updates[`transfer_entries/${entry.key}/productName`] = main.productName || '';
+            updates[`transfer_entries/${entry.key}/mergedFrom`] = pid;
+            historyCount++;
+        });
         const keys = Object.keys(updates);
         for (let i = 0; i < keys.length; i += 400) {
             const batch = {};
-            keys.slice(i, i + 400).forEach((key) => { batch[key] = updates[key]; });
+            keys.slice(i, i + 400).forEach((k) => { batch[k] = updates[k]; });
             await database.ref().update(batch);
         }
-        alert(`Merged into ${mainId}.\nStock is now ${total}.\n${historyCount} history records moved.\nThe other cards are zero. Tick them and use Delete Selected.`);
+
+        // Step 4: tell every browser (Pocket) and clear cached keys.
+        try {
+            await window.inventoryPocket?.publishMaterialByKey(main.key);
+            for (const t of taken) await window.inventoryPocket?.publishMaterialByKey(t.key);
+        } catch (pocketError) { console.warn('Inventory Pocket merge publish failed:', pocketError); }
+        try { if (typeof transferStockItemKeyCache !== 'undefined') Object.keys(transferStockItemKeyCache).forEach((k) => { delete transferStockItemKeyCache[k]; }); } catch (_) {}
+
+        alert(`Merged into ${mainId}.\nStock is now ${mainTotal}.\n${historyCount} history records moved.\nThe other cards are zero. Tick them and use Delete Selected.`);
         localStorage.removeItem(STOCK_CACHE_KEY);
         if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
     } catch (error) {
         console.error(error);
-        alert('Merge failed: ' + (error && error.message ? error.message : error));
+        if (taken.length) await giveBack(taken);
+        alert('Merge failed: ' + (error && error.message ? error.message : error) + (taken.length ? '\nStock was put back.' : ''));
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-code-merge"></i> Merge Selected';
+        resetMergeBtn();
+    }
+}
+
+// ==========================================================================
+// 13.0.1 patch 4: STOCK CHECK
+//   One screen listing ONLY the sites where completed movement history says more
+//   stock should be on the card than the card holds. For each one: enter the real qty
+//   (pre-filled with the history qty), approve one by one or all ticked at once.
+//   Uses data already loaded in the browser: no extra full download.
+// ==========================================================================
+let msStockCheckRows = [];
+
+function msBuildStockCheckRows() {
+    const byPid = new Map();
+    (Array.isArray(allTransferData) ? allTransferData : []).forEach((t) => {
+        const pid = String(t.productID || t.productId || '').trim();
+        if (!pid) return;
+        if (!byPid.has(pid)) byPid.set(pid, []);
+        byPid.get(pid).push(t);
+    });
+    const rows = [];
+    (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).forEach((item) => {
+        if (!item || !item.key || item.mergedInto) return;
+        const pid = String(item.productID || item.productId || '').trim();
+        if (!pid) return;
+        const transfers = byPid.get(pid) || [];
+        if (!transfers.length) return;
+        const d = msDisplayStockFromReceipts(item, transfers);
+        d.rows.filter((r) => r.gap).forEach((r) => {
+            rows.push({
+                id: `${item.key}|${r.site}`,
+                key: item.key, productID: pid, productName: item.productName || '',
+                site: r.site, card: r.stored, history: r.expected, open: d.openCount
+            });
+        });
+    });
+    rows.sort((a, b) => a.productID.localeCompare(b.productID, undefined, { numeric: true }) || a.site.localeCompare(b.site, undefined, { numeric: true }));
+    return rows;
+}
+
+function msEnsureStockCheckModal() {
+    let modal = document.getElementById('ms-stock-check-modal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'ms-stock-check-modal';
+    modal.style.cssText = 'position:fixed; inset:0; z-index:10050; background:rgba(0,20,35,0.55); display:none; align-items:center; justify-content:center; padding:12px;';
+    modal.innerHTML = `
+      <div style="background:#fff; width:min(1100px,100%); max-height:92vh; display:flex; flex-direction:column; border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.3); overflow:hidden;">
+        <div style="padding:14px 18px; background:#003A5C; color:#fff; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div><div style="font-weight:800; font-size:1.1rem;"><i class="fa-solid fa-list-check"></i> Stock Check</div>
+          <div id="ms-sc-summary" style="font-size:0.82rem; opacity:0.85;"></div></div>
+          <button type="button" id="ms-sc-close" style="background:transparent; border:none; color:#fff; font-size:1.6rem; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div style="padding:10px 18px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-bottom:1px solid #e5e7eb; background:#f8fafc;">
+          <input id="ms-sc-search" type="text" placeholder="Search ID, name or site..." style="flex:1; min-width:180px; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px;">
+          <button type="button" id="ms-sc-csv" class="secondary-btn" style="padding:8px 12px;"><i class="fa-solid fa-file-csv"></i> Download list</button>
+          <button type="button" id="ms-sc-approve-all" style="padding:8px 14px; background:#0f766e; color:#fff; border:none; border-radius:8px; font-weight:700; cursor:pointer;"><i class="fa-solid fa-check-double"></i> Approve ticked</button>
+        </div>
+        <div style="padding:8px 18px; font-size:0.8rem; color:#555;">Only sites where completed history shows MORE than the card are listed. Type the qty that is physically at the site (pre-filled with the history qty), then approve. A site you approve stops being listed until its qty or history changes again.</div>
+        <div style="overflow:auto; flex:1; padding:0 18px 14px;">
+          <table style="width:100%; border-collapse:collapse; font-size:0.86rem;">
+            <thead><tr style="position:sticky; top:0; background:#e6f4f7; color:#003A5C;">
+              <th style="padding:8px; text-align:center;"><input type="checkbox" id="ms-sc-all"></th>
+              <th style="padding:8px; text-align:left;">Product ID</th>
+              <th style="padding:8px; text-align:left;">Name</th>
+              <th style="padding:8px; text-align:left;">Site</th>
+              <th style="padding:8px; text-align:right;">Card</th>
+              <th style="padding:8px; text-align:right;">History</th>
+              <th style="padding:8px; text-align:center;">Correct qty</th>
+              <th style="padding:8px;"></th>
+            </tr></thead>
+            <tbody id="ms-sc-body"></tbody>
+          </table>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#ms-sc-close').addEventListener('click', () => { modal.style.display = 'none'; });
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+    modal.querySelector('#ms-sc-search').addEventListener('input', msRenderStockCheck);
+    modal.querySelector('#ms-sc-all').addEventListener('change', (e) => {
+        modal.querySelectorAll('.ms-sc-tick').forEach((cb) => { if (!cb.disabled) cb.checked = e.target.checked; });
+    });
+    modal.querySelector('#ms-sc-approve-all').addEventListener('click', msApproveTickedStockCheck);
+    modal.querySelector('#ms-sc-csv').addEventListener('click', msDownloadStockCheckCsv);
+    modal.querySelector('#ms-sc-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.ms-sc-approve-one');
+        if (!btn) return;
+        msApproveStockCheckRows([btn.getAttribute('data-id')]);
+    });
+    return modal;
+}
+
+function msRenderStockCheck() {
+    const modal = msEnsureStockCheckModal();
+    const body = modal.querySelector('#ms-sc-body');
+    const term = String(modal.querySelector('#ms-sc-search').value || '').toLowerCase().trim();
+    const list = msStockCheckRows.filter((r) => !term ||
+        r.productID.toLowerCase().includes(term) || r.productName.toLowerCase().includes(term) || r.site.toLowerCase().includes(term));
+    const products = new Set(msStockCheckRows.map((r) => r.key)).size;
+    modal.querySelector('#ms-sc-summary').textContent = msStockCheckRows.length
+        ? `${msStockCheckRows.length} site(s) on ${products} item(s) need checking` + (term ? ` - showing ${list.length}` : '')
+        : 'All cards match their movement history.';
+    modal.querySelector('#ms-sc-all').checked = false;
+    if (!list.length) {
+        body.innerHTML = `<tr><td colspan="8" style="padding:30px; text-align:center; color:#0f766e; font-weight:700;">${msStockCheckRows.length ? 'No match for this search.' : '<i class="fa-solid fa-circle-check"></i> Nothing to check.'}</td></tr>`;
+        return;
+    }
+    body.innerHTML = list.map((r) => `
+        <tr data-id="${msEscapeHtml(r.id)}" style="border-bottom:1px solid #eef2f7;">
+          <td style="padding:6px 8px; text-align:center;"><input type="checkbox" class="ms-sc-tick" data-id="${msEscapeHtml(r.id)}"></td>
+          <td style="padding:6px 8px; font-family:monospace;">${msEscapeHtml(r.productID)}</td>
+          <td style="padding:6px 8px;">${msEscapeHtml(r.productName)}${r.open ? ` <span title="Open requests for this item are already counted" style="font-size:0.72rem; color:#8a6100;">(${r.open} open)</span>` : ''}</td>
+          <td style="padding:6px 8px;">${msEscapeHtml(r.site)}</td>
+          <td style="padding:6px 8px; text-align:right; font-weight:700; color:#b91c1c;">${r.card}</td>
+          <td style="padding:6px 8px; text-align:right; font-weight:700;">${r.history}</td>
+          <td style="padding:6px 8px; text-align:center;"><input type="number" min="0" step="any" class="ms-sc-qty" data-id="${msEscapeHtml(r.id)}" value="${r.history}" style="width:90px; padding:5px 6px; border:1px solid #cbd5e1; border-radius:6px; text-align:right;"></td>
+          <td style="padding:6px 8px; text-align:center;"><button type="button" class="ms-sc-approve-one" data-id="${msEscapeHtml(r.id)}" style="padding:5px 10px; background:#00748C; color:#fff; border:none; border-radius:6px; cursor:pointer;">Approve</button></td>
+        </tr>`).join('');
+}
+
+async function msOpenStockCheck() {
+    if (!msCanAlignStock()) { alert('Only Irwin or Logistic can use Stock Check.'); return; }
+    const modal = msEnsureStockCheckModal();
+    modal.style.display = 'flex';
+    modal.querySelector('#ms-sc-body').innerHTML = '<tr><td colspan="8" style="padding:30px; text-align:center; color:#777;">Checking all items...</td></tr>';
+    if (window.__ibaMaterialStockFullyLoaded !== true || !Array.isArray(allMaterialStockData) || !allMaterialStockData.length) {
+        try { await populateMaterialStock(); } catch (_) {}
+    }
+    try { await fetchTransfersOnly(); } catch (_) {}
+    msStockCheckRows = msBuildStockCheckRows();
+    msRenderStockCheck();
+}
+window.msOpenStockCheck = msOpenStockCheck;
+
+function msDownloadStockCheckCsv() {
+    const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const lines = [['Product ID', 'Name', 'Site', 'Card Qty', 'History Qty', 'Counted Qty'].map(q).join(',')];
+    msStockCheckRows.forEach((r) => lines.push([r.productID, r.productName, r.site, r.card, r.history, ''].map(q).join(',')));
+    const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Stock_Check_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+async function msApproveTickedStockCheck() {
+    const modal = msEnsureStockCheckModal();
+    const ids = Array.from(modal.querySelectorAll('.ms-sc-tick:checked')).map((cb) => cb.getAttribute('data-id'));
+    if (!ids.length) { alert('Tick the sites you have checked first.'); return; }
+    await msApproveStockCheckRows(ids);
+}
+
+async function msApproveStockCheckRows(ids) {
+    if (!msCanAlignStock()) { alert('Only Irwin or Logistic can approve stock.'); return; }
+    const modal = msEnsureStockCheckModal();
+    const jobs = [];
+    for (const id of ids) {
+        const r = msStockCheckRows.find((x) => x.id === id);
+        if (!r) continue;
+        const input = modal.querySelector(`.ms-sc-qty[data-id="${CSS.escape(id)}"]`);
+        const qty = parseFloat(input ? input.value : '');
+        if (!isFinite(qty) || qty < 0) { alert(`Enter a valid qty for ${r.productID} at ${r.site}.`); return; }
+        jobs.push({ ...r, qty });
+    }
+    if (!jobs.length) return;
+    const preview = jobs.slice(0, 12).map((j) => `${j.productID} @ ${j.site}: ${j.card} -> ${j.qty}`).join('\n') + (jobs.length > 12 ? `\n...and ${jobs.length - 12} more` : '');
+    if (!confirm(`APPROVE STOCK (${jobs.length})\n\n${preview}\n\nOnly approve qty that is physically at the site.`)) return;
+
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    const who = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : 'Unknown';
+    const approveBtn = modal.querySelector('#ms-sc-approve-all');
+    const summary = modal.querySelector('#ms-sc-summary');
+    if (approveBtn) approveBtn.disabled = true;
+    let done = 0;
+    const failed = [];
+    const touchedKeys = new Set();
+
+    for (const j of jobs) {
+        summary.textContent = `Saving ${done + 1} of ${jobs.length}...`;
+        try {
+            let changedMeanwhile = false;
+            const res = await database.ref(`material_stock/${j.key}`).transaction((cur) => {
+                changedMeanwhile = false;
+                if (!cur) return cur;
+                if (String(cur.productID || cur.productId || '').trim() !== j.productID) { changedMeanwhile = true; return; }
+                if (!cur.sites) cur.sites = {};
+                let siteVal = 0;
+                Object.keys(cur.sites).forEach((k) => {
+                    if (msCanonSiteKey(k) !== j.site) return;
+                    siteVal += parseFloat(cur.sites[k]) || 0;
+                    if (k !== j.site) delete cur.sites[k];
+                });
+                // The card must still hold what was shown on screen; otherwise re-check.
+                if (Math.abs(siteVal - j.card) > 1e-9) { changedMeanwhile = true; return; }
+                if (j.qty > 0) cur.sites[j.site] = j.qty; else delete cur.sites[j.site];
+                let total = 0;
+                Object.values(cur.sites).forEach((v) => { total += parseFloat(v) || 0; });
+                cur.stockQty = total;
+                if (!cur.checkedSites) cur.checkedSites = {};
+                cur.checkedSites[j.site] = { card: j.qty, history: j.history, by: who, at: Date.now() };
+                cur.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+                return cur;
+            });
+            const ok = !!(res && res.committed && res.snapshot && res.snapshot.exists());
+            if (!ok) { failed.push(`${j.productID} @ ${j.site}${changedMeanwhile ? ' (changed meanwhile)' : ''}`); continue; }
+            // Keep the browser list current without a full re-download.
+            const fresh = res.snapshot.val();
+            const idx = allMaterialStockData.findIndex((x) => x.key === j.key);
+            if (idx >= 0) allMaterialStockData[idx] = { ...allMaterialStockData[idx], ...fresh, key: j.key };
+            touchedKeys.add(j.key);
+            try {
+                await database.ref('stock_adjustments').push({
+                    productID: j.productID, key: j.key, site: j.site,
+                    before: j.card, after: j.qty, history: j.history,
+                    reason: 'Stock Check approval', by: who, at: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (logError) { console.warn('Stock adjustment log failed:', logError); }
+            done++;
+        } catch (e) {
+            console.error('Stock Check approve failed:', j, e);
+            failed.push(`${j.productID} @ ${j.site} (${e && e.message ? e.message : 'error'})`);
         }
     }
+    for (const key of touchedKeys) {
+        try { await window.inventoryPocket?.publishMaterialByKey(key); } catch (pocketError) { console.warn('Pocket publish after Stock Check failed:', pocketError); }
+    }
+    try {
+        localStorage.setItem(STOCK_CACHE_KEY, JSON.stringify({ data: allMaterialStockData, timestamp: Date.now(), complete: true, source: STOCK_CACHE_SOURCE }));
+    } catch (_) {}
+    if (approveBtn) approveBtn.disabled = false;
+    msStockCheckRows = msBuildStockCheckRows();
+    msRenderStockCheck();
+    try { renderMaterialStockTable(allMaterialStockData); } catch (_) {}
+    alert(`Approved ${done} of ${jobs.length}.` + (failed.length ? `\n\nNot saved (check again):\n${failed.join('\n')}` : ''));
 }
 
 // ==========================================================================
@@ -3636,6 +4193,11 @@ const addNewBtn = document.getElementById('ms-add-new-btn');
     if (mergeSelectedBtn && mergeSelectedBtn.dataset.bound !== '1') {
         mergeSelectedBtn.dataset.bound = '1';
         mergeSelectedBtn.addEventListener('click', handleMergeSelected);
+    }
+    const stockCheckBtn = document.getElementById('ms-stock-check-btn');
+    if (stockCheckBtn && stockCheckBtn.dataset.bound !== '1') {
+        stockCheckBtn.dataset.bound = '1';
+        stockCheckBtn.addEventListener('click', () => msOpenStockCheck());
     }
 
     const saveStockBtn = document.getElementById('ms-save-stock-btn');

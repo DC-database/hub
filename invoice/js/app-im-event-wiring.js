@@ -935,8 +935,70 @@ if (settingsVacationCheckbox) {
     };
     window.imBatchApplyAutoAttentionForRow = applyBatchAutoAttentionForStatus;
 
+    // ======================================================================
+    // 13.0.1 patch 6: Batch Entry quick buttons now match Invoice Entry
+    //   IPC  -> <PO>.IPC/<next number>   (counts invoices already on the PO,
+    //           plus other new cards in this batch that already got an IPC number)
+    //   F    -> adds ".Final" to an IPC value like 12345.IPC/05
+    //   FIVE -> <PO>.<whatever is already typed>
+    //   SUM  -> status "For Summary" + note "<vendor first 16 letters> <dd-Mon-yyyy>"
+    // ======================================================================
+    const batchTodayStamp = () => {
+        const d = new Date();
+        const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+        return `${String(d.getDate()).padStart(2, '0')}-${mon}-${d.getFullYear()}`;
+    };
+    const batchSummaryNote = (card) => {
+        let vendor = String((card && card.dataset ? card.dataset.vendor : '') || '').replace(/\s+/g, ' ').trim();
+        if (/^n\/?a$/i.test(vendor)) vendor = '';
+        const short = vendor.slice(0, 16).trimEnd();
+        return short ? `${short} ${batchTodayStamp()}` : batchTodayStamp();
+    };
+    const batchFillSummaryNote = (card, force) => {
+        const noteInput = card ? card.querySelector('input[name="note"]') : null;
+        if (!noteInput) return;
+        const current = String(noteInput.value || '').trim();
+        const lastAuto = card.dataset.autoSummaryNote || '';
+        // Dropdown change only fills an empty note (or one we filled before);
+        // the SUM button always writes it.
+        if (!force && current && current !== lastAuto) return;
+        const note = batchSummaryNote(card);
+        noteInput.value = note;
+        card.dataset.autoSummaryNote = note;
+        noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    const batchNextIpcValue = async (card) => {
+        const po = String(card.dataset.po || '').trim();
+        if (!po) return '';
+        if (typeof allInvoiceData === 'undefined' || !allInvoiceData) { try { allInvoiceData = {}; } catch (_) {} }
+        if (!allInvoiceData[po]) {
+            try {
+                const snap = await invoiceDb.ref(`invoice_entries/${po}`).once('value');
+                allInvoiceData[po] = snap.val() || {};
+            } catch (readError) {
+                console.warn('IPC count read failed:', readError);
+                return '';
+            }
+        }
+        const existing = allInvoiceData[po] || {};
+        let count = Object.keys(existing).length;
+        // An existing invoice opened in the batch is already counted: do not count it twice.
+        const ownKey = card.dataset.key || '';
+        if (ownKey && existing[ownKey]) count -= 1;
+        // New cards for the same PO in this batch that already received an IPC number.
+        const ipcPrefix = (po + '.IPC/').toUpperCase();
+        const hasIpcNumber = (v) => v.toUpperCase().startsWith(ipcPrefix) && /^\d/.test(v.slice(ipcPrefix.length));
+        batchTableBody.querySelectorAll('.batch-invoice-card').forEach((other) => {
+            if (other === card || other.dataset.key) return;
+            if (String(other.dataset.po || '').trim() !== po) return;
+            const v = String((other.querySelector('input[name="invNumber"]') || {}).value || '').trim();
+            if (hasIpcNumber(v)) count += 1;
+        });
+        return `${po}.IPC/${String(count + 1).padStart(2, '0')}`;
+    };
+
    if (batchTableBody) {
-        // 1. CLICK LISTENER (Delete, Attention, IPC, FIVE)
+        // 1. CLICK LISTENER (Delete, Attention, IPC, FIVE, SUM)
         // 11.4.2: Batch delete must react immediately even when the user clicks
         // the trash icon <i> inside the button.  The old check looked only at
         // e.target.classList, so clicking the icon could be ignored until a later
@@ -972,25 +1034,37 @@ if (settingsVacationCheckbox) {
             // --- QUICK INVOICE BUTTONS ---
             const quickIpcBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-ipc') : null;
             if (quickIpcBtn && batchTableBody.contains(quickIpcBtn)) {
+                e.preventDefault();
                 const card = quickIpcBtn.closest('.batch-invoice-card');
-                const po = card ? (card.dataset.po || '') : '';
                 const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
-                if (invInput) {
-                    invInput.value = po + '.IPC/';
+                if (!card || !invInput) return;
+                if (!String(card.dataset.po || '').trim()) { alert('Could not detect the PO Number for this card.'); return; }
+                quickIpcBtn.disabled = true;
+                batchNextIpcValue(card).then((value) => {
+                    if (!value) { alert('Could not count the invoices for this PO. Check connection and try again.'); return; }
+                    invInput.value = value;
+                    invInput.dispatchEvent(new Event('input', { bubbles: true }));
                     invInput.focus();
-                }
+                }).finally(() => { quickIpcBtn.disabled = false; });
                 return;
             }
 
             const quickFBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-f') : null;
             if (quickFBtn && batchTableBody.contains(quickFBtn)) {
+                e.preventDefault();
                 const card = quickFBtn.closest('.batch-invoice-card');
                 const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
                 if (invInput) {
                     const current = String(invInput.value || '').trim();
-                    if (current && /\.IPC\//i.test(current) && !/\.Final$/i.test(current)) {
+                    if (!current) return;
+                    if (/\.Final$/i.test(current)) { invInput.focus(); return; }
+                    // Only append .Final to an IPC value such as 12345.IPC/05 (same rule as Invoice Entry).
+                    if (/\.IPC\/\d+$/i.test(current)) {
                         invInput.value = current + '.Final';
+                        invInput.dispatchEvent(new Event('input', { bubbles: true }));
                         invInput.focus();
+                    } else {
+                        alert('The Invoice No. must be an IPC value such as 12345.IPC/05 before using F.');
                     }
                 }
                 return;
@@ -998,12 +1072,33 @@ if (settingsVacationCheckbox) {
 
             const quickFiveBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-five') : null;
             if (quickFiveBtn && batchTableBody.contains(quickFiveBtn)) {
+                e.preventDefault();
                 const card = quickFiveBtn.closest('.batch-invoice-card');
                 const invInput = card ? card.querySelector('input[name="invNumber"]') : null;
+                const po = card ? String(card.dataset.po || '').trim() : '';
                 if (invInput) {
-                    invInput.value = 'FIVE-';
+                    if (!po) { alert('Could not detect the PO Number for this card.'); return; }
+                    const current = String(invInput.value || '').trim();
+                    // Same as Invoice Entry: PO + "." + whatever is already typed; never doubled.
+                    if (!current.startsWith(po + '.')) {
+                        invInput.value = `${po}.${current}`;
+                        invInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                     invInput.focus();
                 }
+                return;
+            }
+
+            const quickSumBtn = e.target && e.target.closest ? e.target.closest('.btn-quick-status-sum') : null;
+            if (quickSumBtn && batchTableBody.contains(quickSumBtn)) {
+                e.preventDefault();
+                const card = quickSumBtn.closest('.batch-invoice-card');
+                const statusSelect = card ? card.querySelector('select[name="status"]') : null;
+                if (statusSelect) {
+                    statusSelect.value = 'For Summary';
+                    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                batchFillSummaryNote(card, true);
                 return;
             }
 
@@ -1036,6 +1131,9 @@ if (settingsVacationCheckbox) {
             if (e.target.name !== 'status') return;
             const row = e.target.closest('.batch-invoice-card') || e.target.closest('tr');
             if (!row) return;
+            // 13.0.1 patch 6: choosing "For Summary" from the list also fills the note
+            // (only when the note is empty or was filled automatically before).
+            if (e.target.value === 'For Summary') batchFillSummaryNote(row, false);
             await applyBatchAutoAttentionForStatus(row, e.target.value, { allowPicker: true });
         });
     }

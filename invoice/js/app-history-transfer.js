@@ -734,8 +734,22 @@ if (saveManualPOBtn) {
         // 1. PENDING TASK? Just Delete.
         if (!isCompleted) {
             if (confirm("Delete this pending request?")) {
+                // 13.0.1 patch 3: if this open task already deducted stock (authorized usage,
+                // transfer/return in transit), put that qty back before deleting the record.
+                let restoredMsg = '';
+                try {
+                    const freshSnap = await getInventoryDatabase().ref(`transfer_entries/${key}`).once('value');
+                    const fresh = freshSnap.val();
+                    if (fresh && typeof window.tfRestoreStockForOpenTask === 'function') {
+                        restoredMsg = await window.tfRestoreStockForOpenTask({ ...fresh, key });
+                    }
+                } catch (restoreError) {
+                    console.error('Stock return before delete failed:', restoreError);
+                    alert('Could not return the stock for this request, so it was NOT deleted.\n\n' + (restoreError && restoreError.message ? restoreError.message : restoreError));
+                    return;
+                }
                 await getInventoryDatabase().ref(`transfer_entries/${key}`).remove();
-                alert("Request deleted.");
+                alert(restoredMsg ? `Request deleted. Stock: ${restoredMsg}.` : "Request deleted.");
 
                 // Remove from local caches and refresh UI without reloading
                 allSystemEntries = allSystemEntries.filter(t => t.key !== key);
@@ -845,6 +859,16 @@ if (saveManualPOBtn) {
                 attention: task.approver,
 
                 originalJobType: task.jobType,
+                // 13.0.1 patch 3: the original record is deleted below, so keep its stock
+                // movement here. Material Stock uses it to keep the history cross-check exact.
+                originalMovement: {
+                    jobType: task.jobType,
+                    controlNumber: task.controlNumber || '',
+                    from: origSource,
+                    to: origDest,
+                    approvedQty: parseFloat(task.approvedQty) || parseFloat(task.receivedQty) || parseFloat(task.orderedQty) || 0,
+                    receivedQty: parseFloat(task.receivedQty) || parseFloat(task.approvedQty) || parseFloat(task.orderedQty) || 0
+                },
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 enteredBy: currentUser,
                 history: [{
@@ -931,6 +955,10 @@ if (saveManualPOBtn) {
                     stockQty: newGlobalStock,
                     lastUpdated: firebase.database.ServerValue.TIMESTAMP
                 });
+                // 13.0.1 patch 1: publish to the Inventory Pocket so other browsers (and this one after
+                // reload) do not put the previous quantity back from an older Pocket copy.
+                try { await window.inventoryPocket?.publishMaterialByKey(key); }
+                catch (pocketError) { console.warn('Inventory Pocket publish after stock reversal failed:', pocketError); }
             }
         } catch (error) {
             console.error("Stock update failed:", error);

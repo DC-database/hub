@@ -192,10 +192,59 @@ async function fetchActiveTransfers() {
     } catch(e) { console.error("Error fetching active transfers:", e); }
 }
 
+// 13.0.1 patch 3: stock already moved by an OPEN task (not yet completed).
+// Used when such a task is rejected or deleted, so the deducted qty is not lost.
+//   Transfer / Return in transit : source was deducted by the approved qty
+//   Usage pending confirmation    : source was deducted by the approved qty
+// Returns a short description of what was put back, or '' when nothing had moved.
+async function tfRestoreStockForOpenTask(task) {
+    if (!task || task.stockRestored) return '';
+    const state = String(task.remarks || task.status || '').trim();
+    const type = String(task.jobType || task.for || '').trim();
+    const orig = String(task.originalJobType || '').trim();
+    const pID = String(task.productID || task.productId || '').trim();
+    const source = String(task.fromLocation || task.fromSite || '').trim();
+    const qty = parseFloat(task.approvedQty) || 0;
+    if (!pID || !source || qty <= 0) return '';
+    const moved =
+        (type === 'Transfer' && state === 'In Transit') ||
+        (type === 'Return' && state === 'In Transit' && orig !== 'Restock' && orig !== 'Usage') ||
+        (type === 'Usage' && state === 'Pending Confirmation');
+    if (!moved) return '';
+    await runStockTransaction(pID, qty, 'Add', source);
+    return `${qty} returned to ${source}`;
+}
+window.tfRestoreStockForOpenTask = tfRestoreStockForOpenTask;
+
+// 13.0.1 patch 2: among several cards with the same Product ID, use the one with the most
+// stock at the given site (for deductions), otherwise the most total stock. Skips cards
+// that were already merged into another.
+function tfPickBestCard(cards, siteName) {
+    const list = (cards || []).filter(Boolean);
+    if (list.length <= 1) return list[0] || null;
+    const siteQty = (card) => {
+        if (!siteName || !card.sites) return 0;
+        let q = 0;
+        Object.keys(card.sites).forEach(k => { if (stockSiteKeysMatch(k, siteName)) q += parseFloat(card.sites[k]) || 0; });
+        return q;
+    };
+    const totalQty = (card) => {
+        let q = 0;
+        Object.values(card.sites || {}).forEach(v => { q += parseFloat(v) || 0; });
+        return q || (parseFloat(card.stockQty) || 0);
+    };
+    return list.slice().sort((a, b) =>
+        (a.mergedInto ? 1 : 0) - (b.mergedInto ? 1 : 0) ||
+        siteQty(b) - siteQty(a) ||
+        totalQty(b) - totalQty(a)
+    )[0];
+}
+
 function calculateRealAvailable(productID, siteName, dbStockQty) {
+    const pid = String(productID || '').trim();
     const pendingDbQty = activeTransfersCache
-        .filter(t => t.productID === productID && t.fromSite === siteName)
-        .reduce((sum, t) => sum + t.qty, 0);
+        .filter(t => String(t.productID || '').trim() === pid && (t.fromSite === siteName || stockSiteKeysMatch(t.fromSite, siteName)))
+        .reduce((sum, t) => sum + (t.qty || 0), 0);
 
     const batchBufferQty = multiItemBuffer
         .filter(t => t.productID === productID)
@@ -209,7 +258,7 @@ async function manualRefreshStockData() {
     const icon = document.getElementById('tf-refresh-stock-btn');
     if(icon) icon.classList.add('fa-spin');
     await fetchActiveTransfers();
-    await initTransferDropdowns();
+    await initTransferDropdowns(true);
     if(icon) icon.classList.remove('fa-spin');
 }
 
@@ -461,6 +510,11 @@ window.handleTransferAction = async (status, options = {}) => {
         let updates = { note: note, dateResponded: new Date().toLocaleDateString('en-GB') };
 
         if (status === 'Rejected') {
+            // 13.0.1 patch 3: if stock was already deducted for this task (authorized usage,
+            // or a transfer/return already in transit), put it back before rejecting.
+            setProgress('Returning Stock...');
+            const restored = await tfRestoreStockForOpenTask(task);
+            if (restored) updates.stockRestored = restored;
             updates.status = 'Rejected';
             updates.remarks = 'Rejected';
             updates.attention = 'Records';
@@ -669,7 +723,7 @@ function stockSiteKeysMatch(a, b) {
 window.stockCanonicalSiteKey = stockCanonicalSiteKey;
 window.stockSiteKeysMatch = stockSiteKeysMatch;
 
-async function runStockTransaction(id, qty, action, siteName) {
+async function runStockTransaction(id, qty, action, siteName, _redirectDepth = 0) {
     if (id === undefined || id === null || qty === undefined || qty === null || !siteName) {
         console.error("Missing params for stock update", { id, qty, siteName });
         throw new Error('The stock update is missing its product, quantity, or site. Nothing was completed.');
@@ -693,11 +747,18 @@ async function runStockTransaction(id, qty, action, siteName) {
         // 10.0.2: Prefer already-loaded material stock cache, then local lookup cache,
         // then Firebase query. This keeps multi-item mobile approvals faster while
         // preserving the same transaction-safe stock update.
-        let key = transferStockItemKeyCache[cleanId] || '';
-
-        if (!key && typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData)) {
-            const cachedItem = allMaterialStockData.find(i => String(i.productID || i.productId || '').trim() === cleanId);
-            if (cachedItem && cachedItem.key) key = cachedItem.key;
+        let key = '';
+        let localCards = [];
+        if (typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData)) {
+            localCards = allMaterialStockData.filter(i => i && i.key && String(i.productID || i.productId || '').trim() === cleanId);
+        }
+        if (localCards.length > 1) {
+            // 13.0.1 patch 2: duplicate cards -> deduct from the card that holds stock at this
+            // site; add to the main card. Never trust a single cached key here.
+            const best = tfPickBestCard(localCards, action === 'Deduct' ? siteName : null);
+            if (best && best.key) key = best.key;
+        } else {
+            key = transferStockItemKeyCache[cleanId] || (localCards[0] && localCards[0].key) || '';
         }
 
         if (!key) {
@@ -712,7 +773,12 @@ async function runStockTransaction(id, qty, action, siteName) {
 
             // 3. ATOMIC TRANSACTION
             let insufficientStock = false;
+            let redirectTo = '';
             const transactionResult = await ref.transaction((currentData) => {
+                redirectTo = '';
+                // 13.0.1 patch 3: this card was merged into another ID -> do not touch it,
+                // move the stock on the card it was merged into instead.
+                if (currentData && currentData.mergedInto) { redirectTo = String(currentData.mergedInto).trim(); return; }
                 if (currentData) {
                     if (!currentData.sites) currentData.sites = {};
 
@@ -745,6 +811,19 @@ async function runStockTransaction(id, qty, action, siteName) {
                 }
                 return currentData;
             });
+            if (redirectTo && redirectTo !== cleanId) {
+                delete transferStockItemKeyCache[cleanId];
+                if (_redirectDepth >= 3) throw new Error(`Stock item ${cleanId} has a merge loop. Nothing was completed.`);
+                console.log(`Stock item ${cleanId} was merged into ${redirectTo}; applying ${action} there.`);
+                return runStockTransaction(redirectTo, qty, action, siteName, _redirectDepth + 1);
+            }
+            // 13.0.1 patch 1: if the key pointed at a node that does not exist, the transaction
+            // "commits" nothing. Treat that as a failure instead of a silent success.
+            if (transactionResult && transactionResult.committed === true &&
+                (!transactionResult.snapshot || !transactionResult.snapshot.exists())) {
+                delete transferStockItemKeyCache[cleanId];
+                throw new Error(`Stock item ${cleanId} could not be found at its saved location. Refresh Material Stock and try again. Nothing was completed.`);
+            }
             if (!transactionResult || transactionResult.committed !== true) {
                 if (insufficientStock && action === 'Deduct') {
                     throw new Error(`Insufficient stock at ${siteName}. Please check quantity.`);
@@ -1595,56 +1674,140 @@ function tfBindProductSearchPhotoPreview() {
     window.addEventListener('resize', tfHideProductPhotoPreview);
 }
 
-async function initTransferDropdowns() {
+async function initTransferDropdowns(forceFresh = false) {
     const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
 
-    if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), { searchEnabled: true, itemSelectText: '' });
-    if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), { searchEnabled: true, itemSelectText: '' });
-    if (!transferProductChoices) transferProductChoices = new Choices(document.getElementById('tf-product-select'), { searchEnabled: true, itemSelectText: '' });
+    // 13.0.1 patch 5: Choices.js shows only 4 search results by default and favours matches
+    // near the start of the text. Show up to 100 results and match the word anywhere
+    // (e.g. "prop" finds every "... Steel Prop ..." item), with less fuzzy guessing.
+    const TF_SEARCH_OPTS = {
+        searchEnabled: true,
+        itemSelectText: '',
+        searchResultLimit: 100,
+        fuseOptions: { includeScore: true, threshold: 0.3, ignoreLocation: true }
+    };
+    if (!tfFromSiteChoices) tfFromSiteChoices = new Choices(document.getElementById('tf-from'), TF_SEARCH_OPTS);
+    if (!tfToSiteChoices) tfToSiteChoices = new Choices(document.getElementById('tf-to'), TF_SEARCH_OPTS);
+    if (!transferProductChoices) transferProductChoices = new Choices(document.getElementById('tf-product-select'), TF_SEARCH_OPTS);
 
     try {
-        const snap = await database.ref('material_stock').once('value');
-        const data = snap.val();
-        if (data) {
-            const choices = Object.values(data).map(item => ({
-                value: item.productID,
-                label: `${item.productID} - ${item.productName}`,
+        // 13.0.1 patch 1: use the Material Stock list already in the browser (kept current by the
+        // Pocket) instead of downloading the whole material_stock node every time the form
+        // opens. The selected product's quantities are read fresh on selection (see below),
+        // so the dropdown list itself only needs names/IDs. Falls back to Firebase if the
+        // full list is not loaded yet, or when forceFresh is requested (refresh button).
+        let list = null;
+        const localList = (typeof window.__ibaGetMaterialStockData === 'function') ? window.__ibaGetMaterialStockData() : null;
+        if (!forceFresh && window.__ibaMaterialStockFullyLoaded === true && Array.isArray(localList) && localList.length) {
+            list = localList;
+        } else {
+            const snap = await database.ref('material_stock').once('value');
+            const data = snap.val() || {};
+            list = Object.entries(data).map(([key, item]) => ({ key, ...(item || {}) }));
+        }
+        // 13.0.1 patch 2: ONE dropdown entry per Product ID. When several cards share the
+        // same ID, all their keys are kept and the card with the most stock is used.
+        const byPid = new Map();
+        list.filter(item => item && String(item.productID || item.productId || '').trim()).forEach(item => {
+            const pid = String(item.productID || item.productId).trim();
+            if (!byPid.has(pid)) byPid.set(pid, []);
+            byPid.get(pid).push(item);
+        });
+        const choices = Array.from(byPid.entries()).map(([pid, cards]) => {
+            const item = tfPickBestCard(cards, null);
+            return {
+                value: pid,
+                label: `${pid} - ${item.productName || ''}`,
                 customProperties: {
+                    key: item.key || '',
+                    allKeys: cards.map(c => c.key).filter(Boolean),
+                    lastUpdated: Number(item.lastUpdated) || 0,
                     name: item.productName,
                     details: item.details,
                     sites: item.sites,
                     photoName: item.photoName || item.photoFileName || item.photoFile || '',
                     photoUrl: item.photoUrl || item.photoLink || ''
                 }
-            }));
-            transferProductChoices.setChoices(choices, 'value', 'label', true);
-        }
-    } catch(e) {}
+            };
+        });
+        if (choices.length) transferProductChoices.setChoices(choices, 'value', 'label', true);
+    } catch(e) { console.warn('Transfer product list load failed:', e); }
 
     tfBindProductSearchPhotoPreview();
 
-    document.getElementById('tf-product-select').addEventListener('change', async () => {
+    // 13.0.1 patch 2: bind once. Before, every opening of the form added another handler,
+    // so one selection ran several times (extra Firebase reads, racing updates).
+    const tfProductSelectEl = document.getElementById('tf-product-select');
+    if (tfProductSelectEl && tfProductSelectEl.dataset.tfChangeBound !== '1') {
+    tfProductSelectEl.dataset.tfChangeBound = '1';
+    tfProductSelectEl.addEventListener('change', async () => {
         const val = transferProductChoices.getValue(true);
         let item = transferProductChoices._store.choices.find(c => c.value === val);
         if (item && item.customProperties) {
-            // 12.8.5: Pocket overrides the browser snapshot when this product has a recent change.
-            try {
-                const pocketItem = window.inventoryPocket ? await window.inventoryPocket.getPocketMaterial(val) : null;
-                if (pocketItem) {
-                    item = { ...item, customProperties: { ...item.customProperties, ...pocketItem } };
-                    const data = Array.isArray(allMaterialStockData) ? allMaterialStockData : [];
-                    const idx = data.findIndex(x => String(x.productID || x.productId || '').trim() === String(val).trim());
-                    if (idx >= 0) data[idx] = { ...data[idx], ...pocketItem };
-                    if (typeof window.__ibaSetMaterialStockData === 'function') window.__ibaSetMaterialStockData(data);
-                }
-            } catch (pocketError) { console.warn('Pocket product refresh skipped:', pocketError); }
+            // 13.0.1 patch 1: read THIS ONE product fresh from Firebase by its key (a few hundred bytes),
+            // so the "From" site quantities always match the real stock. Previously an older
+            // Pocket copy could replace the quantities (e.g. after a merge) and the dropdown
+            // showed "No stock available" even though the card had stock.
+            let freshItem = null;
+            const itemKey = item.customProperties.key || '';
+            const allKeys = (Array.isArray(item.customProperties.allKeys) && item.customProperties.allKeys.length)
+                ? item.customProperties.allKeys : (itemKey ? [itemKey] : []);
+            if (allKeys.length) {
+                try {
+                    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+                    const snaps = await Promise.all(allKeys.map(k => database.ref(`material_stock/${k}`).once('value')));
+                    const liveCards = [];
+                    snaps.forEach((snap, i) => {
+                        const live = snap.val();
+                        if (live && String(live.productID || live.productId || '').trim() === String(val).trim()) liveCards.push({ key: allKeys[i], ...live });
+                    });
+                    if (liveCards.length) freshItem = tfPickBestCard(liveCards, null);
+                } catch (readError) { console.warn('Fresh product read failed, using browser copy:', readError); }
+            }
+            if (!freshItem) {
+                // Fallback: Pocket copy, but only if it is not older than what we already have.
+                try {
+                    const pocketItem = window.inventoryPocket ? await window.inventoryPocket.getPocketMaterial(val) : null;
+                    const pocketTs = pocketItem ? (Number(pocketItem.version) || Number(pocketItem.changedAt) || 0) : 0;
+                    const localTs = Number(item.customProperties.lastUpdated) || 0;
+                    if (pocketItem && (!localTs || pocketTs >= localTs)) {
+                        const { key: _pk, sourceKey, changedAt, expiresAt, version, ...fields } = pocketItem;
+                        freshItem = { key: sourceKey || itemKey, ...fields };
+                    }
+                } catch (pocketError) { console.warn('Pocket product refresh skipped:', pocketError); }
+            }
+            if (freshItem) {
+                item = { ...item, customProperties: {
+                    ...item.customProperties,
+                    key: freshItem.key || itemKey,
+                    lastUpdated: Number(freshItem.lastUpdated) || item.customProperties.lastUpdated,
+                    name: freshItem.productName || item.customProperties.name,
+                    details: freshItem.details != null ? freshItem.details : item.customProperties.details,
+                    sites: freshItem.sites || {}
+                } };
+                // Keep the in-browser stock list in step, without ever changing its real key.
+                try {
+                    const data = (typeof window.__ibaGetMaterialStockData === 'function') ? window.__ibaGetMaterialStockData() : [];
+                    if (Array.isArray(data)) {
+                        let idx = freshItem.key ? data.findIndex(x => x.key === freshItem.key) : -1;
+                        if (idx < 0) idx = data.findIndex(x => String(x.productID || x.productId || '').trim() === String(val).trim());
+                        if (idx >= 0) {
+                            const realKey = data[idx].key || freshItem.key;
+                            const { key: _k, ...freshFields } = freshItem;
+                            data[idx] = { ...data[idx], ...freshFields, sites: freshItem.sites || {}, key: realKey };
+                        }
+                    }
+                } catch (_) {}
+                if (freshItem.key) transferStockItemKeyCache[String(val).trim()] = freshItem.key;
+            }
             document.getElementById('tf-product-name').value = item.customProperties.name || '';
             document.getElementById('tf-details').value = item.customProperties.details || '';
             updateFromSiteOptions(item.customProperties.sites || {});
         }
     });
+    }
 
-    const opts = { searchEnabled: true, itemSelectText: '' };
+    const opts = TF_SEARCH_OPTS;
     if (!tfApproverChoices) tfApproverChoices = new Choices(document.getElementById('tf-approver'), opts);
     if (!tfReceiverChoices) tfReceiverChoices = new Choices(document.getElementById('tf-receiver'), opts);
     if (!tfSourceContactChoices) tfSourceContactChoices = new Choices(document.getElementById('tf-source-contact'), opts);

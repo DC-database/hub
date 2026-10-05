@@ -1,5 +1,5 @@
 /*
- * IBA Inventory Pocket — 12.8.7
+ * IBA Inventory Pocket — 13.0.1 patch 1
  *
  * Inventory-only shared change pocket. The permanent material_stock / transfer_entries
  * database remains authoritative. This layer only keeps recently changed material records
@@ -59,13 +59,16 @@
             balanceQty: Number(item.balanceQty) || 0,
             transferredQty: Number(item.transferredQty) || 0,
             sites: item.sites || {},
+            checkedSites: item.checkedSites || {}, // 13.0.1 patch 4: Stock Check approvals
+            mergedInto: item.mergedInto || null,   // 13.0.1 patch 4: merged cards stay marked in every browser
             status: item.status || 'Active',
             photoName: item.photoName || '',
             photoUrl: item.photoUrl || '',
             sourceKey: key || null,
+            lastUpdated: (Number(item.lastUpdated) || Number(item.timestamp) || now()),
             changedAt: now(),
             expiresAt: now() + POCKET_RETENTION_MS,
-            version: String(item.lastUpdated || item.timestamp || now())
+            version: String(Number(item.lastUpdated) || Number(item.timestamp) || now())
         };
         await pocketRef(productID).set(payload);
         return true;
@@ -107,8 +110,32 @@
         const data = window.__ibaGetMaterialStockData();
         if (!Array.isArray(data)) return;
         const productID = clean(item.productID || item.productId);
-        const idx = data.findIndex(x => clean(x.productID || x.productId) === productID);
-        const merged = { ...(idx >= 0 ? data[idx] : {}), ...item };
+        if (!productID) return;
+
+        // 13.0.1 patch 1: expired Pocket entries are history only; never apply them.
+        const expiresAt = Number(item.expiresAt || 0);
+        if (expiresAt > 0 && expiresAt <= now()) return;
+
+        // 13.0.1 patch 1: match by the real Firebase key first (sourceKey), then by Product ID.
+        const sourceKey = clean(item.sourceKey);
+        let idx = sourceKey ? data.findIndex(x => clean(x.key) === sourceKey) : -1;
+        if (idx < 0) idx = data.findIndex(x => clean(x.productID || x.productId) === productID);
+
+        // 13.0.1 patch 1: never let an older Pocket copy overwrite a newer browser record
+        // (e.g. a merge written directly to material_stock after the Pocket entry was made).
+        if (idx >= 0) {
+            const localTs = Number(data[idx].lastUpdated || 0);
+            const pocketTs = Number(item.version || 0) || Number(item.changedAt || 0);
+            if (Number.isFinite(localTs) && localTs > 0 && Number.isFinite(pocketTs) && pocketTs > 0 && pocketTs < localTs) return;
+        }
+
+        // 13.0.1 patch 1: the Pocket node key is the Product ID with dots replaced (e.g. 101_001_0005).
+        // It must NEVER replace the material_stock push key, otherwise transfers, merges and
+        // deletes write to a wrong path. Strip Pocket-only fields before merging.
+        const { key: _pocketNodeKey, sourceKey: _src, changedAt: _c, expiresAt: _e, version: _v, ...fields } = item;
+        const realKey = (idx >= 0 && data[idx].key) ? data[idx].key : sourceKey;
+        if (!realKey) return; // unknown record with no real key: wait for the next full load
+        const merged = { ...(idx >= 0 ? data[idx] : {}), ...fields, key: realKey };
         if (idx >= 0) data[idx] = merged;
         else data.push(merged);
         if (typeof window.__ibaSetMaterialStockData === 'function') window.__ibaSetMaterialStockData(data);
@@ -174,6 +201,9 @@
             });
         } catch (metaError) { console.warn('Material Stock metadata update failed during weekly sync:', metaError); }
         try { window.inventoryPocket?.startPocketListener(); } catch (_) {}
+        // 13.0.1 patch 1: expired entries were never removed, so the Pocket kept growing and every
+        // page load downloaded all of it. Clean once per weekly cycle.
+        try { await cleanupExpiredPocketEntries(); } catch (cleanupError) { console.warn('Inventory Pocket cleanup skipped:', cleanupError); }
         setSyncDone(weeklySyncId());
         return { synced: true, count: list.length };
     }
