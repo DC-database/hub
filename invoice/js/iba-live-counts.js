@@ -1,5 +1,5 @@
 /* ==========================================================================
-   js/iba-live-counts.js  —  14.0.0 patch 8
+   js/iba-live-counts.js  —  14.0.0 patch 8 (patch 10: Active Job from login)
    Live counts for "Active Task" (WorkDesk) and "Active Job" (Inventory).
 
    While a person has something to act on, the top bar shows a glowing pill
@@ -24,16 +24,29 @@
          * the newest inventory requests only (the last 60), listened to
            live. Older inventory requests are counted from the last time the
            full list was opened.
+     - Patch 10: when the inventory database has the "remarks" index
+       (Firebase rule  "transfer_entries": { ".indexOn": ["remarks"] }),
+       the open requests are listened to by their step instead (Pending
+       Source, Pending Admin, Pending, Pending Confirmation, Approved,
+       In Transit). Firebase then sends only open requests, so Active Job
+       is right from sign-in without opening the page first. One tiny check
+       (no records) tells whether the index is there; without it nothing
+       changes and no extra data is downloaded.
    No logic, rules or saving is changed.
    ========================================================================== */
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p8';
+    const VERSION = '14.0.0-p10';
     const INV_WINDOW = 60;
     const INV_KEYS_STORE = 'iba-live-inv-keys-v1';
     const INV_KEYS_TTL = 3 * 24 * 60 * 60 * 1000;
     const ON_HOLD = /on hold/i;
+    // patch 10: open steps of an inventory request (transferLogic.js)
+    const OPEN_STEPS = ['Pending Source', 'Pending Admin', 'Pending', 'Pending Confirmation', 'Approved', 'In Transit'];
+    const INDEX_STORE = 'iba-live-inv-index-v1';
+    const INDEX_TTL_YES = 7 * 24 * 60 * 60 * 1000;
+    const INDEX_TTL_NO = 6 * 60 * 60 * 1000;
 
     const $ = (id) => document.getElementById(id);
     const norm = (v) => String(v == null ? '' : v).trim().toLowerCase();
@@ -45,7 +58,7 @@
         timer: 0,
         wd: { exact: null, exactAt: 0, live: null, liveReady: false, liveChangedAt: 0, liveSig: '', shown: null },
         inv: { exact: null, exactAt: 0, live: null, liveReady: false, liveChangedAt: 0, liveSig: '', shown: null,
-               window: null, windowPrimed: false, baseKeys: null },
+               window: null, windowPrimed: false, baseKeys: null, steps: null, stepsPrimed: {} },
         inbox: {},
         inboxPrimed: {},
         inboxBuckets: [],
@@ -227,8 +240,36 @@
         return null;
     }
 
+    // patch 10: every open request, listened to by its step
+    function stepModeReady() {
+        return !!st.inv.steps && OPEN_STEPS.every((s) => st.inv.stepsPrimed[s]);
+    }
+    function recountFromSteps(reason) {
+        const keys = new Set();
+        OPEN_STEPS.forEach((step) => {
+            const rows = st.inv.steps[step] || {};
+            Object.keys(rows).forEach((k) => {
+                const e = normalizeTransfer(k, rows[k]);
+                if (invMine(e)) keys.add(k);
+            });
+        });
+        const sig = Array.from(keys).sort().join(',');
+        if (st.inv.baseline && sig !== st.inv.liveSig) st.inv.liveChangedAt = Date.now();
+        st.inv.baseline = true;
+        st.inv.live = keys.size;
+        st.inv.liveReady = true;
+        const changed = sig !== st.inv.liveSig;
+        st.inv.liveSig = sig;
+        if (changed) storeInvKeys(keys);
+        paint(reason || 'inv-steps');
+    }
+
     function recountInventory(reason) {
         if (!st.running) return;
+        if (st.inv.steps) {
+            if (stepModeReady()) recountFromSteps(reason);
+            return;
+        }
         const full = fullInventoryList();
         const win = st.inv.window || {};
         const winKeys = Object.keys(win);
@@ -327,14 +368,80 @@
         });
     }
 
+    function inventoryDbx() {
+        try { return (typeof window.getInventoryDatabase === 'function') ? window.getInventoryDatabase() : (window.inventoryDb || null); } catch (_) { return null; }
+    }
+
     function startInventoryWindow() {
-        let dbx = null;
-        try { dbx = (typeof window.getInventoryDatabase === 'function') ? window.getInventoryDatabase() : (window.inventoryDb || null); } catch (_) { dbx = null; }
+        const dbx = inventoryDbx();
         if (!dbx || !dbx.ref) return;
         listen(dbx.ref('transfer_entries').orderByKey().limitToLast(INV_WINDOW), 'value', (snap) => {
             st.inv.window = (snap && snap.val()) || {};
             st.inv.windowPrimed = true;
             recountInventory('inv-window');
+        });
+    }
+
+    // patch 10: is transfer_entries indexed on "remarks"? One REST call that
+    // asks for a step no request has: {} back = indexed, 400 = no index.
+    // Remembered for a week (yes) or 6 hours (no).
+    function storedIndexAnswer() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(INDEX_STORE) || 'null');
+            if (!raw || typeof raw.ok !== 'boolean') return null;
+            const ttl = raw.ok ? INDEX_TTL_YES : INDEX_TTL_NO;
+            if (Date.now() - Number(raw.at || 0) > ttl) return null;
+            return raw.ok;
+        } catch (_) { return null; }
+    }
+    function rememberIndexAnswer(ok) {
+        try { localStorage.setItem(INDEX_STORE, JSON.stringify({ ok: !!ok, at: Date.now() })); } catch (_) {}
+    }
+    async function remarksIndexReady(dbx) {
+        const known = storedIndexAnswer();
+        if (known !== null) return known;
+        let base = '';
+        try { base = String((dbx.app && dbx.app.options && dbx.app.options.databaseURL) || '').replace(/\/$/, ''); } catch (_) {}
+        if (!base || typeof fetch !== 'function') return false;
+        const url = base + '/transfer_entries.json?orderBy=' + encodeURIComponent('"remarks"') +
+            '&equalTo=' + encodeURIComponent('"__iba_index_check__"') + '&limitToFirst=1';
+        const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 6000) : 0;
+        try {
+            const res = await fetch(url, { method: 'GET', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+            if (res.ok) { rememberIndexAnswer(true); return true; }
+            let text = '';
+            try { text = await res.text(); } catch (_) {}
+            if (res.status === 400 && /index/i.test(text)) { rememberIndexAnswer(false); return false; }
+            return false; // other answers (rules, offline): try again next sign-in
+        } catch (_) {
+            return false;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    }
+
+    function startInventorySteps(dbx) {
+        st.inv.steps = {};
+        st.inv.stepsPrimed = {};
+        OPEN_STEPS.forEach((step) => {
+            listen(dbx.ref('transfer_entries').orderByChild('remarks').equalTo(step), 'value', (snap) => {
+                if (!st.inv.steps) return;
+                st.inv.steps[step] = (snap && snap.val()) || {};
+                st.inv.stepsPrimed[step] = true;
+                recountInventory('inv-steps');
+            });
+        });
+    }
+
+    function startInventory() {
+        const dbx = inventoryDbx();
+        if (!dbx || !dbx.ref) return;
+        const runId = st.runId;
+        remarksIndexReady(dbx).then((indexed) => {
+            if (!st.running || st.runId !== runId) return;
+            if (indexed) startInventorySteps(dbx);
+            else startInventoryWindow();
         });
     }
 
@@ -346,9 +453,10 @@
         st.user = name;
         st.delegators = delegatorsNow();
         st.inv.baseKeys = loadStoredInvKeys();
+        st.runId = (st.runId || 0) + 1;
         ensureUi();
         startInboxes();
-        startInventoryWindow();
+        startInventory();
         recountWorkdesk('start');
         recountInventory('start');
         // memory-only checks (no downloads): the WorkDesk job list and the full
@@ -371,7 +479,7 @@
         st.inboxPrimed = {};
         st.inboxBuckets = [];
         st.wd = { exact: null, exactAt: 0, live: null, liveReady: false, liveChangedAt: 0, liveSig: '', shown: null };
-        st.inv = { exact: null, exactAt: 0, live: null, liveReady: false, liveChangedAt: 0, liveSig: '', shown: null, window: null, windowPrimed: false, baseKeys: null };
+        st.inv = { exact: null, exactAt: 0, live: null, liveReady: false, liveChangedAt: 0, liveSig: '', shown: null, window: null, windowPrimed: false, baseKeys: null, steps: null, stepsPrimed: {} };
         paint('stop');
     }
 
@@ -509,7 +617,7 @@
         setInterval(watchSession, 2000);
         window.ibaLiveCounts = {
             VERSION,
-            state: () => ({ running: st.running, user: st.user, wd: Object.assign({}, st.wd, { shown: st.wd.shown }), inv: Object.assign({}, st.inv, { window: st.inv.window ? Object.keys(st.inv.window).length : 0 }), delegators: st.delegators.slice() }),
+            state: () => ({ running: st.running, user: st.user, wd: Object.assign({}, st.wd, { shown: st.wd.shown }), inv: Object.assign({}, st.inv, { window: st.inv.window ? Object.keys(st.inv.window).length : 0, steps: st.inv.steps ? OPEN_STEPS.map((k) => k + ':' + Object.keys(st.inv.steps[k] || {}).length).join(', ') : null, mode: st.inv.steps ? 'steps' : 'window' }), delegators: st.delegators.slice() }),
             recount: () => { recountWorkdesk('manual'); recountInventory('manual'); },
             paint
         };

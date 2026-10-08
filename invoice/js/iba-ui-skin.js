@@ -1,5 +1,7 @@
 /* =============================================================================
    js/iba-ui-skin.js  —  14.0.0 patch 4 (look only)
+   (patch 6: drag a wide list sideways; patch 9: frozen headers flush with the
+    top of their list)
 
    Batch Entry cards are built with fixed inline colours (white fields, teal
    header, peach line). Inline "!important" colours cannot be themed from a
@@ -164,4 +166,44 @@
   document.addEventListener("pointerup", finish, true);
   document.addEventListener("pointercancel", finish, true);
   window.addEventListener("blur", finish);
+})();
+
+/* -----------------------------------------------------------------------------
+   14.0.0 patch 9: frozen column headers sit flush with the top edge of the
+   list that scrolls. A scrolling list with inner spacing (padding) would hold
+   its header a little below its edge and let rows show above it; the first
+   time a list scrolls, its top spacing is noted on it (--iba-sticky-top) and
+   css/iba-ui-tables.css lifts the header by that much. Look only.
+   ----------------------------------------------------------------------------- */
+(function () {
+  "use strict";
+  // checked when a list starts to scroll (again at most every half second,
+  // because one scrolling area can hold different pages)
+  const lastCheck = new WeakMap();
+  document.addEventListener("scroll", function (e) {
+    const box = e.target;
+    if (!box || box.nodeType !== 1) return;
+    const now = Date.now();
+    if (now - (lastCheck.get(box) || 0) < 500) return;
+    lastCheck.set(box, now);
+    const pad = parseFloat(getComputedStyle(box).paddingTop) || 0;
+    const value = (-pad) + "px";
+    if (box.style.getPropertyValue("--iba-sticky-top") !== value) box.style.setProperty("--iba-sticky-top", value);
+  }, { capture: true, passive: true });
+})();
+
+/* 14.0.0 patch 10: Batch Entry "Summary note" list - the type-to-filter box
+   at the top of the open list had no hint, so it looked like an empty bar. */
+(function () {
+  "use strict";
+  function hint(e) {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    const wrap = t.closest("#im-batch-entry .batch-note-search-wrapper");
+    if (!wrap) return;
+    const input = wrap.querySelector("input.choices__input");
+    if (input && !input.getAttribute("placeholder")) input.setAttribute("placeholder", "Type to filter notes...");
+  }
+  document.addEventListener("pointerdown", hint, true);
+  document.addEventListener("focusin", hint, true);
 })();

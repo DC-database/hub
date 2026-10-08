@@ -528,6 +528,8 @@
     hero.innerHTML = '<span class="iba-dash-hero-ico"><i class="' + dashSectionIcon((showSection && showSection.id) || "person") + '"></i></span><span class="iba-dash-hero-copy"><small>WELCOME</small><strong></strong><em></em></span>';
     hero.querySelector("strong").textContent = frontLabel;
     hero.querySelector("em").textContent = tag;
+    // 14.0.0 patch 10: the picked area's card stays lit in its own colour
+    hero.setAttribute("data-section", (showSection && showSection.id) || "person");
     cardsBox.innerHTML = "";
     if (showSection) {
       const group = document.createElement("div");
