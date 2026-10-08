@@ -1,0 +1,75 @@
+/* ============================================================================
+   IBA 11.9.12 — WorkDesk Paid History year-scoped pocket selector
+   Functional scope: Paid History only. With Accounts filters remain independent.
+   ============================================================================ */
+
+#wd-dashboard .wd-paid-history-head-with-year {
+    align-items: center;
+}
+
+#wd-dashboard .wd-paid-history-year-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 6px 8px 6px 10px;
+    border: 1px solid rgba(14, 122, 134, 0.24);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 3px 10px rgba(8, 47, 73, 0.05);
+}
+
+#wd-dashboard .wd-paid-history-year-control > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #35566d;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+#wd-dashboard .wd-paid-history-year-control > span i {
+    color: #0e7a86;
+}
+
+#wd-dashboard #wd-paid-history-year-filter {
+    min-width: 88px;
+    height: 34px;
+    padding: 0 28px 0 10px;
+    border: 1px solid rgba(14, 122, 134, 0.28);
+    border-radius: 8px;
+    background-color: #fff;
+    color: #082f49;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#wd-dashboard #wd-paid-history-year-filter:focus {
+    outline: 2px solid rgba(14, 122, 134, 0.18);
+    outline-offset: 1px;
+    border-color: rgba(14, 122, 134, 0.65);
+}
+
+@media (max-width: 760px) {
+    #wd-dashboard .wd-paid-history-head-with-year {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    #wd-dashboard .wd-paid-history-year-control {
+        width: 100%;
+        margin-left: 0;
+        justify-content: space-between;
+    }
+
+    #wd-dashboard #wd-paid-history-year-filter {
+        min-width: 104px;
+    }
+}

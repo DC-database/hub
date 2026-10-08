@@ -1,0 +1,295 @@
+/* ========================================================================== 
+   IBA 11.9.0 — Mobile visibility correction + unified desktop page titles
+   Scope:
+   - Mobile Logout stays visible before tap in WorkDesk, Inventory and Invoice.
+   - Mobile Invoice Records PO summary text remains readable at rest, including
+     forced-desktop mobile browsers whose CSS viewport is wider than 900px.
+   - Remove non-essential eyebrow/kicker labels above desktop module page titles.
+   - Standardize the desktop hero-title scale across WorkDesk, Inventory and IM.
+   No workflow, logout handler, data, permission, Firebase, search or accordion
+   logic changes.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   MOBILE — do not depend on @media width.
+   Some phones use "Desktop site" and report a wide CSS viewport while the app
+   correctly routes to the mobile UI through body classes. 11.8.9 was therefore
+   skipped on those devices. These selectors follow the app's routing classes.
+   -------------------------------------------------------------------------- */
+
+/* Logout destination: visible, sized and readable before hover/tap. */
+body.iba-mobile-ui #workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation > ul > li.mobile-only-nav-item,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode) #invoice-management-view#invoice-management-view #im-nav.workdesk-navigation > ul > li.mobile-only-nav-item {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 1 1 0 !important;
+    min-width: 54px !important;
+    height: 100% !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+}
+
+body.iba-mobile-ui #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode) #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 100% !important;
+    min-width: 54px !important;
+    height: 100% !important;
+    min-height: 56px !important;
+    padding: 5px 2px 4px !important;
+    margin: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    background: transparent !important;
+    background-image: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    color: #b42318 !important;
+    -webkit-text-fill-color: #b42318 !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 1.05 !important;
+    text-decoration: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    z-index: 3 !important;
+}
+
+body.iba-mobile-ui #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout :is(i, span),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode) #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout :is(i, span) {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #b42318 !important;
+    -webkit-text-fill-color: #b42318 !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+body.iba-mobile-ui #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout i,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode) #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout i {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+}
+
+body.iba-mobile-ui #workdesk-view#workdesk-view #workdesk-nav #mobile-nav-logout:is(:hover, :focus, :focus-visible, :active),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode) #invoice-management-view#invoice-management-view #im-nav #im-mobile-nav-logout:is(:hover, :focus, :focus-visible, :active) {
+    background: #fff1f0 !important;
+    color: #8f1d14 !important;
+    -webkit-text-fill-color: #8f1d14 !important;
+    outline: none !important;
+}
+
+/* Invoice Records PO summary: dark text on every pale inner surface at rest.
+   The card/status background and connected accordion layout are preserved. */
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+:is(.po-card-vendor-block, .po-card-site, .po-card-metric) {
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-vendor-block :is(.po-card-label, strong),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-metric :is(.po-card-label, .po-card-value),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-site,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-site i {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #14293f !important;
+    -webkit-text-fill-color: #14293f !important;
+    text-shadow: none !important;
+    filter: none !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-vendor-block .po-card-label,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-metric .po-card-label {
+    color: #4c6072 !important;
+    -webkit-text-fill-color: #4c6072 !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-site,
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-site i {
+    color: #713b25 !important;
+    -webkit-text-fill-color: #713b25 !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+:is(.po-card-count, .po-card-count *, .po-card-chevron) {
+    visibility: visible !important;
+    opacity: 1 !important;
+    color: #0b5960 !important;
+    -webkit-text-fill-color: #0b5960 !important;
+    text-shadow: none !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-metric.balance-metric :is(.po-card-label, .po-card-value, .po-card-balance) {
+    color: #7c2d12 !important;
+    -webkit-text-fill-color: #7c2d12 !important;
+}
+
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card
+.po-card-balance.negative {
+    color: #b42318 !important;
+    -webkit-text-fill-color: #b42318 !important;
+}
+
+/* Keep the same contrast while the card is touched/focused/hovered. */
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card:is(:hover, :focus, :focus-visible, :active)
+.po-card-vendor-block :is(.po-card-label, strong),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card:is(:hover, :focus, :focus-visible, :active)
+.po-card-metric :is(.po-card-label, .po-card-value),
+body:is(.iba-mobile-ui, .im-mobile-reporting-mode)
+#invoice-management-view#invoice-management-view
+#im-reporting #im-reporting-mobile-view button.im-po-balance-card:is(:hover, :focus, :focus-visible, :active)
+.po-card-site {
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   DESKTOP — remove decorative labels and use one title scale.
+   Functional counts, descriptions, buttons and hero layouts remain unchanged.
+   -------------------------------------------------------------------------- */
+@media (min-width: 901px) {
+    /* WorkDesk / Inventory labels above the true page title. */
+    #workdesk-view#workdesk-view :is(.wd-page-eyebrow, .wd-control-eyebrow),
+    #inventory-view#inventory-view :is(.wd-page-eyebrow, .wd-control-eyebrow),
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-page-eyebrow, .wd-control-eyebrow) {
+        display: none !important;
+        visibility: hidden !important;
+        content: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Invoice Management real and generated eyebrow/kicker labels. */
+    #invoice-management-view#invoice-management-view :is(
+        .im-standard-eyebrow,
+        .im-dashboard-eyebrow,
+        .wd-page-eyebrow,
+        .hero-eyebrow,
+        .section-eyebrow
+    ),
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top .header-title::before,
+    #invoice-management-view#invoice-management-view #im-summary-note > div:first-of-type > div:first-child::before,
+    #invoice-management-view#invoice-management-view #im-reporting > .header .header-title::before,
+    #invoice-management-view#invoice-management-view #im-reporting > .header .im-reporting-hero-copy::before {
+        display: none !important;
+        visibility: hidden !important;
+        content: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* One consistent hero-title presentation across all three modules. */
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero) h1,
+    #inventory-view#inventory-view :is(.wd-control-center-hero, .wd-page-hero, .inventory-hero) h1,
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .inventory-hero) h1,
+    #invoice-management-view#invoice-management-view .im-standard-hero :is(h1, h2),
+    #invoice-management-view#invoice-management-view :is(.im-dashboard-hero, .im-dashboard-standby-hero, .im-reporting-hero, .im-finance-hero, .section-header, .report-hero, .finance-report-header) :is(h1, h2),
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top h1,
+    #invoice-management-view#invoice-management-view #im-summary-note > div:first-of-type h1,
+    #invoice-management-view#invoice-management-view #im-reporting > .header h1 {
+        display: block !important;
+        width: fit-content !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+        font-size: clamp(2.35rem, 2.65vw, 2.85rem) !important;
+        line-height: 1.02 !important;
+        letter-spacing: -0.045em !important;
+        font-weight: 950 !important;
+        text-shadow: 0 2px 8px rgba(0,0,0,.22) !important;
+    }
+
+    /* Remove the vacated kicker gap so every title starts at the same height. */
+    #workdesk-view#workdesk-view :is(.wd-page-hero-main, .wd-control-center-hero > div:first-child),
+    #inventory-view#inventory-view :is(.wd-page-hero-main, .wd-control-center-hero > div:first-child),
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-page-hero-main, .wd-control-center-hero > div:first-child),
+    #invoice-management-view#invoice-management-view :is(.im-standard-hero-main, .im-dashboard-hero-main, .im-dashboard-standby-hero-main),
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top .header-title,
+    #invoice-management-view#invoice-management-view #im-reporting > .header :is(.header-title, .im-reporting-hero-copy) {
+        padding-top: 0 !important;
+        row-gap: 0 !important;
+    }
+
+    /* Use the same underline proportion and spacing under every hero title. */
+    #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero) h1::after,
+    #inventory-view#inventory-view :is(.wd-control-center-hero, .wd-page-hero, .inventory-hero) h1::after,
+    body.inventory-mode #workdesk-view#workdesk-view :is(.wd-control-center-hero, .wd-page-hero, .inventory-hero) h1::after,
+    #invoice-management-view#invoice-management-view .im-standard-hero :is(h1, h2)::after,
+    #invoice-management-view#invoice-management-view :is(.im-dashboard-hero, .im-dashboard-standby-hero, .im-reporting-hero, .im-finance-hero, .section-header, .report-hero, .finance-report-header) :is(h1, h2)::after,
+    #invoice-management-view#invoice-management-view #im-batch-entry > .header-top h1::after,
+    #invoice-management-view#invoice-management-view #im-summary-note > div:first-of-type h1::after,
+    #invoice-management-view#invoice-management-view #im-reporting > .header h1::after {
+        content: "" !important;
+        display: block !important;
+        width: min(300px, 100%) !important;
+        height: 2px !important;
+        margin-top: 9px !important;
+        border-radius: 999px !important;
+        box-shadow: none !important;
+        position: static !important;
+    }
+}

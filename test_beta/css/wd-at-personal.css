@@ -1,0 +1,173 @@
+/* WorkDesk Active Task personal tabs only. Inventory is not styled here. */
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask #active-task-filters.report-tabs {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 8px 0 14px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask #active-task-filters.report-tabs button {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  margin: 0 !important;
+  padding: 0 22px !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  border-radius: 14px !important;
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(12px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.15) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  transform: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="For SRV"],
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="For SRV"].blink-tab {
+  background: rgba(240, 176, 156, 0.38) !important;
+  background-color: rgba(240, 176, 156, 0.38) !important;
+  background-image: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="For SRV"].active {
+  background: rgba(232, 146, 122, 0.58) !important;
+  background-color: rgba(232, 146, 122, 0.58) !important;
+  background-image: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="New Entry"],
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="New Entry"].blink-tab {
+  background: rgba(156, 196, 232, 0.38) !important;
+  background-color: rgba(156, 196, 232, 0.38) !important;
+  background-image: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button[data-status-filter="New Entry"].active {
+  background: rgba(110, 164, 220, 0.55) !important;
+  background-color: rgba(110, 164, 220, 0.55) !important;
+  background-image: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button .wd-at-count,
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button.active .wd-at-count,
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button:not(.active) .wd-at-count,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button.active .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button:not(.active) .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button.blink-tab .notification-badge {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 0 0 8px !important;
+  min-width: 20px !important;
+  height: 20px !important;
+  padding: 0 6px !important;
+  border-radius: 999px !important;
+  background: #1b2430 !important;
+  background-color: #1b2430 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 11px !important;
+  line-height: 20px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-date-tabs {
+  display: block !important;
+  margin: 0 0 16px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask .wd-at-queue-kicker {
+  margin: 0 0 8px !important;
+  color: rgba(255,255,255,0.82) !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35) !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-date-pill,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="srv"] .wd-at-date-pill,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="entry"] .wd-at-date-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-width: 180px !important;
+  height: 46px !important;
+  padding: 0 14px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  background: rgba(255,255,255,0.22) !important;
+  background-color: rgba(255,255,255,0.22) !important;
+  background-image: none !important;
+  backdrop-filter: blur(12px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.15) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="srv"] .wd-at-date-pill {
+  background: rgba(240, 176, 156, 0.36) !important;
+  background-color: rgba(240, 176, 156, 0.36) !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="entry"] .wd-at-date-pill {
+  background: rgba(156, 196, 232, 0.36) !important;
+  background-color: rgba(156, 196, 232, 0.36) !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask .wd-at-date-pill select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  font-size: 16px !important;
+  font-weight: 800 !important;
+  padding: 0 18px 0 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask .wd-at-date-pill {
+  position: relative !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask .wd-at-date-pill::after {
+  content: "" !important;
+  position: absolute !important;
+  right: 14px !important;
+  top: 50% !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-right: 2px solid currentColor !important;
+  border-bottom: 2px solid currentColor !important;
+  transform: translateY(-70%) rotate(45deg) !important;
+  pointer-events: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask .wd-at-queue-note {
+  margin: 10px 0 0 !important;
+  color: rgba(255,255,255,0.78) !important;
+  font-size: 13px !important;
+  font-style: italic !important;
+  font-weight: 500 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35) !important;
+}

@@ -1,0 +1,2390 @@
+/* 12.9.8 patch 2. Active Task guide, Request Review glass, Material Stock glass, Active Job folder. */
+
+html body.iba-shell-on #workdesk-view #wd-activetask #active-task-search::placeholder {
+  color: #9aa6b2 !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+html body.iba-shell-on #workdesk-view #inv-active-job #inv-active-job-filters,
+html body.iba-shell-on #workdesk-view #inv-active-job .inv-job-hero {
+  display: none !important;
+}
+
+#iba-aj-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+#iba-aj-tabs .iba-aj-tab {
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  border-bottom: 0 !important;
+  border-radius: 14px 14px 0 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  padding: 8px 16px !important;
+  font-weight: 700 !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+#iba-aj-tabs .iba-aj-tab.iba-aj-tone-transfer { background: rgba(232,184,48,0.55) !important; }
+#iba-aj-tabs .iba-aj-tab.iba-aj-tone-restock { background: rgba(52,168,83,0.55) !important; }
+#iba-aj-tabs .iba-aj-tab.iba-aj-tone-return { background: rgba(59,111,208,0.50) !important; }
+#iba-aj-tabs .iba-aj-tab.iba-aj-tone-usage { background: rgba(214,69,69,0.55) !important; }
+#iba-aj-tabs .iba-aj-tab.is-on { filter: saturate(1.2) brightness(1.08); }
+#iba-aj-folder {
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  gap: 16px !important;
+  margin: 8px 0 12px;
+}
+#iba-aj-stage,
+#iba-aj-stage.iba-aj-tone-transfer,
+#iba-aj-stage.iba-aj-tone-restock,
+#iba-aj-stage.iba-aj-tone-return,
+#iba-aj-stage.iba-aj-tone-usage {
+  display: inline-flex !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  align-items: center !important;
+  align-self: flex-end !important;
+  gap: 8px !important;
+  min-height: 40px !important;
+  margin: 0 0 2px auto !important;
+  padding: 0 14px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  color: #fff !important;
+}
+#iba-aj-stage .iba-aj-stage-btn {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  font-weight: 700 !important;
+  padding: 8px 6px !important;
+}
+#iba-aj-stage .iba-aj-stage-btn.is-on { text-decoration: underline; text-underline-offset: 5px; }
+#iba-aj-stage .iba-aj-stage-btn b {
+  display: inline;
+  margin-left: 6px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  -webkit-text-fill-color: inherit;
+  font-style: normal;
+}
+#iba-aj-stage .iba-aj-stage-line { width: 1px; height: 16px; background: rgba(255,255,255,0.45); }
+
+#inv-active-job .iba-aj-row-frost {
+  position: absolute;
+  z-index: 0;
+  display: none !important;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.34) 72px, rgba(255,255,255,0.34) calc(100% - 72px), rgba(255,255,255,0) 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  backdrop-filter: blur(8px);
+}
+#inv-active-job .table-wrapper table { position: relative; z-index: 1; background: transparent; }
+#inv-active-job tbody tr:hover td {
+  background: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-card {
+  background: rgba(255,255,255,0.14) !important;
+  background-color: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(10px);
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-card :is(h3, span, small, b, strong, p),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-status {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-status,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-code {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-searchbar,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-search-container,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-tablewrap,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .table-wrapper {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .search-bar-local,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-site-filter,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-search-clear-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-stock-action-btn {
+  background: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px);
+  border-radius: 14px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-search-input {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-style: normal !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-search-input::placeholder {
+  color: rgba(255,255,255,0.55) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.55) !important;
+  font-style: italic !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-tabs {
+  overflow: visible !important;
+  flex-wrap: wrap !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  gap: 8px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs .ms-family-chip {
+  background: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs .ms-family-chip .ms-family-code {
+  background: #e15b64 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-radius: 999px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs .ms-family-chip.active {
+  background: linear-gradient(180deg, #f3a097, #e36b73) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tr.ms-parent-row,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tr.stock-child-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table thead th {
+  background: #1d6f8c !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+  background: rgba(255,255,255,0.22) !important;
+  background-color: rgba(255,255,255,0.22) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td::before {
+  content: none !important;
+  display: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table .ms-product-title,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table .ms-product-title strong,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table .ms-relation-text {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: transparent !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-product-code,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-family-badge {
+  background: rgba(255,255,255,0.55) !important;
+  color: #123043 !important;
+  -webkit-text-fill-color: #123043 !important;
+  border: 1px solid rgba(255,255,255,0.45) !important;
+  border-radius: 999px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-stock-pill {
+  background: linear-gradient(180deg, #3aa8c4, #1d6f8c) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row > td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-detail {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-detail-grid {
+  display: flex !important;
+  gap: 14px !important;
+  flex-wrap: wrap !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel {
+  flex: 1 1 240px !important;
+  min-width: 220px !important;
+  padding: 12px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+  color: #122033 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide {
+  flex: 2 1 360px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel h4,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel p,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel span,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel td {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: transparent !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-scroll {
+  max-height: 240px !important;
+  overflow: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel thead th {
+  background: rgba(29,111,140,0.88) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+  border: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(255,255,255,0.22) !important;
+  background-color: rgba(255,255,255,0.22) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-product-code,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-family-badge,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-stock-pill {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-photo-card,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-photo-placeholder,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-photo-fallback,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-material-photo-img {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel {
+  overflow: hidden !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-material-photo-img {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  max-height: 160px !important;
+  object-fit: contain !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel .stock-detail-table,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel .stock-detail-table tr,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel .stock-detail-table td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel .stock-detail-table tbody th {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+#ms-family-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 0 0 12px !important;
+}
+#ms-family-row #ms-category-tabs {
+  flex: 1 1 auto !important;
+  margin-bottom: 0 !important;
+  min-width: 0 !important;
+}
+#ms-site-filter-wrap {
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-site-filter {
+  min-width: 180px !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: rgba(255,255,255,0.16) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-site-filter option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel thead th {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+#wd-material-stock .table-wrapper { position: relative !important; }
+#wd-material-stock .ms-row-frost {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.30) 72px, rgba(255,255,255,0.30) calc(100% - 72px), rgba(255,255,255,0) 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-detail-table,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-detail-table thead,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-detail-table thead tr,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-detail-table thead th,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row table thead,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row table thead th {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row > td::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .stock-child-row td:first-child::before {
+  content: none !important;
+  display: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-product-title,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-product-title strong,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-relation-text,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-product-code,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-family-badge,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row .ms-stock-pill {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-product-title,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-product-title strong,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-relation-text,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-product-code,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-family-badge,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row.ms-frost-on .ms-stock-pill {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.35);
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(1),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(1) { width: 4% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(2),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(2) { width: 12% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(3),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(3) { width: 24% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(4),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(4) { width: 14% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(5),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(5) { width: 22% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(6),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(6) { width: 6% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > thead > tr > th:nth-child(7),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(7) { width: 18% !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .table-wrapper,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table {
+  max-width: 100% !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-row-actions {
+  width: 100% !important;
+  justify-content: flex-end !important;
+  gap: 4px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-cell-actions .ms-row-action-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-cell-actions .delete-btn {
+  padding: 4px 8px !important;
+  min-width: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table .ms-relation-text,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table .ms-product-title {
+  max-width: none !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-list,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-item,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-note,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-actions {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+#inv-active-job .wd-inventory-section-row { display: none !important; }
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting:not(.hidden) {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > .search-and-filter-group {
+  flex: 1 1 320px !important;
+  width: auto !important;
+  max-width: calc(100% - 300px) !important;
+  margin: 0 !important;
+  order: 1;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > .report-controls {
+  order: 2;
+  width: auto !important;
+  flex: 0 0 auto !important;
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .report-tabs-container { display: none !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > #inv-wh-folder,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > .wd-mini-metrics,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > #reporting-printable-area,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting > .wd-page-hero {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  order: 3;
+}
+html body.iba-shell-on.inventory-mode #reporting-search::placeholder {
+  color: #9aa3ad !important;
+  -webkit-text-fill-color: #9aa3ad !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+
+html body #ms-photo-browser-modal#ms-photo-browser-modal {
+  z-index: 1000000 !important;
+  background: rgba(8, 16, 28, 0.28) !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal > .modal-container,
+html body #ms-photo-browser-modal#ms-photo-browser-modal > .ms-photo-browser-container {
+  background: rgba(255,255,255,0.12) !important;
+  background-color: rgba(255,255,255,0.12) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  box-shadow: none !important;
+  color: #fff !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-header,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-content,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-footer {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-header::before,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal label,
+html body #ms-photo-browser-modal#ms-photo-browser-modal small,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-status,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-note,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-target,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-target * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.85);
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-header,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .modal-header * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-target,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-note,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-preview,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-preview-card,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-top,
+html body #ms-photo-browser-modal#ms-photo-browser-modal .form-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal input {
+  background: rgba(255,255,255,0.92) !important;
+  border: 1px solid rgba(18,32,51,0.28) !important;
+  box-shadow: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal input::placeholder {
+  color: #8b97a6 !important;
+  -webkit-text-fill-color: #8b97a6 !important;
+  font-style: italic !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-preview[hidden],
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-preview:empty {
+  display: none !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal .ms-photo-browser-empty-preview {
+  background: transparent !important;
+  border: 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #ms-photo-browser-modal#ms-photo-browser-modal img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+html body #transfer-job-modal#transfer-job-modal > .modal-container {
+  width: min(1040px, 96vw) !important;
+  max-width: min(1040px, 96vw) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  background: rgba(255,255,255,0.12) !important;
+  background-color: rgba(255,255,255,0.12) !important;
+  background-image: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  color: #122033 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-header::before,
+html body #transfer-job-modal#transfer-job-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-header {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 14px 18px 2px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-header h2 {
+  font-size: 22px !important;
+  margin: 0 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-header,
+html body #transfer-job-modal#transfer-job-modal .modal-header * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55) !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content {
+  padding: 6px 16px 2px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content,
+html body #transfer-job-modal#transfer-job-modal .modal-footer,
+html body #transfer-job-modal#transfer-job-modal .transfer-2col-grid,
+html body #transfer-job-modal#transfer-job-modal .transfer-col,
+html body #transfer-job-modal#transfer-job-modal .form-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal .transfer-2col-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 4px 12px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .transfer-col {
+  display: contents !important;
+}
+html body #transfer-job-modal#transfer-job-modal .transfer-col > div:not(.form-group) {
+  display: contents !important;
+}
+html body #transfer-job-modal#transfer-job-modal .form-group {
+  margin: 0 0 6px !important;
+}
+html body #transfer-job-modal#transfer-job-modal label,
+html body #transfer-job-modal#transfer-job-modal strong,
+html body #transfer-job-modal#transfer-job-modal .modal-content,
+html body #transfer-job-modal#transfer-job-modal .modal-content * {
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.75);
+}
+html body #transfer-job-modal#transfer-job-modal label {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  margin: 0 0 3px !important;
+}
+html body #transfer-job-modal#transfer-job-modal input,
+html body #transfer-job-modal#transfer-job-modal select,
+html body #transfer-job-modal#transfer-job-modal textarea {
+  background: rgba(255,255,255,0.88) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  border: 1px solid rgba(255,255,255,0.7) !important;
+  border-radius: 8px !important;
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-details {
+  min-height: 32px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content > div:first-child {
+  display: flex !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal .form-group label {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content > div:first-child label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  margin: 0 !important;
+  background: rgba(255,255,255,0.42) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-size: 13px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content > div:first-child label:has(input:checked) {
+  background: #1d6d78 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-content > div:first-child label:has(input:checked),
+html body #transfer-job-modal#transfer-job-modal .modal-content > div:first-child label:has(input:checked) strong {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-footer {
+  padding: 4px 16px 14px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-footer button {
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  min-height: 34px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-footer .secondary-btn {
+  background: rgba(96, 116, 124, 0.72) !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-save-btn {
+  background: #1497a8 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .modal-footer button,
+html body #transfer-job-modal#transfer-job-modal .modal-footer button * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+}
+
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal > .modal-container::before,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal > .modal-container::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  background-image: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal > .modal-container {
+  width: min(1040px, 96vw) !important;
+  max-width: min(1040px, 96vw) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  background: rgba(255,255,255,0.12) !important;
+  background-color: rgba(255,255,255,0.12) !important;
+  background-image: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  box-shadow: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal .modal-header,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal .modal-content,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal .modal-footer,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal .transfer-2col-grid,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal .form-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+html body #transfer-job-modal#transfer-job-modal .tf-board {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: start !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-card {
+  display: block !important;
+  background: rgba(255,255,255,0.38) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 16px !important;
+  padding: 10px 12px 8px !important;
+  box-shadow: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-card h3 {
+  margin: 0 0 8px !important;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  text-shadow: none !important;
+  border-bottom: 2px solid #1497a8 !important;
+  display: inline-block !important;
+  padding-bottom: 2px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-card .form-group label,
+html body #transfer-job-modal#transfer-job-modal .tf-card h4 {
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  text-shadow: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-mode {
+  width: fit-content !important;
+  margin: 0 auto 10px !important;
+  padding: 4px !important;
+  gap: 4px !important;
+  background: rgba(255,255,255,0.34) !important;
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  border-radius: 999px !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-add-to-list-btn {
+  width: 100% !important;
+  margin: 4px 0 8px !important;
+  background: #1497a8 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-weight: 800 !important;
+  padding: 8px 10px !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-add-to-list-btn i {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-multi-list-container {
+  display: block;
+  width: 100% !important;
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-multi-list-container.hidden {
+  display: none !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table thead th {
+  background: rgba(20, 151, 168, 0.9) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: none !important;
+  padding: 8px 10px !important;
+  border: 0 !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table thead th:first-child {
+  border-radius: 10px 0 0 10px !important;
+  width: 60% !important;
+  text-align: left !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table thead th:nth-child(2),
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table thead th:nth-child(3) {
+  width: 20% !important;
+  text-align: center !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table thead th:last-child {
+  border-radius: 0 10px 10px 0 !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-card,
+html body #transfer-job-modal#transfer-job-modal .tf-route .form-group,
+html body #transfer-job-modal#transfer-job-modal .tf-route select,
+html body #transfer-job-modal#transfer-job-modal .tf-route .choices,
+html body #transfer-job-modal#transfer-job-modal .tf-route .choices__inner {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-route select,
+html body #transfer-job-modal#transfer-job-modal .tf-route .choices,
+html body #transfer-job-modal#transfer-job-modal .tf-route .choices__inner {
+  width: 100% !important;
+}
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-multi-list-container h4 {
+  margin: 0 0 6px !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  background: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-batch-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 12px !important;
+  background: transparent !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-batch-table th,
+html body #transfer-job-modal#transfer-job-modal #tf-batch-table td {
+  background: transparent !important;
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  border-bottom: 1px solid rgba(22,48,68,0.12) !important;
+  padding: 4px !important;
+  text-align: left !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-route { counter-reset: tfstep; }
+html body #transfer-job-modal#transfer-job-modal .tf-route .form-group {
+  position: relative !important;
+  padding-left: 32px !important;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-route .form-group::before {
+  counter-increment: tfstep;
+  content: counter(tfstep) !important;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1497a8;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+html body #transfer-job-modal#transfer-job-modal .tf-route .form-group:not(:last-child)::after {
+  content: "" !important;
+  position: absolute;
+  left: 10px;
+  top: 24px;
+  bottom: -4px;
+  width: 2px;
+  background: rgba(20,151,168,0.45);
+}
+html body #transfer-job-modal#transfer-job-modal .modal-footer .secondary-btn,
+html body #transfer-job-modal#transfer-job-modal .modal-footer .secondary-btn * {
+  background: rgba(255,255,255,0.28) !important;
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  border: 1px solid rgba(255,255,255,0.7) !important;
+}
+html body #transfer-job-modal#transfer-job-modal #tf-save-btn {
+  background: #1497a8 !important;
+}
+
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal > .modal-container {
+  width: min(1040px, 96vw) !important;
+  max-width: min(1040px, 96vw) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-color: rgba(255,255,255,0.14) !important;
+  background-image: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal > .modal-container::before,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal > .modal-container::after,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-header::before,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-header,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-content,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-footer {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-header {
+  padding: 12px 16px 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-header h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55) !important;
+  font-size: 22px !important;
+  margin: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .modal-content {
+  padding: 8px 14px 4px !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-board {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  align-items: start !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card {
+  background: rgba(255,255,255,0.38) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 16px !important;
+  padding: 10px 12px 8px !important;
+  min-width: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card h3 {
+  margin: 0 0 8px !important;
+  font-size: 15px !important;
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  border-bottom: 2px solid #1497a8 !important;
+  display: inline-block !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card label,
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card small {
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  text-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.03em !important;
+  text-transform: uppercase !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card small {
+  display: block !important;
+  margin-top: 4px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .form-group {
+  margin: 0 0 6px !important;
+  background: transparent !important;
+  min-width: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal input,
+html body #ms-new-material-modal#ms-new-material-modal select {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  height: 34px !important;
+  padding: 4px 8px !important;
+  background: #fff !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border: 1px solid rgba(22,48,68,0.2) !important;
+  border-radius: 8px !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-photo-row,
+html body #ms-new-material-modal#ms-new-material-modal .ms-stock-row {
+  display: flex !important;
+  gap: 6px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .ms-photo-row input { flex: 1 1 auto !important; min-width: 0 !important; }
+html body #ms-new-material-modal#ms-new-material-modal .ms-stock-row .form-group { flex: 1 1 0 !important; }
+html body #ms-new-material-modal#ms-new-material-modal .ms-stock-row .form-group:last-child { flex: 0 0 38% !important; }
+html body #ms-new-material-modal#ms-new-material-modal #ms-browse-photo-btn,
+html body #ms-new-material-modal#ms-new-material-modal #ms-clear-photo-field-btn {
+  height: 34px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  white-space: nowrap !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal #ms-clear-photo-field-btn {
+  background: #fff5f5 !important;
+  color: #c92a2a !important;
+  -webkit-text-fill-color: #c92a2a !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal .modal-footer {
+  padding: 4px 14px 12px !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal #ms-save-new-btn {
+  background: #1497a8 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-radius: 999px !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal #ms-clear-form-btn,
+html body #ms-new-material-modal#ms-new-material-modal .modal-footer .modal-close-btn {
+  background: rgba(255,255,255,0.3) !important;
+  color: #163044 !important;
+  -webkit-text-fill-color: #163044 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,0.65) !important;
+}
+@media (max-height: 760px) {
+  html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card { padding: 6px 8px !important; }
+  html body #ms-new-material-modal#ms-new-material-modal .form-group { margin-bottom: 4px !important; }
+  html body #ms-new-material-modal#ms-new-material-modal input,
+  html body #ms-new-material-modal#ms-new-material-modal select { height: 30px !important; }
+  html body #ms-new-material-modal#ms-new-material-modal .ms-reg-card small { display: none !important; }
+}
+
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal > .modal-container {
+  width: min(980px, 96vw) !important;
+  max-width: min(980px, 96vw) !important;
+  height: auto !important;
+  max-height: none !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-image: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal > .modal-container::before,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal > .modal-container::after,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-header::before,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-header,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-footer {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-header { padding: 12px 16px 0 !important; }
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-header h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55) !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content { padding: 8px 14px !important; overflow: visible !important; }
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content > div,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .table-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .table-wrapper {
+  max-height: 42vh !important;
+  overflow: auto !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content :is(div, span, strong, small, p, label) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table thead,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table thead tr,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table thead th {
+  background: #1497a8 !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 0 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal #ms-requestlist-to-site,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .ms-required-qty,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .ms-required-item {
+  background: #fff !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-footer button {
+  border-radius: 999px !important;
+}
+
+html body #ms-report-modal#ms-report-modal#ms-report-modal > .modal-container {
+  width: min(980px, 96vw) !important;
+  max-width: min(980px, 96vw) !important;
+  height: auto !important;
+  max-height: 92vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-image: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal > .modal-container::before,
+html body #ms-report-modal#ms-report-modal#ms-report-modal > .modal-container::after,
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-header::before,
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-header,
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content,
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-footer {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-header { padding: 12px 16px 0 !important; }
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-header h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55) !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content {
+  overflow: auto !important;
+  padding: 10px 14px !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content > div[style*="grid"] > div {
+  background: rgba(255,255,255,0.4) !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 14px !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal table thead,
+html body #ms-report-modal#ms-report-modal#ms-report-modal table thead tr,
+html body #ms-report-modal#ms-report-modal#ms-report-modal table thead th {
+  background: #1497a8 !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 0 !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal table tbody td {
+  background: rgba(255,255,255,0.55) !important;
+  color: #163044 !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-footer {
+  display: flex !important;
+  justify-content: space-between !important;
+  padding: 8px 14px 12px !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-footer button {
+  border-radius: 999px !important;
+}
+
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal #ms-stock-entry-row,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal #ms-stock-entry-row .form-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin-top: 0 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal td,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal td :is(div, span, strong, small) {
+  background: transparent !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  border-color: transparent !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask#wd-activetask .wd-at-date-pill select {
+  color-scheme: light !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask#wd-activetask .wd-at-date-pill select option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+html body #history-modal#history-modal#history-modal > .modal-container {
+  width: min(820px, 94vw) !important;
+  max-width: min(820px, 94vw) !important;
+  height: auto !important;
+  max-height: min(86vh, 720px) !important;
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+html body #history-modal#history-modal#history-modal > .modal-container::before,
+html body #history-modal#history-modal#history-modal > .modal-container::after,
+html body #history-modal#history-modal#history-modal .modal-header::before,
+html body #history-modal#history-modal#history-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #history-modal#history-modal#history-modal .modal-header,
+html body #history-modal#history-modal#history-modal .modal-content,
+html body #history-modal#history-modal#history-modal .modal-footer,
+html body #history-modal#history-modal#history-modal .history-table-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html body #history-modal#history-modal#history-modal .modal-header h2 {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.55) !important;
+}
+html body #history-modal#history-modal#history-modal .modal-content {
+  flex: 0 1 auto !important;
+  height: auto !important;
+  overflow: auto !important;
+  padding: 10px 14px !important;
+}
+html body #history-modal#history-modal#history-modal .history-table-wrapper {
+  flex: 0 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 48vh !important;
+  overflow: auto !important;
+}
+html body #history-modal#history-modal#history-modal table thead th {
+  background: #1497a8 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #history-modal#history-modal#history-modal .modal-footer button {
+  border-radius: 999px !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-stage .iba-aj-stage-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-stage .iba-aj-stage-btn.is-on,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-stage .iba-aj-stage-btn:hover,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-stage .iba-aj-stage-btn:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-tabs .iba-aj-tab.iba-aj-tone-transfer { background: rgba(232,184,48,0.55) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-tabs .iba-aj-tab.iba-aj-tone-restock { background: rgba(52,168,83,0.55) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-tabs .iba-aj-tab.iba-aj-tone-return { background: rgba(59,111,208,0.50) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #iba-aj-tabs .iba-aj-tab.iba-aj-tone-usage { background: rgba(214,69,69,0.55) !important; }
+
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal > .modal-container {
+  width: min(520px, 94vw) !important;
+  max-width: min(520px, 94vw) !important;
+  height: auto !important;
+  max-height: none !important;
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.46) !important;
+  border-radius: 22px !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  color: #fff !important;
+}
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal > .modal-container::before,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal > .modal-container::after,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-header::before,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-header::after {
+  content: none !important;
+  display: none !important;
+}
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-header,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-content,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-footer,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal #transfer-modal-details {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-header h2,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-content,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-content :is(label, p, strong, span, div) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal input,
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal textarea {
+  background: #fff !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  border-radius: 12px !important;
+}
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal .modal-footer button {
+  border-radius: 999px !important;
+}
+
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table tbody td,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table tbody td strong,
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal #tf-batch-table tbody td span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-detail-grid {
+  display: grid !important;
+  grid-template-columns: 0.85fr 0.85fr 1.3fr !important;
+  gap: 12px !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide {
+  flex: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table th:nth-child(1),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table td:nth-child(1),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table th:nth-child(3),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table td:nth-child(3),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table th:nth-child(5),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel-wide .stock-detail-table td:nth-child(5) {
+  white-space: nowrap !important;
+}
+
+html body #history-modal#history-modal#history-modal .history-status-cell::before {
+  content: none !important;
+  display: none !important;
+}
+html body #history-modal#history-modal#history-modal .history-status-cell {
+  padding-left: 0 !important;
+}
+html body #history-modal#history-modal#history-modal .history-summary-card,
+html body #history-modal#history-modal#history-modal .history-row td,
+html body #history-modal#history-modal#history-modal .history-date-chip,
+html body #history-modal#history-modal#history-modal .history-user-chip,
+html body #history-modal#history-modal#history-modal .history-duration-chip {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body #history-modal#history-modal#history-modal .history-summary-label,
+html body #history-modal#history-modal#history-modal .history-summary-metrics,
+html body #history-modal#history-modal#history-modal .history-summary-metrics span:not(.history-status-pill),
+html body #history-modal#history-modal#history-modal .history-summary-metrics b,
+html body #history-modal#history-modal#history-modal .history-note {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  background: transparent !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr:has(td[colspan]),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr:has(td[colspan]) td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr:has(td[colspan]) td::before {
+  content: none !important;
+  display: none !important;
+  width: 0 !important;
+  background: transparent !important;
+}
+html body #history-modal#history-modal#history-modal .history-status-pill,
+html body #history-modal#history-modal#history-modal .history-status-pill.history-status-pending,
+html body #history-modal#history-modal#history-modal .history-status-pill.history-status-complete,
+html body #history-modal#history-modal#history-modal .history-status-pill.history-status-process {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body #history-modal#history-modal#history-modal .history-premium-table tbody td,
+html body #history-modal#history-modal#history-modal .history-empty-row td {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  border-color: transparent !important;
+}
+
+html body #history-modal#history-modal#history-modal .history-summary-card,
+html body #history-modal#history-modal#history-modal .history-table-wrapper,
+html body #history-modal#history-modal#history-modal .iba-hist-line,
+html body #history-modal#history-modal#history-modal .history-row td,
+html body #history-modal#history-modal#history-modal .history-row:hover td,
+html body #history-modal#history-modal#history-modal .history-premium-table tbody tr:hover td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #history-modal#history-modal#history-modal .history-row:hover td *,
+html body #history-modal#history-modal#history-modal .iba-hist-line,
+html body #history-modal#history-modal#history-modal .iba-hist-line * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td {
+  border-radius: 0 !important;
+  background-image: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td {
+  background-color: rgba(255,255,255,0.22) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td:first-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 48px, rgba(255,255,255,0.22) 100%) !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td:last-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) calc(100% - 48px), rgba(255,255,255,0) 100%) !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel :is(h4, p, span, small, strong, em, div, td),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel .stock-detail-table tbody td {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-detail-grid > .ms-glass-panel:nth-child(2) .stock-detail-table tbody td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-detail-grid > .ms-glass-panel:nth-child(2) .stock-detail-table tbody td * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body #history-modal#history-modal#history-modal.history-scope-inventory .history-modal-summary,
+html body #history-modal#history-modal#history-modal.history-scope-workdesk .history-modal-summary,
+html body #history-modal#history-modal#history-modal .history-modal-summary,
+html body #history-modal#history-modal#history-modal .history-table-wrapper,
+html body #history-modal#history-modal#history-modal .iba-hist-line,
+html body #history-modal#history-modal#history-modal table td,
+html body #history-modal#history-modal#history-modal .history-date-chip,
+html body #history-modal#history-modal#history-modal .history-user-chip,
+html body #history-modal#history-modal#history-modal .history-duration-chip,
+html body #history-modal#history-modal#history-modal .history-status-pill {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body #history-modal#history-modal#history-modal table tbody tr:hover td,
+html body #history-modal#history-modal#history-modal table tbody tr:hover td * {
+  background: rgba(255,255,255,0.88) !important;
+  background-color: rgba(255,255,255,0.88) !important;
+  background-image: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal > .modal-container,
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-card {
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.32) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.28) !important;
+  color: #fff !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-content,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-footer,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-header,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-header::before,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-header::after {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: #fff !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal label,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-header h2,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .wd-field-helper {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal input,
+html body #modify-task-modal#modify-task-modal#modify-task-modal select,
+html body #modify-task-modal#modify-task-modal#modify-task-modal textarea,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__inner {
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: none !important;
+}
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal {
+  background: rgba(8,16,28,0.35) !important;
+}
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-card p,
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-title {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  background: transparent !important;
+}
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-actions {
+  display: flex !important;
+  gap: 8px !important;
+}
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-actions button {
+  flex: 1 !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  border-radius: 12px !important;
+  padding: 11px 12px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  color: #fff !important;
+  background: rgba(255,255,255,0.16) !important;
+}
+
+html body #history-modal#history-modal#history-modal .history-row:hover td,
+html body #history-modal#history-modal#history-modal .history-row:hover td *,
+html body #history-modal#history-modal#history-modal table tbody tr:hover td,
+html body #history-modal#history-modal#history-modal table tbody tr:hover td * {
+  background: rgba(255,255,255,0.9) !important;
+  background-color: rgba(255,255,255,0.9) !important;
+  background-image: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal select,
+html body #modify-task-modal#modify-task-modal#modify-task-modal option,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__inner,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__list--single .choices__item,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__list--dropdown,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__list--dropdown .choices__item {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #fff !important;
+  background-color: #fff !important;
+  text-shadow: none !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__list--dropdown {
+  z-index: 80 !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-container,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .modal-content {
+  overflow: visible !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal input::placeholder,
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal textarea::placeholder {
+  color: #9aa3ad !important;
+  -webkit-text-fill-color: #9aa3ad !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+  opacity: 1 !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .ms-reg-photo-preview {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 140px !important;
+  margin-top: 8px !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .ms-reg-photo-preview[hidden] {
+  display: none !important;
+}
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal .ms-reg-photo-preview img {
+  max-width: 100% !important;
+  max-height: 160px !important;
+  object-fit: contain !important;
+  border-radius: 10px !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .modal-content > div,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .table-wrapper,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table thead th {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content > div[style*="grid"] > div {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content > div[style*="grid"] span,
+html body #ms-report-modal#ms-report-modal#ms-report-modal .modal-content > div[style*="grid"] strong {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+  background: transparent !important;
+}
+
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__inner,
+html body #modify-task-modal#modify-task-modal#modify-task-modal .choices__list--dropdown {
+  display: none !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal select#modify-task-attention,
+html body #modify-task-modal#modify-task-modal#modify-task-modal select#modify-task-attention.choices__input {
+  display: block !important;
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  clip: auto !important;
+  clip-path: none !important;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #fff !important;
+  background-color: #fff !important;
+}
+html body #modify-task-modal#modify-task-modal#modify-task-modal select#modify-task-attention option {
+  color: #122033 !important;
+  background: #fff !important;
+}
+html body #history-modal#history-modal#history-modal .history-row:hover td *,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-status-cell,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-status-pill,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-date-chip,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-user-chip,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-duration-chip,
+html body #history-modal#history-modal#history-modal .history-row:hover .history-note {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal table,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal tbody,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal tr,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .ms-req-generated,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal .ms-req-generated * {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  padding: 0 !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal #ms-requestlist-to-site {
+  min-width: 240px !important;
+  background: rgba(255,255,255,0.92) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  border-radius: 10px !important;
+}
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal #ms-requestlist-to-site.ms-site-empty,
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal #ms-requestlist-to-site option[value=""] {
+  color: #9aa3ad !important;
+  -webkit-text-fill-color: #9aa3ad !important;
+  font-style: italic !important;
+  font-weight: 400 !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal #ms-report-stats,
+html body #ms-report-modal#ms-report-modal#ms-report-modal #ms-report-stats > div {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal #ms-report-stats span,
+html body #ms-report-modal#ms-report-modal#ms-report-modal #ms-report-stats strong {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+  background: transparent !important;
+}
+html body #ms-report-modal#ms-report-modal#ms-report-modal table,
+html body #ms-report-modal#ms-report-modal#ms-report-modal tbody,
+html body #ms-report-modal#ms-report-modal#ms-report-modal tr,
+html body #ms-report-modal#ms-report-modal#ms-report-modal td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  border-color: rgba(255,255,255,0.16) !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-month-tab.wd-payment-month-search-match {
+  opacity: 1 !important;
+  filter: none !important;
+  color: #1a1404 !important;
+  -webkit-text-fill-color: #1a1404 !important;
+  background: #f6e27a !important;
+  border-color: #f6e27a !important;
+  box-shadow: 0 0 0 2px #fff4c2, 0 0 16px rgba(246,226,122,0.95) !important;
+  animation: iba-pay-found 1.15s ease-in-out infinite !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-search-sites {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 0 0 10px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-search-site {
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  font-weight: 800 !important;
+  color: #1a1404 !important;
+  -webkit-text-fill-color: #1a1404 !important;
+  background: #f6e27a !important;
+  box-shadow: 0 0 0 2px #fff4c2, 0 0 14px rgba(246,226,122,0.9) !important;
+  cursor: pointer !important;
+  animation: iba-pay-found 1.15s ease-in-out infinite !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-search-site.is-on {
+  background: #fff !important;
+  animation: none !important;
+}
+@keyframes iba-pay-found {
+  0%, 100% { box-shadow: 0 0 0 2px #fff4c2, 0 0 8px rgba(246,226,122,0.55); }
+  50% { box-shadow: 0 0 0 3px #fff, 0 0 18px rgba(246,226,122,1); }
+}
+
+html body.iba-dash-focus .iba-dash-mini.iba-dash-found {
+  color: #1a1404 !important;
+  -webkit-text-fill-color: #1a1404 !important;
+  background: #f6e27a !important;
+  border-radius: 10px !important;
+  box-shadow: 0 0 0 2px #fff4c2, 0 0 14px rgba(246,226,122,0.95) !important;
+  animation: ibaDashBlink 0.65s ease-in-out infinite !important;
+}
+html body.iba-dash-focus .iba-dash-found-note {
+  color: #f6e27a !important;
+  -webkit-text-fill-color: #f6e27a !important;
+  font-size: 11px !important;
+  font-style: italic !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  padding: 2px 10px 8px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+
+html body #wd-paid-history-modal#wd-paid-history-modal {
+  background: rgba(8,16,28,0.35) !important;
+  backdrop-filter: blur(6px) !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-window {
+  background: rgba(16, 28, 42, 0.38) !important;
+  background-color: rgba(16, 28, 42, 0.38) !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.28) !important;
+  color: #fff !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-header,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-footer,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-body {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-window-label {
+  color: rgba(255,255,255,0.78) !important;
+  border-bottom-color: #e8c547 !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-heading-row h2,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-heading-row p,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-info,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-info strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-info p,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-po strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-po span,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-latest strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-latest-date strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-field strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-invoice strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-list-head strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-list-head span,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-footer-note strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-footer-note p,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-loading strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-empty strong,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-loading p,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-empty p {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  background: transparent !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-po small,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-latest small,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-latest-date small,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-field small {
+  color: rgba(255,255,255,0.72) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.72) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-info,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-summary-card,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-row,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-footer-note > span,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-summary-icon,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-loading > span,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-empty > span {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-row {
+  border-bottom: 1px solid rgba(255,255,255,0.16) !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-list::before {
+  background: rgba(255,255,255,0.2) !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-count,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-badge {
+  background: rgba(19,161,107,0.28) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-field.is-paid-date,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-field strong.is-paid-date,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-info > span,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-footer-note > span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-secondary {
+  background: rgba(255,255,255,0.14) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-primary {
+  background: rgba(14,116,104,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-summary-card {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1.35fr) minmax(180px, 1fr) minmax(140px, 0.7fr) !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+  padding: 0 !important;
+  margin-top: 16px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-summary-accent {
+  display: none !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-outline {
+  display: flex !important;
+  align-items: center !important;
+  align-self: stretch !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  padding: 14px 16px !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 16px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-outline.wd-paid-history-latest,
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-outline.wd-paid-history-latest-date {
+  display: block !important;
+}
+
+html body.iba-shell-on #wd-reporting#wd-reporting #job-records-table .wd-record-status-cell {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table th:nth-child(5),
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table td:nth-child(5) {
+  width: 11% !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table th:nth-child(11),
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table td:nth-child(11) {
+  width: 12% !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table th:nth-child(12),
+html body.iba-shell-on:not(.iba-sidebar-pinned) #wd-reporting#wd-reporting #job-records-table td:nth-child(12) {
+  width: 168px !important;
+  min-width: 168px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting #job-records-table .wd-table-kicker,
+html body.iba-shell-on #wd-reporting#wd-reporting #job-records-table .wd-record-note-cell,
+html body.iba-shell-on #wd-reporting#wd-reporting #job-records-table .wd-vendor-name {
+  display: block !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting:not(.hidden) > #inv-wh-row {
+  display: flex !important;
+  flex-direction: row !important;
+  order: 3 !important;
+  flex: 1 1 100% !important;
+  align-self: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  margin: 0 !important;
+  float: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-folder {
+  order: 1 !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch {
+  display: inline-flex !important;
+  align-items: center !important;
+  order: 2 !important;
+  gap: 8px !important;
+  width: fit-content !important;
+  min-height: 40px !important;
+  margin: 0 0 2px auto !important;
+  padding: 0 14px !important;
+  border-radius: 16px !important;
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.42) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  flex: 0 0 auto !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch button.inv-wh-txn-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch button.inv-wh-txn-btn.active,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch button.inv-wh-txn-btn:hover,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch button.inv-wh-txn-btn:focus {
+  border: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-radius: 0 !important;
+  padding: 8px 6px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch button.inv-wh-txn-btn.active {
+  text-decoration: underline !important;
+  text-underline-offset: 5px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch .inv-wh-txn-btn b {
+  margin-left: 6px !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch .inv-wh-txn-line {
+  width: 1px !important;
+  height: 16px !important;
+  background: rgba(255,255,255,0.45) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row td:first-child,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row td:last-child {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  outline: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table.inv-job-records-table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row.is-open td {
+  border: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row.is-open td::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row.is-open td::after {
+  content: none !important;
+  display: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row.is-open td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on.inventory-mode #wd-reporting .iba-open-frost {
+  z-index: 0 !important;
+  display: none;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting#wd-reporting #job-records-table tr.inv-job-group-row.is-open td :is(span, strong, small, em, div) {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row.is-open td :is(button, .print-btn, .history-btn, .delete-btn, .action-btn),
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row.is-open td :is(button, .print-btn, .history-btn, .delete-btn, .action-btn) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-child-row td {
+  border-bottom: 1px solid rgba(255,255,255,0.38) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-child-row td:first-child {
+  box-shadow: inset 3px 0 0 #e8c547 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-child-arrow {
+  color: #e8c547 !important;
+  -webkit-text-fill-color: #e8c547 !important;
+  font-weight: 800 !important;
+  margin-right: 8px !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #wd-reporting#wd-reporting #job-records-table th:nth-child(1),
+html body.iba-shell-on.inventory-mode #wd-reporting#wd-reporting #job-records-table td:nth-child(1),
+html body.iba-shell-on.inventory-mode #wd-reporting#wd-reporting #reporting-printable-area table th:nth-child(1),
+html body.iba-shell-on.inventory-mode #wd-reporting#wd-reporting #reporting-printable-area table td:nth-child(1) {
+  display: table-cell !important;
+  width: 118px !important;
+  max-width: 128px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+html body.iba-shell-on.inventory-mode #wd-reporting#wd-reporting #job-records-table {
+  table-layout: fixed !important;
+  width: 100% !important;
+  font-size: 12px !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(2),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(2),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(2),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(2),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table th:nth-child(2),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table td:nth-child(2) {
+  width: 180px !important;
+  max-width: 180px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(3),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(3),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(3),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(3),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table th:nth-child(3),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table td:nth-child(3) {
+  width: 132px !important;
+  max-width: 132px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(5),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(5),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(5),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(5),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table th:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table td:nth-child(4),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table th:nth-child(5),
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting#wd-reporting #job-records-table td:nth-child(5) {
+  width: 78px !important;
+  text-align: center !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(6),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(6),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(6),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(6) {
+  width: 108px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table th:nth-child(9),
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting#wd-reporting #job-records-table td:nth-child(9),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table th:nth-child(9),
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting#wd-reporting #job-records-table td:nth-child(9) {
+  width: 132px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on.inventory-mode.iba-sidebar-pinned #wd-reporting .inv-type-pill,
+html body.iba-shell-on.inventory-mode.iba-view-narrow #wd-reporting .inv-type-pill,
+html body.iba-shell-on.inventory-mode.iba-view-tight #wd-reporting .inv-type-pill {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .iba-dash-search-miss {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  margin-left: 10px !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  line-height: 1.2 !important;
+  max-width: 280px !important;
+}
+html body.iba-shell-on #wd-dashboard .iba-dash-search-miss[hidden] {
+  display: none !important;
+}
+html body.iba-shell-on #wd-dashboard .iba-dash-search-miss strong {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  font-style: normal !important;
+}
+html body.iba-shell-on #wd-dashboard .iba-dash-search-miss span {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  font-style: italic !important;
+}

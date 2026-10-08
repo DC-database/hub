@@ -1,0 +1,53 @@
+/* Inventory Active Job — page-owned styles. Do not use WorkDesk #wd-activetask selectors. */
+#inv-active-job {
+  color: #ffffff;
+}
+#inv-active-job .inv-job-searchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  max-width: 100%;
+}
+#inv-active-job #inv-active-job-search {
+  flex: 0 1 280px;
+  width: 280px;
+  max-width: 280px;
+  min-height: 38px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
+  padding: 0 14px;
+}
+#inv-active-job #inv-active-job-clear-button {
+  flex: 0 0 auto;
+  margin: 0;
+}
+#inv-active-job #inv-active-job-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+#inv-active-job table {
+  width: 100%;
+  border-collapse: collapse;
+}
+#inv-active-job th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffffff;
+  padding: 8px 8px;
+  border-bottom: 0;
+  background: #0b2a4a;
+}
+#inv-active-job td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  font-size: 14px;
+  background: transparent;
+  color: #ffffff;
+}
