@@ -389,9 +389,9 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-1298.css?v=12.9.9u" rel="stylesheet"/>
 <link href="css/iba-invoice-entry.css?v=13.0.0an" rel="stylesheet"/>
 <link href="css/iba-14-patch.css?v=14.0.0-p1" rel="stylesheet"/>
-<link href="css/iba-ui.css?v=14.0.0-p8" rel="stylesheet"/>
-<link href="css/iba-ui-popups.css?v=14.0.0-p8" rel="stylesheet"/>
-<link href="css/iba-ui-tables.css?v=14.0.0-p7" rel="stylesheet"/>
+<link href="css/iba-ui.css?v=14.0.0-p11" rel="stylesheet"/>
+<link href="css/iba-ui-popups.css?v=14.0.0-p10" rel="stylesheet"/>
+<link href="css/iba-ui-tables.css?v=14.0.0-p9" rel="stylesheet"/>
 <link href="css/iba-approvals.css?v=14.0.0-p5" rel="stylesheet"/>
 <link href="css/iba-phone.css?v=14.0.0-p8" rel="stylesheet"/>
 </head>
@@ -457,6 +457,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <audio id="login-sound" src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/Open.mp3"></audio>
 <div class="mobile-login-form-wrapper cyber-login-card">
 <h2 style="color: white; margin-bottom: 20px;">Welcome</h2>
+<p class="iba-mlogin-sub">Sign in with your IBA mobile number</p>
 <form id="mobile-login-form">
 <div class="input-icon-wrap">
 <i class="fa-solid fa-mobile-screen"></i>
@@ -2273,7 +2274,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 </div>
 <form id="im-po-closeout-form" onsubmit="return false;" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;">
 <div class="search-box" style="flex:0 0 220px;max-width:220px;min-width:160px;margin:0;">
-<i class="fa-solid fa-keyboard search-icon"></i>
+<i class="fa-solid fa-magnifying-glass search-icon"></i>
 <input autocomplete="off" id="im-po-closeout-search" placeholder="Search PO or site..." type="text"/>
 </div>
 <select id="im-po-closeout-site-sort" style="height:38px;width:150px;max-width:150px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:13px;">
@@ -3710,7 +3711,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
 <script src="js/app-payments.js?v=12.8.2"></script>
 <script src="js/app-invoice-records.js?v=14.0.0-p1"></script>
-<script src="js/app-po-closeout.js?v=14.0.0-p1"></script>
+<script src="js/app-po-closeout.js?v=14.0.0-p10"></script>
 <script src="js/app-active-tasks.js?v=14.0.0-p5"></script>
 <script src="js/app-workdesk-dashboard.js?v=14.0.0-p4"></script>
 <script src="js/app-general-announcement.js?v=14.0.0-p8"></script>
@@ -3723,18 +3724,19 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-attention-validation.js?v=11.8.0"></script>
 <script src="js/iba-attention-picker.js?v=14.0.0-p8"></script>
 <script src="js/app-batch-entry-ui.js?v=14.0.0-p1"></script>
-<script src="js/iba-ui-skin.js?v=14.0.0-p6"></script>
+<script src="js/iba-ui-skin.js?v=14.0.0-p10"></script>
 <script src="js/app-im-event-wiring.js?v=14.0.0-p2"></script>
 <script src="js/app-history-transfer.js?v=14.0.0-p1"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
+<script src="js/iba-entry-po-mirror.js?v=14.0.0-p10"></script>
 <script>
       window.IBA_SYSTEM_VERSION = '14.0.0';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=14.0.0-p4"></script>
-<script src="js/iba-shell.js?v=14.0.0-p8"></script>
+<script src="js/iba-shell.js?v=14.0.0-p10"></script>
 <script src="js/iba-phone.js?v=14.0.0-p7"></script>
-<script src="js/iba-live-counts.js?v=14.0.0-p8"></script>
+<script src="js/iba-live-counts.js?v=14.0.0-p10"></script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
 </div>    <script src="js/app-approval-print.js?v=14.0.0-p8"></script>
 </body>
