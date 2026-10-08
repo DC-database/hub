@@ -1,0 +1,84 @@
+13.0.1 PATCH 7 - Faster Invoice Records search (+ patch 6 Batch Entry, patches 1-5 Material Stock)
+
+Replace these files in the 13.0.1 build (cumulative: includes patches 1 to 6,
+so it can be applied directly over 13.0.1):
+index.html                  (Stock Check button + script ?v= tags)
+js/app-invoice-records.js   (patch 7)
+js/app-batch-entry-ui.js    (patch 6)
+js/app-im-event-wiring.js   (patch 6)
+js/materialStock.js         (patch 1 + 2 + 3 + 4)
+js/transferLogic.js         (patch 1 + 2 + 3 + 5)
+js/app-history-transfer.js  (patch 1 + 3)
+js/inventory-pocket.js      (patch 1 + 4)
+
+PATCH 7 - INVOICE RECORDS SEARCH SPEED:
+- Exact PO search: direct read of that PO only (as before), but now only tried when
+  the text really is a PO. "INV-889" or "Alfa" no longer waste a Firebase read first.
+- Vendor / partial PO search (no filters): matching POs are found in POVALUE2 and only
+  those POs are read live. The full invoice download is no longer needed.
+- Note / invoice number / filtered searches: a saved copy of all invoices is kept in the
+  browser (IndexedDB) for 6 hours. It is used only to find which POs match; those POs
+  are then read live, so every value shown is current.
+- Full download still happens when: no saved copy yet (first time / after 6 hours),
+  more than 150 POs match, or "Negative Balance". After it, the copy is saved again.
+- Epicor/SRV (ECommit) background loading no longer retries in a loop if it fails.
+
+PATCH 6 - INVOICE MANAGEMENT > BATCH ENTRY (same rules as Invoice Entry):
+- IPC  : <PO>.IPC/<next number>, e.g. 12345.IPC/03. Counts the invoices already on
+         the PO, plus other new cards for the same PO in this batch that already
+         got an IPC number (so two cards never get the same number).
+- F    : adds ".Final" to an IPC value like 12345.IPC/03 -> 12345.IPC/03.Final.
+         Shows a message if the box is not an IPC value with a number.
+- FIVE : <PO>.<what is already typed>, e.g. INV-889 -> 12345.INV-889. Never doubled.
+         (Before it replaced the box with the word "FIVE-".)
+- SUM  : new button next to FOR SRV. Sets status "For Summary" and writes the note
+         "<vendor, first 16 letters incl. spaces> <dd-Mon-yyyy>",
+         e.g. "ABC Company 05-Oct-2026".
+         Choosing "For Summary" from the status list also fills the note when the
+         note is empty (a note you typed yourself is not overwritten).
+
+PATCH 5 - SEARCH IN TRANSFER / RESTOCK / USAGE FORM:
+- Item, From site, To site, Approver, Receiver and Source Contact dropdowns showed
+  only 4 search results (Choices.js default). Now up to 100.
+- The typed word is matched anywhere in the text (e.g. "prop" finds every
+  "... Steel Prop ..." item), with less fuzzy guessing of unrelated items.
+
+PATCH 4 - STOCK CHECK (Irwin / Logistic):
+- New "Stock Check" button in Material Stock toolbar.
+- Lists ONLY the sites where completed movement history shows more than the card.
+  Items that match are not listed, so there is no need to open every item.
+- Correct qty is pre-filled with the history qty; type the physically counted qty
+  if different. Approve one row, or tick many and "Approve ticked".
+- Each approval is atomic, refused if the card changed meanwhile, logged in
+  stock_adjustments (before / after / history / who / when) and sent to all
+  browsers through the Pocket.
+- An approved site stops being listed until its card qty or history changes again,
+  even if the approved qty differs from history.
+- "Download list" gives a CSV for counting on site.
+- Uses data already loaded in the browser: no extra full download.
+
+
+THE RULE: the card's site qty IS the stock.
+- Table, stock report and transfer form now all show the same number (card qty).
+  (Before, the table could show a higher number taken from movement history.)
+- Movement history is a cross-check only, using the same timing as the workflow
+  (deduct on authorize / in transit, add on receipt, usage actual on confirm,
+  return variants, rejected = nothing). Warning + Align only where history proves
+  more stock should be on the card.
+- Align adds only the missing difference and refuses if the card changed meanwhile.
+
+MERGE (lowest ID kept, e.g. 1234 + 2345 -> 1234):
+- Atomic: each other card is emptied in its own transaction (exact qty captured),
+  then everything is added to 1234 in one transaction. Rollback if anything fails.
+- Site names folded ("A" + "A - Store" -> "A"). History relabelled to 1234.
+- Every merge logged in stock_merges (who, when, exact qty per site).
+- Any later stock movement still pointing to 2345 is applied to 1234 automatically.
+
+STOCK LEAKS CLOSED:
+- Rejecting an authorized Usage (Pending Confirmation) now returns the deducted qty.
+- Deleting an open request that already deducted stock (transfer/return In Transit,
+  usage Pending Confirmation) returns the qty first.
+- Deleting a completed record (creates a Return) now keeps the original movement
+  inside the Return, so the history cross-check stays correct.
+
+Version stays 13.0.1 (version.json and app.js unchanged).
