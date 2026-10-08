@@ -1,7 +1,8 @@
 /* ==========================================================================
    css/iba-ui-popups.css  —  14.0.0 patch 6 : one look for every popup
    (patch 7: Paid History popup, popups below the top bar; patch 8: Attention
-    list with search - 21.10)
+    list with search - 21.10; patch 10: Invoice Entry popup see-through
+    again - 21.11)
    --------------------------------------------------------------------------
    Same cascade layer as css/iba-ui.css ("iba-ui"), so these rules win over
    the older popup styles without specificity tricks.
@@ -1049,5 +1050,23 @@
   #iba-attention-menu mark { padding: 0 !important; border-radius: 0 !important; background: transparent !important; color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; font-weight: 700 !important; text-decoration: underline !important; text-decoration-color: rgba(227, 201, 138, 0.55) !important; text-underline-offset: 3px !important; }
   #iba-attention-menu .iba-attn-empty { padding: 14px 12px !important; color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; font-size: 13px !important; }
   #iba-attention-menu .iba-attn-empty[hidden] { display: none !important; }
+
+  /* ---------------------------------------------------------------------
+     21.11 Invoice Entry popup keeps the page behind it clear (patch 10)
+     Patch 6 gave every popup a dark blurred backdrop, so the Active Jobs
+     list in the side panel could not be read while the Invoice Entry
+     popup was open. This popup goes back to Grok's see-through backdrop:
+     no blur, no dimming; clicks already pass through to the page. A deeper
+     shadow keeps the popup itself easy to tell apart.
+     --------------------------------------------------------------------- */
+  #im-invoice-entry-modal.modal-overlay:not(.hidden) {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  #im-invoice-entry-modal.modal-overlay:not(.hidden) > .modal-container {
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  }
 }
 }
