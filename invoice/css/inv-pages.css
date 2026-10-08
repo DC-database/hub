@@ -1,0 +1,849 @@
+/* Inventory Active Job + Work History — loaded last. 12.9.5 patch 1 */
+
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .inv-job-searchbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 0 12px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job #inv-active-job-search {
+  flex: 0 0 260px !important;
+  width: 260px !important;
+  max-width: 260px !important;
+  min-width: 180px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job #inv-active-job-clear-button {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .table-wrapper,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-section-heading,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-card,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody td,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-identity,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-route,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-progress,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-status {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-section-heading :is(span, small, b, i),
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-card :is(span, strong, small, i, div),
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody td :is(span, strong, small, em, a, div, i) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr:hover td,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr.controlid-group-header:hover td,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr:hover .wd-inventory-batch-card {
+  background: rgba(255,255,255,0.18) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr:hover td :is(span, strong, small, em, a, div, i),
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody tr:hover .wd-inventory-batch-card :is(span, strong, small, i, div) {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody td:last-child :is(button, a) {
+  background: rgba(11,42,74,0.92) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .wd-records-controls,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .report-tabs-container,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting #report-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting #report-tabs.report-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .wd-premium-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .table-wrapper,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting #reporting-printable-area {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting #report-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting #report-tabs.report-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 4px 0 10px !important;
+  min-height: 0 !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .report-tabs-container #report-tabs button,
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch .inv-stage-btn {
+  overflow: visible !important;
+  clip-path: none !important;
+  height: auto !important;
+  min-height: 36px !important;
+  padding: 8px 16px !important;
+  line-height: 1.2 !important;
+  border-radius: 999px !important;
+  white-space: nowrap !important;
+  background: rgba(11,42,74,0.55) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .report-tabs-container #report-tabs button.active,
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch .inv-stage-btn.active {
+  background: #fd5f00 !important;
+  border-color: rgba(255,255,255,0.45) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch .inv-stage-count {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td :is(span, strong, small, em, a, div) {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody tr:hover td {
+  background: rgba(255,255,255,0.18) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody tr:hover td :is(span, strong, small, em, a, div) {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td .history-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td .wd-action-history {
+  background: rgba(11,42,74,0.92) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-single-row,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-child-row,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-table tbody tr {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-group-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-single-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-child-row td,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-table tbody td {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+  border-top-color: rgba(255,255,255,0.12) !important;
+  border-bottom-color: rgba(255,255,255,0.12) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch.inv-job-stage-switch {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 4px 0 10px !important;
+}
+html body.iba-shell-on #workdesk-view table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #wd-dashboard table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #wd-activetask table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #wd-reporting table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #inv-active-job table tbody tr:hover td,
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .inv-job-records-body tr:hover td {
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view #wd-dashboard table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view #wd-activetask table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view #wd-reporting table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view #inv-active-job table tbody tr:hover td * {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+
+html body.iba-shell-on #workdesk-view table tbody tr:hover td :is(button, a, .history-btn, .print-btn, .delete-btn, .action-btn),
+html body.iba-shell-on #workdesk-view table tbody tr:hover td :is(button, a, .history-btn, .print-btn, .delete-btn, .action-btn) * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inventory-job-records-stage-switch.inv-job-stage-switch {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 4px 0 10px !important;
+  width: auto !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting .wd-modern-table tbody tr.wd-modern-row,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting .wd-modern-table tbody tr.wd-modern-row td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-activetask .wd-modern-table tbody tr.wd-modern-row,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-activetask .wd-modern-table tbody tr.wd-modern-row td {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting .wd-modern-table tbody tr.wd-modern-row:hover td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr:hover td {
+  background: rgba(8,16,28,0.32) !important;
+  background-color: rgba(8,16,28,0.32) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting .wd-modern-table tbody tr.wd-modern-row:hover td * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+
+html body.iba-shell-on #workdesk-view #inv-wh-folder {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 4px 0 14px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-wh-tabs {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  margin: 0 0 -1px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  width: max-content !important;
+  position: relative !important;
+  z-index: 5 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button,
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 10px 10px 0 0 !important;
+  border: 1px solid rgba(255,255,255,0.40) !important;
+  border-bottom: 0 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  overflow: visible !important;
+  clip-path: none !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button::before {
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+  font-size: 12px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Restock"] {
+  background: rgba(58,168,154,0.72) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Restock"]::before { content: "\f466"; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Return"] {
+  background: rgba(59,111,208,0.72) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Return"]::before { content: "\f2ea"; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Transfer"] {
+  background: rgba(210,86,140,0.72) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Transfer"]::before { content: "\f362"; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Usage"] {
+  background: rgba(224,170,50,0.78) !important;
+  color: #2a1c08 !important;
+  -webkit-text-fill-color: #2a1c08 !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Usage"]::before { content: "\f15c"; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button.active {
+  height: 34px !important;
+  min-height: 34px !important;
+  margin-bottom: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  z-index: 4 !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  position: relative !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-wh-body {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 4px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  border-radius: 0 0 16px 16px !important;
+  overflow: visible !important;
+  background: rgba(255,255,255,0.18) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.28) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock #report-tabs button.active {
+  background: rgba(58,168,154,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock .inv-wh-body {
+  border-radius: 0 0 16px 16px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return #report-tabs button.active {
+  background: rgba(59,111,208,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer #report-tabs button.active {
+  background: rgba(210,86,140,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage #report-tabs button.active {
+  background: rgba(224,170,50,0.40) !important;
+  color: #2a1c08 !important;
+  -webkit-text-fill-color: #2a1c08 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-wh-body {
+  border-radius: 0 0 16px 16px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-btn {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 6px !important;
+  gap: 6px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-stage-btn,
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-stage-main,
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-stage-copy strong {
+  color: #2a1c08 !important;
+  -webkit-text-fill-color: #2a1c08 !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-btn.active {
+  background: transparent !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-icon {
+  display: none !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-copy {
+  min-width: 0 !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-main,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-copy strong {
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-copy small {
+  display: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-count {
+  min-width: 28px !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.88) !important;
+  color: #1b2430 !important;
+  -webkit-text-fill-color: #1b2430 !important;
+  font-size: 12px !important;
+  border: 0 !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-divider {
+  width: 1px !important;
+  align-self: stretch !important;
+  margin: 6px 2px !important;
+  background: rgba(255,255,255,0.35) !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Invoice"] {
+  background: rgba(58,168,154,0.78) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="IPC Application"] {
+  background: rgba(59,111,208,0.78) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="IPC Processed"] {
+  background: rgba(91,76,199,0.78) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="PR"] {
+  background: rgba(224,122,47,0.82) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Credit Note"] {
+  background: rgba(212,160,23,0.84) !important; color: #2a1c08 !important; -webkit-text-fill-color: #2a1c08 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Cancel"] {
+  background: rgba(210,86,140,0.80) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Original PO"] {
+  background: rgba(42,155,181,0.80) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button[data-job-type="Other"] {
+  background: rgba(91,107,130,0.80) !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-invoice .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-invoice #report-tabs button.active {
+  background: rgba(58,168,154,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-ipc-application .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-ipc-application #report-tabs button.active {
+  background: rgba(59,111,208,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-ipc-processed .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-ipc-processed #report-tabs button.active {
+  background: rgba(91,76,199,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-pr .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-pr #report-tabs button.active {
+  background: rgba(224,122,47,0.40) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-credit-note .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-credit-note #report-tabs button.active {
+  background: rgba(212,160,23,0.40) !important;
+  color: #2a1c08 !important;
+  -webkit-text-fill-color: #2a1c08 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-cancel .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-cancel #report-tabs button.active {
+  background: rgba(210,86,140,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-original-po .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-original-po #report-tabs button.active {
+  background: rgba(42,155,181,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-other .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-other #report-tabs button.active {
+  background: rgba(91,107,130,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-credit-note .inv-stage-btn,
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-credit-note .inv-stage-main,
+html body.iba-shell-on #workdesk-view #inv-wh-folder.inv-wh-tone-credit-note .inv-stage-copy strong {
+  color: #2a1c08 !important;
+  -webkit-text-fill-color: #2a1c08 !important;
+}
+
+html body.iba-shell-on #workdesk-view #wd-reporting .inv-job-stage-switch:not(#inv-wh-folder .inv-job-stage-switch),
+html body.iba-shell-on #workdesk-view #wd-reporting > .inv-wh-body,
+html body.iba-shell-on #workdesk-view #wd-reporting .report-controls ~ .inv-job-stage-switch:not(#inv-wh-folder *) {
+  display: none !important;
+}
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-job-stage-switch,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-wh-body {
+  display: flex !important;
+}
+html body.iba-shell-on #workdesk-view #wd-material-stock .inv-job-stage-switch,
+html body.iba-shell-on #workdesk-view #wd-material-stock .inv-wh-body,
+html body.iba-shell-on #workdesk-view #inv-material-stock .inv-job-stage-switch {
+  display: none !important;
+}
+
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch.inv-job-stage-switch,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body {
+  padding: 8px 10px !important;
+  margin: 0 !important;
+  border-radius: 0 0 16px 16px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock .inv-wh-body { background: rgba(58,168,154,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return .inv-wh-body { background: rgba(59,111,208,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer .inv-wh-body { background: rgba(210,86,140,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-wh-body { background: rgba(224,170,50,0.40) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-btn.active,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-btn,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-btn.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  padding: 0 8px !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-stage-copy,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-copy,
+html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-stage-copy strong {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+
+html body.iba-shell-on #workdesk-view #wd-jr-folder {
+  display: inline-flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  margin: 4px 0 14px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #workdesk-view #wd-jr-folder #report-tabs,
+html body.iba-shell-on #workdesk-view #wd-jr-folder .wd-jr-tabs {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-end !important;
+  gap: 4px !important;
+  padding: 0 !important;
+  margin: 0 0 6px !important;
+  background: transparent !important;
+  border: 0 !important;
+  width: max-content !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button,
+html body.iba-shell-on #workdesk-view #wd-jr-folder #report-tabs button {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  border-radius: 10px 10px 0 0 !important;
+  border: 1px solid rgba(255,255,255,0.40) !important;
+  border-bottom: 0 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .wd-jr-body,
+html body.iba-shell-on #workdesk-view #wd-jr-folder .wd-jr-body {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  border-radius: 0 0 16px 16px !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+}
+html body.iba-shell-on #workdesk-view #wd-jr-folder .inv-stage-btn,
+html body.iba-shell-on #workdesk-view #wd-jr-folder .inv-stage-btn.active {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #workdesk-view #wd-reporting .wd-jr-stage-switch:not(#wd-jr-folder .wd-jr-stage-switch) {
+  display: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-jr-folder .wd-jr-stage-switch,
+html body.iba-shell-on #workdesk-view #wd-jr-folder .wd-jr-body {
+  display: flex !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-invoice .wd-jr-body { background: rgba(58,168,154,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-ipc-application .wd-jr-body { background: rgba(59,111,208,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-ipc-processed .wd-jr-body { background: rgba(91,76,199,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-pr .wd-jr-body { background: rgba(224,122,47,0.40) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-credit-note .wd-jr-body { background: rgba(212,160,23,0.40) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-cancel .wd-jr-body { background: rgba(210,86,140,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-original-po .wd-jr-body { background: rgba(42,155,181,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-other .wd-jr-body { background: rgba(91,107,130,0.38) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="Invoice"] { background: rgba(58,168,154,0.78) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="IPC Application"] { background: rgba(59,111,208,0.78) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="IPC Processed"] { background: rgba(91,76,199,0.78) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="PR"] { background: rgba(224,122,47,0.82) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="Credit Note"] { background: rgba(212,160,23,0.84) !important; color:#2a1c08 !important; -webkit-text-fill-color:#2a1c08 !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="Cancel"] { background: rgba(210,86,140,0.80) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="Original PO"] { background: rgba(42,155,181,0.80) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button[data-job-type="Other"] { background: rgba(91,107,130,0.80) !important; }
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs,
+html body.iba-shell-on #workdesk-view #inv-wh-folder #report-tabs {
+  margin: 0 0 -1px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button.active {
+  margin-bottom: 0 !important;
+  height: 30px !important;
+  min-height: 30px !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body {
+  padding-top: 10px !important;
+}
+
+/* WH-PATCH7-JOIN */
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 4px !important;
+  align-items: flex-end !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button.active,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #report-tabs button.active {
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch.inv-job-stage-switch,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body {
+  margin: 0 !important;
+  margin-top: 0 !important;
+  padding: 8px 10px !important;
+  padding-top: 8px !important;
+  border-radius: 0 0 16px 16px !important;
+  border-top: 0 !important;
+}
+
+/* WH-PATCH10-GLASS: same see-through as tabs, layout stays tabs then bar */
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch {
+  backdrop-filter: blur(6px) saturate(1.05) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(1.05) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock .inv-wh-body { background: rgba(58,168,154,0.72) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return .inv-wh-body { background: rgba(59,111,208,0.72) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer .inv-wh-body { background: rgba(210,86,140,0.72) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-wh-body { background: rgba(224,170,50,0.78) !important; }
+
+/* WH-PATCH11-GLASS */
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder #inventory-job-records-stage-switch.inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body {
+  background-image: none !important;
+  isolation: auto !important;
+  overflow: visible !important;
+  backdrop-filter: blur(10px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35) !important;
+  border: 1px solid rgba(255,255,255,0.38) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-restock #inventory-job-records-stage-switch {
+  background: rgba(58,168,154,0.42) !important;
+  background-color: rgba(58,168,154,0.42) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-return #inventory-job-records-stage-switch {
+  background: rgba(59,111,208,0.42) !important;
+  background-color: rgba(59,111,208,0.42) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-transfer #inventory-job-records-stage-switch {
+  background: rgba(210,86,140,0.42) !important;
+  background-color: rgba(210,86,140,0.42) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage .inv-wh-body,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder.inv-wh-tone-usage #inventory-job-records-stage-switch {
+  background: rgba(224,170,50,0.42) !important;
+  background-color: rgba(224,170,50,0.42) !important;
+}
+
+/* WD-JR-PATCH12 */
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs {
+  margin: 0 !important;
+  padding: 0 !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #report-tabs button.active {
+  height: 30px !important;
+  min-height: 30px !important;
+  margin: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  border-bottom: 0 !important;
+  position: relative !important;
+  z-index: 3 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #wd-job-records-stage-switch,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .wd-jr-body {
+  margin: 0 !important;
+  padding: 8px 10px !important;
+  border-radius: 0 0 16px 16px !important;
+  border-top: 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  background-image: none !important;
+  backdrop-filter: blur(10px) saturate(1.08) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .inv-stage-btn,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .inv-stage-btn.active,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .inv-stage-copy,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .inv-stage-copy strong {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-invoice .wd-jr-body { background: rgba(58,168,154,0.42) !important; background-color: rgba(58,168,154,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-ipc-application .wd-jr-body { background: rgba(59,111,208,0.42) !important; background-color: rgba(59,111,208,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-ipc-processed .wd-jr-body { background: rgba(91,76,199,0.42) !important; background-color: rgba(91,76,199,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-pr .wd-jr-body { background: rgba(224,122,47,0.42) !important; background-color: rgba(224,122,47,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-credit-note .wd-jr-body { background: rgba(212,160,23,0.42) !important; background-color: rgba(212,160,23,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-cancel .wd-jr-body { background: rgba(210,86,140,0.42) !important; background-color: rgba(210,86,140,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-original-po .wd-jr-body { background: rgba(42,155,181,0.42) !important; background-color: rgba(42,155,181,0.42) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder.inv-wh-tone-other .wd-jr-body { background: rgba(91,107,130,0.42) !important; background-color: rgba(91,107,130,0.42) !important; }
+
+/* 12.9.8 — Request Review and Material Stock white cards. */
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-list,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty strong,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty span,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-empty i,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-status {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  font-style: italic !important;
+  background: transparent !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-toolbar,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review .inventory-request-review-toolbar label,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review #inv-request-review-filter {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-searchbar,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-search-container,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-category-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-tabs,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-premium-tablewrap,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .table-wrapper:has(#ms-table) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-inv-request-review #inv-request-review-filter option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody td[colspan] {
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  font-style: italic !important;
+}
+
+

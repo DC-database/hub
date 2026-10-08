@@ -1,0 +1,2052 @@
+/* Invoice Entry only. Repeated IDs beat the older 3-ID invoice rules. */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry#im-invoice-entry,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry .im-standard-hero,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container#im-po-search-container,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-form-trigger#im-invoice-form-trigger,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container#im-existing-invoices-container,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container .table-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view .workdesk-main.with-sidebar {
+  padding-right: 236px !important;
+  box-sizing: border-box !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view .workdesk-main.with-sidebar #im-content-area {
+  padding-right: 8px !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry .im-standard-hero {
+  display: none !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container#im-po-search-container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local {
+  flex: 0 0 360px !important;
+  width: 360px !important;
+  max-width: 42% !important;
+  min-width: 180px !important;
+  height: 42px !important;
+  margin: 0 !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(14px) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local input {
+  width: 100% !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local input::placeholder {
+  color: rgba(255,255,255,0.66) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.66) !important;
+  font-style: italic !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local i {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-form-trigger#im-invoice-form-trigger:not(.hidden) {
+  display: flex !important;
+  justify-content: flex-start !important;
+  width: auto !important;
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  min-height: 0 !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details#im-modal-po-details.im-po-details-compact {
+  margin: 0 0 12px !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  background: rgba(8, 14, 22, 0.22) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) !important;
+  color: #fff !important;
+  max-width: 100% !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid > div,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid > div[style] {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px 18px !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid span,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .im-po-vendor {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  white-space: normal !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar#im-entry-sidebar {
+  top: var(--iba-shell-header-h) !important;
+  right: 0 !important;
+  width: 220px !important;
+  max-width: 220px !important;
+  height: calc(100vh - var(--iba-shell-header-h)) !important;
+  height: calc(100dvh - var(--iba-shell-header-h)) !important;
+  padding: 12px 10px !important;
+  margin: 0 !important;
+  background: rgba(8, 14, 22, 0.28) !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-left: 1px solid rgba(255,255,255,0.20) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  color: #fff !important;
+  z-index: 10005 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar :is(.im-sidebar-title, #active-jobs-sidebar-count-display) {
+  margin: 0 0 8px !important;
+  padding: 0 0 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.20) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+  font-size: 0.92rem !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar :is(.im-sidebar-title, #active-jobs-sidebar-count-display)::after {
+  display: none !important;
+  content: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar #im-sidebar-search,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar input#im-sidebar-search,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar input#im-sidebar-search[style] {
+  width: 100% !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar #im-sidebar-search::placeholder {
+  color: rgba(255,255,255,0.66) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.66) !important;
+  font-style: italic !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item[style],
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item:is(:hover, .active, .selected) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-left: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 8px 2px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item:hover {
+  background: rgba(255,255,255,0.12) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar .im-sidebar-item :is(.im-compact-po, .im-compact-amount, .im-compact-vendor, .im-compact-status, .im-compact-category, span, i) {
+  background: transparent !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  box-shadow: none !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container h2,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #existing-invoices-count-display {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container table {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container thead th {
+  background: rgba(17, 96, 69, 0.72) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container thead th:first-child { border-top-left-radius: 12px !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container thead th:last-child { border-top-right-radius: 12px !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container :is(tbody tr, tbody td, tfoot, tfoot td, tfoot tr) {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td {
+  background-color: rgba(255,255,255,0.16) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td:first-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.16) 42px, rgba(255,255,255,0.16) 100%) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td:last-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.16) calc(100% - 42px), rgba(255,255,255,0) 100%) !important;
+}
+
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  background: rgba(10, 16, 24, 0.42) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.28) !important;
+  color: #fff !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal :is(.modal-header, .modal-content, .modal-footer, .im-entry-body-shell, .im-entry-main-pane, .im-entry-quick-panel, .im-quick-status-footer, form, .form-grid-compact) {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-header::before,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-header::after,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal h2::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal :is(h2, label, strong, span, .im-quick-status-label) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+  background: transparent !important;
+  background-image: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal :is(input, select, textarea, .choices__inner) {
+  background: rgba(255,255,255,0.14) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal :is(input, textarea)::placeholder {
+  color: rgba(255,255,255,0.55) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.55) !important;
+  font-style: italic !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal :is(.im-quick-status-btn, .modal-close-btn, .secondary-btn, button) {
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td {
+  position: relative !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background: rgba(255,255,255,0.05) !important;
+  backdrop-filter: blur(9px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(9px) saturate(1.2) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42px) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42px) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td:last-child::before {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 42px), transparent 100%) !important;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 42px), transparent 100%) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .im-po-record,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .im-po-record-status,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .im-po-record-status-found,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-collect-btn#im-po-collect-btn {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 4px !important;
+  min-height: 0 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.75) !important;
+  filter: none !important;
+  transform: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .im-toolbar-row,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-add-invoice-button,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-update-invoice-button,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-clear-form-button,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-delete-invoice-btn {
+  position: relative !important;
+  z-index: 3 !important;
+  pointer-events: auto !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry#im-invoice-entry {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  column-gap: 12px !important;
+  row-gap: 10px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container#im-po-search-container {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-form-trigger#im-invoice-form-trigger:not(.hidden) {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-self: center !important;
+  width: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details#im-modal-po-details,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container#im-existing-invoices-container,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry-modal {
+  grid-column: 1 / -1 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 8px 16px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid > div:last-child {
+  margin-left: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid > div:last-child::before {
+  content: "|" !important;
+  color: rgba(255,255,255,0.7) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.7) !important;
+  margin-right: 4px !important;
+  font-weight: 500 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-collect-btn#im-po-collect-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  min-height: 28px !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-input,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local input,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local input:focus,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-input:-webkit-autofill,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-input:-webkit-autofill:hover,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-input:-webkit-autofill:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1000px rgba(255,255,255,0.08) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.08) inset !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td {
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody td::before,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry #im-existing-invoices-container tbody tr:hover td {
+  background: rgba(255,255,255,0.10) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details .po-compact-grid > div:nth-child(-n+4) > span:first-child {
+  color: #e8d9b6 !important;
+  -webkit-text-fill-color: #e8d9b6 !important;
+  font-weight: 700 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details :is(.im-po-no, .im-po-site, .im-po-value, .im-po-vendor) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > label::after {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  color: #e8d9b6 !important;
+  -webkit-text-fill-color: #e8d9b6 !important;
+  font-style: italic !important;
+  font-weight: 500 !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-clear-form-button#im-clear-form-button {
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #btn-open-report-drive,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-invoice,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-srv {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  margin-left: 6px !important;
+  border-radius: 50% !important;
+  background: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-report-name {
+  border-radius: 12px !important;
+}
+
+/* 13.0.0g invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #btn-open-report-drive,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-invoice,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-srv {
+  flex: 0 0 34px !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  max-width: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  padding: 0 !important;
+  margin: 0 0 0 6px !important;
+  align-self: center !important;
+  border-radius: 50% !important;
+  background: rgba(12, 20, 18, 0.42) !important;
+  background-color: rgba(12, 20, 18, 0.42) !important;
+  background-image: none !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.38) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-report-name {
+  border-radius: 12px !important;
+  border-top-right-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+  width: auto !important;
+  flex: 1 1 auto !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal div:has(> #btn-open-report-drive) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-content,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .form-group,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices {
+  overflow: visible !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices.is-open .choices__list--dropdown,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices.is-open .choices__list[aria-expanded] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  top: calc(100% + 4px) !important;
+  bottom: auto !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-height: 220px !important;
+  overflow: auto !important;
+  z-index: 100000 !important;
+  background: rgba(14, 22, 20, 0.94) !important;
+  background-color: rgba(14, 22, 20, 0.94) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item span {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: transparent !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item--selectable.is-highlighted {
+  background: rgba(255,255,255,0.14) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr {
+  position: relative !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody td {
+  position: static !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td::before {
+  background: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td::before {
+  content: none !important;
+  display: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  pointer-events: none !important;
+  background: rgba(255,255,255,0.30) !important;
+  backdrop-filter: blur(10px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.2) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td * {
+  position: relative !important;
+  z-index: 1 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a, .delete-btn) {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 13.0.0h invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal div:has(> .form-group #im-report-name) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: end !important;
+  width: 100% !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .form-group:has(#im-report-name),
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .form-group:has(#im-details) {
+  min-width: 0 !important;
+  width: auto !important;
+  flex: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal div:has(> #btn-open-report-drive) {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 34px !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-report-name {
+  grid-column: 1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #btn-open-report-drive {
+  grid-column: 2 !important;
+  position: static !important;
+  margin: 0 !important;
+  justify-self: end !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-details {
+  position: relative !important;
+  z-index: 1 !important;
+  width: 100% !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) {
+  position: relative !important;
+  overflow: visible !important;
+  z-index: 40 !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select#im-attention {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 0.02 !important;
+  position: absolute !important;
+  z-index: 50 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  background: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container table tbody tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container table tbody tr:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td {
+  position: static !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr {
+  position: relative !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td::before {
+  content: none !important;
+  display: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  background: rgba(255,255,255,0.28) !important;
+  backdrop-filter: blur(12px) saturate(1.25) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.25) !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td > * {
+  position: relative !important;
+  z-index: 1 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a) ,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a) * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 13.0.0i invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+  background: rgba(10, 16, 24, 0.55) !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select option,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select#im-attention {
+  display: none !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention):not(.is-open) > .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention).is-open > .choices__list--dropdown,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__list--dropdown.is-active {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  bottom: auto !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-height: 240px !important;
+  overflow: auto !important;
+  z-index: 300000 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #122033 !important;
+  border: 1px solid rgba(18, 32, 51, 0.16) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.28) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item *,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__input {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: transparent !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices__list--dropdown .choices__item--selectable.is-highlighted {
+  background: #e8eef5 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td::before,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  content: none !important;
+  display: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td {
+  background: rgba(255,255,255,0.28) !important;
+  background-color: rgba(255,255,255,0.28) !important;
+  background-image: none !important;
+  backdrop-filter: blur(12px) saturate(1.25) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.25) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a) * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 13.0.0j invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  background: rgba(10, 16, 14, 0.94) !important;
+  background-color: rgba(10, 16, 14, 0.94) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  overflow: hidden !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container::before,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container::after {
+  content: none !important;
+  display: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-content,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-new-invoice-form {
+  background: transparent !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__inner,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__list--single,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select#im-attention {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: static !important;
+  z-index: 2 !important;
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  clip: auto !important;
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-color: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  border-radius: 12px !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container table {
+  border-collapse: collapse !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr {
+  position: relative !important;
+  isolation: isolate !important;
+  z-index: 0 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td {
+  position: static !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td::before,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:last-child::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: -1 !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  background: rgba(255,255,255,0.30) !important;
+  backdrop-filter: blur(12px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.2) !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover :is(button, a) * {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+
+/* 13.0.0k invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  background: rgba(22, 34, 30, 0.62) !important;
+  background-color: rgba(22, 34, 30, 0.62) !important;
+  border: 1px solid rgba(255,255,255,0.28) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.28) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__inner,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) > .choices__list--single {
+  display: block !important;
+  width: 100% !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal select#im-attention {
+  display: block !important;
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+#iba-attention-list.choices__list--dropdown,
+#iba-attention-list.choices__list--dropdown .choices__item,
+#iba-attention-list.choices__list--dropdown .choices__item * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+
+/* 13.0.0l invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay {
+  background: rgba(0, 0, 0, 0.28) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay::before {
+  content: "" !important;
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background: rgba(6, 12, 10, 0.42) !important;
+  backdrop-filter: blur(18px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.1) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  position: relative !important;
+  z-index: 2 !important;
+  background: rgba(16, 26, 22, 0.78) !important;
+  background-color: rgba(16, 26, 22, 0.78) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices:has(#im-attention) .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before {
+  content: "" !important;
+  display: block !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%) !important;
+}
+#iba-attention-menu,
+#iba-attention-menu button {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  font-style: normal !important;
+}
+
+/* 13.0.0m invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay {
+  background: rgba(0, 0, 0, 0.35) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay::before,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  position: relative !important;
+  z-index: 2 !important;
+  background: rgba(10, 16, 24, 0.42) !important;
+  background-color: rgba(10, 16, 24, 0.42) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.28) !important;
+  overflow: hidden !important;
+}
+#iba-attention-menu {
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+}
+
+/* 13.0.0o invoice entry fixes */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .choices.is-open > .choices__list--dropdown,
+#iba-attention-list.choices__list--dropdown {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+  max-height: 280px !important;
+  overflow: auto !important;
+  z-index: 2147483000 !important;
+}
+#iba-attention-list .choices__item,
+#iba-attention-list .choices__item * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  opacity: 1 !important;
+}
+
+/* 13.0.0p attention field */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__inner {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+  background: rgba(255,255,255,0.14) !important;
+  background-color: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__list--single,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__list--single .choices__item {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  background: transparent !important;
+  padding: 8px 12px !important;
+}
+
+/* 13.0.0r attention box */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__inner {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  width: 100% !important;
+  min-height: 42px !important;
+  height: auto !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  border-radius: 12px !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__list--single,
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-attention-group .choices__item {
+  display: block !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* 13.0.0s visible attention select */
+#iba-attention-visible {
+  display: block !important;
+  width: 100% !important;
+  height: 42px !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  border-radius: 12px !important;
+}
+#iba-attention-visible option {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+}
+#im-invoice-entry-modal #im-attention-group > .choices {
+  display: none !important;
+}
+/* 13.0.0t attention menu */
+#iba-attention-menu,
+#iba-attention-menu button {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+}
+
+/* 13.0.0x lighter invoice modal */
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay {
+  background: rgba(0, 0, 0, 0.18) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container {
+  background: rgba(118, 142, 158, 0.34) !important;
+  background-color: rgba(118, 142, 158, 0.34) !important;
+  backdrop-filter: blur(16px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.2) !important;
+}
+
+/* 13.0.0y invoice records */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-invoice-entry#im-invoice-entry.hidden {
+  display: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting > .header,
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-header {
+  display: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .iba-im-records-toolbar,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .controls-row,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .search-box,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .action-buttons,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .daily-report-section,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .filter-group,
+html body.iba-shell-on #im-reporting#im-reporting .reporting-legend {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .iba-im-records-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-search-btn,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-clear-button,
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions .download-btn,
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions .refresh-btn {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 0 10px !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header,
+html body.iba-shell-on #im-reporting#im-reporting .invoice-card,
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row,
+html body.iba-shell-on #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header,
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row .grid-cell,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody td {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .invoice-card {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: visible !important;
+  margin: 0 0 4px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row {
+  position: relative !important;
+  isolation: isolate !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row::before,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr {
+  position: relative !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row::before,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: -1 !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  background: rgba(255,255,255,0.22) !important;
+  backdrop-filter: blur(10px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.15) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 64px, #000 calc(100% - 64px), transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 64px, #000 calc(100% - 64px), transparent 100%) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row:hover::before,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr:hover::before {
+  opacity: 1 !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row:hover .grid-cell,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr:hover td,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr:hover td * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+
+/* 13.0.0z records split and modal lines */
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .iba-im-records-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-split {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 22px !important;
+  line-height: 1 !important;
+  margin: 0 4px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions {
+  margin-left: auto !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .grid-header {
+  background: #14293f !important;
+  background-color: #14293f !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  margin-top: 12px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .grid-header .grid-cell {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table .status-badge,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary-item,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary-cell {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table .status-badge,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary-item,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary-item * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65) !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-header {
+  border-bottom: 2px solid rgba(255,255,255,0.82) !important;
+  margin-bottom: 8px !important;
+  padding-bottom: 12px !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .im-entry-quick-panel {
+  border-left: 2px solid rgba(255,255,255,0.82) !important;
+  padding-left: 14px !important;
+}
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .im-entry-modal-footer {
+  border-top: 2px solid rgba(255,255,255,0.82) !important;
+  margin-top: 8px !important;
+  padding-top: 12px !important;
+}
+
+/* 13.0.0aa records white panel */
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .grid-body,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .master-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tbody tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table .status-badge,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-records-summary-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .master-grid-row .grid-cell,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table td *,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-entries-title-label,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-entries-title-po {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table thead th {
+  background: #14293f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* 13.0.0ab invoice child rows */
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row > div,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-entries-title-strip,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tbody tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tfoot td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row td:first-child {
+  box-shadow: inset 3px 0 0 #e8c547 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-child-arrow {
+  color: #e8c547 !important;
+  -webkit-text-fill-color: #e8c547 !important;
+  font-weight: 800 !important;
+  margin-right: 8px !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row:hover td {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+
+/* 13.0.0ac invoice child alignment */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .detail-grid-row > div,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row td:first-child {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table {
+  width: 100% !important;
+  margin: 0 !important;
+  table-layout: auto !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table thead th {
+  background: #14293f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table th:last-child,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table td.actions {
+  width: 190px !important;
+  min-width: 190px !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-record-actions {
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end !important;
+  width: auto !important;
+}
+
+/* 13.0.0ad beat the 5-id invoice entry card */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .detail-grid-row,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .detail-grid-row.im-invoice-entries-clean,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .detail-grid-row.im-invoice-entries-flat,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .detail-grid-row.im-invoice-entries-flat {
+  padding: 6px 0 8px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table {
+  width: 100% !important;
+  margin: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table thead th,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody td {
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table thead th {
+  background: #14293f !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody td * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(1),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(1) { width: 11% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(2),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(2) { width: 16% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(3),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(3) { width: 10% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(4),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(4),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(5),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(5) { width: 10% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(6),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(6) { width: 11% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(7),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(7) { width: 8% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(8),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(8) { width: 12% !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(9),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(9) {
+  width: 210px !important;
+  min-width: 210px !important;
+  overflow: visible !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td.actions :is(button, a, .action-btn) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-child-arrow {
+  color: #e8c547 !important;
+  -webkit-text-fill-color: #e8c547 !important;
+  text-shadow: none !important;
+}
+
+/* 13.0.0ae realign invoice entry columns */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table {
+  table-layout: auto !important;
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(4),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(4),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:nth-child(5),
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td:nth-child(5) {
+  text-align: right !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th:last-child,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td.actions {
+  width: 1% !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .search-box,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-form .search-box input {
+  border-radius: 10px !important;
+}
+
+/* 13.0.0af header alignment and open PO highlight */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table tbody tr::before {
+  content: none !important;
+  display: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card.expanded .master-grid-row::before {
+  opacity: 1 !important;
+  background: rgba(255,255,255,0.32) !important;
+  backdrop-filter: blur(10px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(1.15) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card.expanded .master-grid-row .grid-cell,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card.expanded .master-grid-row .grid-cell * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+
+/* 13.0.0ag invoice records glass sheet */
+html body.iba-shell-on #im-reporting#im-reporting > .header.iba-im-records-header {
+  display: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-glass {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin: 8px 0 14px !important;
+  padding: 14px 16px !important;
+  background: rgba(10, 28, 26, 0.46) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-row,
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-row-tools {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-row-tools {
+  justify-content: space-between !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-narrow-search {
+  position: relative !important;
+  flex: 1 1 240px !important;
+  max-width: 280px !important;
+  height: 40px !important;
+  margin: 0 !important;
+  padding: 0 36px 0 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  background: rgba(6, 18, 18, 0.45) !important;
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-narrow-search input {
+  width: 100% !important;
+  height: 38px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-narrow-search .search-icon,
+html body.iba-shell-on #im-reporting#im-reporting .iba-search-grid {
+  position: absolute !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  color: rgba(255,255,255,0.8) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.8) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-narrow-search .search-icon { left: 12px !important; }
+html body.iba-shell-on #im-reporting#im-reporting .iba-search-grid { right: 12px !important; }
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-filters {
+  display: flex !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-filters select,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-search-btn,
+html body.iba-shell-on #im-reporting#im-reporting #im-reporting-clear-button,
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions button,
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions .print-btn {
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  background: rgba(8, 92, 88, 0.82) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-filters select {
+  min-width: 140px !important;
+  background: rgba(6, 18, 18, 0.45) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .reporting-legend {
+  display: flex !important;
+  gap: 14px !important;
+  margin: 0 !important;
+  color: #ffffff !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .legend-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-size: 13px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .legend-paid { background: #37d67a !important; }
+html body.iba-shell-on #im-reporting#im-reporting .legend-partial { background: #e4c36a !important; }
+html body.iba-shell-on #im-reporting#im-reporting .legend-color {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-im-records-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet {
+  background: rgba(10, 28, 26, 0.42) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  border-radius: 18px !important;
+  padding: 8px 10px 12px !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .grid-header,
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .grid-body,
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .invoice-card,
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .master-grid-row,
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .detail-grid-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header,
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  padding: 8px 8px !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header {
+  border-bottom: 1px solid rgba(255,255,255,0.16) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header .grid-cell,
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row .grid-cell {
+  flex: 1 1 0 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+  font-size: 13px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header .grid-cell {
+  font-size: 11px !important;
+  letter-spacing: .04em !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  border-right: 1px solid rgba(255,255,255,0.16) !important;
+  padding: 4px 10px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .grid-header .grid-cell:last-child { border-right: 0 !important; }
+html body.iba-shell-on #im-reporting#im-reporting .grid-header .grid-cell:first-child,
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row .grid-cell:first-child {
+  display: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .invoice-card.expanded .master-grid-row {
+  background: rgba(255,255,255,0.08) !important;
+  border-radius: 10px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card.expanded .master-grid-row .grid-cell,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .invoice-card.expanded .master-grid-row .grid-cell * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.45) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-title-strip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 8px 0 8px 8px !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  background: rgba(14, 122, 116, 0.85) !important;
+  color: #ffffff !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-title-label,
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-title-po {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table {
+  width: 100% !important;
+  margin: 0 !important;
+  table-layout: fixed !important;
+  border-collapse: collapse !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-col-entry { width: 9% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-no { width: 16% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-date,
+html body.iba-shell-on #im-reporting#im-reporting .im-col-release { width: 11% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-value,
+html body.iba-shell-on #im-reporting#im-reporting .im-col-paid { width: 12% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-status { width: 9% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-note { width: 12% !important; }
+html body.iba-shell-on #im-reporting#im-reporting .im-col-action { width: 150px !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table th,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table td {
+  padding: 8px 10px !important;
+  text-align: left !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table thead th {
+  background: rgba(6, 24, 28, 0.72) !important;
+  font-size: 11px !important;
+  letter-spacing: .04em !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr:hover td {
+  background: rgba(255,255,255,0.12) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table .status-badge {
+  background: #e4c36a !important;
+  color: #1c1404 !important;
+  -webkit-text-fill-color: #1c1404 !important;
+  border-radius: 999px !important;
+  padding: 3px 10px !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-record-actions {
+  display: inline-flex !important;
+  gap: 6px !important;
+  justify-content: flex-end !important;
+  flex-wrap: nowrap !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-record-actions :is(button, a) {
+  height: 30px !important;
+  width: auto !important;
+  min-width: 30px !important;
+  padding: 0 8px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #0e8f86 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  text-shadow: none !important;
+}
+
+/* 13.0.0ah glass totals */
+html body.iba-shell-on #im-reporting#im-reporting .iba-narrow-search {
+  border: 1px solid rgba(255,255,255,0.55) !important;
+  border-radius: 14px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot tr,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary-row td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary-item,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary-item * {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0 !important;
+  width: auto !important;
+  margin: 8px 10px 4px !important;
+  padding: 10px 16px !important;
+  border: 1px solid rgba(255,255,255,0.38) !important;
+  border-radius: 14px !important;
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-records-summary-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  border: 0 !important;
+  padding: 0 12px !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-records-summary-item:not(:last-child)::after {
+  content: "|" !important;
+  margin-left: 12px !important;
+  color: rgba(255,255,255,0.7) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.7) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-grand-total-container .summary-wrapper {
+  background: rgba(10, 28, 26, 0.42) !important;
+  background-image: none !important;
+  border: 1px solid rgba(255,255,255,0.34) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-grand-total-container .summary-wrapper :is(span, strong, small, i) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .summary-stat-item:not(:last-child) {
+  padding-right: 18px !important;
+  border-right: 0 !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .summary-stat-item:not(:last-child)::after {
+  content: "|" !important;
+  margin-left: 18px !important;
+  color: rgba(255,255,255,0.65) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.65) !important;
+}
+
+/* 13.0.0aj search border, total line, title glow */
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-form .search-box.iba-narrow-search {
+  border: 1.5px solid #ffffff !important;
+  border-radius: 14px !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.85) !important;
+  background: rgba(0,0,0,0.28) !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-title-label,
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-title-po {
+  text-shadow: 0 0 8px rgba(255,255,255,0.95), 0 1px 2px rgba(255,255,255,0.8) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-entries-total-row td {
+  border-bottom: 1px solid rgba(255,255,255,0.85) !important;
+  text-align: left !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-total-value::before {
+  content: "|" !important;
+  margin-right: 8px !important;
+  color: rgba(255,255,255,0.75) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.75) !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .summary-stat-item:not(:last-child) {
+  position: relative !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .summary-stat-item:not(:last-child)::after {
+  position: absolute !important;
+  right: -16px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+}
+
+/* 13.0.0ak total line sits on the invoice row */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr:last-child td {
+  border-bottom: 0 !important;
+  padding-bottom: 6px !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-entries-total-row td {
+  border-top: 1px solid rgba(255,255,255,0.92) !important;
+  border-bottom: 0 !important;
+  padding: 2px 10px 2px !important;
+  vertical-align: middle !important;
+  line-height: 1.15 !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-total-value {
+  position: relative !important;
+  padding-left: 16px !important;
+  text-align: left !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .im-entries-total-value::before {
+  position: absolute !important;
+  left: 4px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary {
+  margin-top: 8px !important;
+}
+
+/* 13.0.0am line above totals, glass rows */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr:last-child td {
+  border-bottom: 1px solid rgba(255,255,255,0.92) !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-entries-total-row td {
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row::before,
+html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr::before {
+  opacity: 1 !important;
+  background: rgba(6, 16, 24, 0.46) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* 13.0.0an no total underline, no sum highlight */
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tfoot td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting#im-reporting #im-reporting-content .im-entries-total-row td,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting#im-reporting #im-reporting-content .im-entries-total-value,
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting#im-reporting #im-reporting-content .im-entries-total-value strong {
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}

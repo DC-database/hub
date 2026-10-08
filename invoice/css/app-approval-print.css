@@ -1,0 +1,252 @@
+/* ========================================================================
+   IBA Approval Workflow / Print Stamp
+   12.4.9
+   Standalone CSS. No dependency on style.css for the approval stamp.
+   ======================================================================== */
+
+#iba-approval-action-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(3, 18, 34, .58);
+  backdrop-filter: blur(3px);
+}
+#iba-approval-action-modal.is-open { display: flex; }
+
+#iba-approval-action-modal .iba-approval-dialog {
+  width: min(520px, 100%);
+  background: #fff;
+  border: 1px solid #dbe5ee;
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(3, 18, 34, .28);
+  overflow: hidden;
+}
+#iba-approval-action-modal .iba-approval-head {
+  padding: 18px 20px 14px;
+  background: #062f57;
+  color: #fff;
+}
+#iba-approval-action-modal .iba-approval-head h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+#iba-approval-action-modal .iba-approval-head p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  opacity: .82;
+}
+#iba-approval-action-modal .iba-approval-body { padding: 18px 20px; }
+#iba-approval-action-modal .iba-approval-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+#iba-approval-action-modal .iba-approval-meta-item {
+  padding: 10px 12px;
+  border: 1px solid #e1e9f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+#iba-approval-action-modal .iba-approval-meta-item small {
+  display: block;
+  margin-bottom: 3px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+#iba-approval-action-modal .iba-approval-meta-item strong {
+  color: #062f57;
+  font-size: 13px;
+  word-break: break-word;
+}
+#iba-approval-action-modal label {
+  display: block;
+  margin-bottom: 7px;
+  color: #173142;
+  font-size: 12px;
+  font-weight: 800;
+}
+#iba-approval-action-modal textarea {
+  display: block;
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid #cbd8e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #173142;
+  outline: none;
+  font: inherit;
+}
+#iba-approval-action-modal textarea:focus {
+  border-color: #0b7790;
+  box-shadow: 0 0 0 3px rgba(11,119,144,.12);
+}
+#iba-approval-action-modal .iba-approval-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 9px;
+  margin-top: 15px;
+}
+#iba-approval-action-modal .iba-approval-btn {
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+}
+#iba-approval-action-modal .iba-approval-btn:disabled { opacity: .55; cursor: wait; }
+#iba-approval-action-modal .iba-approval-approve { background: #198754; color: #fff; }
+#iba-approval-action-modal .iba-approval-reject { background: #c62828; color: #fff; }
+#iba-approval-action-modal .iba-approval-hold { background: #e9eef3; color: #173142; }
+#iba-approval-action-modal .iba-approval-cancel {
+  margin-top: 9px;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d7e1e8;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Invoice Records result action */
+.iba-approval-print-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 34px;
+  min-height: 30px;
+  padding: 4px 8px !important;
+  border: 1px solid #062f57 !important;
+  border-radius: 7px !important;
+  background: #062f57 !important;
+  color: #fff !important;
+  text-decoration: none !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  cursor: pointer;
+}
+.iba-approval-print-btn:hover { background: #0b477e !important; }
+.iba-approval-print-btn.is-approved { border-color: #198754 !important; background: #198754 !important; }
+.iba-approval-print-btn.is-rejected { border-color: #c62828 !important; background: #c62828 !important; }
+
+/* ------------------------------------------------------------------------
+   A4 print sheet. This is deliberately compact (~50% of the first mockup).
+   It is positioned near the bottom center so it can be printed onto the
+   existing blank Site Approval area of the SRV.
+   ------------------------------------------------------------------------ */
+.iba-approval-print-page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  box-sizing: border-box;
+  margin: 0 auto;
+  background: #fff;
+  overflow: hidden;
+}
+.iba-approval-stamp {
+  position: absolute;
+  left: 50%;
+  bottom: 28mm;
+  transform: translateX(-50%);
+  width: 58mm;
+  text-align: center;
+  color: #062f57;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.12;
+}
+.iba-approval-stamp.approved { color: #198754; }
+.iba-approval-stamp.rejected { color: #c62828; }
+.iba-approval-stamp .iba-approval-main {
+  margin: 0;
+  font-size: 10pt;
+  font-weight: 900;
+  letter-spacing: .15px;
+  white-space: nowrap;
+}
+.iba-approval-stamp .iba-approval-code {
+  margin: 2.2mm 0 1.4mm;
+  font-size: 8.5pt;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.iba-approval-stamp svg {
+  display: block;
+  width: 42mm;
+  height: 9mm;
+  margin: 0 auto;
+}
+.iba-approval-stamp .iba-approval-barcode-value {
+  margin-top: 1mm;
+  color: #111;
+  font-size: 5.5pt;
+  font-weight: 600;
+  letter-spacing: .15px;
+}
+.iba-approval-site-line {
+  width: 58mm;
+  margin: 2.8mm auto 0;
+  border-top: .35mm solid #111;
+  padding-top: 1.2mm;
+  color: #111;
+  font: 700 7pt/1 Arial, Helvetica, sans-serif;
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 0; }
+  html, body { width: 210mm; height: 297mm; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  body > *:not(#iba-approval-print-root) { display: none !important; }
+  #iba-approval-print-root { display: block !important; }
+  #iba-approval-print-root .iba-approval-print-page { display: block !important; }
+}
+
+@media screen {
+  #iba-approval-print-root {
+    position: fixed;
+    inset: 0;
+    z-index: 2147482000;
+    display: none;
+    overflow: auto;
+    padding: 22px;
+    background: #eef2f6;
+  }
+  #iba-approval-print-root.is-open { display: block; }
+  #iba-approval-print-root .iba-approval-print-toolbar {
+    width: min(210mm, 100%);
+    margin: 0 auto 14px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    border-radius: 10px;
+    background: #062f57;
+    color: #fff;
+  }
+  #iba-approval-print-root .iba-approval-print-toolbar button {
+    border: 0;
+    border-radius: 7px;
+    padding: 8px 13px;
+    cursor: pointer;
+    font-weight: 800;
+  }
+  #iba-approval-print-root .iba-approval-print-toolbar .print-now { background: #198754; color: #fff; }
+  #iba-approval-print-root .iba-approval-print-toolbar .close-print { background: #fff; color: #062f57; }
+  #iba-approval-print-root .iba-approval-print-page { box-shadow: 0 12px 35px rgba(15,23,42,.16); }
+}

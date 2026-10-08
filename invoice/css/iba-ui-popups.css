@@ -1,0 +1,1053 @@
+/* ==========================================================================
+   css/iba-ui-popups.css  —  14.0.0 patch 6 : one look for every popup
+   (patch 7: Paid History popup, popups below the top bar; patch 8: Attention
+    list with search - 21.10)
+   --------------------------------------------------------------------------
+   Same cascade layer as css/iba-ui.css ("iba-ui"), so these rules win over
+   the older popup styles without specificity tricks.
+   - Solid dark box (no photo showing through), plain title row with a close
+     button, dark fields, one teal main button, quiet secondary buttons, red
+     only for reject / delete.
+   - The body of a popup scrolls inside the box; the box always fits the
+     screen.
+   - Screen only. Printed parts (reports, receipts, stamps) keep their own
+     print styles.
+   - The Add New Job page uses the job popup as a page; it is styled with the
+     pages (css/iba-ui.css), not here.
+   ========================================================================== */
+
+@layer iba-ui {
+@media screen {
+
+  /* ---------------------------------------------------------------------
+     21.1 Backdrop and box
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal):not(.hidden) {
+    background: rgba(4, 12, 22, 0.64) !important;
+    backdrop-filter: blur(6px) saturate(1.05) !important;
+    -webkit-backdrop-filter: blur(6px) saturate(1.05) !important;
+    padding: 24px !important;
+  }
+  /* Invoice Entry popup moved by its title bar (patch 7: patch 6 had pinned
+     it in place, so it could not be dragged) */
+  .modal-overlay:not(#standard-job-modal) > .modal-container.im-user-positioned {
+    position: fixed !important;
+    left: var(--im-modal-left, 24px) !important;
+    top: var(--im-modal-top, 24px) !important;
+    right: auto !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    width: var(--im-modal-width, min(94vw, 1180px)) !important;
+    max-width: calc(100vw - 16px) !important;
+    transform: none !important;
+  }
+  /* Payments search keeps the page visible behind it (12.8.3 rule) */
+  #im-add-payment-modal:not(.hidden) {
+    background: rgba(4, 12, 22, 0.42) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .modal-overlay:not(#standard-job-modal) > .modal-container:not(.im-user-positioned) { position: relative !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container {
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: calc(100vh - 48px) !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: var(--ui-radius-l) !important;
+    background: linear-gradient(180deg, #17324C 0%, #0F2235 100%) !important;
+    background-color: #12283D !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--ui-text) !important;
+    font-family: inherit !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container::before,
+  .modal-overlay:not(#standard-job-modal) > .modal-container::after,
+  .modal-overlay:not(#standard-job-modal) .modal-header::before,
+  .modal-overlay:not(#standard-job-modal) .modal-header::after {
+    content: none !important;
+    display: none !important;
+  }
+  /* one colour source for text: the colour itself (the older styles mixed
+     colour and fill colour, which made some text vanish) */
+  .modal-overlay:not(#standard-job-modal) > .modal-container * {
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     21.2 Title row
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-header {
+    flex: 0 0 auto !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 16px 20px 14px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--ui-line-soft) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    color: var(--ui-text) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-header :is(h2, h3) {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--ui-text) !important;
+    font-family: inherit !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    -webkit-text-stroke: 0 !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-header :is(h2, h3) i {
+    margin-right: 8px !important;
+    color: var(--ui-gold) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) .modal-close-btn:not(.secondary-btn):not(.im-footer-close-btn) {
+    flex: 0 0 auto !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text-2) !important;
+    font-size: 20px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    transform: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) .modal-close-btn:not(.secondary-btn):not(.im-footer-close-btn):hover {
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: var(--ui-text) !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     21.3 Body and footer
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-content,
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .im-entry-body-shell {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    margin: 0 !important;
+    background: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text-2) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-content {
+    padding: 16px 20px !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-footer {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    padding: 12px 20px !important;
+    border: 0 !important;
+    border-top: 1px solid var(--ui-line-soft) !important;
+    border-radius: 0 !important;
+    background: rgba(0, 0, 0, 0.16) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-footer > div {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     21.4 Text
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(p, li) {
+    color: var(--ui-text-2) !important;
+    font-size: 13.5px !important;
+    line-height: 1.55 !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(strong, b, h3, h4, h5) {
+    color: var(--ui-text) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container label {
+    color: var(--ui-text-2) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container a:not([class*="btn"]) { color: var(--ui-blue) !important; }
+
+  /* ---------------------------------------------------------------------
+     21.5 Fields
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"]), select, textarea) {
+    min-height: 40px !important;
+    padding: 8px 12px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container select:not([multiple]) {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    padding-right: 34px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A7B6C6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 11px center !important;
+    background-size: 15px !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container select option {
+    background: #13293F !important;
+    color: var(--ui-text) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container textarea { min-height: 80px !important; line-height: 1.45 !important; resize: vertical !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(input, textarea)::placeholder {
+    color: var(--ui-text-3) !important;
+    -webkit-text-fill-color: var(--ui-text-3) !important;
+    font-weight: 400 !important;
+    opacity: 1 !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(input, select, textarea):focus {
+    border-color: var(--ui-teal) !important;
+    box-shadow: 0 0 0 3px var(--ui-teal-soft) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(input, select, textarea):is([readonly], :disabled) {
+    background-color: rgba(255, 255, 255, 0.025) !important;
+    color: var(--ui-text-2) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container input::-webkit-calendar-picker-indicator { filter: invert(0.8) !important; cursor: pointer !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(input[type="checkbox"], input[type="radio"]) {
+    accent-color: var(--ui-teal) !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+  /* tick boxes: dark square, teal when ticked (the plain white box glared on the dark popup) */
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    flex: 0 0 auto !important;
+    width: 17px !important;
+    height: 17px !important;
+    min-width: 17px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 5px !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    background-image: none !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: 11px 11px !important;
+    box-shadow: none !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+  }
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"]:hover { border-color: rgba(255, 255, 255, 0.65) !important; }
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"]:checked {
+    border-color: var(--ui-teal) !important;
+    background-color: var(--ui-teal) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E") !important;
+  }
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"]:indeterminate {
+    border-color: var(--ui-teal) !important;
+    background-color: var(--ui-teal) !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 6h6'/%3E%3C/svg%3E") !important;
+  }
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"]:focus-visible { outline: 2px solid var(--ui-gold) !important; outline-offset: 2px !important; }
+  :is(.modal-overlay:not(#standard-job-modal) > .modal-container, #ms-stock-check-modal) input[type="checkbox"]:disabled { opacity: 0.4 !important; cursor: not-allowed !important; }
+  /* round choices: dark ring, teal dot when picked */
+  .modal-overlay:not(#standard-job-modal) > .modal-container input[type="radio"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    flex: 0 0 auto !important;
+    width: 17px !important;
+    height: 17px !important;
+    min-width: 17px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    box-shadow: none !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container input[type="radio"]:checked {
+    border-color: var(--ui-teal) !important;
+    background: radial-gradient(circle, var(--ui-teal-hover) 0 4px, transparent 4.5px) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container input[type="radio"]:focus-visible { outline: 2px solid var(--ui-gold) !important; outline-offset: 2px !important; }
+  /* small helper lines under fields */
+  .modal-overlay:not(#standard-job-modal) > .modal-container small {
+    color: var(--ui-text-2) !important;
+    -webkit-text-fill-color: var(--ui-text-2) !important;
+    font-size: 12px !important;
+    font-style: normal !important;
+    opacity: 1 !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .form-group { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+
+  /* searchable dropdowns inside popups */
+  .modal-overlay:not(#standard-job-modal) .choices { margin: 0 !important; }
+  .modal-overlay:not(#standard-job-modal) .choices__inner {
+    min-height: 40px !important;
+    padding: 4px 34px 4px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-size: 14px !important;
+    box-shadow: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) .choices.is-focused .choices__inner,
+  .modal-overlay:not(#standard-job-modal) .choices.is-open .choices__inner { border-color: var(--ui-teal) !important; box-shadow: 0 0 0 3px var(--ui-teal-soft) !important; }
+  .modal-overlay:not(#standard-job-modal) .choices__list--single { padding: 0 !important; }
+  .modal-overlay:not(#standard-job-modal) .choices__list--single .choices__item { padding: 0 !important; background: transparent !important; border: 0 !important; color: var(--ui-text) !important; font-weight: 500 !important; }
+  .modal-overlay:not(#standard-job-modal) :is(.choices__placeholder, .choices__list--single .choices__item.choices__placeholder) { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; opacity: 1 !important; font-weight: 400 !important; }
+  .modal-overlay:not(#standard-job-modal) .choices[data-type*="select-one"]::after { border-color: var(--ui-text-2) transparent transparent !important; right: 14px !important; }
+  .modal-overlay:not(#standard-job-modal) .choices[data-type*="select-one"].is-open::after { border-color: transparent transparent var(--ui-text-2) !important; }
+  .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) {
+    margin-top: 6px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: #0F1C2B !important;
+    box-shadow: 0 18px 40px rgba(3, 10, 18, 0.5) !important;
+    color: var(--ui-text) !important;
+    z-index: 60 !important;
+  }
+  .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) .choices__input {
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--ui-line-soft) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--ui-text) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) .choices__item { padding: 9px 12px !important; color: var(--ui-text) !important; background: transparent !important; font-size: 13.5px !important; }
+  .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) .choices__item.is-highlighted { background: var(--ui-gold-soft) !important; box-shadow: inset 3px 0 0 var(--ui-gold) !important; }
+  .modal-overlay:not(#standard-job-modal) .choices:not([data-type*="select-one"]) .choices__button { filter: invert(1) !important; opacity: 0.6 !important; }
+
+  /* ---------------------------------------------------------------------
+     21.6 Buttons — one teal main button, quiet secondary, red for reject
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container button:not(.modal-close-btn):not(.choices__button) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    min-height: 38px !important;
+    height: auto !important;
+    padding: 0 16px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-family: inherit !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.modal-close-btn.secondary-btn, .modal-close-btn.im-footer-close-btn) {
+    display: inline-flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: auto !important;
+    min-width: 76px !important;
+    height: auto !important;
+    min-height: 38px !important;
+    padding: 0 16px !important;
+    line-height: 1.2 !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.modal-close-btn.secondary-btn, .modal-close-btn.im-footer-close-btn):hover { background: rgba(255, 255, 255, 0.10) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container button:not(.modal-close-btn):not(.choices__button):hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.10) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container button:disabled { opacity: 0.45 !important; cursor: not-allowed !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.download-btn, .primary-btn, .print-btn, button[type="submit"], #ceo-modal-approve-btn, #transfer-modal-approve-btn, #im-batch-modal-search-btn, #im-payment-modal-search-btn, #im-ipc-recovery-convert, #ms-photo-browser-use, #im-attention-picker-apply, #ms-sc-approve-all, .ms-sc-approve-one, #process-report-submit-btn, #im-save-manual-po-btn, #ms-save-stock-btn, #ms-save-new-btn, #calendar-modal-view-tasks-btn, #modify-task-save-btn):not(:disabled) {
+    border-color: transparent !important;
+    background: var(--ui-teal) !important;
+    color: #fff !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.download-btn, .primary-btn, .print-btn, button[type="submit"], #ceo-modal-approve-btn, #transfer-modal-approve-btn, #im-batch-modal-search-btn, #im-payment-modal-search-btn, #im-ipc-recovery-convert, #ms-photo-browser-use, #im-attention-picker-apply, #ms-sc-approve-all, .ms-sc-approve-one, #process-report-submit-btn, #im-save-manual-po-btn, #ms-save-stock-btn, #ms-save-new-btn, #calendar-modal-view-tasks-btn, #modify-task-save-btn):hover:not(:disabled) {
+    background: var(--ui-teal-hover) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.delete-btn, [id*="reject"], [id*="delete"], .reject-btn) {
+    border-color: rgba(239, 138, 122, 0.55) !important;
+    background: transparent !important;
+    color: var(--ui-red) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.delete-btn, [id*="reject"], [id*="delete"], .reject-btn):hover:not(:disabled) {
+    background: var(--ui-red-soft) !important;
+  }
+  /* small buttons inside table rows */
+  .modal-overlay:not(#standard-job-modal) > .modal-container td button:not(.modal-close-btn) {
+    min-height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 12.5px !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     21.7 Tables inside popups
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container .table-wrapper {
+    border: 1px solid var(--ui-line-soft) !important;
+    border-radius: 12px !important;
+    background: rgba(0, 0, 0, 0.16) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    overflow: auto !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .table-wrapper > p {
+    margin: 0 !important;
+    padding: 22px 16px !important;
+    text-align: center !important;
+    color: var(--ui-text-2) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--ui-text) !important;
+    font-size: 13px !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container thead :is(th, td) {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    padding: 10px 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--ui-line) !important;
+    background: var(--ui-head) !important;
+    background-image: none !important;
+    color: var(--ui-text-2) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container thead tr { background: var(--ui-head) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(tbody, tfoot) td {
+    padding: 9px 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--ui-line-soft) !important;
+    background: transparent !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-variant-numeric: tabular-nums !important;
+    vertical-align: middle !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr { background: transparent !important; box-shadow: none !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:nth-child(even) > td { background: rgba(255, 255, 255, 0.025) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:hover > td { background: var(--ui-row-hover) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:last-child > td { border-bottom: 0 !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tfoot td { border-top: 1px solid var(--ui-line) !important; font-weight: 700 !important; }
+
+  /* ---------------------------------------------------------------------
+     21.7b Inner panels, notes and chips (were white / pale boxes)
+     --------------------------------------------------------------------- */
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-header :is(h2, h3)::before,
+  .modal-overlay:not(#standard-job-modal) > .modal-container > .modal-header :is(h2, h3)::after { content: none !important; display: none !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.search-and-filter-group, .batch-modal-result-summary, .im-payment-search-row, .im-payment-result-summary, .tf-card, .ms-reg-card, #ceo-modal-details, .im-ipc-recovery-note, .im-pocket-transfer-help, .report-summary, #transfer-modal-details, .ms-photo-browser-target, .ms-photo-browser-note, .ms-photo-browser-status, .ms-photo-browser-preview, .history-modal-summary, .im-entry-quick-panel),
+  #vacation-replacement-modal .modal-content > ul {
+    border: 1px solid var(--ui-line-soft) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--ui-text-2) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.tf-card, .ms-reg-card) :is(h3, h4, .tf-card-title, legend) { color: var(--ui-text) !important; }
+  #vacation-replacement-modal .modal-content > ul { padding: 12px 16px 12px 32px !important; }
+  #ceo-modal-details { padding: 12px 14px !important; line-height: 1.7 !important; }
+  /* the search rows: field and button on one line */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(#im-batch-search-modal .search-and-filter-group, .im-payment-search-row) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-end !important;
+    gap: 10px !important;
+    margin: 0 0 12px !important;
+    padding: 12px !important;
+  }
+  #im-batch-search-modal .search-and-filter-group > input,
+  #im-add-payment-modal .im-payment-search-row > input {
+    flex: 1 1 280px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  #im-add-payment-modal .im-payment-global-date-wrap { display: flex !important; flex-direction: column !important; gap: 4px !important; margin: 0 !important; }
+  #im-add-payment-modal .im-payment-global-date-wrap input { width: 170px !important; }
+  #im-batch-search-modal .search-and-filter-group > button,
+  #im-add-payment-modal .im-payment-search-row > button { flex: 0 0 auto !important; min-height: 40px !important; }
+  /* result summary strips above the tables */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.batch-modal-result-summary, .im-payment-result-summary) {
+    margin: 0 0 10px !important;
+    padding: 8px 12px !important;
+    color: var(--ui-text-2) !important;
+    font-size: 12.5px !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.batch-modal-result-summary, .im-payment-result-summary) :is(strong, b) { color: var(--ui-text) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.batch-modal-result-summary, .im-payment-result-summary) i { color: var(--ui-gold) !important; }
+  /* status chips in result tables */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.batch-modal-status-chip, .im-payment-status-chip, .status-chip) {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 2px 9px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--ui-text) !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+  }
+  /* a picked row in the result tables */
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:is(.selected, .is-selected, .highlight, .highlighted, .row-selected) > td,
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:has(input[type="checkbox"]:checked) > td {
+    background: rgba(19, 138, 151, 0.16) !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:has(input[type="checkbox"]:checked) > td:first-child { box-shadow: inset 3px 0 0 var(--ui-teal) !important; }
+  /* Legacy archive switch (Super Admin): amber note */
+  #im-add-payment-modal .im-payment-legacy-controls {
+    margin: 0 0 12px !important;
+    padding: 10px 12px !important;
+    border: 1px solid rgba(242, 193, 78, 0.35) !important;
+    border-radius: 12px !important;
+    background: rgba(242, 193, 78, 0.08) !important;
+    box-shadow: none !important;
+  }
+  #im-add-payment-modal .im-payment-legacy-controls label { display: flex !important; align-items: center !important; gap: 10px !important; margin: 0 !important; text-transform: none !important; letter-spacing: 0 !important; }
+  #im-add-payment-modal .im-payment-legacy-controls :is(strong, small) { display: block !important; text-transform: none !important; letter-spacing: 0 !important; }
+  #im-add-payment-modal .im-payment-legacy-controls strong { color: var(--ui-amber) !important; font-size: 13px !important; }
+  #im-add-payment-modal .im-payment-legacy-controls small { color: var(--ui-text-2) !important; font-size: 12px !important; font-weight: 400 !important; }
+  /* Pocket / Paid pocket / Mark paid: help line and the four figures */
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-help { margin: 0 0 12px !important; padding: 10px 12px !important; font-size: 12.5px !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-stats {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin: 0 0 12px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-stats > div {
+    padding: 10px 12px !important;
+    border: 1px solid var(--ui-line-soft) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    box-shadow: none !important;
+  }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-stats > div > :first-child { display: block !important; color: var(--ui-text-3) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-stats > div > :last-child { display: block !important; margin-top: 3px !important; color: var(--ui-text) !important; font-size: 18px !important; font-weight: 700 !important; font-variant-numeric: tabular-nums !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-pocket-transfer-status { color: var(--ui-text-2) !important; font-size: 12.5px !important; background: transparent !important; }
+  /* IPC recovery note */
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-ipc-recovery-note { margin-top: 12px !important; padding: 10px 12px !important; border-color: rgba(125, 183, 240, 0.3) !important; background: rgba(125, 183, 240, 0.08) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container .im-ipc-recovery-note i { color: var(--ui-blue) !important; }
+  /* Transfer / Register Material: the three column cards */
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.tf-card, .ms-reg-card) { padding: 12px !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container :is(.tf-board, .ms-reg-board) { background: transparent !important; box-shadow: none !important; }
+  #transfer-job-modal .tf-mode { display: inline-flex !important; gap: 4px !important; margin: 0 0 12px !important; padding: 4px !important; border: 1px solid var(--ui-line) !important; border-radius: 12px !important; background: rgba(255, 255, 255, 0.035) !important; }
+  #transfer-job-modal .tf-mode label {
+    display: inline-flex !important; align-items: center !important; gap: 8px !important;
+    margin: 0 !important; padding: 7px 14px !important; border: 0 !important; border-radius: 9px !important;
+    background: transparent !important; box-shadow: none !important;
+    color: var(--ui-text-2) !important; font-size: 13px !important; letter-spacing: 0 !important; text-transform: none !important; cursor: pointer !important;
+  }
+  #transfer-job-modal .tf-mode label strong { color: inherit !important; font-weight: 600 !important; }
+  #transfer-job-modal .tf-mode label::before, #transfer-job-modal .tf-mode label::after { content: none !important; display: none !important; }
+  #transfer-job-modal .tf-mode label:has(input:checked) { background: rgba(19, 138, 151, 0.28) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(19, 138, 151, 0.55) !important; }
+  /* Photo library text */
+  #ms-photo-browser-modal :is(.ms-photo-browser-target, .ms-photo-browser-note, .ms-photo-browser-status, .ms-photo-browser-preview) { padding: 10px 12px !important; margin: 0 0 10px !important; font-size: 12.5px !important; line-height: 1.5 !important; }
+  #ms-photo-browser-modal .ms-photo-browser-top small,
+  #ms-photo-browser-modal .ms-photo-browser-top p { color: var(--ui-text-3) !important; }
+  /* Invoice Entry popup: footer Close as a button, quick panel buttons */
+  #transfer-job-modal #tf-batch-count { color: var(--ui-gold) !important; font-weight: 700 !important; }
+  #im-invoice-entry-modal .im-footer-close-btn {
+    width: auto !important; height: 38px !important; min-height: 38px !important; padding: 0 16px !important;
+    border: 1px solid var(--ui-line) !important; border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important; color: var(--ui-text) !important;
+    font-size: 13.5px !important; font-weight: 600 !important;
+  }
+  #im-invoice-entry-modal .im-footer-po-summary { color: var(--ui-text-2) !important; font-size: 12.5px !important; }
+  #im-invoice-entry-modal .im-footer-po-summary :is(strong, b) { color: var(--ui-text) !important; }
+  #im-invoice-entry-modal .im-entry-quick-panel { margin: 12px !important; padding: 10px !important; }
+  #im-invoice-entry-modal .im-entry-quick-panel button { width: 100% !important; justify-content: center !important; }
+  /* the payments search popup fits the screen: big enough for a long list,
+     never taller than the screen */
+  body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal {
+    width: min(1060px, calc(100vw - 64px)) !important;
+    max-width: 1060px !important;
+    height: min(800px, calc(100vh - 64px)) !important;
+    height: min(800px, calc(100dvh - 64px)) !important;
+    max-height: calc(100vh - 64px) !important;
+  }
+  body #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal > .modal-content { overflow: hidden !important; display: flex !important; flex-direction: column !important; }
+  body #im-add-payment-modal.modal-overlay:not(.hidden) #im-payment-modal-results.im-payment-search-results.table-wrapper { min-height: 180px !important; }
+  #im-add-payment-modal .im-payment-search-footer .im-payment-selected-total { display: flex !important; align-items: baseline !important; gap: 10px !important; margin-right: auto !important; }
+  #im-add-payment-modal .im-payment-search-footer .im-payment-selected-total span { color: var(--ui-text-3) !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
+  #im-add-payment-modal .im-payment-search-footer .im-payment-selected-total strong { color: var(--ui-gold) !important; font-size: 20px !important; font-weight: 700 !important; font-variant-numeric: tabular-nums !important; }
+  #im-add-payment-modal .im-payment-search-footer { justify-content: space-between !important; }
+  /* Batch search popup: wider list, comfortable height */
+  #im-batch-search-modal > .modal-container { width: min(1000px, calc(100vw - 64px)) !important; max-width: 1000px !important; }
+  #im-batch-search-modal #im-batch-modal-results { max-height: min(52vh, 520px) !important; }
+
+  /* ---------------------------------------------------------------------
+     21.8 Popups built by scripts (not .modal-overlay)
+     --------------------------------------------------------------------- */
+  /* Stock Check (Material Stock) */
+  #ms-stock-check-modal { background: rgba(4, 12, 22, 0.64) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; padding: 24px !important; }
+  #ms-stock-check-modal > div {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: var(--ui-radius-l) !important;
+    background: linear-gradient(180deg, #17324C 0%, #0F2235 100%) !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5) !important;
+    color: var(--ui-text) !important;
+    max-height: calc(100vh - 48px) !important;
+  }
+  #ms-stock-check-modal > div > div:first-child {
+    padding: 16px 20px 14px !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--ui-line-soft) !important;
+    color: var(--ui-text) !important;
+  }
+  #ms-stock-check-modal > div > div:first-child > div > div:first-child { font-size: 18px !important; font-weight: 700 !important; }
+  #ms-stock-check-modal > div > div:first-child > div > div:first-child i { color: var(--ui-gold) !important; margin-right: 6px !important; }
+  #ms-stock-check-modal #ms-sc-summary { color: var(--ui-text-2) !important; opacity: 1 !important; font-size: 12.5px !important; margin-top: 2px !important; }
+  #ms-stock-check-modal #ms-sc-close {
+    width: 34px !important; height: 34px !important; border: 1px solid var(--ui-line) !important; border-radius: 10px !important;
+    color: var(--ui-text-2) !important; font-size: 20px !important; background: transparent !important;
+  }
+  #ms-stock-check-modal > div > div:nth-child(2) {
+    padding: 12px 20px !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--ui-line-soft) !important;
+  }
+  #ms-stock-check-modal > div > div:nth-child(3) { padding: 10px 20px 4px !important; color: var(--ui-text-2) !important; font-size: 12.5px !important; line-height: 1.5 !important; }
+  #ms-stock-check-modal > div > div:nth-child(4) { padding: 6px 20px 16px !important; }
+  #ms-stock-check-modal :is(#ms-sc-search, .ms-sc-qty) {
+    min-height: 38px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--ui-text) !important;
+    font-size: 14px !important;
+  }
+  #ms-stock-check-modal .ms-sc-qty { min-height: 32px !important; }
+  #ms-stock-check-modal #ms-sc-search::placeholder { color: var(--ui-text-3) !important; }
+  #ms-stock-check-modal button:not(#ms-sc-close) {
+    display: inline-flex !important; align-items: center !important; gap: 7px !important;
+    min-height: 36px !important; padding: 0 14px !important; border-radius: 10px !important;
+    border: 1px solid var(--ui-line) !important; background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--ui-text) !important; font-size: 13px !important; font-weight: 600 !important; box-shadow: none !important;
+  }
+  #ms-stock-check-modal :is(#ms-sc-approve-all, .ms-sc-approve-one) { border-color: transparent !important; background: var(--ui-teal) !important; color: #fff !important; }
+  #ms-stock-check-modal .ms-sc-approve-one { min-height: 30px !important; padding: 0 10px !important; font-size: 12.5px !important; }
+  #ms-stock-check-modal table { color: var(--ui-text) !important; }
+  #ms-stock-check-modal thead tr { background: var(--ui-head) !important; color: var(--ui-text-2) !important; }
+  #ms-stock-check-modal thead th { background: var(--ui-head) !important; color: var(--ui-text-2) !important; font-size: 11.5px !important; font-weight: 600 !important; letter-spacing: 0.04em !important; text-transform: uppercase !important; border-bottom: 1px solid var(--ui-line) !important; }
+  #ms-stock-check-modal tbody tr { border-bottom: 1px solid var(--ui-line-soft) !important; }
+  #ms-stock-check-modal tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.025) !important; }
+  #ms-stock-check-modal tbody tr:hover { background: var(--ui-row-hover) !important; }
+  #ms-stock-check-modal tbody td { color: var(--ui-text) !important; }
+  #ms-stock-check-modal tbody td[colspan] { color: var(--ui-green) !important; }
+
+  /* SRV Done confirm (PO Close Out / Active Task) */
+  #iba-srv-confirm-modal { background: rgba(4, 12, 22, 0.64) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+  #iba-srv-confirm-modal .iba-srv-card {
+    padding: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: var(--ui-radius-l) !important;
+    background: linear-gradient(180deg, #17324C 0%, #0F2235 100%) !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: none !important;
+    color: var(--ui-text) !important;
+  }
+  #iba-srv-confirm-modal .iba-srv-card * { -webkit-text-fill-color: currentColor !important; text-shadow: none !important; }
+  #iba-srv-confirm-modal .iba-srv-title { color: var(--ui-text) !important; font-size: 18px !important; font-weight: 700 !important; }
+  #iba-srv-confirm-modal .iba-srv-card p { color: var(--ui-text-2) !important; font-size: 14px !important; }
+  #iba-srv-confirm-modal .iba-srv-actions { display: flex !important; justify-content: flex-end !important; gap: 10px !important; }
+  #iba-srv-confirm-modal .iba-srv-actions button {
+    min-height: 38px !important; padding: 0 18px !important; border-radius: 10px !important;
+    border: 1px solid var(--ui-line) !important; background: rgba(255, 255, 255, 0.05) !important; background-image: none !important;
+    color: var(--ui-text) !important; font-size: 13.5px !important; font-weight: 600 !important; box-shadow: none !important;
+  }
+  #iba-srv-confirm-modal #iba-srv-confirm-proceed { order: 2 !important; border-color: transparent !important; background: var(--ui-teal) !important; color: #fff !important; }
+  #iba-srv-confirm-modal #iba-srv-confirm-cancel { order: 1 !important; }
+
+  /* ---------------------------------------------------------------------
+     21.8b Desktop: popups sit below the top bar (patch 7)
+     The top bar stays above the popups, so a tall popup slid under it and
+     its rounded top corners were cut off square (New Transaction, multi
+     item). Popups now open in the space under the bar; one taller than
+     the window scrolls as a whole.
+     --------------------------------------------------------------------- */
+  @media (min-width: 901px) {
+    body.iba-shell-on .modal-overlay:not(#standard-job-modal):not(.hidden) {
+      box-sizing: border-box !important;
+      max-height: 100vh !important;
+      padding: 80px 24px 24px !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain !important;
+    }
+    body.iba-shell-on .modal-overlay:not(#standard-job-modal) > .modal-container:not(.im-user-positioned) {
+      margin: auto !important;
+      max-height: calc(100vh - 104px) !important;
+    }
+    body.iba-shell-on #im-add-payment-modal.modal-overlay:not(.hidden) > .modal-container.im-payment-search-modal { height: min(800px, calc(100vh - 104px)) !important; }
+  }
+
+  /* ---------------------------------------------------------------------
+     21.9 Dashboard > Paid History > "View Latest 3" (patch 7)
+     Same solid box, title row, panels and buttons as every other popup.
+     --------------------------------------------------------------------- */
+  #wd-paid-history-modal { background: rgba(4, 12, 22, 0.64) !important; backdrop-filter: blur(6px) !important; -webkit-backdrop-filter: blur(6px) !important; }
+  #wd-paid-history-modal .wd-paid-history-window {
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 16px !important;
+    background: linear-gradient(180deg, #17324C 0%, #0F2235 100%) !important;
+    background-color: #12283D !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--ui-text) !important;
+    overflow: hidden !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-window::before,
+  #wd-paid-history-modal .wd-paid-history-window::after { content: none !important; display: none !important; }
+  #wd-paid-history-modal .wd-paid-history-window * { -webkit-text-fill-color: currentColor !important; text-shadow: none !important; }
+  #wd-paid-history-modal .wd-paid-history-window-label { display: none !important; }
+  #wd-paid-history-modal .wd-paid-history-header {
+    padding: 16px 20px 14px !important;
+    border-bottom: 1px solid var(--ui-line) !important;
+    background: transparent !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-heading-row { gap: 12px !important; align-items: center !important; }
+  #wd-paid-history-modal .wd-paid-history-heading-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    border: 1px solid rgba(95, 211, 160, 0.5) !important;
+    border-radius: 10px !important;
+    background: rgba(95, 211, 160, 0.14) !important;
+    color: var(--ui-green) !important;
+    font-size: 15px !important;
+    box-shadow: none !important;
+  }
+  #wd-paid-history-modal #wd-paid-history-title { margin: 0 !important; color: var(--ui-text) !important; font-size: 18px !important; font-weight: 700 !important; letter-spacing: 0 !important; }
+  #wd-paid-history-modal #wd-paid-history-subtitle { margin: 2px 0 0 !important; color: var(--ui-text-2) !important; font-size: 13px !important; }
+  #wd-paid-history-modal .wd-paid-history-close {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: var(--ui-text-2) !important;
+    font-size: 15px !important;
+    box-shadow: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-close:hover { background: rgba(255, 255, 255, 0.07) !important; color: var(--ui-text) !important; }
+  #wd-paid-history-modal .wd-paid-history-body { padding: 16px 20px !important; background: transparent !important; }
+  #wd-paid-history-modal :is(.wd-paid-history-info, .wd-paid-history-outline, .wd-paid-history-empty, .wd-paid-history-list) {
+    border: 1px solid var(--ui-line-soft) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-info { padding: 12px 14px !important; }
+  #wd-paid-history-modal .wd-paid-history-info > span,
+  #wd-paid-history-modal .wd-paid-history-footer-note > span { color: var(--ui-blue) !important; }
+  #wd-paid-history-modal .wd-paid-history-info strong { color: var(--ui-text) !important; font-size: 13.5px !important; }
+  #wd-paid-history-modal .wd-paid-history-info p { color: var(--ui-text-2) !important; font-size: 12.5px !important; }
+  #wd-paid-history-modal .wd-paid-history-summary-card { gap: 12px !important; }
+  #wd-paid-history-modal .wd-paid-history-summary-icon { color: var(--ui-gold) !important; }
+  #wd-paid-history-modal :is(.wd-paid-history-po, .wd-paid-history-latest, .wd-paid-history-latest-date, .wd-paid-history-field) small {
+    color: var(--ui-text-2) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+  }
+  #wd-paid-history-modal :is(.wd-paid-history-po, .wd-paid-history-latest, .wd-paid-history-latest-date) strong { color: #ffffff !important; }
+  #wd-paid-history-modal .wd-paid-history-po span { color: var(--ui-text-2) !important; }
+  #wd-paid-history-modal .wd-paid-history-count {
+    border: 1px solid rgba(95, 211, 160, 0.45) !important;
+    background: rgba(95, 211, 160, 0.12) !important;
+    color: var(--ui-green) !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-list-head strong {
+    color: var(--ui-text) !important;
+    font-size: 12px !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-list-head span { color: var(--ui-text-2) !important; font-size: 12.5px !important; }
+  #wd-paid-history-modal .wd-paid-history-list { padding: 0 !important; overflow: hidden !important; }
+  #wd-paid-history-modal .wd-paid-history-row {
+    margin: 0 !important;
+    padding: 12px 16px !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.075) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-row:nth-child(even) { background: rgba(255, 255, 255, 0.03) !important; }
+  #wd-paid-history-modal .wd-paid-history-row:last-child { border-bottom: 0 !important; }
+  #wd-paid-history-modal .wd-paid-history-row::before,
+  #wd-paid-history-modal .wd-paid-history-row::after { content: none !important; display: none !important; }
+  #wd-paid-history-modal .wd-paid-history-check {
+    border: 1px solid rgba(95, 211, 160, 0.55) !important;
+    background: rgba(95, 211, 160, 0.14) !important;
+    color: var(--ui-green) !important;
+    box-shadow: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-field strong { color: var(--ui-text) !important; font-size: 13.5px !important; font-variant-numeric: tabular-nums !important; }
+  #wd-paid-history-modal .wd-paid-history-field strong.is-paid-date { color: var(--ui-green) !important; }
+  #wd-paid-history-modal .wd-paid-history-badge {
+    border: 1px solid rgba(95, 211, 160, 0.45) !important;
+    background: rgba(95, 211, 160, 0.12) !important;
+    color: var(--ui-green) !important;
+    box-shadow: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-empty > span { color: var(--ui-gold) !important; }
+  #wd-paid-history-modal .wd-paid-history-empty :is(strong, p) { color: var(--ui-text-2) !important; }
+  #wd-paid-history-modal .wd-paid-history-empty strong { color: var(--ui-text) !important; }
+  #wd-paid-history-modal .wd-paid-history-footer {
+    padding: 14px 20px !important;
+    border-top: 1px solid var(--ui-line) !important;
+    background: rgba(0, 0, 0, 0.16) !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-footer-note strong { color: var(--ui-text) !important; font-size: 13px !important; }
+  #wd-paid-history-modal .wd-paid-history-footer-note p { color: var(--ui-text-2) !important; font-size: 12.5px !important; }
+  #wd-paid-history-modal :is(.wd-paid-history-secondary, .wd-paid-history-primary) {
+    min-height: 38px !important;
+    height: auto !important;
+    padding: 0 16px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  #wd-paid-history-modal .wd-paid-history-secondary:hover { background: rgba(255, 255, 255, 0.10) !important; }
+  #wd-paid-history-modal .wd-paid-history-primary { border-color: transparent !important; background: var(--ui-teal) !important; color: #fff !important; }
+  #wd-paid-history-modal .wd-paid-history-primary:hover { background: var(--ui-teal-hover) !important; }
+
+  /* Approval print preview (patch 5): dark frame around the white A4 page */
+  #iba-approval-print-root { background: rgba(4, 12, 22, 0.86) !important; backdrop-filter: blur(6px) !important; }
+  #iba-approval-print-root .iba-approval-print-toolbar {
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 12px !important;
+    background: #12283D !important;
+    color: var(--ui-text) !important;
+  }
+  #iba-approval-print-root .iba-approval-print-toolbar strong { color: var(--ui-text) !important; font-weight: 600 !important; }
+  #iba-approval-print-root .iba-approval-print-toolbar button { border-radius: 10px !important; font-weight: 600 !important; }
+  #iba-approval-print-root .iba-approval-print-toolbar .print-now { background: var(--ui-teal) !important; color: #fff !important; }
+  #iba-approval-print-root .iba-approval-print-toolbar .close-print { border: 1px solid var(--ui-line) !important; background: transparent !important; color: var(--ui-text) !important; }
+
+  /* ---------------------------------------------------------------------
+     21.10 Invoice Entry > Attention (patch 8)
+     The box looks like the other fields; its list has a search line on top
+     (js/iba-attention-picker.js). Solid list, readable on any photo.
+     --------------------------------------------------------------------- */
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible.iba-attn-box {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transform: none !important;
+  }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible.iba-attn-box:hover { background-color: rgba(255, 255, 255, 0.08) !important; border-color: rgba(255, 255, 255, 0.24) !important; }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible.iba-attn-box:focus-visible,
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible.iba-attn-box[aria-expanded="true"] {
+    outline: none !important;
+    border-color: var(--ui-teal) !important;
+    box-shadow: 0 0 0 3px var(--ui-teal-soft) !important;
+  }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible .iba-attn-text { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible.is-empty .iba-attn-text { color: var(--ui-text-3) !important; font-weight: 400 !important; }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible > i { flex: 0 0 auto !important; color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; font-size: 12px !important; transition: transform .15s ease !important; }
+  #im-invoice-entry-modal #im-attention-group #iba-attention-visible[aria-expanded="true"] > i { transform: rotate(180deg) !important; }
+  #im-invoice-entry-modal #im-attention-group.im-invalid #iba-attention-visible { border-color: rgba(239, 138, 122, 0.75) !important; }
+
+  #iba-attention-menu.iba-attn-menu {
+    position: fixed !important;
+    z-index: 2147483000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    max-height: 360px;
+    padding: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 12px !important;
+    background: #12283D !important;
+    background-color: #12283D !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5) !important;
+    overflow: hidden !important;
+    font-family: inherit !important;
+  }
+  #iba-attention-menu .iba-attn-search {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    padding: 8px !important;
+    border-bottom: 1px solid var(--ui-line) !important;
+    background: #142E46 !important;
+  }
+  #iba-attention-menu .iba-attn-search > i {
+    position: absolute !important;
+    left: 20px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    color: var(--ui-text-3) !important;
+    -webkit-text-fill-color: var(--ui-text-3) !important;
+    font-size: 13px !important;
+    pointer-events: none !important;
+  }
+  #iba-attention-menu .iba-attn-search input {
+    display: block !important;
+    width: 100% !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 10px 0 34px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    border-radius: 8px !important;
+    background: rgba(0, 0, 0, 0.22) !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    font: 500 14px/1 inherit !important;
+    font-family: inherit !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  #iba-attention-menu .iba-attn-search input:focus { border-color: var(--ui-teal) !important; box-shadow: 0 0 0 3px var(--ui-teal-soft) !important; }
+  #iba-attention-menu .iba-attn-search input::placeholder { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; font-weight: 400 !important; }
+  #iba-attention-menu .iba-attn-list { flex: 1 1 auto !important; min-height: 0 !important; overflow-y: auto !important; padding: 4px 0 !important; overscroll-behavior: contain !important; }
+  #iba-attention-menu .iba-attn-opt {
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    border: 0 !important;
+    border-left: 3px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-align: left !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transform: none !important;
+  }
+  #iba-attention-menu .iba-attn-opt.is-active { background: rgba(255, 255, 255, 0.07) !important; background-color: rgba(255, 255, 255, 0.07) !important; border-left-color: var(--ui-gold) !important; }
+  #iba-attention-menu .iba-attn-opt.is-selected .iba-attn-name { color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; }
+  #iba-attention-menu .iba-attn-name { flex: 0 0 auto !important; white-space: nowrap !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #iba-attention-menu .iba-attn-meta { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; font-size: 12px !important; font-weight: 400 !important; }
+  #iba-attention-menu .iba-attn-opt > i { margin-left: auto !important; color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; font-size: 12px !important; }
+  #iba-attention-menu mark { padding: 0 !important; border-radius: 0 !important; background: transparent !important; color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; font-weight: 700 !important; text-decoration: underline !important; text-decoration-color: rgba(227, 201, 138, 0.55) !important; text-underline-offset: 3px !important; }
+  #iba-attention-menu .iba-attn-empty { padding: 14px 12px !important; color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; font-size: 13px !important; }
+  #iba-attention-menu .iba-attn-empty[hidden] { display: none !important; }
+}
+}

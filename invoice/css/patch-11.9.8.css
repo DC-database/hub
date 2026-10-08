@@ -1,0 +1,356 @@
+/* ========================================================================== 
+   IBA 11.9.8 — WorkDesk Automatic Paid PO Suggestions + IPC Recovery Styling
+   Keeps the accepted 11.9.5 interface. Invoice Management Payments is restored.
+   ========================================================================== */
+
+/* Invoice Entry: forgotten IPC selector retained from 11.9.6 */
+#im-ipc-recovery-modal .im-ipc-recovery-modal {
+    width: min(940px, calc(100vw - 28px));
+    max-width: 940px;
+}
+
+#im-ipc-recovery-modal .modal-content > p {
+    margin: 0 0 14px;
+    color: #344e65;
+    line-height: 1.5;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table th:first-child,
+#im-ipc-recovery-modal .im-ipc-recovery-table td:first-child {
+    width: 42px;
+    text-align: center;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table tbody tr {
+    cursor: pointer;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-table tbody tr:hover {
+    background: rgba(15, 140, 148, 0.06);
+}
+
+#im-ipc-recovery-modal input[type="radio"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #0f8c94;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status.is-application {
+    color: #5b21b6;
+    background: #f0e9ff;
+    border: 1px solid #d8c5ff;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-status.is-processed {
+    color: #08745f;
+    background: #e6f8f2;
+    border: 1px solid #b9eadc;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 11px 12px;
+    border: 1px solid #b8dde4;
+    border-radius: 10px;
+    background: #effbfc;
+    color: #19485b;
+    line-height: 1.45;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-note i {
+    margin-top: 2px;
+    color: #0f8c94;
+}
+
+#im-ipc-recovery-modal .im-ipc-recovery-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 9px;
+    flex-wrap: wrap;
+}
+
+/* WorkDesk Accounts Payment Pocket: paid PO suggestions stay separate from With Accounts */
+#wd-dashboard .wd-paid-po-history-panel {
+    margin-top: 18px;
+    border: 1px solid rgba(17, 92, 142, 0.2);
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 10px 26px rgba(15, 58, 91, 0.08);
+    overflow: hidden;
+}
+
+#wd-dashboard .wd-paid-po-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(17, 92, 142, 0.14);
+    background: linear-gradient(90deg, rgba(237, 250, 252, 0.94), rgba(248, 252, 255, 0.96));
+}
+
+#wd-dashboard .wd-paid-po-history-head > div {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+#wd-dashboard .wd-paid-po-history-head span {
+    color: #0e7a86;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+}
+
+#wd-dashboard .wd-paid-po-history-head strong {
+    color: #082f49;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+
+#wd-dashboard .wd-paid-po-history-head small {
+    color: #5d7184;
+    line-height: 1.4;
+}
+
+#wd-dashboard .wd-paid-po-history-table-wrap {
+    overflow-x: auto;
+}
+
+#wd-dashboard .wd-paid-po-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 820px;
+}
+
+#wd-dashboard .wd-paid-po-history-table th {
+    padding: 11px 12px;
+    background: #08345b;
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+    text-align: left;
+    white-space: nowrap;
+}
+
+#wd-dashboard .wd-paid-po-history-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(18, 77, 116, 0.1);
+    color: #16344d;
+    vertical-align: middle;
+}
+
+#wd-dashboard .wd-paid-po-history-table tbody tr:nth-child(even) td {
+    background: #f8fbfd;
+}
+
+#wd-dashboard .wd-paid-po-history-table tbody tr:hover td {
+    background: #eef9fa;
+}
+
+#wd-dashboard .wd-paid-po-history-table .right-align {
+    text-align: right;
+    white-space: nowrap;
+}
+
+#wd-dashboard .wd-paid-po-history-table tfoot td {
+    background: #eef8f6;
+    color: #073e47;
+    font-weight: 900;
+}
+
+#wd-dashboard .wd-paid-po-link {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #0864a4;
+    font: inherit;
+    font-weight: 900;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+#wd-dashboard .wd-paid-po-view-btn,
+#wd-dashboard .wd-paid-history-back-inline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 36px;
+    padding: 8px 12px;
+    border: 1px solid #0c7f8a;
+    border-radius: 9px;
+    background: #0c8790;
+    color: #ffffff;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#wd-dashboard .wd-paid-history-back-inline {
+    background: #075f9b;
+    border-color: #075f9b;
+}
+
+#wd-dashboard .wd-paid-po-view-btn:hover,
+#wd-dashboard .wd-paid-po-view-btn:focus-visible,
+#wd-dashboard .wd-paid-history-back-inline:hover,
+#wd-dashboard .wd-paid-history-back-inline:focus-visible {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+}
+
+#wd-dashboard .wd-paid-po-history-summary {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(140px, 0.7fr));
+    gap: 10px;
+    padding: 14px 16px;
+    background: #fbfdff;
+    border-bottom: 1px solid rgba(17, 92, 142, 0.12);
+}
+
+#wd-dashboard .wd-paid-po-history-summary > div {
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid rgba(15, 140, 148, 0.17);
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+#wd-dashboard .wd-paid-po-history-summary small {
+    display: block;
+    margin-bottom: 4px;
+    color: #64798c;
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+#wd-dashboard .wd-paid-po-history-summary strong {
+    display: block;
+    color: #0b3451;
+    overflow-wrap: anywhere;
+}
+
+#wd-dashboard .wd-paid-po-history-loading,
+#wd-dashboard .wd-paid-po-history-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 120px;
+    padding: 22px;
+    text-align: left;
+    color: #526a7e;
+}
+
+#wd-dashboard .wd-paid-po-history-loading > i,
+#wd-dashboard .wd-paid-po-history-empty > i {
+    display: grid;
+    place-items: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #eef7fb;
+    color: #0b7192;
+    font-size: 1.15rem;
+}
+
+#wd-dashboard .wd-paid-po-history-loading > div,
+#wd-dashboard .wd-paid-po-history-empty > div {
+    display: grid;
+    gap: 4px;
+}
+
+#wd-dashboard .wd-paid-po-history-loading strong,
+#wd-dashboard .wd-paid-po-history-empty strong {
+    color: #0c304d;
+}
+
+#wd-dashboard .wd-paid-po-history-panel.is-error {
+    border-color: rgba(181, 64, 64, 0.28);
+}
+
+#wd-dashboard .wd-paid-po-history-panel.is-error .wd-paid-po-history-empty > i {
+    background: #fff1f1;
+    color: #b23c3c;
+}
+
+@media (max-width: 900px) {
+    #wd-dashboard .wd-paid-po-history-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #wd-dashboard .wd-paid-po-history-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 760px) {
+    #im-ipc-recovery-modal .table-wrapper {
+        overflow-x: auto;
+    }
+
+    #im-ipc-recovery-modal .im-ipc-recovery-actions > button {
+        flex: 1 1 100%;
+    }
+
+    #wd-dashboard .wd-paid-po-history-summary {
+        grid-template-columns: 1fr;
+    }
+
+    #wd-dashboard .wd-paid-history-back-inline,
+    #wd-dashboard .wd-paid-po-view-btn {
+        width: 100%;
+    }
+}
+
+
+/* 11.9.8: the existing WorkDesk search is the only search action. */
+#wd-dashboard #wd-paid-history-trigger {
+    display: none !important;
+}
+
+#wd-dashboard .wd-paid-po-history-suggestions {
+    margin-top: 14px;
+    border-color: rgba(10, 112, 125, 0.28);
+}
+
+#wd-dashboard .wd-paid-po-history-suggestions .wd-paid-po-history-head {
+    padding: 12px 15px;
+}
+
+#wd-dashboard .wd-paid-po-history-suggestions .wd-paid-po-history-table {
+    min-width: 720px;
+}
+
+#wd-dashboard .wd-paid-po-history-suggestions .wd-paid-po-history-table th,
+#wd-dashboard .wd-paid-po-history-suggestions .wd-paid-po-history-table td {
+    padding-top: 9px;
+    padding-bottom: 9px;
+}
+
+#wd-dashboard .wd-paid-po-history-suggestions .wd-paid-po-view-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+}

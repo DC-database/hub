@@ -1,0 +1,3045 @@
+/* IBA 12.9.2 — Sample A glass shell. Header + sidebar + full leftover viewer. */
+:root {
+  --iba-shell-header-h: 64px;
+  --iba-shell-sidebar-w: 248px;
+  --iba-gold: #d4c4a0;
+  --iba-gold-strong: #e8d9b6;
+  --iba-glass: rgba(10, 16, 28, 0.25);
+  --iba-glass-strong: rgba(8, 12, 22, 0.25);
+  --iba-glass-card: rgba(255, 255, 255, 0.10);
+  --iba-line: rgba(232, 217, 182, 0.28);
+  --iba-text: #f4f1ea;
+  --iba-muted: rgba(244, 241, 234, 0.68);
+}
+
+html,
+html body:not(.iba-shell-on),
+html body.login-background:not(.iba-shell-on) {
+  min-height: 100vh !important;
+  background-color: #0b1220 !important;
+  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/d.jpg")) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: scroll !important;
+}
+html body:not(.iba-shell-on) #iba-bg-layer {
+  display: block !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  background-color: #0b1220 !important;
+  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/d.jpg")) !important;
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+html body:not(.iba-shell-on) #login-view .form-container {
+  animation: ibaLoginIn 0.7s ease both;
+}
+@keyframes ibaLoginIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+html body.iba-shell-on,
+html body.iba-shell-on #iba-bg-layer {
+  background-color: #0b1220 !important;
+  background-image: var(--iba-shell-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/a.jpg")) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+
+#iba-bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  display: none;
+}
+html body.iba-shell-on #iba-bg-layer {
+  display: block !important;
+}
+
+html body:not(.iba-shell-on) #login-view:not(.hidden),
+html body:not(.iba-shell-on) #password-view:not(.hidden),
+html body:not(.iba-shell-on) #setup-view:not(.hidden) {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 20 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 24px !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+}
+
+html body.iba-shell-on,
+html body.iba-shell-on * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+html body.iba-shell-on *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+body.iba-shell-on::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 12, 22, 0.28), rgba(8, 12, 22, 0.45));
+  pointer-events: none;
+  z-index: 1;
+}
+
+html body.iba-shell-on #iba-app-shell,
+html body.iba-shell-on #iba-app-shell.hidden {
+  display: grid !important;
+  grid-template-columns: var(--iba-shell-sidebar-w) 1fr;
+  grid-template-rows: var(--iba-shell-header-h) 1fr;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99990 !important;
+  pointer-events: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.iba-shell-header,
+.iba-shell-sidebar {
+  pointer-events: auto;
+}
+
+.iba-shell-header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(240px, 2fr) minmax(220px, 1fr);
+  align-items: center;
+  padding: 0 22px;
+  background: var(--iba-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--iba-line);
+  color: var(--iba-text);
+  z-index: 99992;
+}
+
+.iba-shell-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.iba-analog-clock {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 50%;
+  border: 1px solid var(--iba-gold);
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.18), rgba(8,12,22,0.55));
+  box-shadow: inset 0 0 0 3px rgba(8,12,22,0.35), 0 0 12px rgba(212,196,160,0.18);
+  position: relative;
+}
+
+.iba-clock-face { position: absolute; inset: 7px; }
+.iba-clock-num {
+  position: absolute;
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--iba-gold-strong);
+  line-height: 1;
+  z-index: 2;
+}
+.iba-clock-num.n12 { top: 2px; left: 50%; transform: translateX(-50%); }
+.iba-clock-num.n6 { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.iba-clock-num.n3 { right: 4px; top: 50%; transform: translateY(-50%); }
+.iba-clock-num.n9 { left: 4px; top: 50%; transform: translateY(-50%); }
+.iba-clock-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform-origin: 50% 100%;
+  background: var(--iba-gold-strong);
+  border-radius: 2px;
+}
+.iba-clock-hour { width: 2.5px; height: 28%; margin-left: -1.25px; }
+.iba-clock-minute { width: 2px; height: 40%; margin-left: -1px; }
+.iba-clock-second { width: 1px; height: 44%; margin-left: -0.5px; background: #c3502f; }
+.iba-clock-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  border-radius: 50%;
+  background: var(--iba-gold-strong);
+}
+
+.iba-shell-date {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--iba-gold-strong);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.iba-shell-title { text-align: center; }
+.iba-shell-title h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--iba-text);
+}
+.iba-shell-title p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--iba-muted);
+  letter-spacing: 0.04em;
+}
+
+.iba-shell-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  color: var(--iba-text);
+}
+.iba-shell-right #iba-shell-username { font-size: 13px; opacity: 0.92; }
+.iba-shell-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--iba-line);
+  background: rgba(255,255,255,0.06);
+  color: var(--iba-gold-strong);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.iba-shell-icon-btn:hover { background: rgba(255,255,255,0.12); }
+
+html body.iba-shell-on .iba-shell-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex !important;
+  flex-direction: column;
+  position: relative;
+  padding: 10px 12px 16px;
+  background: var(--iba-glass-strong);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-right: 1px solid var(--iba-line);
+  color: var(--iba-text);
+  overflow: auto;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+  z-index: 99991 !important;
+  width: auto !important;
+  min-width: 248px;
+  transition: transform .2s ease;
+}
+
+.iba-sidebar-top {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
+.iba-pin-btn {
+  width: auto;
+  height: auto;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  border-radius: 0;
+  padding: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  box-shadow: none;
+}
+.iba-pin-btn i {
+  display: inline-block;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.iba-pin-btn:hover { background: transparent; opacity: 0.8; }
+html body.iba-sidebar-pinned .iba-pin-btn {
+  background: transparent;
+  color: #e8c547;
+}
+html body.iba-sidebar-pinned .iba-pin-btn i {
+  transform: rotate(0deg);
+}
+
+.iba-sidebar-hotspot {
+  display: none;
+  pointer-events: auto;
+}
+
+html body.iba-shell-on:not(.iba-sidebar-pinned) {
+  --iba-shell-sidebar-w: 0px;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) #iba-app-shell {
+  grid-template-columns: 1fr;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) .iba-shell-sidebar {
+  position: fixed !important;
+  top: var(--iba-shell-header-h);
+  left: 0;
+  bottom: 0;
+  width: 248px !important;
+  min-width: 248px;
+  transform: translateX(-110%) !important;
+  z-index: 99994 !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned).iba-sidebar-peek .iba-shell-sidebar,
+html body.iba-shell-on:not(.iba-sidebar-pinned).iba-shell-nav-open .iba-shell-sidebar {
+  transform: none !important;
+}
+html body.iba-shell-on:not(.iba-sidebar-pinned) .iba-sidebar-hotspot {
+  display: block;
+  position: fixed;
+  top: var(--iba-shell-header-h);
+  left: 0;
+  bottom: 0;
+  width: 18px;
+  z-index: 99993;
+  background: linear-gradient(90deg, rgba(232,217,182,0.35), transparent);
+}
+
+.iba-nav-list { list-style: none; margin: 0; padding: 0; }
+.iba-nav-list > li { margin: 2px 0; }
+.iba-nav-btn,
+.iba-nav-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--iba-text);
+  text-decoration: none;
+  font-size: 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.iba-nav-btn:hover,
+.iba-nav-link:hover { background: rgba(255,255,255,0.08); }
+.iba-nav-btn.is-active,
+.iba-nav-link.is-active {
+  background: linear-gradient(90deg, rgba(232,217,182,0.28), rgba(232,217,182,0.08));
+  color: var(--iba-gold-strong);
+  box-shadow: inset 0 0 0 1px rgba(232,217,182,0.28);
+}
+.iba-nav-group > .iba-nav-btn {
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--iba-gold);
+}
+.iba-nav-sub { display: none; list-style: none; margin: 0; padding: 4px 0 8px 10px; }
+.iba-nav-group.is-open > .iba-nav-sub { display: block; }
+.iba-nav-sub a, .iba-nav-sub button {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--iba-text);
+  text-align: left;
+  font-size: 13.5px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.iba-nav-sub a:hover, .iba-nav-sub button:hover { background: rgba(255,255,255,0.08); }
+.iba-nav-sub a.is-active, .iba-nav-sub button.is-active {
+  background: rgba(232,217,182,0.22);
+  color: var(--iba-gold-strong);
+}
+.iba-nav-branch {
+  font-size: 12px !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--iba-gold) !important;
+}
+.iba-nav-ext {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--iba-line);
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view,
+html body.iba-shell-on #inventory-view,
+html body.iba-shell-on #invoice-management-view#invoice-management-view {
+  position: fixed !important;
+  top: var(--iba-shell-header-h) !important;
+  left: var(--iba-shell-sidebar-w) !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 40 !important;
+  width: calc(100vw - var(--iba-shell-sidebar-w)) !important;
+  max-width: calc(100vw - var(--iba-shell-sidebar-w)) !important;
+  height: calc(100vh - var(--iba-shell-header-h)) !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+html body.iba-shell-on #dashboard-view,
+html body.iba-shell-on #login-view,
+html body.iba-shell-on #password-view,
+html body.iba-shell-on #setup-view {
+  display: none !important;
+}
+html body.iba-shell-on #inventory-view.hidden,
+html body.iba-shell-on #invoice-management-view.hidden {
+  display: none !important;
+}
+
+html body.iba-shell-on .workdesk-sidebar {
+  display: none !important;
+}
+
+html body.iba-shell-on #workdesk-view .workdesk-main,
+html body.iba-shell-on #inventory-view .workdesk-main,
+html body.iba-shell-on #invoice-management-view .workdesk-main,
+html body.iba-shell-on #im-content-area {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 20px 24px 32px !important;
+  overflow: auto !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+html body.iba-shell-on .workdesk-section,
+html body.iba-shell-on #workdesk-view#workdesk-view .workdesk-section {
+  min-height: auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+html body.iba-shell-on #workdesk-view #workdesk-content-area::before,
+html body.iba-shell-on #invoice-management-view #im-content-area::before {
+  display: none !important;
+}
+
+/* Flatten nested card-in-card: wrappers are not vessels. */
+html body.iba-shell-on #workdesk-view :is(.wd-active-dashboard-cards, .wd-dashboard-card-section, .wd-active-dashboard-toolbar, .settings-grid, .premium-settings-form, .search-and-filter-group, .report-controls, .wd-records-controls) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+html body.iba-shell-on #workdesk-view .wd-dashboard-card-section {
+  padding: 0 0 18px !important;
+  margin: 0 !important;
+}
+
+html body.iba-shell-on #workdesk-view .wd-dashboard-card-section-head,
+html body.iba-shell-on #workdesk-view .wd-dashboard-card-section-head span,
+html body.iba-shell-on #workdesk-view .wd-dashboard-card-section-head small,
+html body.iba-shell-on #workdesk-view .wd-control-center-hero,
+html body.iba-shell-on #workdesk-view .wd-control-center-hero :is(h1, h2, p, span, small),
+html body.iba-shell-on #workdesk-view .wd-active-dashboard-toolbar :is(h2, p, span) {
+  color: var(--iba-text) !important;
+  -webkit-text-fill-color: var(--iba-text) !important;
+}
+
+html body.iba-shell-on #workdesk-view .wd-control-center-hero {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 4px 0 18px !important;
+}
+
+/* One glass card only — the actual cards / tables / settings tiles. */
+html body.iba-shell-on #workdesk-view :is(.wd-dashboard-card, .wd-person-task-card, .wd-active-status-card, .wd-task-card, .task-card, .summary-card, .metric-card, .settings-card, .calendar-container, .wd-dashboard-mini-empty) {
+  background: var(--iba-glass-card) !important;
+  background-color: var(--iba-glass-card) !important;
+  background-image: none !important;
+  backdrop-filter: blur(18px) saturate(1.15) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15) !important;
+  border: 1px solid var(--iba-line) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18) !important;
+  color: var(--iba-text) !important;
+}
+
+html body.iba-shell-on #workdesk-view :is(.wd-dashboard-card, .wd-person-task-card, .wd-active-status-card, .wd-task-card) :is(h1, h2, h3, h4, p, span, small, strong, label, td, th) {
+  color: var(--iba-text) !important;
+  -webkit-text-fill-color: var(--iba-text) !important;
+}
+
+html body.iba-shell-on #wd-settings .settings-hero {
+  background: var(--iba-glass-card) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid var(--iba-line) !important;
+  box-shadow: none !important;
+  color: var(--iba-text) !important;
+}
+
+html body.iba-shell-on #wd-settings .settings-hero :is(h1, p, span, small) {
+  color: var(--iba-text) !important;
+}
+
+#iba-shell-bg-settings,
+#iba-login-opening-settings {
+  display: none !important;
+}
+html body.iba-is-super-admin #iba-shell-bg-settings,
+html body.iba-is-super-admin .iba-bg-picker,
+html body.iba-is-super-admin #iba-login-opening-settings {
+  display: block !important;
+  grid-column: 1 / -1;
+}
+
+body:not(.iba-can-see-financial-report) [data-iba-nav="finance-report"],
+body:not(.iba-can-see-po-system) [data-iba-nav="po-system"] {
+  display: none !important;
+}
+
+.iba-shell-header .hidden-desktop { display: none; }
+
+.iba-bg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.iba-bg-preview {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--iba-line);
+  background: #111;
+}
+.iba-bg-meta { flex: 1 1 140px; min-width: 120px; }
+
+.iba-open-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.iba-open-choice {
+  border: 1px solid rgba(232, 217, 182, 0.28);
+  background: rgba(8, 12, 22, 0.35);
+  color: #f4f1ea;
+  border-radius: 14px;
+  padding: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+.iba-open-choice.is-selected {
+  border-color: #e8d9b6;
+  box-shadow: 0 0 0 1px #e8d9b6;
+}
+.iba-open-choice strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.iba-open-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 92px;
+  border-radius: 10px;
+  letter-spacing: 0.22em;
+  font-weight: 700;
+}
+.iba-open-sample.is-a { background: #07090e; color: #e8d9b6; }
+.iba-open-sample.is-b { background: #12343a; color: #e8d9b6; box-shadow: inset 0 0 0 1px rgba(232,217,182,0.7); }
+.iba-open-sample.is-c { background: linear-gradient(90deg, #16324a, #d7a15a 50%, #12343a); color: #fff; }
+#iba-login-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+body.iba-opening-active #login-view,
+body.iba-opening-active #password-view,
+body.iba-opening-active #setup-view {
+  visibility: hidden !important;
+}
+#iba-login-opening.is-live {
+  animation: ibaOpenReveal 2.8s cubic-bezier(.4, 0, .2, 1) forwards;
+  pointer-events: none;
+}
+#iba-login-opening.is-live .iba-open-mark {
+  animation: ibaZoomFill 2.8s cubic-bezier(.45, 0, .2, 1) forwards !important;
+}
+#iba-login-opening.is-live.iba-open-a .iba-open-mark::after {
+  transform-origin: center center;
+  animation: ibaLineRun 2.2s linear forwards;
+}
+#iba-login-opening.is-live.iba-open-c .iba-open-wipe {
+  animation: ibaWipe 2.2s linear forwards;
+}
+#iba-login-opening.is-live.iba-open-b .iba-open-ring::before {
+  animation: ibaSeal 2.2s linear forwards;
+}
+@keyframes ibaLineRun {
+  0% { transform: scaleX(0.15); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+@keyframes ibaZoomFill {
+  0% { transform: scale(1); opacity: 1; }
+  62% { transform: scale(5.5); opacity: 1; }
+  100% { transform: scale(11); opacity: 0; }
+}
+@keyframes ibaOpenReveal {
+  0% { opacity: 1; }
+  48% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.iba-open-mark {
+  position: relative;
+  z-index: 2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(64px, 10vw, 120px);
+  letter-spacing: 0.28em;
+  font-weight: 600;
+}
+#iba-login-opening.iba-open-a { background: #07090e; }
+#iba-login-opening.iba-open-a .iba-open-mark {
+  color: #e8d9b6;
+  text-shadow: 0 0 24px rgba(232, 217, 182, 0.45);
+  animation: ibaBloom 2.4s ease forwards;
+}
+#iba-login-opening.iba-open-a .iba-open-mark::after {
+  content: "";
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  top: 54%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #e8d9b6, transparent);
+  opacity: 0.8;
+}
+@keyframes ibaBloom {
+  0% { opacity: 0; transform: scale(0.32); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.04); }
+}
+#iba-login-opening.iba-open-b { background: radial-gradient(circle at 50% 45%, #1a4a52, #071216 70%); }
+#iba-login-opening.iba-open-b .iba-open-mark { color: #e8d9b6; font-size: clamp(42px, 6vw, 72px); }
+.iba-open-ring { display: none; }
+#iba-login-opening.iba-open-b .iba-open-ring {
+  display: block;
+  position: absolute;
+  width: min(280px, 46vw);
+  height: min(280px, 46vw);
+  border-radius: 50%;
+  border: 1.5px solid rgba(232, 217, 182, 0.25);
+}
+#iba-login-opening.iba-open-b .iba-open-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: #e8d9b6;
+  border-right-color: #e8d9b6;
+  animation: ibaSeal 2.2s ease forwards;
+}
+@keyframes ibaSeal { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.iba-open-wipe { display: none; }
+#iba-login-opening.iba-open-c {
+  background-color: #0b1220;
+  background-image: var(--iba-login-bg);
+  background-size: cover;
+  background-position: center;
+}
+#iba-login-opening.iba-open-c::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 12, 22, 0.46);
+}
+#iba-login-opening.iba-open-c .iba-open-mark { color: #fff; text-shadow: 0 2px 16px rgba(0,0,0,0.45); }
+#iba-login-opening.iba-open-c .iba-open-wipe {
+  display: block;
+  position: absolute;
+  left: -20%;
+  width: 18%;
+  height: 3px;
+  top: 50%;
+  background: linear-gradient(90deg, transparent, #fff, #e8d9b6);
+  box-shadow: 0 0 18px rgba(255,255,255,0.8);
+  animation: ibaWipe 2.1s ease forwards;
+}
+@keyframes ibaWipe { to { left: 102%; } }
+@media (max-width: 720px) {
+  .iba-open-choices { grid-template-columns: 1fr; }
+}
+.iba-bg-meta h3 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--iba-gold-strong);
+}
+.iba-bg-filename { margin: 4px 0 0; font-size: 12px; color: var(--iba-muted); }
+.iba-bg-select {
+  min-width: 140px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--iba-line);
+  background: rgba(255,255,255,0.08);
+  color: var(--iba-text);
+}
+
+html body.iba-shell-on #wd-activetask .wd-page-hero,
+html body.iba-shell-on #wd-activetask #active-task-mobile-header,
+html body.iba-shell-on #inv-active-job .inv-job-hero,
+html body.iba-shell-on #wd-reporting .wd-page-hero,
+html body.iba-shell-on #wd-material-stock .wd-page-hero,
+html body.iba-shell-on #im-invoice-entry .im-standard-hero,
+html body.iba-shell-on #im-batch-entry .iba-batch-header,
+html body.iba-shell-on #im-summary-note .iba-summary-page-head,
+html body.iba-shell-on #im-reporting .iba-im-records-header,
+html body.iba-shell-on #im-po-closeout > .header,
+html body.iba-shell-on #im-payments .im-standard-hero,
+html body.iba-shell-on #wd-inv-request-review .inventory-request-review-head {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-inv-request-review .inventory-request-review-toolbar {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+}
+
+.iba-summary-pdf-tools {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+html body.iba-shell-on #im-reporting-form .iba-im-records-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+html body.iba-shell-on #im-reporting-form .iba-narrow-search {
+  flex: 1 1 180px;
+  max-width: 240px;
+  min-width: 140px;
+}
+html body.iba-shell-on #im-reporting-form .iba-im-records-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+html body.iba-shell-on #im-reporting-form .iba-im-records-actions .download-btn,
+html body.iba-shell-on #im-reporting-form .iba-im-records-actions .refresh-btn {
+  padding: 8px 10px !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+
+html body.iba-shell-on #wd-inv-request-review {
+  display: none !important;
+}
+html body.iba-shell-on.iba-page-request-review #wd-inv-request-review {
+  display: block !important;
+}
+
+html body.iba-shell-on #inv-active-job #inv-active-job-summary-strip,
+html body.iba-shell-on #inv-active-job .wd-mini-metrics {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-control-center-hero {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-settings input,
+html body.iba-shell-on #wd-settings select,
+html body.iba-shell-on #wd-settings textarea {
+  color: #0f2740 !important;
+  -webkit-text-fill-color: #0f2740 !important;
+  background: #ffffff !important;
+  caret-color: #0f2740 !important;
+}
+html body.iba-shell-on #wd-settings .settings-card-icon {
+  background: none !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-settings .checkbox-group,
+html body.iba-shell-on #wd-settings .settings-toggle,
+html body.iba-shell-on #wd-settings .checkbox-group *,
+html body.iba-shell-on #wd-settings .settings-toggle *,
+html body.iba-shell-on #wd-settings .settings-mode-card,
+html body.iba-shell-on #wd-settings .settings-mode-card *,
+html body.iba-shell-on #wd-settings .iba-manual-po-card,
+html body.iba-shell-on #wd-settings .iba-manual-po-card * {
+  color: #0f2740 !important;
+  -webkit-text-fill-color: #0f2740 !important;
+}
+
+html body.iba-shell-on:not(.iba-add-job-page) #standard-job-modal {
+  display: none !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal {
+  display: flex !important;
+  justify-content: center;
+  align-items: flex-start;
+  position: fixed !important;
+  top: var(--iba-shell-header-h) !important;
+  left: var(--iba-shell-sidebar-w) !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: transparent !important;
+  z-index: 45 !important;
+  padding: 20px 24px !important;
+  overflow: auto !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-container {
+  width: min(980px, 96%) !important;
+  max-width: 980px !important;
+  margin: 0 auto 24px !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.22) !important;
+  color: var(--iba-text) !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-header,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-footer {
+  background: transparent !important;
+  border-color: var(--iba-line) !important;
+  color: var(--iba-text) !important;
+}
+
+.iba-shell-icon-btn {
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--iba-gold-strong) !important;
+  padding: 4px !important;
+}
+.iba-shell-icon-btn:hover { background: transparent !important; opacity: 0.8; }
+
+html body.iba-shell-on #wd-settings .settings-card-icon,
+html body.iba-shell-on #wd-settings .im-admin-mode-icon {
+  background: none !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-process-section-head,
+html body.iba-shell-on #wd-dashboard .wd-dashboard-person-section .wd-dashboard-card-section-head {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: baseline !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-process-section-head em,
+html body.iba-shell-on #wd-dashboard .wd-dashboard-person-section .wd-dashboard-card-section-head em {
+  font-style: italic !important;
+  font-weight: 400 !important;
+  opacity: 0.88 !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-site-card-count {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-active-status-card,
+html body.iba-shell-on #wd-dashboard .wd-cork-site-card {
+  transition: opacity 0.45s ease, filter 0.45s ease, transform 0.45s ease !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dashboard-status-grid:has(.wd-active-status-card.active) .wd-active-status-card:not(.active) {
+  opacity: 0.42 !important;
+  filter: grayscale(1) !important;
+  transform: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dashboard-empty-state {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-active-dashboard-toolbar :is(h2, p, span, small, label, i),
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools :is(label, span, small, i),
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-month-tabs,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-filters :is(label, span, small, i) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.55) !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-status {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: #ff4d4f !important;
+  -webkit-text-fill-color: #ff4d4f !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(odd) td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr td :is(span, strong, em, a, small),
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table td.wd-payment-pocket-po-cell,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table td.wd-payment-pocket-po-cell .wd-payment-pocket-po-text {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5) !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-status {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  color: #ff4d4f !important;
+  -webkit-text-fill-color: #ff4d4f !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.7) !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td {
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td :is(span, strong, em, a, small),
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td.wd-payment-pocket-po-cell,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td.wd-payment-pocket-po-cell .wd-payment-pocket-po-text,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-status {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table .wd-dashboard-pdf-btn.srv *,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv * {
+  background: #dc2626 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 14px rgba(220,38,38,0.28) !important;
+  text-shadow: none !important;
+  padding: 6px 12px !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table .wd-dashboard-pdf-btn.srv i,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv i {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-mark-paid *,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid * {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: 0 6px 14px rgba(30,77,140,0.28) !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-mark-paid i,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid i {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:nth-child(odd) td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr td :is(span, strong, em, a, small),
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table td.wd-paid-po-history-po-cell .wd-paid-po-link {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5) !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td {
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td :is(span, strong, em, a, small),
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell .wd-paid-po-link,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:hover,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:focus,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:visited {
+  all: unset !important;
+  display: inline !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table .wd-paid-po-view-btn *,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn * {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 0 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table .wd-paid-po-view-btn i,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn i {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  border-radius: 0 !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-site-selector-panel,
+html body.iba-shell-on #wd-dashboard .wd-cork-site-section {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-cork-site-selector {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 166px)) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  visibility: visible !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-cork-site-card {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-site-selector-panel.has-selection .wd-cork-site-card:not(.active),
+html body.iba-shell-on #wd-dashboard .wd-cork-site-selector:has(.wd-cork-site-card.active) .wd-cork-site-card:not(.active) {
+  opacity: 0.80 !important;
+  filter: grayscale(0.2) !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-card small { display: none !important; }
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-board,
+html body.iba-shell-on #wd-dashboard .wd-active-dashboard-list,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-panel,
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-table-wrap,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-table-wrap,
+html body.iba-shell-on #wd-dashboard .table-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-board-head { display: none !important; }
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-month-tabs {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-bottom: 16px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-table-wrap,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-table-wrap {
+  margin-top: 4px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-table thead th,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-table thead th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 5 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-month-tab:not(.active) {
+  opacity: 0.42 !important;
+  filter: grayscale(1) !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-table th {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  border-color: #1e4d8c !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-head {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-head > div:first-child { display: none !important; }
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-table th {
+  background: #c45c12 !important;
+  color: #ffffff !important;
+  border-color: #c45c12 !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-cork-board,
+html body.iba-shell-on #wd-dashboard .wd-cork-notes-board {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255,236,179,0.16) 0 1px, transparent 2px),
+    radial-gradient(circle at 72% 48%, rgba(70,38,14,0.22) 0 1.4px, transparent 2.4px),
+    radial-gradient(circle at 40% 70%, rgba(255,248,214,0.12) 0 1px, transparent 2px),
+    repeating-linear-gradient(18deg, rgba(255,255,255,0.05) 0 2px, transparent 2px 11px),
+    linear-gradient(145deg, #c48a4a 0%, #a56b34 42%, #7a4a24 100%) !important;
+  background-size: 52px 52px, 70px 70px, 88px 88px, auto, auto !important;
+  border: 12px solid #5a3418 !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(255,220,160,0.18),
+    inset 0 20px 40px rgba(255,255,255,0.06),
+    0 18px 40px rgba(40,20,8,0.35) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-cork-note {
+  background: linear-gradient(180deg, #fff8c4 0%, #f3d56a 100%) !important;
+  color: #3a2a12 !important;
+  -webkit-text-fill-color: #3a2a12 !important;
+  border: 1px solid rgba(180,130,40,0.35) !important;
+  box-shadow: 0 10px 18px rgba(60,30,10,0.22) !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-cork-note :is(h3, h4, p, span, small, strong, em, a) {
+  color: #3a2a12 !important;
+  -webkit-text-fill-color: #3a2a12 !important;
+}
+
+@media (max-width: 900px) {
+  :root { --iba-shell-sidebar-w: 0px; }
+  html body.iba-shell-on #iba-app-shell { grid-template-columns: 1fr; }
+  html body.iba-shell-on .iba-shell-sidebar {
+    position: fixed;
+    top: var(--iba-shell-header-h);
+    left: 0;
+    bottom: 0;
+    width: min(84vw, 280px) !important;
+    min-width: 0;
+    transform: translateX(-110%) !important;
+    z-index: 99993 !important;
+  }
+  html body.iba-shell-nav-open .iba-shell-sidebar { transform: none !important; }
+  html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view,
+  html body.iba-shell-on #inventory-view,
+  html body.iba-shell-on #invoice-management-view#invoice-management-view {
+    left: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  .iba-shell-header .hidden-desktop { display: inline-flex; align-items: center; justify-content: center; }
+  .iba-shell-header { grid-template-columns: auto 1fr auto; padding: 0 10px; }
+  .iba-shell-title h1 { letter-spacing: 0.12em; font-size: 12px; }
+}
+
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td {
+  background: rgba(255,255,255,0.18) !important;
+  background-color: rgba(255,255,255,0.18) !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:hover,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:focus,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:focus-visible,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td.wd-paid-po-history-po-cell > span.wd-paid-po-history-open.wd-paid-po-link:visited {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv * {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid *,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn * {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv i,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid i,
+html body.iba-shell-on #workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn i {
+  background: transparent !important;
+}
+
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view table tbody tr:nth-child(even) td,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view table tbody tr:nth-child(odd) td {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view table tbody tr:hover td {
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  background-image: none !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view table tbody tr:hover td *,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view table tbody tr:hover td * {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-dashboard-pdf-btn.srv * {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-payment-pocket-mark-paid *,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-paid-po-view-btn * {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-dashboard-pdf-btn.srv i,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-payment-pocket-mark-paid i,
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover .wd-paid-po-view-btn i {
+  background: transparent !important;
+}
+
+html body.iba-shell-on #wd-settings label,
+html body.iba-shell-on #wd-settings .settings-card-header h2,
+html body.iba-shell-on #wd-settings .settings-card-header p,
+html body.iba-shell-on #wd-settings .input-note,
+html body.iba-shell-on #wd-settings .settings-kicker,
+html body.iba-shell-on #wd-settings .settings-hero-text h1,
+html body.iba-shell-on #wd-settings .settings-hero-text p,
+html body.iba-shell-on #wd-settings .settings-toggle span,
+html body.iba-shell-on #wd-settings .settings-toggle small {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.45) !important;
+}
+html body.iba-shell-on #wd-settings input,
+html body.iba-shell-on #wd-settings select,
+html body.iba-shell-on #wd-settings textarea {
+  color: #0f2740 !important;
+  -webkit-text-fill-color: #0f2740 !important;
+  text-shadow: none !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-content,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .transfer-2col-grid,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .transfer-col,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .form-group {
+  overflow: visible !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices.is-open,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices.is-focused {
+  z-index: 200000 !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__list--dropdown,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__list[aria-expanded] {
+  z-index: 200001 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+  max-height: 280px !important;
+  overflow-y: auto !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal #job-other-specify:not(.hidden) {
+  display: block !important;
+  position: relative !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+  z-index: 2 !important;
+  background: rgba(255,255,255,0.12) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .form-group:has(#job-other-specify) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .form-group label,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal h2 {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal input,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal select,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal textarea {
+  min-height: 42px !important;
+  font-size: 15px !important;
+}
+
+html body.iba-shell-on #wd-activetask .search-and-filter-group,
+html body.iba-shell-on #wd-activetask .wd-premium-searchbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 520px !important;
+  width: auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-activetask .wd-search-field,
+html body.iba-shell-on #wd-activetask .search-bar-local {
+  flex: 1 1 auto !important;
+  max-width: 340px !important;
+  width: 340px !important;
+}
+html body.iba-shell-on #wd-activetask #active-task-clear-button {
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #wd-activetask .wd-premium-tabs,
+html body.iba-shell-on #wd-activetask .report-tabs,
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs,
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head,
+html body.iba-shell-on #wd-activetask .wd-date-tabs-wrap,
+html body.iba-shell-on #wd-activetask .table-wrapper {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 10px 14px !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head {
+  display: flex !important;
+  align-items: baseline !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.45) !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 800 !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head span::after {
+  content: " | ";
+  font-weight: 500;
+  opacity: 0.85;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head small {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-style: italic !important;
+}
+html body.iba-shell-on #wd-activetask .wd-date-tabs-wrap {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+}
+html body.iba-shell-on #wd-activetask table thead th {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+html body.iba-shell-on #wd-activetask table thead th:first-child {
+  border-top-left-radius: 10px !important;
+  border-bottom-left-radius: 10px !important;
+}
+html body.iba-shell-on #wd-activetask table thead th:last-child {
+  border-top-right-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+html body.iba-shell-on #wd-activetask table tbody td {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  box-shadow: none !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+html body.iba-shell-on #wd-activetask table tbody td :is(span, strong, small, a, em) {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #wd-activetask table tbody tr:hover td {
+  background: rgba(255,255,255,0.16) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #wd-activetask table tbody tr:hover td :is(span, strong, small, a, em) {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #wd-activetask table tbody td:last-child :is(button, a, .secondary-btn, .download-btn, .action-btn) {
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18) !important;
+  text-shadow: none !important;
+}
+
+html body.iba-shell-on #wd-settings#wd-settings .settings-toggle,
+html body.iba-shell-on #wd-settings#wd-settings .checkbox-group.settings-toggle,
+html body.iba-shell-on #wd-settings#wd-settings .settings-toggle-row,
+html body.iba-shell-on #wd-settings#wd-settings .settings-toggle label {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-content,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .transfer-2col-grid,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .transfer-col,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .form-group {
+  overflow: visible !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-content,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .transfer-2col-grid,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .transfer-col {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container {
+  background: rgba(255,255,255,0.10) !important;
+  backdrop-filter: blur(18px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.2) !important;
+  border: 1px solid rgba(255,255,255,0.22) !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.22) !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-header {
+  background: rgba(8,12,22,0.28) !important;
+  color: #ffffff !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal #job-other-specify {
+  display: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal #job-other-specify:not(.hidden) {
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  margin: 0 0 14px !important;
+  z-index: 2 !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .choices__list--dropdown,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .choices__list[aria-expanded] {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  width: 100% !important;
+  z-index: 2147483000 !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-premium-searchbar,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-premium-searchbar {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 520px !important;
+  width: auto !important;
+  padding: 0 !important;
+  margin: 0 0 14px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-search-field,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-search-field {
+  max-width: 340px !important;
+  width: 340px !important;
+  flex: 0 0 340px !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask #active-task-clear-button,
+html body.iba-shell-on #wd-reporting#wd-reporting #reporting-clear-button {
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask #active-task-filters,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-premium-tabs,
+html body.iba-shell-on #wd-activetask#wd-activetask .report-tabs {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row td,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-urgent td,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row.wd-row-calm td {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-table-kicker,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-ref-chip,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-po-code,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-site-badge,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-date-chip,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-note-cell {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting .table-wrapper,
+html body.iba-shell-on #wd-reporting#wd-reporting #reporting-printable-area,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-job-records-print-table-wrap,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-modern-empty-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table thead th:first-child {
+  border-top-left-radius: 10px !important;
+  border-bottom-left-radius: 10px !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table thead th:last-child {
+  border-top-right-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-modern-empty-row,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-modern-empty-row strong,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-modern-empty-row span {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(12, 18, 32, 0.55) !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-footer,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-footer * {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-footer {
+  border-top: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: 0 0 18px 18px !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .form-group[style*="background"],
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal #job-attachment-label,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal #job-attachment-label span {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .form-group:has(#job-attachment) {
+  background: transparent !important;
+  border: 1px dashed rgba(255,255,255,0.28) !important;
+  box-shadow: none !important;
+}
+#iba-job-choices-dd,
+#iba-job-choices-dd .choices__item {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  background: #ffffff !important;
+}
+#iba-job-choices-dd .choices__item--selectable.is-highlighted {
+  background: #e8eef5 !important;
+}
+
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-premium-searchbar,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-reporting .wd-premium-searchbar,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .search-and-filter-group,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-reporting .search-and-filter-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask #active-task-filters,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-premium-tabs {
+  overflow: visible !important;
+  min-height: 46px !important;
+  padding-bottom: 8px !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-premium-tabs button,
+html body.iba-shell-on #wd-activetask#wd-activetask #active-task-filters button {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 40px !important;
+  padding: 8px 14px !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs-head {
+  width: 100% !important;
+  border-top: 1px solid rgba(255,255,255,0.42) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.42) !important;
+  padding: 8px 0 !important;
+  margin: 4px 0 2px !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr:hover td,
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row:hover td {
+  background: rgba(255,255,255,0.16) !important;
+  background-color: rgba(255,255,255,0.16) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+}
+
+html body.iba-shell-on #wd-reporting#wd-reporting table thead th {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td {
+  background: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td :is(span, strong, small, em, div, a) {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr:hover td {
+  background: rgba(255,255,255,0.12) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr:hover td :is(span, strong, small, em, div, a) {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  background: transparent !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td .history-btn,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td .wd-action-history,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td .wd-history-icon-only {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18) !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container {
+  background: rgba(255,255,255,0.14) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices:not(.is-open) .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices.is-open .choices__list--dropdown,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__list--dropdown.is-active,
+#iba-job-choices-dd {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__list--dropdown,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__list--dropdown *,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__item,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__item *,
+#iba-job-choices-dd,
+#iba-job-choices-dd * {
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+#iba-job-choices-dd .choices__item--selectable.is-highlighted,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices__item--selectable.is-highlighted {
+  background: #e8eef5 !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs-head {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: baseline !important;
+  flex-wrap: wrap !important;
+  width: auto !important;
+  max-width: 100% !important;
+  gap: 6px !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs-head small {
+  text-align: left !important;
+  margin: 0 !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr:hover td,
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row:hover td {
+  background: rgba(255,255,255,0.92) !important;
+  background-color: rgba(255,255,255,0.92) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr:hover td *,
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row:hover td * {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-search-field,
+html body.iba-shell-on #wd-reporting#wd-reporting .wd-search-field,
+html body.iba-shell-on #wd-activetask#wd-activetask .search-bar-local,
+html body.iba-shell-on #wd-reporting#wd-reporting .search-bar-local {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask #active-task-search,
+html body.iba-shell-on #wd-reporting#wd-reporting #reporting-search {
+  background: #ffffff !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  height: 44px !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.12) !important;
+}
+
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices:has(#job-site) > .choices__inner,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices:has(#job-attention) > .choices__inner,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices:has(#job-site) > .choices__list--dropdown,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .choices:has(#job-attention) > .choices__list--dropdown {
+  display: none !important;
+}
+html body.iba-shell-on.iba-add-job-page #standard-job-modal #job-site,
+html body.iba-shell-on.iba-add-job-page #standard-job-modal #job-attention {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: static !important;
+  left: auto !important;
+  width: 100% !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  pointer-events: auto !important;
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  background: #ffffff !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask table tbody tr td {
+  border-bottom: 1px solid rgba(255,255,255,0.28) !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask table tbody td:last-child {
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask table tbody td:last-child button,
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask table tbody td:last-child a {
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 9px !important;
+  font-size: 11px !important;
+  line-height: 28px !important;
+  margin: 0 4px 0 0 !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask .wd-vendor-name,
+html body.iba-shell-on #wd-activetask#wd-activetask#wd-activetask strong.wd-vendor-name,
+html body.iba-shell-on #wd-reporting#wd-reporting#wd-reporting .wd-vendor-name,
+html body.iba-shell-on #wd-reporting#wd-reporting#wd-reporting td:nth-child(5) {
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 220px !important;
+}
+
+html body.iba-shell-on #iba-app-shell .iba-nav-list > .iba-nav-group > .iba-nav-btn {
+  color: #e8c547 !important;
+  -webkit-text-fill-color: #e8c547 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+}
+
+html body.iba-sidebar-pinned #wd-reporting #job-records-table th:nth-child(1),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table td:nth-child(1),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table th:nth-child(7),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table td:nth-child(7),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table th:nth-child(8),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table td:nth-child(8),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table td:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table th:nth-child(1),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table td:nth-child(1),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table th:nth-child(7),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table td:nth-child(7),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table th:nth-child(8),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table td:nth-child(8),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table td:nth-child(10) {
+  display: none !important;
+}
+html body.iba-sidebar-pinned #wd-reporting table {
+  table-layout: auto !important;
+  width: 100% !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-personal-cork-queue > .wd-task-board-head,
+html body.iba-shell-on #wd-dashboard .wd-personal-cork-queue .wd-date-tabs-note {
+  display: none !important;
+}
+
+#iba-dash-stack {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 8px;
+}
+html body.iba-dash-focus .iba-sidebar-top {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  margin: 0;
+  z-index: 4;
+}
+html body.iba-dash-focus #iba-dash-stack {
+  display: flex !important;
+  position: relative;
+  gap: clamp(4px, 0.8vh, 10px);
+  overflow: visible;
+  padding: 0 2px;
+  min-width: 0;
+}
+html body.iba-dash-focus .iba-shell-sidebar {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding: 10px 16px 18px !important;
+  box-sizing: border-box !important;
+}
+html body.iba-dash-focus #iba-app-shell .iba-nav-list {
+  display: none !important;
+}
+#iba-dash-back {
+  border: 0;
+  background: transparent;
+  color: #f4f1ea;
+  text-align: left;
+  cursor: pointer;
+  padding: clamp(2px, 0.55vh, 6px) 36px clamp(6px, 1.1vh, 14px) 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+#iba-dash-back > i {
+  color: #e8c547;
+  font-size: 16px;
+}
+#iba-dash-back span { display: block; }
+#iba-dash-back strong {
+  display: block;
+  font-size: clamp(13px, 1.7vh, 16px);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+#iba-dash-back em {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.18em;
+  color: rgba(244,241,234,0.42);
+}
+.iba-dash-layers {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: auto !important;
+  margin: 0 0 clamp(6px, 1vh, 12px) !important;
+  padding: 0 0 clamp(6px, 1vh, 12px) !important;
+  gap: clamp(5px, 0.9vh, 8px) !important;
+  overflow: visible !important;
+  border-bottom: 1px solid rgba(232,217,182,0.18);
+  flex-shrink: 0;
+}
+html body.iba-dash-focus #wd-dashboard > #iba-dash-layers {
+  display: none !important;
+}
+.iba-dash-rail {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  height: clamp(32px, 4.3vh, 42px) !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 12px !important;
+  color: #f7f1e4 !important;
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  font-size: clamp(11px, 1.4vh, 13px) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  cursor: pointer !important;
+  padding: 0 12px !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-align: left !important;
+  line-height: 1 !important;
+}
+.iba-dash-rail::after {
+  content: "›";
+  margin-left: auto;
+  opacity: 0.55;
+  font-size: 16px;
+  font-weight: 400;
+}
+.iba-dash-rail i { width: 16px; text-align: center; opacity: 0.9; }
+.iba-dash-rail[data-iba-dash-rail="person"] {
+  background: linear-gradient(90deg, rgba(212,162,74,0.38), rgba(212,162,74,0.08)) !important;
+}
+.iba-dash-rail[data-iba-dash-rail="01"] {
+  background: linear-gradient(90deg, rgba(23,50,79,0.92), rgba(23,50,79,0.35)) !important;
+}
+.iba-dash-rail[data-iba-dash-rail="02"] {
+  background: linear-gradient(90deg, rgba(47,111,115,0.75), rgba(47,111,115,0.18)) !important;
+}
+.iba-dash-rail[data-iba-dash-rail="03"] {
+  background: linear-gradient(90deg, rgba(141,90,43,0.72), rgba(141,90,43,0.16)) !important;
+}
+.iba-dash-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: clamp(2px, 0.5vh, 8px) 0 clamp(6px, 1vh, 12px);
+  padding: clamp(8px, 1.2vh, 12px) 12px clamp(8px, 1.2vh, 12px) 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.05);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.iba-dash-hero-ico {
+  width: clamp(32px, 4.2vh, 42px);
+  height: clamp(32px, 4.2vh, 42px);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f7efd8, #e4d3a8);
+  color: #3a3224;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 16px;
+}
+.iba-dash-hero-copy { min-width: 0; }
+.iba-dash-hero-copy small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: rgba(244,241,234,0.45);
+}
+.iba-dash-hero-copy strong {
+  display: block;
+  margin-top: 2px;
+  font-size: clamp(12px, 1.5vh, 14px);
+  font-weight: 700;
+  color: #f4f1ea;
+}
+.iba-dash-hero-copy em {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  font-style: normal;
+  letter-spacing: 0.16em;
+  color: rgba(244,241,234,0.42);
+}
+html body.iba-dash-focus .iba-dash-rail.iba-dash-blink,
+html body.iba-dash-focus .iba-dash-rail.iba-dash-blink[data-iba-dash-rail],
+.iba-dash-rail.iba-dash-pick {
+  outline: 2px solid #e8c547 !important;
+  outline-offset: -2px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 0 14px rgba(232, 197, 71, 0.45) !important;
+}
+.iba-dash-hero.iba-dash-hero-in {
+  animation: ibaHeroIn 0.55s cubic-bezier(.22,.82,.24,1) both;
+}
+@keyframes ibaHeroIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+.iba-dash-hero.iba-dash-hero-glow {
+  animation: ibaHeroGlow 1.15s ease-out 1;
+}
+@keyframes ibaHeroGlow {
+  0% { box-shadow: 0 0 0 2px #ffe566, 0 0 22px rgba(232,197,71,0.85); }
+  70% { box-shadow: 0 0 0 1px #e8c547, 0 0 14px rgba(232,197,71,0.4); }
+  100% { box-shadow: 0 0 0 1px rgba(255,255,255,0.10), 0 0 0 transparent; }
+}
+.iba-dash-mini {
+  animation: ibaMiniIn 0.32s ease both;
+}
+.iba-dash-front-cards .iba-dash-mini:nth-child(2) { animation-delay: 0.04s; }
+.iba-dash-front-cards .iba-dash-mini:nth-child(3) { animation-delay: 0.08s; }
+.iba-dash-front-cards .iba-dash-mini:nth-child(4) { animation-delay: 0.12s; }
+.iba-dash-front-cards .iba-dash-mini:nth-child(5) { animation-delay: 0.16s; }
+.iba-dash-front-cards .iba-dash-mini:nth-child(6) { animation-delay: 0.2s; }
+.iba-dash-front-cards .iba-dash-mini:nth-child(7) { animation-delay: 0.24s; }
+@keyframes ibaMiniIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+html body.iba-dash-focus .iba-dash-rail.iba-dash-blink,
+html body.iba-dash-focus .iba-dash-rail.iba-dash-blink[data-iba-dash-rail] {
+  z-index: 12 !important;
+  overflow: visible !important;
+  outline: 2px solid #ffe566 !important;
+  outline-offset: -2px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 0 12px rgba(232, 197, 71, 0.5) !important;
+  animation: ibaDashBlink 0.65s ease-in-out infinite !important;
+}
+@keyframes ibaDashBlink {
+  0%, 100% { outline-color: #ffe566; filter: brightness(1); }
+  50% { outline-color: #ffffff; filter: brightness(1.45); }
+}
+.iba-dash-section-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(244,241,234,0.42);
+  padding: 2px 4px 6px;
+}
+.iba-dash-front-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+}
+.iba-dash-mini {
+  border: 0;
+  background: transparent;
+  color: rgba(244,241,234,0.88);
+  border-radius: 10px;
+  text-align: left;
+  padding: clamp(4px, 0.85vh, 8px) 10px;
+  font-size: clamp(11px, 1.35vh, 13px);
+  line-height: 1.25;
+  cursor: pointer;
+  box-shadow: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: ibaMiniIn 0.32s ease both;
+}
+.iba-dash-mini i { width: 16px; text-align: center; opacity: 0.8; }
+.iba-dash-mini.is-active {
+  background: linear-gradient(90deg, rgba(232,197,71,0.16), transparent);
+  border: 0;
+  color: #e8c547;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #e8c547;
+}
+.iba-dash-parked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: clamp(6px, 1vh, 10px);
+  margin-top: clamp(4px, 0.7vh, 8px);
+  border-top: 1px solid rgba(232,217,182,0.18);
+  opacity: 1;
+  flex-shrink: 0;
+}
+.iba-dash-parked button {
+  border: 0;
+  background: transparent;
+  color: rgba(244,241,234,0.88);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+}
+.iba-dash-parked button::after {
+  content: "›";
+  margin-left: auto;
+  opacity: 0.45;
+}
+.iba-dash-parked button:hover { background: rgba(255,255,255,0.05); }
+html body.iba-dash-focus .iba-nav-ext {
+  padding-top: clamp(4px, 0.8vh, 8px);
+  margin-top: 4px;
+  border-top: 1px solid rgba(232,217,182,0.18);
+  flex-shrink: 0;
+}
+html body.iba-dash-focus .iba-nav-ext .iba-nav-link {
+  padding: 8px 8px;
+  font-size: 13px;
+  gap: 10px;
+  color: rgba(244,241,234,0.88);
+}
+html body.iba-dash-focus .iba-nav-ext .iba-nav-link::after {
+  content: "›";
+  margin-left: auto;
+  opacity: 0.45;
+}
+
+html body.iba-dash-focus #wd-dashboard {
+  display: flex !important;
+  flex-direction: column !important;
+  height: calc(100vh - var(--iba-shell-header-h)) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-control-center-hero,
+html body.iba-dash-focus #wd-dashboard .wd-active-dashboard-cards {
+  position: absolute !important;
+  left: -1400px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-active-dashboard-toolbar {
+  flex: 0 0 auto !important;
+  margin: 0 0 10px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-active-dashboard-list {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  animation: ibaDashIn 0.28s ease;
+}
+html body.iba-dash-focus #wd-dashboard .wd-payment-pocket-board,
+html body.iba-dash-focus #wd-dashboard .wd-paid-po-history-panel {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-payment-pocket-table-wrap,
+html body.iba-dash-focus #wd-dashboard .wd-paid-po-history-table-wrap,
+html body.iba-dash-focus #wd-dashboard .wd-payment-pocket-board .table-wrapper {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  max-height: none !important;
+}
+@keyframes ibaDashIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+html body.iba-dash-focus #wd-dashboard .wd-task-board,
+html body.iba-dash-focus #wd-dashboard .wd-cork-board,
+html body.iba-dash-focus #wd-dashboard .wd-personal-cork-board,
+html body.iba-dash-focus #wd-dashboard .wd-cork-notes-board {
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: auto !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-site-selector-panel,
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-selector,
+html body.iba-dash-focus #wd-dashboard .wd-date-tabs-wrap {
+  position: static !important;
+  flex: 0 0 auto !important;
+  top: auto !important;
+  z-index: 6 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 0 8px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-selector {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  grid-template-columns: none !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-card {
+  width: 76px !important;
+  min-width: 76px !important;
+  max-width: 84px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 14px 6px 7px 6px !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 2px !important;
+  transform: none !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-card.active {
+  transform: none !important;
+  animation: none !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-card.active::after {
+  content: "Selected" !important;
+  top: 3px !important;
+  left: auto !important;
+  right: 4px !important;
+  padding: 1px 5px !important;
+  font-size: 7px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.2 !important;
+  box-shadow: none !important;
+  border-radius: 6px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-site-card-pin,
+html body.iba-dash-focus #wd-dashboard .wd-cork-site-card small,
+html body.iba-dash-focus #wd-dashboard .wd-site-card-count {
+  display: none !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-site-card-no {
+  display: block !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  padding: 0 !important;
+  text-align: left !important;
+  width: 100% !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-site-card-name {
+  display: block !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  line-height: 1.15 !important;
+  min-height: 0 !important;
+  margin-top: 2px !important;
+  text-align: left !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-notes-board,
+html body.iba-dash-focus #wd-dashboard .wd-cork-board,
+html body.iba-dash-focus #wd-dashboard .wd-personal-cork-board {
+  border: 8px solid #5a3a1c !important;
+  outline: none !important;
+  border-radius: 16px !important;
+  background:
+    radial-gradient(circle at 14px 14px, rgba(70,48,28,0.18) 0 2px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 14px) 14px, rgba(70,48,28,0.18) 0 2px, transparent 2.4px),
+    radial-gradient(circle at 14px calc(100% - 14px), rgba(70,48,28,0.18) 0 2px, transparent 2.4px),
+    radial-gradient(circle at calc(100% - 14px) calc(100% - 14px), rgba(70,48,28,0.18) 0 2px, transparent 2.4px),
+    repeating-linear-gradient(18deg, rgba(90,60,30,0.06) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(-14deg, rgba(255,240,210,0.12) 0 1px, transparent 1px 11px),
+    linear-gradient(180deg, #d7b07a 0%, #c49862 42%, #b38754 100%) !important;
+  background-size: auto !important;
+  box-shadow: 0 16px 34px rgba(40,20,8,0.22) !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note-grid {
+  position: relative !important;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+  justify-content: start !important;
+  gap: 12px !important;
+  min-height: 220px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note-grid:empty {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note-grid:empty::before {
+  content: "No tasks yet";
+  color: rgba(74, 52, 32, 0.55);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note-grid:empty::after {
+  content: "Enjoy your focus time";
+  position: absolute;
+  margin-top: 42px;
+  color: rgba(74, 52, 32, 0.42);
+  font-size: 13px;
+  font-weight: 400;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note {
+  background: linear-gradient(180deg, #fff6c2 0%, #f5d56a 100%) !important;
+  box-shadow: 0 10px 22px rgba(58,32,15,0.28) !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 10px 12px 10px !important;
+  gap: 6px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note .wd-note-kicker {
+  display: none !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note h3 {
+  font-size: 16px !important;
+  margin: 0 !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note .wd-note-detail-grid {
+  gap: 4px 8px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-cork-note .wd-note-current-note p,
+html body.iba-dash-focus #wd-dashboard .wd-cork-note .wd-note-current-status p {
+  max-height: 2.4em !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-date-tabs-wrap {
+  margin-bottom: 8px !important;
+}
+html body.iba-dash-focus #wd-dashboard .wd-task-board,
+html body.iba-dash-focus #wd-dashboard .wd-personal-cork-queue,
+html body.iba-dash-focus #wd-dashboard .wd-task-board-date-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  height: auto !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-date-tab .wd-date-tab-count,
+html body.iba-shell-on #wd-activetask .wd-date-tab .wd-date-tab-count {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+html body.iba-view-short .iba-dash-hero-copy small {
+  display: none;
+}
+html body.iba-view-short2 .iba-dash-hero-copy em {
+  display: none;
+}
+html body.iba-view-short2 .iba-dash-section-label {
+  padding: 0 4px 4px;
+}
+
+html body.iba-view-narrow #wd-activetask table th:nth-child(1),
+html body.iba-view-narrow #wd-activetask table td:nth-child(1),
+html body.iba-view-narrow #wd-activetask table th:nth-child(7),
+html body.iba-view-narrow #wd-activetask table td:nth-child(7),
+html body.iba-view-narrow #wd-activetask table th:nth-child(8),
+html body.iba-view-narrow #wd-activetask table td:nth-child(8),
+html body.iba-view-narrow #wd-reporting #job-records-table th:nth-child(1),
+html body.iba-view-narrow #wd-reporting #job-records-table td:nth-child(1),
+html body.iba-view-narrow #wd-reporting #job-records-table th:nth-child(7),
+html body.iba-view-narrow #wd-reporting #job-records-table td:nth-child(7),
+html body.iba-view-narrow #wd-reporting #job-records-table th:nth-child(8),
+html body.iba-view-narrow #wd-reporting #job-records-table td:nth-child(8),
+html body.iba-view-narrow #wd-reporting #job-records-table th:nth-child(10),
+html body.iba-view-narrow #wd-reporting #job-records-table td:nth-child(10) {
+  display: none !important;
+}
+
+html body.iba-view-tight #wd-activetask table th:nth-child(5),
+html body.iba-view-tight #wd-activetask table td:nth-child(5),
+html body.iba-view-tight #wd-reporting #job-records-table th:nth-child(6),
+html body.iba-view-tight #wd-reporting #job-records-table td:nth-child(6) {
+  display: none !important;
+}
+
+html body.iba-view-narrow #wd-activetask table,
+html body.iba-view-narrow #wd-reporting table,
+html body.iba-view-tight #wd-activetask table,
+html body.iba-view-tight #wd-reporting table {
+  table-layout: auto !important;
+  width: 100% !important;
+  font-size: 12px !important;
+}
+html body.iba-view-tight #wd-activetask table,
+html body.iba-view-tight #wd-reporting table {
+  font-size: 11px !important;
+}
+html body.iba-view-narrow #wd-activetask .table-wrapper,
+html body.iba-view-narrow #wd-reporting .table-wrapper,
+html body.iba-view-tight #wd-activetask .table-wrapper,
+html body.iba-view-tight #wd-reporting .table-wrapper {
+  overflow-x: hidden !important;
+}
+html body.iba-view-narrow #wd-activetask td,
+html body.iba-view-narrow #wd-reporting td,
+html body.iba-view-tight #wd-activetask td,
+html body.iba-view-tight #wd-reporting td {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+html body.iba-shell-on #wd-dashboard #wd-active-dashboard-summary:empty {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-filter-note {
+  display: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-head {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  padding: 0 0 12px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools .wd-active-dashboard-search-row,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools .wd-active-dashboard-search-row,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-head .wd-active-dashboard-search-row,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-filters .wd-active-dashboard-search-row {
+  margin-left: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 0 0 auto !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools .wd-active-dashboard-search-wrap,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools .wd-active-dashboard-search-wrap {
+  max-width: 280px !important;
+  min-width: 180px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-active-dashboard-toolbar:not(:has(.wd-active-dashboard-search-row)) {
+  display: none !important;
+}
+html body.iba-shell-on #wd-dashboard #wd-active-dashboard-title:empty,
+html body.iba-shell-on #wd-dashboard #wd-active-dashboard-summary:empty {
+  display: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-filter-group,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-site-control,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-year-control {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools select,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools select {
+  min-width: 132px !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  margin: 0 0 10px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-date-tabs-wrap,
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-site-selector-panel,
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-cork-site-selector {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-active-dashboard-search-row {
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-empty,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-empty *,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-loading,
+html body.iba-shell-on #wd-dashboard .wd-paid-po-history-loading * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.55) !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: start !important;
+  column-gap: 12px !important;
+  row-gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row > .wd-site-selector-panel,
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row > .wd-date-tabs-wrap,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row > .wd-site-selector-panel,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row > .wd-date-tabs-wrap {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  flex: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-cork-site-selector,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-cork-site-selector,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-date-tabs-wrap {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+  align-content: flex-start !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  grid-template-columns: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-cork-site-card,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-cork-site-card {
+  width: 86px !important;
+  min-width: 86px !important;
+  max-width: 86px !important;
+  flex: 0 0 86px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-date-tab,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-date-tab {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 6px 12px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-date-tab .wd-date-tab-count,
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-date-tab small,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-date-tab .wd-date-tab-count,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-date-tab small {
+  display: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row .wd-active-dashboard-search-row,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row .wd-active-dashboard-search-row {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  align-self: start !important;
+  margin-left: 0 !important;
+  z-index: 8 !important;
+  flex: none !important;
+  white-space: nowrap !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools {
+  display: grid !important;
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content !important;
+  align-items: center !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools .wd-active-dashboard-search-row,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools .wd-active-dashboard-search-row {
+  grid-column: 4 !important;
+  justify-self: end !important;
+  margin-left: 0 !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: start !important;
+  column-gap: 16px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-pills,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-search-slot,
+html body.iba-dash-focus #wd-dashboard .wd-dash-search-slot {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  justify-self: end !important;
+  align-self: start !important;
+  min-width: 320px !important;
+  z-index: 8 !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-pills .wd-cork-site-selector,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills .wd-cork-site-selector,
+html body.iba-shell-on #wd-dashboard .wd-dash-pills .wd-date-tabs-wrap,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills .wd-date-tabs-wrap {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-pills .wd-cork-site-card,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills .wd-cork-site-card {
+  flex: 0 0 86px !important;
+  width: 86px !important;
+  max-width: 86px !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dash-search-slot,
+html body.iba-dash-focus #wd-dashboard .wd-dash-search-slot {
+  min-width: 0 !important;
+  width: max-content !important;
+  max-width: 420px !important;
+  padding-left: 12px !important;
+  overflow: hidden !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-search-slot .wd-active-dashboard-search-wrap,
+html body.iba-dash-focus #wd-dashboard .wd-dash-search-slot .wd-active-dashboard-search-wrap {
+  width: 200px !important;
+  max-width: 200px !important;
+  min-width: 160px !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-pills .wd-cork-site-card small,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills .wd-cork-site-card small {
+  display: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row {
+  column-gap: 24px !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  gap: 32px !important;
+  grid-template-columns: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-pills,
+html body.iba-dash-focus #wd-dashboard .wd-dash-pills {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: min(780px, calc(100% - 452px)) !important;
+  overflow: hidden !important;
+  grid-column: auto !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-dash-control-row > .wd-dash-search-slot,
+html body.iba-dash-focus #wd-dashboard .wd-dash-control-row > .wd-dash-search-slot {
+  flex: 0 0 420px !important;
+  width: 420px !important;
+  min-width: 420px !important;
+  max-width: 420px !important;
+  grid-column: auto !important;
+  padding-left: 0 !important;
+  overflow: hidden !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  grid-template-columns: none !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-payment-pocket-tools .wd-dash-search-slot,
+html body.iba-shell-on #wd-dashboard .wd-paid-history-tools .wd-dash-search-slot {
+  margin-left: auto !important;
+  grid-column: auto !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  padding-left: 12px !important;
+  overflow: visible !important;
+}
+
+html body.iba-shell-on #wd-activetask .wd-date-tab .wd-date-tab-count,
+html body.iba-shell-on #wd-activetask .wd-date-tab small {
+  display: none !important;
+}
+html body.iba-shell-on #wd-activetask .wd-date-tab {
+  padding: 5px 10px !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs {
+  gap: 4px !important;
+  margin: 0 0 6px !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs-head {
+  margin: 0 !important;
+}
+html body.iba-shell-on #wd-activetask table tbody td,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-table tbody tr.wd-modern-row td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  line-height: 1.2 !important;
+  height: auto !important;
+}
+
+html body.iba-shell-on #wd-activetask #active-task-summary-strip,
+html body.iba-shell-on #wd-activetask #financeBatchControls {
+  display: none !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+html body.iba-shell-on #wd-activetask .form-buttons-container {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+html body.iba-shell-on #wd-activetask .form-buttons-container:not(:has(button:not(.hidden))) {
+  display: none !important;
+  height: 0 !important;
+}
+html body.iba-shell-on #wd-activetask .wd-active-date-tabs,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-active-date-tabs {
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  gap: 4px !important;
+}
+html body.iba-shell-on #wd-activetask .wd-premium-tabs,
+html body.iba-shell-on #wd-activetask .report-tabs {
+  margin-bottom: 6px !important;
+}
+html body.iba-shell-on #wd-activetask .table-wrapper {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+html body.iba-shell-on #inv-active-job .inv-job-searchbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin: 0 0 10px !important;
+}
+html body.iba-shell-on #inv-active-job #inv-active-job-search {
+  flex: 0 1 280px !important;
+  width: 280px !important;
+  max-width: 280px !important;
+}
+html body.iba-shell-on #inv-active-job #inv-active-job-clear-button {
+  flex: 0 0 auto !important;
+}
+html body.iba-shell-on #inv-active-job .wd-inventory-section-heading,
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-card,
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-identity,
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-route,
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-progress,
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-status,
+html body.iba-shell-on #inv-active-job table tbody td,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job .wd-inventory-batch-card,
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.85) !important;
+}
+html body.iba-shell-on #inv-active-job .wd-inventory-section-heading :is(span, small, b, i),
+html body.iba-shell-on #inv-active-job .wd-inventory-batch-card :is(span, strong, small, i, div),
+html body.iba-shell-on #inv-active-job table tbody td :is(span, strong, small, em, a, div) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #inv-active-job table tbody tr:hover td,
+html body.iba-shell-on #inv-active-job table tbody tr.controlid-group-header:hover td,
+html body.iba-shell-on #inv-active-job table tbody tr:hover .wd-inventory-batch-card {
+  background: rgba(255,255,255,0.18) !important;
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #inv-active-job table tbody tr:hover td :is(span, strong, small, em, a, div, i),
+html body.iba-shell-on #inv-active-job table tbody tr:hover .wd-inventory-batch-card :is(span, strong, small, i, div) {
+  color: #0b1c2e !important;
+  -webkit-text-fill-color: #0b1c2e !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #inv-active-job table tbody td:last-child :is(button, a) {
+  background: rgba(11,42,74,0.92) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-empty-row,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-empty-row i {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-empty-row strong,
+html body.iba-shell-on #wd-activetask#wd-activetask .wd-modern-empty-row span {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.85) !important;
+  background: transparent !important;
+}
+
+/* 13.0.0ao one glass sheet per row, no column seams */
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody tr,
+html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr {
+  position: relative !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody tr::before,
+html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr::before,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr::before,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  pointer-events: none !important;
+  background: rgba(6, 16, 24, 0.42) !important;
+  backdrop-filter: blur(8px) saturate(1.1) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(1.1) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 28px, #000 calc(100% - 28px), transparent 100%) !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28px, #000 calc(100% - 28px), transparent 100%) !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody td,
+html body.iba-shell-on #inv-active-job#inv-active-job table tbody td,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(odd) td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody tr:hover::before,
+html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr:hover::before,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr:hover::before,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr:hover::before {
+  background: rgba(255,255,255,0.16) !important;
+}
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody tr:hover td,
+html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr:hover td,
+html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr:hover td {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html body.iba-shell-on #wd-dashboard .wd-cork-note-grid,
+html body.iba-dash-focus #wd-dashboard .wd-cork-note-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 400px)) !important;
+  align-items: start !important;
+  align-content: start !important;
+  justify-content: start !important;
+}
+html body.iba-shell-on #wd-dashboard .wd-cork-note,
+html body.iba-dash-focus #wd-dashboard .wd-cork-note {
+  width: 360px !important;
+  min-width: 360px !important;
+  max-width: 400px !important;
+  height: auto !important;
+  align-self: start !important;
+  overflow: visible !important;
+}

@@ -1,0 +1,294 @@
+/* Soft end fade. Left fade starts on the first visible cell, not a hidden column. */
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask table,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td {
+  background-color: rgba(255,255,255,0.20) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:first-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child,
+html body.iba-sidebar-pinned.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:nth-child(2) {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.20) 36px, rgba(255,255,255,0.20) 100%) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+}
+html body.iba-sidebar-pinned.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child {
+  background-image: none !important;
+  background-color: transparent !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:last-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:last-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.20) calc(100% - 36px), rgba(255,255,255,0) 100%) !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button.active .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button:not(.active) .notification-badge,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button.blink-tab:not(.active) .notification-badge {
+  background: #1b2430 !important;
+  background-color: #1b2430 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-left {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 48px, rgba(255,255,255,0.22) 100%) !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-right {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) calc(100% - 48px), rgba(255,255,255,0) 100%) !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+}
+
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td *,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td * {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:nth-child(even) td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:nth-child(odd) td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:nth-child(odd) td {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  border: 0 !important;
+  outline: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td {
+  background-color: rgba(255,255,255,0.20) !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:first-child,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:first-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.20) 72px, rgba(255,255,255,0.20) 100%) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:last-child,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:last-child {
+  background-color: transparent !important;
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.20) 0%, rgba(255,255,255,0.20) calc(100% - 72px), rgba(255,255,255,0) 100%) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td :is(span, strong, em, a, small, div),
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td :is(span, strong, em, a, small, div) {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.55) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv * {
+  background: #dc2626 !important;
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid *,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn * {
+  background: #1e4d8c !important;
+  background-color: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* One frosted row. The blur fades at the row ends. No box around each column. */
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:first-child,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:first-child,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:last-child,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:last-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:first-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:last-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:last-child,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-left,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-right,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:last-child {
+  position: relative !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td::before,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td::before {
+  content: "" !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: -2px !important;
+  right: -2px !important;
+  pointer-events: none !important;
+  background: rgba(255,255,255,0.22) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:first-child::before,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:first-child::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:first-child::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-left::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:first-child::before {
+  left: 0 !important;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 72px) !important;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 72px) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td:last-child::before,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td:last-child::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:last-child::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td.wd-fade-right::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:last-child::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td:last-child::before {
+  right: 0 !important;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 72px), transparent 100%) !important;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 72px), transparent 100%) !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td > *,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td > *,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td > *,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td > *,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td > * {
+  position: relative !important;
+  z-index: 1 !important;
+  color: #122033 !important;
+  -webkit-text-fill-color: #122033 !important;
+  text-shadow: none !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-dashboard-pdf-btn.srv * {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover .wd-payment-pocket-mark-paid *,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover .wd-paid-po-view-btn * {
+  background: #1e4d8c !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .history-btn,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .wd-action-history,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .history-btn,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .wd-action-history,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:last-child :is(button, a) {
+  background: rgba(11,42,74,0.92) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.iba-row-frost {
+  position: absolute;
+  z-index: 0;
+  display: none;
+  pointer-events: none;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.34) 72px, rgba(255,255,255,0.34) calc(100% - 72px), rgba(255,255,255,0) 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 72px, #000 calc(100% - 72px), transparent 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+html body.iba-shell-on #workdesk-view .wd-payment-pocket-table,
+html body.iba-shell-on #workdesk-view .wd-paid-po-history-table,
+html body.iba-shell-on #workdesk-view #wd-activetask table,
+html body.iba-shell-on #workdesk-view #wd-reporting #job-records-table {
+  position: relative;
+  z-index: 1;
+  background: transparent !important;
+}
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-payment-pocket-table tbody tr:hover td::before,
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-dashboard .wd-paid-po-history-table tbody tr:hover td::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td::before,
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td::before,
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover td::before {
+  content: none !important;
+  display: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: none !important;
+}
+
+
+
+
+
+
