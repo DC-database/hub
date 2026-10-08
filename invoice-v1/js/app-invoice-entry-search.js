@@ -1,0 +1,1884 @@
+// ==========================================================================
+// IBA APP 11.8.8 - Invoice Entry Search / Modal / Form Loader
+// Moved from app.js without changing logic.
+// ==========================================================================
+
+// ==========================================================================
+// IBA APP 11.8.8 - Invoice Entry PO-file action state controller
+// Keeps the outer PO-file action and the modal folder button synchronized.
+// ==========================================================================
+
+let imPOFileCheckSequence = 0;
+
+function imNormalizePOFileActionPO(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function imResetPOFileActionButton(button, poNumber, compact = false) {
+    if (!button) return;
+
+    button.disabled = false;
+    button.removeAttribute('aria-disabled');
+    button.classList.remove('is-added');
+    button.dataset.poFileFound = '1';
+    button.dataset.poFilePo = imNormalizePOFileActionPO(poNumber);
+    button.dataset.poFileState = 'ready';
+    button.title = 'Original PO is in file — add to deletion list';
+    button.style.removeProperty('background');
+    button.style.removeProperty('background-color');
+    button.style.removeProperty('color');
+    button.style.removeProperty('opacity');
+    button.innerHTML = compact
+        ? '<i class="fa-solid fa-folder-minus"></i>'
+        : '<i class="fa-solid fa-folder-minus"></i> Add to Deletion List';
+    button.onclick = () => window.imAddToDeletionCollection(poNumber);
+}
+
+function imResetInvoicePOFileActionState(options = {}) {
+    const preserveCurrentPO = options.preserveCurrentPO === true;
+    const invalidateCheck = options.invalidateCheck !== false;
+    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
+    const poRecordEl = document.querySelector('#im-modal-po-details .im-po-record, .im-po-record');
+    const outerCollectBtn = document.getElementById('im-po-collect-btn');
+    const currentPoValue = imNormalizePOFileActionPO(
+        options.poNumber || (typeof currentPO !== 'undefined' ? currentPO : '')
+    );
+
+    const foundPo = imNormalizePOFileActionPO(
+        modalDeletionBtn?.dataset.poFilePo ||
+        poRecordEl?.dataset.poFilePo ||
+        outerCollectBtn?.dataset.poFilePo ||
+        ''
+    );
+    const hasReusableFoundState = preserveCurrentPO &&
+        currentPoValue &&
+        foundPo === currentPoValue &&
+        (
+            modalDeletionBtn?.dataset.poFileFound === '1' ||
+            poRecordEl?.dataset.poFileFound === '1' ||
+            outerCollectBtn?.dataset.poFileFound === '1'
+        );
+
+    if (hasReusableFoundState) {
+        if (modalDeletionBtn) {
+            modalDeletionBtn.classList.remove('hidden');
+            modalDeletionBtn.classList.add('im-po-file-action-btn--active');
+            imResetPOFileActionButton(modalDeletionBtn, currentPoValue, true);
+        }
+        if (outerCollectBtn) {
+            outerCollectBtn.classList.add('im-po-collect-btn');
+            imResetPOFileActionButton(outerCollectBtn, currentPoValue, false);
+        }
+        return imPOFileCheckSequence;
+    }
+
+    // A new PO search or full page clear must invalidate every older async lookup.
+    if (!preserveCurrentPO && invalidateCheck) {
+        imPOFileCheckSequence += 1;
+    }
+
+    // During an in-progress check for the current PO, a form reset should only
+    // clear an old check mark. It must not cancel or erase the active lookup.
+    const currentCheckStillRunning = preserveCurrentPO &&
+        currentPoValue &&
+        poRecordEl?.dataset.poCheckFor === currentPoValue &&
+        poRecordEl?.dataset.poFileState === 'checking';
+
+    if (currentCheckStillRunning) {
+        if (modalDeletionBtn) {
+            modalDeletionBtn.disabled = false;
+            modalDeletionBtn.removeAttribute('aria-disabled');
+            modalDeletionBtn.classList.remove('is-added');
+            modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+        }
+        return imPOFileCheckSequence;
+    }
+
+    if (outerCollectBtn) outerCollectBtn.remove();
+
+    if (modalDeletionBtn) {
+        modalDeletionBtn.classList.add('hidden');
+        modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+        modalDeletionBtn.disabled = false;
+        modalDeletionBtn.removeAttribute('aria-disabled');
+        modalDeletionBtn.onclick = null;
+        modalDeletionBtn.title = 'Original PO file action';
+        modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+        modalDeletionBtn.style.removeProperty('background');
+        modalDeletionBtn.style.removeProperty('background-color');
+        modalDeletionBtn.style.removeProperty('color');
+        modalDeletionBtn.style.removeProperty('opacity');
+        delete modalDeletionBtn.dataset.poFileFound;
+        delete modalDeletionBtn.dataset.poFilePo;
+        delete modalDeletionBtn.dataset.poFileState;
+    }
+
+    if (poRecordEl && !preserveCurrentPO) {
+        delete poRecordEl.dataset.poCheckFor;
+        delete poRecordEl.dataset.poCheckRunId;
+        delete poRecordEl.dataset.poFileFound;
+        delete poRecordEl.dataset.poFilePo;
+        poRecordEl.dataset.poFileState = 'idle';
+        poRecordEl.className = 'im-po-record im-po-record-status im-po-record-status-none';
+        poRecordEl.innerHTML = '<i class="fa-regular fa-circle"></i> <span>Search a PO to check file</span>';
+    }
+
+    return imPOFileCheckSequence;
+}
+
+window.imResetInvoicePOFileActionState = imResetInvoicePOFileActionState;
+
+function resetInvoiceForm() {
+    // 11.8.8: A fresh/new invoice must never retain the previous checked folder state.
+    // If the same PO still has a confirmed file record, keep the action available
+    // but restore it to its normal unselected folder icon.
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: true,
+        invalidateCheck: false,
+        reason: 'invoice-form-reset'
+    });
+
+    // 1. --- AUTO-GENERATE NEXT ID ---
+    // Instead of keeping the current value, we calculate the next sequence number fresh.
+    let nextId = "INV-01"; // Default start
+    
+    if (typeof currentPO !== 'undefined' && currentPO && 
+        typeof allInvoiceData !== 'undefined' && allInvoiceData && 
+        allInvoiceData[currentPO]) {
+        
+        let maxNum = 0;
+        const invoices = Object.values(allInvoiceData[currentPO]);
+        
+        invoices.forEach(inv => {
+            if (inv.invEntryID) {
+                // Extract number from "INV-XX"
+                const num = parseInt(inv.invEntryID.replace(/[^0-9]/g, ''), 10);
+                if (!isNaN(num) && num > maxNum) {
+                    maxNum = num;
+                }
+            }
+        });
+        
+        // Generate next number (e.g., 40) and pad with zero if needed (01, 02.. 10)
+        nextId = `INV-${String(maxNum + 1).padStart(2, '0')}`;
+    }
+    // -------------------------------
+
+    // 2. Reset form
+    imNewInvoiceForm.reset();
+    
+    // 3. Set the fresh ID and Dates
+    imInvEntryIdInput.value = nextId; // <--- The correct new ID (e.g. INV-40)
+    imReleaseDateInput.value = getTodayDateString();
+    imInvoiceDateInput.value = getTodayDateString();
+
+    // 4. Smart Filter Reset (Default to "For SRV")
+    if (imAttentionSelectChoices) {
+        imAttentionSelectChoices.clearInput();
+        imAttentionSelectChoices.removeActiveItems();
+        
+        const defaultStatus = document.getElementById('im-status').value;
+        let currentSite = null;
+        if (typeof currentPO !== 'undefined' && currentPO && typeof allPOData !== 'undefined' && allPOData && allPOData[currentPO]) {
+            currentSite = allPOData[currentPO]['Project ID'];
+        }
+        if (typeof imUpdateAttentionRequiredUI === 'function') imUpdateAttentionRequiredUI(defaultStatus);
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(defaultStatus)) {
+            if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
+        } else {
+            const currentGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
+                ? imGetCurrentInvoiceEntryGroup()
+                : 'Normal';
+            if (String(defaultStatus || '').trim().toLowerCase() === 'for srv' && typeof populateBatchAttentionDropdownForRow === 'function') {
+                populateBatchAttentionDropdownForRow(imAttentionSelectChoices, defaultStatus, currentSite, currentGroup, true);
+            } else {
+                populateAttentionDropdown(imAttentionSelectChoices, defaultStatus, currentSite, true);
+            }
+        }
+    }
+
+    // 5. Navigation Logic (Show "New")
+    const navControls = document.getElementById('im-nav-controls');
+    const navCounter = document.getElementById('im-nav-counter');
+    const btnPrev = document.getElementById('im-nav-prev');
+    const btnNext = document.getElementById('im-nav-next');
+
+    if (navControls) {
+        if (typeof imNavigationList !== 'undefined' && imNavigationList.length > 0) {
+            navControls.classList.remove('hidden');
+            imNavigationIndex = imNavigationList.length;
+            navCounter.textContent = `New`; // Indicator
+            
+            btnPrev.disabled = false;
+            btnPrev.style.opacity = '1';
+
+            btnNext.disabled = true;
+            btnNext.style.opacity = '0.5';
+        } else {
+            navControls.classList.add('hidden');
+            imNavigationIndex = -1;
+        }
+    }
+
+    currentlyEditingInvoiceKey = null;
+    imFormTitle.textContent = 'Add New Invoice for this PO';
+    imAddInvoiceButton.classList.remove('hidden');
+    imUpdateInvoiceButton.classList.add('hidden');
+
+    // [NEW] HIDE DELETE BUTTON ON NEW ENTRY
+    const delBtn = document.getElementById('im-delete-invoice-btn'); 
+    if(delBtn) delBtn.classList.add('hidden');
+
+    // 6. Apply Visual Highlights
+    const inputs = imNewInvoiceForm.querySelectorAll('.input-required-highlight');
+    inputs.forEach(el => el.classList.remove('input-required-highlight'));
+
+    const mandatoryIds = ['im-inv-no', 'im-inv-value', 'im-invoice-date', 'im-status'];
+    mandatoryIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('input-required-highlight');
+    });
+
+    const attnSelect = document.getElementById('im-attention');
+    if (attnSelect) {
+        const choicesInner = attnSelect.closest('.choices')?.querySelector('.choices__inner');
+        if (choicesInner) {
+            choicesInner.classList.add('input-required-highlight');
+        }
+    }
+}
+
+function ensureIMInvoiceEntryModalIsGlobal() {
+    const modal = document.getElementById('im-invoice-entry-modal');
+    if (!modal) return null;
+
+    // 8.0.9: Keep the Invoice Entry popup out of the Invoice Entry card/section.
+    // This makes it behave like the Batch Entry Search PO modal: centered and
+    // draggable against the full browser viewport, including over the side menu.
+    if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
+    modal.dataset.imGlobalModal = '1';
+    return modal;
+}
+
+function resetIMInvoiceEntryModalPosition() {
+    const modal = ensureIMInvoiceEntryModalIsGlobal();
+    const container = modal?.querySelector('.modal-container');
+    if (!container) return;
+
+    container.classList.remove('im-user-positioned');
+    container.style.removeProperty('--im-modal-left');
+    container.style.removeProperty('--im-modal-top');
+    container.style.removeProperty('--im-modal-width');
+    container.style.transform = 'none';
+}
+
+function keepIMInvoiceEntryModalInsideViewport() {
+    const modal = ensureIMInvoiceEntryModalIsGlobal();
+    if (!modal) return;
+
+    const container = modal.querySelector('.modal-container');
+    const content = modal.querySelector('.modal-content');
+
+    // Reset any previous scroll state so the modal header/close button is always reachable.
+    requestAnimationFrame(() => {
+        modal.scrollTop = 0;
+        if (container) container.scrollTop = 0;
+        if (content) content.scrollTop = 0;
+
+        // If the user previously dragged the modal and the viewport changed,
+        // keep the saved position inside the visible screen.
+        if (container && container.classList.contains('im-user-positioned')) {
+            clampIMInvoiceEntryModalPosition();
+        }
+    });
+}
+
+function clampIMInvoiceEntryModalPosition() {
+    const modal = ensureIMInvoiceEntryModalIsGlobal();
+    const container = modal?.querySelector('.modal-container');
+    if (!modal || !container || !container.classList.contains('im-user-positioned')) return;
+
+    const rect = container.getBoundingClientRect();
+    const gap = 8;
+    // 8.7.8: allow the Invoice Entry popup to slide over the left menu or the
+    // right active-jobs panel while keeping a safe grab area visible onscreen.
+    const visibleGrip = Math.min(260, Math.max(180, rect.width * 0.22));
+    const minLeft = Math.min(gap, -(rect.width - visibleGrip));
+    const maxLeft = Math.max(gap, window.innerWidth - visibleGrip);
+    const minTop = gap;
+    const maxTop = Math.max(gap, window.innerHeight - 76);
+    const currentLeft = parseFloat(container.style.getPropertyValue('--im-modal-left')) || rect.left;
+    const currentTop = parseFloat(container.style.getPropertyValue('--im-modal-top')) || rect.top;
+    const nextLeft = Math.min(Math.max(currentLeft, minLeft), maxLeft);
+    const nextTop = Math.min(Math.max(currentTop, minTop), maxTop);
+
+    container.style.setProperty('--im-modal-left', `${nextLeft}px`);
+    container.style.setProperty('--im-modal-top', `${nextTop}px`);
+}
+
+function initIMInvoiceEntryModalDrag() {
+    const modal = ensureIMInvoiceEntryModalIsGlobal();
+    const container = modal?.querySelector('.modal-container');
+    const header = modal?.querySelector('.modal-header');
+    if (!modal || !container || !header || header.dataset.imDragReady === '1') return;
+
+    header.dataset.imDragReady = '1';
+    header.classList.add('im-modal-drag-handle');
+    modal.classList.add('im-draggable-modal');
+
+    header.addEventListener('pointerdown', (e) => {
+        // Keep header buttons/close/navigation clickable; drag only from blank/header/title area.
+        if (e.target.closest('button, a, input, select, textarea, .modal-close-btn')) return;
+        if (e.button !== undefined && e.button !== 0) return;
+
+        const rect = container.getBoundingClientRect();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startLeft = rect.left;
+        const startTop = rect.top;
+        const gap = 8;
+
+        container.classList.add('im-user-positioned');
+        container.style.setProperty('--im-modal-left', `${startLeft}px`);
+        container.style.setProperty('--im-modal-top', `${startTop}px`);
+        container.style.setProperty('--im-modal-width', `${rect.width}px`);
+        document.body.classList.add('im-modal-is-dragging');
+
+        try { header.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+
+        const onMove = (moveEvent) => {
+            // 8.7.8: do not trap the popup inside the Invoice Entry card/container.
+            // Keep enough of the header visible so the user can always drag it back.
+            const visibleGrip = Math.min(260, Math.max(180, rect.width * 0.22));
+            const minLeft = Math.min(gap, -(rect.width - visibleGrip));
+            const maxLeft = Math.max(gap, window.innerWidth - visibleGrip);
+            const minTop = gap;
+            const maxTop = Math.max(gap, window.innerHeight - 76);
+            const nextLeft = Math.min(Math.max(startLeft + (moveEvent.clientX - startX), minLeft), maxLeft);
+            const nextTop = Math.min(Math.max(startTop + (moveEvent.clientY - startY), minTop), maxTop);
+            container.style.setProperty('--im-modal-left', `${nextLeft}px`);
+            container.style.setProperty('--im-modal-top', `${nextTop}px`);
+        };
+
+        const onUp = () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
+            document.body.classList.remove('im-modal-is-dragging');
+            try { header.releasePointerCapture(e.pointerId); } catch (_) {}
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+    });
+}
+
+function openIMInvoiceEntryModal() {
+    const modal = ensureIMInvoiceEntryModalIsGlobal() || imInvoiceEntryModal;
+    if (modal) {
+        const wasHidden = modal.classList.contains('hidden');
+        if (wasHidden) resetIMInvoiceEntryModalPosition();
+        modal.classList.remove('hidden');
+        initIMInvoiceEntryModalDrag();
+        keepIMInvoiceEntryModalInsideViewport();
+    }
+}
+
+function closeIMInvoiceEntryModal() {
+    const modal = document.getElementById('im-invoice-entry-modal') || imInvoiceEntryModal;
+    if (modal) {
+        imResetInvoicePOFileActionState({
+            preserveCurrentPO: true,
+            invalidateCheck: false,
+            reason: 'invoice-modal-close'
+        });
+        modal.classList.add('hidden');
+    }
+}
+
+window.addEventListener('resize', () => {
+    clampIMInvoiceEntryModalPosition();
+});
+
+// The shared modal-close listener hides overlays directly. Keep the Invoice Entry
+// folder action synchronized even when that generic listener closes this modal.
+document.addEventListener('click', (event) => {
+    const closeButton = event.target?.closest?.('#im-invoice-entry-modal .modal-close-btn');
+    if (!closeButton) return;
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: true,
+        invalidateCheck: false,
+        reason: 'invoice-modal-close-button'
+    });
+});
+
+// =========================================================
+// SEARCH PO HANDLER (FIXED: Uses Smart Fetcher)
+// =========================================================
+async function handlePOSearch(poNumberFromInput) {
+    const poNumber = (poNumberFromInput || imPOSearchInput.value || imPOSearchInputBottom.value).trim().toUpperCase();
+
+    if (!poNumber) {
+        alert('Please enter a PO Number.');
+        return;
+    }
+
+    // 11.9.6: A fresh manual PO search must not accidentally keep a previously
+    // selected Job Entry conversion. Preserve only the deliberate Active Job
+    // handoff that carries pending data for this exact PO.
+    try {
+        const pendingPO = String(pendingJobEntryDataForInvoice?.po || '').trim().toUpperCase();
+        if (!pendingPO || pendingPO !== poNumber) {
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+            window.importedJobHistory = null;
+        }
+    } catch (_) {}
+
+    // 11.8.8: Every new search starts with a clean folder state and invalidates
+    // any slower lookup from the previously searched PO.
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: false,
+        invalidateCheck: true,
+        poNumber,
+        reason: 'new-po-search'
+    });
+
+    sessionStorage.setItem('imPOSearch', poNumber);
+    if (imPOSearchInput) imPOSearchInput.value = poNumber;
+    if (imPOSearchInputBottom) imPOSearchInputBottom.value = poNumber;
+
+    try {
+        // 10.4.1: Invoice Entry uses lightweight CSV/GitHub PO base data first.
+        // This avoids downloading the full invoice_entries tree just to search one PO.
+        if (typeof ensureInvoicePOBaseDataFetched === 'function') {
+            await ensureInvoicePOBaseDataFetched(false);
+        } else if (!allPOData) {
+            // 11.2.3: Do NOT fall back to ensureInvoiceDataFetched() here.
+            // Invoice Entry PO search must use CSV/light PO base data only and must not
+            // download the full invoice_entries tree just because the PO base loader
+            // was unavailable or delayed.
+            console.warn('Invoice Entry PO base data is not ready; skipping full invoice_entries fallback.');
+        }
+        if (typeof loadInvoiceFeatureFlags === 'function') {
+            await loadInvoiceFeatureFlags(false);
+        }
+
+        let poData = allPOData ? allPOData[poNumber] : null;
+
+        // 10.4.2 Manual PO / Vacation Mode:
+        // OFF = POVALUE2.csv only, no Firebase check, no manual PO popup.
+        // ON  = CSV first, then exact Firebase purchase_orders/{PO}, then manual PO popup.
+        const canUseFirebasePO = (typeof isInvoiceFirebasePOFallbackEnabled === 'function')
+            ? isInvoiceFirebasePOFallbackEnabled()
+            : false;
+
+        if (!poData) {
+            if (canUseFirebasePO) {
+                const snap = await invoiceDb.ref(`purchase_orders/${poNumber}`).once('value');
+                if (snap.exists()) {
+                    poData = snap.val();
+                    if (!allPOData) allPOData = {};
+                    allPOData[poNumber] = poData;
+                    window.playSystemSuccess();
+                } else {
+                    window.playSystemError();
+                }
+            } else {
+                window.playSystemError();
+            }
+        } else {
+            window.playSystemSuccess();
+        }
+
+        if (!poData && !canUseFirebasePO) {
+            // 10.7.4: Before showing not found, force one latest POVALUE2.csv refresh.
+            // GitHub CSV reads are free and newly uploaded POs should take effect immediately.
+            try {
+                if (typeof refreshPOVALUE2CsvNow === 'function') {
+                    await refreshPOVALUE2CsvNow('invoice-entry-not-found-retry');
+                    poData = allPOData ? allPOData[poNumber] : null;
+                    if (poData) window.playSystemSuccess();
+                }
+            } catch (refreshError) {
+                console.warn('Latest POVALUE2.csv retry failed before not-found alert:', refreshError);
+            }
+        }
+
+        if (!poData && !canUseFirebasePO) {
+            alert(`PO ${poNumber} was not found in the latest POVALUE2.csv. Please check that the GitHub CSV upload is committed to main.`);
+            return;
+        }
+
+        // If STILL not found and vacation/manual PO mode is ON, show Manual Entry Modal
+        if (!poData) {
+            const manualPONoEl = document.getElementById('manual-po-number');
+            const manualSupplierIdEl = document.getElementById('manual-supplier-id');
+            const manualVendorNameEl = document.getElementById('manual-vendor-name');
+            const manualPOAmountEl = document.getElementById('manual-po-amount');
+
+            if (manualPONoEl) manualPONoEl.value = poNumber;
+            if (manualSupplierIdEl) manualSupplierIdEl.value = '';
+            if (manualVendorNameEl) manualVendorNameEl.value = '';
+            if (manualPOAmountEl) manualPOAmountEl.value = '';
+
+            // Ensure vendor list is available for name suggestions (Manual PO)
+            try {
+                if (typeof ensureVendorsDataFetchedForJobEntry === 'function') {
+                    const emptyVendors = (typeof allVendorsData === 'undefined' || !allVendorsData || !Object.keys(allVendorsData).length);
+                    if (emptyVendors) {
+                        try { await ensureVendorsDataFetchedForJobEntry(false); } catch (_) {}
+                    }
+                }
+                if (typeof buildJobVendorDatalistIfNeeded === 'function') {
+                    try { buildJobVendorDatalistIfNeeded(); } catch (_) {}
+                }
+                if (typeof buildManualVendorDatalistIfNeeded === 'function') {
+                    try { buildManualVendorDatalistIfNeeded(); } catch (_) {}
+                }
+            } catch (_) {}
+
+            // -------------------------------------------------------------
+            // SMART PREFILL (from WorkDesk -> Invoice Job Entry)
+            // If this PO search is coming from a Job Entry (Invoice), reuse
+            // the Vendor + Vendor ID + Site that were already captured there.
+            // This reduces Manual PO to mainly entering the PO Value.
+            // -------------------------------------------------------------
+            let __prefillSite = '';
+            try {
+                const pending = (typeof pendingJobEntryDataForInvoice !== 'undefined') ? pendingJobEntryDataForInvoice : null;
+                const pendingPO = pending ? String(pending.po || '').trim().toUpperCase() : '';
+                if (pending && pendingPO && pendingPO === String(poNumber || '').trim().toUpperCase()) {
+                    // Ensure vendor map is available so we can resolve Name <-> ID
+                    if (typeof ensureVendorsDataFetchedForJobEntry === 'function') {
+                        try { await ensureVendorsDataFetchedForJobEntry(false); } catch(_){}
+                    }
+                    if (typeof buildJobVendorDatalistIfNeeded === 'function') {
+                        try { buildJobVendorDatalistIfNeeded(); } catch(_){}
+                    }
+
+                    let vName = String(pending.vendorName || '').trim();
+                    let vId = String(pending.vendorId || '').trim();
+
+                    // Fill missing side if possible
+                    if (vId && (!vName || vName === 'N/A') && typeof allVendorsData !== 'undefined' && allVendorsData && allVendorsData[vId]) {
+                        vName = String(allVendorsData[vId] || '').trim();
+                    }
+                    if (vName && !vId && typeof getVendorIdByName === 'function') {
+                        const idByName = getVendorIdByName(vName);
+                        if (idByName) vId = String(idByName).trim();
+                    }
+
+                    if (manualSupplierIdEl && vId) manualSupplierIdEl.value = vId;
+                    if (manualVendorNameEl && vName) manualVendorNameEl.value = vName;
+
+                    __prefillSite = String(pending.site || '').trim();
+                }
+            } catch (e) {
+                // Best-effort only
+            }
+
+            const modalSiteSelect = document.getElementById('manual-site-select');
+            if (modalSiteSelect) {
+                // store prefill on dataset so it survives option building
+                modalSiteSelect.dataset.prefillSite = __prefillSite || '';
+            }
+
+            if (modalSiteSelect.options.length <= 1 && allSitesCSVData) {
+                allSitesCSVData.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.site;
+                    opt.textContent = `${s.site} - ${s.description}`;
+                    modalSiteSelect.appendChild(opt);
+                });
+            }
+
+            // Apply site prefill after options exist
+            try {
+                const pre = modalSiteSelect?.dataset?.prefillSite;
+                if (pre) {
+                    modalSiteSelect.value = pre;
+                }
+            } catch(_){}
+
+            const manualModal = document.getElementById('im-manual-po-modal');
+            if (manualModal) manualModal.classList.remove('hidden');
+
+            // Focus PO value (most common missing piece when coming from Job Entry)
+            setTimeout(() => {
+                if (manualPOAmountEl) manualPOAmountEl.focus();
+            }, 0);
+
+            return; 
+        }
+
+        // Found it! Proceed.
+        proceedWithPOLoading(poNumber, poData);
+
+    } catch (error) {
+        console.error("Error searching for PO:", error);
+        alert('An error occurred while searching for the PO.');
+    }
+}
+
+// REPLACE THE EXISTING FUNCTION WITH THIS "QUERY" VERSION
+async function proceedWithPOLoading(poNumber, poData) {
+    // Standard Loading Logic
+    const invoicesSnapshot = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+    const invoicesData = invoicesSnapshot.val();
+    if (!allInvoiceData) allInvoiceData = {};
+    allInvoiceData[poNumber] = invoicesData || {};
+
+    const pendingGroup = (pendingJobEntryDataForInvoice && String(pendingJobEntryDataForInvoice.po || '').trim().toUpperCase() === String(poNumber || '').trim().toUpperCase())
+        ? (pendingJobEntryDataForInvoice.group || pendingJobEntryDataForInvoice.category || '')
+        : '';
+    const poGroup = poData && (poData.Group || poData.group || poData.Category || poData.category || '');
+    if (pendingGroup) {
+        currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(pendingGroup);
+    } else {
+        currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(poGroup || 'Normal');
+    }
+
+    currentPO = poNumber;
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
+
+    // Update UI Labels
+    document.querySelectorAll('.im-po-no').forEach(el => {
+        const dot = (typeof window.poCloseoutReadyDotHTML === 'function') ? window.poCloseoutReadyDotHTML(poNumber) : '';
+        el.innerHTML = dot ? `${dot} ${poNumber}` : poNumber;
+    });
+    document.querySelectorAll('.im-po-site').forEach(el => el.textContent = poData['Project ID'] || 'N/A');
+    document.querySelectorAll('.im-po-value').forEach(el => el.textContent = canViewAmounts ? `QAR ${formatCurrency(poData.Amount)}` : '---');
+    document.querySelectorAll('.im-po-vendor').forEach(el => el.textContent = poData['Supplier Name'] || 'N/A');
+
+
+    // Final UI Display
+    // 10.6.1: Show the invoice results as soon as the exact PO invoice data is ready.
+    // The original PO-file/deletion-list lookup can be slow on large Progress records,
+    // so it now runs in the background and no longer blocks Invoice Entry search results.
+    document.getElementById('im-modal-po-details')?.classList.remove('hidden');
+    fetchAndDisplayInvoices(poNumber);
+    document.getElementById('im-invoice-form-trigger')?.classList.remove('hidden');
+    imRunPOFileCheckInBackground(poNumber);
+}
+
+function imRunPOFileCheckInBackground(poNumber) {
+    // ============================================================
+    // PO RECORDS SEARCH & BUTTON LOGIC (non-blocking)
+    // 11.8.8: every run has a unique token so an older result cannot
+    // repaint the folder button after Clear or a different PO search.
+    // ============================================================
+    const normalizedPO = imNormalizePOFileActionPO(poNumber);
+    const poRecordEl = document.querySelector('#im-modal-po-details .im-po-record, .im-po-record');
+    const modalDeletionBtn = document.getElementById('im-modal-deletion-list-btn');
+
+    imResetInvoicePOFileActionState({
+        preserveCurrentPO: false,
+        invalidateCheck: true,
+        poNumber: normalizedPO,
+        reason: 'po-file-check-start'
+    });
+    const checkRunId = imPOFileCheckSequence;
+
+    if (!poRecordEl) return;
+
+    poRecordEl.dataset.poCheckFor = normalizedPO;
+    poRecordEl.dataset.poCheckRunId = String(checkRunId);
+    poRecordEl.dataset.poFilePo = normalizedPO;
+    poRecordEl.dataset.poFileFound = '0';
+    poRecordEl.dataset.poFileState = 'checking';
+
+    if (modalDeletionBtn) {
+        modalDeletionBtn.dataset.poFilePo = normalizedPO;
+        modalDeletionBtn.dataset.poFileFound = '0';
+        modalDeletionBtn.dataset.poFileState = 'checking';
+    }
+
+    const isCurrentCheck = () => (
+        imPOFileCheckSequence === checkRunId &&
+        poRecordEl.dataset.poCheckRunId === String(checkRunId) &&
+        poRecordEl.dataset.poCheckFor === normalizedPO
+    );
+
+    const setPoRecordStatus = (status, label, iconClass) => {
+        if (!isCurrentCheck()) return false;
+        poRecordEl.className = `im-po-record im-po-record-status im-po-record-status-${status}`;
+        poRecordEl.innerHTML = `<i class="${iconClass}"></i> <span>${escapeHtml(label)}</span>`;
+        poRecordEl.dataset.poFileState = status;
+        return true;
+    };
+
+    setPoRecordStatus('checking', 'Checking PO file...', 'fa-solid fa-circle-notch fa-spin');
+
+    setTimeout(async () => {
+        try {
+            if (!isCurrentCheck()) return;
+
+            const searchVal = normalizedPO.replace(/[^0-9]/g, '');
+            const ref = progressDb.ref('records');
+
+            // Perform the indexed search. This stays lightweight because it queries the PO child only.
+            let snapshot = await ref.orderByChild('PO').equalTo(searchVal).once('value');
+            if (!snapshot.exists()) {
+                snapshot = await ref.orderByChild('PO').equalTo(parseInt(searchVal, 10)).once('value');
+            }
+
+            if (!isCurrentCheck()) return;
+
+            if (snapshot.exists()) {
+                setPoRecordStatus('found', 'Original PO in File', 'fa-solid fa-folder-open');
+                poRecordEl.dataset.poFileFound = '1';
+                poRecordEl.dataset.poFilePo = normalizedPO;
+                poRecordEl.dataset.poFileState = 'ready';
+
+                const collectBtn = document.createElement('button');
+                collectBtn.id = 'im-po-collect-btn';
+                collectBtn.type = 'button';
+                collectBtn.className = 'im-po-collect-btn';
+                poRecordEl.parentElement.appendChild(collectBtn);
+                imResetPOFileActionButton(collectBtn, normalizedPO, false);
+
+                if (modalDeletionBtn) {
+                    modalDeletionBtn.classList.remove('hidden');
+                    modalDeletionBtn.classList.add('im-po-file-action-btn--active');
+                    imResetPOFileActionButton(modalDeletionBtn, normalizedPO, true);
+                }
+            } else {
+                setPoRecordStatus('none', 'No PO file found', 'fa-regular fa-circle');
+                poRecordEl.dataset.poFileFound = '0';
+                poRecordEl.dataset.poFileState = 'none';
+                if (modalDeletionBtn) {
+                    modalDeletionBtn.classList.add('hidden');
+                    modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+                    modalDeletionBtn.disabled = false;
+                    modalDeletionBtn.onclick = null;
+                    modalDeletionBtn.dataset.poFileFound = '0';
+                    modalDeletionBtn.dataset.poFilePo = normalizedPO;
+                    modalDeletionBtn.dataset.poFileState = 'none';
+                    modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+                }
+            }
+        } catch (error) {
+            console.error("Query Error:", error);
+            if (!isCurrentCheck()) return;
+            setPoRecordStatus('error', 'PO file check error', 'fa-solid fa-triangle-exclamation');
+            poRecordEl.dataset.poFileFound = '0';
+            poRecordEl.dataset.poFileState = 'error';
+            if (modalDeletionBtn) {
+                modalDeletionBtn.classList.add('hidden');
+                modalDeletionBtn.classList.remove('im-po-file-action-btn--active', 'is-added');
+                modalDeletionBtn.disabled = false;
+                modalDeletionBtn.onclick = null;
+                modalDeletionBtn.dataset.poFileFound = '0';
+                modalDeletionBtn.dataset.poFilePo = normalizedPO;
+                modalDeletionBtn.dataset.poFileState = 'error';
+                modalDeletionBtn.innerHTML = '<i class="fa-solid fa-folder-minus"></i>';
+            }
+        }
+    }, 0);
+}
+
+function fetchAndDisplayInvoices(poNumber) {
+    const invoicesData = allInvoiceData[poNumber];
+
+    let maxInvIdNum = 0;
+    imInvoicesTableBody.innerHTML = '';
+    currentPOInvoices = invoicesData || {};
+
+    const isAdmin = (currentApprover?.Role || '').toLowerCase() === 'admin';
+    const isAccounting = (currentApprover?.Position || '').toLowerCase() === 'accounting';
+    const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
+    const canViewAmounts = (isAdmin || isAccounting || isVacationDelegate);
+
+    let invoiceCount = 0;
+
+    let totalInvValueSum = 0;
+    let totalPaidEligible = 0;
+    let totalConfirmedPaid = 0;
+    let totalUnconfirmed = 0;
+    let totalNotPaid = 0;
+    let totalEpicoreValue = 0;
+
+    if (invoicesData) {
+        const invoices = Object.entries(invoicesData).map(([key, value]) => ({
+            key,
+            ...value
+        }));
+        invoiceCount = invoices.length;
+
+        invoices.forEach(inv => {
+            if (inv.invEntryID) {
+                const idNum = parseInt(inv.invEntryID.replace('INV-', ''));
+                if (!isNaN(idNum) && idNum > maxInvIdNum) {
+                    maxInvIdNum = idNum;
+                }
+            }
+        });
+
+        // Sort Invoices
+        invoices.sort((a, b) => (a.invEntryID || '').localeCompare(b.invEntryID || ''));
+
+        // --- NEW: CAPTURE NAVIGATION LIST ---
+        imNavigationList = invoices.map(inv => inv.key);
+        imNavigationIndex = -1; 
+        // ------------------------------------
+
+        invoices.forEach(inv => {
+
+            // NEW FIXED CODE
+const currentInvValue = parseFloat(String(inv.invValue).replace(/,/g, '')) || 0;
+const currentAmtPaid = parseFloat(String(inv.amountPaid).replace(/,/g, '')) || 0;
+const statusNorm = String(inv.status || '').trim().toLowerCase();
+const isPaidStatus = statusNorm === 'paid';
+const isWithAccountsStatus = statusNorm === 'with accounts';
+const isEpicoreStatus = statusNorm === 'epicore close' || statusNorm === 'epicor closed';
+
+totalInvValueSum += currentInvValue;
+
+// 12.6.9: Amt. Paid only counts finalized/recognized statuses.
+if (isPaidStatus || isWithAccountsStatus || isEpicoreStatus) {
+    totalPaidEligible += currentAmtPaid;
+}
+if (isPaidStatus) {
+    totalConfirmedPaid += currentAmtPaid;
+} else if (isWithAccountsStatus) {
+    totalUnconfirmed += currentAmtPaid;
+} else if (isEpicoreStatus) {
+    // Epicore SRV value is tracked separately because the actual payment amount is external.
+    totalEpicoreValue += currentInvValue;
+} else {
+    totalNotPaid += currentInvValue;
+}
+
+            const row = document.createElement('tr');
+            row.style.cursor = 'pointer';
+            row.setAttribute('data-key', inv.key);
+
+            const releaseDateDisplay = inv.releaseDate ? new Date(normalizeDateForInput(inv.releaseDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+            const invoiceDateDisplay = inv.invoiceDate ? new Date(normalizeDateForInput(inv.invoiceDate) + 'T00:00:00').toLocaleDateString('en-GB') : 'N/A';
+
+            const invValueDisplay = canViewAmounts ? formatCurrency(inv.invValue) : '---';
+            const amountPaidDisplay = canViewAmounts ? formatCurrency(inv.amountPaid) : '---';
+
+            // --- Standard Invoice/SRV/Report Links (Using Base Paths) ---
+            // IMPORTANT: Do not trim end spaces (they can be part of the actual SharePoint filename).
+            const invPDFName = getSharePointPdfBaseName(inv.invName);
+            const invPDFLink = invPDFName ?
+                `<a href="${PDF_BASE_PATH}${encodeURIComponent(invPDFName)}.pdf" target="_blank" class="action-btn invoice-pdf-btn">Invoice</a>` :
+                '';
+
+            const srvPDFName = getSharePointPdfBaseName(inv.srvName);
+            const srvPDFLink = srvPDFName ?
+                `<a href="${SRV_BASE_PATH}${encodeURIComponent(srvPDFName)}.pdf" target="_blank" class="action-btn srv-pdf-btn">SRV</a>` :
+                '';
+
+            const reportPDFName = getSharePointPdfBaseName(inv.reportName);
+            const reportPDFLink = reportPDFName ?
+                `<a href="${REPORT_BASE_PATH}${encodeURIComponent(reportPDFName)}.pdf" target="_blank" class="action-btn report-pdf-btn" style="background-color: #6f42c1; color: white;" title="View Report">Report</a>` :
+                '';
+
+            // [MODIFIED] Only show history button if there is ACTUAL history
+            let historyBtn = '';
+            const historyCount = inv.history ? Object.keys(inv.history).length : 0;
+            
+            if (historyCount > 1) {
+                historyBtn = `<button type="button" class="history-btn action-btn" title="View Status History" onclick="event.stopPropagation(); showInvoiceHistory('${poNumber}', '${inv.key}')"><i class="fa-solid fa-clock-rotate-left"></i></button>`;
+            }
+
+            let deleteBtnHTML = '';
+            if (currentApprover.Name === 'Irwin') {
+                deleteBtnHTML = `<button class="delete-btn" data-key="${inv.key}">Delete</button>`;
+            }
+
+            // ADDED ${reportPDFLink} TO THE ROW BELOW
+            const readyDot = (typeof window.poCloseoutReadyDotHTML === 'function') ? window.poCloseoutReadyDotHTML(inv) : '';
+            row.innerHTML = `
+                <td>${readyDot ? `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;">${readyDot}<span>${inv.invEntryID || ''}</span></div>` : (inv.invEntryID || '')}</td>
+                <td>${inv.invNumber || ''}</td>
+                <td>${invoiceDateDisplay}</td>
+                <td>${invValueDisplay}</td>
+                <td>${amountPaidDisplay}</td>
+                <td>${inv.status || ''}</td>
+                <td>${releaseDateDisplay}</td>
+                <td><div class="action-btn-group">${invPDFLink} ${reportPDFLink} ${srvPDFLink} ${historyBtn} ${deleteBtnHTML}</div></td>
+            `;
+            imInvoicesTableBody.appendChild(row);
+        });
+        imExistingInvoicesContainer.classList.remove('hidden');
+    } else {
+        // Reset navigation list if no invoices
+        imNavigationList = [];
+        imNavigationIndex = -1;
+        
+        imInvoicesTableBody.innerHTML = '<tr><td colspan="8">No invoices have been entered for this PO yet.</td></tr>';
+        imExistingInvoicesContainer.classList.remove('hidden');
+    }
+
+    if (existingInvoicesCountDisplay) {
+        existingInvoicesCountDisplay.textContent = `Existing Invoices (${invoiceCount})`;
+    }
+
+    const nextInvId = `INV-${String(maxInvIdNum + 1).padStart(2, '0')}`;
+    imInvEntryIdInput.value = nextInvId;
+    resetInvoiceForm();
+    imNewInvoiceForm.classList.remove('hidden');
+    if (imInvoiceFormTrigger) imInvoiceFormTrigger.classList.remove('hidden');
+
+    const footer = document.getElementById('im-invoices-table-footer');
+    if (footer) {
+        const isAdminOrAccounting = isAdmin || isAccounting || isVacationDelegate;
+
+        const finalTotalPaid = totalPaidEligible;
+
+        document.getElementById('im-invoices-total-value').textContent = isAdminOrAccounting ? formatCurrency(totalInvValueSum) : '---';
+        document.getElementById('im-invoices-total-paid').textContent = isAdminOrAccounting ? formatCurrency(finalTotalPaid) : '---';
+
+        
+        footer.style.display = invoiceCount > 0 ? '' : 'none';
+    }
+
+    if (pendingJobEntryDataForInvoice) {
+        if (pendingJobEntryDataForInvoice.amount) {
+            imInvValueInput.value = pendingJobEntryDataForInvoice.amount;
+            imAmountPaidInput.value = pendingJobEntryDataForInvoice.amount;
+        }
+        if (pendingJobEntryDataForInvoice.ref) {
+            document.getElementById('im-inv-no').value = pendingJobEntryDataForInvoice.ref;
+        }
+        // Prefer the explicit Invoice Date captured in Job Entry (Invoice job)
+        const __jobInvDateRaw = pendingJobEntryDataForInvoice.invoiceDate || pendingJobEntryDataForInvoice.date;
+        if (__jobInvDateRaw) {
+            const __s = String(__jobInvDateRaw).trim();
+            // Job Entry uses <input type="date"> so it is already YYYY-MM-DD
+            if (/^\d{4}-\d{2}-\d{2}$/.test(__s)) {
+                imInvoiceDateInput.value = __s;
+            } else {
+                imInvoiceDateInput.value = convertDisplayDateToInput(__s);
+            }
+        }
+
+        // --- ADD THESE LINES TO FIX THE STATUS ---
+        imStatusSelect.value = 'Under Review'; 
+        imStatusSelect.dispatchEvent(new Event('change')); 
+        // ----------------------------------------
+
+        pendingJobEntryDataForInvoice = null;
+    }
+}
+
+// ==========================================================================
+// 11.9.6 — FORGOTTEN IPC APPLICATION / IPC PROCESSED RECOVERY
+// ==========================================================================
+
+let imIPCRecoveryLookupRunning = false;
+
+function imIPCRecoveryText(value) {
+    return String(value == null ? '' : value).trim();
+}
+
+function imIPCRecoveryNormalize(value) {
+    return imIPCRecoveryText(value).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function imIPCRecoverySafe(value) {
+    return imIPCRecoveryText(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function imIsOpenIPCRecoveryRecord(entry = {}) {
+    if (!entry || typeof entry !== 'object') return false;
+    if (entry.convertedToInvoice || entry.archived || entry.linkedInvoiceKey) return false;
+
+    const type = imIPCRecoveryNormalize(entry.for || entry.type || entry.entryFor);
+    const status = imIPCRecoveryNormalize(entry.remarks || entry.status);
+    if (['converted to invoice', 'completed', 'closed', 'paid'].includes(status)) return false;
+
+    if (type === 'ipc application') {
+        return ['', 'pending', 'ipc issue'].includes(status);
+    }
+    if (type === 'ipc processed' || type === 'ipc') {
+        return ['', 'pending', 'waiting invoice', 'ipc'].includes(status);
+    }
+    return false;
+}
+
+async function imFindOpenIPCJobEntriesForPO(poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!po) return [];
+
+    const found = new Map();
+    const addRecord = (key, entry) => {
+        if (!key || !entry || typeof entry !== 'object') return;
+        if (imIPCRecoveryText(entry.po).toUpperCase() !== po) return;
+        if (!imIsOpenIPCRecoveryRecord(entry)) return;
+        found.set(key, { ...entry, key, source: 'job_entry' });
+    };
+
+    try {
+        if (Array.isArray(allSystemEntries)) {
+            allSystemEntries.forEach(entry => addRecord(entry && entry.key, entry));
+        }
+    } catch (_) {}
+
+    try {
+        const database = (typeof db !== 'undefined' && db && db.ref)
+            ? db
+            : ((typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null);
+        if (!database || !database.ref) return Array.from(found.values());
+
+        const queryValues = [po];
+        if (/^\d+$/.test(po)) queryValues.push(Number(po));
+
+        const results = await Promise.allSettled(queryValues.map(value =>
+            database.ref('job_entries').orderByChild('po').equalTo(value).once('value')
+        ));
+        results.forEach(result => {
+            if (result.status !== 'fulfilled') return;
+            const rows = result.value && result.value.val ? (result.value.val() || {}) : {};
+            Object.entries(rows).forEach(([key, entry]) => addRecord(key, entry));
+        });
+    } catch (error) {
+        console.warn('IPC recovery lookup could not be completed. Existing loaded WorkDesk records will be used.', error);
+    }
+
+    return Array.from(found.values()).sort((a, b) => {
+        const aTime = Number(a.statusQueueAt || a.updatedAt || a.timestamp || 0);
+        const bTime = Number(b.statusQueueAt || b.updatedAt || b.timestamp || 0);
+        return bTime - aTime;
+    });
+}
+
+function imRenderIPCRecoveryRows(records) {
+    const body = document.getElementById('im-ipc-recovery-results');
+    if (!body) return;
+    body.innerHTML = '';
+
+    records.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        const typeRaw = imIPCRecoveryText(entry.for || entry.type || 'IPC');
+        const type = typeRaw === 'IPC' ? 'IPC Processed' : typeRaw;
+        const statusClass = imIPCRecoveryNormalize(type) === 'ipc application'
+            ? 'is-application'
+            : 'is-processed';
+        const reference = entry.ref || entry.reference || entry.jobRef || '—';
+        const enteredBy = entry.enteredBy || entry.createdBy || '—';
+        const date = entry.date || entry.dateEntered || entry.releaseDate || '—';
+        const attention = entry.attention || '—';
+
+        row.innerHTML = `
+            <td><input type="radio" name="im-ipc-recovery-choice" value="${imIPCRecoverySafe(entry.key)}" ${index === 0 ? 'checked' : ''} aria-label="Select ${imIPCRecoverySafe(type)}"></td>
+            <td><span class="im-ipc-recovery-status ${statusClass}">${imIPCRecoverySafe(type)}</span></td>
+            <td>${imIPCRecoverySafe(reference)}</td>
+            <td>${imIPCRecoverySafe(enteredBy)}</td>
+            <td>${imIPCRecoverySafe(date)}</td>
+            <td>${imIPCRecoverySafe(attention)}</td>
+        `;
+        row.addEventListener('click', event => {
+            if (event.target && event.target.matches('input[type="radio"]')) return;
+            const radio = row.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        });
+        body.appendChild(row);
+    });
+}
+
+function imAwaitIPCRecoveryChoice(records) {
+    const modal = document.getElementById('im-ipc-recovery-modal');
+    const convertButton = document.getElementById('im-ipc-recovery-convert');
+    const continueButton = document.getElementById('im-ipc-recovery-continue');
+    const cancelButton = document.getElementById('im-ipc-recovery-cancel');
+    const closeButton = modal && modal.querySelector('.modal-header .modal-close-btn');
+    if (!modal || !convertButton || !continueButton || !cancelButton) {
+        return Promise.resolve({ action: 'continue' });
+    }
+
+    imRenderIPCRecoveryRows(records);
+    modal.classList.remove('hidden');
+
+    return new Promise(resolve => {
+        let finished = false;
+        const cleanup = () => {
+            convertButton.removeEventListener('click', onConvert);
+            continueButton.removeEventListener('click', onContinue);
+            cancelButton.removeEventListener('click', onCancel);
+            if (closeButton) closeButton.removeEventListener('click', onCancel);
+        };
+        const finish = result => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            modal.classList.add('hidden');
+            resolve(result);
+        };
+        const onConvert = () => {
+            const checked = modal.querySelector('input[name="im-ipc-recovery-choice"]:checked');
+            const selected = records.find(record => record.key === (checked && checked.value));
+            if (!selected) {
+                alert('Please select the IPC record that belongs to this invoice.');
+                return;
+            }
+            finish({ action: 'convert', record: selected });
+        };
+        const onContinue = () => finish({ action: 'continue' });
+        const onCancel = event => {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            finish({ action: 'cancel' });
+        };
+
+        convertButton.addEventListener('click', onConvert);
+        continueButton.addEventListener('click', onContinue);
+        cancelButton.addEventListener('click', onCancel);
+        if (closeButton) closeButton.addEventListener('click', onCancel);
+    });
+}
+
+function imPrepareIPCRecoveryInvoice(record, poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!record || !record.key || !po) return false;
+
+    jobEntryToUpdateAfterInvoice = record.key;
+    // Keep the complete targeted IPC lookup result in memory. When the PO has
+    // both an IPC Application and IPC Processed record, the successful invoice
+    // conversion can retire the whole IPC chain without another Firebase read.
+    try {
+        window.ipcRecoveryConversionRecords = Array.isArray(window.ipcRecoveryConversionRecords)
+            ? window.ipcRecoveryConversionRecords
+            : [record];
+        if (!window.ipcRecoveryConversionRecords.some(item => item && item.key === record.key)) {
+            window.ipcRecoveryConversionRecords.push(record);
+        }
+    } catch (_) {
+        window.ipcRecoveryConversionRecords = [record];
+    }
+
+    const poData = (typeof allPOData !== 'undefined' && allPOData && allPOData[po]) ? allPOData[po] : {};
+    pendingJobEntryDataForInvoice = {
+        po,
+        // IPC references are not guaranteed to be the supplier's physical invoice
+        // number, so Invoice No. intentionally remains blank for the user to enter.
+        ref: '',
+        amount: record.amount || '',
+        date: '',
+        invoiceDate: '',
+        vendorName: record.vendorName || record.vendor || poData['Supplier Name'] || '',
+        vendorId: record.vendorId || record.supplierId || poData['Supplier ID'] || '',
+        site: record.site || poData['Project ID'] || '',
+        group: imNormalizeInvoiceGroupValue(currentInvoiceEntryGroup || 'Normal'),
+        category: imNormalizeInvoiceGroupValue(currentInvoiceEntryGroup || 'Normal')
+    };
+
+    window.importedJobHistory = [{
+        status: imIPCRecoveryText(record.for || record.type || 'IPC'),
+        date: record.date || record.dateEntered || new Date().toISOString(),
+        updatedBy: record.enteredBy || record.createdBy || 'WorkDesk'
+    }];
+
+    try {
+        if (!Array.isArray(allSystemEntries)) allSystemEntries = [];
+        const existingIndex = allSystemEntries.findIndex(entry => entry && entry.key === record.key);
+        const localRecord = { ...record, key: record.key, source: 'job_entry' };
+        if (existingIndex >= 0) allSystemEntries[existingIndex] = { ...allSystemEntries[existingIndex], ...localRecord };
+        else allSystemEntries.push(localRecord);
+    } catch (_) {}
+
+    // Rebuild the new-invoice form so the selected IPC link is carried into the
+    // normal save path. No Job Entry write occurs here.
+    if (typeof fetchAndDisplayInvoices === 'function') {
+        fetchAndDisplayInvoices(po);
+    } else if (typeof resetInvoiceForm === 'function') {
+        resetInvoiceForm();
+    }
+
+    try {
+        const typeRaw = imIPCRecoveryText(record.for || record.type || 'IPC');
+        const displayType = typeRaw === 'IPC' ? 'IPC Processed' : typeRaw;
+        if (typeof imFormTitle !== 'undefined' && imFormTitle) {
+            imFormTitle.textContent = `Add New Invoice — ${displayType}`;
+        }
+    } catch (_) {}
+    return true;
+}
+
+async function imPromptIPCRecoveryBeforeNewInvoice(poNumber) {
+    const po = imIPCRecoveryText(poNumber).toUpperCase();
+    if (!po) return false;
+
+    // Existing Invoice editing and a deliberate Active Job conversion already
+    // have their own source identity; do not prompt a second time.
+    if (typeof currentlyEditingInvoiceKey !== 'undefined' && currentlyEditingInvoiceKey) return true;
+    if (typeof jobEntryToUpdateAfterInvoice !== 'undefined' && jobEntryToUpdateAfterInvoice) return true;
+    if (imIPCRecoveryLookupRunning) return false;
+
+    imIPCRecoveryLookupRunning = true;
+    try {
+        const records = await imFindOpenIPCJobEntriesForPO(po);
+        if (!records.length) return true;
+
+        const choice = await imAwaitIPCRecoveryChoice(records);
+        if (choice.action === 'cancel') return false;
+        if (choice.action === 'continue') {
+            jobEntryToUpdateAfterInvoice = null;
+            pendingJobEntryDataForInvoice = null;
+            window.importedJobHistory = null;
+            window.ipcRecoveryConversionRecords = null;
+            return true;
+        }
+        try {
+            window.ipcRecoveryConversionRecords = Array.isArray(records) ? records.slice() : [choice.record];
+        } catch (_) {
+            window.ipcRecoveryConversionRecords = [choice.record];
+        }
+        return imPrepareIPCRecoveryInvoice(choice.record, po);
+    } finally {
+        imIPCRecoveryLookupRunning = false;
+    }
+}
+
+window.imPromptIPCRecoveryBeforeNewInvoice = imPromptIPCRecoveryBeforeNewInvoice;
+
+// ==========================================================================
+// 14. INVOICE MANAGEMENT: SIDEBAR & ACTIVE JOBS (UPDATED: GREEN APPROVALS)
+// ==========================================================================
+
+// 10.3.4: Lightweight, on-demand loader for Invoice Entry Active Jobs.
+// It reads only WorkDesk job_entries where for = "Invoice" instead of calling
+// populateActiveTasks(), which can download broader WorkDesk + invoice queues.
+let imActiveJobsSidebarLoaded = false;
+let imActiveJobsSidebarLoading = false;
+let imActiveJobsSidebarCache = [];
+function imIsActiveJobsSidebarLoaded() { return !!imActiveJobsSidebarLoaded; }
+window.imIsActiveJobsSidebarLoaded = imIsActiveJobsSidebarLoaded;
+
+function imSidebarEscapeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function imNormalizeText(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function imAttentionMentionsName(attentionVal, nameVal) {
+    const attention = imNormalizeText(attentionVal);
+    const name = imNormalizeText(nameVal);
+    if (!attention || !name) return false;
+    if (attention === name) return true;
+    if (['all', 'site', 'accounting', 'accounts', 'finance', 'none'].includes(attention)) return false;
+
+    const parts = attention
+        .split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i)
+        .map(v => v.trim())
+        .filter(Boolean);
+    if (parts.includes(name)) return true;
+
+    const nameParts = name.split(/\s+/).filter(Boolean);
+    if (nameParts.length >= 2 && nameParts.every(part => attention.includes(part))) return true;
+
+    return false;
+}
+
+function imInvoiceJobBelongsToCurrentUser(job) {
+    const currentName = String(currentApprover?.Name || '').trim();
+    if (!currentName) return false;
+
+    if (imAttentionMentionsName(job.attention, currentName)) return true;
+
+    const delegatedFromNames = (typeof getDelegatorsForReplacement === 'function')
+        ? getDelegatorsForReplacement(currentName)
+        : [];
+    return delegatedFromNames.some(name => imAttentionMentionsName(job.attention, name));
+}
+
+function imInvoiceJobIsEntryStage(job) {
+    const status = String(job.remarks || job.status || '').trim();
+    const normalized = status.toLowerCase();
+
+    // 10.4.4: Invoice Entry side panel must show only Reception New Entry jobs.
+    // Pending / For SRV records already belong in My Personal Tasks / Active Task,
+    // so showing them here creates confusion and duplicate-looking work.
+    if (job.convertedToInvoice || job.archived) return false;
+    if (!normalized) return true; // Safety for very old New Entry rows with blank status.
+    return normalized === 'new entry';
+}
+
+function imGetInvoiceJobCategory(job) {
+    const raw = String(job.group || job.category || '').trim();
+    if (!raw) return '';
+
+    const lower = raw.toLowerCase();
+    if (lower === 'normal') return 'Normal';
+    if (lower === 'hse') return 'HSE';
+    if (lower === 'logistic' || lower === 'logistics') return 'Logistic';
+
+    // Keep old records visible as their legacy value instead of breaking them.
+    return raw;
+}
+
+function imNormalizeInvoiceGroupValue(value) {
+    return imGetInvoiceJobCategory({ group: value }) || 'Normal';
+}
+
+function imGetCurrentInvoiceEntryGroup() {
+    const candidates = [];
+
+    try {
+        if (currentlyEditingInvoiceKey && currentPOInvoices && currentPOInvoices[currentlyEditingInvoiceKey]) {
+            const invoice = currentPOInvoices[currentlyEditingInvoiceKey];
+            candidates.push(invoice.group, invoice.invoiceGroup, invoice.category, invoice.jobType);
+        }
+    } catch (_) {}
+
+    try {
+        if (pendingJobEntryDataForInvoice) {
+            candidates.push(pendingJobEntryDataForInvoice.group, pendingJobEntryDataForInvoice.category);
+        }
+    } catch (_) {}
+
+    try {
+        if (jobEntryToUpdateAfterInvoice && Array.isArray(allSystemEntries)) {
+            const originJob = allSystemEntries.find(entry => entry && entry.key === jobEntryToUpdateAfterInvoice);
+            if (originJob) candidates.push(originJob.group, originJob.category);
+        }
+    } catch (_) {}
+
+    try { candidates.push(currentInvoiceEntryGroup); } catch (_) {}
+
+    try {
+        const poData = currentPO && allPOData ? allPOData[currentPO] : null;
+        if (poData) candidates.push(poData.Group, poData.group, poData.Category, poData.category);
+    } catch (_) {}
+
+    for (const candidate of candidates) {
+        const value = String(candidate || '').trim();
+        if (value) return imNormalizeInvoiceGroupValue(value);
+    }
+    return 'Normal';
+}
+
+try {
+    window.imNormalizeInvoiceGroupValue = imNormalizeInvoiceGroupValue;
+    window.imGetCurrentInvoiceEntryGroup = imGetCurrentInvoiceEntryGroup;
+} catch (_) {}
+
+function setActiveJobsSidebarStandby(message) {
+    if (activeJobsSidebarCountDisplay) {
+        activeJobsSidebarCountDisplay.textContent = 'Active Jobs';
+    }
+    if (imEntrySidebarList) {
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#d8fae9; font-size:0.8rem;">' +
+            imSidebarEscapeHTML(message || 'Click Active Jobs or search to load invoice job entries.') +
+            '</li>';
+    }
+}
+window.setActiveJobsSidebarStandby = setActiveJobsSidebarStandby;
+
+async function fetchInvoiceEntrySidePanelJobs(forceRefresh = false) {
+    if (!forceRefresh && imActiveJobsSidebarLoaded && Array.isArray(imActiveJobsSidebarCache)) {
+        return imActiveJobsSidebarCache.slice();
+    }
+
+    // 11.2.3: Use only the real lowercase WorkDesk node.
+    // The old uppercase legacy fallback (Job_Entries) is not allowed by current
+    // Firebase rules and caused repeated permission_denied console spam.
+    // This side panel must also never fall back to full invoice_entries.
+    const byKey = new Map();
+    const sourcePaths = ['job_entries'];
+
+    for (const path of sourcePaths) {
+        try {
+            const snap = await db.ref(path).orderByChild('for').equalTo('Invoice').once('value');
+            const raw = snap.val() || {};
+
+            Object.entries(raw).forEach(([key, value]) => {
+                const job = { key, ...(value || {}), source: 'job_entry' };
+                if (!imInvoiceJobIsEntryStage(job)) return;
+                if (!imInvoiceJobBelongsToCurrentUser(job)) return;
+                if (typeof isTaskComplete === 'function' && isTaskComplete(job)) return;
+
+                // Prefer already-saved manual Vendor/Site fields. Do not fetch POVALUE2 here;
+                // this side panel must stay limited to active WorkDesk Invoice job entries.
+                if (!job.vendorName && job.po && allPOData && allPOData[job.po]) {
+                    job.vendorName = allPOData[job.po]['Supplier Name'] || allPOData[job.po]['Supplier Name:'] || '';
+                }
+
+                job.group = imGetInvoiceJobCategory(job);
+                job.remarks = String(job.remarks || job.status || 'New Entry').trim() || 'New Entry';
+                job.status = job.remarks;
+                job.jobRecordDateEntered = job.jobRecordDateEntered || job.date || '';
+                job.dateEntered = job.dateEntered || job.date || '';
+                byKey.set(job.key || key, job);
+            });
+
+            if (byKey.size > 0) break;
+        } catch (error) {
+            // 11.2.3: Log once and return cached/empty list. Do not retry forbidden legacy paths
+            // and do not call ensureInvoiceDataFetched() as a fallback.
+            if (!window.__imActiveJobsSidebarJobEntriesDeniedLogged) {
+                window.__imActiveJobsSidebarJobEntriesDeniedLogged = true;
+                console.warn('Active Jobs side panel could not read job_entries. Using cached/empty side panel instead of full invoice_entries fallback.', error);
+            }
+        }
+    }
+
+    const jobs = Array.from(byKey.values());
+    if (typeof wdActiveTaskCompareQueue === 'function') {
+        jobs.sort(wdActiveTaskCompareQueue);
+    } else {
+        jobs.sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+    }
+
+    imActiveJobsSidebarCache = jobs;
+    imActiveJobsSidebarLoaded = true;
+    return jobs.slice();
+}
+
+function renderActiveJobsSidebar(invoiceJobs) {
+    if (!imEntrySidebarList) return;
+
+    if (activeJobsSidebarCountDisplay) {
+        activeJobsSidebarCountDisplay.textContent = 'Active Jobs (' + invoiceJobs.length + ')';
+    }
+
+    imEntrySidebarList.innerHTML = '';
+
+    if (invoiceJobs.length === 0) {
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#888; font-size:0.8rem;">No active invoice job entries.</li>';
+        return;
+    }
+
+    invoiceJobs.forEach(function(job) {
+        var li = document.createElement('li');
+        li.className = 'im-sidebar-item';
+
+        var status = job.remarks || job.status || 'New Entry';
+        var borderColor = '#fd7e14';
+        var statusTextColor = '#666';
+
+        if (status === 'New Entry') {
+            borderColor = '#dc3545';
+            statusTextColor = '#dc3545';
+        } else if (status === 'Pending') {
+            borderColor = '#fd7e14';
+            statusTextColor = '#fd7e14';
+        }
+
+        li.style.borderLeft = '4px solid ' + borderColor;
+
+        li.dataset.po = job.po || '';
+        li.dataset.key = job.key;
+        li.dataset.ref = job.ref || '';
+        li.dataset.amount = job.amount || '';
+        li.dataset.date = job.date || '';
+        li.dataset.source = job.source || 'job_entry';
+        li.dataset.originalKey = job.originalKey || '';
+        li.dataset.originalPO = job.originalPO || '';
+        li.dataset.vendorName = job.vendorName || '';
+        li.dataset.vendorId = job.vendorId || '';
+        li.dataset.site = job.site || '';
+        li.dataset.invoiceDate = job.invoiceDate || '';
+        li.dataset.category = job.group || '';
+
+        var vendorDisplay = (job.vendorName || 'No Vendor');
+        if (vendorDisplay.length > 20) vendorDisplay = vendorDisplay.substring(0, 18) + '...';
+
+        var category = imGetInvoiceJobCategory(job);
+        var categoryChip = category
+            ? `<span class="im-compact-category" style="display:inline-flex; align-items:center; border-radius:999px; padding:2px 7px; font-size:0.68rem; font-weight:800; background:#e8fff4; color:#08734f; border:1px solid rgba(8,115,79,0.18); margin-left:6px; white-space:nowrap;">${imSidebarEscapeHTML(category)}</span>`
+            : '';
+
+        var html = `
+            <div class="im-compact-row">
+                <span class="im-compact-po"><i class="fa-solid fa-file-invoice" style="margin-right:4px; opacity:0.7;"></i> ${imSidebarEscapeHTML(job.po || 'N/A')}</span>
+                <span class="im-compact-amount">${formatCurrency(job.amount)}</span>
+            </div>
+            <div class="im-compact-row" style="align-items:flex-start;">
+                <span class="im-compact-vendor">${imSidebarEscapeHTML(vendorDisplay)}</span>
+            </div>
+            <div class="im-compact-row" style="justify-content:flex-start; margin-top:3px;">
+                <span class="im-compact-status" style="color: ${statusTextColor}; font-weight: bold; display:inline-flex; align-items:center; gap:4px;">${imSidebarEscapeHTML(status)}${categoryChip}</span>
+            </div>
+        `;
+
+        li.innerHTML = html;
+        imEntrySidebarList.appendChild(li);
+    });
+}
+
+async function populateActiveJobsSidebar(forceRefresh = false) {
+    if (!imEntrySidebarList) return;
+    if (imActiveJobsSidebarLoading) return;
+
+    imActiveJobsSidebarLoading = true;
+    if (activeJobsSidebarCountDisplay) activeJobsSidebarCountDisplay.textContent = 'Active Jobs (loading...)';
+    imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#d8fae9; font-size:0.8rem;">Loading active invoice job entries...</li>';
+
+    try {
+        const invoiceJobs = await fetchInvoiceEntrySidePanelJobs(forceRefresh);
+        renderActiveJobsSidebar(invoiceJobs);
+        const searchValue = String(document.getElementById('im-sidebar-search')?.value || '').trim();
+        if (searchValue) filterActiveJobsSidebarItems(searchValue);
+    } catch (error) {
+        console.error('Active Jobs side panel failed to load:', error);
+        if (activeJobsSidebarCountDisplay) activeJobsSidebarCountDisplay.textContent = 'Active Jobs';
+        imEntrySidebarList.innerHTML = '<li class="im-sidebar-no-jobs" style="padding:10px; text-align:center; color:#ffdddd; font-size:0.8rem;">Could not load active jobs. Please try again.</li>';
+    } finally {
+        imActiveJobsSidebarLoading = false;
+    }
+}
+
+function filterActiveJobsSidebarItems(termValue) {
+    const term = String(termValue || '').toLowerCase().trim();
+    const items = document.querySelectorAll('.im-sidebar-item');
+
+    items.forEach(item => {
+        const po = (item.dataset.po || '').toLowerCase();
+        const vendor = (item.dataset.vendorName || '').toLowerCase();
+        const category = (item.dataset.category || '').toLowerCase();
+        const text = (item.innerText || '').toLowerCase();
+        item.style.display = (!term || po.includes(term) || vendor.includes(term) || category.includes(term) || text.includes(term)) ? '' : 'none';
+    });
+}
+
+// --- ACTIVE JOBS SEARCH: restore immediate working behavior ---
+const sidebarSearchInput = document.getElementById('im-sidebar-search');
+if (sidebarSearchInput) {
+    sidebarSearchInput.addEventListener('focus', async () => {
+        if (!imActiveJobsSidebarLoaded && typeof populateActiveJobsSidebar === 'function') {
+            await populateActiveJobsSidebar(false);
+        }
+    });
+
+    sidebarSearchInput.addEventListener('input', async (e) => {
+        if (!imActiveJobsSidebarLoaded && typeof populateActiveJobsSidebar === 'function') {
+            await populateActiveJobsSidebar(false);
+        }
+        filterActiveJobsSidebarItems(e.target.value);
+    });
+}
+
+function imInvoiceEntrySectionIsVisible() {
+    const section = document.getElementById('im-invoice-entry');
+    if (!section) return false;
+    return !section.classList.contains('hidden') && section.offsetParent !== null;
+}
+
+function imAutoLoadActiveJobsWhenInvoiceEntryVisible() {
+    if (!imEntrySidebarList || imActiveJobsSidebarLoading) return;
+    if (!imInvoiceEntrySectionIsVisible()) return;
+
+    // 10.4.5: Navigation/Clear can replace the list with a standby message while
+    // the in-memory cache still says the sidebar is loaded. In that case, re-render
+    // the cached New Entry jobs instead of leaving the side panel blank.
+    if (imActiveJobsSidebarLoaded) {
+        const hasRenderedJobs = !!imEntrySidebarList.querySelector('.im-sidebar-item');
+        if (!hasRenderedJobs && Array.isArray(imActiveJobsSidebarCache) && imActiveJobsSidebarCache.length) {
+            renderActiveJobsSidebar(imActiveJobsSidebarCache.slice());
+        }
+        return;
+    }
+
+    if (typeof populateActiveJobsSidebar === 'function') {
+        populateActiveJobsSidebar(false);
+    }
+}
+window.imAutoLoadActiveJobsWhenInvoiceEntryVisible = imAutoLoadActiveJobsWhenInvoiceEntryVisible;
+
+// Load the side panel when Invoice Entry is actually opened, not on the whole app start.
+// This restores the old "see it right away" behavior while avoiding unrelated page loads.
+const imInvoiceEntrySectionForSidebar = document.getElementById('im-invoice-entry');
+if (imInvoiceEntrySectionForSidebar && typeof MutationObserver !== 'undefined') {
+    const imInvoiceEntryObserver = new MutationObserver(() => {
+        setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 150);
+    });
+    imInvoiceEntryObserver.observe(imInvoiceEntrySectionForSidebar, { attributes: true, attributeFilter: ['class', 'style'] });
+}
+setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 500);
+document.addEventListener('click', (event) => {
+    if (event.target && event.target.closest && event.target.closest('[data-section="im-invoice-entry"], .im-nav-invoice-entry a')) {
+        setTimeout(imAutoLoadActiveJobsWhenInvoiceEntryVisible, 350);
+    }
+});
+
+function imInvalidateActiveJobsSidebarCache() {
+    imActiveJobsSidebarLoaded = false;
+    imActiveJobsSidebarCache = [];
+}
+window.imInvalidateActiveJobsSidebarCache = imInvalidateActiveJobsSidebarCache;
+
+async function imEnsureActiveJobsSidebarVisibleAndLoaded(forceRefresh = false) {
+    if (!imEntrySidebar || !imEntrySidebarList) return;
+
+    const searchInput = document.getElementById('im-sidebar-search');
+    if (searchInput) searchInput.value = '';
+
+    imEntrySidebar.classList.remove('hidden');
+    imEntrySidebar.classList.add('visible');
+    if (imMainElement) imMainElement.classList.add('with-sidebar');
+
+    if (forceRefresh) imInvalidateActiveJobsSidebarCache();
+    if (typeof populateActiveJobsSidebar === 'function') {
+        await populateActiveJobsSidebar(!!forceRefresh);
+    }
+}
+window.imEnsureActiveJobsSidebarVisibleAndLoaded = imEnsureActiveJobsSidebarVisibleAndLoaded;
+
+async function handleActiveJobClick(e) {
+    const item = e.target.closest('.im-sidebar-item');
+    if (!item) return;
+
+    const {
+        po,
+        ref,
+        amount,
+        date,
+        source,
+        key,
+        originalKey,
+        originalPO,
+        vendorName,
+        vendorId,
+        site,
+        invoiceDate,
+        category
+    } = item.dataset;
+
+    if (!po) {
+        alert("This job entry is missing a PO number and cannot be processed.");
+        return;
+    }
+
+    jobEntryToUpdateAfterInvoice = source === 'job_entry' ? key : null;
+    currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(category || 'Normal');
+    pendingJobEntryDataForInvoice = {
+        po,
+        ref,
+        amount,
+        date,
+        vendorName,
+        vendorId,
+        site,
+        invoiceDate,
+        group: currentInvoiceEntryGroup,
+        category: currentInvoiceEntryGroup
+    };
+
+    // --- STEP 1: MEMORIZE THE RECEPTION HISTORY ---
+    if (source === 'job_entry') {
+        window.importedJobHistory = [
+            { 
+                status: "Job Created (WorkDesk)", 
+                date: date || new Date().toISOString(), 
+                updatedBy: "Reception" 
+            }
+        ];
+    } else {
+        window.importedJobHistory = null; // Clear if it's not a new job
+    }
+    // ----------------------------------------------
+
+    // SCENARIO 1: It is an EXISTING INVOICE (This part was already working)
+    if (source === 'invoice' && originalPO && originalKey) {
+        jobEntryToUpdateAfterInvoice = null;
+        pendingJobEntryDataForInvoice = null;
+
+        try {
+            await handlePOSearch(originalPO);
+            setTimeout(() => {
+                populateInvoiceFormForEditing(originalKey);
+                imBackToActiveTaskButton.classList.remove('hidden');
+            }, 200);
+        } catch (error) {
+            console.error("Error loading existing invoice task:", error);
+            alert("Error loading this task. Please try searching for the PO manually.");
+        }
+        return;
+    }
+
+    // SCENARIO 2: It is a JOB ENTRY (e.g., "Pending")
+    // [FIX APPLIED HERE]
+    try {
+        await handlePOSearch(po);
+        imBackToActiveTaskButton.classList.remove('hidden');
+
+        // --- Force the modal to open as a global floating popup ---
+        setTimeout(() => {
+            openIMInvoiceEntryModal();
+        }, 150); // Small delay to allow data to populate first
+        // ---------------------------------------------------------
+
+    } catch (error) {
+        console.error("Error searching for PO from active job:", error);
+        alert("Error searching for PO. Please try again manually.");
+    }
+}
+
+// ==========================================================================
+// 15. INVOICE MANAGEMENT: CRUD OPERATIONS
+// ==========================================================================
+
+function populateInvoiceFormForEditing(invoiceKey) {
+    const canEditInvoice = (typeof canCurrentUserEditInvoiceEntry === 'function')
+        ? canCurrentUserEditInvoiceEntry()
+        : (((currentApprover?.Name || '').trim().toLowerCase() === String((typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) ? SUPER_ADMIN_NAME : 'Irwin').trim().toLowerCase()) ||
+            ((typeof isVacationDelegateUser === 'function') && isVacationDelegateUser()));
+    if (!canEditInvoice) {
+        currentlyEditingInvoiceKey = null;
+        const invoiceEntryModal = document.getElementById('im-invoice-entry-modal');
+        if (invoiceEntryModal) invoiceEntryModal.classList.add('hidden');
+        alert('Access Denied: Only Irwin/Super Admin or the active vacation replacement can edit an existing invoice.');
+        return;
+    }
+
+    const invData = currentPOInvoices[invoiceKey];
+    if (!invData) return;
+
+    currentInvoiceEntryGroup = imNormalizeInvoiceGroupValue(
+        invData.group || invData.invoiceGroup || invData.category || invData.jobType ||
+        (currentPO && allPOData && allPOData[currentPO]
+            ? (allPOData[currentPO].Group || allPOData[currentPO].group || allPOData[currentPO].Category || allPOData[currentPO].category)
+            : '') ||
+        'Normal'
+    );
+    resetInvoiceForm();
+    currentlyEditingInvoiceKey = invoiceKey;
+
+    // --- NAVIGATION UI UPDATE (Preserved) ---
+    if (typeof imNavigationList !== 'undefined' && imNavigationList.length > 0) {
+        imNavigationIndex = imNavigationList.indexOf(invoiceKey);
+        const navControls = document.getElementById('im-nav-controls');
+        const navCounter = document.getElementById('im-nav-counter');
+        const btnPrev = document.getElementById('im-nav-prev');
+        const btnNext = document.getElementById('im-nav-next');
+
+        if (navControls && imNavigationIndex > -1) {
+            navControls.classList.remove('hidden');
+            navCounter.textContent = `${imNavigationIndex + 1} / ${imNavigationList.length}`;
+            btnPrev.disabled = (imNavigationIndex === 0);
+            btnPrev.style.opacity = (imNavigationIndex === 0) ? '0.5' : '1';
+            btnNext.disabled = false;
+            btnNext.style.opacity = '1';
+            btnNext.title = (imNavigationIndex === imNavigationList.length - 1) ? "Go to New Entry" : "Next Invoice";
+        }
+    }
+    // ----------------------------
+
+    // Populate Fields
+    imInvEntryIdInput.value = invData.invEntryID || '';
+    document.getElementById('im-inv-no').value = invData.invNumber || '';
+    imInvoiceDateInput.value = normalizeDateForInput(invData.invoiceDate);
+    
+    // FORMAT ON LOAD
+    imInvValueInput.value = formatFinanceNumber(invData.invValue);
+    imAmountPaidInput.value = formatFinanceNumber(invData.amountPaid || '0');
+
+    document.getElementById('im-inv-name').value = invData.invName || '';
+    document.getElementById('im-srv-name').value = invData.srvName || '';
+    
+    // --- ADDED: Load Report Name ---
+    document.getElementById('im-report-name').value = invData.reportName || ''; 
+    // -------------------------------
+
+    document.getElementById('im-details').value = invData.details || '';
+    
+    imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
+    imStatusSelect.value = invData.status || 'Under Review';
+    document.getElementById('im-note').value = invData.note || '';
+
+    // Dropdown Logic
+    if (imAttentionSelectChoices) {
+        let currentSite = null;
+        if (currentPO && allPOData && allPOData[currentPO]) {
+            currentSite = allPOData[currentPO]['Project ID'];
+        }
+        const formStatus = imStatusSelect.value || invData.status || 'Under Review';
+        if (typeof imUpdateAttentionRequiredUI === 'function') imUpdateAttentionRequiredUI(formStatus);
+        if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(formStatus)) {
+            if (typeof imClearAttentionToNone === 'function') imClearAttentionToNone(imAttentionSelectChoices);
+        } else {
+            const populatePromise = (String(formStatus || '').trim().toLowerCase() === 'for srv' && typeof populateBatchAttentionDropdownForRow === 'function')
+                ? populateBatchAttentionDropdownForRow(imAttentionSelectChoices, formStatus, currentSite, currentInvoiceEntryGroup, true)
+                : populateAttentionDropdown(imAttentionSelectChoices, formStatus, currentSite, true);
+            Promise.resolve(populatePromise).then(() => {
+                if (invData.attention && invData.attention !== 'None') {
+                    imAttentionSelectChoices.setChoiceByValue(invData.attention);
+                }
+            });
+        }
+    }
+
+    // --- PRINT REPORT BUTTON LOGIC ---
+    const printBtnContainer = document.getElementById('im-invoice-print-report-container');
+    const printBtn = document.getElementById('btn-invoice-entry-print-report');
+    
+    const reportStatuses = ['Report', 'Report Approval', 'Report Approved'];
+    const showPrintBtn = reportStatuses.includes(invData.status);
+
+    if (printBtnContainer && printBtn) {
+        if (showPrintBtn) {
+            printBtnContainer.classList.remove('hidden');
+            // Remove old listener (clone trick)
+            const newBtn = printBtn.cloneNode(true);
+            printBtn.parentNode.replaceChild(newBtn, printBtn);
+
+            // Add Click Listener
+            newBtn.addEventListener('click', async () => {
+                if (!currentPO) { alert("PO Data missing."); return; }
+                const poData = allPOData[currentPO] || {};
+                
+                await generateFinanceReport({
+                    poNo: currentPO,
+                    poValue: poData.Amount || 0,
+                    site: poData['Project ID'] || '',
+                    vendor: poData['Supplier Name'] || ''
+                });
+                
+                // IMPORTANT: Ensure the final print button knows WHICH invoice key to lock
+                const finalPrintBtn = document.getElementById('im-finance-print-report-btn');
+                if (finalPrintBtn) {
+                    const newFinalBtn = finalPrintBtn.cloneNode(true);
+                    finalPrintBtn.parentNode.replaceChild(newFinalBtn, finalPrintBtn);
+                    newFinalBtn.addEventListener('click', () => {
+                        window.printFinalFinanceReport(currentPO, invoiceKey);
+                    });
+                }
+
+                const reportModal = document.getElementById('im-finance-report-modal');
+                if (reportModal) reportModal.classList.remove('hidden');
+            });
+        } else {
+            printBtnContainer.classList.add('hidden');
+        }
+    }
+
+    imFormTitle.textContent = `Editing Invoice: ${invData.invEntryID}`;
+    imAddInvoiceButton.classList.add('hidden');
+    imUpdateInvoiceButton.classList.remove('hidden');
+
+    // [NEW] SHOW DELETE BUTTON ON EDIT
+    const delBtn = document.getElementById('im-delete-invoice-btn'); 
+    if(delBtn) delBtn.classList.remove('hidden');
+
+    openIMInvoiceEntryModal();
+    setTimeout(() => {
+        const invNoInput = document.getElementById('im-inv-no');
+        if (invNoInput) invNoInput.focus();
+    }, 0);
+}
