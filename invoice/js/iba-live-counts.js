@@ -1,5 +1,6 @@
 /* ==========================================================================
-   js/iba-live-counts.js  —  14.0.0 patch 8 (patch 10: Active Job from login)
+   js/iba-live-counts.js  —  14.0.0 patch 8 (patch 10: Active Job from login;
+   patch 12: items() lists what is waiting, for the IBA Assistant)
    Live counts for "Active Task" (WorkDesk) and "Active Job" (Inventory).
 
    While a person has something to act on, the top bar shows a glowing pill
@@ -37,7 +38,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p10';
+    const VERSION = '14.0.0-p12';
     const INV_WINDOW = 60;
     const INV_KEYS_STORE = 'iba-live-inv-keys-v1';
     const INV_KEYS_TTL = 3 * 24 * 60 * 60 * 1000;
@@ -112,7 +113,7 @@
     // ------------------------------------------------------------------
     // WorkDesk: Active Task count (same filter as Active Task)
     // ------------------------------------------------------------------
-    function wdJobKeys(out) {
+    function wdJobKeys(out, items) {
         let list = [];
         try { if (typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries)) list = workdeskSystemEntries; } catch (_) {}
         let invData = null;
@@ -131,6 +132,9 @@
             if (e.for === 'Invoice' && display === 'Pending') display = 'New Entry';
             if (ON_HOLD.test(String(e.status || display || ''))) continue;
             out.add(String(e.key));
+            if (items) items.push({ kind: 'job', key: String(e.key), type: String(e.for || ''), po: String(e.po || ''), ref: String(e.ref || ''),
+                vendor: String(e.vendorName || ''), site: String(e.site || ''), status: display, amount: e.amount || '', attention: String(e.attention || ''),
+                note: String(e.note || ''), at: Number(e.timestamp) || Date.parse(e.date || '') || 0 });
         }
         return list.length;
     }
@@ -144,7 +148,7 @@
         return !status || /with accounts|srv done|paid|closed|cancel|completed|^done$|under review/i.test(status);
     }
 
-    function wdInboxKeys(out) {
+    function wdInboxKeys(out, items) {
         Object.keys(st.inbox).forEach((bucket) => {
             const rows = st.inbox[bucket] || {};
             Object.keys(rows).forEach((invKey) => {
@@ -155,7 +159,12 @@
                 if (!forMeOrDelegated(row.attention || '')) return;
                 if (ON_HOLD.test(String(row.status || status || ''))) return;
                 const po = String(row.po || row.originalPO || '').trim();
-                out.add(po + '_' + invKey);
+                const id = po + '_' + invKey;
+                if (items && !out.has(id)) items.push({ kind: 'invoice', key: id, type: 'Invoice', po: po, ref: String(row.ref || row.invNumber || ''),
+                    vendor: String(row.vendorName || ''), site: String(row.site || ''), status: status, amount: row.amount || row.invValue || '',
+                    attention: String(row.attention || ''), note: String(row.note || ''),
+                    at: Number(row.createdAt || row.updatedAt) || Date.parse(row.date || row.invoiceDate || '') || 0 });
+                out.add(id);
             });
         });
     }
@@ -305,6 +314,50 @@
         st.inv.liveReady = true;
         st.inv.liveSig = sig;
         paint(reason || 'inv-live');
+    }
+
+    // patch 12: what is waiting, as short records (for the IBA Assistant).
+    // Memory only: uses what the counts already listen to; nothing is read.
+    function invRecord(k, e) {
+        return { kind: 'inventory', key: String(k), control: String(e.controlNumber || e.controlId || e.ref || k), type: String(e.jobType || e.for || 'Transfer'),
+            product: String(e.productName || e.vendorName || ''), step: String(e.remarks || e.status || ''), from: String(e.fromSite || e.fromLocation || ''),
+            to: String(e.toSite || e.toLocation || ''), qty: e.orderedQty || e.requiredQty || '', requestor: String(e.requestor || ''),
+            at: Number(e.timestamp) || 0 };
+    }
+    function invItems() {
+        const out = [];
+        const seen = new Set();
+        const take = (k, raw) => {
+            if (seen.has(String(k))) return;
+            const e = normalizeTransfer(k, raw);
+            if (invMine(e)) { seen.add(String(k)); out.push(invRecord(k, e)); }
+        };
+        if (st.inv.steps) {
+            OPEN_STEPS.forEach((step) => { const rows = st.inv.steps[step] || {}; Object.keys(rows).forEach((k) => take(k, rows[k])); });
+            return { items: out, unknown: 0 };
+        }
+        const win = st.inv.window || {};
+        Object.keys(win).forEach((k) => take(k, win[k]));
+        const full = fullInventoryList();
+        if (full) full.forEach((e) => { if (e && e.key && !seen.has(String(e.key)) && invMine(e)) { seen.add(String(e.key)); out.push(invRecord(e.key, e)); } });
+        let unknown = 0;
+        if (!full && Array.isArray(st.inv.baseKeys)) st.inv.baseKeys.forEach((k) => { if (!seen.has(String(k))) unknown++; });
+        return { items: out, unknown: unknown };
+    }
+    function waitingItems() {
+        const keys = new Set();
+        const tasks = [];
+        wdJobKeys(keys, tasks);
+        wdInboxKeys(keys, tasks);
+        const inv = invItems();
+        return {
+            running: st.running,
+            user: st.user,
+            counts: { task: st.running ? (Number(pick(st.wd)) || 0) : 0, job: st.running ? (Number(pick(st.inv)) || 0) : 0 },
+            tasks: tasks,
+            jobs: inv.items,
+            jobsNotLoaded: inv.unknown
+        };
     }
 
     // ------------------------------------------------------------------
@@ -619,6 +672,7 @@
             VERSION,
             state: () => ({ running: st.running, user: st.user, wd: Object.assign({}, st.wd, { shown: st.wd.shown }), inv: Object.assign({}, st.inv, { window: st.inv.window ? Object.keys(st.inv.window).length : 0, steps: st.inv.steps ? OPEN_STEPS.map((k) => k + ':' + Object.keys(st.inv.steps[k] || {}).length).join(', ') : null, mode: st.inv.steps ? 'steps' : 'window' }), delegators: st.delegators.slice() }),
             recount: () => { recountWorkdesk('manual'); recountInventory('manual'); },
+            items: waitingItems,
             paint
         };
     }

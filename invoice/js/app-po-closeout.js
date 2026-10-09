@@ -1115,6 +1115,12 @@
         }).join('');
     };
 
+    // 14.0.0 patch 12: read-only list for the IBA Assistant (Super Admin only)
+    window.poCloseoutCollectRows = async function () {
+        if (!isIrwinSuperAdmin()) return [];
+        return collectCloseoutRows(false);
+    };
+
     window.markPOCloseOutHoDone = async function (poNumber, invoiceKey) {
         try {
             poNumber = String(poNumber || '').trim().toUpperCase();
