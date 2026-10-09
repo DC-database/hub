@@ -427,4 +427,71 @@
   .iba-ai-status { min-height: 18px !important; margin: 10px 0 0 !important; color: #A7B6C6 !important; font-size: 12.5px !important; }
   .iba-ai-status.is-ok { color: #A8EBCB !important; }
   .iba-ai-status.is-bad { color: #F5A99C !important; }
+
+  /* ---------- patch 13: Track an invoice ---------- */
+  .iba-ai-track-form { display: grid !important; grid-template-columns: 1fr 70px 70px !important; gap: 6px !important; margin: 0 0 12px !important; }
+  .iba-ai-track-form button { grid-column: 1 / -1 !important; justify-content: center !important; }
+  .iba-ai-track-form input {
+    width: 100% !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 13.5px !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .iba-ai-track-form input::placeholder { color: #7F90A3 !important; -webkit-text-fill-color: #7F90A3 !important; }
+  .iba-ai-track-form input:focus { border-color: rgba(227, 201, 138, 0.7) !important; }
+  .iba-ai-track-out { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .iba-ai-card.is-track { border-left-color: #E3C98A !important; }
+  .iba-ai-chiprow { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-bottom: 4px !important; }
+  .iba-ai-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(227, 201, 138, 0.4) !important;
+    border-radius: 999px !important;
+    background: rgba(227, 201, 138, 0.08) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-chip b { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  .iba-ai-chip:hover { background: rgba(227, 201, 138, 0.18) !important; }
+  .iba-ai-trk-po { margin-top: 10px !important; padding-top: 8px !important; border-top: 1px solid rgba(255, 255, 255, 0.07) !important; }
+  .iba-ai-trk-po:first-of-type { margin-top: 4px !important; }
+  .iba-ai-trk-po-head { display: flex !important; align-items: baseline !important; flex-wrap: wrap !important; gap: 4px 8px !important; margin-bottom: 6px !important; }
+  .iba-ai-trk-po-head b { color: #FFFFFF !important; font-size: 14px !important; }
+  .iba-ai-trk-po-head span { color: #A7B6C6 !important; font-size: 12px !important; }
+  .iba-ai-trk-val { margin-left: auto !important; color: #EEF3F8 !important; font-size: 12.5px !important; font-weight: 700 !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; }
+  .iba-ai-trk-item { margin: 0 0 6px !important; padding: 8px 10px !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 10px !important; background: rgba(255, 255, 255, 0.03) !important; }
+  .iba-ai-trk-item.is-side { border-color: rgba(242, 193, 78, 0.35) !important; background: rgba(242, 193, 78, 0.05) !important; }
+  .iba-ai-trk-top { display: flex !important; align-items: center !important; gap: 8px !important; }
+  .iba-ai-trk-top strong { color: #FFFFFF !important; font-size: 13px !important; }
+  .iba-ai-trk-item.is-side .iba-ai-trk-top strong { color: #F8DC97 !important; }
+  .iba-ai-pipe { display: grid !important; grid-template-columns: repeat(6, 1fr) !important; gap: 2px !important; margin: 8px 0 2px !important; padding: 0 !important; list-style: none !important; }
+  .iba-ai-pipe li { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 3px !important; margin: 0 !important; color: #5F7186 !important; font-size: 10px !important; font-weight: 600 !important; text-align: center !important; white-space: nowrap !important; }
+  .iba-ai-pipe li span { display: block !important; width: 100% !important; height: 5px !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.08) !important; }
+  .iba-ai-pipe li.is-done { color: #A7B6C6 !important; }
+  .iba-ai-pipe li.is-done span { background: rgba(95, 211, 160, 0.7) !important; }
+  .iba-ai-pipe li.is-now { color: #E3C98A !important; font-weight: 800 !important; }
+  .iba-ai-pipe li.is-now span { background: #E3C98A !important; box-shadow: 0 0 8px rgba(227, 201, 138, 0.7) !important; }
+  .iba-ai-pipe li.is-now.is-side { color: #F2C14E !important; }
+  .iba-ai-pipe li.is-now.is-side span { background: repeating-linear-gradient(90deg, #F2C14E 0 6px, rgba(242, 193, 78, 0.35) 6px 10px) !important; }
+  .iba-ai-pipe li.is-now.is-final { color: #5FD3A0 !important; }
+  .iba-ai-pipe li.is-now.is-final span { background: #5FD3A0 !important; box-shadow: 0 0 8px rgba(95, 211, 160, 0.6) !important; }
+  .iba-ai-trk-histbtn { margin-top: 6px !important; padding: 2px 8px !important; font-size: 11px !important; }
+  .iba-ai-trk-steps { display: none !important; margin: 6px 0 0 !important; padding: 0 0 0 16px !important; color: #A7B6C6 !important; font-size: 11.5px !important; }
+  .iba-ai-trk-item.show-steps .iba-ai-trk-steps { display: block !important; }
+  .iba-ai-trk-steps b { color: #EEF3F8 !important; }
+  .iba-ai-panel [data-super-only][hidden], .iba-ai-chips button[hidden] { display: none !important; }
 }
