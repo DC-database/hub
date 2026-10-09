@@ -1,15 +1,87 @@
-14.0.0 PATCH 12 - IBA Assistant (AI personal assistant, first version)
-(cumulative: includes patch 1 to 11)
+14.0.0 PATCH 13a - Track an invoice, assistant for everyone (TEST_BETA first)
+(cumulative: includes patch 1 to 12)
 
 Version stays 14.0.0. Copy over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-This zip alone gives the full current state (patch 1 to 12).
+This zip alone gives the full current state (patch 1 to 13a).
+Plan: keep patch 11 on the main site (port.iba.com.qa/invoice); put this on
+test_beta until the assistant feels reliable.
 
-FILES: the 33 files of patch 11, plus 2 new (35 + this note). Changed in patch 12:
-  css/iba-assistant.css          NEW   the assistant's look
-  js/iba-assistant.js            NEW   the assistant
-  js/iba-live-counts.js                items(): what is waiting, for the assistant (memory only)
-  js/app-po-closeout.js                read-only close-out list for the assistant (Super Admin)
-  index.html                           2 new files, ?v= tags
+FILES: the same 35 files as patch 12 (+ this note). Changed in patch 13a:
+  js/iba-assistant.js     tracker, access rules, per-person keys
+  css/iba-assistant.css   tracker look
+  index.html              ?v= tags
+
+PATCH 13a - WHAT CHANGED
+
+  1. Track an invoice - for everyone, NO key and NO AI needed
+  - Route button in the assistant (also "Track invoice" chip, and the
+    morning greeting for people without a key).
+  - Type a PO number, or a vendor name; optional Site and Year.
+      * PO number: straight answer - every invoice on that PO.
+      * Vendor: if more than 10 POs, it first shows the counts by year and
+        site ("Al Noor Trading - 12 POs: 2026 (3), 2025 (5), 2024 (4)")
+        and you click one to narrow down. Nothing is read from Firebase
+        for the counting (it uses the PO list file).
+  - For each invoice: where it is now on the path
+      Reception > Invoice Entry > SRV > Approval > Accounts > Paid
+    who has it, how many days, since when, and its History (who changed
+    it and when). Invoices still at Reception (job entry not yet in
+    Invoice Entry) are shown too. On Hold / Unresolved / For Inquiry /
+    IPC / PO Close Out show on the side (amber), at the stage they
+    stopped. Read only. Each search reads only the POs shown (max 10).
+  - Stages used:
+      Reception: job entry New Entry / Pending
+      Invoice Entry: Under Review, In Process, For Summary
+      SRV: For SRV, SRV Done, No Need SRV
+      Approval: For Approval, CEO Approval, Report, Report Approval,
+                Report Approved
+      Accounts: With Accounts      Paid: Paid
+  2. Who sees what
+  - All sites: CEO, COO, Finance, Accounting/Accounts, QS, Senior QS,
+    Logistic(s), Procurement, any position with "Manager", the Super
+    Admin and the vacation replacement. Everyone else: only the site(s)
+    on their account (e.g. "177" or "175,176"). A PO of another site is
+    refused with a plain message.
+  - Amounts only for people who see amounts in the system today (Admin,
+    Accounting, the vacation replacement, the Super Admin).
+  3. The assistant for everyone (desktop only; phone unchanged)
+  - Each person who wants to ask in plain words adds their OWN free Groq
+    key in Setup. The key is kept in that browser for that person only:
+    on a shared PC another user never uses someone else's key (your key
+    from patch 12 moves to your name by itself).
+  - For other users the AI only gets: their own brief / waiting list,
+    Track invoices, find people, drafting. Open PO, New invoice and Show
+    PO stay Super Admin only (refused even if forced).
+  - Super Admin Setup: "Who can use the assistant": Everyone / Only me.
+    Saved in Firebase iba_assistant/settings (see rules below).
+
+FIREBASE RULES (database ibainvoice-3ea51, if not already added)
+    "iba_assistant": { ".read": true, ".write": true }
+  needed for "Only me" and for skills to follow you. Without it the
+  assistant is open to everyone (the default) and skills stay in the
+  browser.
+
+WHAT TO CHECK (on test_beta)
+  1. Log in as an engineer: the button shows; Track a PO of his site, a PO
+     of another site (refused), and a vendor name (counts, then a year).
+  2. Log in as a manager: all sites.
+  3. You: amounts shown; Setup > Who can use > Only me > Save; an
+     engineer then no longer sees the button.
+
+CHECKED (patch 13a)
+  - tracker test 31/31: engineer site rule, other-site PO refused, no
+    amounts for him, vendor counts first with no Firebase read, picked year
+    reads only those 5 POs, For SRV with person and days, Paid, On Hold on
+    the side, Reception item, History, his own key used, only allowed jobs
+    sent to the AI, Super Admin job refused, manager sees all sites, Super
+    Admin sees amounts, Only me setting, keys per person, nothing written
+    to invoices, no script errors
+  - patch 12 assistant test 26/26, 15 pages + phone smoke test: pass
+  - not tested against the real Groq service (no internet from the test
+    machine)
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 12 (included) ====================
 
 PATCH 12 - WHAT CHANGED
 
