@@ -1,7 +1,11 @@
 /* ==========================================================================
    css/iba-ui.css  —  14.0.0 patch 3 : design foundation
    (patch 4: pages themed; patch 6: Invoice Records list, Active Task panel,
-    Add New Job, searchable-dropdown fix, hidden scrollbars - sections 1b, 1c, 22)
+    Add New Job, searchable-dropdown fix, hidden scrollbars - sections 1b, 1c, 22;
+    patch 8: Batch Entry spacing, lighter blur - section 23;
+    patch 10: phone login, Batch note search, PO Close Out search, lit
+    Dashboard area, glass board and notes - section 25; patch 11: board
+    about 60% see-through)
    --------------------------------------------------------------------------
    One set of design rules for the 14.0.0 glass UI.
    - Everything sits in the cascade layer "iba-ui". Important declarations in
@@ -4260,6 +4264,35 @@
     margin-right: 9px !important;
   }
   body.iba-shell-on #im-reporting#im-reporting .reporting-legend .legend-negative { background: var(--ui-red) !important; }
+  /* an open PO's invoice table (patch 7): the columns always add up to the
+     width of the list, and the row buttons wrap onto a second line when
+     there are many (they were cut off at the right edge) */
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-entry { width: 8% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-no { width: 12% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-date { width: 9% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table :is(col.im-col-value, col.im-col-paid) { width: 10% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-release { width: 9% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-status { width: 10% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-note { width: 13% !important; }
+  body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table col.im-col-action { width: 19% !important; }
+  body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table :is(th:last-child, td.actions) {
+    width: auto !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+  body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table td.actions .im-record-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table td.actions .im-record-actions > * { flex: 0 0 auto !important; margin: 0 !important; }
+  body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table td.actions > span { white-space: nowrap !important; }
+
   /* empty and loading messages: readable, centred in the list */
   body.iba-shell-on #im-reporting#im-reporting #im-reporting-content > :is(p, .loading-state) {
     margin: 0 !important;
@@ -4641,6 +4674,17 @@
   body.iba-shell-on .vendor-suggest-box .vendor-suggest-item:hover { background: var(--ui-gold-soft) !important; }
   body.iba-shell-on .vendor-suggest-box .vendor-suggest-muted { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; }
 
+  /* Settings > Shell Backgrounds: "Plain dark" preview and the save note (patch 7) */
+  body.iba-shell-on #iba-shell-bg-settings .iba-bg-preview.is-none { background: linear-gradient(135deg, #0B1724 0%, #17324C 100%) !important; }
+  body.iba-shell-on #iba-shell-bg-settings .iba-bg-note:empty { display: none !important; }
+  body.iba-shell-on #iba-shell-bg-settings .iba-bg-note {
+    margin: 2px 0 0 !important;
+    color: var(--ui-green) !important;
+    -webkit-text-fill-color: var(--ui-green) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
   /* 22c. Batch Entry - "Global Overrides" labels readable on their panel */
   body.iba-shell-on #im-batch-entry #im-batch-global-controls label {
     color: var(--ui-text-2) !important;
@@ -4657,7 +4701,203 @@
     text-shadow: none !important;
   }
   body.iba-shell-on #im-batch-entry #im-batch-global-controls > div:first-child i { color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; }
+
+  /* =====================================================================
+     23. Patch 8
+     ===================================================================== */
+  /* 23a. Batch Entry: the rows pack at the top. The page frame is as tall as
+     the window and its rows used to share the spare height, which pushed
+     "Global Overrides" far below the Search Note line. Now the list row takes
+     the spare height and the controls sit together. */
+  body.iba-shell-on #im-batch-entry:not(.hidden) {
+    grid-template-rows: auto auto minmax(0, 1fr) !important;
+    align-content: start !important;
+  }
+
+  /* 23b. Speed: no live blur behind small controls (search boxes, buttons,
+     chips, tabs). Each blurred control is redrawn by the graphics card on
+     every scroll and hover; on these small, nearly solid parts the blur did
+     not show anyway. The big glass panels, cards, side panel and top bar
+     keep their blur. */
+  html body.iba-shell-on:not(#iba-p8-a):not(#iba-p8-b):not(#iba-p8-c) :is(input, select, textarea, button, .choices__inner, .search-bar-local, .ms-family-chip, .wd-at-date-pill, .blink-tab, .wd-dashboard-mini-empty, .im-payment-empty-state) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* 23c. Live counts: Active Task / Active Job (js/iba-live-counts.js).
+     A pill in the top bar for each, only while there is something waiting:
+     it breathes (soft glow), its dot blinks, and the number counts when it
+     changes. The same number sits on the side-menu items. Only opacity and
+     size are animated, so the graphics card does the work, not the page. */
+  body.iba-shell-on #iba-live-counts { display: flex !important; align-items: center !important; gap: 8px !important; margin-right: 4px !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-pill {
+    --live-c: #E3C98A;
+    --live-glow: rgba(227, 201, 138, 0.55);
+    position: relative !important;
+    isolation: isolate !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    height: 34px !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 6px 0 12px !important;
+    border: 1px solid var(--live-c) !important;
+    border-radius: 999px !important;
+    background: rgba(12, 24, 37, 0.88) !important;
+    background-image: none !important;
+    color: #F4EFE3 !important;
+    -webkit-text-fill-color: #F4EFE3 !important;
+    font-family: inherit !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.01em !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transition: background-color .15s ease !important;
+  }
+  body.iba-shell-on #iba-live-counts .iba-live-pill[hidden] { display: none !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-pill[data-live="job"] { --live-c: #7FD6DE; --live-glow: rgba(127, 214, 222, 0.5); }
+  body.iba-shell-on #iba-live-counts .iba-live-pill:hover { background: rgba(24, 42, 62, 0.95) !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-pill:focus-visible { outline: 2px solid var(--live-c) !important; outline-offset: 2px !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-pill > i { color: var(--live-c) !important; -webkit-text-fill-color: var(--live-c) !important; font-size: 12.5px !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-glow {
+    position: absolute !important;
+    inset: -4px !important;
+    z-index: -1 !important;
+    border-radius: 999px !important;
+    background: transparent !important;
+    box-shadow: 0 0 16px 3px var(--live-glow), inset 0 0 10px 1px var(--live-glow) !important;
+    pointer-events: none !important;
+    opacity: 0.35;
+    will-change: opacity, transform;
+    animation: iba-live-breath 2.6s ease-in-out infinite !important;
+  }
+  body.iba-shell-on #iba-live-counts .iba-live-dot {
+    width: 7px !important;
+    height: 7px !important;
+    flex: 0 0 7px !important;
+    border-radius: 50% !important;
+    background: var(--live-c) !important;
+    box-shadow: 0 0 6px 1px var(--live-glow) !important;
+    will-change: opacity;
+    animation: iba-live-blink 1.2s ease-in-out infinite !important;
+  }
+  body.iba-shell-on #iba-live-counts .iba-live-num {
+    display: inline-grid !important;
+    place-items: center !important;
+    min-width: 22px !important;
+    height: 22px !important;
+    padding: 0 7px !important;
+    border-radius: 999px !important;
+    background: var(--live-c) !important;
+    color: #13202E !important;
+    -webkit-text-fill-color: #13202E !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-variant-numeric: tabular-nums !important;
+    line-height: 1 !important;
+  }
+  body.iba-shell-on #iba-live-counts .iba-live-pill.is-bump .iba-live-num { animation: iba-live-bump .6s cubic-bezier(.2, 1.6, .4, 1) !important; }
+  /* room for the pills: the middle title column takes only the width it
+     needs (the two sides stay equal, so the title stays centred) */
+  body.iba-shell-on #iba-app-shell .iba-shell-header { grid-template-columns: minmax(200px, 1fr) auto minmax(200px, 1fr) !important; column-gap: 16px !important; }
+  body.iba-shell-on #iba-app-shell .iba-shell-right > * { flex-shrink: 0 !important; }
+  body.iba-shell-on #iba-app-shell .iba-shell-right #iba-shell-username { flex-shrink: 1 !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+
+  @media (max-width: 1399px) {
+    body.iba-shell-on #iba-live-counts .iba-live-label { display: none !important; }
+    body.iba-shell-on #iba-live-counts .iba-live-pill { padding-left: 10px !important; }
+  }
+
+  /* side menu: the number on Active Task / Active Job, a blinking dot on the
+     WorkDesk / Inventory headings */
+  body.iba-shell-on #iba-app-shell :is([data-iba-nav="wd-active-task"], [data-iba-nav="inv-active-job"], [data-iba-dash-park]) { position: relative !important; }
+  body.iba-shell-on #iba-app-shell .iba-live-badge {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    min-width: 20px !important;
+    height: 19px !important;
+    padding: 0 6px !important;
+    border-radius: 999px !important;
+    background: #E3C98A !important;
+    color: #13202E !important;
+    -webkit-text-fill-color: #13202E !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    font-style: normal !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+    font-variant-numeric: tabular-nums !important;
+    line-height: 1 !important;
+    transform: translateY(-50%);
+    will-change: opacity, transform;
+    animation: iba-live-badge 2.6s ease-in-out infinite !important;
+  }
+  body.iba-shell-on #iba-app-shell .iba-live-badge[hidden] { display: none !important; }
+  body.iba-shell-on #iba-app-shell .iba-live-badge[data-live="job"] { background: #7FD6DE !important; }
+  body.iba-shell-on #iba-app-shell [data-iba-dash-park] .iba-live-badge { right: 26px !important; }
+  body.iba-shell-on #iba-app-shell [data-iba-group-toggle].iba-live-has { position: relative !important; }
+  body.iba-shell-on #iba-app-shell [data-iba-group-toggle].iba-live-has::before {
+    content: "" !important;
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    width: 7px !important;
+    height: 7px !important;
+    margin-top: -3.5px !important;
+    border-radius: 50% !important;
+    background: #E3C98A !important;
+    box-shadow: 0 0 6px 1px rgba(227, 201, 138, 0.6) !important;
+    animation: iba-live-blink 1.2s ease-in-out infinite !important;
+  }
+  body.iba-shell-on #iba-app-shell [data-iba-group-toggle][data-iba-sys="inv"].iba-live-has::before { background: #7FD6DE !important; box-shadow: 0 0 6px 1px rgba(127, 214, 222, 0.6) !important; }
+  /* the left edge that opens the side menu glows while something waits */
+  body.iba-shell-on.iba-live-on:not(.iba-sidebar-pinned) #iba-sidebar-hotspot::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 18% !important;
+    bottom: 18% !important;
+    width: 3px !important;
+    border-radius: 0 3px 3px 0 !important;
+    background: linear-gradient(180deg, transparent, #E3C98A 30%, #7FD6DE 70%, transparent) !important;
+    pointer-events: none !important;
+    animation: iba-live-breath 2.6s ease-in-out infinite !important;
+  }
 }
+}
+
+@keyframes iba-live-breath {
+  0%, 100% { opacity: 0.25; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes iba-live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+@keyframes iba-live-badge {
+  0%, 100% { opacity: 0.78; transform: translateY(-50%) scale(0.94); }
+  50% { opacity: 1; transform: translateY(-50%) scale(1.06); }
+}
+@keyframes iba-live-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body.iba-shell-on #iba-live-counts .iba-live-glow,
+  body.iba-shell-on #iba-live-counts .iba-live-dot,
+  body.iba-shell-on #iba-live-counts .iba-live-num,
+  body.iba-shell-on #iba-app-shell .iba-live-badge,
+  body.iba-shell-on #iba-app-shell [data-iba-group-toggle].iba-live-has::before,
+  body.iba-shell-on #iba-sidebar-hotspot::after { animation: none !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-glow { opacity: 0.7 !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4924,3 +5164,816 @@
 #iba-login-opening.iba-op.iba-op-reduced .iba-op-beam { display: none; }
 #iba-login-opening.iba-op.iba-op-reduced.is-play { animation: ibaOpQuick 1.1s ease forwards; }
 @keyframes ibaOpQuick { 0%, 55% { opacity: 1; } 100% { opacity: 0; } }
+
+/* =============================================================================
+   24. "Use the previous version" (14.0.0 patch 8) - all screens
+   A quiet link under the login box (desktop and phone) and a card in
+   Settings. It opens port.iba.com.qa/invoice-v1 in the same tab.
+   ============================================================================= */
+@layer iba-ui {
+  #login-view a.iba-old-version-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    width: fit-content !important;
+    margin: 20px auto 0 !important;
+    padding: 6px 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.24) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.86) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.86) !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    text-decoration: none !important;
+    transition: background-color .15s ease, border-color .15s ease !important;
+  }
+  #login-view a.iba-old-version-link:hover { background: rgba(255, 255, 255, 0.16) !important; border-color: rgba(255, 255, 255, 0.4) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #login-view a.iba-old-version-link i { font-size: 12px !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #login-view .mobile-login-form-wrapper a.iba-old-version-link { margin: 12px auto 6px !important; font-size: 13px !important; }
+  #wd-settings .iba-old-version-card {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px 16px !important;
+  }
+  #wd-settings .iba-old-version-card > .settings-card-header { flex: 1 1 420px !important; margin-bottom: 0 !important; }
+  #wd-settings .iba-old-version-card a.iba-old-version-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: fit-content !important;
+    text-decoration: none !important;
+  }
+}
+
+/* =============================================================================
+   25  14.0.0 patch 10
+   ============================================================================= */
+@layer iba-ui {
+
+  /* ---------------------------------------------------------------------
+     25.1 Phone login, same look as the phone workspace
+     The phone login still had the old teal gradient, white pill fields and
+     a terracotta button. It now uses the login photo under a dark navy
+     shade, the gold IBA mark from the phone header, a dark glass card,
+     dark fields with icons and the teal button. Same fields, same IDs,
+     same form; only the look changes.
+     --------------------------------------------------------------------- */
+  @media (max-width: 768px) {
+    #login-view .mobile-login-container {
+      justify-content: center !important;
+      gap: 0 !important;
+      padding: calc(24px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom)) !important;
+      background:
+        radial-gradient(120% 55% at 100% 0%, rgba(19, 138, 151, 0.22), transparent 60%),
+        radial-gradient(90% 45% at 0% 100%, rgba(227, 201, 138, 0.10), transparent 60%),
+        linear-gradient(180deg, rgba(8, 16, 26, 0.62) 0%, rgba(8, 16, 26, 0.78) 50%, rgba(8, 16, 26, 0.92) 100%),
+        var(--iba-login-bg, none) center / cover no-repeat,
+        #0B1724 !important;
+      color: #EEF3F8 !important;
+    }
+    #login-view .mobile-login-container .iba-logo-anim {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.09em !important;
+      width: 76px !important;
+      height: 76px !important;
+      margin: 0 auto 22px !important;
+      border: 1.5px solid rgba(227, 201, 138, 0.7) !important;
+      border-radius: 22px !important;
+      background: rgba(227, 201, 138, 0.07) !important;
+      box-shadow: 0 0 0 6px rgba(227, 201, 138, 0.05), 0 18px 40px rgba(0, 0, 0, 0.35) !important;
+      font-family: inherit !important;
+      font-size: 22px !important;
+      font-weight: 800 !important;
+      letter-spacing: 0 !important;
+      line-height: 1 !important;
+      color: #E3C98A !important;
+      -webkit-text-fill-color: #E3C98A !important;
+      text-shadow: none !important;
+    }
+    #login-view .mobile-login-container .mobile-login-form-wrapper {
+      width: 100% !important;
+      max-width: 400px !important;
+      padding: 26px 20px 20px !important;
+      border: 1px solid rgba(255, 255, 255, 0.10) !important;
+      border-radius: 22px !important;
+      background: linear-gradient(180deg, rgba(23, 42, 62, 0.86) 0%, rgba(14, 28, 43, 0.9) 100%) !important;
+      backdrop-filter: blur(14px) saturate(1.1) !important;
+      -webkit-backdrop-filter: blur(14px) saturate(1.1) !important;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 28px 64px rgba(0, 0, 0, 0.5) !important;
+      text-align: left !important;
+    }
+    #login-view .mobile-login-container .mobile-login-form-wrapper::before,
+    #login-view .mobile-login-container .mobile-login-form-wrapper::after { content: none !important; display: none !important; }
+    #login-view .mobile-login-container .mobile-login-form-wrapper h2 {
+      margin: 0 0 4px !important;
+      color: #EEF3F8 !important;
+      -webkit-text-fill-color: #EEF3F8 !important;
+      font-size: 24px !important;
+      font-weight: 700 !important;
+      letter-spacing: 0 !important;
+      text-align: left !important;
+      text-shadow: none !important;
+    }
+    #login-view .mobile-login-container .iba-mlogin-sub {
+      margin: 0 0 22px !important;
+      color: #A7B6C6 !important;
+      -webkit-text-fill-color: #A7B6C6 !important;
+      font-size: 14px !important;
+      line-height: 1.4 !important;
+    }
+    #login-view .mobile-login-container .input-icon-wrap { position: relative !important; margin: 0 0 14px !important; }
+    #login-view .mobile-login-container .input-icon-wrap i {
+      position: absolute !important;
+      left: 16px !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      z-index: 1 !important;
+      width: 18px !important;
+      text-align: center !important;
+      color: #7F90A3 !important;
+      -webkit-text-fill-color: #7F90A3 !important;
+      font-size: 16px !important;
+      pointer-events: none !important;
+      transition: color .15s ease !important;
+    }
+    #login-view .mobile-login-container .input-icon-wrap:focus-within i { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+    #login-view .mobile-login-container .mobile-login-form-wrapper input {
+      display: block !important;
+      width: 100% !important;
+      height: 52px !important;
+      margin: 0 !important;
+      padding: 0 16px 0 46px !important;
+      border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      border-radius: 14px !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      color: #EEF3F8 !important;
+      -webkit-text-fill-color: #EEF3F8 !important;
+      caret-color: #E3C98A !important;
+      font-size: 16px !important;
+      font-weight: 500 !important;
+      box-shadow: none !important;
+      outline: none !important;
+      transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease !important;
+    }
+    #login-view .mobile-login-container .mobile-login-form-wrapper input::placeholder { color: #7F90A3 !important; -webkit-text-fill-color: #7F90A3 !important; opacity: 1 !important; }
+    #login-view .mobile-login-container .mobile-login-form-wrapper input:focus {
+      border-color: rgba(19, 138, 151, 0.9) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 0 0 3px rgba(19, 138, 151, 0.28) !important;
+    }
+    /* phone autofill keeps the dark field */
+    #login-view .mobile-login-container .mobile-login-form-wrapper input:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 40px #1A3046 inset !important;
+      -webkit-text-fill-color: #EEF3F8 !important;
+    }
+    #login-view .mobile-login-container .mobile-login-btn {
+      display: block !important;
+      width: 100% !important;
+      height: 52px !important;
+      margin: 8px 0 0 !important;
+      padding: 0 16px !important;
+      border: 0 !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #179BA9 0%, #138A97 100%) !important;
+      color: #FFFFFF !important;
+      -webkit-text-fill-color: #FFFFFF !important;
+      font-size: 16px !important;
+      font-weight: 700 !important;
+      letter-spacing: .01em !important;
+      box-shadow: 0 12px 26px rgba(19, 138, 151, 0.35) !important;
+      transition: transform .12s ease, filter .12s ease !important;
+    }
+    #login-view .mobile-login-container .mobile-login-btn:active { transform: scale(0.985) !important; filter: brightness(0.95) !important; }
+    #login-view .mobile-login-container #mobile-login-error {
+      margin: 12px 0 0 !important;
+      color: #F5A99C !important;
+      -webkit-text-fill-color: #F5A99C !important;
+      font-size: 13.5px !important;
+      text-align: center !important;
+    }
+    #login-view .mobile-login-container #mobile-login-error:empty { display: none !important; }
+    #login-view .mobile-login-container .version-display {
+      margin: 18px 0 0 !important;
+      color: #7F90A3 !important;
+      -webkit-text-fill-color: #7F90A3 !important;
+      font-size: 12.5px !important;
+      text-align: center !important;
+    }
+    #login-view .mobile-login-container .mobile-login-form-wrapper a.iba-old-version-link {
+      display: flex !important;
+      width: fit-content !important;
+      margin: 12px auto 0 !important;
+      border-color: rgba(255, 255, 255, 0.16) !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      color: #A7B6C6 !important;
+      -webkit-text-fill-color: #A7B6C6 !important;
+    }
+    #login-view .mobile-login-container .iba-web-link {
+      display: block !important;
+      margin: 14px 0 0 !important;
+      color: #7F90A3 !important;
+      -webkit-text-fill-color: #7F90A3 !important;
+      font-size: 13px !important;
+      text-align: center !important;
+      text-decoration: none !important;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     25.2 Invoice Entry: the job whose PO matches the typed PO stands out
+     (js/iba-entry-po-mirror.js copies the typed PO into the side search)
+     --------------------------------------------------------------------- */
+  body.iba-shell-on #im-entry-sidebar .im-sidebar-item.iba-po-hit {
+    border-color: rgba(227, 201, 138, 0.6) !important;
+    border-left-color: #E3C98A !important;
+    background: rgba(227, 201, 138, 0.10) !important;
+    background-color: rgba(227, 201, 138, 0.10) !important;
+    box-shadow: 0 0 0 1px rgba(227, 201, 138, 0.25) !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     25.3 Batch Entry: the summary-note search is a short, labelled line
+     The note box grew to the full page width (an old rule lets it grow), so
+     the whole second line looked like one long bar. It is now one compact
+     line: a "Summary note" label, a 460px note box, Search Note and Clear,
+     all kept to the left. The open list stays under 320px and scrolls.
+     --------------------------------------------------------------------- */
+  @media screen and (min-width: 901px) {
+    body.iba-shell-on #im-batch-entry .iba-batch-search-row > div:has(#im-batch-search-by-note-button) {
+      flex: 1 1 100% !important;
+      flex-wrap: nowrap !important;
+      justify-content: flex-start !important;
+      gap: 8px !important;
+    }
+    body.iba-shell-on #im-batch-entry .iba-batch-search-row > div:has(#im-batch-search-by-note-button)::before {
+      content: "Summary note" !important;
+      flex: 0 0 auto !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      height: 38px !important;
+      padding: 0 12px 0 2px !important;
+      color: var(--ui-text-2) !important;
+      -webkit-text-fill-color: var(--ui-text-2) !important;
+      font-weight: 700 !important;
+      font-size: 12px !important;
+      letter-spacing: .06em !important;
+      text-transform: uppercase !important;
+      white-space: pre !important;
+    }
+    body.iba-shell-on #im-batch-entry .batch-note-search-wrapper {
+      flex: 0 1 460px !important;
+      width: 460px !important;
+      min-width: 260px !important;
+      max-width: 460px !important;
+    }
+    body.iba-shell-on #im-batch-entry .batch-note-search-wrapper .choices { width: 100% !important; min-height: 0 !important; margin: 0 !important; }
+    body.iba-shell-on #im-batch-entry .batch-note-search-wrapper .choices__list--dropdown .choices__list,
+    body.iba-shell-on #im-batch-entry .batch-note-search-wrapper .choices__list[aria-expanded] .choices__list { max-height: 320px !important; overflow-y: auto !important; }
+    body.iba-shell-on #im-batch-entry .batch-note-search-wrapper .choices__list--dropdown .choices__item {
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+      line-height: 1.35 !important;
+    }
+    body.iba-shell-on #im-batch-entry #im-batch-clear-button { width: auto !important; padding: 0 14px !important; }
+    body.iba-shell-on #im-batch-entry #im-batch-clear-button::after {
+      content: "Clear" !important;
+      font-family: inherit !important;
+      font-weight: 600 !important;
+    }
+  }
+
+  /* ---------------------------------------------------------------------
+     25.4 PO Close Out: the search field gets the same magnifying glass as
+     every other search (it showed a keyboard icon over the text)
+     --------------------------------------------------------------------- */
+  body.iba-shell-on #im-po-closeout #im-po-closeout-form .search-box > i.search-icon {
+    position: absolute !important;
+    left: 14px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 1 !important;
+    margin: 0 !important;
+    color: var(--ui-text-2) !important;
+    -webkit-text-fill-color: var(--ui-text-2) !important;
+    font-size: 14px !important;
+    pointer-events: none !important;
+  }
+  body.iba-shell-on #im-po-closeout #im-po-closeout-search { padding-left: 40px !important; }
+
+  /* ---------------------------------------------------------------------
+     25.5 Dashboard: the area you picked stays lit in the side panel
+     After a card is picked, its area (My Personal, Preliminary, Approval
+     or Finance) moves down as the big card in the side panel. It used to
+     glow once and then go dim like the others; now it stays lit in the
+     area's own colour, with an "Active" tag, so it is always clear which
+     page is open. The other areas stay as plain bars above it.
+     --------------------------------------------------------------------- */
+  html body.iba-shell-on .iba-dash-hero[data-section] {
+    --iba-hero-c: 227, 201, 138;
+    position: relative !important;
+    border: 1px solid rgba(var(--iba-hero-c), 0.9) !important;
+    background:
+      linear-gradient(135deg, rgba(var(--iba-hero-c), 0.46) 0%, rgba(var(--iba-hero-c), 0.20) 55%, rgba(var(--iba-hero-c), 0.10) 100%),
+      rgba(12, 22, 34, 0.6) !important;
+    box-shadow: 0 0 0 1px rgba(var(--iba-hero-c), 0.30), 0 0 24px rgba(var(--iba-hero-c), 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  }
+  html body.iba-shell-on .iba-dash-hero[data-section="01"] { --iba-hero-c: 108, 160, 228; }
+  html body.iba-shell-on .iba-dash-hero[data-section="02"] { --iba-hero-c: 52, 182, 192; }
+  html body.iba-shell-on .iba-dash-hero[data-section="03"] { --iba-hero-c: 214, 148, 80; }
+  html body.iba-shell-on .iba-dash-hero[data-section]::before {
+    content: "" !important;
+    position: absolute !important;
+    left: -1px !important;
+    top: 10px !important;
+    bottom: 10px !important;
+    width: 3px !important;
+    border-radius: 0 3px 3px 0 !important;
+    background: rgb(var(--iba-hero-c)) !important;
+    box-shadow: 0 0 10px rgba(var(--iba-hero-c), 0.8) !important;
+  }
+  html body.iba-shell-on .iba-dash-hero[data-section]::after {
+    content: "Active" !important;
+    position: absolute !important;
+    right: 9px !important;
+    top: 8px !important;
+    padding: 2px 7px 2px 15px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(var(--iba-hero-c), 0.55) !important;
+    background:
+      radial-gradient(circle at 8px 50%, rgb(var(--iba-hero-c)) 0 3px, transparent 3.5px),
+      rgba(var(--iba-hero-c), 0.16) !important;
+    color: rgb(var(--iba-hero-c)) !important;
+    -webkit-text-fill-color: rgb(var(--iba-hero-c)) !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    letter-spacing: .1em !important;
+    text-transform: uppercase !important;
+    line-height: 1.3 !important;
+  }
+  html body.iba-shell-on .iba-dash-hero[data-section] .iba-dash-hero-ico {
+    background: rgba(var(--iba-hero-c), 0.22) !important;
+    border: 1px solid rgba(var(--iba-hero-c), 0.7) !important;
+    color: rgb(var(--iba-hero-c)) !important;
+    -webkit-text-fill-color: rgb(var(--iba-hero-c)) !important;
+    box-shadow: 0 0 12px rgba(var(--iba-hero-c), 0.35) !important;
+  }
+  html body.iba-shell-on .iba-dash-hero[data-section] .iba-dash-hero-copy small { color: rgba(var(--iba-hero-c), 0.95) !important; -webkit-text-fill-color: rgba(var(--iba-hero-c), 0.95) !important; }
+  html body.iba-shell-on .iba-dash-hero[data-section] .iba-dash-hero-copy { flex: 1 1 auto !important; min-width: 0 !important; }
+  html body.iba-shell-on .iba-dash-hero[data-section] .iba-dash-hero-copy strong { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  html body.iba-shell-on .iba-dash-hero[data-section] .iba-dash-hero-copy em { color: rgba(244, 241, 234, 0.7) !important; -webkit-text-fill-color: rgba(244, 241, 234, 0.7) !important; }
+  /* the one-time glow when you pick keeps working, in the area's colour */
+  html body.iba-shell-on .iba-dash-hero[data-section].iba-dash-hero-glow { animation: ibaHeroLit 1.15s ease-out 1 !important; }
+  @keyframes ibaHeroLit {
+    0% { box-shadow: 0 0 0 2px rgba(var(--iba-hero-c), 1), 0 0 30px rgba(var(--iba-hero-c), 0.85); }
+    100% { box-shadow: 0 0 0 1px rgba(var(--iba-hero-c), 0.30), 0 0 24px rgba(var(--iba-hero-c), 0.40), inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+  }
+
+  /* 25.6 Dashboard search: no "No record found" note beside the search bar */
+  #iba-dash-search-miss,
+  .iba-dash-search-miss { display: none !important; }
+
+  /* ---------------------------------------------------------------------
+     25.7 Dashboard board: glass instead of cork
+     The brown cork board with its wooden frame becomes the same dark glass
+     panel as the rest of the app, with a faint dot grid. Notes keep their
+     colour as a strip on top and a small pin, and read light on dark.
+     Same notes, same buttons, same order; only the look changes.
+     --------------------------------------------------------------------- */
+  html body.iba-shell-on #wd-dashboard :is(.wd-cork-board, .wd-cork-notes-board, .wd-personal-cork-board) {
+    padding: 16px !important;
+    border: 1px solid var(--ui-line) !important;
+    outline: none !important;
+    border-radius: var(--ui-radius-l, 18px) !important;
+    background:
+      radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1.6px) 0 0 / 22px 22px,
+      linear-gradient(180deg, rgba(22, 40, 60, 0.58) 0%, rgba(12, 24, 38, 0.62) 100%) !important;
+    background-color: transparent !important; /* patch 11: about 60% instead of nearly solid */
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+    /* no backdrop blur here: the board scrolls, and a blurred scroller
+       made scrolling the notes about twice as slow */
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard :is(.wd-cork-board, .wd-cork-notes-board, .wd-personal-cork-board)::before,
+  html body.iba-shell-on #wd-dashboard :is(.wd-cork-board, .wd-cork-notes-board, .wd-personal-cork-board)::after { content: none !important; display: none !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+    align-items: start !important;
+    justify-content: start !important;
+    gap: 14px !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note-grid:empty::before { color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note-grid:empty::after { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; }
+
+  /* the note */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note {
+    --note-c: 227, 201, 138;
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 16px 14px 14px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    border-radius: 14px !important;
+    background:
+      linear-gradient(180deg, rgba(var(--note-c), 0.10) 0%, rgba(var(--note-c), 0) 38%),
+      linear-gradient(180deg, #1C3550 0%, #152A40 100%) !important;
+    background-color: #172E45 !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+    transform: none !important;
+    transition: border-color .15s ease, box-shadow .15s ease !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note:hover {
+    transform: none !important;
+    border-color: rgba(var(--note-c), 0.45) !important;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(var(--note-c), 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-pending { --note-c: 242, 193, 78; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-srv { --note-c: 240, 140, 172; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-hold { --note-c: 167, 182, 198; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-approval { --note-c: 185, 164, 245; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-ipc { --note-c: 125, 183, 240; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note.tone-report { --note-c: 94, 205, 190; }
+  /* colour strip on top */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note::after {
+    content: "" !important;
+    display: block !important;
+    position: absolute !important;
+    inset: 0 0 auto 0 !important;
+    height: 4px !important;
+    background: rgb(var(--note-c)) !important;
+    opacity: 1 !important;
+    box-shadow: 0 0 14px rgba(var(--note-c), 0.55) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note::before { content: none !important; display: none !important; }
+  /* small pin */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-pin {
+    position: absolute !important;
+    top: 11px !important;
+    left: 50% !important;
+    right: auto !important;
+    width: 10px !important;
+    height: 10px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    transform: translateX(-50%) !important;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.85) 0 18%, rgb(var(--note-c)) 46%, rgba(var(--note-c), 0.75) 100%) !important;
+    box-shadow: 0 0 0 3px rgba(var(--note-c), 0.18), 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+    z-index: 2 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-pin::before,
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-pin::after { content: none !important; display: none !important; }
+  /* every text inside: light on dark (the old note forced dark brown) */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note :is(h3, h4, p, span, small, strong, em, a, i, div) {
+    text-shadow: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note :is(h3, h4, p, span, strong, em, div) {
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note small {
+    display: block !important;
+    margin: 0 0 3px !important;
+    color: var(--ui-text-3) !important;
+    -webkit-text-fill-color: var(--ui-text-3) !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: .07em !important;
+    text-transform: uppercase !important;
+    line-height: 1.2 !important;
+  }
+  /* head: PO number and the status pill */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-head {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    margin: 4px 0 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-kicker { display: block !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-head h3 {
+    margin: 0 !important;
+    font-size: 18px !important;
+    font-weight: 800 !important;
+    letter-spacing: .01em !important;
+    line-height: 1.15 !important;
+    font-variant-numeric: tabular-nums !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-status-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    max-width: 58% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(var(--note-c), 0.5) !important;
+    border-radius: 999px !important;
+    background: rgba(var(--note-c), 0.16) !important;
+    background-color: rgba(var(--note-c), 0.16) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: rgb(var(--note-c)) !important;
+    -webkit-text-fill-color: rgb(var(--note-c)) !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-status-pill i { color: inherit !important; -webkit-text-fill-color: currentColor !important; font-size: 11px !important; }
+  /* vendor */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-vendor {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-vendor i { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; font-size: 13px !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-vendor span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: var(--ui-text-2) !important;
+    -webkit-text-fill-color: var(--ui-text-2) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+  }
+  /* label / value grid */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span {
+    display: block !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 7px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span strong {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    font-variant-numeric: tabular-nums !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+  }
+  /* "Pending for" sits on its own line, coloured by how long it waited */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age {
+    --age-c: 167, 182, 198;
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 6px 10px !important;
+    border-color: rgba(var(--age-c), 0.35) !important;
+    background: rgba(var(--age-c), 0.10) !important;
+    background-color: rgba(var(--age-c), 0.10) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age.wd-note-age-fresh { --age-c: 95, 211, 160; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age.wd-note-age-watch { --age-c: 242, 193, 78; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age.wd-note-age-alert { --age-c: 242, 160, 90; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age.wd-note-age-critical { --age-c: 239, 128, 112; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-age small { margin: 0 !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-detail-grid > span.wd-note-age strong {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: rgb(var(--age-c)) !important;
+    -webkit-text-fill-color: rgb(var(--age-c)) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-age strong::before {
+    content: "" !important;
+    display: inline-block !important;
+    width: 7px !important;
+    height: 7px !important;
+    border-radius: 50% !important;
+    background: rgb(var(--age-c)) !important;
+    box-shadow: 0 0 8px rgba(var(--age-c), 0.8) !important;
+    position: static !important;
+    margin: 0 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-age::before,
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-age::after { content: none !important; display: none !important; }
+  /* current note (keeps a touch of the yellow note) and current status */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note :is(.wd-note-current-note, .wd-note-current-status) {
+    margin: 0 !important;
+    padding: 8px 10px 8px 12px !important;
+    border: 0 !important;
+    border-left: 3px solid rgba(227, 201, 138, 0.8) !important;
+    border-radius: 8px !important;
+    background: rgba(227, 201, 138, 0.08) !important;
+    background-color: rgba(227, 201, 138, 0.08) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-current-status {
+    border-left-color: rgb(var(--note-c)) !important;
+    background: rgba(var(--note-c), 0.08) !important;
+    background-color: rgba(var(--note-c), 0.08) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note :is(.wd-note-current-note, .wd-note-current-status) p {
+    margin: 0 !important;
+    max-height: 2.8em !important;
+    overflow: hidden !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-current-status p i { color: rgb(var(--note-c)) !important; -webkit-text-fill-color: rgb(var(--note-c)) !important; margin-right: 4px !important; }
+  /* who / site / type chips */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-responsible {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-responsible > span {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text-2) !important;
+    -webkit-text-fill-color: var(--ui-text-2) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-responsible > span :is(strong, i) { color: inherit !important; -webkit-text-fill-color: currentColor !important; font-weight: inherit !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-responsible > span i { color: var(--ui-text-3) !important; -webkit-text-fill-color: var(--ui-text-3) !important; font-size: 11px !important; }
+  /* buttons in one tidy row */
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin: 2px 0 0 !important;
+    padding: 10px 0 0 !important;
+    border: 0 !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.07) !important;
+    background: transparent !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions :is(a.wd-dashboard-pdf-btn, .wd-forward-task-btn) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    height: 32px !important;
+    min-height: 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    background-color: rgba(255, 255, 255, 0.06) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    transform: none !important;
+    cursor: pointer !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions a.wd-dashboard-pdf-btn i { color: #F5A99C !important; -webkit-text-fill-color: #F5A99C !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions a.wd-dashboard-pdf-btn:hover { background: rgba(255, 255, 255, 0.11) !important; border-color: rgba(255, 255, 255, 0.24) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions button.wd-forward-task-btn {
+    border-color: transparent !important;
+    background: var(--ui-teal) !important;
+    background-color: var(--ui-teal) !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions button.wd-forward-task-btn i { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions button.wd-forward-task-btn:hover { filter: brightness(1.08) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-note .wd-note-actions .wd-pdf-empty { display: none !important; }
+
+  /* ---------------------------------------------------------------------
+     25.8 Dashboard date tabs and site cards in the same glass style
+     --------------------------------------------------------------------- */
+  html body.iba-shell-on #wd-dashboard .wd-date-tab {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    line-height: 1 !important;
+    height: 34px !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 14px !important;
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 999px !important;
+    background: rgba(16, 30, 46, 0.72) !important;
+    background-color: rgba(16, 30, 46, 0.72) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text-2) !important;
+    -webkit-text-fill-color: var(--ui-text-2) !important;
+    transform: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-date-tab :is(span, small, strong) { color: inherit !important; -webkit-text-fill-color: currentColor !important; text-shadow: none !important; }
+  html body.iba-shell-on #wd-dashboard .wd-date-tab .wd-date-tab-day { display: block !important; margin: 0 !important; padding: 0 !important; font-size: 13px !important; font-weight: 700 !important; line-height: 1 !important; }
+  html body.iba-shell-on #wd-dashboard .wd-date-tab:hover { background: rgba(30, 52, 76, 0.85) !important; color: var(--ui-text) !important; -webkit-text-fill-color: var(--ui-text) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-date-tab.active {
+    border-color: rgba(227, 201, 138, 0.8) !important;
+    background: rgba(227, 201, 138, 0.16) !important;
+    background-color: rgba(227, 201, 138, 0.16) !important;
+    color: var(--ui-gold) !important;
+    -webkit-text-fill-color: var(--ui-gold) !important;
+    box-shadow: 0 0 0 1px rgba(227, 201, 138, 0.2), 0 0 14px rgba(227, 201, 138, 0.22) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card {
+    border: 1px solid var(--ui-line) !important;
+    border-radius: 12px !important;
+    background: rgba(16, 30, 46, 0.78) !important;
+    background-color: rgba(16, 30, 46, 0.78) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    color: var(--ui-text) !important;
+    -webkit-text-fill-color: var(--ui-text) !important;
+    transform: none !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card :is(span, small, strong, i) { color: inherit !important; -webkit-text-fill-color: currentColor !important; text-shadow: none !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card .wd-site-card-name { color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card:hover { background: rgba(30, 52, 76, 0.9) !important; border-color: rgba(255, 255, 255, 0.22) !important; }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card.active {
+    border-color: rgba(227, 201, 138, 0.85) !important;
+    background: rgba(227, 201, 138, 0.15) !important;
+    background-color: rgba(227, 201, 138, 0.15) !important;
+    box-shadow: 0 0 0 1px rgba(227, 201, 138, 0.2), 0 0 14px rgba(227, 201, 138, 0.22) !important;
+    color: var(--ui-gold) !important;
+    -webkit-text-fill-color: var(--ui-gold) !important;
+  }
+  html body.iba-shell-on #wd-dashboard .wd-cork-site-card.active::after {
+    background: var(--ui-gold) !important;
+    color: #1B2A3A !important;
+    -webkit-text-fill-color: #1B2A3A !important;
+  }
+}

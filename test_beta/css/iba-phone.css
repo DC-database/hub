@@ -62,6 +62,14 @@ body.iba-phone #iba-phone {
   font-size: 15px;
   -webkit-tap-highlight-color: transparent;
 }
+/* patch 7: the side's own photo (Settings > Shell Backgrounds > Phone),
+   darkened so the cards stay easy to read */
+body.iba-phone #iba-phone.has-photo {
+  background:
+    linear-gradient(180deg, rgba(8, 16, 26, 0.58) 0%, rgba(8, 16, 26, 0.72) 45%, rgba(8, 16, 26, 0.86) 100%),
+    var(--ph-photo) center / cover no-repeat,
+    var(--ph-bg);
+}
 #iba-phone *, #iba-phone *::before, #iba-phone *::after { box-sizing: border-box; }
 #iba-phone .hidden { display: none !important; }
 
@@ -189,6 +197,14 @@ body.iba-phone #iba-phone {
 #iba-phone .iba-ph-empty i { color: var(--ph-teal); font-size: 26px; }
 #iba-phone .iba-ph-empty.is-error i { color: var(--ph-red); }
 #iba-phone .iba-ph-empty p { margin: 0; font-size: 14px; line-height: 1.45; }
+/* on a photo the empty / loading box gets a solid card so its text stays readable */
+body.iba-phone #iba-phone.has-photo .iba-ph-empty {
+  border: 1px solid var(--ph-line);
+  background: var(--ph-card);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+body.iba-phone #iba-phone.has-photo .iba-ph-empty p { color: var(--ph-text-2) !important; -webkit-text-fill-color: var(--ph-text-2) !important; }
 
 /* Bulk bar */
 #iba-phone .iba-ph-bulk {
@@ -818,4 +834,37 @@ body.iba-phone #iba-phone #wd-inv-mobile-material-finder .inv-mobile-qr-label-bo
   body.iba-phone #iba-phone .iba-ph-switch { margin-bottom: 4px; }
   body.iba-phone #iba-phone .iba-ph-switch button { min-height: 30px; }
   body.iba-phone #iba-phone .iba-ph-tabs button { min-height: 40px; flex-direction: row; justify-content: center; gap: 8px; }
+}
+
+/* ---------- Patch 8: waiting counts breathe and blink ----------
+   The number on Approve (and on the Invoice / Inventory switch) gently
+   breathes while something waits, like the desktop top-bar pills. */
+#iba-phone .iba-ph-badge:not(.dm-unread-badge),
+#iba-phone .iba-ph-count {
+  will-change: opacity, transform;
+  animation: iba-ph-breath 2.6s ease-in-out infinite;
+}
+#iba-phone .iba-ph-count { display: inline-block; text-align: center; }
+#iba-phone .iba-ph-badge:not(.dm-unread-badge)::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  box-shadow: 0 0 10px 2px rgba(229, 72, 77, 0.55);
+  opacity: 0.4;
+  animation: iba-ph-glow 2.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes iba-ph-breath {
+  0%, 100% { transform: scale(0.94); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes iba-ph-glow {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #iba-phone .iba-ph-badge:not(.dm-unread-badge),
+  #iba-phone .iba-ph-count,
+  #iba-phone .iba-ph-badge:not(.dm-unread-badge)::after { animation: none; }
 }
