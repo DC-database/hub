@@ -21,12 +21,21 @@
    - Skills: a job that worked can be saved with a name. Running a skill
      replays the same steps WITHOUT the AI (no quota used).
    - Never saves, approves or deletes anything by itself.
+   Patch 13: for every user (desktop), each with their OWN key (kept in the
+   browser per person). "Track an invoice" works for everyone WITHOUT a key
+   and without the AI: by PO, or vendor + site / year, it shows where each
+   invoice is (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who
+   has it and for how long. Site rule: CEO, COO, Finance, Accounting, QS,
+   Senior QS, Logistic, Procurement and any Manager see all sites; everyone
+   else only the site(s) on their account. Amounts follow the system's own
+   rule (Admin, Accounting, the vacation replacement, the Super Admin).
+   Open PO / New invoice stay Super Admin only.
    ========================================================================== */
 (function () {
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '14.0.0-p12';
+    const VERSION = '14.0.0-p13';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -97,18 +106,62 @@
         try { if (typeof SUPER_ADMIN_NAME !== 'undefined' && SUPER_ADMIN_NAME) return String(SUPER_ADMIN_NAME); } catch (_) {}
         return 'Irwin';
     }
+    function isSuper() { const n = myName(); return !!n && norm(n) === norm(superName()); }
+    function isDelegate() {
+        try { return typeof isVacationDelegateUser === 'function' && !!isVacationDelegateUser(); } catch (_) { return false; }
+    }
+    const WIDE_TOKENS = ['coo', 'ceo', 'finance', 'accounting', 'accounts', 'qs', 'seniorqs', 'logistic', 'logistics', 'procurement'];
+    function access() {
+        const a = me() || {};
+        const pos = norm(a.Position);
+        const role = norm(a.Role);
+        const tokens = pos.split(/[^a-z0-9]+/).filter(Boolean);
+        const sup = isSuper();
+        const del = isDelegate();
+        const wide = sup || del || pos.includes('manager') || /senior\s*qs/.test(pos) || tokens.some((t) => WIDE_TOKENS.indexOf(t) !== -1);
+        const sites = String(a.Site || '').split(/[,;\/]+/).map((x) => (String(x).match(/\d+/) || [''])[0]).filter(Boolean);
+        return { super: sup, delegate: del, allSites: wide, sites: sites, amounts: sup || del || role === 'admin' || tokens.indexOf('accounting') !== -1 };
+    }
+    // Who may use the assistant: "everyone" (default) or "me" (Super Admin only).
+    // Set by the Super Admin in Setup; kept in Firebase (iba_assistant/settings).
+    let audience = '';
+    let audienceAsked = false;
+    function settingsRef() {
+        try { return (typeof db !== 'undefined' && db && db.ref) ? db.ref('iba_assistant/settings/audience') : null; } catch (_) { return null; }
+    }
+    function readAudience() {
+        if (audienceAsked) return;
+        audienceAsked = true;
+        const ref = settingsRef();
+        if (!ref) { audience = 'everyone'; return; }
+        withTimeout(ref.once('value'), 8000, 'settings').then((snap) => {
+            const v = snap && snap.val();
+            audience = v === 'me' ? 'me' : 'everyone';
+            watch();
+        }).catch(() => { audience = 'everyone'; watch(); });
+    }
     function allowed() {
         const b = document.body;
         if (!b || !b.classList.contains('iba-shell-on') || b.classList.contains('iba-phone')) return false;
-        const n = myName();
-        return !!n && norm(n) === norm(superName());
+        if (!myName()) return false;
+        readAudience();
+        if (isSuper()) return true;
+        return audience === 'everyone';
     }
 
     // ------------------------------------------------------------------
     // Brain settings (this browser only)
     // ------------------------------------------------------------------
+    function userSlug() { return norm(myName()).replace(/[^a-z0-9]+/g, '_') || 'user'; }
+    function cfgKey() { return CFG_KEY + ':' + userSlug(); }
     function getCfg() {
-        const c = lsGet(CFG_KEY, null) || {};
+        let c = lsGet(cfgKey(), null);
+        if (!c && isSuper()) {
+            // patch 12 kept one key per browser; it was the Super Admin's
+            const old = lsGet(CFG_KEY, null);
+            if (old) { lsSet(cfgKey(), old); try { localStorage.removeItem(CFG_KEY); } catch (_) {} c = old; }
+        }
+        c = c || {};
         const brain = BRAINS[c.brain] ? c.brain : 'groq';
         const def = BRAINS[brain];
         return {
@@ -118,7 +171,7 @@
             key: String(c.key || '')
         };
     }
-    function setCfg(c) { return lsSet(CFG_KEY, c); }
+    function setCfg(c) { return lsSet(cfgKey(), c); }
     function ready() {
         const c = getCfg();
         if (!c.baseUrl || !c.model) return false;
@@ -209,8 +262,14 @@
                   note: { type: 'string' },
                   details: { type: 'string' } }, required: ['po'] } },
             { name: 'find_person', description: 'Find people in the system by name, position or site (for Attention or for a message).',
-              parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } }
-        ];
+              parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
+            { name: 'track_invoices', description: 'Where invoices are now and who has them: by PO number, or by vendor name with optional site and year. Each invoice shows its stage (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who has it, since when, and recent steps. When a vendor has many POs it returns counts by year and site instead: then ask the user which year or site.',
+              parameters: { type: 'object', properties: {
+                  po: { type: 'string', description: 'PO number' },
+                  vendor: { type: 'string', description: 'Vendor (supplier) name or part of it' },
+                  site: { type: 'string', description: 'Site number, e.g. 177' },
+                  year: { type: 'string', description: 'PO year, e.g. 2025' } } } }
+        ].filter((t) => isSuper() || SUPER_ONLY.indexOf(t.name) === -1);
     }
 
     function compactTask(r) {
@@ -421,15 +480,170 @@
         return { result: { found: list.length, people: list }, card: { kind: 'people', data: list } };
     }
 
+
+    // ------------------------------------------------------------------
+    // Track an invoice (patch 13) - no AI needed
+    // ------------------------------------------------------------------
+    const STAGES = ['Reception', 'Invoice Entry', 'SRV', 'Approval', 'Accounts', 'Paid'];
+    const STAGE_OF = {
+        'under review': 1, 'in process': 1, 'for summary': 1,
+        'for srv': 2, 'srv done': 2, 'no need srv': 2,
+        'for approval': 3, 'ceo approval': 3, 'report': 3, 'report approval': 3, 'report approved': 3,
+        'with accounts': 4, 'paid': 5
+    };
+    const MAX_POS = 10;
+    function stageOf(status) { const k = norm(status); return Object.prototype.hasOwnProperty.call(STAGE_OF, k) ? STAGE_OF[k] : -1; }
+    function siteNo(v) { return (String(v == null ? '' : v).match(/\d+/) || [''])[0]; }
+    function poYear(rec) { const m = String((rec && (rec['Entry Date'] || rec['Order Date'] || rec.Date)) || '').match(/(\d{4})/); return m ? m[1] : ''; }
+    function poDateValue(rec) {
+        const d = String((rec && (rec['Entry Date'] || rec['Order Date'] || rec.Date)) || '');
+        const m = d.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+        if (m) return Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        const t = Date.parse(d);
+        return Number.isFinite(t) ? t : 0;
+    }
+    function poMap() { try { return (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {}; } catch (_) { return {}; } }
+    async function ensureBase() {
+        try { if (typeof ensureInvoicePOBaseDataFetched === 'function') await withTimeout(ensureInvoicePOBaseDataFetched(false), 12000, 'PO list'); } catch (_) {}
+    }
+    async function ensureJobs() {
+        try { if (typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length) return workdeskSystemEntries; } catch (_) {}
+        // the same loader Active Task uses (cached by the system)
+        try { if (typeof ensureAllEntriesFetched === 'function') await withTimeout(ensureAllEntriesFetched(false, { mode: 'workdesk' }), 15000, 'job list'); } catch (_) {}
+        try { return Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : []; } catch (_) { return []; }
+    }
+    function historyList(inv) {
+        const h = inv && inv.history;
+        const arr = Array.isArray(h) ? h : (h && typeof h === 'object' ? Object.values(h) : []);
+        return arr.filter(Boolean).map((x) => ({ status: String(x.status || x.action || '').trim(), by: String(x.updatedBy || x.by || '').trim(),
+            at: Number(x.timestamp) || Date.parse(x.date || '') || 0 })).filter((x) => x.status).sort((a, b) => a.at - b.at);
+    }
+    function trackInvoice(inv, acc) {
+        const status = String(inv.status || '').trim() || 'Under Review';
+        const hist = historyList(inv);
+        let st = stageOf(status);
+        let side = '';
+        if (st < 0) {
+            side = status;
+            for (let i = hist.length - 1; i >= 0; i--) { const x = stageOf(hist[i].status); if (x >= 0) { st = x; break; } }
+            if (st < 0) st = 1;
+        }
+        let since = 0;
+        for (let i = hist.length - 1; i >= 0; i--) {
+            if (norm(hist[i].status) === norm(status)) since = hist[i].at; else if (since) break;
+        }
+        if (!since) since = Number(inv.lastUpdated || inv.createdAt) || Date.parse(inv.invoiceDate || '') || 0;
+        let holder = String(inv.attention || '').trim();
+        if (!holder && st === 4) holder = 'Accounts';
+        return {
+            kind: 'invoice', invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, stage: STAGES[st], stage_index: st,
+            side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
+            since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
+            value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
+            steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) }))
+        };
+    }
+    function receptionItems(jobs, po, acc) {
+        return (jobs || []).filter((e) => {
+            if (!e || String(e.po || '').trim().toUpperCase() !== po || norm(e.for) !== 'invoice') return false;
+            if (e.convertedToInvoice || e.archived) return false;
+            try { if (typeof isTaskComplete === 'function' && isTaskComplete(e)) return false; } catch (_) {}
+            const r = norm(e.remarks || e.status || 'new entry');
+            return r === 'new entry' || r === 'pending' || r === '';
+        }).map((e) => {
+            const at = Number(e.timestamp) || Date.parse(e.date || '') || 0;
+            return { kind: 'reception', invoice_no: e.ref || '—', status: 'At Reception (job entry)', stage: STAGES[0], stage_index: 0,
+                with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
+                value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
+        });
+    }
+    function countBy(list, key) {
+        const out = {};
+        list.forEach((p) => { const k = p[key] || 'unknown'; out[k] = (out[k] || 0) + 1; });
+        return out;
+    }
+    async function trackSearch(q) {
+        const acc = access();
+        const poQ = cleanPO(q && q.po);
+        const vendor = String((q && q.vendor) || '').trim();
+        const site = siteNo(q && q.site);
+        const year = (String((q && q.year) || '').match(/\d{4}/) || [''])[0];
+        if (!poQ && !vendor) return { mode: 'error', message: 'Type a PO number or a vendor name.' };
+        if (!acc.allSites && !acc.sites.length) return { mode: 'error', message: 'Your account has no site, so there is nothing to show. Ask Irwin to add your site.' };
+        await ensureBase();
+        const map = poMap();
+        let list = [];
+        if (poQ) {
+            list = [{ po: poQ, rec: map[poQ] || null }];
+        } else {
+            const words = norm(vendor).split(/\s+/).filter((w) => w.length > 1);
+            Object.keys(map).forEach((k) => {
+                const r = map[k] || {};
+                const name = norm(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '');
+                if (name && words.length && words.every((w) => name.includes(w))) list.push({ po: String(k).toUpperCase(), rec: r });
+            });
+        }
+        list = list.map((p) => {
+            const r = p.rec || {};
+            return { po: p.po, known: !!p.rec, vendor: String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || ''), siteLabel: String(r['Project ID'] || r.Project || ''),
+                site: siteNo(r['Project ID'] || r.Project || ''), year: poYear(r), when: poDateValue(r), poValue: num(r.Amount || r['PO Amount'] || r['PO Value']) };
+        });
+        if (poQ) {
+            const p = list[0];
+            if (!acc.allSites) {
+                if (!p.known) return { mode: 'error', message: 'PO ' + poQ + ' is not in the PO list, so its site cannot be checked.' };
+                if (acc.sites.indexOf(p.site) === -1) return { mode: 'error', message: 'PO ' + poQ + ' belongs to site ' + (p.site || '?') + '. You can track invoices for your site' + (acc.sites.length > 1 ? 's' : '') + ' only: ' + acc.sites.join(', ') + '.' };
+            }
+        } else {
+            const before = list.length;
+            if (!acc.allSites) list = list.filter((p) => acc.sites.indexOf(p.site) !== -1);
+            if (!list.length) return { mode: 'none', message: before ? 'This vendor has no POs for your site(s).' : 'No vendor found matching "' + vendor + '".' };
+        }
+        if (site) list = list.filter((p) => p.site === site);
+        if (year) list = list.filter((p) => p.year === year);
+        if (!list.length) return { mode: 'none', message: 'Nothing matches that site / year.' };
+        list.sort((a, b) => (b.when || 0) - (a.when || 0));
+        const vendorLabel = poQ ? (list[0].vendor || '') : (list[0].vendor || vendor);
+        if (!poQ && list.length > MAX_POS && !(site && year)) {
+            return { mode: 'summary', vendor: vendorLabel, total: list.length, by_year: countBy(list, 'year'), by_site: countBy(list, 'siteLabel'),
+                query: { vendor: vendor, site: site, year: year },
+                ask: 'Too many to show at once. Ask which year and/or site.' };
+        }
+        const shown = list.slice(0, MAX_POS);
+        const jobs = await ensureJobs();
+        const pos = await Promise.all(shown.map(async (p) => {
+            let invMap = {};
+            try { invMap = await poInvoices(p.po); } catch (_) { invMap = {}; }
+            const invs = Object.keys(invMap || {}).map((k) => invMap[k] || {})
+                .sort((a, b) => String(a.invEntryID || '').localeCompare(String(b.invEntryID || ''), undefined, { numeric: true }));
+            const items = receptionItems(jobs, p.po, acc).concat(invs.map((inv) => trackInvoice(inv, acc)));
+            return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
+                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items };
+        }));
+        return { mode: 'pos', vendor: vendorLabel, total: list.length, shown: shown.length, more: list.length > shown.length ? list.length - shown.length : undefined,
+            query: { po: poQ, vendor: vendor, site: site, year: year }, pos: pos };
+    }
+    function trackForAI(r) {
+        if (r.mode !== 'pos') return r;
+        return Object.assign({}, r, { pos: r.pos.map((p) => Object.assign({}, p, { items: p.items.map((i) => Object.assign({}, i, { steps: i.steps && i.steps.length ? i.steps.slice(-3) : undefined })) })) });
+    }
+    async function toolTrack(args) {
+        const r = await trackSearch(args || {});
+        return { result: trackForAI(r), card: { kind: 'track', data: r } };
+    }
+
     const RUN = {
         get_brief: toolBrief,
         list_my_tasks: toolList,
         find_po: toolFindPO,
         open_po: toolOpenPO,
         fill_invoice_form: toolFill,
-        find_person: toolPerson
+        find_person: toolPerson,
+        track_invoices: toolTrack
     };
+    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form'];
     async function runTool(name, args) {
+        if (SUPER_ONLY.indexOf(name) !== -1 && !isSuper()) return { result: { error: 'This job is only for the Super Admin.' } };
         const fn = RUN[name];
         if (!fn) return { result: { error: 'Unknown job: ' + name } };
         try { return await fn(args || {}); }
@@ -451,8 +665,10 @@
             'Money is QAR with 2 decimals. Dates look like 08-Oct-2026.',
             'You cannot save, approve, delete or send anything. To prepare a new invoice use fill_invoice_form, then tell the user to check the form and press Add.',
             'For a message or reminder, write it ready to copy: short, polite, with the PO/invoice facts from the tools. Do not invent phone numbers or emails.',
-            'If something is not found, say so plainly and suggest the next step.'
-        ].join('\n');
+            'If something is not found, say so plainly and suggest the next step.',
+            'To answer where an invoice is, who has it or what happened to it, use track_invoices. If it returns counts by year and site, ask the user to choose before going further.',
+            isSuper() ? '' : 'This user can only look things up: never offer to create, change or open invoices for them.'
+        ].filter(Boolean).join('\n');
     }
 
     async function callBrain(messages, withTools, opts) {
@@ -501,7 +717,12 @@
     async function ask(userText, opts) {
         const text = String(userText || '').trim();
         if (!text || state.busy) return;
-        if (!ready()) { addUser(text); addNote('Let\'s set me up first: it takes 2 minutes and is free.', 'setup'); showView('setup'); return; }
+        if (!ready()) {
+            addUser(text);
+            addNote(isSuper() ? 'Let\'s set me up first: it takes 2 minutes and is free.' : 'To ask in plain words, add your own free key in Setup (2 minutes). Tracking an invoice works without it.', 'setup');
+            showView('setup');
+            return;
+        }
         state.busy = true;
         setBusy(true);
         if (!(opts && opts.silentUser)) addUser(text);
@@ -558,8 +779,16 @@
     // ------------------------------------------------------------------
     // Skills: replay saved steps without the AI
     // ------------------------------------------------------------------
-    function skills() { const s = lsGet(SKILLS_KEY, []); return Array.isArray(s) ? s : []; }
-    function saveSkills(list) { lsSet(SKILLS_KEY, list); syncSkillsUp(list); }
+    function skillsKey() { return SKILLS_KEY + ':' + userSlug(); }
+    function skills() {
+        let s = lsGet(skillsKey(), null);
+        if (!s && isSuper()) {
+            const old = lsGet(SKILLS_KEY, null);
+            if (Array.isArray(old)) { lsSet(skillsKey(), old); try { localStorage.removeItem(SKILLS_KEY); } catch (_) {} s = old; }
+        }
+        return Array.isArray(s) ? s : [];
+    }
+    function saveSkills(list) { lsSet(skillsKey(), list); syncSkillsUp(list); }
     function skillsRef() {
         try {
             if (typeof db === 'undefined' || !db || !db.ref) return null;
@@ -585,7 +814,7 @@
                 const local = skills();
                 const byName = new Map(local.map((s) => [norm(s.name), s]));
                 remote.forEach((s) => { if (s && s.name && !byName.has(norm(s.name))) byName.set(norm(s.name), s); });
-                lsSet(SKILLS_KEY, Array.from(byName.values()));
+                lsSet(skillsKey(), Array.from(byName.values()));
                 if (state.view === 'skills') renderSkills();
             }).catch(() => {});
         } catch (_) {}
@@ -655,6 +884,7 @@
             '<header class="iba-ai-head">' +
               '<span class="iba-ai-mark" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></span>' +
               '<div class="iba-ai-title"><strong>IBA Assistant</strong><small id="iba-ai-brain"></small></div>' +
+              '<button type="button" class="iba-ai-icon" data-ai="track" title="Track an invoice"><i class="fa-solid fa-route"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="skills" title="Skills"><i class="fa-solid fa-bolt"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="setup" title="Setup"><i class="fa-solid fa-gear"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="new" title="New chat"><i class="fa-solid fa-rotate-left"></i></button>' +
@@ -663,10 +893,22 @@
             '<div class="iba-ai-view" data-view="chat"><div class="iba-ai-log" id="iba-ai-log" aria-live="polite"></div></div>' +
             '<div class="iba-ai-view" data-view="skills" hidden><div class="iba-ai-pane" id="iba-ai-skills"></div></div>' +
             '<div class="iba-ai-view" data-view="setup" hidden><div class="iba-ai-pane" id="iba-ai-setup"></div></div>' +
+            '<div class="iba-ai-view" data-view="track" hidden><div class="iba-ai-pane" id="iba-ai-track">' +
+              '<h3><i class="fa-solid fa-route"></i> Track an invoice</h3>' +
+              '<p class="iba-ai-help">Type a PO number, or a vendor name. Add a site or year to narrow it down. This does not use the AI.</p>' +
+              '<form class="iba-ai-track-form" id="iba-ai-track-form" autocomplete="off">' +
+                '<input id="iba-ai-track-q" type="text" placeholder="PO number or vendor"/>' +
+                '<input id="iba-ai-track-site" type="text" inputmode="numeric" placeholder="Site"/>' +
+                '<input id="iba-ai-track-year" type="text" inputmode="numeric" placeholder="Year"/>' +
+                '<button type="submit" class="iba-ai-btn is-main"><i class="fa-solid fa-magnifying-glass"></i> Track</button>' +
+              '</form>' +
+              '<div class="iba-ai-track-out" id="iba-ai-track-out"></div>' +
+            '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
               '<button type="button" data-chip="What is waiting for me?"><i class="fa-solid fa-sun"></i> What\'s waiting?</button>' +
-              '<button type="button" data-chip-fill="Show PO "><i class="fa-solid fa-magnifying-glass"></i> Find PO</button>' +
-              '<button type="button" data-chip-fill="New invoice for PO "><i class="fa-solid fa-file-circle-plus"></i> New invoice</button>' +
+              '<button type="button" data-view-go="track"><i class="fa-solid fa-route"></i> Track invoice</button>' +
+              '<button type="button" data-chip-fill="Show PO " data-super-only><i class="fa-solid fa-magnifying-glass"></i> Find PO</button>' +
+              '<button type="button" data-chip-fill="New invoice for PO " data-super-only><i class="fa-solid fa-file-circle-plus"></i> New invoice</button>' +
               '<button type="button" data-chip-fill="Draft a reminder to "><i class="fa-solid fa-pen-nib"></i> Draft a message</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
@@ -686,6 +928,12 @@
             autoSize(t);
             ask(v);
         });
+        $('iba-ai-track-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const q = String($('iba-ai-track-q').value || '').trim();
+            const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
+            runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q, site: $('iba-ai-track-site').value, year: $('iba-ai-track-year').value }, $('iba-ai-track-out'));
+        });
         const ta = $('iba-ai-text');
         ta.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('iba-ai-form').requestSubmit ? $('iba-ai-form').requestSubmit() : $('iba-ai-form').dispatchEvent(new Event('submit', { cancelable: true })); }
@@ -702,6 +950,7 @@
                 toggle(true);
                 if (b.dataset.then === 'brief') { showView('chat'); runDirect('get_brief', {}); }
                 if (b.dataset.then === 'setup') showView('setup');
+                if (b.dataset.then === 'track') showView('track');
             }
             else hideBubble();
         });
@@ -719,7 +968,8 @@
             hideBubble();
             $('iba-ai-brain').textContent = ready() ? brainLabel() : 'Not set up yet';
             syncSkillsDown();
-            if (!ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) showView('setup');
+            document.querySelectorAll('#iba-ai-panel [data-super-only]').forEach((el) => { el.hidden = !isSuper(); });
+            if (!ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) showView(isSuper() ? 'setup' : 'track');
             setTimeout(() => { const t = $('iba-ai-text'); if (t && state.view === 'chat') t.focus(); }, 30);
         }
     }
@@ -741,7 +991,19 @@
         const act = b.dataset.ai;
         if (act === 'close') return toggle(false);
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
-        if (act === 'skills' || act === 'setup') return showView(state.view === act ? 'chat' : act);
+        if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? 'chat' : act);
+        if (b.dataset.viewGo) return showView(b.dataset.viewGo);
+        if (b.dataset.track) {
+            let q = {};
+            try { q = JSON.parse(b.dataset.track); } catch (_) {}
+            const out = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : null;
+            return runTrack(q, out);
+        }
+        if (b.dataset.trkHist !== undefined) {
+            const item = b.closest('.iba-ai-trk-item');
+            if (item) item.classList.toggle('show-steps');
+            return;
+        }
         if (b.dataset.chip) { showView('chat'); return ask(b.dataset.chip); }
         if (b.dataset.chipFill) {
             showView('chat');
@@ -768,6 +1030,24 @@
             return renderSkills();
         }
         if (b.dataset.showForm !== undefined) { peek('Check the form, then press Add.'); return; }
+    }
+
+    async function runTrack(q, out) {
+        if (state.busy) return;
+        state.busy = true;
+        if (out) out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        else setBusy(true);
+        try {
+            const r = await trackSearch(q || {});
+            if (out) { out.innerHTML = ''; addCard({ kind: 'track', data: r }, out); }
+            else addCard({ kind: 'track', data: r });
+        } catch (err) {
+            if (out) out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+            else addError(err);
+        } finally {
+            state.busy = false;
+            if (!out) setBusy(false);
+        }
     }
 
     async function runDirect(tool, args) {
@@ -873,7 +1153,45 @@
         const tone = days >= 30 ? 'critical' : days >= 8 ? 'alert' : days >= 3 ? 'watch' : 'fresh';
         return '<span class="iba-ai-age is-' + tone + '">' + days + 'd</span>';
     }
-    function addCard(card) {
+    const STAGE_SHORT = ['Reception', 'Entry', 'SRV', 'Approval', 'Accounts', 'Paid'];
+    function trackQueryAttr(base, extra) { return esc(JSON.stringify(Object.assign({}, base || {}, extra || {}))); }
+    function trackHtml(r) {
+        if (!r || r.mode === 'error') return '<div class="iba-ai-card-head is-bad"><i class="fa-solid fa-circle-exclamation"></i> ' + esc((r && r.message) || 'Something went wrong.') + '</div>';
+        if (r.mode === 'none') return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.message) + '</div>';
+        if (r.mode === 'summary') {
+            const base = r.query || {};
+            const years = Object.keys(r.by_year || {}).sort().reverse();
+            const sites = Object.keys(r.by_site || {}).sort();
+            return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.vendor) + ' · ' + esc(r.total) + ' POs</div>' +
+                '<p class="iba-ai-foot">That is a lot. Pick a year or a site to narrow it down:</p>' +
+                '<div class="iba-ai-sub">Year</div><div class="iba-ai-chiprow">' + years.map((y) =>
+                    '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(base, { year: y === 'unknown' ? '' : y }) + '">' + esc(y) + ' <b>' + esc(r.by_year[y]) + '</b></button>').join('') + '</div>' +
+                '<div class="iba-ai-sub">Site</div><div class="iba-ai-chiprow">' + sites.map((st) =>
+                    '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(base, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
+        }
+        let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.vendor ? r.vendor + ' · ' : '') + esc(r.total) + ' PO' + (r.total === 1 ? '' : 's') + '</div>';
+        if (r.more) h += '<p class="iba-ai-foot">Showing the ' + esc(r.shown) + ' newest; ' + esc(r.more) + ' more. Add a site or year to narrow it down.</p>';
+        r.pos.forEach((p) => {
+            h += '<div class="iba-ai-trk-po"><div class="iba-ai-trk-po-head"><b>PO ' + esc(p.po) + '</b><span>' + esc([p.vendor, p.site, p.year].filter(Boolean).join(' · ')) + '</span>' +
+                (p.po_value ? '<span class="iba-ai-trk-val">QAR ' + esc(p.po_value) + '</span>' : '') + '</div>';
+            if (!p.items.length) h += '<p class="iba-ai-empty">No invoice received yet for this PO.</p>';
+            p.items.forEach((it) => {
+                const side = !!it.side_status;
+                const now = it.side_status || it.status;
+                const who = [it.with ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? 'since ' + it.since : ''].filter(Boolean).join(' · ');
+                h += '<div class="iba-ai-trk-item' + (side ? ' is-side' : '') + '">' +
+                    '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + '</strong><small>' + esc(who) + '</small></span>' +
+                    (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
+                    '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + (i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"><span></span>' + lbl + '</li>').join('') + '</ol>' +
+                    (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
+                        '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
+                    '</div>';
+            });
+            h += '</div>';
+        });
+        return h;
+    }
+    function addCard(card, target) {
         const d = document.createElement('div');
         d.className = 'iba-ai-card is-' + card.kind;
         const x = card.data || {};
@@ -930,7 +1248,10 @@
                 '<li><span class="iba-ai-grow">' + esc(p.name) + '<small>' + esc([p.position, p.site].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' : '<p class="iba-ai-empty">Nobody found.</p>');
         } else if (card.kind === 'action') {
             d.innerHTML = '<div class="iba-ai-card-head' + (x.ok ? '' : ' is-bad') + '"><i class="fa-solid ' + esc(x.icon || 'fa-check') + '"></i> ' + esc(x.text) + '</div>';
+        } else if (card.kind === 'track') {
+            d.innerHTML = trackHtml(x);
         }
+        if (target) { target.appendChild(d); return d; }
         return put(d);
     }
 
@@ -977,10 +1298,13 @@
             '<label class="iba-ai-field" id="iba-ai-key-row"' + (b.needsKey ? '' : ' hidden') + '><span>API key</span><input id="iba-ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the key here" value="' + esc(c.key) + '"/></label>' +
             '<label class="iba-ai-field"><span>Model</span><input id="iba-ai-model" type="text" spellcheck="false" value="' + esc(c.model) + '"/></label>' +
             '<label class="iba-ai-field"><span>Address</span><input id="iba-ai-url" type="text" spellcheck="false" value="' + esc(c.baseUrl) + '"/></label>' +
+            (isSuper() ? '<label class="iba-ai-field"><span>Who can use the assistant</span><select id="iba-ai-aud">' +
+                '<option value="everyone"' + (audience !== 'me' ? ' selected' : '') + '>Everyone (each with their own key; tracking needs no key)</option>' +
+                '<option value="me"' + (audience === 'me' ? ' selected' : '') + '>Only me</option></select></label>' : '') +
             '<div class="iba-ai-setup-actions"><button type="button" class="iba-ai-btn is-main" id="iba-ai-save"><i class="fa-solid fa-floppy-disk"></i> Save</button>' +
             '<button type="button" class="iba-ai-btn" id="iba-ai-test"><i class="fa-solid fa-plug-circle-check"></i> Test</button></div>' +
             '<p class="iba-ai-status" id="iba-ai-setup-status"></p>' +
-            '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> The key stays only in this browser. It is not saved in the system or in Firebase. ' +
+            '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> This key is yours: it stays only in this browser, for your account. It is not saved in the system or in Firebase, and nobody else uses it. ' +
             'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>';
         const pick = $('iba-ai-brain-pick');
         pick.addEventListener('change', () => {
@@ -988,7 +1312,7 @@
             $('iba-ai-model').value = nb.model;
             $('iba-ai-url').value = nb.baseUrl;
             $('iba-ai-key-row').hidden = !nb.needsKey;
-            const saved = lsGet(CFG_KEY, {}) || {};
+            const saved = lsGet(cfgKey(), {}) || {};
             $('iba-ai-key').value = saved.brain === pick.value ? (saved.key || '') : '';
             $('iba-ai-key-help').innerHTML = esc(nb.keyHelp) + (nb.keyUrl ? ' <a href="' + esc(nb.keyUrl) + '" target="_blank" rel="noopener">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : '');
         });
@@ -1001,6 +1325,15 @@
         };
         $('iba-ai-save').addEventListener('click', () => {
             save();
+            const aud = $('iba-ai-aud');
+            if (aud && isSuper() && aud.value !== (audience || 'everyone')) {
+                const ref = settingsRef();
+                audience = aud.value;
+                if (ref) ref.set(aud.value).catch(() => {
+                    const st2 = $('iba-ai-setup-status');
+                    if (st2) { st2.className = 'iba-ai-status is-bad'; st2.textContent = 'Could not save "Who can use the assistant" (Firebase rules). See PATCH.txt.'; }
+                });
+            }
             const st = $('iba-ai-setup-status');
             st.className = 'iba-ai-status ' + (ready() ? 'is-ok' : 'is-bad');
             st.textContent = ready() ? 'Saved. Press Test, or go back and ask me something.' : 'Saved, but the key or model is still missing.';
@@ -1027,8 +1360,9 @@
     function greetIfEmpty(force) {
         const l = log();
         if (!l || (l.children.length && !force)) return;
-        addBot(greetingWord() + ', ' + firstName() + '. How can I help?\n' +
-            '- "What\'s waiting for me?"\n- "Show PO 12345"\n- "New invoice for PO 12345: B-300, 5,000, For SRV to Bob"\n- "Draft a reminder to Bob about PO 12345"', {});
+        addBot(greetingWord() + ', ' + firstName() + '. How can I help?\n' + (isSuper()
+            ? '- "What\'s waiting for me?"\n- "Show PO 12345"\n- "Where is the Al Noor invoice for site 177, 2025?"\n- "New invoice for PO 12345: B-300, 5,000, For SRV to Bob"\n- "Draft a reminder to Bob about PO 12345"'
+            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nTo track an invoice without the AI, use the route button above.'), {});
         const last = l.lastElementChild;
         if (last) { const t = last.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
     }
@@ -1066,9 +1400,10 @@
                   (oldest && oldest.po ? ' Oldest: PO ' + esc(oldest.po) + (daysSince(oldest.at) !== null ? ' · ' + daysSince(oldest.at) + ' days' : '') + '.' : '')
                 : 'Nothing is waiting for you right now.';
             const setup = !ready();
+            const track = setup && !isSuper();
             showBubble('<i class="fa-solid fa-wand-magic-sparkles"></i><div class="iba-ai-bubble-text"><strong>' + esc(greetingWord()) + ', ' + esc(firstName()) + '.</strong> ' + line +
-                (setup ? '<br><small>Your assistant is ready to set up (free, 2 minutes).</small>' : '') + '</div>' +
-                '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="' + (setup ? 'setup' : 'brief') + '">' + (setup ? 'Set up' : 'Open brief') + '</button>' +
+                (track ? '<br><small>New: ask the assistant where any invoice is, no setup needed.</small>' : setup ? '<br><small>Your assistant is ready to set up (free, 2 minutes).</small>' : '') + '</div>' +
+                '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="' + (track ? 'track' : setup ? 'setup' : 'brief') + '">' + (track ? 'Track invoice' : setup ? 'Set up' : 'Open brief') + '</button>' +
                 '<button type="button" data-bubble="x" title="Dismiss">×</button></div>', 20000);
         };
         setTimeout(tick, 4000);
