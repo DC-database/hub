@@ -743,7 +743,77 @@
         };
     }
 
-    async function collectCloseoutRows() {
+    // 14.0.0 patch 10: shared close-out pointers (read only)
+    let allIndexReadAt = 0;
+    let allIndexPointers = [];
+    function pointerFromIndex(id, v) {
+        if (!v || typeof v !== 'object') return null;
+        const poNumber = String(v.poNumber || '').trim().toUpperCase();
+        const invoiceKey = String(v.invoiceKey || '').trim();
+        if (!poNumber || !invoiceKey) return null;
+        return Object.assign({}, v, {
+            poNumber,
+            invoiceKey,
+            waitingSite: !!v.waitingSite,
+            waitingHo: !!v.waitingHo
+        });
+    }
+    function pointerFromTask(id, t) {
+        if (!t || typeof t !== 'object') return null;
+        if (String(t.status || '').trim().toLowerCase() !== STATUS_CLOSEOUT.toLowerCase()) return null;
+        const poNumber = String(t.originalPO || t.po || '').trim().toUpperCase();
+        const invoiceKey = String(t.originalKey || t.invoiceKey || t.key || id || '').trim();
+        if (!poNumber || !invoiceKey) return null;
+        return {
+            poNumber,
+            invoiceKey,
+            site: String(t.site || '').trim(),
+            vendor: String(t.vendorName || '').trim(),
+            invNumber: String(t.ref || t.invNumber || '').trim(),
+            attention: String(t.attention || '').trim(),
+            waitingSite: true,
+            waitingHo: false
+        };
+    }
+    async function readRemoteCloseoutPointers(forceFetch) {
+        const out = [];
+        if (typeof invoiceDb === 'undefined' || !invoiceDb) return out;
+        try {
+            const snap = await withTimeout(invoiceDb.ref(INDEX_PATH).once('value'), 5000);
+            const val = snap.val() || {};
+            Object.keys(val).forEach((id) => {
+                const row = pointerFromIndex(id, val[id]);
+                if (row) out.push(row);
+            });
+        } catch (err) {
+            console.warn('PO Close Out: shared list could not be read.', err);
+        }
+        // Waiting-at-Site invoices also sit in the shared task list with the
+        // status "PO Close Out". Read at most every 10 minutes to keep
+        // downloads low; every row is still checked against its invoice.
+        const now = Date.now();
+        if (!allIndexReadAt || now - allIndexReadAt > 10 * 60 * 1000) {
+            try {
+                const snap = await withTimeout(
+                    invoiceDb.ref('invoice_tasks_by_user/All').orderByChild('status').equalTo(STATUS_CLOSEOUT).once('value'),
+                    6000
+                );
+                allIndexReadAt = now;
+                const val = snap.val() || {};
+                allIndexPointers = [];
+                Object.keys(val).forEach((id) => {
+                    const row = pointerFromTask(id, val[id]);
+                    if (row) allIndexPointers.push(row);
+                });
+            } catch (err) {
+                console.warn('PO Close Out: shared task list could not be read.', err);
+            }
+        }
+        allIndexPointers.forEach((row) => out.push(Object.assign({}, row)));
+        return out;
+    }
+
+    async function collectCloseoutRows(forceFetch) {
         const merged = new Map();
         const add = (row) => {
             if (!row || !row.poNumber || !row.invoiceKey) return;
@@ -753,6 +823,15 @@
         };
         loadLocalQueue().forEach(add);
         rowsFromCache().forEach(add);
+        // 14.0.0 patch 10: the list was empty on any other browser. Sends and
+        // Site answers are saved to the shared close-out list in Firebase
+        // (POCloseOutHO), but only this browser's own copy and the full
+        // invoice cache were read. Read the shared list too (small), and
+        // invoices still waiting at Site from the shared task list.
+        (await readRemoteCloseoutPointers(forceFetch)).forEach((row) => {
+            const key = indexKey(row.poNumber, row.invoiceKey);
+            if (!merged.has(key)) add(row);
+        });
 
         const pointers = Array.from(merged.values());
         await Promise.all(pointers.map(async (row) => {
@@ -969,7 +1048,7 @@
         listEl.innerHTML = '<p style="color:#64748b;">Loading PO Close Out list...</p>';
         let rows = [];
         try {
-            rows = await collectCloseoutRows();
+            rows = await collectCloseoutRows(!!forceFetch);
         } catch (err) {
             console.error(err);
             listEl.innerHTML = '<p style="color:#b45309;">Could not load the close-out queue.</p>';
@@ -1034,6 +1113,12 @@
                     </div>
                 </div>`;
         }).join('');
+    };
+
+    // 14.0.0 patch 12: read-only list for the IBA Assistant (Super Admin only)
+    window.poCloseoutCollectRows = async function () {
+        if (!isIrwinSuperAdmin()) return [];
+        return collectCloseoutRows(false);
     };
 
     window.markPOCloseOutHoDone = async function (poNumber, invoiceKey) {

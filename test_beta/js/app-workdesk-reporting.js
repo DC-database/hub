@@ -567,21 +567,54 @@ function renderReportingTable(entries) {
     wdMarkJobRecordFadeEdges();
 }
 
+// 14.0.0 patch 8: same result as before (first / last visible cell of every
+// row gets the fade edge), but much lighter. The visible columns are read once
+// from one row instead of from every cell of every row, rows that already
+// carry the right marks are left alone, nothing runs while Job Records is not
+// on screen, and body class changes are handled at most once per frame.
+// Before, every body class change (opening a popup, hovering the side panel)
+// re-measured every cell, even on other pages.
 function wdMarkJobRecordFadeEdges() {
     const table = document.getElementById('job-records-table');
-    if (!table) return;
-    table.querySelectorAll('tbody tr').forEach((tr) => {
-        const cells = Array.from(tr.children).filter((td) => td.tagName === 'TD' && getComputedStyle(td).display !== 'none');
-        Array.from(tr.children).forEach((td) => td.classList.remove('wd-fade-left', 'wd-fade-right'));
-        if (!cells.length) return;
-        cells[0].classList.add('wd-fade-left');
-        cells[cells.length - 1].classList.add('wd-fade-right');
-    });
+    if (!table || !table.offsetParent) return;
+    const rows = table.tBodies && table.tBodies[0] ? table.tBodies[0].rows : table.querySelectorAll('tbody tr');
+    if (!rows || !rows.length) return;
+    const visibleIndexes = (tr) => {
+        const out = [];
+        Array.from(tr.children).forEach((td, i) => {
+            if (td.tagName === 'TD' && getComputedStyle(td).display !== 'none') out.push(i);
+        });
+        return out;
+    };
+    // Rows of the same shape share the same visible columns; measure each shape once.
+    const shapeCache = new Map();
+    for (let r = 0; r < rows.length; r++) {
+        const tr = rows[r];
+        const cells = tr.children;
+        if (!cells.length) continue;
+        const shape = cells.length + '|' + (cells[0].colSpan || 1);
+        let vis = shapeCache.get(shape);
+        if (!vis) { vis = visibleIndexes(tr); shapeCache.set(shape, vis); }
+        const first = vis.length ? vis[0] : -1;
+        const last = vis.length ? vis[vis.length - 1] : -1;
+        for (let c = 0; c < cells.length; c++) {
+            const td = cells[c];
+            const wantLeft = c === first;
+            const wantRight = c === last;
+            if (td.classList.contains('wd-fade-left') !== wantLeft) td.classList.toggle('wd-fade-left', wantLeft);
+            if (td.classList.contains('wd-fade-right') !== wantRight) td.classList.toggle('wd-fade-right', wantRight);
+        }
+    }
 }
 if (!window.__wdFadeEdgeWatch) {
     window.__wdFadeEdgeWatch = true;
+    let wdFadeEdgeFrame = 0;
     new MutationObserver(() => {
-        if (typeof wdMarkJobRecordFadeEdges === 'function') wdMarkJobRecordFadeEdges();
+        if (wdFadeEdgeFrame) return;
+        wdFadeEdgeFrame = requestAnimationFrame(() => {
+            wdFadeEdgeFrame = 0;
+            if (typeof wdMarkJobRecordFadeEdges === 'function') wdMarkJobRecordFadeEdges();
+        });
     }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 

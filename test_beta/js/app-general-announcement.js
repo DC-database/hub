@@ -555,8 +555,12 @@
     syncAdminPanel();
     try {
       sidebarObserver = new MutationObserver(function () {
+        // 14.0.0 patch 8: check the cheap conditions first. Looking for the
+        // visible side panel measures the page, and this runs after every
+        // change anywhere on the page; with no notice showing it is not needed.
+        if (poppedOutFromSidebar || !activeConfig()) return;
         const sidebar = findActiveSidebar();
-        if (sidebar && activeConfig() && !poppedOutFromSidebar) {
+        if (sidebar) {
           // While the notice is opened from the sidebar, it lives on document.body
           // as a centered modal. Do not let the sidebar observer immediately
           // pull it back into the sidebar.

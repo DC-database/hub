@@ -1,18 +1,34 @@
 // IBA 12.9.3 shell: analog clock + date, unified nav, dashboard left-stack focus.
+// (14.0.0 patch 8: previous-version links)
 (function () {
   const PHOTO_BASE = "https://raw.githubusercontent.com/DC-database/hub/main/photo/";
-  const PHOTO_FILES = ["a.jpg","b.jpg","c.jpg","d.jpg","e.jpg","f.jpg","g.jpg","h.jpg","i.jpg","j.jpg","k.jpg","l.jpg","m.jpg"];
+  // 14.0.0 patch 7: the photo list is read from the GitHub "photo" folder
+  // itself (see loadPhotoList), so a photo added there shows up in Settings
+  // without a code change. This list is only the fallback when GitHub cannot
+  // be asked (offline / rate limit).
+  const PHOTO_FILES = ["a.jpg","b.jpg","c.jpg","d.jpg","e.jpg","f.jpg","g.jpg","h.jpg","i.jpg","iba.jpg","j.jpg","job.jpg","k.jpg","l.jpg","m.jpg","office1.jpg","office2.jpg","office3.jpg","office4.jpg"];
+  const PHOTO_LIST_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
+  const PHOTO_LIST_CACHE = "iba-photo-list-v1";
+  const PHOTO_LIST_TTL = 6 * 60 * 60 * 1000;
+  const PHOTO_NONE = "none";
   const GROUPS = ["workdesk", "inventory", "invoice", "login"];
+  // phone workspace backgrounds (patch 7): one per side, shared like the rest
+  const PHONE_GROUPS = ["phone-invoice", "phone-inventory"];
+  const ALL_BG_GROUPS = GROUPS.concat(PHONE_GROUPS);
+  const PHONE_FOLLOWS = { "phone-invoice": "invoice", "phone-inventory": "inventory" };
+  const BG_SETTINGS_PATH = "system_settings/shell_backgrounds";
   const DEFAULTS = {
     workdesk: PHOTO_BASE + "a.jpg",
     inventory: PHOTO_BASE + "e.jpg",
     invoice: PHOTO_BASE + "g.jpg",
     login: PHOTO_BASE + "d.jpg"
   };
+  let photoFiles = PHOTO_FILES.slice();
 
   function $(id) { return document.getElementById(id); }
 
   function bgKey(group) { return "iba-shell-bg-" + group; }
+  function bgSettingKey(group) { return String(group).replace(/-/g, "_"); }
 
   function storedBg(group) {
     try {
@@ -23,7 +39,53 @@
         if (legacy) return legacy;
       }
     } catch (_) {}
+    // a phone side with no own choice uses the desktop photo of that area
+    if (PHONE_FOLLOWS[group]) return storedBg(PHONE_FOLLOWS[group]);
     return DEFAULTS[group] || DEFAULTS.workdesk;
+  }
+
+  function naturalSort(list) {
+    return list.slice().sort(function (a, b) {
+      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+    });
+  }
+
+  function cachedPhotoList() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PHOTO_LIST_CACHE) || "null");
+      if (raw && Array.isArray(raw.files) && raw.files.length) return raw;
+    } catch (_) {}
+    return null;
+  }
+
+  // Ask GitHub which photos are in the folder (cached for 6 hours on this
+  // browser). Falls back to the cached / built-in list on any failure.
+  let photoListPromise = null;
+  let photoListFailedAt = 0;
+  function loadPhotoList(force) {
+    const cached = cachedPhotoList();
+    if (cached) photoFiles = cached.files.slice();
+    if (!force && cached && (Date.now() - (cached.at || 0) < PHOTO_LIST_TTL)) return Promise.resolve(photoFiles);
+    if (typeof fetch !== "function") return Promise.resolve(photoFiles);
+    // one question at a time, and after a failed one wait 30 minutes
+    if (photoListPromise) return photoListPromise;
+    if (!force && photoListFailedAt && Date.now() - photoListFailedAt < 30 * 60 * 1000) return Promise.resolve(photoFiles);
+    photoListPromise = fetch(PHOTO_LIST_API, { headers: { "Accept": "application/vnd.github+json" }, cache: "no-store" })
+      .then(function (res) { if (!res.ok) throw new Error("GitHub " + res.status); return res.json(); })
+      .then(function (items) {
+        if (!Array.isArray(items)) throw new Error("no list");
+        const files = naturalSort(items
+          .filter(function (it) { return it && it.type === "file" && /\.(jpe?g|png|webp)$/i.test(String(it.name || "")); })
+          .map(function (it) { return String(it.name); }));
+        if (!files.length) throw new Error("empty");
+        photoFiles = files;
+        photoListFailedAt = 0;
+        try { localStorage.setItem(PHOTO_LIST_CACHE, JSON.stringify({ at: Date.now(), files: files })); } catch (_) {}
+        return photoFiles;
+      })
+      .catch(function () { photoListFailedAt = Date.now(); return photoFiles; })
+      .then(function (list) { photoListPromise = null; return list; });
+    return photoListPromise;
   }
 
   function currentGroup() {
@@ -50,7 +112,16 @@
     document.body.style.backgroundImage = 'url("' + src + '")';
   }
 
+  function notifyBackgrounds() {
+    try { window.dispatchEvent(new CustomEvent("iba:backgrounds-changed")); } catch (_) {}
+  }
+
   function applyGroupBackground(group, url) {
+    if (PHONE_GROUPS.indexOf(group) >= 0) {
+      if (url) { try { localStorage.setItem(bgKey(group), url); } catch (_) {} }
+      notifyBackgrounds();
+      return;
+    }
     const g = GROUPS.indexOf(group) >= 0 ? group : currentGroup();
     if (url) {
       try { localStorage.setItem(bgKey(g), url); } catch (_) {}
@@ -457,6 +528,8 @@
     hero.innerHTML = '<span class="iba-dash-hero-ico"><i class="' + dashSectionIcon((showSection && showSection.id) || "person") + '"></i></span><span class="iba-dash-hero-copy"><small>WELCOME</small><strong></strong><em></em></span>';
     hero.querySelector("strong").textContent = frontLabel;
     hero.querySelector("em").textContent = tag;
+    // 14.0.0 patch 10: the picked area's card stays lit in its own colour
+    hero.setAttribute("data-section", (showSection && showSection.id) || "person");
     cardsBox.innerHTML = "";
     if (showSection) {
       const group = document.createElement("div");
@@ -981,7 +1054,7 @@
         if (typeof showViewFn === "function") showViewFn("workdesk");
         if (typeof showWd === "function") await showWd("wd-settings");
         setTitle("Settings", isIrwin() ? "Super Admin" : "Account");
-        renderBgPicker();
+        renderBgPicker(isIrwin());
         paintOpeningPicker();
         break;
       default:
@@ -1001,26 +1074,101 @@
     const img = row.querySelector(".iba-bg-preview");
     const name = row.querySelector(".iba-bg-filename");
     const select = row.querySelector(".iba-bg-select");
-    if (img) img.src = src;
-    if (name) name.textContent = fileNameFromUrl(src);
-    if (select) select.value = src;
+    const none = src === PHOTO_NONE;
+    if (img) {
+      img.src = none ? "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" : src;
+      img.classList.toggle("is-none", none);
+    }
+    if (name) name.textContent = none ? "Plain dark (no photo)" : fileNameFromUrl(src);
+    if (select) {
+      // a saved photo that is no longer in the folder list still shows
+      if (!none && src && !Array.prototype.some.call(select.options, function (o) { return o.value === src; })) {
+        const opt = document.createElement("option");
+        opt.value = src;
+        opt.textContent = fileNameFromUrl(src);
+        select.appendChild(opt);
+      }
+      select.value = src;
+    }
     row.dataset.pending = src;
   }
 
-  function renderBgPicker() {
-    document.querySelectorAll(".iba-bg-row[data-iba-bg-group]").forEach(function (row) {
-      const group = row.getAttribute("data-iba-bg-group");
-      const select = row.querySelector(".iba-bg-select");
-      if (select && !select.options.length) {
-        PHOTO_FILES.forEach(function (file) {
-          const opt = document.createElement("option");
-          opt.value = PHOTO_BASE + file;
-          opt.textContent = file;
-          select.appendChild(opt);
+  function fillBgOptions(select, group) {
+    const keep = select.value;
+    select.innerHTML = "";
+    if (PHONE_GROUPS.indexOf(group) >= 0) {
+      const plain = document.createElement("option");
+      plain.value = PHOTO_NONE;
+      plain.textContent = "Plain dark (no photo)";
+      select.appendChild(plain);
+    }
+    photoFiles.forEach(function (file) {
+      const opt = document.createElement("option");
+      opt.value = PHOTO_BASE + file;
+      opt.textContent = file;
+      select.appendChild(opt);
+    });
+    if (keep) select.value = keep;
+  }
+
+  function renderBgPicker(askGitHub) {
+    const paint = function () {
+      document.querySelectorAll(".iba-bg-row[data-iba-bg-group]").forEach(function (row) {
+        const group = row.getAttribute("data-iba-bg-group");
+        const select = row.querySelector(".iba-bg-select");
+        if (select) fillBgOptions(select, group);
+        fillBgRow(row, row.dataset.pending && row.dataset.dirty === "1" ? row.dataset.pending : storedBg(group));
+      });
+    };
+    paint();
+    // on the Settings page: refresh the list from GitHub (new photos appear
+    // without a code change)
+    if (askGitHub) loadPhotoList(false).then(paint);
+  }
+
+  // Backgrounds are shared through Firebase like the Opening choice, so the
+  // Super Admin's Save reaches every desktop and phone (before patch 7 it
+  // stayed on the browser where it was saved).
+  function watchBackgroundPref() {
+    try {
+      if (typeof db === "undefined" || !db || typeof db.ref !== "function") return;
+      if (window.__ibaBgWatch) return;
+      window.__ibaBgWatch = true;
+      db.ref(BG_SETTINGS_PATH).on("value", function (snap) {
+        const val = (snap && snap.val()) || {};
+        let changed = false;
+        ALL_BG_GROUPS.forEach(function (g) {
+          const v = val[bgSettingKey(g)];
+          if (typeof v !== "string" || !v) return;
+          if (v !== PHOTO_NONE && !/^https:\/\//i.test(v)) return;
+          try {
+            if (localStorage.getItem(bgKey(g)) !== v) { localStorage.setItem(bgKey(g), v); changed = true; }
+          } catch (_) {}
+        });
+        if (!changed) return;
+        applyBackground();
+        notifyBackgrounds();
+        document.querySelectorAll(".iba-bg-row[data-iba-bg-group]").forEach(function (row) {
+          if (row.dataset.dirty !== "1") fillBgRow(row, storedBg(row.getAttribute("data-iba-bg-group")));
+        });
+      });
+    } catch (_) {}
+  }
+
+  function saveBackgroundPref(group, url, row) {
+    const note = row ? row.querySelector(".iba-bg-note") : null;
+    const say = function (text) { if (note) note.textContent = text; };
+    try {
+      if (typeof db !== "undefined" && db && typeof db.ref === "function") {
+        return db.ref(BG_SETTINGS_PATH + "/" + bgSettingKey(group)).set(url).then(function () {
+          say("Saved for everyone.");
+        }).catch(function () {
+          say("Saved on this browser only (Firebase did not accept it).");
         });
       }
-      fillBgRow(row, storedBg(group));
-    });
+    } catch (_) {}
+    say("Saved on this browser only.");
+    return Promise.resolve();
   }
 
   // 14.0.0 patch 4: five openings (a-e). Unknown values fall back to B as before.
@@ -1174,11 +1322,29 @@
     return el;
   };
 
+  // 14.0.0 patch 8: "Use the previous version" links (login screen, Settings).
+  // On the live site they open https://port.iba.com.qa/invoice-v1/ in the same
+  // tab (one IBA tab at a time). Anywhere else (a test copy) they point to the
+  // invoice-v1 folder next to this one.
+  const OLD_VERSION_URL = "https://port.iba.com.qa/invoice-v1/";
+  function wireOldVersionLinks() {
+    const live = /(^|\.)iba\.com\.qa$/i.test(location.hostname || "");
+    const url = live ? OLD_VERSION_URL : "../invoice-v1/";
+    document.querySelectorAll("a[data-iba-old-version]").forEach(function (a) {
+      a.setAttribute("href", url);
+      a.removeAttribute("target");
+      a.setAttribute("title", "Open the previous version of the IBA system (same data, same login)");
+    });
+    window.IBA_OLD_VERSION_URL = url;
+  }
+
   function bind() {
+    wireOldVersionLinks();
     tickClock();
     setInterval(tickClock, 1000);
     applyBackground();
     watchOpeningPref();
+    watchBackgroundPref();
 
     document.addEventListener("click", function (e) {
       const nav = e.target.closest && e.target.closest("[data-iba-nav]");
@@ -1293,8 +1459,10 @@
         if (e.target.closest(".iba-bg-save")) {
           const url = row.dataset.pending || (select && select.value) || storedBg(group);
           applyGroupBackground(group, url);
+          row.dataset.dirty = "";
           fillBgRow(row, url);
           if (select) select.classList.add("hidden");
+          saveBackgroundPref(group, url, row);
         }
       });
       bgHost.addEventListener("change", function (e) {
@@ -1302,6 +1470,7 @@
         if (!select) return;
         const row = select.closest(".iba-bg-row");
         if (!row) return;
+        row.dataset.dirty = "1";
         fillBgRow(row, select.value);
       });
     }
@@ -1397,6 +1566,8 @@
   window.ibaOpenShellPage = openPage;
   window.ibaShowShell = showShell;
   window.ibaApplyShellBackground = applyBackground;
+  // patch 7: the phone workspace asks for its side's photo ("none" = plain)
+  window.ibaShellBackgroundFor = function (group) { return storedBg(group); };
   window.ibaSyncDashFocus = function () {
     const none = (typeof WD_DASHBOARD_NONE !== "undefined") ? WD_DASHBOARD_NONE : "";
     const selected = (typeof wdActiveDashboardSelectedStatus !== "undefined") ? wdActiveDashboardSelectedStatus : "";

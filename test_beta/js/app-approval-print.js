@@ -1,6 +1,6 @@
 /* ========================================================================
    js/app-approval-print.js — IBA approval print button (Invoice Records)
-   Version 14.0.0-p5
+   Version 14.0.0-p8
 
    14.0.0 patch 5:
    - The approve / reject dialog and the daily approval code
@@ -10,11 +10,15 @@
      an approval decision. The print shows every approval of the invoice
      with its ESN. Older decisions made with a daily code still print with
      that code.
+
+   14.0.0 patch 8:
+   - Watches only the Invoice Management area (not the whole page) and
+     checks the rows at most once per frame. Same buttons, less work.
    ======================================================================== */
 (function () {
     'use strict';
 
-    const MODULE_VERSION = '14.0.0-p5';
+    const MODULE_VERSION = '14.0.0-p8';
     const FINAL_STATUSES = new Set(['Approved', 'Rejected']);
 
     function printButtonForRow(row) {
@@ -46,9 +50,15 @@
 
     function installInvoiceRecordsPrintButtons() {
         const scan = () => document.querySelectorAll('#invoice-management-view tr.nested-invoice-row').forEach(printButtonForRow);
+        let frame = 0;
+        const scanSoon = () => {
+            if (frame) return;
+            frame = requestAnimationFrame(() => { frame = 0; scan(); });
+        };
         scan();
-        const observer = new MutationObserver(scan);
-        observer.observe(document.body, { childList: true, subtree: true });
+        const root = document.getElementById('invoice-management-view') || document.body;
+        const observer = new MutationObserver(scanSoon);
+        observer.observe(root, { childList: true, subtree: true });
         window.addEventListener('iba:approval-decision-saved', scan);
     }
 

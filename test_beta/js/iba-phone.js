@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p6';
+    const VERSION = '14.0.0-p7';
     const STALE_MS = 60 * 1000;
 
     const state = {
@@ -245,9 +245,27 @@
         if (main) main.scrollTop = 0;
     }
 
+    // 14.0.0 patch 7: each side has its own background photo, chosen in
+    // Settings (Shell Backgrounds > Phone). "none" = plain dark.
+    function paintPhoneBg() {
+        const root = $('iba-phone');
+        if (!root) return;
+        let url = '';
+        try {
+            if (typeof window.ibaShellBackgroundFor === 'function') {
+                url = String(window.ibaShellBackgroundFor(state.side === 'inventory' ? 'phone-inventory' : 'phone-invoice') || '');
+            }
+        } catch (_) {}
+        const has = !!url && url !== 'none' && /^https?:\/\//i.test(url);
+        root.classList.toggle('has-photo', has);
+        if (has) root.style.setProperty('--ph-photo', 'url("' + url.replace(/"/g, '%22') + '")');
+        else root.style.removeProperty('--ph-photo');
+    }
+
     function setSide(side) {
         if (!sides().includes(side)) side = sides()[0];
         state.side = side;
+        paintPhoneBg();
         try {
             window.__ibaActiveModule = side === 'inventory' ? 'inventory' : 'invoice';
             document.body.classList.toggle('inventory-mode', side === 'inventory');
@@ -289,6 +307,7 @@
         state.on = true;
         build();
         document.body.classList.add('iba-phone');
+        paintPhoneBg();
         paintHeader();
         // While the lists load, show a neutral "Loading" page (nothing else
         // is opened yet, so no other data is downloaded).
@@ -941,6 +960,7 @@
                 }
             }, 300);
         });
+        window.addEventListener('iba:backgrounds-changed', () => { if (state.on) paintPhoneBg(); });
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState !== 'visible' || !state.on) return;
             if (state.side === 'invoice' && state.tab === 'approve') loadInvoice(false);
