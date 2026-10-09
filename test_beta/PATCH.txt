@@ -1,40 +1,536 @@
-14.0.0 PATCH 6 - Popups, Invoice Records list, readability, hidden scrollbars, phone follows the window
-(cumulative: includes patch 1 + 2 + 3 + 4 + 5)
+14.0.0 PATCH 12 - IBA Assistant (AI personal assistant, first version)
+(cumulative: includes patch 1 to 11)
 
 Version stays 14.0.0. Copy over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-This zip alone gives the full current state (patch 1 to 6).
+This zip alone gives the full current state (patch 1 to 12).
 
-FILES (28 + this note)                      changed in
-  index.html                                  patch 1 + 2 + 3 + 4 + 5 + 6  (?v= tags, popup styles, legend)
-  app.js                                      patch 1 + 2 + 4 + 5
-  css/iba-14-patch.css           NEW          patch 1
-  css/iba-ui.css                 NEW          patch 3 + 4 + 6
-  css/iba-ui-popups.css          NEW          patch 6
-  css/iba-approvals.css          NEW          patch 5
-  css/iba-phone.css              NEW          patch 5 + 6
-  js/iba-approvals.js            NEW          patch 5
-  js/iba-phone.js                NEW          patch 5 + 6
-  js/app-approval-print.js                    patch 5
-  js/app-active-tasks.js                      patch 2 + 3 + 5
-  js/iba-page-surfaces.js        NEW          patch 2
-  js/iba-ui-skin.js              NEW          patch 4 + 6
-  js/iba-shell.js                             patch 3 + 4 + 6
-  js/app-workdesk-dashboard.js                patch 4
-  js/iba-inv-active-job.js                    patch 2 + 4
-  js/app-workdesk-reporting.js                patch 2 + 3
-  js/app-navigation-settings.js               patch 2
-  js/app-modal-navigation-clear.js            patch 2
-  js/app-inventory.js                         patch 1 + 2
-  js/app-im-event-wiring.js                   patch 1 + 2
-  js/materialStock.js                         patch 1
-  js/transferLogic.js                         patch 1 + 6
-  js/app-history-transfer.js                  patch 1
-  js/inventory-pocket.js                      patch 1
-  js/app-invoice-records.js                   patch 1
-  js/app-po-closeout.js                       patch 1
-  js/app-batch-entry-ui.js                    patch 1
+FILES: the 33 files of patch 11, plus 2 new (35 + this note). Changed in patch 12:
+  css/iba-assistant.css          NEW   the assistant's look
+  js/iba-assistant.js            NEW   the assistant
+  js/iba-live-counts.js                items(): what is waiting, for the assistant (memory only)
+  js/app-po-closeout.js                read-only close-out list for the assistant (Super Admin)
+  index.html                           2 new files, ?v= tags
 
-PATCH 6 - WHAT CHANGED   (look only: no data, save, approval or access change)
+PATCH 12 - WHAT CHANGED
+
+  IBA Assistant - your personal assistant inside the system (Super Admin
+  only for now, desktop only; the phone stays as it is)
+
+  - A round gold-edged button at the bottom right opens a chat panel. Ask
+    in plain words (English or Arabic). The gold dot on the button means
+    something is waiting for you.
+  - Every day at sign-in a short greeting: how many tasks and jobs wait,
+    and the oldest PO. "Open brief" shows it without using the AI.
+  - What it can do now:
+      1. Brief / what's waiting - Active Task, Active Job, oldest items
+         (with days waiting), PO Close Out counts. Taken from what the
+         system already has in memory: no new download.
+      2. Find and open a PO - vendor, site, PO value, invoiced, remaining
+         and its invoices. Reads only that one PO. Click a PO number in any
+         answer to open it on Invoice Entry.
+      3. Fill the Invoice Entry form - e.g. "New invoice for PO 1002:
+         B-300, 5,000, For SRV to Bob". It opens the PO and the form and
+         fills Invoice No., value, date, status, Attention (first names
+         work), note. It NEVER saves: the panel steps aside, the Add button
+         glows, you check and press Add. It warns about a duplicate
+         invoice number or an unclear name.
+      4. Draft messages - reminders and follow-ups with the real PO and
+         invoice facts, with a Copy button.
+  - Skills: under an answer press "Save as skill" and give it a name (e.g.
+    "Morning check"). The lightning button lists your skills; Run repeats
+    the same steps WITHOUT the AI (no quota). "Ask AI again" re-asks it.
+    Skills are kept in this browser and copied to a small node in Firebase
+    (iba_assistant/<you>/skills) so they follow you.
+  - The brain: Groq free plan, model openai/gpt-oss-120b (recommended).
+    Brain switch in Setup (gear button): Google Gemini, Ollama on a PC, or
+    any OpenAI-compatible service.
+  - Safety: it cannot save, approve, delete or send anything. The key stays
+    only in your browser (not in the code, not in Firebase). It sends the
+    AI only what a job needs. If the free limit is used up for the minute
+    it waits and tries again by itself.
+
+ONE-TIME SETUP (about 2 minutes, free)
+  1. Open https://console.groq.com and sign in (Google account is fine;
+     no card).
+  2. API Keys > Create API Key > copy it.
+  3. Recommended: Settings > Data Controls > turn on Zero Data Retention.
+  4. In the system press the assistant button > Setup (opens by itself the
+     first time) > paste the key > Save > Test. "Working" means done.
+  If Test says it could not reach Groq while the internet works, Groq may
+  be refusing calls from a web page; then a small free relay (Cloudflare
+  Worker) can be added in the next patch.
+
+WHAT TO CHECK
+  1. Sign in as Irwin: the greeting bubble and the button appear.
+  2. Do the setup above; Test says "Working".
+  3. Try: "What's waiting for me?", "Show PO <a real PO>", "New invoice for
+     PO <PO>: <inv no>, <value>, For SRV to <name>" (then check the form
+     and press Add yourself, or Clear), "Draft a reminder to <name> about
+     PO <PO>".
+  4. Save one answer as a skill and run it from the lightning button.
+  5. Sign in as another user: no assistant button.
+
+CHECKED (patch 12)
+  - assistant test with a stand-in AI: 26/26 - button only for the Super
+    Admin (not other users, not the phone), greeting with counts, setup and
+    Test, key kept in the browser only, AI asked with the 6 jobs, brief
+    card, PO card (reads only that PO), form filled correctly and NOT
+    saved (no write to invoices or task lists), draft with the right name,
+    Copy, skill saved and run with no AI call, free-limit wait and retry,
+    PO click opens Invoice Entry, no script errors; each request to the AI
+    is under 5 KB
+  - all earlier tests again: Attention 44, live counts 15, approvals 9,
+    Active Job at sign-in 13, PO Close Out 9, PO field to Active Jobs 14,
+    15 pages on normal and large data, phone, resize, frozen headers 24/24:
+    all pass; page speed same as patch 11
+  - not tested against the real Groq service (no internet access from the
+    test machine); the request follows Groq's OpenAI-compatible format
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 11 (included) ====================
+
+PATCH 11 - WHAT CHANGED
+  - the Dashboard notes board (the old cork board) was nearly solid: its
+    dark blue was painted twice on top of each other (about 98%). It is
+    now one layer at about 60%, so the background photo shows through
+    softly. The notes themselves stay solid, so they read the same.
+  - still no blur on the board (it scrolls; a blur made scrolling slower).
+  - look only.
+
+WHAT TO CHECK
+  1. Dashboard: pick a card and a date / site - the board shows the photo
+     behind it softly; notes are easy to read.
+
+CHECKED (patch 11)
+  - board scroll speed same as patch 10
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 10 (included) ====================
+
+PATCH 10 - WHAT CHANGED
+
+  1. Phone login has the new look  (css/iba-ui.css 25.1, index.html)
+  - the phone login still had the old teal gradient, white pill fields and
+    an orange button. It now matches the phone workspace: your login photo
+    under a dark navy shade, the gold IBA mark, a dark glass card with
+    "Welcome / Sign in with your IBA mobile number", dark 52px fields with
+    icons, a teal Login button, then version, "Use the previous version"
+    and www.iba.com.qa.
+  - same fields, same IDs, same login routine. Desktop login unchanged.
+
+  2. Invoice Entry popup: the page behind is clear again
+     (css/iba-ui-popups.css 21.11)
+  - patch 6 gave every popup a dark blurred backdrop, so with Invoice Entry
+    open you could not read the Active Jobs list in the side panel. This
+    popup is see-through again like in Grok 14.0.0: no blur, no dimming.
+    Clicks already went through to the page; now you can see it too. The
+    popup still moves by its title bar and has a deeper shadow so it
+    stands out. Other popups keep their backdrop.
+
+  3. PO typed in the popup also searches the Active Jobs list
+     (js/iba-entry-po-mirror.js)
+  - typing a PO in the popup's "Search PO..." field (or the page's top PO
+    field) types it in the side panel's Active Jobs search too, so the list
+    narrows to that PO. Jobs whose PO matches exactly get a gold edge.
+  - smart parts:
+      * only typing does this. Opening a job from the list, or a search
+        started from a task, does not filter the list, so you can still
+        pick the next job from the full list;
+      * emptying the PO field empties the side search again - but only if
+        it still holds the PO copied there; what you type in the side
+        panel yourself is left alone;
+      * after Add / Update / Clear the cursor goes back to the (empty) PO
+        field as before, and the side panel shows the full list again for
+        the next job. If the field still has a PO, it is selected so the
+        next PO can be typed straight over it. A mouse click keeps the
+        cursor where you clicked.
+  - searching, saving and the Active Jobs rules are not changed.
+
+  4. Active Job count from sign-in  (js/iba-live-counts.js)
+  - why it only showed after opening Active Job: to save downloads, at
+    sign-in only the newest 60 inventory requests were watched; older
+    requests waiting for you were counted only after you opened Active Job
+    once (remembered for 3 days on that browser).
+  - now, when the inventory database has the "remarks" index, the open
+    requests are watched by their step (Pending Source, Pending Admin,
+    Pending, Pending Confirmation, Approved, In Transit). Firebase then
+    sends only open requests, so Active Job is right from sign-in and
+    follows every change live. A tiny check at sign-in (no records, once a
+    week) tells whether the index is there.
+  - without the index everything works as in patch 9 (no extra download).
+  - TO TURN IT ON (one time, Firebase console, project material-8f545 >
+    Realtime Database > Rules): add the index to transfer_entries, e.g.
+
+        "transfer_entries": {
+          ".indexOn": ["remarks"]
+        }
+
+    If transfer_entries already has a block, put the ".indexOn" line
+    inside it. Keep all other rules as they are, then Publish. This only
+    adds an index; it does not change who can read or write.
+
+  5. Batch Entry: summary-note search is short and clear  (css/iba-ui.css 25.3,
+     js/iba-ui-skin.js)
+  - the note box grew to the full page width (an old rule lets it grow).
+    It is now one compact line on the left: "SUMMARY NOTE" label, a 460px
+    note box, Search Note, Clear (now with its word). The open list stays
+    under 320px and scrolls; long notes wrap; the filter line at the top
+    of the list says "Type to filter notes...".
+
+  6. PO Close Out was empty  (js/app-po-closeout.js)
+  - cause: sends to Site and Site answers are saved to a shared close-out
+    list in Firebase (invoice_tasks_by_user/POCloseOutHO), but the page
+    only read the list kept in the same browser and the full invoice
+    cache (usually not loaded, to save downloads). On another browser or
+    computer, or after clearing the browser, it was empty.
+  - now it also reads the shared close-out list (small), and invoices
+    still waiting at Site from the shared task list with status "PO Close
+    Out" (read at most every 10 minutes). Every row is still checked
+    against its invoice, so finished ones do not show. Read only; nothing
+    is written by opening the page.
+  7. PO Close Out search field: magnifying glass instead of the keyboard
+     icon, and the text no longer runs under the icon (css/iba-ui.css 25.4).
+
+  8. Dashboard search: the "No record found. Check the spelling..." note
+     beside the search bar is gone (css/iba-ui.css 25.6).
+
+  9. Dashboard notes and board in the glass style  (css/iba-ui.css 25.7, 25.8)
+  - the brown cork board becomes the same dark glass panel as the rest of
+    the app, with a faint dot grid.
+  - each note is a glass card: a colour strip on top and a small pin in
+    the note's colour (amber pending, rose SRV, violet approval, blue IPC,
+    green report, grey on hold), PO number, status pill, vendor, a clean
+    label / value grid, "Pending for" on its own line coloured by age
+    (green, amber, orange, red), the current note with a touch of the old
+    yellow, current status, chips for person / site / type / group, and
+    the buttons in one row (Forward in teal).
+  - date tabs and site cards in the same glass style; the picked one is
+    gold.
+  - same notes, same order, same buttons; look only.
+
+  10. Dashboard: the area you picked stays lit  (js/iba-shell.js,
+      css/iba-ui.css 25.5)
+  - after picking a card, its area (My Personal, Preliminary, Approval,
+    Finance) moves down in the side panel as the big card. It used to
+    glow once and go dim; now it stays lit in the area's own colour (gold,
+    blue, teal, copper) with an "ACTIVE" tag, so it is always clear which
+    page is open.
+
+  Not in this patch: the AI assistant. It waits for your answers about the
+  computer that would run Ollama (Windows or Mac, memory, graphics card),
+  whether an office PC stays on, and the first 3 to 5 jobs it should do.
+
+WHAT TO CHECK
+  1. Phone: open the system on the phone - new login look; sign in.
+  2. Invoice Entry: search a PO, Add / Edit Invoice - the Active Jobs list
+     behind the popup is readable. Type a PO in the popup's Search PO - the
+     side list narrows to it. Add an invoice - the cursor goes back to
+     Search PO and the side list is full again.
+  3. Batch Entry: the Summary note line is short; open it - the list scrolls.
+  4. PO Close Out (Irwin): the waiting and ready items show on any browser.
+  5. Dashboard: pick a card in each area - the big card in the side panel
+     stays lit in its colour. Pick a site / date - glass board and notes.
+     Search something that does not exist - no message beside the bar.
+  6. After adding the Firebase index (item 4): sign in - Active Job shows
+     right away when something waits for you.
+
+CHECKED (patch 10)
+  - all JS files pass syntax check; CSS braces balanced
+  - new tests: PO field to Active Jobs list 14/14 (typing, clearing, own
+    side search kept, after Add, select on auto focus, click keeps caret);
+    PO Close Out 9/9 (patch 9 showed 0 on the same data; no writes);
+    Active Job at sign-in with index 9/9 (old requests counted, live
+    changes, agrees with the Active Job page, no full download) and
+    without index 4/4 (same as patch 9)
+  - Invoice Entry popup: backdrop clear, clicks reach the side panel
+  - Dashboard: lit card for all four areas; scrolling the notes board is as
+    fast as patch 9 (a blur on the board halved the speed in testing, so
+    the board has no blur)
+  - patch 8/9 tests again: Attention 44, live counts 15, approvals 9,
+    15 pages on normal and large data with 0 script errors and 0
+    misaligned tables, phone, window resize, frozen headers 24/24 at
+    1600x900 and 1366x768: all pass; page speed same as patch 9
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 9 (included) ====================
+
+PATCH 9 - WHAT CHANGED
+
+  Frozen column headers  (css/iba-ui-tables.css 23.4, js/iba-ui-skin.js)
+  - in every list, the row with the column names now stays at the top of
+    the list while you scroll, so you always know which column is which.
+  - pages: Active Task, Job Records, Active Job, Work History, Material
+    Stock, Invoice Entry (Existing Invoices), Invoice Records, Summary Note,
+    Payments, Dashboard With Accounts and Paid History
+  - Invoice Records: with a PO open, its invoice column names (Inv. Entry,
+    Inv. No., ... Action) stay too, right under the PO column names
+  - popups: Status History, Payment Pocket / Paid Pocket / Mark Paid, IPC
+    record, Payment Certificate, Stock Report, Required List, New
+    Transaction (batch items), Batch Entry "Search and Add Existing
+    Invoices", Payments "Find With Accounts Invoices", Material Stock >
+    Stock Check
+  - why some lists lost their header before: the table itself was set to
+    cut off its overflow, so the header was held by the table instead of
+    by the scrolling list and left with the rows. Invoice Entry's Existing
+    Invoices also had no height limit (the whole page scrolled); it now
+    scrolls inside its panel like the other lists, and popup lists without
+    their own height do the same, so their header can stay.
+  - the header sits exactly on the top edge of the list (no rows peeking
+    above it), on the same solid header colour as Invoice Records.
+  - small tables inside a row (Material Stock item details) are left as
+    they were. Printing is not affected (screen only). Phone unchanged.
+  - look only: no data, saving, rules or access changed.
+
+WHAT TO CHECK
+  1. Material Stock: search, scroll the list - the column names stay.
+  2. Invoice Records: open a PO with many invoices, scroll - both header
+     rows stay.
+  3. Job Records / Work History / Active Task / Active Job: scroll.
+  4. Invoice Entry: search a PO with many invoices - Existing Invoices
+     scrolls in its panel, header stays.
+  5. A popup with a long list (Payments > Find With Accounts Invoices,
+     Status History): scroll - header stays.
+
+CHECKED (patch 9)
+  - all JS files pass syntax check
+  - frozen header test: 24 lists (11 pages, 12 popups, Stock Check) at
+    1600x900 and 1366x768: every header stays and sits flush on the top
+    edge (0-2 px), nothing covers it
+  - before/after: Material Stock, Invoice Records open PO and Work History
+    headers scrolled away in patch 8, stay in patch 9
+  - same speed as patch 8 (page-wide class change 0.02-0.04 ms)
+  - patch 8 tests again: Attention 44, live counts 15, approvals 9, all 15
+    pages on normal and large data with 0 script errors and 0 misaligned
+    tables, phone, window resize: all pass
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 8 (included) ====================
+
+PATCH 8 - WHAT CHANGED
+
+  A. "For Approval" did not reach the task list  (js/iba-attention-picker.js)
+  - cause: in the 14.0.0 layout the Attention box is a stand-in button. When
+    Invoice Management was opened from the side menu, the real Attention
+    field behind it had no names, so the name picked in the box never got
+    into the save:
+      * a new invoice asked "Please select an 'Attention' person" again;
+      * an edited invoice was saved with an EMPTY Attention - it left
+        everybody's Active Task. This is why PO 12345 set to For Approval
+        with your own name did not show in your Active Task;
+      * just editing a note of an invoice could wipe its Attention;
+      * on opening an invoice, the box could show a suggested name instead
+        of the invoice's own Attention.
+  - now the box always shows exactly what will be saved, the picked name
+    always goes into the save, and an invoice opened for editing keeps its
+    own Attention until its status is changed. The automatic choices when
+    the status changes (None, COO, CEO, Accounts, SRV person) work as before.
+  - the save routine, statuses and approval rules are not changed.
+  - Note: an invoice edited in the last days may have been saved with an
+    empty Attention. In Invoice Records such an invoice shows no Attention;
+    open it, pick the name, Update.
+
+  B. Attention: type to find a name
+  - click the box (or just start typing on it): a search line opens on top
+    of the list. Type any part of a name, position or site ("mar", "ceo",
+    "177"); the matching letters are marked; names that start with what you
+    typed come first. Arrow keys + Enter pick, Esc closes, a click picks.
+  - dark list in the popup style (was a white scroll list).
+
+  C. Active Task and Active Job: live count that breathes, blinks and counts
+     (js/iba-live-counts.js)
+  - top bar: a pill "Active Task  N" (gold) and "Active Job  N" (teal) while
+    something waits for you. It breathes (soft glow), its dot blinks, the
+    number counts up / down when it changes. Click it to open the page.
+    At zero the pill goes away. Below 1400px wide only icon + number show.
+  - side menu: the number on Active Task / Active Job, a blinking dot on
+    WorkDesk / Inventory, and the left edge that opens the menu glows.
+  - browser tab title shows the total, e.g. "(3) System Login", so it is
+    seen from another tab too.
+  - phone: the Approve count (and the Invoice / Inventory switch count)
+    breathes.
+  - which tasks count: the same ones Active Task / Active Job already mark
+    as yours (13.x side-menu rule): Attention names you or the person you
+    cover on vacation, not On Hold; for inventory, the request waiting for
+    YOUR step (source, approval, receiving).
+  - updates by itself: your own small task inbox is listened to (Firebase
+    sends only changes), the WorkDesk job list the Dashboard already keeps
+    is re-checked every 15 s (no download), and only the newest 60
+    inventory requests are listened to. Older inventory requests are
+    counted from the last time Active Job was opened. Each time Active Task
+    or Active Job is built (Dashboard start, opening the page, the existing
+    refreshes) its exact number is taken.
+  - all animations move only opacity / size, so the graphics card does
+    them (measured: no extra page work); "reduce motion" on the device
+    turns them off.
+
+  D. Why it felt slow - found and fixed
+  - one style rule added in patch 6 (popups) made the browser re-check the
+    look of the WHOLE page every time anything changed a class (opening a
+    popup, hovering the side menu edge, a tab, a row). On Job Records with
+    600 jobs that cost about 39 ms each time (14.0.0 original: 0.03 ms).
+    Removed (it styled nothing). Now 0.03 ms again.
+  - Job Records "fade edges": on every page-wide class change it measured
+    every cell of every row, even on other pages (about 15-25 ms each
+    time). Same result now, measured once per row shape, only while Job
+    Records is on screen: about 0.1-0.6 ms.
+  - the notice (General Announcement) watcher measured the side panel
+    after every change on the page even with no notice showing. It now
+    checks first whether a notice is showing at all. Same behaviour.
+  - approval print buttons: watches only Invoice Management, once per
+    frame (was the whole page).
+  - no live blur behind small controls (search boxes, buttons, chips,
+    tabs) - the graphics card redrew each one on every scroll / hover. The
+    big glass panels, cards, side panel and top bar keep their blur.
+  - measured (1600x950, 600 jobs, 500 invoices, 900 items), cost of one
+    page-wide class change:
+        page            14.0.0   patch 7   patch 8
+        Dashboard        0.02     3.35      0.04 ms
+        Active Task      0.04     0.87      0.04 ms
+        Job Records      0.03    39.36      0.03 ms
+        Material Stock   0.02     0.39      0.02 ms
+        Invoice Records  0.03     0.57      0.03 ms
+
+  E. Batch Entry: "Global Overrides" right under the Search Note line
+  - the page rows shared the spare height of the window, which pushed
+    Global Overrides far down. The list row now takes the spare height.
+
+  F. Previous version  (login screen + Settings)
+  - login (desktop and phone): "Use the previous version" under the box.
+  - Settings: "Previous Version" card with "Open previous version".
+  - both open https://port.iba.com.qa/invoice-v1/ in the same tab (only one
+    IBA tab can be open at a time, so it replaces this one). Same data and
+    same login: someone signed in here is signed in there too.
+  - the new version stays the main one: https://port.iba.com.qa/invoice/
+  - to set it up: put the old build (all its files) in a folder
+    "invoice-v1" next to the "invoice" folder on the server. Nothing in the
+    app uses fixed paths, so it runs from that folder as it is.
+
+WHAT TO CHECK
+  1. Invoice Entry, open from the side menu: search PO 12345, set For
+     Approval, click Attention, type your name, Enter, Add (or Update).
+     Active Task (and the top-bar pill) shows it.
+  2. Open an existing invoice: the Attention box shows its own name. Change
+     only the Note, Update: Invoice Records still shows the same Attention.
+  3. Top bar: Active Task / Active Job pills when you have tasks; they
+     breathe and count; click opens the page. Ask someone to send you a
+     task: the number goes up by itself.
+  4. Batch Entry: Global Overrides sits right under Search Note.
+  5. Hover the left edge / open popups / switch pages on Job Records: it
+     should feel as quick as the original 14.0.0.
+  6. Login screen and Settings: "Use the previous version" opens
+     port.iba.com.qa/invoice-v1/ (once the old build is placed there).
+
+CHECKED (patch 8)
+  - all JS files pass syntax check
+  - Attention: 44 checks (side-menu path and Invoice Management path): typing
+    filters, Enter / click / Esc / outside click, picked name saved on add
+    and on edit, own Attention kept on note edit, For Approval to yourself
+    lands in your task list, new entry resets to None
+  - live counts: 15 checks: first count at start, a new task arrives live
+    (1 -> 2), On Hold not counted, a new inventory request appears, click
+    opens the page, exact page number agrees, finished elsewhere -> pill
+    goes, sign-out clears it and the tab title, a COO sees his inventory
+    approval without opening Active Job (only the newest-60 window read)
+  - approvals: 9 checks (send For Approval to yourself, approve it from
+    Active Task: ESN + back to sender; manager approves; counts follow)
+  - Job Records fade edges: same marks as before on 140 rows at 1600 and
+    1100 wide
+  - all 15 pages on normal and large data: 0 script errors, 0 misaligned
+    tables; phone workspace: Approve count breathes; window resize to phone
+    and back: counts stop and start again
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 7 (included) ====================
+
+PATCH 7 - WHAT CHANGED
+
+  A. Invoice Records: row buttons no longer cut off
+  - in an open PO, the Action column now always fits inside the list; when
+    an invoice has many buttons (edit, INV, RPT, SRV, history, sticker,
+    WhatsApp) they wrap onto a second line instead of running off the edge
+  - the invoice table's columns now add up to the list width, so nothing
+    sticks out on smaller screens either
+
+  B. One table look everywhere (new css/iba-ui-tables.css)
+  - every list now matches the Invoice Records list: the same solid panel,
+    header row that stays on top while scrolling, a line under every row,
+    light shading on every second row, gold edge on the row under the mouse
+  - Dashboard > With Accounts: filter bar (Site, Year, search, Clear,
+    Refresh) on one solid bar; month tabs as quiet pills (open month in
+    gold); table with Invoice Value on the right, Site on one line, SRV as
+    a small red-outline button, status as a soft badge, Mark Paid as a
+    small teal button
+  - Dashboard > Paid History: same filter bar and table; PO number as a
+    link; "View Latest 3" as a small teal button; the search / loading /
+    no-result messages on a solid panel
+  - Paid History "View Latest 3" popup: same look as every other popup
+    ("System Window" removed, solid box, panels, teal main button)
+  - Active Task, Job Records, Active Job, Work History, Material Stock,
+    Invoice Entry (Existing Invoices) and Payments: same panel, row lines
+    and shading; Active Job and PO Close Out tab bars solid (no longer
+    see-through)
+
+  C. Popups on the desktop
+  - New Transaction (and any tall popup): the top bar of the page stayed in
+    front of popups, so a tall popup slid under it and its rounded top
+    corners looked cut square. Popups now open in the space below the top
+    bar; one taller than the window scrolls as a whole (buttons reachable)
+  - New Transaction: "Batch Items (0)" count readable (was dark on dark)
+  - Invoice Entry popup can be moved by its title bar again (patch 5/6
+    styles had pinned it in place)
+
+  D. Background photos
+  - Settings > Shell Backgrounds > Browse now reads the photo list straight
+    from the GitHub "photo" folder, so iba.jpg, job.jpg, office1-4.jpg and
+    any photo added later appear by themselves (no code change needed).
+    The list is remembered for 6 hours; if GitHub cannot be reached, the
+    built-in list (which now includes those new names) is used.
+  - Save now applies for everyone, on every computer and phone (stored in
+    Firebase at system_settings/shell_backgrounds, like the Opening
+    choice). Before, a Save only changed the browser it was done on.
+    Nothing changes for others until a background is saved again.
+  - NEW rows "Phone - Invoice" and "Phone - Inventory": the phone workspace
+    shows the chosen photo behind each side (slightly darkened so cards
+    stay readable), or "Plain dark (no photo)". Until one is saved, a phone
+    side uses the desktop photo of that area. An open phone follows a new
+    Save without reloading.
+
+  Not changed: data, saves, approvals, access rules. Dashboard status
+  cards / site cards / cork board notes / date cards keep their current
+  design.
+
+WHAT TO CHECK
+  1. Invoice Records: open a PO whose invoices have many buttons - all are
+     visible, inside the list.
+  2. Dashboard > With Accounts and Paid History: tables look like Invoice
+     Records; Mark Paid, SRV, View Latest 3 work as before.
+  3. Material Stock > Transfer > Multi-Item Batch: rounded top corners,
+     nothing hidden under the top bar; on a small screen scroll down to
+     Save All Items.
+  4. Invoice Entry: drag the add / edit popup by its title bar.
+  5. Settings > Shell Backgrounds > Browse: iba.jpg, job.jpg, office1-4.jpg
+     are listed. Save one for WorkDesk - open the app on another computer:
+     same photo.
+  6. Settings > Phone - Invoice / Phone - Inventory: pick a photo (or Plain
+     dark), Save. On a phone: each side shows its photo.
+
+CHECKED (patch 7)
+  - all JS files pass syntax check
+  - approval routine 29 checks, phone 18 checks, 2 safety checks, window
+    resize 7 checks, scroll + drag 9 checks: all pass
+  - NEW backgrounds test, 15 checks: GitHub list used (new photos listed,
+    non-photo files left out, natural order), phone rows offer Plain dark,
+    Save writes to Firebase and says "Saved for everyone", another user's
+    desktop and a phone pick it up, phone sides show their photos, a new
+    Save reaches an open phone, no script errors
+  - Invoice Records: every row button inside the list at 1600 and 1366 wide
+  - Invoice Entry popup drag: moves exactly with the mouse (it did not in
+    patch 5 / 6)
+  - every page and 25 popups photographed: 0 hard-to-read texts, no white
+    boxes, 0 script errors, 0 misaligned tables
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 6 (included) ====================
 
   A. Every popup in one look  (new css/iba-ui-popups.css)
   - solid dark box (no see-through glass over the photo), plain title row,
