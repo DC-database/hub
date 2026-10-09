@@ -1,12 +1,324 @@
-14.0.0 PATCH 11 - Dashboard board about 60% see-through
-(cumulative: includes patch 1 to 10)
+14.0.0 PATCH 17 - Assistant reports: Print and Excel with a chart (TEST_BETA)
+(cumulative: includes patch 1 to 16)
 
 Version stays 14.0.0. Copy over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-This zip alone gives the full current state (patch 1 to 11).
+This zip alone gives the full current state (patch 1 to 17).
+For port.iba.com.qa/test_beta/ only. Main site stays on patch 11.
 
-FILES: the same 33 files as patch 10 (+ this note). Changed in patch 11:
-  css/iba-ui.css   section 25.7 (board colour)
-  index.html       ?v= tag of css/iba-ui.css
+FILES: the same 36 files as patch 16 (+ this note). Changed in patch 17:
+  js/iba-assistant.js, js/iba-print.js, css/iba-assistant.css,
+  index.html (?v= tags)
+
+PATCH 17 - WHAT CHANGED
+  1. Print and Excel on the assistant's answers
+  - Result cards now have Print and Excel buttons: Job Records, Active
+    invoices by status, Track (also in the Track tab, no AI needed),
+    Who handled (activity), My waiting items, and Show PO (Super Admin).
+  - The report has ALL the rows, not only the 30 the card shows
+    (e.g. 42 jobs this week -> 42 rows).
+  - Print: clean A4 landscape page like the new Job Records print, with
+    a summary box and a small bar chart (jobs per type, invoices per
+    status, invoices per stage, actions per person ...).
+  - Excel: a real .xlsx file made in the browser (no extra library, nothing
+    uploaded). Sheet "Data": header row frozen, filter on, amounts and
+    days as numbers (sum works). Sheet "Summary": title, date, who made
+    it, filters and the counts.
+  - Same rules: own sites only unless the position is wide; amounts only
+    for those allowed (the Amount column is left out otherwise); nothing
+    is saved or changed. Making a report uses no AI and no tokens; it may
+    read the current invoice status of jobs already in Invoice Entry.
+
+CHECKED (patch 17)
+  - report test 16/16 (all rows printed, chart, Excel opens with Data +
+    Summary, numbers are numbers, filter + frozen header, Track tab
+    print, Bob gets no Amount column and only site 177, nothing written)
+  - patch 16 test 24/24, patch 15 test 18/18, tracker 40/40,
+    Super Admin assistant 26/26, dashboard smoke test: no errors
+  - Job Records print (patch 16) still works
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+FIREBASE (still to do at the office, see patch 16 notes)
+
+==================== PATCH 16 (included) ====================
+
+PATCH 16 - WHAT CHANGED
+  1. Fixed: "what did Reception receive last Thursday" found nothing
+  - The assistant used the job list the screen already had. After saving
+    an invoice in Invoice Entry that list can hold only the few jobs just
+    touched, so the assistant saw almost nothing. It now reads Job Records
+    itself (kept 5 minutes, so follow-up questions read nothing new).
+  - With the Firebase index (see FIREBASE below) it reads only the days
+    asked about; without it, it reads the Job Records list once.
+  2. Every Job Record type
+  - Invoice, IPC Application, IPC Processed, PR, Payment, Report, Trip and
+    "Other" types such as PO Revision.
+  - Filter by type, period, who entered it (a name, or a role from the
+    Position: reception, qs, accounting, procurement, dc, manager), who
+    has it now, status, site, vendor, PO, or only the open ones.
+  - Each job says where it is now: Open (status, with whom), In Invoice
+    Entry (the live invoice status, who has it, paid or not), or Done.
+    Jobs that started as IPC say "was IPC Application".
+  - Counts per type, per person who entered, and open / in Invoice Entry
+    / done.
+  3. Active invoices by status
+  - "Which invoices are For SRV / On Hold / For IPC / waiting approval":
+    oldest first, with who has it, how many days, payment state and
+    counts per status. Under Review, SRV Done, With Accounts and Paid are
+    not active, so they are not in this list (Track shows those).
+  4. Smarter about what you mean
+  - received / entered / encoded -> Job Records; "my tasks / with me" ->
+    your waiting items; "invoices for IPC process" -> IPC jobs still in
+    WorkDesk AND invoices in Invoice Entry with status For IPC, shown as
+    two groups. QS people are now known by role too.
+  - Saved skills that used the old Reception search still work.
+  5. Job Records print (WorkDesk > Job Records > Print)
+  - Prints a clean page of its own: white A4 landscape, company logo and
+    name, title, date and who printed, a summary (category, search, total,
+    count per status), readable columns, amounts with commas, dates as
+    09-Oct-2026, status as a coloured label, header repeated on every
+    page. The dark screen theme no longer leaks into the print.
+  - Same rows and columns as before; nothing added or left out.
+    If the clean page cannot be made, the old print is used.
+  Same rules as before: own sites only unless the position is wide,
+  amounts only for those allowed, nothing is edited or saved.
+
+FIREBASE (do at the office; patch 16 works before this, it only uses less
+download after)
+  ibainvoice-3ea51 database, inside your existing rules:
+    "iba_assistant": { ".read": true, ".write": true },
+    "job_entries": { ".indexOn": ["for", "timestamp", "po"] }
+  If your rules already have a "job_entries" block, put only the
+  ".indexOn" line inside that block (do not add a second "job_entries").
+  material-8f545 database (from patch 10):
+    "transfer_entries": { ".indexOn": ["remarks"] }
+  The assistant checks once a day and switches to the small reads by itself.
+
+CHECKED (patch 16)
+  - Job Records / roles / IPC / status / index test 24/24
+    (incl. last Thursday found after saving an invoice in Invoice Entry;
+    one small read with the index, one full read without; Bob sees only
+    site 177 and no amounts)
+  - patch 15 test 18/18, tracker 40/40, Super Admin assistant 26/26,
+    dashboard smoke test: no errors
+  - print: clean page made from the same rows; page itself unchanged
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 15 (included) ====================
+
+PATCH 15 - WHAT CHANGED
+  1. Knows who does what
+  - The AI is told each person's role from their Position in Approvers:
+    Reception, Accounting, Head Office DC, Site DCs (with their sites).
+  - It is told how an invoice moves: Reception -> Invoice Entry -> SRV
+    -> Approval -> With Accounts -> Paid.
+  2. "What did Reception receive last Thursday?"
+  - New tool: lists invoices received at Reception (job entries) for a
+    day or period, with date, PO, invoice no., vendor, site, who entered
+    it, who it is with, and where it is now (still at Reception / moved
+    to Invoice Entry / done). Counts per person who entered.
+  - Can be narrowed by person, vendor, PO or site.
+  3. "Who last handled Khalifa Steel?" (or a PO)
+  - New tool: looks at the vendor's 5 newest POs, reads their invoice
+    history and Reception entries, and gives the last action (who, what,
+    when), a short timeline, and where each open invoice is now.
+  - Can be narrowed by period ("past week") or person.
+  4. Dates the way people say them
+  - today, yesterday, last Thursday, this week, past week, last week,
+    past 10 days, this month, last month, September 2026, 2026.
+    The system works out the exact dates; the AI does not guess them.
+  5. Year = invoice date OR paid date
+  - "Khalifa Steel 2026" shows invoices dated 2026 and invoices dated
+    2025 but paid in 2026. Each invoice shows its dates:
+    Invoice ... · With Accounts ... · Paid ...
+  - A year search also checks POs from the year before (at most 10 POs
+    are read). If a vendor has more, the card says how many older POs
+    were not checked.
+  Same rules as before: own sites only unless the position is wide
+  (CEO, COO, Finance, Accounting, QS, Senior QS, Logistic, Procurement,
+  any Manager); amounts only for those allowed; nothing is edited.
+
+CHECKED (patch 15)
+  - roles / Reception / who-handled / dates / year test 18/18
+  - tracker + payment + vendor test 40/40; Super Admin assistant 26/26
+  - dashboard smoke test: no errors
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 14 (included) ====================
+
+PATCH 14 - WHAT CHANGED
+  1. "Paid" only when it is paid
+  - The AI called an SRV Done invoice "paid in full": it was given the
+    invoice's "amount paid" field (filled in when the invoice is entered)
+    and read it as money already paid. That field is no longer sent.
+  - Every invoice now carries a payment state worked out by the system:
+      Paid                -> "Paid (vendor has been paid)"
+      With Accounts       -> "Payment in process (with Accounts)"
+      any other status    -> "Not paid yet (not with Accounts)"
+    and the AI is told this rule in plain words.
+  - Show PO card: PO value, Invoiced, Paid (only status Paid), Remaining.
+  - Track: Accounts stage reads "payment in process"; Paid reads
+    "paid <date>".
+  2. Vendor search is forgiving
+  - Ignores W.L.L. / WLL / LLC / Co / Est, words like "invoices", "PO",
+    "vendor", spacing ("alnoor" finds "Al Noor") and punctuation.
+  - Nothing found: it suggests the closest vendor names to click.
+  - The AI is told to always search by vendor when you name a vendor.
+
+CHECKED (patch 14)
+  - tracker + payment + vendor test 39/39; Super Admin assistant test 26/26
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 13a (included) ====================
+
+PATCH 13a - WHAT CHANGED
+
+  1. Track an invoice - for everyone, NO key and NO AI needed
+  - Route button in the assistant (also "Track invoice" chip, and the
+    morning greeting for people without a key).
+  - Type a PO number, or a vendor name; optional Site and Year.
+      * PO number: straight answer - every invoice on that PO.
+      * Vendor: if more than 10 POs, it first shows the counts by year and
+        site ("Al Noor Trading - 12 POs: 2026 (3), 2025 (5), 2024 (4)")
+        and you click one to narrow down. Nothing is read from Firebase
+        for the counting (it uses the PO list file).
+  - For each invoice: where it is now on the path
+      Reception > Invoice Entry > SRV > Approval > Accounts > Paid
+    who has it, how many days, since when, and its History (who changed
+    it and when). Invoices still at Reception (job entry not yet in
+    Invoice Entry) are shown too. On Hold / Unresolved / For Inquiry /
+    IPC / PO Close Out show on the side (amber), at the stage they
+    stopped. Read only. Each search reads only the POs shown (max 10).
+  - Stages used:
+      Reception: job entry New Entry / Pending
+      Invoice Entry: Under Review, In Process, For Summary
+      SRV: For SRV, SRV Done, No Need SRV
+      Approval: For Approval, CEO Approval, Report, Report Approval,
+                Report Approved
+      Accounts: With Accounts      Paid: Paid
+  2. Who sees what
+  - All sites: CEO, COO, Finance, Accounting/Accounts, QS, Senior QS,
+    Logistic(s), Procurement, any position with "Manager", the Super
+    Admin and the vacation replacement. Everyone else: only the site(s)
+    on their account (e.g. "177" or "175,176"). A PO of another site is
+    refused with a plain message.
+  - Amounts only for people who see amounts in the system today (Admin,
+    Accounting, the vacation replacement, the Super Admin).
+  3. The assistant for everyone (desktop only; phone unchanged)
+  - Each person who wants to ask in plain words adds their OWN free Groq
+    key in Setup. The key is kept in that browser for that person only:
+    on a shared PC another user never uses someone else's key (your key
+    from patch 12 moves to your name by itself).
+  - For other users the AI only gets: their own brief / waiting list,
+    Track invoices, find people, drafting. Open PO, New invoice and Show
+    PO stay Super Admin only (refused even if forced).
+  - Super Admin Setup: "Who can use the assistant": Everyone / Only me.
+    Saved in Firebase iba_assistant/settings (see rules below).
+
+FIREBASE RULES (database ibainvoice-3ea51, if not already added)
+    "iba_assistant": { ".read": true, ".write": true }
+  needed for "Only me" and for skills to follow you. Without it the
+  assistant is open to everyone (the default) and skills stay in the
+  browser.
+
+WHAT TO CHECK (on test_beta)
+  1. Log in as an engineer: the button shows; Track a PO of his site, a PO
+     of another site (refused), and a vendor name (counts, then a year).
+  2. Log in as a manager: all sites.
+  3. You: amounts shown; Setup > Who can use > Only me > Save; an
+     engineer then no longer sees the button.
+
+CHECKED (patch 13a)
+  - tracker test 31/31: engineer site rule, other-site PO refused, no
+    amounts for him, vendor counts first with no Firebase read, picked year
+    reads only those 5 POs, For SRV with person and days, Paid, On Hold on
+    the side, Reception item, History, his own key used, only allowed jobs
+    sent to the AI, Super Admin job refused, manager sees all sites, Super
+    Admin sees amounts, Only me setting, keys per person, nothing written
+    to invoices, no script errors
+  - patch 12 assistant test 26/26, 15 pages + phone smoke test: pass
+  - not tested against the real Groq service (no internet from the test
+    machine)
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 12 (included) ====================
+
+PATCH 12 - WHAT CHANGED
+
+  IBA Assistant - your personal assistant inside the system (Super Admin
+  only for now, desktop only; the phone stays as it is)
+
+  - A round gold-edged button at the bottom right opens a chat panel. Ask
+    in plain words (English or Arabic). The gold dot on the button means
+    something is waiting for you.
+  - Every day at sign-in a short greeting: how many tasks and jobs wait,
+    and the oldest PO. "Open brief" shows it without using the AI.
+  - What it can do now:
+      1. Brief / what's waiting - Active Task, Active Job, oldest items
+         (with days waiting), PO Close Out counts. Taken from what the
+         system already has in memory: no new download.
+      2. Find and open a PO - vendor, site, PO value, invoiced, remaining
+         and its invoices. Reads only that one PO. Click a PO number in any
+         answer to open it on Invoice Entry.
+      3. Fill the Invoice Entry form - e.g. "New invoice for PO 1002:
+         B-300, 5,000, For SRV to Bob". It opens the PO and the form and
+         fills Invoice No., value, date, status, Attention (first names
+         work), note. It NEVER saves: the panel steps aside, the Add button
+         glows, you check and press Add. It warns about a duplicate
+         invoice number or an unclear name.
+      4. Draft messages - reminders and follow-ups with the real PO and
+         invoice facts, with a Copy button.
+  - Skills: under an answer press "Save as skill" and give it a name (e.g.
+    "Morning check"). The lightning button lists your skills; Run repeats
+    the same steps WITHOUT the AI (no quota). "Ask AI again" re-asks it.
+    Skills are kept in this browser and copied to a small node in Firebase
+    (iba_assistant/<you>/skills) so they follow you.
+  - The brain: Groq free plan, model openai/gpt-oss-120b (recommended).
+    Brain switch in Setup (gear button): Google Gemini, Ollama on a PC, or
+    any OpenAI-compatible service.
+  - Safety: it cannot save, approve, delete or send anything. The key stays
+    only in your browser (not in the code, not in Firebase). It sends the
+    AI only what a job needs. If the free limit is used up for the minute
+    it waits and tries again by itself.
+
+ONE-TIME SETUP (about 2 minutes, free)
+  1. Open https://console.groq.com and sign in (Google account is fine;
+     no card).
+  2. API Keys > Create API Key > copy it.
+  3. Recommended: Settings > Data Controls > turn on Zero Data Retention.
+  4. In the system press the assistant button > Setup (opens by itself the
+     first time) > paste the key > Save > Test. "Working" means done.
+  If Test says it could not reach Groq while the internet works, Groq may
+  be refusing calls from a web page; then a small free relay (Cloudflare
+  Worker) can be added in the next patch.
+
+WHAT TO CHECK
+  1. Sign in as Irwin: the greeting bubble and the button appear.
+  2. Do the setup above; Test says "Working".
+  3. Try: "What's waiting for me?", "Show PO <a real PO>", "New invoice for
+     PO <PO>: <inv no>, <value>, For SRV to <name>" (then check the form
+     and press Add yourself, or Clear), "Draft a reminder to <name> about
+     PO <PO>".
+  4. Save one answer as a skill and run it from the lightning button.
+  5. Sign in as another user: no assistant button.
+
+CHECKED (patch 12)
+  - assistant test with a stand-in AI: 26/26 - button only for the Super
+    Admin (not other users, not the phone), greeting with counts, setup and
+    Test, key kept in the browser only, AI asked with the 6 jobs, brief
+    card, PO card (reads only that PO), form filled correctly and NOT
+    saved (no write to invoices or task lists), draft with the right name,
+    Copy, skill saved and run with no AI call, free-limit wait and retry,
+    PO click opens Invoice Entry, no script errors; each request to the AI
+    is under 5 KB
+  - all earlier tests again: Attention 44, live counts 15, approvals 9,
+    Active Job at sign-in 13, PO Close Out 9, PO field to Active Jobs 14,
+    15 pages on normal and large data, phone, resize, frozen headers 24/24:
+    all pass; page speed same as patch 11
+  - not tested against the real Groq service (no internet access from the
+    test machine); the request follows Groq's OpenAI-compatible format
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+==================== PATCH 11 (included) ====================
 
 PATCH 11 - WHAT CHANGED
   - the Dashboard notes board (the old cork board) was nearly solid: its
