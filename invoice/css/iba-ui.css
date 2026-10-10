@@ -5977,3 +5977,58 @@
     -webkit-text-fill-color: #1B2A3A !important;
   }
 }
+
+/* ==========================================================================
+   14.0.0 patch 18 - background dimming you can set (js/iba-bg-dim.js)
+   The see-through dark layer over the background photo now follows the
+   Settings sliders. Defaults: desktop 20%, phone 35% (before: 36% / 72%).
+   ========================================================================== */
+@layer iba-ui {
+  body.iba-shell-on::before {
+    background: linear-gradient(180deg, rgba(8, 12, 22, var(--iba-dim-top, 0.154)), rgba(8, 12, 22, var(--iba-dim-bot, 0.246))) !important;
+  }
+  body.iba-phone #iba-phone.has-photo {
+    background:
+      linear-gradient(180deg, rgba(8, 16, 26, var(--iba-ph-dim-top, 0.28)) 0%, rgba(8, 16, 26, var(--iba-ph-dim-mid, 0.35)) 45%, rgba(8, 16, 26, var(--iba-ph-dim-bot, 0.42)) 100%),
+      var(--ph-photo) center / cover no-repeat,
+      var(--ph-bg) !important;
+  }
+
+  /* Settings > Shell Backgrounds > Background dimming */
+  #iba-shell-bg-settings .iba-dim-box {
+    margin: 14px 0 0 !important;
+    padding: 12px !important;
+    border-radius: var(--ui-radius-m, 12px) !important;
+    border: 1px solid var(--ui-line-soft, rgba(255, 255, 255, 0.1)) !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+  #iba-shell-bg-settings .iba-dim-head { display: flex !important; gap: 10px !important; align-items: flex-start !important; margin: 0 0 10px !important; }
+  #iba-shell-bg-settings .iba-dim-head > i { margin-top: 2px !important; color: var(--ui-gold, #E8C46A) !important; font-size: 16px !important; }
+  #iba-shell-bg-settings .iba-dim-head h3,
+  #iba-shell-bg-settings .iba-dim-top h3 {
+    margin: 0 !important; color: var(--ui-text, #EEF3F8) !important; -webkit-text-fill-color: var(--ui-text, #EEF3F8) !important;
+    font-size: 13px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important;
+  }
+  #iba-shell-bg-settings .iba-dim-head p,
+  #iba-shell-bg-settings .iba-dim-help {
+    margin: 2px 0 0 !important; color: var(--ui-text-3, #8FA1B4) !important; -webkit-text-fill-color: var(--ui-text-3, #8FA1B4) !important; font-size: 12px !important; line-height: 1.4 !important;
+  }
+  #iba-shell-bg-settings .iba-dim-row { display: flex !important; gap: 12px !important; align-items: center !important; padding: 8px 0 !important; border-top: 1px solid var(--ui-line-soft, rgba(255, 255, 255, 0.08)) !important; }
+  #iba-shell-bg-settings .iba-dim-prev {
+    flex: 0 0 auto !important; display: flex !important; align-items: center !important; justify-content: center !important;
+    border-radius: 8px !important; border: 1px solid var(--ui-line, rgba(255, 255, 255, 0.16)) !important; overflow: hidden !important;
+  }
+  #iba-shell-bg-settings .iba-dim-prev.is-desktop { width: 112px !important; height: 64px !important; }
+  #iba-shell-bg-settings .iba-dim-prev.is-phone { width: 40px !important; height: 72px !important; margin: 0 36px !important; }
+  #iba-shell-bg-settings .iba-dim-prev span { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-weight: 700 !important; font-size: 15px !important; }
+  #iba-shell-bg-settings .iba-dim-main { flex: 1 1 auto !important; min-width: 0 !important; }
+  #iba-shell-bg-settings .iba-dim-top { display: flex !important; align-items: baseline !important; justify-content: space-between !important; gap: 8px !important; }
+  #iba-shell-bg-settings .iba-dim-val { color: var(--ui-gold, #E8C46A) !important; -webkit-text-fill-color: var(--ui-gold, #E8C46A) !important; font-size: 14px !important; font-variant-numeric: tabular-nums !important; }
+  #iba-shell-bg-settings .iba-dim-row input[type=range] { width: 100% !important; margin: 6px 0 2px !important; accent-color: var(--ui-teal, #1FA4A8) !important; cursor: pointer !important; }
+  #iba-shell-bg-settings .iba-dim-row input[type=range]:disabled { cursor: not-allowed !important; opacity: 0.5 !important; }
+  #iba-shell-bg-settings .iba-dim-acts { display: flex !important; align-items: center !important; justify-content: flex-end !important; gap: 8px !important; padding-top: 10px !important; border-top: 1px solid var(--ui-line-soft, rgba(255, 255, 255, 0.08)) !important; }
+  #iba-shell-bg-settings .iba-dim-acts button { height: 34px !important; padding: 0 14px !important; }
+  #iba-shell-bg-settings .iba-dim-note { margin-right: auto !important; color: var(--ui-green, #5BD49B) !important; -webkit-text-fill-color: var(--ui-green, #5BD49B) !important; font-size: 12px !important; font-weight: 600 !important; }
+  #iba-shell-bg-settings .iba-dim-box.is-dirty .iba-dim-note { color: var(--ui-gold, #E8C46A) !important; -webkit-text-fill-color: var(--ui-gold, #E8C46A) !important; }
+  #iba-shell-bg-settings .iba-dim-note.is-bad { color: var(--ui-red, #F07070) !important; -webkit-text-fill-color: var(--ui-red, #F07070) !important; }
+}
