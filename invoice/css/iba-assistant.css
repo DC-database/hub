@@ -527,3 +527,17 @@
   .iba-ai-card.is-batch { border-left-color: #F0B86E !important; }
   #im-batch-save-button.iba-ai-pulse { animation: ibaAiPulse 1.2s ease-in-out 5 !important; }
 }
+
+/* 15.0.0 patch 4: transfer card (who must act on TRF-0361) */
+@layer iba-ui {
+  .iba-ai-card.is-transfer { border-left-color: #F2B66D !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact { background: rgba(242, 182, 109, 0.12) !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact b { color: #FFD9A8 !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact small { color: #C9D3DD !important; font-size: 12px !important; }
+  .iba-ai-trf-flow { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px !important; margin: 0 0 8px !important; font-size: 12px !important; }
+  .iba-ai-trf-flow > span { padding: 3px 9px !important; border-radius: 999px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; color: #AEB9C5 !important; background: rgba(255, 255, 255, 0.04) !important; }
+  .iba-ai-trf-flow > span.is-done { color: #9FE3D6 !important; border-color: rgba(94, 214, 196, 0.45) !important; background: rgba(94, 214, 196, 0.10) !important; }
+  .iba-ai-trf-flow > span.is-now { color: #1B1306 !important; border-color: #F2B66D !important; background: #F2B66D !important; font-weight: 700 !important; }
+  .iba-ai-trf-flow > i { font-size: 9px !important; color: #6F7C8A !important; }
+  .iba-ai-card.is-transfer hr.iba-ai-sep { border: 0 !important; border-top: 1px dashed rgba(255, 255, 255, 0.14) !important; margin: 10px 0 !important; }
+}
