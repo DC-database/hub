@@ -487,31 +487,36 @@ async function saveInvoiceNoteToIndex(note, meta = {}) {
         const now = Date.now();
         const ref = invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${key}`);
         const refPayload = imNoteIndexBuildRefPayload(text, meta);
-        await ref.transaction(current => {
-            const existing = (current && typeof current === 'object') ? current : {};
-            const count = Number(existing.count || 0) + 1;
-            const next = {
-                ...existing,
-                text,
-                count,
-                lastUsedAt: (typeof firebase !== 'undefined' && firebase.database && firebase.database.ServerValue)
-                    ? firebase.database.ServerValue.TIMESTAMP
-                    : now,
-                lastPO: meta.po || meta.poNumber || existing.lastPO || '',
-                lastInvoiceKey: meta.invoiceKey || meta.key || existing.lastInvoiceKey || '',
-                lastStatus: meta.status || existing.lastStatus || '',
-                lastAmountPaid: (refPayload && refPayload.amountPaid) || existing.lastAmountPaid || '',
-                lastVendor: (refPayload && refPayload.vendor) || existing.lastVendor || '',
-                lastVendorKey: (refPayload && refPayload.vendorKey) || existing.lastVendorKey || '',
-                lastGroup: (refPayload && refPayload.group) || existing.lastGroup || '',
-                lastGroupKey: (refPayload && refPayload.groupKey) || existing.lastGroupKey || '',
-                lastSource: meta.source || existing.lastSource || 'invoice-management'
-            };
-            if (meta.po || meta.invoiceKey) {
-                next.lastRef = `${meta.po || ''}${meta.invoiceKey ? '/' + meta.invoiceKey : ''}`;
-            }
-            return next;
-        });
+        // 15.0.0 patch 3: before, one transaction on the whole note node read
+        // and wrote back the note together with ALL its invoice refs. When a
+        // Batch Entry saved many rows with the same note at once, the
+        // transactions kept colliding with the refs being added and Firebase
+        // gave up ("maxretry"), so those invoices were missing from the note
+        // index (Summary Note could not find them). It also downloaded the
+        // whole refs list on every save. Now: the fixed fields are a plain
+        // update (only values we have, so older values stay), and only the
+        // small "count" number is a transaction. Same data, same places.
+        const head = {
+            text,
+            lastUsedAt: (typeof firebase !== 'undefined' && firebase.database && firebase.database.ServerValue)
+                ? firebase.database.ServerValue.TIMESTAMP
+                : now
+        };
+        const putIf = (field, value) => { if (value !== undefined && value !== null && String(value) !== '') head[field] = value; };
+        putIf('lastPO', meta.po || meta.poNumber);
+        putIf('lastInvoiceKey', meta.invoiceKey || meta.key);
+        putIf('lastStatus', meta.status);
+        putIf('lastAmountPaid', refPayload && refPayload.amountPaid);
+        putIf('lastVendor', refPayload && refPayload.vendor);
+        putIf('lastVendorKey', refPayload && refPayload.vendorKey);
+        putIf('lastGroup', refPayload && refPayload.group);
+        putIf('lastGroupKey', refPayload && refPayload.groupKey);
+        putIf('lastSource', meta.source || 'invoice-management');
+        if (meta.po || meta.invoiceKey) {
+            head.lastRef = `${meta.po || ''}${meta.invoiceKey ? '/' + meta.invoiceKey : ''}`;
+        }
+        await ref.update(head);
+        await ref.child('count').transaction(current => (Number(current) || 0) + 1);
 
         // 11.1.6: Keep a tiny note -> invoice reference index for Summary Note.
         // This lets Summary Note fetch previous/current invoices by note without scanning all invoice_entries.

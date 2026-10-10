@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p1';
+    const VERSION = '15.0.0-p4';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -339,6 +339,8 @@
                   set_status: { type: 'string', description: 'New status for all rows (Set All Statuses To), only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows (Set All Attention To), only if the user asked' },
                   set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
+            { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
+              parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
             { name: 'find_person', description: 'Find people in the system by name, position or site (for Attention or for a message).',
               parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
             { name: 'track_invoices', description: 'Where invoices are now and who has them: by PO number, or by vendor name with optional site and year. Each invoice shows its stage (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who has it, since when, and recent steps. When a vendor has many POs it returns counts by year and site instead: then ask the user which year or site.',
@@ -584,6 +586,232 @@
         return { result: { found: list.length, people: list }, card: { kind: 'people', data: list } };
     }
 
+
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 4: Inventory - where is a transfer and who must act now.
+    // No AI needed. Reads only the rows with that control number (Firebase
+    // index on controlNumber), so it costs a few hundred bytes.
+    // Same step rules as Active Job: Pending Source -> source contact,
+    // Pending Admin -> approver, In Transit -> receiver, Pending Confirmation
+    // -> requester (Usage).
+    // ------------------------------------------------------------------
+    const TRF_PREFIXES = ['TRF', 'STK', 'USE', 'RET'];
+    const TRF_TYPE_OF_PREFIX = { TRF: 'Transfer', STK: 'Restock', USE: 'Usage', RET: 'Return' };
+    const TRF_FLOW = {
+        Transfer: ['Pending Source', 'Pending Admin', 'In Transit'],
+        Restock: ['Pending Admin', 'In Transit'],
+        Return: ['Pending Admin', 'In Transit'],
+        Usage: ['Pending Admin', 'Pending Confirmation']
+    };
+    const TRF_STEP = {
+        'pending source': { short: 'Source', label: 'Source site confirms and sends', field: 'sourceContact', site: 'from' },
+        'pending admin': { short: 'Admin', label: 'Admin authorizes', field: 'approver' },
+        'pending': { short: 'Admin', label: 'Admin authorizes', field: 'approver' },
+        'approved': { short: 'Receiver', label: 'Receiver confirms receipt', field: 'receiver', site: 'to' },
+        'in transit': { short: 'Receiver', label: 'Receiver confirms receipt', field: 'receiver', site: 'to' },
+        'pending confirmation': { short: 'Requester', label: 'Requester confirms actual usage', field: 'requestor' }
+    };
+    const TRF_FIELD_NAME = { sourceContact: 'source contact', approver: 'approver', receiver: 'receiver', requestor: 'requester' };
+    function looksTransfer(q) { return /^\s*(?:(?:trf|stk)[\s#:-]*\d|(?:use|ret)[-#:]?\d)/i.test(String(q || '')); }
+    function transferCandidates(raw) {
+        const typed = String(raw || '').trim();
+        const s = typed.toUpperCase().replace(/\s+/g, '').replace(/^#/, '');
+        const out = [];
+        const add = (v) => { if (v && out.indexOf(v) === -1) out.push(v); };
+        let m = s.match(/^([A-Z]{3})[-:#]?(\d+)$/);
+        if (m) { add(m[1] + '-' + m[2].padStart(4, '0')); add(m[1] + '-' + m[2]); }
+        else if ((m = s.match(/^(\d+)$/))) TRF_PREFIXES.forEach((p) => add(p + '-' + m[1].padStart(4, '0')));
+        else { add(s); add(typed); }
+        return out;
+    }
+    function invDb() {
+        try {
+            if (typeof window.getInventoryDatabase === 'function') return window.getInventoryDatabase();
+            if (typeof inventoryDb !== 'undefined' && inventoryDb) return inventoryDb;
+        } catch (_) {}
+        return null;
+    }
+    function memoryTransfers() {
+        try { if (typeof inventorySystemEntries !== 'undefined' && Array.isArray(inventorySystemEntries) && inventorySystemEntries.length) return inventorySystemEntries; } catch (_) {}
+        try { if (typeof allSystemEntries !== 'undefined' && Array.isArray(allSystemEntries)) return allSystemEntries.filter((e) => e && e.source === 'transfer_entry'); } catch (_) {}
+        return [];
+    }
+    function personOf(name) {
+        const n = norm(name);
+        if (!n) return null;
+        const p = people().find((x) => norm(x.value) === n);
+        return p ? { name: p.value, position: p.position || '', site: p.site || '' } : null;
+    }
+    function trfHistory(h) {
+        const arr = Array.isArray(h) ? h : (h && typeof h === 'object' ? Object.values(h) : []);
+        return arr.filter((x) => x && typeof x === 'object')
+            .map((x) => ({ at: Number(x.timestamp) || Date.parse(x.date || '') || 0, action: String(x.action || x.remarks || x.status || ''), by: String(x.by || ''), note: String(x.note || '') }))
+            .sort((a, b) => a.at - b.at);
+    }
+    function trfClosed(e) {
+        const s = norm(e.remarks || e.status);
+        return /^(completed|complete|received|rejected|cancel|closed|done)/.test(s);
+    }
+    function trfMentions(e, name) {
+        const n = norm(name);
+        return !!n && ['requestor', 'sourceContact', 'approver', 'receiver', 'attention', 'enteredBy'].some((f) => norm(e[f]) === n);
+    }
+    function trfItem(e) {
+        const type = String(e.jobType || e.for || 'Transfer');
+        const step = String(e.remarks || e.status || 'Pending').trim();
+        const def = TRF_STEP[norm(step)] || null;
+        const closed = trfClosed(e);
+        const flow = TRF_FLOW[type] || TRF_FLOW.Transfer;
+        let pos = def ? flow.indexOf(step === 'Pending' ? 'Pending Admin' : (step === 'Approved' ? 'In Transit' : step)) : -1;
+        const hist = trfHistory(e.history);
+        const last = hist.length ? hist[hist.length - 1] : null;
+        const since = (last && last.at) || Number(e.lastUpdated) || Number(e.timestamp) || 0;
+        const out = {
+            key: e.key || '', control: String(e.controlNumber || e.controlId || e.ref || ''), type: type,
+            product: String(e.productName || ''), product_id: String(e.productID || ''),
+            qty_ordered: e.orderedQty || e.requiredQty || '', qty_approved: e.approvedQty != null ? e.approvedQty : '', qty_received: e.receivedQty != null ? e.receivedQty : '',
+            from: String(e.fromSite || e.fromLocation || ''), to: String(e.toSite || e.toLocation || ''),
+            requester: String(e.requestor || ''), source_contact: String(e.sourceContact || ''), approver: String(e.approver || ''), receiver: String(e.receiver || ''),
+            entered_by: String(e.enteredBy || ''), created: fmtDate(Number(e.timestamp) || (hist[0] && hist[0].at) || 0),
+            step: step, open: !closed,
+            flow: flow.map((s) => (TRF_STEP[norm(s)] || {}).short || s),
+            step_no: pos >= 0 ? pos + 1 : null, steps_total: flow.length,
+            since: fmtDate(since), days_at_step: daysSince(since),
+            history: hist.slice(-6).reverse().map((x) => ({ date: fmtDate(x.at), action: x.action, by: x.by || undefined, note: x.note || undefined }))
+        };
+        if (closed) { out.waiting_for = null; out.next = 'Nothing: ' + step; return out; }
+        // Active Job shows the step to the person in the step's own field;
+        // only at the admin step does Attention count as well.
+        const field = def ? def.field : 'attention';
+        const isAdminStep = !!def && def.field === 'approver';
+        const blank = (v) => !String(v || '').trim() || norm(v) === 'none';
+        const roleName = String(e[field] || '').trim();
+        const attn = String(e.attention || '').trim();
+        let who = blank(roleName) ? '' : roleName;
+        const warn = [];
+        if (!who && (isAdminStep || !def) && !blank(attn)) who = attn;
+        const p = personOf(who);
+        out.next = def ? def.label : ('Step "' + step + '"');
+        out.waiting_for = who || null;
+        if (p) { out.waiting_for_position = p.position || undefined; out.waiting_for_site = p.site || undefined; }
+        if (def && def.site) out.at_site = def.site === 'from' ? out.from : out.to;
+        if (isAdminStep && who && !blank(attn) && norm(attn) !== norm(who)) out.also_with = attn;
+        if (!who) {
+            warn.push('No ' + (TRF_FIELD_NAME[field] || 'person') + ' is set for this step, so it is in nobody\'s Active Job' +
+                (!blank(attn) ? ' (Attention says ' + attn + ', but Active Job does not use Attention at this step)' : '') +
+                '. Someone with Inventory rights must correct the request with the right person.');
+        } else if (!p) {
+            warn.push('"' + who + '" is not in the users list (name spelled differently, or no longer a user), so nobody sees this step in Active Job.');
+        }
+        if (warn.length) out.problems = warn;
+        return out;
+    }
+    async function transferRows(raw) {
+        const tries = transferCandidates(raw);
+        const found = new Map();
+        const d = invDb();
+        if (d && d.ref) {
+            const reads = tries.map((c) => withTimeout(d.ref('transfer_entries').orderByChild('controlNumber').equalTo(c).once('value'), 9000, 'Inventory')
+                .then((snap) => { const v = (snap && snap.val()) || {}; Object.keys(v).forEach((k) => { if (v[k]) found.set(k, Object.assign({ key: k }, v[k])); }); })
+                .catch(() => null));
+            await Promise.all(reads);
+        }
+        if (!found.size) {
+            // older rows saved under another field name: only what is already loaded
+            const want = tries.map(norm);
+            memoryTransfers().forEach((e) => {
+                if (!e) return;
+                const id = norm(e.controlNumber || e.controlId || e.ref || '');
+                if (id && want.indexOf(id) !== -1) found.set(String(e.key || id + found.size), e);
+            });
+        }
+        return Array.from(found.values());
+    }
+    async function transferSearch(args) {
+        const raw = String((args && (args.control || args.q)) || '').trim();
+        if (!raw) return { error: 'Which transfer? Give its control number, e.g. TRF-0361.' };
+        const parts = raw.split(/\s*(?:,|;|&|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).slice(0, 5);
+        const acc = access();
+        const myN = myName();
+        const out = [];
+        for (const part of parts) {
+            const rows = await transferRows(part);
+            if (!rows.length) { out.push({ control: transferCandidates(part)[0] || part, found: false }); continue; }
+            const visible = rows.filter((e) => acc.allSites || trfMentions(e, myN) ||
+                acc.sites.some((s) => s === siteNo(e.fromSite || e.fromLocation) || s === siteNo(e.toSite || e.toLocation)));
+            if (!visible.length) { out.push({ control: rows[0].controlNumber || part, found: true, hidden: true, note: 'This request is for sites you do not cover.' }); continue; }
+            const items = visible.map(trfItem).sort((a, b) => (a.open === b.open ? 0 : (a.open ? -1 : 1)));
+            const open = items.filter((i) => i.open);
+            const waiting = {};
+            open.forEach((i) => { const k = i.waiting_for || '(nobody set)'; waiting[k] = (waiting[k] || 0) + 1; });
+            out.push({ control: items[0].control || part, found: true, type: items[0].type, from: items[0].from, to: items[0].to,
+                items_total: items.length, items_open: open.length, waiting_for: waiting, items: items });
+        }
+        return { transfers: out, how_it_moves: 'Transfer: 1 Source site confirms and sends (Pending Source) -> 2 Admin authorizes, stock leaves the source (Pending Admin) -> 3 Receiver confirms receipt, stock is added (In Transit) -> Completed. Restock / Return: Admin -> Receiver. Usage: Admin -> Requester confirms actual usage. The person shown sees it in their Active Job (Inventory).' };
+    }
+    async function toolTransfer(args) {
+        const r = await transferSearch(args || {});
+        if (r.error) return { result: { error: r.error } };
+        return { result: r, card: { kind: 'transfer', data: r } };
+    }
+    function transferHtml(x) {
+        if (x.error) return '<div class="iba-ai-note is-error">' + esc(x.error) + '</div>';
+        return (x.transfers || []).map((t) => {
+            if (!t.found) return '<div class="iba-ai-card-head"><i class="fa-solid fa-dolly"></i> ' + esc(t.control) + '</div><p class="iba-ai-empty">No transfer with this control number was found. Check the number (e.g. TRF-0361, STK-0012, USE-0040, RET-0007).</p>';
+            if (t.hidden) return '<div class="iba-ai-card-head"><i class="fa-solid fa-dolly"></i> ' + esc(t.control) + '</div><p class="iba-ai-empty">' + esc(t.note) + '</p>';
+            const first = t.items[0];
+            const badge = t.items_open ? (t.items_open + ' open') : first.step;
+            let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-dolly"></i> ' + esc(t.control) + ' · ' + esc(t.type) +
+                (t.from || t.to ? ' · ' + esc(t.from || '?') + ' → ' + esc(t.to || '?') : '') + '<span class="iba-ai-badge' + (t.items_open ? '' : ' is-plain') + '">' + esc(badge) + '</span></div>';
+            // one block per (step, person)
+            const groups = [];
+            t.items.forEach((i) => {
+                const key = i.open ? i.step + '|' + (i.waiting_for || '') : 'closed|' + i.step;
+                let g = groups.find((x) => x.key === key);
+                if (!g) { g = { key, head: i, items: [] }; groups.push(g); }
+                g.items.push(i);
+            });
+            groups.forEach((g) => {
+                const i = g.head;
+                if (i.open) {
+                    const who = i.waiting_for ? '<b>' + esc(i.waiting_for) + '</b>' + ((i.waiting_for_position || i.waiting_for_site) ? ' <small>(' + esc([i.waiting_for_position, i.waiting_for_site].filter(Boolean).join(' · ')) + ')</small>' : '') : '<b>nobody</b>';
+                    h += '<p class="iba-ai-lastact">Waiting for ' + who + ': ' + esc(i.next) + (i.at_site ? ' at ' + esc(i.at_site) : '') +
+                        (i.step_no ? ' (step ' + esc(i.step_no) + ' of ' + esc(i.steps_total) + ')' : '') +
+                        (i.since ? ' · since ' + esc(i.since) + (i.days_at_step != null ? ' (' + esc(i.days_at_step) + (i.days_at_step === 1 ? ' day' : ' days') + ')' : '') : '') +
+                        (i.also_with ? '<br><small>Also in the Active Job of ' + esc(i.also_with) + ' (Attention).</small>' : '') + '</p>';
+                    h += '<div class="iba-ai-trf-flow">' + i.flow.map((s, n) => '<span class="' + (i.step_no && n + 1 < i.step_no ? 'is-done' : (i.step_no === n + 1 ? 'is-now' : '')) + '">' + esc(s) + '</span>').join('<i class="fa-solid fa-chevron-right"></i>') + '</div>';
+                    if (i.problems) h += '<ul class="iba-ai-warn">' + i.problems.map((w) => '<li>' + esc(w) + '</li>').join('') + '</ul>';
+                } else {
+                    h += '<p class="iba-ai-foot">' + esc(i.step) + ':</p>';
+                }
+                h += '<ul class="iba-ai-rows">' + g.items.map((r) => '<li><span class="iba-ai-grow">' + esc(r.product || r.product_id || 'Item') +
+                    '<small>' + esc(['Qty ' + (r.qty_ordered || '?') + (r.qty_approved !== '' ? ' · approved ' + r.qty_approved : '') + (r.qty_received !== '' ? ' · received ' + r.qty_received : ''), r.requester ? 'requested by ' + r.requester : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>';
+            });
+            const hist = first.history || [];
+            if (hist.length) {
+                h += '<div class="iba-ai-sub">Recent steps</div><ul class="iba-ai-rows iba-ai-timeline">' + hist.map((e) => '<li><span class="iba-ai-tl-date">' + esc(e.date || '—') + '</span><span class="iba-ai-grow">' + esc(e.action || '—') +
+                    '<small>' + esc([e.by, e.note].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>';
+            }
+            const ppl = [first.requester ? 'Requester: ' + first.requester : '', first.source_contact ? 'Source: ' + first.source_contact : '', first.approver ? 'Approver: ' + first.approver : '', first.receiver ? 'Receiver: ' + first.receiver : ''].filter(Boolean).join(' · ');
+            if (ppl) h += '<p class="iba-ai-foot">' + esc(ppl) + (first.created ? ' · created ' + esc(first.created) : '') + '</p>';
+            return h;
+        }).join('<hr class="iba-ai-sep">');
+    }
+    async function runTransferTrack(q, out) {
+        if (state.busy) return;
+        state.busy = true;
+        if (out) out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        try {
+            const r = await transferSearch({ control: q });
+            if (out) { out.innerHTML = ''; addCard({ kind: 'transfer', data: r }, out); }
+            else addCard({ kind: 'transfer', data: r });
+        } catch (err) {
+            if (out) out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+            else addError(err);
+        } finally {
+            state.busy = false;
+        }
+    }
 
     // ------------------------------------------------------------------
     // Track an invoice (patch 13) - no AI needed
@@ -1218,7 +1446,8 @@
         job_records: toolJobs,
         add_to_batch: toolBatch,
         invoices_by_status: toolStatus,
-        invoice_activity: toolActivity
+        invoice_activity: toolActivity,
+        track_transfer: toolTransfer
     };
     const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch'];
     async function runTool(name, args) {
@@ -1254,6 +1483,7 @@
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
+            'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
             'Be warm, brief and practical. Reply in the language the user writes in.',
             'Use the tools for any fact about POs, invoices, tasks, inventory or people. Never guess numbers, names or statuses.',
@@ -1315,6 +1545,18 @@
     async function ask(userText, opts) {
         const text = String(userText || '').trim();
         if (!text || state.busy) return;
+        // 15.0.0 patch 4: a transfer number (TRF-0361, STK-, USE-, RET-) is
+        // answered straight away without the AI: no key needed, no quota used.
+        const trfNos = text.match(/\b(?:(?:trf|stk)[\s#:-]*\d{1,6}|(?:use|ret)[-#:]?\d{1,6})\b/gi);
+        if (trfNos && trfNos.length && !(opts && opts.silentUser)) {
+            addUser(text);
+            state.busy = true;
+            setBusy(true);
+            try { addCard({ kind: 'transfer', data: await transferSearch({ control: trfNos.join(', ') }) }); }
+            catch (err) { addError(err); }
+            finally { state.busy = false; setBusy(false); }
+            return;
+        }
         if (!ready()) {
             addUser(text);
             addNote(isSuper() ? 'Let\'s set me up first: it takes 2 minutes and is free.' : 'To ask in plain words, add your own free key in Setup (2 minutes). Tracking an invoice works without it.', 'setup');
@@ -1492,10 +1734,10 @@
             '<div class="iba-ai-view" data-view="skills" hidden><div class="iba-ai-pane" id="iba-ai-skills"></div></div>' +
             '<div class="iba-ai-view" data-view="setup" hidden><div class="iba-ai-pane" id="iba-ai-setup"></div></div>' +
             '<div class="iba-ai-view" data-view="track" hidden><div class="iba-ai-pane" id="iba-ai-track">' +
-              '<h3><i class="fa-solid fa-route"></i> Track an invoice</h3>' +
-              '<p class="iba-ai-help">Type a PO number, or a vendor name. Add a site or year to narrow it down. This does not use the AI.</p>' +
+              '<h3><i class="fa-solid fa-route"></i> Track an invoice or a transfer</h3>' +
+              '<p class="iba-ai-help">Type a PO number, a vendor name, or a transfer number (TRF-0361). Add a site or year to narrow invoices down. This does not use the AI.</p>' +
               '<form class="iba-ai-track-form" id="iba-ai-track-form" autocomplete="off">' +
-                '<input id="iba-ai-track-q" type="text" placeholder="PO number or vendor"/>' +
+                '<input id="iba-ai-track-q" type="text" placeholder="PO, vendor or TRF-0361"/>' +
                 '<input id="iba-ai-track-site" type="text" inputmode="numeric" placeholder="Site"/>' +
                 '<input id="iba-ai-track-year" type="text" inputmode="numeric" placeholder="Year"/>' +
                 '<button type="submit" class="iba-ai-btn is-main"><i class="fa-solid fa-magnifying-glass"></i> Track</button>' +
@@ -1529,6 +1771,7 @@
         $('iba-ai-track-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const q = String($('iba-ai-track-q').value || '').trim();
+            if (looksTransfer(q)) { runTransferTrack(q, $('iba-ai-track-out')); return; }
             const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
             runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q, site: $('iba-ai-track-site').value, year: $('iba-ai-track-year').value }, $('iba-ai-track-out'));
         });
@@ -1977,6 +2220,8 @@
             d.innerHTML = '<div class="iba-ai-card-head' + (x.ok ? '' : ' is-bad') + '"><i class="fa-solid ' + esc(x.icon || 'fa-check') + '"></i> ' + esc(x.text) + '</div>';
         } else if (card.kind === 'track') {
             d.innerHTML = trackHtml(x);
+        } else if (card.kind === 'transfer') {
+            d.innerHTML = transferHtml(x);
         } else if (card.kind === 'reception') {
             const ppl = Object.keys(x.entered_by || {}).map((k) => esc(k) + ' ' + esc(x.entered_by[k])).join(' · ');
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-inbox"></i> Received at Reception · ' + esc(x.period) + '<span class="iba-ai-badge is-plain">' + esc(x.total) + '</span></div>' +
