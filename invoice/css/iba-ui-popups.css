@@ -1050,6 +1050,18 @@
   #iba-attention-menu mark { padding: 0 !important; border-radius: 0 !important; background: transparent !important; color: var(--ui-gold) !important; -webkit-text-fill-color: var(--ui-gold) !important; font-weight: 700 !important; text-decoration: underline !important; text-decoration-color: rgba(227, 201, 138, 0.55) !important; text-underline-offset: 3px !important; }
   #iba-attention-menu .iba-attn-empty { padding: 14px 12px !important; color: var(--ui-text-2) !important; -webkit-text-fill-color: var(--ui-text-2) !important; font-size: 13px !important; }
   #iba-attention-menu .iba-attn-empty[hidden] { display: none !important; }
+  /* 15.0.0 patch 1: suggested people first, then everyone else (manual choice) */
+  #iba-attention-menu .iba-attn-group {
+    padding: 8px 12px 4px !important;
+    color: var(--ui-text-3, #8FA1B4) !important;
+    -webkit-text-fill-color: var(--ui-text-3, #8FA1B4) !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+  }
+  #iba-attention-menu .iba-attn-group + .iba-attn-opt { margin-top: 0 !important; }
+  #iba-attention-menu .iba-attn-opt + .iba-attn-group { margin-top: 6px !important; border-top: 1px solid var(--ui-line-soft, rgba(255, 255, 255, 0.08)) !important; padding-top: 10px !important; }
 
   /* ---------------------------------------------------------------------
      21.11 Invoice Entry popup keeps the page behind it clear (patch 10)
@@ -1085,5 +1097,44 @@
   :is(#im-batch-search-modal, #im-attention-picker-modal).modal-overlay:not(.hidden) > .modal-container {
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
   }
+}
+
+/* 15.0.0 patch 1: Batch Entry Save shows it is working */
+#im-batch-save-button.is-saving {
+  cursor: progress !important;
+  opacity: 0.85 !important;
+}
+
+/* 15.0.0 patch 2: Dashboard "Check all" (Super Admin) and its notice */
+body:not(.iba-is-super-admin) #iba-task-check-btn,
+body.iba-phone #iba-task-check-btn {
+  display: none !important;
+}
+#iba-task-check-btn.is-busy {
+  cursor: progress !important;
+  opacity: 0.85 !important;
+}
+#iba-task-check-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 10050;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: rgba(12, 20, 32, 0.94);
+  color: #e8f4f2;
+  border: 1px solid rgba(94, 214, 196, 0.45);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+  line-height: 1.4;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+#iba-task-check-toast.is-on {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 }

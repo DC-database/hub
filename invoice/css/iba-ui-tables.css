@@ -476,3 +476,21 @@
   }
 }
 }
+
+/* 15.0.0 patch 1: Job Records shows its rows in steps (js/app-workdesk-reporting.js) */
+@layer iba-ui {
+  #reporting-table-body > tr.wd-jr-later { display: none !important; }
+  .wd-jr-more {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    padding: 14px 12px 18px !important;
+    color: var(--ui-text-2, #A7B6C6) !important;
+    -webkit-text-fill-color: var(--ui-text-2, #A7B6C6) !important;
+    font-size: 13px !important;
+  }
+  .wd-jr-more[hidden] { display: none !important; }
+  .wd-jr-more button { height: 32px !important; padding: 0 14px !important; }
+}
