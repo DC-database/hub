@@ -1,18 +1,66 @@
-IBA SYSTEM 15.0.0 patch 4
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-3 and everything before)
+IBA SYSTEM 15.0.0 patch 7
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-6 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 4. Copying it over 15.0.0
+  The result is exactly the tested 15.0.0 patch 7. Copying it over 15.0.0
   or any earlier 15.0.0 patch gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p4), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p7), so a normal reload picks them up.
 
-FILES: 42 (+ this note). Changed in patch 4 compared with patch 3:
+FILES: 42 (+ this note). Changed in patch 7 compared with patch 6:
   js/iba-assistant.js, css/iba-assistant.css, index.html
   Nothing needs to change in the Firebase rules.
+
+15.0.0 patch 7 - WHAT CHANGED
+  1. Assistant Track tab: two buttons instead of a list
+  - "Invoices" (PO · Vendor) and "Inventory" (Transfer · Usage · Stock)
+    sit side by side; the chosen one is highlighted (teal / amber).
+  - The help line, the box hint and the fields follow the choice
+    (Inventory hides the Year box). The browser remembers your last choice.
+  - Typing a request number (TRF-0361, USE-, STK-, RET-) switches to
+    Inventory by itself. Search works exactly as in patches 4-6.
+
+15.0.0 patch 6 - WHAT CHANGED
+  1. PO numbers and vehicle numbers do not mix up
+  - Transfer search now matches a number only as a whole number:
+    "36588" finds Vh No.:36588, but no longer 136588 or PO 365880 (in
+    patch 5 it did, because it matched any text containing those digits).
+    Words still match anywhere ("loader" finds "WHEEL LOADER").
+  - Track tab: "Invoices" (the default) always treats 36588 as a PO;
+    "Transfers" treats it as text inside transfers. You choose.
+  - Chat: the assistant is told that a bare number is a PO for invoice
+    questions, and that "vehicle / Vh / plate / equipment / machine /
+    loader / truck / material / transfer" with a number means a transfer
+    search; if it is unclear it should ask which one you mean.
+  - Transfer numbers (TRF-0361, STK-, USE-, RET-) are never taken for a
+    PO, and a bare number is never taken for a transfer number.
+
+15.0.0 patch 5 - WHAT CHANGED
+  1. Assistant: find a transfer by what it says
+  - Search by any words in the request: a vehicle or equipment number
+    (36588 or "Vh No.:36588"), a machine ("wheel loader", "komatsu"), an
+    item, a person or a site. Every word must match; words like "who",
+    "has", "the", "transfer" are ignored.
+  - Two ways:
+      * Track tab > choose "Transfers" > type the words > Track
+        (no AI needed, no free-limit used).
+      * Ask the assistant in your own words, e.g. "who has the transfer
+        for the Komatsu wheel loader?" (uses the AI).
+  - The result lists each matching control number with its items, the
+    text that matched, from -> to, the date, its step and who has it now.
+    Click a number to see the full card (who must act, since when, steps).
+  - Downloads: Firebase cannot search inside text, so the search looks
+    through the transfers already in the browser:
+      * all of them if the Inventory page loaded them this session (free),
+      * otherwise the latest 60 that the Active Job counter already
+        follows (free). Then the card offers "Search all transfers": one
+        download, the same one the Inventory page makes, kept for the
+        session so later searches cost nothing.
+  - Same view rules as patch 4: people who cover all sites see every
+    request; others see their sites or requests where they are named.
 
 15.0.0 patch 4 - WHAT CHANGED
   1. Assistant: who has a transfer (Inventory / Material)
