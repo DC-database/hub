@@ -541,3 +541,36 @@
   .iba-ai-trf-flow > i { font-size: 9px !important; color: #6F7C8A !important; }
   .iba-ai-card.is-transfer hr.iba-ai-sep { border: 0 !important; border-top: 1px dashed rgba(255, 255, 255, 0.14) !important; margin: 10px 0 !important; }
 }
+
+/* 15.0.0 patch 5: find transfers by text */
+@layer iba-ui {
+  .iba-ai-track-form.is-trf { grid-template-columns: 1fr 70px !important; }
+  /* 15.0.0 patch 7: Invoices | Inventory, side by side */
+  .iba-ai-seg { grid-column: 1 / -1 !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; margin: 0 0 2px !important; }
+  .iba-ai-seg > button {
+    display: grid !important; grid-template-columns: auto 1fr !important; grid-template-rows: auto auto !important; column-gap: 9px !important; align-items: center !important;
+    grid-column: auto !important; min-height: 52px !important; margin: 0 !important; padding: 8px 10px !important; text-align: left !important; cursor: pointer !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important; border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.04) !important; color: #C9D3DD !important; box-shadow: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  }
+  .iba-ai-seg > button i { grid-row: 1 / span 2 !important; font-size: 17px !important; width: 20px !important; text-align: center !important; color: #8FA2B5 !important; }
+  .iba-ai-seg > button span { font-size: 13.5px !important; font-weight: 700 !important; line-height: 1.2 !important; }
+  .iba-ai-seg > button small { font-size: 11px !important; line-height: 1.25 !important; color: #8FA2B5 !important; white-space: normal !important; }
+  .iba-ai-seg > button:hover { border-color: rgba(255, 255, 255, 0.28) !important; background: rgba(255, 255, 255, 0.07) !important; }
+  .iba-ai-seg > button.is-on { border-color: rgba(94, 214, 196, 0.75) !important; background: rgba(94, 214, 196, 0.14) !important; color: #EEF8F6 !important; }
+  .iba-ai-seg > button.is-on i { color: #5ED6C4 !important; }
+  .iba-ai-seg > button.is-on small { color: #B7E9E1 !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on { border-color: rgba(242, 182, 109, 0.8) !important; background: rgba(242, 182, 109, 0.14) !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on i { color: #F2B66D !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on small { color: #F5D9B3 !important; }
+  .iba-ai-seg > button:focus-visible { outline: 2px solid #5ED6C4 !important; outline-offset: 2px !important; }
+  .iba-ai-track-form input[hidden] { display: none !important; }
+  .iba-ai-card.is-trf_find { border-left-color: #F2B66D !important; }
+  .iba-ai-card.is-trf_find .iba-ai-rows li { align-items: flex-start !important; }
+  .iba-ai-trf-no { flex: 0 0 auto !important; margin: 1px 8px 0 0 !important; font-weight: 700 !important; white-space: nowrap !important; cursor: pointer !important; }
+  .iba-ai-trf-match { color: #FFD9A8 !important; font-style: italic !important; }
+  .iba-ai-trf-warn { color: #FFB4A8 !important; }
+  .iba-ai-card.is-trf_find .iba-ai-grow small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere !important; }
+  #iba-ai-trf-detail { margin-top: 10px !important; }
+}
