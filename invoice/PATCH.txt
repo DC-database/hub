@@ -1,13 +1,47 @@
-14.0.0 PATCH 17 - Assistant reports: Print and Excel with a chart (TEST_BETA)
-(cumulative: includes patch 1 to 16)
+14.0.0 PATCH 18 - Lighter background + background dimming slider (TEST_BETA)
+(cumulative: includes patch 1 to 17)
 
 Version stays 14.0.0. Copy over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-This zip alone gives the full current state (patch 1 to 17).
+This zip alone gives the full current state (patch 1 to 18).
 For port.iba.com.qa/test_beta/ only. Main site stays on patch 11.
 
-FILES: the same 36 files as patch 16 (+ this note). Changed in patch 17:
-  js/iba-assistant.js, js/iba-print.js, css/iba-assistant.css,
-  index.html (?v= tags)
+FILES: the 36 files of patch 17 + 1 new (+ this note). Changed in patch 18:
+  css/iba-ui.css, index.html (?v= tags)
+  NEW js/iba-bg-dim.js
+
+PATCH 18 - WHAT CHANGED
+  1. Background photo is lighter
+  - The photo was darkened by a see-through layer: desktop about 36%
+    (original 14.0.0 design), phone about 72% (patch 8), so on the phone
+    the photo showed at only 43% to 17% of its brightness.
+  - New defaults: desktop 20%, phone 35%. Measured with a white test
+    photo: desktop now shows the photo at about 84% to 76% (was 71% to
+    57%), phone at about 71% to 59% (was 43% to 17%).
+  2. Background dimming slider (Settings > Shell Backgrounds, Super Admin)
+  - Two sliders: Desktop and Phone, 0% (photo as it is) to 80%, in 5% steps,
+    each with a small preview of the current photo.
+  - Moving a slider shows it on the screen at once; Save applies it for
+    everyone (same place as the photos in Firebase:
+    system_settings/shell_backgrounds dim_desktop / dim_phone).
+  - "Default" puts back 20% / 35%. 36% / 72% gives exactly the old look.
+  - Leaving Settings without Save puts the saved look back.
+  - Each browser remembers the last saved value, so it shows at once on
+    the next visit. Login screen unchanged (no dimming there).
+  Only the darkness of that layer changes; panels, cards and text are the
+  same.
+
+CHECKED (patch 18)
+  - dimming test 16/16 (defaults measured on desktop and phone, slider 0%
+    shows the photo as it is, Save writes for everyone, a Save from another
+    computer applies at once, leaving without Save reverts, 72% = old phone
+    look, sliders usable for the Super Admin, other users do not see them)
+  - report test, Job Records test, Super Admin assistant test, dashboard
+    and phone smoke test: no failures, no errors
+  - unzipping this patch over Grok 14.0.0 gives exactly the tested build
+
+FIREBASE (still to do at the office, see patch 16 notes)
+
+==================== PATCH 17 (included) ====================
 
 PATCH 17 - WHAT CHANGED
   1. Print and Excel on the assistant's answers
