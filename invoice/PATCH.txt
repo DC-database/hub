@@ -1,13 +1,87 @@
-14.0.0 PATCH 18 - Lighter background + background dimming slider (TEST_BETA)
-(cumulative: includes patch 1 to 17)
+IBA SYSTEM 15.0.0
+(built on the original 14.0.0 (Grok); includes everything from 14.0.0 patch 1 to 18)
 
-Version stays 14.0.0. Copy over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-This zip alone gives the full current state (patch 1 to 18).
-For port.iba.com.qa/test_beta/ only. Main site stays on patch 11.
+HOW TO INSTALL
+  Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
+  The result is exactly the tested 15.0.0. From now on fixes come as
+  "15.0.0 patch 1", "patch 2" ... on top of this.
+  For port.iba.com.qa/test_beta/ first. Main site stays on 14.0.0 patch 11
+  until you move it.
 
-FILES: the 36 files of patch 17 + 1 new (+ this note). Changed in patch 18:
-  css/iba-ui.css, index.html (?v= tags)
-  NEW js/iba-bg-dim.js
+VERSION
+  - version.json, the version shown in the app (V 15.0.0) and the
+    system version are 15.0.0. Open tabs on an older version get the usual
+    "new version" notice. Every changed file loads fresh (?v=15.0.0).
+
+FILES: 39 (+ this note). New in 15.0.0 compared with 14.0.0 patch 18:
+  js/app-attention-validation.js, js/app-batch-entry-ui.js,
+  js/app-im-event-wiring.js, app.js, js/iba-assistant.js,
+  css/iba-assistant.css, css/iba-ui-popups.css, css/iba-phone.css,
+  index.html, version.json
+
+15.0.0 - WHAT CHANGED
+  1. Batch Entry: Attention works like Invoice Entry
+  - Before (also in the original 14.0.0): Batch Entry kept a person only for
+    For SRV, IPC Application, Report, In Process and CEO Approval. For every
+    other status (For Approval, For IPC, For Inquiry, Report Approval,
+    Unresolved, ...) it cleared the person: "Set All Attention To" did not
+    stick, the row Attention button did not open, and the invoice was saved
+    with no person, so it reached nobody's list.
+  - Now the Invoice Entry rule: only Under Review, For Summary, With
+    Accounts, Pending and Report Approved clear the person; On Hold keeps an
+    optional person; every other status keeps the chosen person.
+  - "Set All Attention To" applies to every row and stays when the status
+    changes; the row Attention button opens for every status that takes a
+    person, with the same people list as Invoice Entry.
+  - Automatic people stay: For SRV site person, QS for IPC, Gio for Report,
+    Hamad for CEO Approval, COO for In Process.
+  - Save checks every row first: if a row still needs a person, nothing is
+    saved and the message lists those POs (before, earlier rows could
+    already be saved when the check stopped half way).
+  2. Batch Entry popups keep the page clear
+  - "Search and Add Existing Invoices" and the row Attention picker no longer
+    blur or darken the batch list behind them (same as the Invoice Entry
+    popup since patch 10); a deeper shadow marks the popup.
+  3. Assistant: Batch Entry (Super Admin)
+  - New job: "add these POs (123, 234, 356) - the CEO Approval ones - to
+    batch entry". It reads only those POs, opens Batch Entry and adds the
+    matching invoices (or all invoices of the POs when no status is named).
+    POs with nothing to add are listed with the reason (no invoices / now in
+    another status).
+  - If you also say what to change ("set them For Approval to E. Ali", a
+    note), it fills Batch Entry's Set All status / attention / note.
+  - It never saves: you check the rows and press Save. Rows already in the
+    batch are kept and not added twice. The Save button pulses.
+  - The assistant is told it can use Batch Entry (it used to say it could
+    not).
+  4. Phone > Invoice > Records: a PO and its invoices look different
+  - The opened PO gets a teal edge; its invoices sit in a darker tray under
+    it, joined by a line, as smaller lighter cards with a coloured edge for
+    their status (gold approvals, teal SRV/IPC, blue With Accounts, green
+    Paid, violet On Hold, red Rejected / Cancelled). Looks only.
+
+CHECKED (15.0.0)
+  - Batch Entry attention test 13/13 (For Approval + E. Ali saved; manual
+    pick; save without a person saves nothing and names the POs; With
+    Accounts still clears; CEO Approval still fills Hamad; On Hold saves)
+  - Assistant Batch Entry test 12/12 (2 CEO Approval invoices added from 4
+    POs with reasons for the others; nothing written until Save; no
+    duplicates; Set All filled; after Save: For Approval with E. Ali; other
+    users cannot use it)
+  - Batch popups: no blur, no dimming (checked in the page)
+  - Phone Records: checked on a phone-size screen
+  - all earlier tests: dimming, reports, Job Records, roles/dates, Super
+    Admin assistant, tracker, dashboard + phone smoke test, approvals,
+    live counts: no failures, no errors
+  - unzipping this over Grok 14.0.0 gives exactly the tested 15.0.0
+
+FIREBASE (still to do at the office, see the rules sent in chat):
+  material-8f545 transfer_entries .indexOn ["controlNumber","remarks"];
+  ibainvoice-3ea51 iba_assistant + job_entries ["for","timestamp","po"]
+  + approvers ["Mobile","Email"]; invoiceentry-b15a8 iba_assistant +
+  invoice_tasks_by_user/All status index.
+
+==================== 14.0.0 PATCH 18 AND EARLIER (included) ====================
 
 PATCH 18 - WHAT CHANGED
   1. Background photo is lighter

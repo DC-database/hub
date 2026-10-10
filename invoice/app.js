@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '14.0.0';
+const APP_VERSION = '15.0.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -5337,6 +5337,29 @@ async function handleSaveBatchInvoices() {
         await ensureInvoicePOBaseDataFetched(false);
     } else if (typeof ensureInvoiceDataFetched === 'function') {
         await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
+    }
+
+    // 15.0.0: check every row's Attention first (the Invoice Entry rule), so a row
+    // that still needs a person stops the save before anything is written. Before,
+    // the check ran row by row while saving, so earlier rows could already be saved.
+    if (typeof imBatchResolveAttentionForSave === 'function') {
+        const missing = [];
+        for (const row of rows) {
+            const statusEl = row.querySelector('[name="status"]');
+            const finalStatus = batchGlobalStatus || (statusEl ? String(statusEl.value || '').trim() : '');
+            let attn = '';
+            try {
+                attn = row.choicesInstance ? (row.choicesInstance.getValue(true) || '') : (((row.querySelector('select[name="attention"]') || {}).value) || '');
+            } catch (_) { attn = ''; }
+            if (batchGlobalAttention) attn = batchGlobalAttention;
+            const rowGroup = (row.dataset && (row.dataset.group || row.dataset.invoiceGroup)) || 'Normal';
+            try { await imBatchResolveAttentionForSave(finalStatus, row.dataset.site, rowGroup, attn, row); }
+            catch (_) { missing.push(`PO ${row.dataset.po || '?'} - ${finalStatus || 'no status'}`); }
+        }
+        if (missing.length) {
+            alert(`Nothing was saved.\n\nThese rows need an Attention person for their status:\n- ${missing.join('\n- ')}\n\nUse "Set All Attention To" or the row's Attention button, then save again.`);
+            return;
+        }
     }
 
     for (const row of rows) {
