@@ -1068,5 +1068,22 @@
   #im-invoice-entry-modal.modal-overlay:not(.hidden) > .modal-container {
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
   }
+
+  /* ---------------------------------------------------------------------
+     21.12 Batch Entry popups keep the page behind them clear (15.0.0)
+     Same as the Invoice Entry popup (21.11): the "Search existing invoices"
+     window and the row Attention picker no longer blur or darken the batch
+     list behind them, so the rows stay readable while choosing. A deeper
+     shadow keeps the popup easy to tell apart.
+     --------------------------------------------------------------------- */
+  :is(#im-batch-search-modal, #im-attention-picker-modal).modal-overlay:not(.hidden) {
+    background: transparent !important;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  :is(#im-batch-search-modal, #im-attention-picker-modal).modal-overlay:not(.hidden) > .modal-container {
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  }
 }
 }

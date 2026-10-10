@@ -868,3 +868,97 @@ body.iba-phone #iba-phone #wd-inv-mobile-material-finder .inv-mobile-qr-label-bo
   #iba-phone .iba-ph-count,
   #iba-phone .iba-ph-badge:not(.dm-unread-badge)::after { animation: none; }
 }
+
+/* ==========================================================================
+   15.0.0 - Records: a PO and its invoices no longer look the same
+   The PO stays the big card. Its invoices now sit in a darker tray under it,
+   joined by a line, as smaller and lighter cards with a coloured edge for
+   their status, so it is clear which invoices belong to which PO.
+   Looks only; the search and the data are unchanged.
+   ========================================================================== */
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-po.is-expanded {
+  border-color: rgba(31, 164, 168, 0.55) !important;
+  box-shadow: inset 4px 0 0 rgba(31, 164, 168, 0.85), 0 10px 26px rgba(0, 0, 0, 0.28) !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-po.is-expanded .iba-mob-v2-po-card {
+  background: rgba(31, 164, 168, 0.07) !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-po-detail {
+  padding: 4px 12px 14px 14px !important;
+  border-top: 1px dashed rgba(255, 255, 255, 0.14) !important;
+  background: rgba(3, 9, 16, 0.42) !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-heading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin: 10px 0 2px !important;
+  padding: 0 !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-heading h3 {
+  margin: 0 !important;
+  color: #7FD3D6 !important;
+  -webkit-text-fill-color: #7FD3D6 !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-heading span {
+  padding: 1px 9px !important;
+  border-radius: 999px !important;
+  background: rgba(31, 164, 168, 0.16) !important;
+  color: #BDEBEC !important;
+  -webkit-text-fill-color: #BDEBEC !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-list {
+  margin: 6px 0 0 8px !important;
+  padding: 0 0 0 16px !important;
+  border-left: 2px solid rgba(31, 164, 168, 0.35) !important;
+  list-style: none !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-list > li.iba-mob-invoice-item {
+  position: relative !important;
+  margin: 10px 0 0 !important;
+  padding: 10px 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  border-left: 4px solid #A7B6C6 !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.075) !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-list > li.iba-mob-invoice-item::before {
+  content: "" !important;
+  position: absolute !important;
+  left: -24px !important;
+  top: 16px !important;
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #1FA4A8 !important;
+  box-shadow: 0 0 0 3px rgba(3, 9, 16, 0.9) !important;
+}
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-number { font-size: 16px !important; font-weight: 700 !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-meta,
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-attention { font-size: 13px !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-meta strong { font-size: 14px !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-attention { padding-top: 6px !important; margin-top: 6px !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-invoice-actions .im-tx-action-btn { min-height: 34px !important; padding: 6px 10px !important; font-size: 12px !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item .iba-mob-status { font-size: 11.5px !important; font-weight: 700 !important; }
+/* status colour on the edge and the label */
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is(.status-paid)) { border-left-color: #5BD49B !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status.status-paid { color: #8FE6BC !important; -webkit-text-fill-color: #8FE6BC !important; background: rgba(91, 212, 155, 0.14) !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is(.status-with-accounts)) { border-left-color: #4FB8F0 !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status.status-with-accounts { color: #9AD3F5 !important; -webkit-text-fill-color: #9AD3F5 !important; background: rgba(79, 184, 240, 0.14) !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is([class*="approval"], [class*="status-report"])) { border-left-color: #E8C46A !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is([class*="approval"], [class*="status-report"]) { color: #F0D58E !important; -webkit-text-fill-color: #F0D58E !important; background: rgba(232, 196, 106, 0.14) !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is([class*="srv"], [class*="ipc"])) { border-left-color: #7FD3D6 !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is([class*="srv"], [class*="ipc"]) { color: #A9E4E6 !important; -webkit-text-fill-color: #A9E4E6 !important; background: rgba(127, 211, 214, 0.14) !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is(.status-on-hold, .status-for-inquiry)) { border-left-color: #B9A4F5 !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is(.status-on-hold, .status-for-inquiry) { color: #D3C6FA !important; -webkit-text-fill-color: #D3C6FA !important; background: rgba(185, 164, 245, 0.14) !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is(.status-rejected, .status-cancelled, .status-unresolved)) { border-left-color: #F07070 !important; }
+body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is(.status-rejected, .status-cancelled, .status-unresolved) { color: #F6A3A3 !important; -webkit-text-fill-color: #F6A3A3 !important; background: rgba(240, 112, 112, 0.14) !important; }

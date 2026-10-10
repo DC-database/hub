@@ -521,3 +521,9 @@
   .iba-ai-cardacts .iba-ai-mini { display: inline-flex !important; align-items: center !important; gap: 6px !important; }
   .iba-ai-cardacts .iba-ai-mini[disabled] { opacity: .6 !important; cursor: progress !important; }
 }
+
+@layer iba-ui {
+  /* ---------- 15.0.0: Batch Entry from the assistant ---------- */
+  .iba-ai-card.is-batch { border-left-color: #F0B86E !important; }
+  #im-batch-save-button.iba-ai-pulse { animation: ibaAiPulse 1.2s ease-in-out 5 !important; }
+}
