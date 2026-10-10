@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p4';
+    const VERSION = '15.0.0-p7';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -341,6 +341,12 @@
                   set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
               parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
+            { name: 'find_transfers', description: 'Inventory / Material: find Transfer, Restock, Return or Usage requests by what they say - a vehicle or equipment number (e.g. 36588), an item or machine (e.g. wheel loader, Komatsu), a product, a person or a site. Lists each matching control number with its items, the matching text, its step and who has it now. It looks through the transfers already loaded; when it says older ones were not searched, tell the user to press "Search all transfers" on the card (or call again with all=true only if the user asked to search everything).',
+              parameters: { type: 'object', properties: {
+                  text: { type: 'string', description: 'Words to look for, e.g. "36588" or "wheel loader"' },
+                  open_only: { type: 'boolean', description: 'Only requests still waiting for someone' },
+                  site: { type: 'string' }, when: { type: 'string', description: 'Optional period words for the request date' },
+                  all: { type: 'boolean', description: 'Search every transfer (one download). Only when the user asks to search everything.' } }, required: ['text'] } },
             { name: 'find_person', description: 'Find people in the system by name, position or site (for Attention or for a message).',
               parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
             { name: 'track_invoices', description: 'Where invoices are now and who has them: by PO number, or by vendor name with optional site and year. Each invoice shows its stage (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who has it, since when, and recent steps. When a vendor has many POs it returns counts by year and site instead: then ask the user which year or site.',
@@ -797,6 +803,196 @@
             return h;
         }).join('<hr class="iba-ai-sep">');
     }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 5: find transfers by what they say (vehicle no., item,
+    // "loader", a person, a site...). Firebase cannot search inside text,
+    // so this looks through transfers already in the browser:
+    //  - all of them when the Inventory page has loaded them (free),
+    //  - otherwise the latest 60 that the Active Job counter already
+    //    follows (free), and offers "Search all transfers": one download,
+    //    the same one the Inventory page makes, kept for the session.
+    // ------------------------------------------------------------------
+    const TRF_STOP = ['the', 'a', 'an', 'of', 'for', 'to', 'and', 'or', 'with', 'who', 'has', 'have', 'where', 'is', 'are', 'was', 'what', 'which',
+        'transfer', 'transfers', 'request', 'requests', 'transaction', 'transactions', 'item', 'items', 'about', 'find', 'show', 'me', 'please', 'any', 'all', 'it', 'this', 'that', 'in', 'on', 'at', 'by'];
+    const TRF_TEXT_FIELDS = ['controlNumber', 'controlId', 'ref', 'jobType', 'productName', 'productID', 'details', 'note', 'notes', 'remarks', 'status', 'purpose', 'reason',
+        'vehicle', 'vehicleNo', 'equipment', 'requestor', 'sourceContact', 'approver', 'receiver', 'attention', 'enteredBy', 'fromSite', 'toSite', 'fromLocation', 'toLocation', 'shippingDate', 'esn', 'receiverEsn'];
+    function trfWords(q) {
+        return String(q || '').toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, ' ').split(' ')
+            .filter((w) => w && (w.length > 1 || /\d/.test(w)) && TRF_STOP.indexOf(w) === -1);
+    }
+    function trfText(e) {
+        const parts = [];
+        TRF_TEXT_FIELDS.forEach((f) => { const v = e[f]; if (v != null && (typeof v === 'string' || typeof v === 'number')) parts.push(String(v)); });
+        // any other short text the request carries (older forms used other names)
+        Object.keys(e).forEach((k) => {
+            if (TRF_TEXT_FIELDS.indexOf(k) !== -1 || k === 'history' || k === 'key') return;
+            const v = e[k];
+            if (typeof v === 'string' && v.length <= 300 && !/^https?:/i.test(v)) parts.push(v);
+        });
+        trfHistory(e.history).forEach((h) => { if (h.note) parts.push(h.note); });
+        return parts.join(' • ');
+    }
+    let trfAllCache = null; // full list for this session, after "Search all"
+    function trfFullList() {
+        if (trfAllCache) return trfAllCache;
+        try {
+            if (typeof inventorySystemEntries !== 'undefined' && Array.isArray(inventorySystemEntries) && inventorySystemEntries.length) return inventorySystemEntries;
+        } catch (_) {}
+        return null;
+    }
+    let trfLatestMemo = null;
+    async function trfLatest() {
+        if (trfLatestMemo && Date.now() - trfLatestMemo.at < 60000) return trfLatestMemo.rows;
+        const d = invDb();
+        if (!d || !d.ref) return [];
+        // the same query the Active Job counter listens to, so it comes from memory
+        const snap = await withTimeout(d.ref('transfer_entries').orderByKey().limitToLast(60).once('value'), 9000, 'Inventory');
+        const v = (snap && snap.val()) || {};
+        const rows = Object.keys(v).map((k) => Object.assign({ key: k }, v[k] || {}));
+        trfLatestMemo = { at: Date.now(), rows: rows };
+        return rows;
+    }
+    async function trfLoadAll() {
+        if (typeof ensureAllEntriesFetched === 'function') {
+            try { await ensureAllEntriesFetched(false, { mode: 'inventory' }); } catch (_) {}
+            const full = trfFullList();
+            if (full) return full;
+        }
+        const d = invDb();
+        if (!d || !d.ref) throw new Error('Inventory database is not ready.');
+        const snap = await withTimeout(d.ref('transfer_entries').once('value'), 30000, 'Inventory');
+        const v = (snap && snap.val()) || {};
+        trfAllCache = Object.keys(v).map((k) => Object.assign({ key: k }, v[k] || {}));
+        return trfAllCache;
+    }
+    // 15.0.0 patch 6: a number matches only as a whole number, so 36588 does
+    // not match 136588 or 365880 (a PO, a phone number...). Words match anywhere.
+    function trfFindAt(low, w) {
+        if (!/^\d+$/.test(w)) return low.indexOf(w);
+        const m = new RegExp('(^|[^0-9])' + w + '(?![0-9])').exec(low);
+        return m ? m.index + m[1].length : -1;
+    }
+    function trfSnippet(text, words) {
+        const low = text.toLowerCase();
+        let at = -1;
+        words.forEach((w) => { const i = trfFindAt(low, w); if (i !== -1 && (at === -1 || i < at)) at = i; });
+        if (at === -1) return '';
+        // the piece of text around the first match, cut at the separators
+        const start = Math.max(text.lastIndexOf(' • ', at) + 3, at - 60, 0);
+        let end = text.indexOf(' • ', at);
+        if (end === -1 || end - at > 90) end = Math.min(text.length, at + 90);
+        return (start > 0 && text.slice(start - 3, start) !== ' • ' ? '…' : '') + text.slice(start, end).trim() + (end < text.length && text.slice(end, end + 3) !== ' • ' ? '…' : '');
+    }
+    async function transferFind(args) {
+        const x = args || {};
+        const words = trfWords(x.text || x.q);
+        if (!words.length) return { error: 'What should I look for? For example a vehicle number (36588), an item (wheel loader) or a name.' };
+        let list = trfFullList();
+        let complete = !!list;
+        if (!list && x.all) { list = await trfLoadAll(); complete = true; }
+        if (!list) list = await trfLatest();
+        const rg = rangeOf(x);
+        const acc = access();
+        const myN = myName();
+        const site = siteNo(x.site);
+        const groups = new Map();
+        let checked = 0;
+        list.forEach((e) => {
+            if (!e || typeof e !== 'object') return;
+            if (e.source && e.source !== 'transfer_entry') return;
+            checked += 1;
+            const text = trfText(e);
+            const low = text.toLowerCase();
+            if (!words.every((w) => trfFindAt(low, w) !== -1)) return;
+            if (!(acc.allSites || trfMentions(e, myN) || acc.sites.some((s) => s === siteNo(e.fromSite || e.fromLocation) || s === siteNo(e.toSite || e.toLocation)))) return;
+            if (site && site !== siteNo(e.fromSite || e.fromLocation) && site !== siteNo(e.toSite || e.toLocation)) return;
+            const created = Number(e.timestamp) || 0;
+            if (rg && !inRange(created ? qatarISO(created) : '', rg)) return;
+            const item = trfItem(e);
+            if (x.open_only && !item.open) return;
+            const key = item.control || e.key;
+            let g = groups.get(key);
+            if (!g) { g = { control: item.control || '(no number)', type: item.type, from: item.from, to: item.to, created: item.created, at: created, items: [], open: 0, match: '' }; groups.set(key, g); }
+            g.items.push(item);
+            if (item.open) g.open += 1;
+            if (!g.match) g.match = trfSnippet(text, words);
+        });
+        const all = Array.from(groups.values()).sort((a, b) => (b.open > 0) - (a.open > 0) || (b.at - a.at));
+        const rows = all.map((g) => {
+            const first = g.items.find((i) => i.open) || g.items[0];
+            return { control: g.control, type: g.type, from: g.from || undefined, to: g.to || undefined, created: g.created,
+                products: Array.from(new Set(g.items.map((i) => i.product).filter(Boolean))).slice(0, 4).join(', '),
+                match: g.match, status: g.open ? first.step : first.step, open: g.open > 0,
+                waiting_for: g.open ? (first.waiting_for || 'nobody') : undefined, days_at_step: g.open ? first.days_at_step : undefined,
+                problems: g.open && first.problems ? first.problems.length : undefined };
+        });
+        return { query: words.join(' '), total: rows.length, shown: Math.min(rows.length, 25), checked: checked, all_checked: complete,
+            note: complete ? 'Searched all ' + checked + ' transfers.' : 'Searched the latest ' + checked + ' transfers only. Older ones need "Search all transfers" (one download, the same as opening Inventory).',
+            items: rows.slice(0, 25) };
+    }
+    function qatarISO(ms) { const q = qatarParts(new Date(ms)); return q.y + '-' + q.m + '-' + q.d; }
+    async function toolTransferFind(args) {
+        const r = await transferFind(args || {});
+        if (r.error) return { result: { error: r.error } };
+        return { result: r, card: { kind: 'trf_find', data: Object.assign({ text: (args && (args.text || args.q)) || '', open_only: !!(args && args.open_only), site: (args && args.site) || '' }, r) } };
+    }
+    function transferFindHtml(x) {
+        if (x.error) return '<div class="iba-ai-note is-error">' + esc(x.error) + '</div>';
+        const again = esc(JSON.stringify({ text: x.text || x.query, open_only: !!x.open_only, site: x.site || '', all: true }));
+        return '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass"></i> Transfers · "' + esc(x.text || x.query) + '"<span class="iba-ai-badge is-plain">' + esc(x.total) + '</span></div>' +
+            (x.items.length ? '<ul class="iba-ai-rows">' + x.items.map((r) => '<li><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '" title="Who has it now">' + esc(r.control) + '</button>' +
+                '<span class="iba-ai-grow">' + esc([r.type, r.products].filter(Boolean).join(' · ')) +
+                (r.match ? '<small class="iba-ai-trf-match">' + esc(r.match) + '</small>' : '') +
+                '<small>' + esc([(r.from || r.to) ? (r.from || '?') + ' → ' + (r.to || '?') : '', r.created, r.open ? r.status + ' · with ' + r.waiting_for + (r.days_at_step != null ? ' · ' + r.days_at_step + 'd' : '') : r.status].filter(Boolean).join(' · ')) + '</small>' +
+                (r.problems ? '<small class="iba-ai-trf-warn">Stuck: open it to see why</small>' : '') + '</span></li>').join('') + '</ul>' +
+                (x.total > x.shown ? '<p class="iba-ai-foot">Showing ' + esc(x.shown) + ' of ' + esc(x.total) + '. Add more words to narrow it down.</p>' : '')
+                : '<p class="iba-ai-empty">No transfer mentions that.</p>') +
+            '<p class="iba-ai-foot">' + esc(x.note) + (x.all_checked ? '' : ' <button type="button" class="iba-ai-mini" data-trf-find="' + again + '"><i class="fa-solid fa-database"></i> Search all transfers</button>') + '</p>' +
+            (x.items.length ? '<p class="iba-ai-foot">Click a number to see who must act on it now.</p>' : '');
+    }
+    async function runTransferFind(args, out) {
+        if (state.busy) return;
+        state.busy = true;
+        if (out) out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        else setBusy(true);
+        try {
+            const r = await transferFind(args);
+            const card = { kind: 'trf_find', data: Object.assign({ text: args.text || '', open_only: !!args.open_only, site: args.site || '' }, r) };
+            if (out) { out.innerHTML = ''; addCard(card, out); } else addCard(card);
+        } catch (err) {
+            if (out) out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+            else addError(err);
+        } finally {
+            state.busy = false;
+            if (!out) setBusy(false);
+        }
+    }
+
+    // 15.0.0 patch 7: Track tab - two buttons side by side instead of a list:
+    // Invoices (PO, vendor) and Inventory (Transfer, Usage, Restock, Return).
+    const TRACK_KIND_KEY = 'iba-ai-track-kind-v1';
+    function trackKind() {
+        const on = document.querySelector('#iba-ai-track-kind button.is-on');
+        return on ? on.dataset.kind : 'inv';
+    }
+    function setTrackKind(kind, remember) {
+        const k = kind === 'trf' ? 'trf' : 'inv';
+        document.querySelectorAll('#iba-ai-track-kind button[data-kind]').forEach((b) => {
+            const on = b.dataset.kind === k;
+            b.classList.toggle('is-on', on);
+            b.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        const trf = k === 'trf';
+        const q = $('iba-ai-track-q'), year = $('iba-ai-track-year'), form = $('iba-ai-track-form'), help = $('iba-ai-track-help');
+        if (q) q.placeholder = trf ? 'TRF-0361, 36588, wheel loader...' : 'PO number or vendor';
+        if (year) year.hidden = trf;
+        if (form) form.classList.toggle('is-trf', trf);
+        if (help) help.textContent = trf
+            ? 'A request number (TRF-0361, USE-0040, STK-0012, RET-0007) or words it contains, like a vehicle number (36588) or "wheel loader". Add a site to narrow it down. This does not use the AI.'
+            : 'A PO number or a vendor name. Add a site or year to narrow it down. This does not use the AI.';
+        if (remember) lsSet(TRACK_KIND_KEY, k);
+    }
+
     async function runTransferTrack(q, out) {
         if (state.busy) return;
         state.busy = true;
@@ -1447,7 +1643,8 @@
         add_to_batch: toolBatch,
         invoices_by_status: toolStatus,
         invoice_activity: toolActivity,
-        track_transfer: toolTransfer
+        track_transfer: toolTransfer,
+        find_transfers: toolTransferFind
     };
     const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch'];
     async function runTool(name, args) {
@@ -1483,7 +1680,7 @@
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
-            'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports.',
+            'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
             'Be warm, brief and practical. Reply in the language the user writes in.',
             'Use the tools for any fact about POs, invoices, tasks, inventory or people. Never guess numbers, names or statuses.',
@@ -1734,9 +1931,13 @@
             '<div class="iba-ai-view" data-view="skills" hidden><div class="iba-ai-pane" id="iba-ai-skills"></div></div>' +
             '<div class="iba-ai-view" data-view="setup" hidden><div class="iba-ai-pane" id="iba-ai-setup"></div></div>' +
             '<div class="iba-ai-view" data-view="track" hidden><div class="iba-ai-pane" id="iba-ai-track">' +
-              '<h3><i class="fa-solid fa-route"></i> Track an invoice or a transfer</h3>' +
-              '<p class="iba-ai-help">Type a PO number, a vendor name, or a transfer number (TRF-0361). Add a site or year to narrow invoices down. This does not use the AI.</p>' +
+              '<h3><i class="fa-solid fa-route"></i> Track</h3>' +
+              '<p class="iba-ai-help" id="iba-ai-track-help"></p>' +
               '<form class="iba-ai-track-form" id="iba-ai-track-form" autocomplete="off">' +
+                '<div class="iba-ai-seg" id="iba-ai-track-kind" role="radiogroup" aria-label="What to track">' +
+                  '<button type="button" role="radio" data-kind="inv"><i class="fa-solid fa-file-invoice"></i><span>Invoices</span><small>PO · Vendor</small></button>' +
+                  '<button type="button" role="radio" data-kind="trf"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span><small>Transfer · Usage · Stock</small></button>' +
+                '</div>' +
                 '<input id="iba-ai-track-q" type="text" placeholder="PO, vendor or TRF-0361"/>' +
                 '<input id="iba-ai-track-site" type="text" inputmode="numeric" placeholder="Site"/>' +
                 '<input id="iba-ai-track-year" type="text" inputmode="numeric" placeholder="Year"/>' +
@@ -1768,10 +1969,18 @@
             autoSize(t);
             ask(v);
         });
+        $('iba-ai-track-kind').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-kind]');
+            if (!btn) return;
+            setTrackKind(btn.dataset.kind, true);
+            $('iba-ai-track-q').focus();
+        });
+        setTrackKind(lsGet(TRACK_KIND_KEY, 'inv'), false);
         $('iba-ai-track-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const q = String($('iba-ai-track-q').value || '').trim();
-            if (looksTransfer(q)) { runTransferTrack(q, $('iba-ai-track-out')); return; }
+            if (looksTransfer(q)) { setTrackKind('trf', false); runTransferTrack(q, $('iba-ai-track-out')); return; }
+            if (trackKind() === 'trf') { runTransferFind({ text: q, site: $('iba-ai-track-site').value }, $('iba-ai-track-out')); return; }
             const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
             runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q, site: $('iba-ai-track-site').value, year: $('iba-ai-track-year').value }, $('iba-ai-track-out'));
         });
@@ -1841,6 +2050,23 @@
             return runTrack(q, out);
         }
         if (b.dataset.rep) return onReport(b);
+        if (b.dataset.trf) {
+            const host = b.closest('#iba-ai-track-out');
+            if (host) {
+                let box = $('iba-ai-trf-detail');
+                if (!box) { box = document.createElement('div'); box.id = 'iba-ai-trf-detail'; host.appendChild(box); }
+                runTransferTrack(b.dataset.trf, box).then(() => { try { box.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) {} });
+                return;
+            }
+            showView('chat');
+            return runTransferTrack(b.dataset.trf);
+        }
+        if (b.dataset.trfFind) {
+            let q = {};
+            try { q = JSON.parse(b.dataset.trfFind); } catch (_) {}
+            const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : null;
+            return runTransferFind(q, host);
+        }
         if (b.dataset.trkHist !== undefined) {
             const item = b.closest('.iba-ai-trk-item');
             if (item) item.classList.toggle('show-steps');
@@ -2222,6 +2448,8 @@
             d.innerHTML = trackHtml(x);
         } else if (card.kind === 'transfer') {
             d.innerHTML = transferHtml(x);
+        } else if (card.kind === 'trf_find') {
+            d.innerHTML = transferFindHtml(x);
         } else if (card.kind === 'reception') {
             const ppl = Object.keys(x.entered_by || {}).map((k) => esc(k) + ' ' + esc(x.entered_by[k])).join(' · ');
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-inbox"></i> Received at Reception · ' + esc(x.period) + '<span class="iba-ai-badge is-plain">' + esc(x.total) + '</span></div>' +
