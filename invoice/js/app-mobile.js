@@ -14,7 +14,19 @@
 // 11.6.2: Chrome Android "Desktop site" changes to a desktop user agent and
 // normally exposes a desktop-width viewport. Respect that explicit browser
 // choice while keeping ordinary phone/tablet and rotated-phone layouts mobile.
+// 15.0.0 patch 1: the answer is remembered for a quarter of a second (and
+// forgotten on every resize), because building a long list asked it hundreds of
+// times and each time re-measured the window. Same answer.
+let __ibaDesktopSiteMemo = { at: -1e9, value: false };
+try { window.addEventListener('resize', function () { __ibaDesktopSiteMemo.at = -1e9; }); } catch (_) {}
 function isDesktopSiteLayoutRequested() {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (now - __ibaDesktopSiteMemo.at < 250) return __ibaDesktopSiteMemo.value;
+    const value = isDesktopSiteLayoutRequestedNow();
+    __ibaDesktopSiteMemo = { at: now, value: value };
+    return value;
+}
+function isDesktopSiteLayoutRequestedNow() {
     try {
         const viewportWidth = Math.max(
             Number(window.innerWidth) || 0,

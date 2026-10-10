@@ -22,11 +22,19 @@
        person) still apply when the status changes, exactly as before;
      - the list has a search line: type part of a name, position or site;
        arrow keys + Enter pick, Esc closes. Typing on the closed box opens it.
+   15.0.0 patch 1: manual override. The list used to hold only the people
+   suggested for the status (For SRV: that site's SRV people; For IPC / IPC
+   Application: QS; In Process: COO; CEO Approval: CEO; Report: Accounts), so
+   anybody else could not be found ("No name matches"). The suggested people
+   stay on top; everyone else follows under "Everyone else", so any person
+   can be picked by hand, as in Batch Entry. The five statuses that save with
+   no person (Under Review, For Summary, With Accounts, Pending, Report
+   Approved) still offer only None.
    ========================================================================== */
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p8';
+    const VERSION = '15.0.0-p1';
     const $ = (id) => document.getElementById(id);
     // Status the loaded invoice was saved with; while the form still shows that
     // status, its own Attention is kept (no automatic suggestion over it).
@@ -183,6 +191,7 @@
     // The list with a search line
     // ------------------------------------------------------------------
     let menuNames = [];
+    let menuGroups = { suggested: 0, others: 0, status: "" };
     let activeIndex = -1;
 
     function closeMenu(focusBox) {
@@ -252,15 +261,21 @@
         if (words.length) {
             const first = words[0];
             rows = rows.slice().sort((a, b) => {
+                const ag = a.other ? 1 : 0, bg = b.other ? 1 : 0;
+                if (ag !== bg) return ag - bg;
                 const as = norm(a.value).indexOf(first) === 0 ? 0 : 1;
                 const bs = norm(b.value).indexOf(first) === 0 ? 0 : 1;
                 return as - bs;
             });
         }
+        const grouped = menuGroups.suggested > 0 && menuGroups.others > 0;
         list.innerHTML = rows.map((item, i) => {
             const parts = splitLabel(item);
             const sel = item.value === current;
-            return '<button type="button" class="iba-attn-opt' + (sel ? ' is-selected' : '') + '" role="option" data-index="' + i + '" data-value="' + esc(item.value) + '" aria-selected="' + (sel ? 'true' : 'false') + '">' +
+            let head = '';
+            if (grouped && i === 0 && !item.other) head = '<div class="iba-attn-group" role="presentation">Suggested' + (menuGroups.status ? ' for ' + esc(menuGroups.status) : '') + '</div>';
+            if (grouped && item.other && (i === 0 || !rows[i - 1].other)) head = '<div class="iba-attn-group" role="presentation">Everyone else (manual choice)</div>';
+            return head + '<button type="button" class="iba-attn-opt' + (sel ? ' is-selected' : '') + '" role="option" data-index="' + i + '" data-value="' + esc(item.value) + '" aria-selected="' + (sel ? 'true' : 'false') + '">' +
                 '<span class="iba-attn-name">' + highlight(parts.name, words) + '</span>' +
                 (parts.meta ? '<span class="iba-attn-meta">' + highlight(parts.meta, words) + '</span>' : '') +
                 (sel ? '<i class="fa-solid fa-check" aria-hidden="true"></i>' : '') +
@@ -307,7 +322,18 @@
         closeMenu(false);
         let state = namesState();
         try { if (typeof ibaPrepareAttention === 'function') state = await ibaPrepareAttention(); } catch (_) {}
-        menuNames = ((state && state.names) || []).filter((n) => n && n.value);
+        const suggested = ((state && state.names) || []).filter((n) => n && n.value).map((n) => Object.assign({}, n, { other: false }));
+        let others = [];
+        if (!isNoneStatus(currentStatus()) && typeof ibaAllAttentionNames === 'function') {
+            const have = {};
+            suggested.forEach((n) => { have[norm(n.value)] = true; });
+            try {
+                others = (ibaAllAttentionNames() || []).filter((n) => n && n.value && !have[norm(n.value)])
+                    .map((n) => Object.assign({}, n, { other: true }));
+            } catch (_) { others = []; }
+        }
+        menuNames = suggested.concat(others);
+        menuGroups = { suggested: suggested.length, others: others.length, status: currentStatus() };
         const menu = document.createElement('div');
         menu.id = 'iba-attention-menu';
         menu.className = 'iba-attn-menu';

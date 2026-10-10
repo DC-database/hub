@@ -250,7 +250,9 @@ let wdDashboardLastRecentSyncAt = 0;
 // 8.5.1: Keep the WorkDesk Dashboard self-sufficient for short periods.
 // It prevents repeated Firebase downloads when users switch pages or reopen the dashboard.
 // Manual Refresh still bypasses this cache and gets fresh live data.
-const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V18';
+// 15.0.0 patch 1: V19 so saved dashboards built before the IPC fix are rebuilt once.
+const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V19';
+try { localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V18'); } catch (_) { /* ignore */ }
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
 const WD_DASHBOARD_CACHE_TTL = 24 * 60 * 60 * 1000; // 10.5.8: day/session cache; recent sync repairs changes on open/interval.
 const WD_DASHBOARD_COUNT_CACHE_TTL = 24 * 60 * 60 * 1000;
@@ -3058,6 +3060,11 @@ async function wdBuildDashboardTasks(options = {}) {
     const filteredTasks = tasks.filter(task => {
         const source = wdNormalize(task?.source || '');
         if (!source.includes('job')) return true;
+        // 15.0.0 patch 1: IPC Job Records stay separate, as the count preview
+        // already does. Before, an IPC Application with status "Pending" was
+        // taken for a New Entry and dropped whenever its PO had an active invoice,
+        // so the IPC Application card was missing until a manual refresh.
+        if (source === 'ipc_job_record') return true;
         if (task.bucket !== 'New Entry' && !wdIsNewEntryStatus(task.status || task.remarks)) return true;
         return !wdJobEntryMatchesActiveInvoice(task, finalInvoiceLinkKeys);
     });

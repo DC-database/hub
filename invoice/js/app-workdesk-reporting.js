@@ -454,6 +454,7 @@ function wdUiSetRecordsHeroContext(mode) {
 
 function renderReportingTable(entries) {
     reportingTableBody.innerHTML = '';
+    try { const jrMore = document.getElementById('wd-jr-more'); if (jrMore) jrMore.hidden = true; } catch (_) {}
 
     const inventoryTypes = (Array.isArray(window.INVENTORY_TYPES) ? window.INVENTORY_TYPES : ['Transfer', 'Restock', 'Return', 'Usage']);
     const isInventoryReport = (typeof isInventoryContext === 'function' && isInventoryContext()) || wdReportIsInventoryMode();
@@ -564,7 +565,65 @@ function renderReportingTable(entries) {
 
         reportingTableBody.appendChild(row);
     });
+    wdJrShowInSteps();
     wdMarkJobRecordFadeEdges();
+}
+
+// 15.0.0 patch 1: Job Records shows its rows in steps. Every row used to be on
+// the page at once (3,000 records = about 28,000 elements), so opening Job Records
+// froze the screen for about a second while the browser styled all of them.
+// Now the first 150 rows show; the next 150 appear by themselves when you scroll
+// near the end, and "Show all" shows the rest. Every row is still built, so the
+// search, the count, Print and CSV still use all records. Looks only.
+const WD_JR_STEP = 150;
+let wdJrLimit = WD_JR_STEP;
+let wdJrRevealPending = false;
+function wdJrApply() {
+    const rows = reportingTableBody ? reportingTableBody.rows : [];
+    const total = rows.length;
+    for (let i = 0; i < total; i++) {
+        const later = i >= wdJrLimit;
+        if (rows[i].classList.contains('wd-jr-later') !== later) rows[i].classList.toggle('wd-jr-later', later);
+    }
+    const table = document.getElementById('job-records-table');
+    const wrap = table ? table.parentElement : null;
+    let more = document.getElementById('wd-jr-more');
+    if (total <= wdJrLimit) { if (more) more.hidden = true; return; }
+    if (!more && wrap) {
+        more = document.createElement('div');
+        more.id = 'wd-jr-more';
+        more.className = 'wd-jr-more';
+        wrap.appendChild(more);
+        more.addEventListener('click', (e) => {
+            const b = e.target.closest('button');
+            if (b) wdJrReveal(b.hasAttribute('data-jr-all') ? Infinity : WD_JR_STEP);
+        });
+        if ('IntersectionObserver' in window) {
+            new IntersectionObserver((list) => {
+                if (!more.hidden && list.some((en) => en.isIntersecting)) wdJrReveal(WD_JR_STEP);
+            }, { rootMargin: '400px 0px' }).observe(more);
+        }
+    }
+    if (!more) return;
+    more.hidden = false;
+    const left = total - wdJrLimit;
+    more.innerHTML = '<span>Showing ' + wdJrLimit + ' of ' + total + ' records</span>' +
+        '<button type="button" class="secondary-btn" data-jr-step>Show ' + Math.min(WD_JR_STEP, left) + ' more</button>' +
+        (left > WD_JR_STEP ? '<button type="button" class="secondary-btn" data-jr-all>Show all ' + total + '</button>' : '');
+}
+function wdJrReveal(n) {
+    if (wdJrRevealPending) return;
+    wdJrRevealPending = true;
+    requestAnimationFrame(() => {
+        wdJrRevealPending = false;
+        wdJrLimit = (n === Infinity) ? 1e9 : wdJrLimit + n;
+        wdJrApply();
+        if (typeof wdMarkJobRecordFadeEdges === 'function') wdMarkJobRecordFadeEdges();
+    });
+}
+function wdJrShowInSteps() {
+    wdJrLimit = WD_JR_STEP;
+    wdJrApply();
 }
 
 // 14.0.0 patch 8: same result as before (first / last visible cell of every
@@ -590,6 +649,7 @@ function wdMarkJobRecordFadeEdges() {
     const shapeCache = new Map();
     for (let r = 0; r < rows.length; r++) {
         const tr = rows[r];
+        if (tr.classList.contains('wd-jr-later')) continue; // 15.0.0 patch 1: not shown yet
         const cells = tr.children;
         if (!cells.length) continue;
         const shape = cells.length + '|' + (cells[0].colSpan || 1);

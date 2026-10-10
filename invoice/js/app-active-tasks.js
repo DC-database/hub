@@ -245,18 +245,39 @@ function wdActiveTaskParseQueueTimestamp(value) {
     return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+// 15.0.0 patch 1: the same lookup through an index built once per job list.
+// Before, every task searched the whole list (thousands of jobs) from the start,
+// twice, which made Active Job slow to open. Same answers: the first job with
+// that key / timestamp, exactly as Array.find returned.
+let wdActiveTaskLinkedIndex = { list: null, len: -1, byKey: null, byTs: null };
+function wdActiveTaskLinkedIndexFor(list) {
+    const c = wdActiveTaskLinkedIndex;
+    if (c.list === list && c.len === list.length) return c;
+    const byKey = new Map();
+    const byTs = new Map();
+    for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (!e) continue;
+        if (!byKey.has(e.key)) byKey.set(e.key, e);
+        const ts = Number(e.timestamp || 0);
+        if (!byTs.has(ts)) byTs.set(ts, e);
+    }
+    wdActiveTaskLinkedIndex = { list: list, len: list.length, byKey: byKey, byTs: byTs };
+    return wdActiveTaskLinkedIndex;
+}
 function wdActiveTaskFindLinkedJobRecord(task = {}) {
     try {
         const list = Array.isArray(allSystemEntries) ? allSystemEntries : [];
         if (!list.length) return null;
+        const idx = wdActiveTaskLinkedIndexFor(list);
         const linkedKey = task.linkedJobEntryKey || task.originJobEntryKey || task.jobEntryKey || '';
         if (linkedKey) {
-            const found = list.find(e => e && e.key === linkedKey);
+            const found = idx.byKey.get(linkedKey);
             if (found) return found;
         }
         const targetTs = Number(task.jobRecordTimestamp || task.originTimestamp || 0);
         if (targetTs) {
-            const found = list.find(e => e && Number(e.timestamp || 0) === targetTs);
+            const found = idx.byTs.get(targetTs);
             if (found) return found;
         }
         return null;

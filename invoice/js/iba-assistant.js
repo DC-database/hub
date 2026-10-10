@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0';
+    const VERSION = '15.0.0-p1';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -180,7 +180,8 @@
     function isDelegate() {
         try { return typeof isVacationDelegateUser === 'function' && !!isVacationDelegateUser(); } catch (_) { return false; }
     }
-    const WIDE_TOKENS = ['coo', 'ceo', 'finance', 'accounting', 'accounts', 'qs', 'seniorqs', 'logistic', 'logistics', 'procurement'];
+    // 15.0.0 patch 1: Reception receives invoices for every site, so it sees all sites too
+    const WIDE_TOKENS = ['coo', 'ceo', 'finance', 'accounting', 'accounts', 'qs', 'seniorqs', 'logistic', 'logistics', 'procurement', 'reception', 'receptionist'];
     function access() {
         const a = me() || {};
         const pos = norm(a.Position);
