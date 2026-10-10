@@ -5240,7 +5240,38 @@ async function populateApproverSelect(selectElement) {
 // handleAddPOToBatch moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
 // addInvoiceToBatchTable moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
 // handleBatchGlobalSearch moved to js/app-batch-entry-ui.js in v8.2.7 (cleanup only).
+// 15.0.0 patch 1: Batch Entry Save shows its progress on the button and ignores
+// another click while it is still saving. On a slow connection a big batch took
+// several seconds with no sign of life, so it looked as if nothing was recorded.
+let imBatchSaveBusy = false;
+function imBatchSaveProgress(text) {
+    const btn = document.getElementById('im-batch-save-button');
+    if (!btn) return;
+    if (text) {
+        if (!btn.dataset.ibaLabel) btn.dataset.ibaLabel = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('is-saving');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + text;
+    } else {
+        if (btn.dataset.ibaLabel) btn.innerHTML = btn.dataset.ibaLabel;
+        delete btn.dataset.ibaLabel;
+        btn.disabled = false;
+        btn.classList.remove('is-saving');
+    }
+}
+
 async function handleSaveBatchInvoices() {
+    if (imBatchSaveBusy) return;
+    imBatchSaveBusy = true;
+    try {
+        return await imBatchSaveRun();
+    } finally {
+        imBatchSaveBusy = false;
+        imBatchSaveProgress('');
+    }
+}
+
+async function imBatchSaveRun() {
     // 💡 UPDATED: Grabs the new Div Cards instead of <tr> rows
     const rows = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
     if (rows.length === 0) {
@@ -5249,6 +5280,7 @@ async function handleSaveBatchInvoices() {
     }
     
     if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
+    imBatchSaveProgress('Checking...');
 
     let currentUserName = 'Admin'; 
     try {
@@ -5362,7 +5394,10 @@ async function handleSaveBatchInvoices() {
         }
     }
 
+    let imBatchRowNo = 0;
     for (const row of rows) {
+        imBatchRowNo += 1;
+        imBatchSaveProgress(`Saving ${imBatchRowNo} of ${rows.length}...`);
         const poNumber = row.dataset.po;
         let site = row.dataset.site;
         const existingKey = row.dataset.key;
@@ -5509,6 +5544,10 @@ async function handleSaveBatchInvoices() {
         // 5. SAVE & CACHE LOGIC
         if (existingKey) {
             const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey]) ? allInvoiceData[poNumber][existingKey] : {};
+            // 15.0.0 patch 1: keep the old Attention now. The in-memory record is
+            // updated below before the task index runs, so reading it later gave the
+            // NEW person and the old person's Active Task kept a stale copy.
+            const originalAttention = String(originalInvoice.attention || '').trim();
 
             // v8.5.7: Batch Entry releaseDate must follow the same history rule as Invoice Entry.
             // Per-row and Global Override updates refresh Release Date only when status changes.
@@ -5552,7 +5591,7 @@ async function handleSaveBatchInvoices() {
             savePromises.push(p);
             
             const updatedFullData = { ...originalInvoice, ...invoiceData };
-            savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalInvoice.attention)));
+            savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, existingKey, updatedFullData, originalAttention)));
             if (statusChangedForHistory && window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, existingKey, finalBatchStatus, invoiceData.note || 'Updated via Batch Entry')));
             }
@@ -5603,6 +5642,7 @@ async function handleSaveBatchInvoices() {
     }
 
     try {
+        imBatchSaveProgress('Finishing...');
         await Promise.all(savePromises);
 
         // 9.8.9: Batch Entry can change many invoice statuses at once.

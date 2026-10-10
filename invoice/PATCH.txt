@@ -1,23 +1,107 @@
-IBA SYSTEM 15.0.0
-(built on the original 14.0.0 (Grok); includes everything from 14.0.0 patch 1 to 18)
+IBA SYSTEM 15.0.0 patch 2
+(built on the original 14.0.0 (Grok); includes 15.0.0, patch 1 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0. From now on fixes come as
-  "15.0.0 patch 1", "patch 2" ... on top of this.
-  For port.iba.com.qa/test_beta/ first. Main site stays on 14.0.0 patch 11
-  until you move it.
+  The result is exactly the tested 15.0.0 patch 2. Copying it over 15.0.0
+  or 15.0.0 patch 1 gives the same result.
 
 VERSION
-  - version.json, the version shown in the app (V 15.0.0) and the
-    system version are 15.0.0. Open tabs on an older version get the usual
-    "new version" notice. Every changed file loads fresh (?v=15.0.0).
+  - Still 15.0.0 (version.json and the app). Files changed in a patch load
+    fresh (?v=15.0.0-p1 / -p2), so a normal reload picks them up.
 
-FILES: 39 (+ this note). New in 15.0.0 compared with 14.0.0 patch 18:
-  js/app-attention-validation.js, js/app-batch-entry-ui.js,
-  js/app-im-event-wiring.js, app.js, js/iba-assistant.js,
-  css/iba-assistant.css, css/iba-ui-popups.css, css/iba-phone.css,
-  index.html, version.json
+FILES: 41 (+ this note). Changed in patch 2 compared with patch 1:
+  js/iba-task-check.js (new), index.html, css/iba-ui-popups.css
+  Nothing needs to change in the Firebase rules.
+
+15.0.0 patch 2 - WHAT CHANGED
+  1. Dashboard "Check all": no open invoice left behind
+  - Why some were missing: to save downloads the Dashboard never reads all
+    invoices. It reads the small open-task list in Firebase
+    (invoice_tasks_by_user/All) that every save keeps up to date (this is
+    how the system has worked since 11.0.5). An open invoice that never got
+    onto that list - for example one saved by an older version that left
+    out invoices with no Attention person - did not show on the Dashboard,
+    while Invoice Records still showed it. Your 19 older Reports are most
+    likely such invoices; Check all tells you exactly how many it added.
+  - New "Check all" button next to Refresh on the Dashboard (Super Admin,
+    desktop only). It compares every invoice record with the list and:
+      * adds every open invoice that is missing (open = not yet With
+        Accounts, Paid, SRV Done, Closed or Under Review),
+      * refreshes list rows whose status or person is out of date,
+      * removes old copies left in someone's personal list (the invoice is
+        closed or now addressed to someone else - the same rule Active Task
+        uses; the batch bug fixed in patch 1 left some of these).
+    Then it shows what it did, with the open invoices per status and how
+    many of them are yours (those are under "My personal tasks"), and
+    reloads the Dashboard. The invoices themselves are never changed.
+  - Downloads: if Invoice Records has already loaded the invoices, the
+    check uses them and only reads the open-task list. If not, it asks
+    first, reads the invoices once (the same download as opening Invoice
+    Records) and keeps them, so Invoice Records will not download them
+    again in that session.
+  - Automatic, with no extra invoice download: whenever Invoice Records (or
+    a report/export) loads all invoices anyway, the same check runs quietly
+    for the Super Admin, at most once every 6 hours. If it fixes anything,
+    a short notice says so at the bottom of the screen.
+  - Test: 4 Reports on the list + 19 missing -> the Report card showed 4;
+    after Check all it shows 23. A With Accounts invoice was not added, an
+    old copy in Maria's list was removed, her real tasks stayed. A second
+    run found nothing to fix.
+
+15.0.0 patch 1 - WHAT CHANGED
+  1. Assistant: Reception sees all sites
+  - Reception / Receptionist is now one of the positions that see every
+    site (with COO, CEO, Finance, Accounting, QS, Logistics, Procurement).
+    Hafiz can now track invoices for any site. Amounts follow the same rule
+    as before (Super Admin, delegate, Admin role, Accounting).
+
+  2. Invoice Entry Attention search: manual choice
+  - The popup still lists the people suggested for the status first.
+    Below them, "Everyone else (manual choice)" lists every other person,
+    so typing "imran" now finds Imran and you can pick him.
+  - Statuses that never have a person (Under Review, For Summary, With
+    Accounts, Pending, Report Approved) stay as they were.
+
+  3. Job Records opens faster
+  - It shows the first 150 records, then adds more as you scroll down
+    (or click "Show 150 more" / "Show all"). The line under the table says
+    "Showing N of M records".
+  - Search and filters still look through all records, and Print still
+    prints all of them.
+  - Test with 3,000 records: the longest freeze went from about 1.0-1.2 s
+    to about 0.3-0.4 s.
+
+  4. Active Job opens faster
+  - Linking each job to its record now uses a quick lookup with the same
+    result. Longest freeze: about 0.2-0.3 s -> under 0.1 s.
+
+  5. Batch Entry save
+  - Bug fixed (it was also in the original 14.0.0): when a batch changed
+    the Attention person (for example For Approval with Maria -> In Process
+    with Khalid), the old person kept a copy of the task in their Active
+    Task and counts. The new person got it correctly. Now the old copy is
+    removed. Single Invoice Entry saves were not affected.
+  - The Save button now shows what it is doing: "Checking...",
+    "Saving 3 of 12...", "Finishing...", and cannot be clicked again while
+    it saves. Wait for "Batch Process Complete!". Before, a big batch on a
+    slow connection looked as if nothing happened.
+  - Every row reaches Firebase, Invoice Records, Active Task and the
+    Dashboard on the first save (tested with Report and In Process).
+
+  6. Dashboard: IPC Application card is back
+  - Bug fixed (it was also in the original 14.0.0): the All Active list
+    took an IPC Application whose status is "Pending" for a New Entry and
+    dropped it when the same PO also had an open invoice. The card appeared
+    only after a manual refresh. IPC Application and IPC Processed now
+    always show.
+  - The Dashboard rebuilds its saved copy once after this update (one
+    normal load).
+  - Nothing was removed on purpose. Two rules from the original system
+    still apply: a card with 0 items is hidden, and items whose Attention
+    is you (for example On Hold or Report with Irwin) are under
+    "My Personal Tasks", not All Active. Older items show: tested Reports
+    and On Hold from 8 and 20 days ago.
 
 15.0.0 - WHAT CHANGED
   1. Batch Entry: Attention works like Invoice Entry
