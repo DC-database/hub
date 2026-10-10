@@ -1,18 +1,77 @@
-IBA SYSTEM 15.0.0 patch 2
-(built on the original 14.0.0 (Grok); includes 15.0.0, patch 1 and everything before)
+IBA SYSTEM 15.0.0 patch 4
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-3 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 2. Copying it over 15.0.0
-  or 15.0.0 patch 1 gives the same result.
+  The result is exactly the tested 15.0.0 patch 4. Copying it over 15.0.0
+  or any earlier 15.0.0 patch gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 / -p2), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p4), so a normal reload picks them up.
 
-FILES: 41 (+ this note). Changed in patch 2 compared with patch 1:
-  js/iba-task-check.js (new), index.html, css/iba-ui-popups.css
+FILES: 42 (+ this note). Changed in patch 4 compared with patch 3:
+  js/iba-assistant.js, css/iba-assistant.css, index.html
   Nothing needs to change in the Firebase rules.
+
+15.0.0 patch 4 - WHAT CHANGED
+  1. Assistant: who has a transfer (Inventory / Material)
+  - Ask "who has TRF-0361?" in the chat, or type TRF-0361 in the Track tab.
+    Works for TRF- (Transfer), STK- (Restock), USE- (Usage) and RET-
+    (Return); "trf 361" or "TRF-361" work too.
+  - It answers WITHOUT the AI (no key needed, no free-limit used): the card
+    says who must act now, what they must do, at which site, which step of
+    how many, and since when (days). It lists every item under that number
+    with its quantities, the recent steps (who did what and when) and all
+    the people on the request.
+  - Who must act follows exactly the Active Job rule:
+      Transfer: 1 Source contact confirms and sends (Pending Source)
+                -> 2 Approver authorizes, stock leaves the source (Pending Admin)
+                -> 3 Receiver confirms receipt, stock is added (In Transit)
+      Restock / Return: Approver -> Receiver.  Usage: Approver -> Requester.
+    At the approver step the Attention person sees it too; the card says so.
+  - It also tells you WHY a request can be stuck with nobody acting:
+      * the person for this step is empty (nobody has it in Active Job),
+      * the name is not in the users list (spelled differently or no
+        longer a user), so nobody has it in Active Job.
+  - Downloads: it reads only the rows with that control number (Firebase
+    index on controlNumber, already in your rules) - a few hundred bytes.
+  - Who may look: people who cover all sites see every request; others see
+    requests for their sites or where they are named.
+  - The AI also has it as a tool, so questions in your own words about a
+    transfer work too.
+
+15.0.0 patch 3 - WHAT CHANGED (from the F12 console you sent)
+  1. "Invoice note index update skipped ... Error: maxretry" - fixed
+  - When Batch Entry saved many rows with the same note, each row updated
+    the note index with one Firebase "transaction" on the whole note,
+    including the list of every invoice that uses it. The rows kept
+    colliding with each other and Firebase gave up ("maxretry"). The
+    invoices themselves were saved (as the message says), but those rows
+    were missing from the note index, so Summary Note / note search could
+    not find them, and every save downloaded the note's whole invoice list.
+  - Now the note text and "last used" details are a plain update and only
+    the small use-count is a transaction. Same data in the same places,
+    no collisions, and much less to download per save. (This code was in
+    the original system; it was not part of my earlier patches.)
+  - Rows saved before this patch that hit the error stay missing from the
+    note index until they are saved again with their note.
+  - Test: 5 rows saved in one batch with the same note -> count +5, one
+    entry per invoice, the older entries and values kept.
+
+  2. favicon.ico 404 - fixed
+  - The page had no icon, so the browser asked for /favicon.ico and got
+    "not found". The page now carries a small built-in IBA icon (no file
+    to download).
+
+  Checked and left as they are (not errors in the system):
+  - api.groq.com 429: the free AI service limit was reached for a moment.
+    The assistant already shows "The free limit is used up for now"; it
+    works again after a short wait.
+  - "[IBA Firebase Download] Full invoice_entries read": a notice written
+    by the system when Invoice Records loads all invoices. Expected there.
+  - "[DOM] Input elements should have autocomplete attributes" and
+    "Password field is not contained in a form": Chrome tips, no effect.
 
 15.0.0 patch 2 - WHAT CHANGED
   1. Dashboard "Check all": no open invoice left behind
