@@ -906,6 +906,9 @@ if (settingsVacationCheckbox) {
             if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(card);
             return;
         }
+        // 15.0.0: remember the person already on the row before the list is rebuilt
+        let prevAttention = '';
+        try { prevAttention = String(card.choicesInstance.getValue(true) || '').trim(); } catch (_) { prevAttention = ''; }
         if (typeof populateBatchAttentionDropdownForRow === 'function') await populateBatchAttentionDropdownForRow(card.choicesInstance, statusText, site, group, true);
         else if (typeof populateAttentionDropdown === 'function') await populateAttentionDropdown(card.choicesInstance, statusText, site, true);
         let autoAttention = '';
@@ -932,6 +935,14 @@ if (settingsVacationCheckbox) {
             else card.choicesInstance.setChoiceByValue(autoAttention);
         } else if (statusLower === 'for srv') {
             try { if (typeof setBatchRowAttentionValue === 'function') setBatchRowAttentionValue(card, '', 'Select Attention'); } catch (_) {}
+        }
+        // 15.0.0: "Set All Attention To" wins (it is also what Save uses); otherwise a
+        // person already chosen on the row stays when no automatic person applies.
+        let globalAttention = '';
+        try { globalAttention = imBatchGlobalAttentionChoices ? String(imBatchGlobalAttentionChoices.getValue(true) || '').trim() : ''; } catch (_) { globalAttention = ''; }
+        if (typeof setBatchRowAttentionValue === 'function') {
+            if (globalAttention && globalAttention !== 'None') setBatchRowAttentionValue(card, globalAttention);
+            else if (!autoAttention && statusLower !== 'for srv' && prevAttention && prevAttention !== 'None') setBatchRowAttentionValue(card, prevAttention);
         }
         if (typeof updateBatchRowAttentionButton === 'function') updateBatchRowAttentionButton(card);
     };

@@ -355,7 +355,11 @@ async function handleAddPOToBatch() {
         const globalAttnValue = imBatchGlobalAttentionChoices ? imBatchGlobalAttentionChoices.getValue(true) : null;
         if (globalAttnValue) choices.setValue([globalAttnValue]);
 
-        if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
+        if (imBatchGlobalStatus.value && statusSelect.value !== imBatchGlobalStatus.value) {
+            statusSelect.value = imBatchGlobalStatus.value;
+            // 15.0.0: rebuild the person list for the new status (the chosen person stays)
+            if (typeof window.imBatchApplyAutoAttentionForRow === 'function') { try { await window.imBatchApplyAutoAttentionForRow(row, statusSelect.value, { allowPicker: false }); } catch (_) {} }
+        }
         if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
 
         if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusSelect.value)) {
@@ -543,7 +547,11 @@ async function addInvoiceToBatchTable(invData) {
         choices.setChoiceByValue(invData.attention);
     }
 
-    if (imBatchGlobalStatus.value) statusSelect.value = imBatchGlobalStatus.value;
+    if (imBatchGlobalStatus.value && statusSelect.value !== imBatchGlobalStatus.value) {
+        statusSelect.value = imBatchGlobalStatus.value;
+        // 15.0.0: rebuild the person list for the new status (the chosen person stays)
+        if (typeof window.imBatchApplyAutoAttentionForRow === 'function') { try { await window.imBatchApplyAutoAttentionForRow(row, statusSelect.value, { allowPicker: false }); } catch (_) {} }
+    }
     if (imBatchGlobalNote.value) noteInput.value = imBatchGlobalNote.value;
 
     if (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(statusSelect.value)) {

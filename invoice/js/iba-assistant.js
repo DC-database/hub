@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '14.0.0-p17';
+    const VERSION = '15.0.0';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -331,6 +331,13 @@
                   attention: { type: 'string', description: 'Person name (first name is fine)' },
                   note: { type: 'string' },
                   details: { type: 'string' } }, required: ['po'] } },
+            { name: 'add_to_batch', description: 'Put the existing invoices of one or more POs into Batch Entry so the user can update them together (status, attention, note) and save once. Optional status filter, e.g. "CEO Approval" = only invoices now in that status. Can also fill the Batch Entry "Set All" status / attention / note when the user says what to change. Never saves: the user checks the rows and presses Save.',
+              parameters: { type: 'object', properties: {
+                  pos: { type: 'array', items: { type: 'string' }, description: 'PO numbers' },
+                  status: { type: 'string', description: 'Only invoices whose current status is this (leave out for all invoices of the POs)' },
+                  set_status: { type: 'string', description: 'New status for all rows (Set All Statuses To), only if the user asked' },
+                  set_attention: { type: 'string', description: 'Person for all rows (Set All Attention To), only if the user asked' },
+                  set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
             { name: 'find_person', description: 'Find people in the system by name, position or site (for Attention or for a message).',
               parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
             { name: 'track_invoices', description: 'Where invoices are now and who has them: by PO number, or by vendor name with optional site and year. Each invoice shows its stage (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who has it, since when, and recent steps. When a vendor has many POs it returns counts by year and site instead: then ask the user which year or site.',
@@ -843,6 +850,118 @@
         return r ? String(r['Supplier Name'] || r.Supplier || '') : '';
     }
     function periodLabel(rg) { return rg ? (rg.label ? rg.label + ' (' : '') + (rg.from === rg.to ? fmtDate(rg.from) : fmtDate(rg.from) + ' to ' + fmtDate(rg.to)) + (rg.label ? ')' : '') : 'any time'; }
+    // ---- 15.0.0: put invoices into Batch Entry (never saves) ----
+    function parsePOs(v) {
+        const raw = Array.isArray(v) ? v.join(',') : String(v == null ? '' : v);
+        const out = [];
+        raw.split(/[\s,;|()\[\]]+/).forEach((t) => {
+            const po = cleanPO(t);
+            if (po && /\d/.test(po) && out.indexOf(po) === -1) out.push(po);
+        });
+        return out;
+    }
+    function statusMatch(status, want) {
+        const a = norm(status), b = norm(want);
+        if (!b) return true;
+        return a === b || (b.length >= 3 && a.indexOf(b) !== -1);
+    }
+    function batchVisible() {
+        const sec = $('im-batch-entry');
+        return !!(sec && $('im-batch-table-body') && sec.offsetParent !== null && !sec.classList.contains('hidden'));
+    }
+    async function openBatchEntry() {
+        // opening the page empties its table, so only open it when it is not already open
+        if (batchVisible()) return true;
+        if (typeof window.ibaOpenShellPage === 'function') window.ibaOpenShellPage('im-batch-entry');
+        for (let i = 0; i < 60; i++) {
+            await wait(150);
+            let ready = false;
+            try { ready = batchVisible() && typeof imBatchGlobalAttentionChoices !== 'undefined' && !!imBatchGlobalAttentionChoices; } catch (_) { ready = false; }
+            if (ready) { await wait(200); return true; }
+        }
+        return batchVisible();
+    }
+    function pickOption(selectEl, want) {
+        if (!selectEl || !want) return '';
+        const opts = Array.from(selectEl.options).map((o) => o.value).filter(Boolean);
+        return opts.find((v) => norm(v) === norm(want)) || opts.find((v) => norm(v).indexOf(norm(want)) !== -1) || '';
+    }
+    async function toolBatch(args) {
+        const a = args || {};
+        const pos = parsePOs(a.pos || a.po);
+        if (!pos.length) return { result: { error: 'Give the PO numbers to put into Batch Entry, e.g. 123, 234.' } };
+        if (pos.length > 30) return { result: { error: 'Up to 30 POs at a time, please.' } };
+        if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
+        const want = String(a.status || '').trim();
+        await ensureBase();
+        const map = poMap();
+        const lists = await Promise.all(pos.map(async (po) => {
+            try { return { po: po, inv: await poInvoices(po) }; } catch (_) { return { po: po, inv: null }; }
+        }));
+        const found = [];
+        const notAdded = [];
+        lists.forEach((x) => {
+            const inv = x.inv || {};
+            const keys = Object.keys(inv);
+            if (!keys.length) { notAdded.push({ po: x.po, reason: 'No invoices on this PO' }); return; }
+            const pi = poInfo({ po: x.po, rec: map[x.po] || null });
+            const match = keys.filter((k) => statusMatch((inv[k] || {}).status, want))
+                .sort((p, q) => String((inv[p] || {}).invEntryID || '').localeCompare(String((inv[q] || {}).invEntryID || ''), undefined, { numeric: true }));
+            if (!match.length) {
+                const has = Array.from(new Set(keys.map((k) => String((inv[k] || {}).status || '').trim() || 'no status')));
+                notAdded.push({ po: x.po, reason: 'No invoice in ' + want + ' (now: ' + has.join(', ') + ')' });
+                return;
+            }
+            match.forEach((k) => found.push({ key: k, po: x.po, site: pi.siteLabel || 'N/A', vendor: pi.vendor || 'N/A', inv: inv[k] || {} }));
+        });
+        const result = { asked: pos, status_filter: want || undefined, added: [], already_in_batch: [], not_added: notAdded, filled: {} };
+        if (found.length) {
+            if (!(await openBatchEntry())) return { result: { error: 'Batch Entry could not be opened.' } };
+            const body = $('im-batch-table-body');
+            for (const f of found) {
+                const row = { po: f.po, invoice_no: f.inv.invNumber || f.inv.invEntryID || '—', status: f.inv.status || '', with: f.inv.attention || undefined };
+                const already = Array.from(body.querySelectorAll('.batch-invoice-card')).some((c) => c.getAttribute('data-key') === f.key);
+                if (already) { result.already_in_batch.push(row); continue; }
+                // the same data the Batch Entry search window gives
+                await addInvoiceToBatchTable(Object.assign({ key: f.key, po: f.po, site: f.site, vendor: f.vendor }, f.inv));
+                result.added.push(row);
+            }
+        }
+        // optional: fill the "Set All" boxes (nothing is saved)
+        if (found.length && (a.set_status || a.set_attention || a.set_note)) {
+            if (a.set_status) {
+                const sel = $('im-batch-global-status');
+                const v = pickOption(sel, a.set_status);
+                if (v) { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); result.filled.status = v; await wait(900); }
+                else result.filled.status_error = 'No status called "' + a.set_status + '" in Batch Entry.';
+            }
+            if (a.set_attention) {
+                const r = resolvePerson(a.set_attention);
+                if (r.name) {
+                    try {
+                        imBatchGlobalAttentionChoices.setChoiceByValue(r.name);
+                        $('im-batch-global-attention').dispatchEvent(new Event('change', { bubbles: true }));
+                        result.filled.attention = r.name;
+                        await wait(500);
+                    } catch (_) { result.filled.attention_error = 'Could not set Attention.'; }
+                } else result.filled.attention_error = r.matches.length ? 'More than one person matches "' + a.set_attention + '": ' + r.matches.map((m) => m.value).join(', ') : 'Nobody called "' + a.set_attention + '".';
+            }
+            if (a.set_note) {
+                const n = $('im-batch-global-note');
+                if (n) { n.value = String(a.set_note); n.dispatchEvent(new Event('blur')); result.filled.note = String(a.set_note); }
+            }
+        }
+        try { if (typeof updateBatchCount === 'function') updateBatchCount(); } catch (_) {}
+        if (!Object.keys(result.filled).length) delete result.filled;
+        result.saved = false;
+        result.next = result.added.length || result.already_in_batch.length
+            ? 'Nothing is saved yet. Check the rows in Batch Entry (Set All Status / Attention / Note), then press Save.'
+            : 'Nothing was added.';
+        const btn = $('im-batch-save-button');
+        if (btn && result.added.length) { btn.classList.remove('iba-ai-pulse'); void btn.offsetWidth; btn.classList.add('iba-ai-pulse'); setTimeout(() => btn.classList.remove('iba-ai-pulse'), 6000); }
+        return { result: result, card: { kind: 'batch', data: result } };
+    }
+
     // ---- patch 16: every Job Record type, people by name or by role ----
     const ROLE_RE = {
         'reception': /reception/, 'receptionist': /reception/, 'front desk': /reception/,
@@ -1096,10 +1215,11 @@
         track_invoices: toolTrack,
         reception_received: toolReception,
         job_records: toolJobs,
+        add_to_batch: toolBatch,
         invoices_by_status: toolStatus,
         invoice_activity: toolActivity
     };
-    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form'];
+    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch'];
     async function runTool(name, args) {
         if (SUPER_ONLY.indexOf(name) !== -1 && !isSuper()) return { result: { error: 'This job is only for the Super Admin.' } };
         const fn = RUN[name];
@@ -1140,6 +1260,7 @@
             'PAYMENT RULE: an invoice is paid ONLY when its status is "Paid". Status "With Accounts" means payment is in process (Accounts will pay). Every other status (SRV Done, For SRV, approvals, On Hold, ...) means NOT paid yet. "Invoiced" means invoices received, not paid. Always use the payment field; never say paid otherwise.',
             'When the user names a vendor, supplier or company (with or without a PO), call track_invoices with vendor (and site / year if given). If it returns suggestions, ask which vendor they mean.',
             'You cannot save, approve, delete or send anything. To prepare a new invoice use fill_invoice_form, then tell the user to check the form and press Add.',
+            isSuper() ? 'To update several invoices at once use Batch Entry: add_to_batch with the PO numbers (status filter when the user names the current status, e.g. "the CEO Approval ones"; set_status / set_attention / set_note only when the user says what to change). Then tell the user to check the rows and press Save. You can use Batch Entry; never say you cannot.' : '',
             'For a message or reminder, write it ready to copy: short, polite, with the PO/invoice facts from the tools. Do not invent phone numbers or emails.',
             'If something is not found, say so plainly and suggest the next step.',
             'To answer where an invoice is, who has it or what happened to it, use track_invoices. If it returns counts by year and site, ask the user to choose before going further.',
@@ -1507,6 +1628,7 @@
             return renderSkills();
         }
         if (b.dataset.showForm !== undefined) { peek('Check the form, then press Add.'); return; }
+        if (b.dataset.showBatch !== undefined) { peek('Check the rows in Batch Entry, then press Save.'); return; }
     }
 
     async function runTrack(q, out) {
@@ -1882,6 +2004,17 @@
                     (x.total > x.shown ? '<p class="iba-ai-foot">Oldest ' + esc(x.shown) + ' of ' + esc(x.total) + '.</p>' : '')
                     : '<p class="iba-ai-empty">No active invoices match that.</p>') +
                 '<p class="iba-ai-foot">' + esc(x.note) + '</p>';
+        } else if (card.kind === 'batch') {
+            const added = x.added || [], already = x.already_in_batch || [], na = x.not_added || [];
+            const f = x.filled || {};
+            const fill = [f.status ? 'Status: ' + f.status : '', f.attention ? 'Attention: ' + f.attention : '', f.note ? 'Note: ' + f.note : ''].filter(Boolean).join(' · ');
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-layer-group"></i> Batch Entry · ' + esc(added.length) + ' added' + (x.status_filter ? ' (' + esc(x.status_filter) + ')' : '') + '<span class="iba-ai-badge">Not saved</span></div>' +
+                (added.length ? '<ul class="iba-ai-rows">' + added.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + '<small>' + esc([r.status, r.with ? 'with ' + r.with : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' : '') +
+                (already.length ? '<p class="iba-ai-foot">Already in the batch: ' + esc(already.map((r) => r.po + ' ' + r.invoice_no).join(', ')) + '</p>' : '') +
+                (na.length ? '<ul class="iba-ai-warn">' + na.map((r) => '<li>PO ' + esc(r.po) + ': ' + esc(r.reason) + '</li>').join('') + '</ul>' : '') +
+                (fill ? '<p class="iba-ai-foot">Filled in Set All: ' + esc(fill) + '</p>' : '') +
+                ((f.status_error || f.attention_error) ? '<ul class="iba-ai-warn">' + [f.status_error, f.attention_error].filter(Boolean).map((w) => '<li>' + esc(w) + '</li>').join('') + '</ul>' : '') +
+                ((added.length || already.length) ? '<p class="iba-ai-foot">Check the rows, then press <b>Save</b> in Batch Entry. <button type="button" class="iba-ai-mini" data-show-batch><i class="fa-regular fa-eye"></i> Show Batch Entry</button></p>' : '');
         } else if (card.kind === 'activity') {
             const la = x.last_action;
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-user-clock"></i> ' + esc(x.vendor || 'Activity') + (x.period ? ' · ' + esc(x.period) : '') + '</div>' +

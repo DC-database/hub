@@ -416,14 +416,21 @@ function imBatchNormalizeText(value) {
     return String(value == null ? '' : value).replace(/\u00A0/g, ' ').trim().replace(/\s+/g, ' ');
 }
 function imBatchNormalizeKey(value) { return imBatchNormalizeText(value).toLowerCase(); }
+// 15.0.0: Batch Entry follows the Invoice Entry rule. Before, Batch Entry kept a
+// person only for For SRV, IPC Application, Report, In Process and CEO Approval and
+// cleared it for every other status (For Approval, For IPC, For Inquiry, ...), so
+// "Set All Attention To" and the row picker did nothing for those statuses.
+// Now only the five final/reference statuses clear the person (Under Review,
+// For Summary, With Accounts, Pending, Report Approved); On Hold keeps an
+// optional person; every other status needs a person, as in Invoice Entry.
+function imBatchShouldForceAttentionNoneForStatus(statusValue) {
+    if (typeof imShouldForceAttentionNoneForStatus === 'function') return imShouldForceAttentionNoneForStatus(statusValue);
+    return ['under review', 'for summary', 'with accounts', 'pending', 'report approved'].includes(imBatchNormalizeKey(statusValue));
+}
 function imBatchStatusRequiresAttention(statusValue) {
     const st = imBatchNormalizeKey(statusValue);
-    return ['for srv', 'ipc application', 'report', 'in process', 'ceo approval'].includes(st);
-}
-function imBatchShouldForceAttentionNoneForStatus(statusValue) {
-    // On Hold accepts a manual Attention person but does not require or auto-assign one.
-    if (imBatchNormalizeKey(statusValue) === 'on hold') return false;
-    return !imBatchStatusRequiresAttention(statusValue);
+    if (!st || st === 'on hold') return false;
+    return !imBatchShouldForceAttentionNoneForStatus(statusValue);
 }
 function imBatchNormalizeGroup(value) { return imBatchNormalizeText(value) || 'Normal'; }
 function imBatchIsNormalGroup(value) {
@@ -577,6 +584,12 @@ async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue
     } else {
         const target = imBatchFixedAttentionForStatus(statusValue);
         if (target) choices = [{ value: target, label: target }];
+        else if (typeof populateAttentionDropdown === 'function') {
+            // 15.0.0: any other status (For Approval, For IPC, For Inquiry, ...) gets
+            // the same people list as Invoice Entry.
+            await populateAttentionDropdown(choicesInstance, statusValue, siteCode, allowOverrideSearch);
+            return;
+        }
     }
 
     // 11.4.5: keep automatic options, but also allow manual override.
@@ -613,7 +626,10 @@ async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue,
         throw new Error(`Please select a QS/Senior QS Attention for PO ${po || ''} / IPC Application.`);
     }
     if (st === 'on hold') return attn;
-    return '';
+    // 15.0.0: every other status keeps the chosen person and needs one (Invoice Entry rule)
+    if (attn) return attn;
+    const po = row && row.dataset ? (row.dataset.po || '') : '';
+    throw new Error(`Please select Attention for PO ${po || ''} / ${imBatchNormalizeText(statusValue)}. Use "Set All Attention To" or the row's Attention button.`);
 }
 
 // ------------------------------------------------------------
