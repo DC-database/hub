@@ -6,7 +6,7 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 205,HSE,90,HSE,Preliminaries,1
 206,Overheads,91,Overheads,Preliminaries,1
 207,Government Fees,96,Government Fees,Preliminaries,1
-500,Maintenance,,,Preliminaries,1
+500,Maintenance,,,Preliminaries,
 20101,Bank Charges,59,Bank Charges,Preliminaries,1
 20102,Insurance Fees,60,Insurance Fees,Preliminaries,1
 20103,Legal Fees,61,Legal Fees,Preliminaries,1
@@ -16,7 +16,7 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 20201,Geotechnical Report,64,Geotechnical Report,Preliminaries,1
 20202,Water Supply,65,Water Supply,Preliminaries,1
 20203,Garbage removal,142,Garbage Removal,Preliminaries,1
-20204,Sewage Removal,,,Preliminaries,1
+20204,Sewage Removal,,,Preliminaries,
 20301,Charge,67,Charge,Preliminaries,1
 20302,Consumables,68,Consumables,Preliminaries,1
 20303,Diesel & Petrol,69,Diesel & Petrol,Preliminaries,1
@@ -40,14 +40,14 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 20411,Surveyor,88,Surveyor,Preliminaries,1
 20412,Watchman,89,Watchman,Preliminaries,1
 20413,Administration,86,Office Assistant,Preliminaries,1
-20414,HR,,,Preliminaries,1
-20415,Finance,,,Preliminaries,1
-20416,Procurement,,,Preliminaries,1
+20414,HR,,,Preliminaries,
+20415,Finance,,,Preliminaries,
+20416,Procurement,,,Preliminaries,
 20417,Plant HO,66,Plant,Preliminaries,1
-20418,Driver HO,,,Preliminaries,1
-20419,Electrical Engineer,,,Preliminaries,1
-20420,Electrical Foreman,,,Preliminaries,1
-20421,Store Keeper,,,Preliminaries,1
+20418,Driver HO,,,Preliminaries,
+20419,Electrical Engineer,,,Preliminaries,
+20420,Electrical Foreman,,,Preliminaries,
+20421,Store Keeper,,,Preliminaries,
 20422,Electrician,27,Electrical Manpower,Preliminaries,1
 20601,Office Expenses,92,Office Expenses,Preliminaries,1
 20602,Office Consumables,93,Office Consumables,Preliminaries,1
@@ -60,11 +60,11 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 20704,Site Related Fees,100,Site Related Fees,Preliminaries,1
 20705,Vehicle Related Fees,101,Vehicle Related Fees,Preliminaries,1
 106,Infrastructure,16,Infrastructure,Earthworks,2
-113,External Works,41,External Works,Earthworks,2
+113,External Works,41,External Works,Finishing,5
 301,Excavation,102,Excavation,Earthworks,2
 302,Backfilling,103,Backfilling,Earthworks,2
 303,Dewatering,104,Dewatering,Earthworks,2
-304,Waterproofing.,105,Waterproofing.,Earthworks,2
+304,Waterproofing.,105,Waterproofing.,Structure,3
 314,Roadworks,115,Roadworks,Earthworks,2
 101,Waterproofing,1,Waterproofing,Structure,3
 102,Reinforcement.,3,Reinforcement.,Structure,3
@@ -72,21 +72,21 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 104,Block Work.,11,Block Work.,Structure,3
 107,Cement,17,Cement,Structure,3
 108,Sand,18,Sand,Structure,3
-114,Metal Works.,45,Metal Works.,Structure,3
+114,Metal Works.,45,Metal Works.,Finishing,5
 305,PEB,106,PEB,Structure,3
 338,Structural Works,151,Structural Works,Structure,3
 401,Shuttering Carpentry,128,Shuttering Carpentry,Structure,3
 402,Reinforcement,129,Reinforcement,Structure,3
 403,Block Work,130,Block Work,Structure,3
-404,Plaster Work,131,Plaster Work,Structure,3
-405,Painting Work,132,Painting Work,Structure,3
-406,Tiling Work,133,Tiling Work,Structure,3
-408,Cluster Block Work,135,Cluster Block Work,Structure,3
-409,Interlock Work,136,Interlock Work,Structure,3
-410,Kerbstone Work,137,Kerbstone Work,Structure,3
-411,Cladding Work,138,Cladding Work,Structure,3
+404,Plaster Work,131,Plaster Work,Finishing,5
+405,Painting Work,132,Painting Work,Finishing,5
+406,Tiling Work,133,Tiling Work,Finishing,5
+408,Cluster Block Work,135,Cluster Block Work,Finishing,5
+409,Interlock Work,136,Interlock Work,Finishing,5
+410,Kerbstone Work,137,Kerbstone Work,Finishing,5
+411,Cladding Work,138,Cladding Work,Finishing,5
 412,Steel Fabrication Work,139,Steel Fabrication Work,Structure,3
-413,Gypsum Work,140,Gypsum Work,Structure,3
+413,Gypsum Work,140,Gypsum Work,Finishing,5
 414,Waterproofing work,141,Waterproofing work,Structure,3
 415,SCREED WORK,147,SCREED WORK,Structure,3
 10101,Waterproofing Sundries,2,Waterproofing Sundries,Structure,3
@@ -98,11 +98,11 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 10304,Formwork,10,Formwork,Structure,3
 10401,Block,12,Block,Structure,3
 10402,Block Work Sundries,13,Block Work Sundries,Structure,3
-10501,Plaster Work Sundries,15,Plaster Work Sundries,Structure,3
+10501,Plaster Work Sundries,15,Plaster Work Sundries,Finishing,5
 109,LPG.,19,LPG.,MEP,4
 110,Electrical,21,Electrical,MEP,4
 111,Plumbing & Drainage,30,Plumbing & Drainage,MEP,4
-117,MEP Materials,,,MEP,4
+117,MEP Materials,,,MEP,
 306,MEP,107,MEP,MEP,4
 307,HVAC,108,HVAC,MEP,4
 308,Fire Fighting,109,Fire Fighting,MEP,4
@@ -121,7 +121,7 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 11003,Transformer,24,Transformer,MEP,4
 11004,Cables & Wires,25,Cables & Wires,MEP,4
 11005,Light Fittings,26,Light Fittings,MEP,4
-11006,Electrical Manpower,27,Electrical Manpower,MEP,4
+11006,Electrical Manpower,27,Electrical Manpower,Preliminaries,1
 11007,Electrical Meters,28,Electrical Meters,MEP,4
 11008,Generators,29,Generators,MEP,4
 11101,Plumbing & Drainage Sundries,31,Plumbing & Drainage Sundries,MEP,4
@@ -145,11 +145,11 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 325,Internal Work,126,Internal Work,Finishing,5
 326,Mirrors & Glazing,127,Mirrors & Glazing,Finishing,5
 327,Screed Finishing,327,Screed Finishing,Finishing,5
-328,Shuttering Carpentry Subcon,328,Shuttering Carpentry Subcon,Finishing,5
-329,Coring Works,329,Coring Works Subcon,Finishing,5
-330,Anti termite control,330,Anti termite control,Finishing,5
-331,Precast,331,Precast,Finishing,5
-332,External Manpower,332,External Manpower,Finishing,5
+328,Shuttering Carpentry Subcon,328,Shuttering Carpentry Subcon,Structure,3
+329,Coring Works,329,Coring Works Subcon,Structure,3
+330,Anti termite control,330,Anti termite control,Structure,3
+331,Precast,331,Precast,Structure,3
+332,External Manpower,332,External Manpower,Structure,3
 333,Painting Works,333,Painting Works,Finishing,5
 334,Flooring,145,Flooring,Finishing,5
 335,Electrical Works,146,Electrical Works,Finishing,5
@@ -172,6 +172,6 @@ Group Code,Group Name,Class Code,Class Name,Activity,Activity Code
 11507,Carpet,54,Carpet,Finishing,5
 11601,Site Consumables,56,Site Consumables,Finishing,5
 11602,Tools & Parts,57,Tools & Parts,Finishing,5
-11701,Fire Fighting Materials,143,MEP Material,Finishing,5
-11702,Air Condition Material,148,Air Condition Material,Finishing,5
-11703,Diesel & Petrol Tanks,152,Diesel & Petrol Tanks,Finishing,5
+11701,Fire Fighting Materials,143,MEP Material,MEP,4
+11702,Air Condition Material,148,Air Condition Material,MEP,4
+11703,Diesel & Petrol Tanks,152,Diesel & Petrol Tanks,Preliminaries,1
