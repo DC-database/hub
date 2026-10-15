@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '15.0.0';
+const APP_VERSION = '15.0.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3385,7 +3385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const headers = ["Product ID", "Product Name", "Details", "Stock QTY"];
             const exampleRow = ["P-1001", "Cement Bags", "50kg Grey Cement", "100"];
             const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + exampleRow.join(",");
-            const encodedUri = encodeURI(csvContent);
+            const encodedUri = (typeof ibaCsvHref === 'function' ? ibaCsvHref(csvContent) : encodeURI(csvContent));
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
             link.setAttribute("download", "material_stock_template.csv");

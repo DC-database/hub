@@ -1,23 +1,60 @@
-IBA SYSTEM 15.0.0 patch 11
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-10 and everything before)
+IBA SYSTEM 15.0.0 patch 13
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-12 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 11. Copying it over 15.0.0
-  or any earlier 15.0.0 patch gives the same result.
-  Recommended: upload invoice-v1-redirect.html (sent with patch 9) as
-  index.html inside the old /invoice-v1 folder.
+  The result is exactly the tested 15.0.0 patch 13. Copying it over 15.0.0
+  or any earlier 15.0.0 patch (e.g. your patch 12) gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p11), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p13), so a normal reload picks them up.
 
-FILES: 43 (+ this note). New in the zip: css/iba-shell.css.
-  Changed in patch 11 compared with patch 10:
-  js/iba-assistant.js, css/iba-assistant.css, js/iba-shell.js,
-  css/iba-shell.css, js/app-active-tasks.js, js/app-inventory.js,
-  css/iba-ui-tables.css, index.html
-  Nothing needs to change in the Firebase rules.
+FILES: 45 (+ this note). New in the zip: js/app-audio.js.
+  Changed in patch 13 compared with patch 12:
+  js/app-audio.js, js/iba-phone.js, css/iba-phone.css, js/materialStock.js,
+  index.html
+
+15.0.0 patch 13 - WHAT CHANGED
+  Sounds on / off - one switch, on the phone too, following the person
+  - Phone: new speaker button at the top, next to Refresh. Tap it to turn
+    the click sounds off (it turns red) or on again.
+  - Desktop: unchanged place - Settings > System Audio.
+  - The choice follows the person: it is saved on their user record
+    (approvers/{key}/UiSoundOff) and applied when they log in on any desktop
+    or phone. So muting once on the phone also mutes the desktop, and the
+    other way round. The record is already read at login, so there is no
+    extra download; only a tiny save when the switch is pressed.
+    If the Firebase rules do not let a user save on their own record, the
+    switch still works on that device (as before) - nothing breaks.
+  - Every system sound now obeys the switch. Before, these played even when
+    muted: the login sound, the Dashboard "not found" beep, the Material
+    Stock "add" beep and the WhatsApp inquiry error sound.
+  - Not changed: the fireworks (celebration) sound keeps its own setting in
+    Settings. Phones start with sound on, as before.
+
+15.0.0 patch 12 - WHAT CHANGED
+  1. "Recent status changes" is for the Super Admin only
+  - Other users no longer see it in Track, and the assistant does not
+    offer it to them (it also refuses if asked).
+
+  2. With Accounts report (WA button in Invoice Records) was missing rows
+  - Cause 1 (the big one): the CSV was handed to the browser as a "data:"
+    link. A "#" anywhere in the file - for example an invoice number like
+    "INV#12" - cut the file off at that point, so every row after it was
+    lost. Now the file is handed over whole (as a real file), so nothing is
+    cut. The same fix is applied to the other CSV downloads built the same
+    way: Under Review (last 2 hours), Report Approved (last 2 hours), the
+    finance export, the Dashboard CSV, the Material Stock export/templates
+    and the batch upload template.
+  - Cause 2: the "last 2 hours" check used only the "updatedAt" time.
+    Invoices moved to With Accounts from Invoice Entry do not get that
+    time, so they were left out. Now the time an invoice reached the status
+    is taken from its history (who/when), else its status-change time, else
+    its newest save time. Same for the Under Review and Report Approved
+    2-hour downloads.
+  - The files also open correctly in Excel with Arabic or other special
+    characters (UTF-8 marker added).
 
 15.0.0 patch 11 - WHAT CHANGED
   1. The brief opens at once
