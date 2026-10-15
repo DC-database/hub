@@ -5,8 +5,9 @@ HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
   The result is exactly the tested 15.0.0 patch 10. Copying it over 15.0.0
   or any earlier 15.0.0 patch gives the same result.
-  Optional: upload invoice-v1-redirect.html (sent with patch 9) as
-  index.html inside the old /invoice-v1 folder.
+  Recommended: upload invoice-v1-redirect.html (sent with patch 9) as
+  index.html inside the old /invoice-v1 folder (see "Previous version
+  links removed").
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
@@ -36,6 +37,27 @@ FILES: 42 (+ this note). Changed in patch 10 compared with patch 9:
   - "Draft a message" (needs the AI) is hidden for users without a key,
     and their welcome message lists only what works without a key.
   - The brief's counts fit on one row.
+
+  The brief now shows everything (fix)
+  - Before, the brief listed at most 6 tasks and 4 inventory jobs and took
+    them only from the live counter, which can miss items (for example
+    shared-queue invoices the Active Task page recovers).
+  - Now it uses the same list as the Active Task page (the Dashboard builds
+    it at login and keeps it current) plus anything newer from the live
+    counter, without duplicates, and the same for Active Job. Its Active
+    Task number matches the header pill.
+  - Every item is listed, oldest first. The first 8 show, then "Show all N"
+    opens the rest. A row of status chips (e.g. For SRV 3, Report 3) sits
+    on top.
+  - If some Active Job items are not loaded yet, the brief says how many
+    and to open Active Job.
+
+  Previous version links removed
+  - The "Use the previous version" links on the login screen (desktop and
+    phone) and the "Previous Version" card in Settings are gone, so nobody
+    can open /invoice-v1 from IBA. To close the old address itself, upload
+    invoice-v1-redirect.html (sent with patch 9) as index.html inside the
+    invoice-v1 folder on the server.
   - Setup: "Who can use the assistant" now reads "Everyone (brief,
     reminders and tracking need no key)". Keep it on Everyone so users get
     the brief.

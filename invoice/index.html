@@ -450,7 +450,6 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 </form>
 <p class="error-message" id="login-error"></p>
 <p class="version-display" id="app-version-display"></p>
-<a class="iba-old-version-link" data-iba-old-version="" href="https://port.iba.com.qa/invoice-v1/"><i class="fa-solid fa-clock-rotate-left"></i> Use the previous version</a>
 </div>
 <div class="mobile-login-container">
 <div class="iba-logo-anim">
@@ -473,7 +472,6 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 </form>
 <p class="error-message" id="mobile-login-error" style="color: #ffcccc;"></p>
 <p class="version-display" id="mobile-version-display"></p>
-<a class="iba-old-version-link" data-iba-old-version="" href="https://port.iba.com.qa/invoice-v1/"><i class="fa-solid fa-clock-rotate-left"></i> Use the previous version</a>
 <a class="iba-web-link" href="https://www.iba.com.qa" target="_blank">www.iba.com.qa</a>
 </div>
 </div>
@@ -1303,17 +1301,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <i class="fa-solid fa-volume-high"></i> Sounds Enabled
                             </button>
 </div>
-<!-- 14.0.0 patch 8: the previous version, for anyone who needs it -->
-<div class="settings-card iba-old-version-card">
-<div class="settings-card-header compact">
-<div class="settings-card-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
-<div>
-<h2>Previous Version</h2>
-<p>Open the earlier IBA system. Same data and same login. Please keep approvals in this version: only this one gives the ESN.</p>
-</div>
-</div>
-<a class="secondary-btn iba-old-version-btn" data-iba-old-version="" href="https://port.iba.com.qa/invoice-v1/"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open previous version</a>
-</div>
+<!-- 15.0.0 patch 10: the previous version (invoice-v1) is retired; its links are removed. -->
 <!-- Super Admin: Manual PO / Vacation Mode for Invoice Management -->
 <div aria-live="polite" class="settings-card settings-system-controls-card settings-po-fallback-card im-admin-controls hidden" id="im-admin-controls">
 <div class="settings-card-header">
@@ -3732,7 +3720,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '15.0.1';
+      window.IBA_SYSTEM_VERSION = '15.0.2';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
