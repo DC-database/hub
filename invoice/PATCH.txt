@@ -1,21 +1,102 @@
-IBA SYSTEM 15.0.0 patch 10
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-9 and everything before)
+IBA SYSTEM 15.0.0 patch 11
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-10 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 10. Copying it over 15.0.0
+  The result is exactly the tested 15.0.0 patch 11. Copying it over 15.0.0
   or any earlier 15.0.0 patch gives the same result.
   Recommended: upload invoice-v1-redirect.html (sent with patch 9) as
-  index.html inside the old /invoice-v1 folder (see "Previous version
-  links removed").
+  index.html inside the old /invoice-v1 folder.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p10), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p11), so a normal reload picks them up.
 
-FILES: 42 (+ this note). Changed in patch 10 compared with patch 9:
-  js/iba-assistant.js, css/iba-assistant.css, index.html
+FILES: 43 (+ this note). New in the zip: css/iba-shell.css.
+  Changed in patch 11 compared with patch 10:
+  js/iba-assistant.js, css/iba-assistant.css, js/iba-shell.js,
+  css/iba-shell.css, js/app-active-tasks.js, js/app-inventory.js,
+  css/iba-ui-tables.css, index.html
   Nothing needs to change in the Firebase rules.
+
+15.0.0 patch 11 - WHAT CHANGED
+  1. The brief opens at once
+  - For Super Admin the brief used to wait (up to 9 s) while PO Close Out
+    was counted. Now it shows at once; "Ready to close" fills in a moment
+    later (the numbers are kept 5 minutes).
+  - The daily welcome bubble still shows once a day per person and browser;
+    the sun button opens the brief any time.
+
+  2. Quiet refresh (Dashboard and Active Task)
+  - Every change to your tasks (yours or someone else's) rebuilds the
+    Dashboard and Active Task. Before, the Dashboard cards slid in again and
+    Active Task blanked to "Loading tasks..." each time, so the page looked
+    like it was reloading.
+  - Now a background refresh keeps the current rows/cards on screen and
+    swaps in the new list when ready, without the slide-in. "Loading
+    tasks..." shows only on the first load, when switching between Active
+    Task and Active Job, or when you press Refresh.
+  - Nothing changes in what is read from Firebase.
+
+  3. Print the brief (checklist with charts)
+  - "Print" on the brief opens an A4 page: counts, a chart of tasks by
+    status, a chart of how long items have waited (0-2, 3-7, 8-30, over 30
+    days), reminders, and every Active Task and Active Job item with a tick
+    box, its next step and its age, plus lines for notes.
+  - Print it, or choose "Save as PDF" in the print window. If nothing opens,
+    allow pop-ups for the IBA site.
+
+  4. Animated assistant and voice
+  - The assistant button is now a small robot sitting in the corner. It
+    floats, blinks, looks around and tilts its head while it waits; its
+    antenna glows when something is waiting for you; it waves when a
+    reminder arrives; its mouth moves while it talks.
+  - It is drawn by the page itself (no pictures to download). It stands
+    still when the IBA tab is in the background, and for anyone who set
+    "reduce motion" in Windows. Still hidden on the phone.
+  - Voice (no key, free): "Listen" on every answer and a speaker button on
+    the brief read them aloud with the browser's own voice (Chrome / Edge;
+    the voice depends on the voices installed in Windows).
+  - Setup > "Look and voice": turn the robot off (back to the round button),
+    turn on "Read answers and the brief aloud", and "Test voice".
+  - Microphone button next to Send (Chrome / Edge): say your question
+    instead of typing it. Chrome / Edge turn the speech into text using
+    their own online service.
+
+  5. Active Job "Multi" tab redesigned
+  - Each multi-item transfer now has one heading row on the table's own
+    columns, like Work History: control number with a "Multi - N items"
+    badge, first item (+N more), details, route, total quantity, contact,
+    status with a progress bar ("0 of 6 received") and how many are
+    waiting. Click it to open or close its items, which sit indented under
+    it. Before, everything was squeezed into the Control ID column.
+
+  6. Recent status changes -> Batch Entry
+  - Ask the assistant (with Groq or another key), for example:
+      "take all Under Review from the last 2 hours"
+      "the CEO Approval ones I did this morning"
+      "In Process changed this afternoon"
+    It finds the invoices that were moved to that status in that time and
+    are still in it, and puts them into Batch Entry (Super Admin) so you
+    can set the new status for all and Save. Nothing is saved by itself.
+  - Times (Qatar): last N hours, this morning (before 12:00), this
+    afternoon (from 12:00), today, yesterday. "I / me / my" = only changes
+    you made (checked against each invoice's history: who and when).
+  - Without a key: Track > Invoices > "Recent status changes": pick the
+    status, the time (Last 2 h, This morning, This afternoon, Today,
+    Yesterday), "Only changes I made", then "Find and put in Batch Entry".
+  - Download cost: only the invoices changed since the start of that time
+    are listed (the same small "recently changed" list the Dashboard reads),
+    then just the matching invoices are read to confirm.
+  - The brief also lists each item of a Multi transfer separately now.
+
+  7. Track: invoice steps
+  - A step the invoice went past (for example straight from Under Review
+    to In Process) is shown as done - it already moved on. "Skipped" is
+    gone.
+  - "For Summary" (approved by the COO, going to the CEO in your group
+    summary) now sits at the CEO/COO Approval step. Next step: "include it
+    in the summary for the CEO".
 
 15.0.0 patch 10 - WHAT CHANGED
   Today's brief for everyone, no AI key needed
