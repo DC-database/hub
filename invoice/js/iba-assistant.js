@@ -417,11 +417,60 @@
     }
     function oldestFirst(a, b) { return (a.at || 9e15) - (b.at || 9e15); }
 
+    // 15.0.0 patch 10: the brief uses the same list as the Active Task page
+    // (the Dashboard builds it at login and keeps it current), plus anything
+    // newer from the live counts. No extra download.
+    function atTime(t) {
+        try { if (typeof wdActiveTaskQueueTimestamp === 'function') { const v = Number(wdActiveTaskQueueTimestamp(t)); if (v) return v; } } catch (_) {}
+        return Number(t.timestamp || t.invoiceLastUpdated) || Date.parse(t.date || t.dateEntered || '') || 0;
+    }
+    function activeTaskSnapshot() {
+        try {
+            const raw = sessionStorage.getItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3');
+            if (!raw) return null;
+            const snap = JSON.parse(raw);
+            if (!snap || !Array.isArray(snap.tasks)) return null;
+            if (typeof wdActiveTaskCacheUserKey === 'function' && snap.userKey !== wdActiveTaskCacheUserKey()) return null;
+            return snap.tasks;
+        } catch (_) { return null; }
+    }
+    function briefLists(w) {
+        const seen = new Set();
+        const sig = (r) => [r.key ? 'k:' + String(r.key) : '', r.po && r.ref ? 'p:' + norm(r.po) + '|' + norm(r.ref) : ''].filter(Boolean);
+        const add = (list, r) => { const k = sig(r); if (k.some((x) => seen.has(x))) return; k.forEach((x) => seen.add(x)); list.push(r); };
+        const tasks = [];
+        const snap = activeTaskSnapshot();
+        if (snap) snap.forEach((t) => {
+            if (!t || t.isUrgent === false) return;
+            add(tasks, { kind: t.source === 'invoice' ? 'invoice' : 'job', key: String(t.key || ''), type: String(t.displayFor || t.for || (t.source === 'invoice' ? 'Invoice' : '')),
+                po: String(t.po || t.originalPO || ''), ref: String(t.ref || t.invNumber || t.invEntryID || ''), vendor: String(t.vendorName || ''),
+                site: String(t.site || ''), status: String(t.remarks || t.status || ''), amount: t.amount || t.invValue || '',
+                attention: String(t.attention || ''), note: String(t.note || ''), at: atTime(t) });
+        });
+        (w.tasks || []).forEach((t) => add(tasks, t));
+        const jobs = [];
+        const ctl = new Set();
+        let inv = [];
+        try { if (typeof inventoryActiveTasks !== 'undefined' && Array.isArray(inventoryActiveTasks)) inv = inventoryActiveTasks; } catch (_) {}
+        inv.forEach((e) => {
+            if (!e || e.isUrgent !== true) return;
+            const c = String(e.controlNumber || e.controlId || e.ref || e.key || '');
+            if (ctl.has(norm(c))) return;
+            ctl.add(norm(c));
+            jobs.push({ kind: 'inventory', key: String(e.key || ''), control: c, type: String(e.jobType || e.for || 'Transfer'), product: String(e.productName || e.vendorName || ''),
+                step: String(e.remarks || e.status || ''), from: String(e.fromSite || e.fromLocation || ''), to: String(e.toSite || e.toLocation || ''),
+                qty: e.orderedQty || e.requiredQty || '', requestor: String(e.requestor || ''), at: Number(e.timestamp) || 0 });
+        });
+        (w.jobs || []).forEach((j) => { if (!ctl.has(norm(j.control))) { ctl.add(norm(j.control)); jobs.push(j); } });
+        return { tasks: tasks, jobs: jobs };
+    }
+
     async function toolBrief() {
         const w = waiting();
         if (!w || !w.running) return { result: { error: 'The waiting list is not ready yet. Try again in a few seconds.' } };
-        const tasks = w.tasks.slice().sort(oldestFirst);
-        const jobs = w.jobs.slice().sort(oldestFirst);
+        const lists = briefLists(w);
+        const tasks = lists.tasks.sort(oldestFirst);
+        const jobs = lists.jobs.sort(oldestFirst);
         const byStatus = {};
         tasks.forEach((t) => { const k = t.status || 'Other'; byStatus[k] = (byStatus[k] || 0) + 1; });
         let closeout = null;
@@ -432,17 +481,17 @@
             } catch (_) { closeout = null; }
         }
         const result = {
-            active_task: w.counts.task || tasks.length,
-            active_job: w.counts.job || jobs.length,
+            active_task: Math.max(Number(w.counts.task) || 0, tasks.length),
+            active_job: Math.max(Number(w.counts.job) || 0, jobs.length),
             new_today: tasks.concat(jobs).filter((t) => t.at && new Date(Number(t.at) || t.at).toDateString() === new Date().toDateString()).length,
             tasks_by_status: byStatus,
             oldest_tasks: tasks.slice(0, 8).map(compactTask),
             inventory_jobs: jobs.slice(0, 6).map(compactJob),
             reminders_for_you: remList.filter((r) => !r.seenAt).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
-            inventory_not_loaded: w.jobsNotLoaded || 0,
+            inventory_not_loaded: Math.max(0, (Number(w.counts.job) || 0) - jobs.length),
             po_closeout: closeout || undefined
         };
-        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks.slice(0, 6), jobs: jobs.slice(0, 4) } } };
+        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs } } };
     }
 
     async function toolList(args) {
@@ -2172,6 +2221,13 @@
         if (act === 'close') return toggle(false);
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
         if (act === 'brief') return openBrief();
+        if (b.dataset.briefMore) {
+            const card = b.closest('.iba-ai-card');
+            const ul = card && card.querySelector('[data-brief-list="' + b.dataset.briefMore + '"]');
+            if (ul) ul.querySelectorAll('li[hidden]').forEach((li) => { li.hidden = false; });
+            b.remove();
+            return;
+        }
         if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? 'chat' : act);
         if (b.dataset.viewGo) return showView(b.dataset.viewGo);
         if (b.dataset.track) {
@@ -2692,16 +2748,22 @@
                   (r.po_closeout ? '<div><b>' + esc(r.po_closeout.ready_to_close) + '</b><span>Ready to close</span></div>' : '') +
                 '</div>';
             h += remindersHtml();
+            const MORE = 8;
+            const moreBtn = (n, what) => n > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="' + what + '"><i class="fa-solid fa-chevron-down"></i> Show all ' + n + '</button>' : '';
+            const byStatus = r.tasks_by_status || {};
+            const stKeys = Object.keys(byStatus).sort((a, b) => byStatus[b] - byStatus[a]);
+            if (stKeys.length > 1) h += '<div class="iba-ai-brief-status">' + stKeys.map((k) => '<span>' + esc(k) + ' <b>' + esc(byStatus[k]) + '</b></span>').join('') + '</div>';
             if (x.tasks.length) {
-                h += '<div class="iba-ai-sub">Waiting for you - and what to do next</div><ul class="iba-ai-rows">' + x.tasks.map((t) =>
-                    '<li>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) + '</li>').join('') + '</ul>';
+                h += '<div class="iba-ai-sub">Waiting for you - and what to do next (' + x.tasks.length + ', oldest first)</div><ul class="iba-ai-rows" data-brief-list="tasks">' + x.tasks.map((t, i) =>
+                    '<li' + (i >= MORE ? ' hidden' : '') + '>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small>' +
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) + '</li>').join('') + '</ul>' + moreBtn(x.tasks.length, 'tasks');
             }
             if (x.jobs.length) {
-                h += '<div class="iba-ai-sub">Inventory waiting for your step</div><ul class="iba-ai-rows">' + x.jobs.map((j) =>
-                    '<li><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) + '</li>').join('') + '</ul>';
+                h += '<div class="iba-ai-sub">Inventory waiting for your step (' + x.jobs.length + ')</div><ul class="iba-ai-rows" data-brief-list="jobs">' + x.jobs.map((j, i) =>
+                    '<li' + (i >= MORE ? ' hidden' : '') + '><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small>' +
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) + '</li>').join('') + '</ul>' + moreBtn(x.jobs.length, 'jobs');
             }
+            if (r.inventory_not_loaded) h += '<p class="iba-ai-foot">' + esc(r.inventory_not_loaded) + ' more Active Job item' + (r.inventory_not_loaded === 1 ? '' : 's') + ' not loaded yet: open Active Job to see them.</p>';
             if (!x.tasks.length && !x.jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
             if (r.po_closeout) h += '<p class="iba-ai-foot">PO Close Out: ' + esc(r.po_closeout.waiting_site) + ' waiting at Site, ' + esc(r.po_closeout.ready_to_close) + ' ready to close.</p>';
             d.innerHTML = h;
