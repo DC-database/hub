@@ -962,3 +962,11 @@ body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.i
 body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is(.status-on-hold, .status-for-inquiry) { color: #D3C6FA !important; -webkit-text-fill-color: #D3C6FA !important; background: rgba(185, 164, 245, 0.14) !important; }
 body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-invoice-item:has(.iba-mob-status:is(.status-rejected, .status-cancelled, .status-unresolved)) { border-left-color: #F07070 !important; }
 body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is(.status-rejected, .status-cancelled, .status-unresolved) { color: #F6A3A3 !important; -webkit-text-fill-color: #F6A3A3 !important; background: rgba(240, 112, 112, 0.14) !important; }
+
+/* 15.0.0 patch 9: phone approvals - Urgent | Normal */
+#iba-phone .iba-ph-urg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+#iba-phone .iba-ph-urg button { display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #C9D3DD; font-size: 14px; font-weight: 700; }
+#iba-phone .iba-ph-urg button b { padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.12); font-size: 12px; }
+#iba-phone .iba-ph-urg button.is-on { border-color: rgba(94,214,196,.8); background: rgba(94,214,196,.16); color: #EAF8F5; }
+#iba-phone .iba-ph-urg button.is-urgent { color: #FFB4A8; }
+#iba-phone .iba-ph-urg button.is-urgent.is-on { border-color: #F07A68; background: rgba(240,122,104,.18); color: #FFE3DE; }
