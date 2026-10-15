@@ -1369,10 +1369,17 @@ async function populateActiveTasks(forceRefresh = false) {
     // 14.0.0 patch 2: load ticket. If the user switches between Active Task and
     // Active Job before this load finishes, the late result is dropped.
     const ibaLoadTicket = window.ibaSurfaces ? window.ibaSurfaces.beginLoad('activeTask') : null;
-    activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
-
     // --- SAFETY DEFINITIONS ---
     const isInventoryPage = (typeof isInventoryContext === 'function') ? isInventoryContext() : false;
+
+    // 15.0.0 patch 11: a refresh of the same list keeps the current rows on
+    // screen until the new list is ready (no "Loading tasks..." flash). The
+    // placeholder shows only on the first load or when switching
+    // between Active Task and Active Job.
+    const atSameList = !forceRefresh
+        && window.IBA_ACTIVE_TASK_LAST_MODE === (isInventoryPage ? 'inventory' : 'workdesk')
+        && !!activeTaskTableBody.querySelector('tr > td:nth-child(2)');
+    if (!atSameList) activeTaskTableBody.innerHTML = `<tr><td colspan="10">Loading tasks...</td></tr>`;
     
     if (!currentApprover || !currentApprover.Name) {
         activeTaskTableBody.innerHTML = `<tr><td colspan="10">Could not identify user.</td></tr>`;

@@ -484,6 +484,7 @@
     return "fa-regular fa-circle";
   }
 
+  let lastDashBuild = "";
   function syncDashStack(opts) {
     const keepSection = !!(opts && opts.keepSection);
     const layers = $("iba-dash-layers");
@@ -511,6 +512,13 @@
     const activeSection = sections.find(function (s) { return s.el.contains(activeCard); }) || sections[0];
     if (!keepSection || !dashFocusSection) dashFocusSection = (activeSection && activeSection.id) || dashFocusSection;
     const showSection = sections.find(function (s) { return s.id === dashFocusSection; }) || activeSection;
+    // 15.0.0 patch 11: a background refresh of the same area rebuilds the cards
+    // without replaying their slide-in, so the Dashboard no longer looks like it
+    // reloads every time a task changes.
+    const quietId = (showSection && showSection.id) || "";
+    const quiet = keepSection && quietId === lastDashBuild && !!cardsBox.querySelector(".iba-dash-mini");
+    lastDashBuild = quietId;
+    stack.classList.toggle("iba-dash-quiet", quiet);
     const frontLabel = (activeCard.getAttribute("data-dashboard-label") || (showSection && showSection.label) || "My personal tasks").trim();
     const tag = (showSection && showSection.id === "person") ? "Personal" : ((showSection && showSection.label) || "").replace(/^\d+\s*/, "");
     layers.innerHTML = "";
@@ -692,6 +700,7 @@
   }
 
   function exitDashFocus() {
+    lastDashBuild = "";
     document.body.classList.remove("iba-dash-focus");
     const stack = $("iba-dash-stack");
     if (stack) stack.hidden = true;

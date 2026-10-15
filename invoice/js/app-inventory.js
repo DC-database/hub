@@ -1022,16 +1022,29 @@ function renderInventoryActiveTaskTable(tasks) {
         const statusSummary = statuses.length === 1 ? statuses[0] : 'Multiple stages';
 
         const headerRow = document.createElement('tr');
-        headerRow.className = 'controlid-group-header wd-modern-row wd-inventory-group-row';
+        // 15.0.0 patch 11: the Multi heading uses the table's own columns (like
+        // Work History) instead of one squeezed card in the first column.
+        headerRow.className = 'controlid-group-header wd-modern-row wd-inventory-group-row wd-mj-row';
         headerRow.setAttribute('data-group-id', domGroupId);
+        const names = Array.from(new Set(peers.map(item => String(item.vendorName || item.productName || '').trim()).filter(Boolean)));
+        const details = Array.from(new Set(peers.map(item => String(item.details || '').trim()).filter(Boolean)));
+        const contacts = Array.from(new Set(visibleItems.map(item => String(item.contactName || item.requestor || '').trim()).filter(Boolean)));
+        const more = (list) => list.length > 1 ? ' <small class="wd-mj-more">+' + (list.length - 1) + ' more</small>' : '';
+        const totalQty = peers.reduce((acc, item) => acc + (Number(getDisplayQty(item)) || 0), 0);
+        const statusColor = statuses.length === 1 ? getStatusColor(statuses[0]) : '#6c757d';
         headerRow.innerHTML =
-            '<td colspan="8" class="desktop-only"><div class="wd-inventory-batch-card">' +
-                '<span class="wd-inventory-batch-toggle"><i class="fa-solid fa-chevron-right group-toggle-icon"></i></span>' +
-                '<div class="wd-inventory-batch-identity"><span class="wd-inventory-multi-badge">Multi • ' + escapeText(totalSize) + ' Items</span><strong>' + escapeText(getControlLabel(first)) + '</strong></div>' +
-                '<div class="wd-inventory-batch-route"><i class="fa-solid fa-route"></i><span>' + escapeText(movementSummary) + '</span></div>' +
-                '<div class="wd-inventory-batch-progress"><div><span>' + escapeText(waitingCount) + ' waiting</span><span>' + escapeText(completedCount) + ' received</span></div><div class="wd-inventory-progress-track"><i style="width:' + progress + '%"></i></div><small>' + progress + '% complete</small></div>' +
-                '<div class="wd-inventory-batch-status"><span>' + escapeText(statusSummary) + '</span><small>Click to expand</small></div>' +
-            '</div></td>';
+            '<td class="desktop-only wd-mj-id"><span class="wd-mj-chev"><i class="fa-solid fa-chevron-right group-toggle-icon"></i></span>' +
+                '<span class="wd-mj-idtext"><strong class="wd-inventory-control-id">' + escapeText(getControlLabel(first)) + '</strong>' +
+                '<span class="wd-mj-badge">Multi · ' + escapeText(totalSize) + ' items</span></span></td>' +
+            '<td class="desktop-only"><strong class="wd-inventory-product-name">' + escapeText(names[0] || '') + '</strong>' + more(names) + '</td>' +
+            '<td class="desktop-only"><span class="wd-inventory-detail-text">' + escapeText(details[0] || '') + '</span>' + more(details) + '</td>' +
+            '<td class="desktop-only"><span class="wd-inventory-movement"><i class="fa-solid fa-route"></i> ' + escapeText(movementSummary) + '</span></td>' +
+            '<td class="desktop-only wd-mj-qty">' + escapeText(totalQty) + '</td>' +
+            '<td class="desktop-only">' + escapeText(contacts[0] || '') + more(contacts) + '</td>' +
+            '<td class="desktop-only wd-mj-status"><span class="wd-inventory-status-pill" style="--inventory-status-color:' + statusColor + '">' + escapeText(statusSummary) + '</span>' +
+                '<span class="wd-mj-prog" title="' + progress + '% complete"><i style="width:' + progress + '%"></i></span>' +
+                '<small class="wd-mj-progtext">' + escapeText(completedCount) + ' of ' + escapeText(totalSize) + ' received</small></td>' +
+            '<td class="desktop-only"><span class="wd-mj-open"><i class="fa-solid fa-chevron-down"></i> <span>' + escapeText(waitingCount) + ' waiting</span></span></td>';
 
         headerRow.addEventListener('click', () => {
             const isOpen = headerRow.classList.contains('open');

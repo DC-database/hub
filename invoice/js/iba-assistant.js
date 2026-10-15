@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p10';
+    const VERSION = '15.0.0-p11';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -348,6 +348,16 @@
                   set_status: { type: 'string', description: 'New status for all rows (Set All Statuses To), only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows (Set All Attention To), only if the user asked' },
                   set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
+            { name: 'recent_status_changes', description: 'Invoices whose status was changed to a given status within a time window (last N hours, this morning, this afternoon, today, yesterday), optionally only changes the user made. By default they are put into Batch Entry so the user can move them on together. Use for "take the Under Review ones from the last 2 hours", "the CEO Approval I did this morning".',
+              parameters: { type: 'object', properties: {
+                  status: statusProp,
+                  hours: { type: 'number', description: 'Last N hours (e.g. 2). Leave out when the user says morning / afternoon / today / yesterday.' },
+                  period: { type: 'string', enum: ['morning', 'afternoon', 'whole_day'], description: 'morning = before 12:00, afternoon = from 12:00 (Qatar time)' },
+                  day: { type: 'string', enum: ['today', 'yesterday'] },
+                  by_me: { type: 'boolean', description: 'true when the user says I / me / my (changes the user made)' },
+                  add_to_batch: { type: 'boolean', description: 'false only when the user just wants to see the list' },
+                  set_status: { type: 'string', description: 'New status for all rows in Batch Entry, only if the user asked' },
+                  set_attention: { type: 'string', description: 'Person for all rows, only if the user asked' } }, required: ['status'] } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
               parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
             { name: 'find_transfers', description: 'Inventory / Material: find Transfer, Restock, Return or Usage requests by what they say - a vehicle or equipment number (e.g. 36588), an item or machine (e.g. wheel loader, Komatsu), a product, a person or a site. Lists each matching control number with its items, the matching text, its step and who has it now. It looks through the transfers already loaded; when it says older ones were not searched, tell the user to press "Search all transfers" on the card (or call again with all=true only if the user asked to search everything).',
@@ -398,7 +408,7 @@
         'report approved': 'send it on to In Process', 'approved': 'process it: move it to its next step',
         'rejected': 'read the approver note, fix it and send it again', 'in process': 'get the CEO/COO approval, then send it With Accounts',
         'on hold': 'follow up why it is on hold', 'for ipc': 'prepare the IPC', 'ipc application': 'work the IPC application',
-        'ipc processed': 'wait for the actual invoice, then enter it', 'for summary': 'add it to the summary',
+        'ipc processed': 'wait for the actual invoice, then enter it', 'for summary': 'include it in the summary for the CEO',
         'unresolved': 'resolve the issue with the vendor or site', 'with accounts': 'pay it', 'po close out': 'confirm the remaining quantity and close the PO',
         'pending source': 'confirm and send the items', 'pending admin': 'authorize the request', 'in transit': 'confirm the items were received',
         'pending confirmation': 'confirm the actual usage'
@@ -455,14 +465,102 @@
         inv.forEach((e) => {
             if (!e || e.isUrgent !== true) return;
             const c = String(e.controlNumber || e.controlId || e.ref || e.key || '');
-            if (ctl.has(norm(c))) return;
-            ctl.add(norm(c));
+            // 15.0.0 patch 11: one line per item (a Multi transfer has several
+            // items under the same control number)
+            const id = 'k:' + String(e.key || c);
+            if (ctl.has(id)) return;
+            ctl.add(id);
             jobs.push({ kind: 'inventory', key: String(e.key || ''), control: c, type: String(e.jobType || e.for || 'Transfer'), product: String(e.productName || e.vendorName || ''),
                 step: String(e.remarks || e.status || ''), from: String(e.fromSite || e.fromLocation || ''), to: String(e.toSite || e.toLocation || ''),
                 qty: e.orderedQty || e.requiredQty || '', requestor: String(e.requestor || ''), at: Number(e.timestamp) || 0 });
         });
-        (w.jobs || []).forEach((j) => { if (!ctl.has(norm(j.control))) { ctl.add(norm(j.control)); jobs.push(j); } });
+        (w.jobs || []).forEach((j) => { const id = 'k:' + String(j.key || j.control); if (!ctl.has(id)) { ctl.add(id); jobs.push(j); } });
         return { tasks: tasks, jobs: jobs };
+    }
+
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 11: printable brief (A4 checklist with charts). Opens a
+    // print page; "Save as PDF" in the print window keeps a copy.
+    // ------------------------------------------------------------------
+    const briefStore = new Map();
+    let briefSeq = 0;
+    function ageBucket(days) { return days === null || days === undefined ? 3 : days <= 2 ? 0 : days <= 7 ? 1 : days <= 30 ? 2 : 3; }
+    function barsSvg(rows, w) {
+        // one series, so one ink colour; every bar carries its own label and value
+        const max = Math.max(1, ...rows.map((r) => r.n));
+        const lw = 128, rowH = 22, bw = w - lw - 44;
+        const h = rows.length * rowH + 4;
+        return '<svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '" role="img">' + rows.map((r, i) => {
+            const y = i * rowH + 3;
+            const len = Math.max(r.n ? 3 : 0, Math.round(bw * r.n / max));
+            return '<text x="' + (lw - 8) + '" y="' + (y + 13) + '" text-anchor="end" class="lbl">' + esc(r.label) + '</text>' +
+                '<rect x="' + lw + '" y="' + (y + 2) + '" width="' + bw + '" height="14" rx="3" class="track"/>' +
+                (len ? '<rect x="' + lw + '" y="' + (y + 2) + '" width="' + len + '" height="14" rx="3" class="bar' + (r.cls ? ' ' + r.cls : '') + '"/>' : '') +
+                '<text x="' + (lw + len + 6) + '" y="' + (y + 13) + '" class="val">' + r.n + '</text>';
+        }).join('') + '</svg>';
+    }
+    function printBrief(x) {
+        const r = x.result || {};
+        const tasks = x.tasks || [], jobs = x.jobs || [];
+        const now = new Date();
+        const when = fmtDate(now.getTime()) + ' ' + fmtClock(now.getTime());
+        const byStatus = r.tasks_by_status || {};
+        const stRows = Object.keys(byStatus).sort((a, b) => byStatus[b] - byStatus[a]).map((k) => ({ label: k, n: byStatus[k] }));
+        const ages = [0, 0, 0, 0];
+        tasks.concat(jobs).forEach((t) => { ages[ageBucket(daysSince(t.at))]++; });
+        const ageRows = [{ label: '0-2 days', n: ages[0] }, { label: '3-7 days', n: ages[1] }, { label: '8-30 days', n: ages[2], cls: 'warn' }, { label: 'Over 30 days', n: ages[3], cls: 'late' }];
+        const rems = remList.filter((m) => !m.seenAt);
+        const box = '<span class="box"></span>';
+        const kpi = (n, l) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
+        const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>IBA brief - ' + esc(firstName()) + ' - ' + esc(fmtDate(now.getTime())) + '</title><style>' +
+            '@page{size:A4;margin:14mm 12mm}*{box-sizing:border-box}body{margin:0;font:12px/1.4 Arial,Helvetica,sans-serif;color:#1b2430;background:#fff}' +
+            '.bar-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1E7F74;padding-bottom:8px;margin-bottom:12px}' +
+            'h1{margin:0;font-size:20px;letter-spacing:.02em}h1 small{display:block;font-size:12px;font-weight:400;color:#5b6775;margin-top:2px}.meta{text-align:right;color:#5b6775;font-size:11px}' +
+            '.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.kpi{border:1px solid #d5dce3;border-radius:8px;padding:8px 10px}.kpi b{display:block;font-size:20px}.kpi span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5b6775}' +
+            '.charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}.chartbox{border:1px solid #d5dce3;border-radius:8px;padding:8px 10px}.chartbox h3{margin:0 0 6px;font-size:12px}' +
+            'svg.chart{display:block;max-width:100%;height:auto}svg .lbl{font-size:10.5px;fill:#1b2430}svg .val{font-size:10.5px;font-weight:700;fill:#1b2430}svg .track{fill:#eef2f5}svg .bar{fill:#1E7F74}svg .bar.warn{fill:#B7791F}svg .bar.late{fill:#B42318}' +
+            'h2{font-size:13px;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid #d5dce3}table{width:100%;border-collapse:collapse}th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#5b6775;border-bottom:1px solid #b8c2cc;padding:4px 5px}' +
+            'td{border-bottom:1px solid #e3e8ed;padding:5px;vertical-align:top}tr{page-break-inside:avoid}td.c{width:22px}td.n{text-align:right;white-space:nowrap}td.next{color:#3d4854;font-style:italic}.late{color:#B42318;font-weight:700}' +
+            '.box{display:inline-block;width:12px;height:12px;border:1.5px solid #1b2430;border-radius:2px}.notes{margin-top:16px}.notes div{border-bottom:1px solid #b8c2cc;height:24px}' +
+            '.foot{margin-top:14px;color:#8a95a1;font-size:10px;text-align:center}.tools{position:fixed;top:10px;right:10px;display:flex;gap:6px}.tools button{font:600 12px Arial;padding:7px 12px;border-radius:6px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button+button{background:#fff;color:#1E7F74}' +
+            '@media print{.tools{display:none}}' +
+            '</style></head><body>' +
+            '<div class="tools"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>' +
+            '<div class="bar-top"><h1>IBA daily brief<small>' + esc(myName()) + '</small></h1><div class="meta">' + esc(when) + '<br>Checklist: tick each item when done</div></div>' +
+            '<div class="kpis">' + kpi(r.active_task || 0, 'Active Task') + kpi(r.active_job || 0, 'Active Job') + kpi(r.new_today || 0, 'New today') + kpi(rems.length, 'Reminders') +
+                kpi(r.po_closeout ? r.po_closeout.ready_to_close : '—', 'Ready to close') + '</div>' +
+            '<div class="charts"><div class="chartbox"><h3>Tasks by status</h3>' + (stRows.length ? barsSvg(stRows, 330) : '<p>Nothing waiting.</p>') + '</div>' +
+                '<div class="chartbox"><h3>How long items have waited</h3>' + barsSvg(ageRows, 330) + '</div></div>' +
+            (rems.length ? '<h2>Reminders for you</h2><table><thead><tr><th></th><th>From</th><th>Reminder</th><th>PO / No.</th><th>Date</th></tr></thead><tbody>' +
+                rems.map((m) => '<tr><td class="c">' + box + '</td><td>' + esc(m.from || '') + '</td><td>' + esc(m.text || '') + '</td><td>' + esc(m.po || m.control || '') + '</td><td class="n">' + esc(fmtDate(m.at)) + '</td></tr>').join('') + '</tbody></table>' : '') +
+            '<h2>Active Task (' + tasks.length + ', oldest first)</h2>' + (tasks.length ? '<table><thead><tr><th></th><th>#</th><th>PO</th><th>Vendor / Ref</th><th>Status</th><th>Next step</th><th>Amount</th><th>Waiting</th></tr></thead><tbody>' +
+                tasks.map((t, i) => { const dd = daysSince(t.at); return '<tr><td class="c">' + box + '</td><td>' + (i + 1) + '</td><td><b>' + esc(t.po || '—') + '</b></td><td>' + esc(t.vendor || t.type || '') + (t.ref ? '<br><small>' + esc(t.ref) + '</small>' : '') + '</td><td>' + esc(t.status || '') + '</td><td class="next">' + esc(nextStep(t.status)) + '</td><td class="n">' + (t.amount ? esc(money(t.amount)) : '') + '</td><td class="n' + (dd > 30 ? ' late' : '') + '">' + (dd === null ? '' : dd + ' d') + '</td></tr>'; }).join('') + '</tbody></table>' : '<p>Nothing waiting.</p>') +
+            (jobs.length ? '<h2>Active Job - inventory (' + jobs.length + ')</h2><table><thead><tr><th></th><th>Control</th><th>Item</th><th>Step</th><th>Route</th><th>Next step</th><th>Waiting</th></tr></thead><tbody>' +
+                jobs.map((j) => { const dd = daysSince(j.at); return '<tr><td class="c">' + box + '</td><td><b>' + esc(j.control) + '</b></td><td>' + esc(j.product || '') + '</td><td>' + esc(j.step || '') + '</td><td>' + esc([j.from, j.to].filter(Boolean).join(' → ')) + '</td><td class="next">' + esc(nextStep(j.step)) + '</td><td class="n' + (dd > 30 ? ' late' : '') + '">' + (dd === null ? '' : dd + ' d') + '</td></tr>'; }).join('') + '</tbody></table>' : '') +
+            '<div class="notes"><h2>Notes</h2><div></div><div></div><div></div></div>' +
+            '<div class="foot">Printed from IBA ' + esc(VERSION) + ' · ' + esc(when) + '</div>' +
+            '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},300);});<\/script></body></html>';
+        const w = window.open('', '_blank');
+        if (!w) { alert('Please allow pop-ups for IBA to print the brief.'); return; }
+        w.document.open(); w.document.write(html); w.document.close();
+    }
+
+    let coCache = null;
+    let coBusy = null;
+    function refreshCloseout() {
+        if (coBusy) return coBusy;
+        coBusy = withTimeout(window.poCloseoutCollectRows(), 20000, 'PO Close Out').then((rows) => {
+            coCache = { at: Date.now(), val: { waiting_site: rows.filter((r) => r.waitingSite).length, ready_to_close: rows.filter((r) => r.waitingHo).length } };
+            paintCloseout(coCache.val);
+        }, () => paintCloseout(null)).then(() => { coBusy = null; });
+        return coBusy;
+    }
+    function paintCloseout(v) {
+        document.querySelectorAll('.iba-ai-card.is-brief [data-co-ready]').forEach((el) => { el.textContent = v ? String(v.ready_to_close) : '—'; });
+        document.querySelectorAll('.iba-ai-card.is-brief [data-co-foot]').forEach((el) => {
+            el.textContent = v ? 'PO Close Out: ' + v.waiting_site + ' waiting at Site, ' + v.ready_to_close + ' ready to close.' : 'PO Close Out could not be loaded.';
+        });
+        briefStore.forEach((d) => { if (v && d.result && d.result.po_closeout_loading) { d.result.po_closeout = v; delete d.result.po_closeout_loading; } });
     }
 
     async function toolBrief() {
@@ -473,12 +571,13 @@
         const jobs = lists.jobs.sort(oldestFirst);
         const byStatus = {};
         tasks.forEach((t) => { const k = t.status || 'Other'; byStatus[k] = (byStatus[k] || 0) + 1; });
+        // 15.0.0 patch 11: PO Close Out (Super Admin) no longer holds the brief
+        // back: the last numbers (5 min) are used, or they fill in when ready.
         let closeout = null;
-        if (typeof window.poCloseoutCollectRows === 'function') {
-            try {
-                const rows = await withTimeout(window.poCloseoutCollectRows(), 9000, 'PO Close Out');
-                closeout = { waiting_site: rows.filter((r) => r.waitingSite).length, ready_to_close: rows.filter((r) => r.waitingHo).length };
-            } catch (_) { closeout = null; }
+        let closeoutPending = false;
+        if (isSuper() && typeof window.poCloseoutCollectRows === 'function') {
+            if (coCache && Date.now() - coCache.at < 5 * 60000) closeout = coCache.val;
+            else { closeoutPending = true; refreshCloseout(); }
         }
         const result = {
             active_task: Math.max(Number(w.counts.task) || 0, tasks.length),
@@ -489,7 +588,8 @@
             inventory_jobs: jobs.slice(0, 6).map(compactJob),
             reminders_for_you: remList.filter((r) => !r.seenAt).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
             inventory_not_loaded: Math.max(0, (Number(w.counts.job) || 0) - jobs.length),
-            po_closeout: closeout || undefined
+            po_closeout: closeout || undefined,
+            po_closeout_loading: closeoutPending || undefined
         };
         return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs } } };
     }
@@ -1064,6 +1164,19 @@
         const q = $('iba-ai-track-q'), year = $('iba-ai-track-year'), form = $('iba-ai-track-form'), help = $('iba-ai-track-help');
         if (q) q.placeholder = trf ? 'TRF-0361, 36588, wheel loader...' : 'PO number or vendor';
         if (year) year.hidden = trf;
+        const rec = $('iba-ai-recent');
+        if (rec) {
+            rec.hidden = trf;
+            const sel = $('iba-ai-recent-status');
+            if (sel && !sel.options.length) {
+                const opts = statusOptions();
+                (opts.length ? opts : ['Under Review', 'For SRV', 'For Approval', 'In Process', 'CEO Approval', 'For Summary', 'With Accounts'])
+                    .forEach((o) => { const op = document.createElement('option'); op.value = o; op.textContent = o; sel.appendChild(op); });
+                if (opts.indexOf('Under Review') !== -1 || !opts.length) sel.value = 'Under Review';
+            }
+            const go = rec.querySelector('[data-recent-go] span');
+            if (go) go.textContent = isSuper() ? 'Find and put in Batch Entry' : 'Find';
+        }
         if (form) form.classList.toggle('is-trf', trf);
         if (help) help.textContent = trf
             ? 'A request number (TRF-0361, USE-0040, STK-0012, RET-0007) or words it contains, like a vehicle number (36588) or "wheel loader". Add a site to narrow it down. This does not use the AI.'
@@ -1095,10 +1208,12 @@
     // CEO Approval are the CEO-COO approval, just before Accounts.
     const STAGES = ['Reception', 'Invoice Entry', 'SRV', 'CEO/COO Approval', 'Accounts', 'Paid'];
     const STAGE_OF = {
-        'under review': 1, 'for summary': 1, 'pending': 1,
+        'under review': 1, 'pending': 1,
         'for srv': 2, 'srv done': 2, 'no need srv': 2,
         'for approval': 2, 'report': 2, 'report approval': 2, 'report approved': 2, 'approved': 2, 'rejected': 2,
-        'in process': 3, 'ceo approval': 3,
+        // 15.0.0 patch 11: For Summary = approved by the COO, going to the CEO
+        // in the group summary, so it sits at the CEO/COO Approval step.
+        'in process': 3, 'for summary': 3, 'ceo approval': 3,
         'with accounts': 4, 'paid': 5
     };
     const MAX_POS = 10;
@@ -1221,14 +1336,10 @@
         const paidAt = lastOf('paid');
         const accAt = lastOf('with accounts');
         const enteredAt = (hist[0] && hist[0].at) || Number(inv.createdAt) || 0;
-        // steps the invoice went past without passing through them
-        const seenStages = new Set(hist.map((h) => stageOf(h.status)).filter((x) => x >= 0));
-        seenStages.add(st);
-        const skipped = [];
-        for (let i = 2; i < st; i++) if (!seenStages.has(i)) skipped.push(i);
+        // 15.0.0 patch 11: a step the invoice went past is counted as done
+        // (it already moved on), so nothing is marked as skipped any more.
         return {
             kind: 'invoice', invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
-            skipped: skipped.length ? skipped.map((i) => STAGES[i]) : undefined, skipped_index: skipped.length ? skipped : undefined,
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
@@ -1376,6 +1487,121 @@
         });
         return out;
     }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 11: recent status changes -> Batch Entry
+    // "Under Review from the last 2 hours", "the CEO Approval ones I did this
+    // morning". Uses the small shared task list (status + last update), then
+    // reads only the matching invoices to confirm who changed it and when.
+    // ------------------------------------------------------------------
+    function qMidnight(offsetDays) { return qDay().getTime() - 3 * 3600000 + (offsetDays || 0) * 86400000; }
+    function recentWindow(a) {
+        const now = Date.now();
+        const hours = Number(a.hours);
+        if (Number.isFinite(hours) && hours > 0) return { from: now - Math.min(hours, 24 * 14) * 3600000, to: now, label: 'last ' + hours + ' hour' + (hours === 1 ? '' : 's') };
+        const day = norm(a.day) === 'yesterday' ? -1 : 0;
+        const p = norm(a.period);
+        const base = qMidnight(day);
+        const dayWord = day ? 'yesterday' : 'today';
+        if (p === 'morning') return { from: base, to: Math.min(now, base + 12 * 3600000), label: (day ? 'yesterday' : 'this') + ' morning' };
+        if (p === 'afternoon') return { from: base + 12 * 3600000, to: Math.min(now, base + 24 * 3600000), label: (day ? 'yesterday' : 'this') + ' afternoon' };
+        return { from: base, to: Math.min(now, base + 24 * 3600000), label: dayWord };
+    }
+    function fmtClock(t) {
+        try { return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t)); } catch (_) { return ''; }
+    }
+    async function toolRecent(args) {
+        const a = args || {};
+        const want = String(a.status || '').trim();
+        if (!want) return { result: { error: 'Which status? e.g. Under Review, CEO Approval, In Process.' } };
+        const win = recentWindow(a);
+        const mine = a.by_me === true || norm(a.by_me) === 'true';
+        let idb = null;
+        try { if (typeof invoiceDb !== 'undefined') idb = invoiceDb; } catch (_) {}
+        if (!idb || !idb.ref) return { result: { error: 'The invoice database is not available on this page.' } };
+        // 1) candidates: the small "recently changed" list every invoice update
+        //    writes (workdesk_dashboard_recent; only rows changed since the start
+        //    of the window are downloaded). If that cannot be read, the shared
+        //    task list is used instead (active statuses only).
+        const cand = new Map();
+        const take = (k, r) => {
+            const po = String((r && (r.po || r.originalPO)) || '').trim();
+            if (!po || !statusMatch(r.status || r.remarks, want)) return;
+            const up = Number(r.updatedAt) || 0;
+            if (up && up < win.from) return;
+            cand.set(po + '|' + k, { po: po, key: String(r.invoiceKey || r.originalKey || k) });
+        };
+        let recentOk = false;
+        try {
+            const snap = await withTimeout(idb.ref('workdesk_dashboard_recent').orderByChild('updatedAt').startAt(win.from - 60000).once('value'), 12000, 'recent changes');
+            const rows = (snap && snap.val()) || {};
+            Object.keys(rows).forEach((k) => take(k, rows[k] || {}));
+            recentOk = true;
+        } catch (_) {}
+        if (!recentOk || !cand.size) {
+            try {
+                const snap = await withTimeout(idb.ref('invoice_tasks_by_user/All').once('value'), 12000, 'task list');
+                const all = (snap && snap.val()) || {};
+                Object.keys(all).forEach((k) => take(k, all[k] || {}));
+            } catch (_) {}
+        }
+        // statuses that are not in the task list: invoices already in memory (no download)
+        try {
+            if (typeof allInvoiceData !== 'undefined' && allInvoiceData) Object.keys(allInvoiceData).forEach((po) => {
+                const inv = allInvoiceData[po] || {};
+                Object.keys(inv).forEach((k) => {
+                    const v = inv[k] || {};
+                    if (!statusMatch(v.status, want)) return;
+                    if (historyList(v).some((h) => statusMatch(h.status, want) && h.at >= win.from && h.at <= win.to)) cand.set(po + '|' + k, { po: po, key: k });
+                });
+            });
+        } catch (_) {}
+        const list = Array.from(cand.values()).slice(0, 120);
+        // 2) confirm each from the invoice itself (fresh read, 8 at a time)
+        const me = norm(myName());
+        const found = [];
+        let i = 0;
+        const worker = async () => {
+            while (i < list.length) {
+                const c = list[i++];
+                try {
+                    const snap = await withTimeout(idb.ref('invoice_entries/' + c.po + '/' + c.key).once('value'), 9000, 'invoice');
+                    const v = (snap && snap.val()) || null;
+                    if (!v || !statusMatch(v.status, want)) continue;
+                    const hist = historyList(v);
+                    let hit = null;
+                    for (let j = hist.length - 1; j >= 0; j--) {
+                        const h = hist[j];
+                        if (!statusMatch(h.status, want)) continue;
+                        if (h.at >= win.from && h.at <= win.to && (!mine || norm(h.by) === me)) { hit = h; }
+                        break; // only the latest change to this status counts
+                    }
+                    if (!hit && !hist.length) {
+                        const t = Number(v.statusChangedAt || v.lastUpdated || v.updatedAt) || 0;
+                        const by = String(v.updatedBy || v.enteredBy || '');
+                        if (t >= win.from && t <= win.to && (!mine || norm(by) === me)) hit = { at: t, by: by };
+                    }
+                    if (hit) found.push({ key: c.key, po: c.po, inv: v, at: hit.at, by: hit.by });
+                } catch (_) {}
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(8, list.length) }, worker));
+        found.sort((p, q) => p.at - q.at);
+        const rows = found.map((f) => ({ po: f.po, invoice_no: f.inv.invNumber || f.inv.invEntryID || '—', status: f.inv.status || '', with: f.inv.attention || undefined,
+            vendor: f.inv.vendorName || undefined, changed_at: fmtDate(f.at) + ' ' + fmtClock(f.at), changed_by: f.by || undefined }));
+        const label = want + ' · ' + win.label + (mine ? ' · by you' : '');
+        const toBatch = a.add_to_batch !== false && norm(a.add_to_batch) !== 'false' && isSuper() && found.length && typeof addInvoiceToBatchTable === 'function';
+        if (toBatch) {
+            await ensureBase();
+            const map = poMap();
+            const items = found.map((f) => { const pi = poInfo({ po: f.po, rec: map[f.po] || null }); return { key: f.key, po: f.po, site: pi.siteLabel || 'N/A', vendor: pi.vendor || f.inv.vendorName || 'N/A', inv: f.inv, at: f.at, by: f.by }; });
+            const out = await toolBatch(Object.assign({}, a, { _found: items, _label: label, _asked: [] }));
+            if (out.result) { out.result.found = rows.length; out.result.window = win.label; out.result.changes = rows.slice(0, 40); }
+            return out;
+        }
+        return { result: { status: want, window: win.label, by_me: mine || undefined, found: rows.length, invoices: rows.slice(0, 40) },
+            card: { kind: 'recent', data: { label: label, rows: rows } } };
+    }
+
     function statusMatch(status, want) {
         const a = norm(status), b = norm(want);
         if (!b) return true;
@@ -1404,6 +1630,7 @@
     }
     async function toolBatch(args) {
         const a = args || {};
+        if (a._found) return batchAdd(a._found, a, [], { asked: a._asked || [], status_filter: a._label || undefined });
         const pos = parsePOs(a.pos || a.po);
         if (!pos.length) return { result: { error: 'Give the PO numbers to put into Batch Entry, e.g. 123, 234.' } };
         if (pos.length > 30) return { result: { error: 'Up to 30 POs at a time, please.' } };
@@ -1430,12 +1657,17 @@
             }
             match.forEach((k) => found.push({ key: k, po: x.po, site: pi.siteLabel || 'N/A', vendor: pi.vendor || 'N/A', inv: inv[k] || {} }));
         });
-        const result = { asked: pos, status_filter: want || undefined, added: [], already_in_batch: [], not_added: notAdded, filled: {} };
+        return batchAdd(found, a, notAdded, { asked: pos, status_filter: want || undefined });
+    }
+    async function batchAdd(found, a, notAdded, head) {
+        if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
+        const result = Object.assign({}, head, { added: [], already_in_batch: [], not_added: notAdded, filled: {} });
         if (found.length) {
             if (!(await openBatchEntry())) return { result: { error: 'Batch Entry could not be opened.' } };
             const body = $('im-batch-table-body');
             for (const f of found) {
-                const row = { po: f.po, invoice_no: f.inv.invNumber || f.inv.invEntryID || '—', status: f.inv.status || '', with: f.inv.attention || undefined };
+                const row = { po: f.po, invoice_no: f.inv.invNumber || f.inv.invEntryID || '—', status: f.inv.status || '', with: f.inv.attention || undefined,
+                    changed_at: f.at ? fmtDate(f.at) + ' ' + fmtClock(f.at) : undefined, changed_by: f.by || undefined };
                 const already = Array.from(body.querySelectorAll('.batch-invoice-card')).some((c) => c.getAttribute('data-key') === f.key);
                 if (already) { result.already_in_batch.push(row); continue; }
                 // the same data the Batch Entry search window gives
@@ -1732,6 +1964,7 @@
         reception_received: toolReception,
         job_records: toolJobs,
         add_to_batch: toolBatch,
+        recent_status_changes: toolRecent,
         invoices_by_status: toolStatus,
         invoice_activity: toolActivity,
         track_transfer: toolTransfer,
@@ -1770,6 +2003,7 @@
             'How an invoice moves: 1) Reception receives the vendor invoice and records a WorkDesk job entry (New Entry). 2) Accounting registers it in Invoice Entry (Under Review / In Process). 3) The Site DC (Head Office DC for head-office items) confirms delivery: For SRV, then SRV Done. 4) Approvals when needed (For Approval, CEO Approval, Report...). 5) With Accounts = payment in process. 6) Paid. Each invoice keeps a history of who changed its status and when.',
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
+            'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
@@ -1897,6 +2131,7 @@
                 const answer = String(m.content || '').trim() || (steps.length ? 'Done.' : '…');
                 state.lastTurn = { prompt: text, steps: steps.slice(), answer: answer };
                 addBot(answer, { canSave: steps.length > 0, prompt: text, steps: steps.slice() });
+                if (look().voice) speak(answer);
                 state.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
                 if (state.history.length > 2 * HISTORY_KEEP) state.history = state.history.slice(-2 * HISTORY_KEEP);
                 if (minimize) peek(answer);
@@ -2073,7 +2308,7 @@
         fab.title = 'IBA Assistant';
         fab.setAttribute('aria-label', 'Open the IBA Assistant');
         fab.hidden = true;
-        fab.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><span class="iba-ai-fab-dot" aria-hidden="true"></span>';
+        paintFab(fab);
         document.body.appendChild(fab);
 
         const bubble = document.createElement('div');
@@ -2116,6 +2351,22 @@
                 '<input id="iba-ai-track-year" type="text" inputmode="numeric" placeholder="Year"/>' +
                 '<button type="submit" class="iba-ai-btn is-main"><i class="fa-solid fa-magnifying-glass"></i> Track</button>' +
               '</form>' +
+              // 15.0.0 patch 11: recent status changes (no AI needed)
+              '<details class="iba-ai-recent" id="iba-ai-recent">' +
+                '<summary><i class="fa-solid fa-clock-rotate-left"></i> Recent status changes <small>to Batch Entry</small></summary>' +
+                '<div class="iba-ai-recent-body">' +
+                  '<select id="iba-ai-recent-status" aria-label="Status"></select>' +
+                  '<div class="iba-ai-recent-when" role="radiogroup" aria-label="When">' +
+                    '<button type="button" data-recent-when="2h" class="is-on">Last 2 h</button>' +
+                    '<button type="button" data-recent-when="morning">This morning</button>' +
+                    '<button type="button" data-recent-when="afternoon">This afternoon</button>' +
+                    '<button type="button" data-recent-when="today">Today</button>' +
+                    '<button type="button" data-recent-when="yesterday">Yesterday</button>' +
+                  '</div>' +
+                  '<label class="iba-ai-recent-mine"><input type="checkbox" id="iba-ai-recent-mine" checked/> Only changes I made</label>' +
+                  '<button type="button" class="iba-ai-btn is-main" data-recent-go><i class="fa-solid fa-layer-group"></i> <span>Find</span></button>' +
+                '</div>' +
+              '</details>' +
               '<div class="iba-ai-track-out" id="iba-ai-track-out"></div>' +
             '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
@@ -2127,6 +2378,7 @@
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
+              (SR ? '<button type="button" id="iba-ai-mic" title="Speak your question (Chrome / Edge)"><i class="fa-solid fa-microphone"></i></button>' : '') +
               '<button type="submit" id="iba-ai-send" title="Send (Enter)"><i class="fa-solid fa-paper-plane"></i></button>' +
             '</form>';
         document.body.appendChild(panel);
@@ -2221,6 +2473,30 @@
         if (act === 'close') return toggle(false);
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
         if (act === 'brief') return openBrief();
+        if (b.dataset.recentWhen) {
+            b.parentNode.querySelectorAll('[data-recent-when]').forEach((x) => x.classList.toggle('is-on', x === b));
+            return;
+        }
+        if (b.hasAttribute('data-recent-go')) return runRecent();
+        if (b.hasAttribute('data-brief-say')) {
+            const card = b.closest('.iba-ai-card');
+            const data = card && briefStore.get(card.getAttribute('data-brief-id'));
+            if (data) { if (talking) stopSpeak(); else speak(briefSpeech(data)); }
+            return;
+        }
+        if (b.hasAttribute('data-say')) {
+            const msg = b.closest('.iba-ai-msg');
+            const t = msg && msg.querySelector('.iba-ai-text');
+            if (t) { if (talking) stopSpeak(); else speak(t.innerText); }
+            return;
+        }
+        if (b.id === 'iba-ai-mic') return listen(b);
+        if (b.hasAttribute('data-brief-print')) {
+            const card = b.closest('.iba-ai-card');
+            const data = card && briefStore.get(card.getAttribute('data-brief-id'));
+            if (data) printBrief(data);
+            return;
+        }
         if (b.dataset.briefMore) {
             const card = b.closest('.iba-ai-card');
             const ul = card && card.querySelector('[data-brief-list="' + b.dataset.briefMore + '"]');
@@ -2311,6 +2587,28 @@
         }
     }
 
+    async function runRecent() {
+        const out = $('iba-ai-track-out');
+        if (state.busy || !out) return;
+        const w = (document.querySelector('#iba-ai-recent [data-recent-when].is-on') || {}).dataset || {};
+        const when = w.recentWhen || '2h';
+        const args = { status: $('iba-ai-recent-status').value, by_me: !!$('iba-ai-recent-mine').checked };
+        if (when === '2h') args.hours = 2;
+        else if (when === 'yesterday') { args.day = 'yesterday'; args.period = 'whole_day'; }
+        else if (when === 'today') args.period = 'whole_day';
+        else args.period = when;
+        state.busy = true;
+        out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        try {
+            const r = await toolRecent(args);
+            out.innerHTML = '';
+            if (r.card) addCard(r.card, out);
+            else out.innerHTML = '<div class="iba-ai-note is-error">' + esc((r.result && r.result.error) || 'Nothing found.') + '</div>';
+        } catch (err) {
+            out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+        } finally { state.busy = false; }
+    }
+
     // 15.0.0 patch 10: today's brief for everyone, key or not. Waits a few
     // seconds for the waiting list (Active Task / Active Job) after login.
     let briefBusy = false;
@@ -2321,6 +2619,12 @@
             showView('chat');
             for (let i = 0; i < 8; i++) { const w = waiting(); if (w && w.running) break; await new Promise((r) => setTimeout(r, 1250)); }
             await runDirect('get_brief', {});
+            if (look().voice) {
+                const cards = document.querySelectorAll('#iba-ai-log .iba-ai-card.is-brief');
+                const last = cards[cards.length - 1];
+                const data = last && briefStore.get(last.getAttribute('data-brief-id'));
+                if (data) speak(briefSpeech(data));
+            }
         } finally { briefBusy = false; }
     }
 
@@ -2385,7 +2689,8 @@
         const o = opts || {};
         const d = document.createElement('div');
         d.className = 'iba-ai-msg is-bot';
-        let tools = '<button type="button" class="iba-ai-mini" data-copy><i class="fa-regular fa-copy"></i> Copy</button>';
+        let tools = '<button type="button" class="iba-ai-mini" data-copy><i class="fa-regular fa-copy"></i> Copy</button>' +
+            (canSpeak() ? '<button type="button" class="iba-ai-mini" data-say title="Read it aloud"><i class="fa-solid fa-volume-high"></i> Listen</button>' : '');
         if (o.canSave) tools += '<button type="button" class="iba-ai-mini" data-save-skill><i class="fa-solid fa-bolt"></i> Save as skill</button>';
         if (o.again) tools += '<button type="button" class="iba-ai-mini" data-again="' + esc(o.again) + '"><i class="fa-solid fa-wand-magic-sparkles"></i> Ask AI again</button>';
         d.innerHTML = '<div class="iba-ai-text">' + md(text) + '</div><div class="iba-ai-msg-tools">' + tools + '</div>';
@@ -2595,7 +2900,6 @@
                     (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
                     (it.invoice_date || it.paid_on || it.with_accounts_on ? '<div class="iba-ai-trk-dates">' + [it.invoice_date ? 'Invoice ' + esc(it.invoice_date) : '', it.with_accounts_on ? 'With Accounts ' + esc(it.with_accounts_on) : '', it.paid_on ? 'Paid ' + esc(it.paid_on) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
                     '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + ((it.skipped_index || []).indexOf(i) !== -1 ? 'is-skipped' : i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"' + ((it.skipped_index || []).indexOf(i) !== -1 ? ' title="Skipped"' : '') + '><span></span>' + lbl + '</li>').join('') + '</ol>' +
-                    (it.skipped ? '<div class="iba-ai-trk-dates">Skipped: ' + esc(it.skipped.join(', ')) + '</div>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
@@ -2740,12 +3044,17 @@
         const x = card.data || {};
         if (card.kind === 'brief') {
             const r = x.result;
-            let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> Your brief</div>' +
+            const bid = 'b' + (++briefSeq);
+            briefStore.set(bid, x);
+            if (briefStore.size > 6) briefStore.delete(briefStore.keys().next().value);
+            d.setAttribute('data-brief-id', bid);
+            let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> Your brief' +
+                '<span class="iba-ai-head-actions">' + (canSpeak() ? '<button type="button" class="iba-ai-mini" data-brief-say title="Read the brief aloud"><i class="fa-solid fa-volume-high"></i></button>' : '') + '<button type="button" class="iba-ai-mini" data-brief-print title="Print or save as PDF: a checklist with charts"><i class="fa-solid fa-print"></i> Print</button></span></div>' +
                 '<div class="iba-ai-stats">' +
                   '<div><b>' + esc(r.active_task) + '</b><span>Active Task</span></div>' +
                   '<div><b>' + esc(r.active_job) + '</b><span>Active Job</span></div>' +
                   '<div><b>' + esc(r.new_today || 0) + '</b><span>New today</span></div>' +
-                  (r.po_closeout ? '<div><b>' + esc(r.po_closeout.ready_to_close) + '</b><span>Ready to close</span></div>' : '') +
+                  (r.po_closeout || r.po_closeout_loading ? '<div><b data-co-ready>' + (r.po_closeout ? esc(r.po_closeout.ready_to_close) : '…') + '</b><span>Ready to close</span></div>' : '') +
                 '</div>';
             h += remindersHtml();
             const MORE = 8;
@@ -2765,7 +3074,8 @@
             }
             if (r.inventory_not_loaded) h += '<p class="iba-ai-foot">' + esc(r.inventory_not_loaded) + ' more Active Job item' + (r.inventory_not_loaded === 1 ? '' : 's') + ' not loaded yet: open Active Job to see them.</p>';
             if (!x.tasks.length && !x.jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
-            if (r.po_closeout) h += '<p class="iba-ai-foot">PO Close Out: ' + esc(r.po_closeout.waiting_site) + ' waiting at Site, ' + esc(r.po_closeout.ready_to_close) + ' ready to close.</p>';
+            if (r.po_closeout) h += '<p class="iba-ai-foot" data-co-foot>PO Close Out: ' + esc(r.po_closeout.waiting_site) + ' waiting at Site, ' + esc(r.po_closeout.ready_to_close) + ' ready to close.</p>';
+            else if (r.po_closeout_loading) h += '<p class="iba-ai-foot" data-co-foot>PO Close Out: counting…</p>';
             d.innerHTML = h;
         } else if (card.kind === 'list') {
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-list-check"></i> ' + esc(x.total) + ' found' + (x.total > x.rows.length ? ' · first ' + x.rows.length : '') + '</div>' +
@@ -2836,12 +3146,18 @@
                     (x.total > x.shown ? '<p class="iba-ai-foot">Oldest ' + esc(x.shown) + ' of ' + esc(x.total) + '.</p>' : '')
                     : '<p class="iba-ai-empty">No active invoices match that.</p>') +
                 '<p class="iba-ai-foot">' + esc(x.note) + '</p>';
+        } else if (card.kind === 'recent') {
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-clock-rotate-left"></i> ' + esc(x.rows.length) + ' found · ' + esc(x.label) + '</div>' +
+                (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
+                    '<small>' + esc([r.status, r.changed_at, r.changed_by ? 'by ' + r.changed_by : '', r.with ? 'with ' + r.with : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>'
+                    : '<p class="iba-ai-empty">No invoice was moved to this status in that time.</p>');
         } else if (card.kind === 'batch') {
             const added = x.added || [], already = x.already_in_batch || [], na = x.not_added || [];
             const f = x.filled || {};
             const fill = [f.status ? 'Status: ' + f.status : '', f.attention ? 'Attention: ' + f.attention : '', f.note ? 'Note: ' + f.note : ''].filter(Boolean).join(' · ');
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-layer-group"></i> Batch Entry · ' + esc(added.length) + ' added' + (x.status_filter ? ' (' + esc(x.status_filter) + ')' : '') + '<span class="iba-ai-badge">Not saved</span></div>' +
-                (added.length ? '<ul class="iba-ai-rows">' + added.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + '<small>' + esc([r.status, r.with ? 'with ' + r.with : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' : '') +
+                (added.length ? '<ul class="iba-ai-rows">' + added.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + '<small>' + esc([r.status, r.changed_at, r.changed_by ? 'by ' + r.changed_by : '', r.with ? 'with ' + r.with : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' : '') +
+                (x.found === 0 || (x.window && !added.length && !already.length) ? '<p class="iba-ai-empty">No invoice was moved to this status in that time.</p>' : '') +
                 (already.length ? '<p class="iba-ai-foot">Already in the batch: ' + esc(already.map((r) => r.po + ' ' + r.invoice_no).join(', ')) + '</p>' : '') +
                 (na.length ? '<ul class="iba-ai-warn">' + na.map((r) => '<li>PO ' + esc(r.po) + ': ' + esc(r.reason) + '</li>').join('') + '</ul>' : '') +
                 (fill ? '<p class="iba-ai-foot">Filled in Set All: ' + esc(fill) + '</p>' : '') +
@@ -2924,8 +3240,16 @@
             '<div class="iba-ai-setup-actions"><button type="button" class="iba-ai-btn is-main" id="iba-ai-save"><i class="fa-solid fa-floppy-disk"></i> Save</button>' +
             '<button type="button" class="iba-ai-btn" id="iba-ai-test"><i class="fa-solid fa-plug-circle-check"></i> Test</button></div>' +
             '<p class="iba-ai-status" id="iba-ai-setup-status"></p>' +
+            '<h3 class="iba-ai-look-h"><i class="fa-solid fa-robot"></i> Look and voice</h3>' +
+            '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-bot"' + (look().bot ? ' checked' : '') + '/> Animated assistant (the little robot in the corner)</label>' +
+            (canSpeak() ? '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-voice"' + (look().voice ? ' checked' : '') + '/> Read answers and the brief aloud</label>' +
+                '<button type="button" class="iba-ai-btn" id="iba-ai-voice-test"><i class="fa-solid fa-volume-high"></i> Test voice</button>' : '<p class="iba-ai-help small">This browser cannot speak. Chrome or Edge can.</p>') +
             '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> This key is yours: it stays only in this browser, for your account. It is not saved in the system or in Firebase, and nobody else uses it. ' +
             'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>';
+        const lb = $('iba-ai-look-bot'), lv = $('iba-ai-look-voice'), vt = $('iba-ai-voice-test');
+        if (lb) lb.addEventListener('change', () => { setLook({ bot: lb.checked }); paintFab($('iba-ai-fab')); });
+        if (lv) lv.addEventListener('change', () => { setLook({ voice: lv.checked }); if (!lv.checked) stopSpeak(); });
+        if (vt) vt.addEventListener('click', () => speak(greetingWord() + ', ' + firstName() + '. I am your IBA assistant. I can read your brief and my answers aloud.'));
         const pick = $('iba-ai-brain-pick');
         pick.addEventListener('change', () => {
             const nb = BRAINS[pick.value];
@@ -3054,6 +3378,118 @@
         document.querySelectorAll('#iba-live-counts .iba-live-pill[data-count]').forEach((p) => { if (!p.hidden) n += Number(p.getAttribute('data-count')) || 0; });
         return n;
     }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 11: the animated assistant (a small robot drawn in SVG,
+    // animated with CSS only; it pauses when the tab is in the background and
+    // follows "reduce motion") and its voice (the browser's own speech: free,
+    // no key). Desktop only, like the rest of the assistant.
+    // ------------------------------------------------------------------
+    const LOOK_KEY = 'iba-ai-look-v1';
+    function look() { const v = lsGet(LOOK_KEY, {}) || {}; return { bot: v.bot !== false, voice: v.voice === true }; }
+    function setLook(p) { lsSet(LOOK_KEY, Object.assign(look(), p || {})); }
+    const BOT_SVG =
+        '<svg class="iba-ai-bot" viewBox="0 0 80 92" aria-hidden="true" focusable="false">' +
+          '<defs><linearGradient id="ibaBotHead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B6F84"/><stop offset="1" stop-color="#14364F"/></linearGradient>' +
+          '<linearGradient id="ibaBotBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F5B6E"/><stop offset="1" stop-color="#0E2A40"/></linearGradient></defs>' +
+          '<ellipse class="bot-shadow" cx="40" cy="88" rx="19" ry="3"/>' +
+          '<g class="bot-all">' +
+            '<g class="bot-legs"><rect x="29" y="74" width="8" height="10" rx="4"/><rect x="43" y="74" width="8" height="10" rx="4"/></g>' +
+            '<path class="bot-arm bot-arm-l" d="M27 60 q-8 4 -7 13" />' +
+            '<path class="bot-arm bot-arm-r" d="M53 60 q8 4 7 13" />' +
+            '<rect class="bot-torso" x="25" y="55" width="30" height="23" rx="10"/>' +
+            '<circle class="bot-heart" cx="40" cy="66" r="3.2"/>' +
+            '<g class="bot-head">' +
+              '<line class="bot-antenna" x1="40" y1="12" x2="40" y2="21"/><circle class="bot-bulb" cx="40" cy="10" r="3.6"/>' +
+              '<circle class="bot-ear" cx="15" cy="38" r="4.2"/><circle class="bot-ear" cx="65" cy="38" r="4.2"/>' +
+              '<rect class="bot-skull" x="16" y="20" width="48" height="36" rx="15"/>' +
+              '<rect class="bot-visor" x="22" y="27" width="36" height="21" rx="10"/>' +
+              '<g class="bot-eyes"><rect class="bot-eye" x="29" y="32" width="6" height="9" rx="3"/><rect class="bot-eye" x="45" y="32" width="6" height="9" rx="3"/></g>' +
+              '<path class="bot-mouth" d="M36 44 q4 3 8 0"/>' +
+            '</g>' +
+          '</g>' +
+        '</svg>';
+    function paintFab(fab) {
+        if (!fab) return;
+        const bot = look().bot;
+        fab.classList.toggle('is-bot', bot);
+        fab.innerHTML = (bot ? BOT_SVG : '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>') + '<span class="iba-ai-fab-dot" aria-hidden="true"></span>';
+    }
+    try {
+        document.addEventListener('visibilitychange', () => { document.body && document.body.classList.toggle('iba-ai-tab-hidden', document.hidden); });
+    } catch (_) {}
+
+    let talking = false;
+    function canSpeak() { return typeof window.speechSynthesis !== 'undefined' && typeof window.SpeechSynthesisUtterance === 'function'; }
+    function plainForSpeech(t) {
+        return String(t || '').replace(/```[\s\S]*?```/g, ' ').replace(/[*_`#>|]/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+            .replace(/QAR/g, 'riyals').replace(/\bPO\b/g, 'P O').replace(/\s+/g, ' ').trim().slice(0, 1400);
+    }
+    function pickVoice() {
+        try {
+            const vs = window.speechSynthesis.getVoices() || [];
+            return vs.find((v) => /en-GB/i.test(v.lang) && /female|libby|sonia|hazel|google uk english female/i.test(v.name)) ||
+                vs.find((v) => /^en/i.test(v.lang) && /natural|online/i.test(v.name)) || vs.find((v) => /^en-GB/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
+        } catch (_) { return null; }
+    }
+    function setTalking(onOff) {
+        talking = onOff;
+        const fab = $('iba-ai-fab'); if (fab) fab.classList.toggle('is-talking', onOff);
+        const mark = document.querySelector('#iba-ai-panel .iba-ai-mark'); if (mark) mark.classList.toggle('is-talking', onOff);
+    }
+    function speak(text) {
+        if (!canSpeak()) return;
+        const t = plainForSpeech(text);
+        if (!t) return;
+        try {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(t);
+            const v = pickVoice();
+            if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+            u.rate = 1; u.pitch = 1.05;
+            u.onstart = () => setTalking(true);
+            u.onend = u.onerror = () => setTalking(false);
+            window.speechSynthesis.speak(u);
+        } catch (_) { setTalking(false); }
+    }
+    function stopSpeak() { try { if (canSpeak()) window.speechSynthesis.cancel(); } catch (_) {} setTalking(false); }
+    function briefSpeech(x) {
+        const r = x.result || {};
+        const tasks = x.tasks || [];
+        const rems = remList.filter((m) => !m.seenAt);
+        const parts = [greetingWord() + ', ' + firstName() + '.'];
+        const nt = Number(r.active_task) || 0, nj = Number(r.active_job) || 0;
+        parts.push(nt || nj ? 'You have ' + nt + ' task' + (nt === 1 ? '' : 's') + ' and ' + nj + ' inventory job' + (nj === 1 ? '' : 's') + ' waiting.' : 'Nothing is waiting for you right now.');
+        if (r.new_today) parts.push(r.new_today + ' arrived today.');
+        const byStatus = r.tasks_by_status || {};
+        const top = Object.keys(byStatus).sort((a, b) => byStatus[b] - byStatus[a]).slice(0, 3);
+        if (top.length) parts.push('Most are ' + top.map((k) => byStatus[k] + ' ' + k).join(', ') + '.');
+        if (tasks[0] && tasks[0].po) { const d = daysSince(tasks[0].at); parts.push('The oldest is PO ' + tasks[0].po + (d !== null ? ', waiting ' + d + ' days' : '') + '. Next step: ' + nextStep(tasks[0].status) + '.'); }
+        if (rems.length) parts.push('You have ' + rems.length + ' reminder' + (rems.length === 1 ? '' : 's') + '. ' + rems.slice(0, 2).map((m) => 'From ' + (m.from || 'someone') + ': ' + String(m.text || '').split('\n')[0]).join('. ') + '.');
+        if (r.po_closeout && r.po_closeout.ready_to_close) parts.push(r.po_closeout.ready_to_close + ' P O are ready to close.');
+        return parts.join(' ');
+    }
+    // asking by voice (Chrome / Edge speech recognition)
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    let rec = null;
+    function listen(btn) {
+        if (!SR) return;
+        if (rec) { try { rec.stop(); } catch (_) {} return; }
+        try {
+            rec = new SR();
+            rec.lang = (navigator.language && /^en/i.test(navigator.language)) ? navigator.language : 'en-US';
+            rec.interimResults = false;
+            rec.maxAlternatives = 1;
+            btn.classList.add('is-listening');
+            rec.onresult = (e) => {
+                const t = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : '';
+                if (t) { const ta = $('iba-ai-text'); ta.value = t; ask(t); ta.value = ''; }
+            };
+            rec.onerror = (e) => { if (e && e.error === 'not-allowed') addNote('The microphone is blocked for this site. Allow it in the browser address bar, then try again.'); };
+            rec.onend = () => { btn.classList.remove('is-listening'); rec = null; };
+            rec.start();
+        } catch (_) { btn.classList.remove('is-listening'); rec = null; }
+    }
+
     function refreshFab() {
         const fab = $('iba-ai-fab');
         if (!fab) return;
