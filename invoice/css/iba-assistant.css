@@ -278,6 +278,11 @@
   /* 15.0.0 patch 10: the brief fits its 4 counts on one row */
   .iba-ai-card.is-brief .iba-ai-stats { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)) !important; }
   .iba-ai-card.is-brief .iba-ai-stats span { font-size: 9.5px !important; letter-spacing: .04em !important; }
+  .iba-ai-card.is-brief .iba-ai-rows li[hidden] { display: none !important; }
+  .iba-ai-brief-status { display: flex !important; flex-wrap: wrap !important; gap: 5px !important; margin: 0 0 6px !important; }
+  .iba-ai-brief-status span { padding: 3px 8px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.04) !important; color: #C9D3DD !important; font-size: 11px !important; }
+  .iba-ai-brief-status b { color: #FFFFFF !important; margin-left: 2px !important; }
+  .iba-ai-brief-more { display: block !important; margin: 6px auto 2px !important; }
   .iba-ai-sub { margin: 8px 0 4px !important; color: #7F90A3 !important; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .07em !important; text-transform: uppercase !important; }
   .iba-ai-rows { margin: 0 !important; padding: 0 !important; list-style: none !important; }
   .iba-ai-rows li { display: flex !important; align-items: center !important; gap: 8px !important; padding: 6px 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; }
