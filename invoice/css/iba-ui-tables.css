@@ -538,3 +538,50 @@
     html body.iba-shell-on #im-reporting#im-reporting .iba-records-row:first-child { flex-wrap: wrap !important; }
   }
 }
+
+/* 15.0.0 patch 11: Active Job "Multi" heading - one row on the table's own
+   columns (control no. + Multi badge, item, details, route, total qty,
+   contact, status with progress, show items). Children indented beneath. */
+@layer iba-ui {
+  html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row { cursor: pointer !important; }
+  html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row > td {
+    vertical-align: middle !important; padding: 12px 10px !important;
+    background: rgba(94, 214, 196, 0.06) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.10) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+  html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row > td:first-child { box-shadow: inset 3px 0 0 rgba(94, 214, 196, 0.55) !important; white-space: nowrap !important; }
+  html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row.open > td { background: rgba(94, 214, 196, 0.14) !important; }
+  html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row.open > td:first-child { box-shadow: inset 3px 0 0 #5ED6C4 !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-chev {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    width: 22px !important; height: 22px !important; margin-right: 8px !important; vertical-align: middle !important;
+    border-radius: 50% !important; border: 1px solid rgba(255, 255, 255, 0.28) !important; font-size: 10px !important;
+  }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-chev i { transition: transform .18s ease !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row.open .wd-mj-chev i { transform: rotate(90deg) !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-idtext { display: inline-flex !important; flex-direction: column !important; gap: 3px !important; vertical-align: middle !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-inventory-control-id { font-size: 14px !important; letter-spacing: .02em !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-badge {
+    display: inline-block !important; width: max-content !important; padding: 1px 8px !important; border-radius: 999px !important;
+    border: 1px solid rgba(94, 214, 196, 0.55) !important; background: rgba(94, 214, 196, 0.14) !important;
+    font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .04em !important;
+  }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-more,
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-progtext,
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-open {
+    font-size: 11px !important; font-weight: 600 !important; opacity: .78 !important; white-space: nowrap !important;
+  }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-qty { font-weight: 800 !important; font-size: 14px !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-status .wd-inventory-status-pill { display: inline-block !important; margin-bottom: 6px !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-prog {
+    display: block !important; width: 110px !important; height: 4px !important; margin: 0 0 3px !important;
+    border-radius: 999px !important; background: rgba(255, 255, 255, 0.18) !important; overflow: hidden !important;
+  }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-prog i { display: block !important; height: 100% !important; min-width: 2px !important; background: #5ED6C4 !important; border-radius: 999px !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row .wd-mj-progtext { display: block !important; }
+  html body.iba-shell-on #inv-active-job tr.wd-mj-row.open .wd-mj-open i { transform: rotate(180deg) !important; }
+  /* the items under an open heading */
+  html body.iba-shell-on #inv-active-job table tbody tr.controlid-group-child > td { background: rgba(255, 255, 255, 0.03) !important; }
+  html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr.controlid-group-child > td:first-child { padding-left: 40px !important; box-shadow: inset 3px 0 0 rgba(94, 214, 196, 0.25) !important; }
+}

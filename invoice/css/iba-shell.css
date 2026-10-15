@@ -3043,3 +3043,8 @@ html body.iba-dash-focus #wd-dashboard .wd-cork-note {
   align-self: start !important;
   overflow: visible !important;
 }
+
+/* 15.0.0 patch 11: quiet background refresh of the Dashboard front cards */
+#iba-dash-stack.iba-dash-quiet .iba-dash-mini,
+#iba-dash-stack.iba-dash-quiet .iba-dash-hero,
+#iba-dash-stack.iba-dash-quiet .iba-dash-rail { animation: none !important; }
