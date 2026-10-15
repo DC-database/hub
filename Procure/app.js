@@ -20,17 +20,27 @@ const dbReq = firebase.database();
 // URLs & GLOBALS
 // ==========================================
 const ITEMS_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Item.csv";
-const ACTIVITY_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/activity.csv";
+const CLASS_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/class.csv";
+const GROUP_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/group.csv";
 const VENDORS_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Vendors.csv";
 const SITE_CSV_URL = "https://raw.githubusercontent.com/DC-database/hub/main/Site.csv";
 
 let allSearchableItems = []; let allVendors = []; let allSites = [];
 let cart = []; let legacyItems = []; let dynamicActivityData = {};
-let activitiesMap = {}; 
-let sessionNewlyCreatedItems = []; 
+let activitiesMap = {};
+let classByCode = {};
+let classesByActivity = {};   // activity code ("1".."5") -> [class entries]
+let activityList = [];        // [{ code, name, label }] sorted 1..5
+let allGroups = [];
+let groupsByCode = {};
+let lookupRows = { activities: [], groups: [], vendors: [], sites: [] }; // raw GitHub rows, kept for cache writes
+let sessionNewlyCreatedItems = [];
 
-let currentGroupCode = null; let generatedSeries = null; let generatedPartCode = null;
 let selectedVendor = { id: '', name: '' }; let selectedSite = { code: '', name: '' };
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
 
 // ==========================================
 // USER ACCESS (stored in requisition Firebase)
@@ -554,7 +564,9 @@ document.getElementById('clearSessionBtn').addEventListener('click', () => {
 // ==========================================
 // 1. INITIALIZATION
 // ==========================================
-const CATALOG_CACHE_KEY = 'pr_catalog_cache_v2';
+// v4: old v3 caches were built from activity.csv and had no group list, so they are ignored.
+const CATALOG_CACHE_KEY = 'pr_catalog_cache_v4';
+try { localStorage.removeItem('pr_catalog_cache_v3'); } catch (err) {}
 const CATALOG_VERSION_PATH = 'appSettings/catalogVersion';
 const CATALOG_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const SEARCH_PAGE_SIZE = 40;
@@ -577,30 +589,75 @@ function parseCsv(text) {
     });
 }
 
-function applyActivityRows(rows) {
-    const mainFilter = document.getElementById('mainCategoryFilter');
-    const editMainFilter = document.getElementById('editMainCategoryFilter');
-    mainFilter.innerHTML = '<option value="">-- Select Main Category --</option>';
-    editMainFilter.innerHTML = '<option value="">-- Select Main Category --</option>';
+function activityLabel(code, name) {
+    const n = String(name || '').trim() || 'Uncategorized';
+    const c = String(code || '').trim();
+    return c ? `${c}. ${n}` : n;
+}
+
+// class.csv columns: Class Code, Class Name, Group ID, Group Name, Activity, Activity Code
+// Each class is locked to one activity (main category 1-5) and carries a default group.
+function applyClassRows(rows) {
     dynamicActivityData = {};
     activitiesMap = {};
-    rows.forEach(row => {
-        const groupCode = row["Group Code"]; const groupName = row["Group Name"];
-        const classCode = row["Class Code"] || "N/A"; const className = row["Class Name"] || "N/A";
-        const activityCode = row["Activity Code"] || "N/A"; const activityName = row["Activity Name"] || row["Activity"] || "Uncategorized";
-        if (groupCode && groupName) {
-            dynamicActivityData[groupCode] = { groupName, classCode, className, activityCode, activityName };
-            const mainCat = activityName;
-            if (!activitiesMap[mainCat]) {
-                activitiesMap[mainCat] = [];
-                const option1 = document.createElement('option'); option1.value = mainCat; option1.textContent = mainCat; mainFilter.appendChild(option1);
-                const option2 = document.createElement('option'); option2.value = mainCat; option2.textContent = mainCat; editMainFilter.appendChild(option2);
-            }
-            if (!activitiesMap[mainCat].some(g => g.groupCode === groupCode)) {
-                activitiesMap[mainCat].push({ groupCode, groupName });
-            }
+    classByCode = {};
+    classesByActivity = {};
+    const order = {};
+    (rows || []).forEach(row => {
+        const classCode = String(pickField(row, ['Class Code', 'Class']) || '').trim();
+        const className = String(pickField(row, ['Class Name']) || '').trim();
+        const groupId = String(pickField(row, ['Group ID', 'Group Code', 'Group']) || '').trim();
+        const groupName = String(pickField(row, ['Group Name']) || '').trim();
+        const activityName = String(pickField(row, ['Activity', 'Activity Name']) || '').trim();
+        const activityCode = String(pickField(row, ['Activity Code']) || '').trim();
+        if (!classCode || !className) return;
+        const entry = { classCode, className, groupId, groupName, activityCode, activityName };
+        classByCode[classCode] = entry;
+        if (groupId && !dynamicActivityData[groupId]) {
+            dynamicActivityData[groupId] = { groupName, classCode, className, activityCode, activityName };
         }
+        const mainCat = activityLabel(activityCode, activityName);
+        if (!activitiesMap[mainCat]) activitiesMap[mainCat] = [];
+        activitiesMap[mainCat].push(entry);
+        if (!classesByActivity[activityCode]) classesByActivity[activityCode] = [];
+        classesByActivity[activityCode].push(entry);
+        if (!order[activityCode]) order[activityCode] = { code: activityCode, name: activityName, label: mainCat };
     });
+    activityList = Object.values(order).sort((a, b) => (parseInt(a.code, 10) || 999) - (parseInt(b.code, 10) || 999));
+    Object.values(classesByActivity).forEach(list => list.sort((a, b) => (parseInt(a.classCode, 10) || 0) - (parseInt(b.classCode, 10) || 0)));
+    if (typeof renderCategoryChipsAll === 'function') renderCategoryChipsAll();
+}
+
+// group.csv columns: Group, Description
+function applyGroupRows(rows) {
+    allGroups = [];
+    groupsByCode = {};
+    (rows || []).forEach(row => {
+        const code = String(pickField(row, ['Group', 'Group Code', 'Group ID']) || '').trim();
+        const name = String(pickField(row, ['Description', 'Group Name', 'Name']) || '').trim();
+        if (!code) return;
+        if (groupsByCode[code]) return;
+        const entry = { code, name: name || code };
+        groupsByCode[code] = entry;
+        allGroups.push(entry);
+    });
+    allGroups.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function groupRecord(code) {
+    const key = String(code || '').trim();
+    return groupsByCode[key] || null;
+}
+
+// Default group for a class: name from group.csv, falling back to class.csv.
+function classDefaultGroup(cls) {
+    if (!cls || !cls.groupId) return null;
+    const g = groupRecord(cls.groupId);
+    return { code: cls.groupId, name: (g && g.name) || cls.groupName || cls.groupId };
+}
+
+function activityByCode(code) {
+    return activityList.find(a => a.code === String(code || '').trim()) || null;
 }
 
 function readCatalogCache() {
@@ -647,6 +704,7 @@ function writeCatalogCache(payload) {
             localStorage.removeItem(CATALOG_CACHE_KEY);
             localStorage.setItem(CATALOG_CACHE_KEY, JSON.stringify({
                 activities: payload.activities || [],
+                groups: payload.groups || [],
                 vendors: payload.vendors || [],
                 sites: payload.sites || [],
                 firebaseItems: slim.firebaseItems,
@@ -659,10 +717,40 @@ function writeCatalogCache(payload) {
     }
 }
 
+// GitHub CSVs saved from Excel are often Windows-1252, not UTF-8 (e.g. "Façade").
+function decodeCsvBuffer(buf) {
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+    catch (err) { return new TextDecoder('windows-1252').decode(buf); }
+}
+
 async function fetchText(url) {
     const res = await fetch(url, { cache: 'force-cache' });
     if (!res.ok) throw new Error('Failed to fetch ' + url);
-    return res.text();
+    return decodeCsvBuffer(await res.arrayBuffer());
+}
+
+// class.csv, group.csv, Vendors.csv and Site.csv come from GitHub (no Firebase cost).
+// The query string changes every 12 hours so the browser cache cannot pin an old copy.
+async function loadLookupCsvs(forceNetwork) {
+    const buster = '?v=' + (forceNetwork ? Date.now() : Math.floor(Date.now() / CATALOG_TTL_MS));
+    const [classText, groupText, vendorsText, sitesText] = await Promise.all([
+        fetchText(CLASS_CSV_URL + buster),
+        fetchText(GROUP_CSV_URL + buster),
+        fetchText(VENDORS_CSV_URL + buster),
+        fetchText(SITE_CSV_URL + buster)
+    ]);
+    return {
+        activities: await parseCsv(classText),
+        groups: await parseCsv(groupText),
+        vendors: await parseCsv(vendorsText),
+        sites: await parseCsv(sitesText)
+    };
+}
+
+function cacheHasLookups(cache) {
+    return !!(cache && Array.isArray(cache.activities) && cache.activities.length
+        && Array.isArray(cache.groups) && cache.groups.length
+        && cache.activities.some(r => pickField(r, ['Group ID'])));
 }
 
 async function loadFirebaseItems(force) {
@@ -699,23 +787,34 @@ async function bumpCatalogVersion() {
 
 async function loadRemoteCatalog(forceNetwork) {
     setCatalogStatus('Downloading catalog…', 'warn');
-    const cacheBuster = forceNetwork ? ('?v=' + Date.now()) : '';
-    const [activityText, vendorsText, sitesText, firebaseItems, catalogVersion] = await Promise.all([
-        fetchText(ACTIVITY_CSV_URL + cacheBuster),
-        fetchText(VENDORS_CSV_URL + cacheBuster),
-        fetchText(SITE_CSV_URL + cacheBuster),
+    const [lookups, firebaseItems, catalogVersion] = await Promise.all([
+        loadLookupCsvs(forceNetwork),
         loadFirebaseItems(true),
         getCatalogVersion()
     ]);
-    const activities = await parseCsv(activityText);
-    const vendors = await parseCsv(vendorsText);
-    const sites = await parseCsv(sitesText);
-    writeCatalogCache({ items: [], activities, vendors, sites, firebaseItems, catalogVersion });
-    return { items: [], activities, vendors, sites, firebaseItems, catalogVersion, fromCache: false };
+    const { activities, groups, vendors, sites } = lookups;
+    writeCatalogCache({ items: [], activities, groups, vendors, sites, firebaseItems, catalogVersion });
+    return { items: [], activities, groups, vendors, sites, firebaseItems, catalogVersion, fromCache: false };
+}
+
+// After this browser creates, edits or deletes an item: bump the shared version so other
+// browsers refresh, and keep this browser's cache so it does not re-download all items.
+async function commitCatalogChange() {
+    const cache = readCatalogCache() || {};
+    let before = null;
+    try { before = await getCatalogVersion(); } catch (err) {}
+    const inSync = before !== null && Number(cache.catalogVersion || 0) === Number(before || 0);
+    const next = await bumpCatalogVersion();
+    writeCatalogCache({
+        items: [],
+        ...lookupRows,
+        firebaseItems: allSearchableItems.filter(item => item && item.firebaseKey),
+        catalogVersion: inSync ? next : (cache.catalogVersion || 0)
+    });
 }
 
 function itemPartCode(item) {
-    return String((item && (item["Part Code"] || item["Part code"])) || "").trim();
+    return String((item && (item["Part Code"] || item["Part code"] || item["Part No"] || item["Part Number"])) || "").trim();
 }
 
 function mergeCatalogItems(githubItems, firebaseItems) {
@@ -734,12 +833,14 @@ function mergeCatalogItems(githubItems, firebaseItems) {
 
 function applyCatalog(data, sourceLabel) {
     legacyItems = data.items || [];
-    allVendors = data.vendors || [];
-    allSites = data.sites || [];
-    if ((data.activities || []).length) applyActivityRows(data.activities);
+    if ((data.vendors || []).length) { allVendors = data.vendors; lookupRows.vendors = data.vendors; }
+    if ((data.sites || []).length) { allSites = data.sites; lookupRows.sites = data.sites; }
+    if ((data.activities || []).length) { applyClassRows(data.activities); lookupRows.activities = data.activities; }
+    if ((data.groups || []).length) { applyGroupRows(data.groups); lookupRows.groups = data.groups; }
     const firebaseItems = data.firebaseItems || [];
     allSearchableItems = firebaseItems.slice();
     catalogReady = true;
+    if (typeof invalidateAssistantIndex === 'function') invalidateAssistantIndex();
     const count = allSearchableItems.length;
     const writable = firebaseItems.filter(item => item && item.firebaseKey).length;
     setCatalogStatus(`${count.toLocaleString()} items · Firebase · ${sourceLabel}`, 'ready');
@@ -749,7 +850,18 @@ function applyCatalog(data, sourceLabel) {
 async function initializeApp(forceRefresh) {
     loadSession();
     try {
-        const cache = readCatalogCache();
+        let cache = readCatalogCache();
+        // Cached Firebase items are fine, but class/group lists must exist and be under 12 hours old.
+        // Re-reading them only hits GitHub, never Firebase.
+        if (!forceRefresh && cache && Array.isArray(cache.firebaseItems) && (!cacheHasLookups(cache) || cache.stale)) {
+            try {
+                const lookups = await loadLookupCsvs(!cacheHasLookups(cache));
+                cache = { ...cache, ...lookups, stale: false };
+                writeCatalogCache(cache);
+            } catch (err) {
+                console.warn('Could not refresh class/group lists from GitHub.', err);
+            }
+        }
         const extraTab = !isPrimaryTab;
         if (extraTab && cache && Array.isArray(cache.firebaseItems)) {
             applyCatalog(cache, 'cached · extra tab');
@@ -766,14 +878,15 @@ async function initializeApp(forceRefresh) {
     } catch (err) {
         console.error(err);
         const cache = readCatalogCache();
-        if (cache && cache.items) {
+        if (cache && Array.isArray(cache.firebaseItems)) {
             applyCatalog(cache, 'cached fallback');
         } else {
-            setCatalogStatus('Catalog failed to load', 'warn');
+            setCatalogStatus('Catalog failed to load. Check your connection, then Refresh catalog.', 'warn');
         }
     }
 }
-initializeApp(false);
+// Start after the whole script has run, so every function and constant below exists.
+Promise.resolve().then(() => initializeApp(false));
 
 const refreshCatalogBtn = document.getElementById('refreshCatalogBtn');
 if (refreshCatalogBtn) {
@@ -832,16 +945,39 @@ function itemSearchText(item) {
     ].map(v => String(v || '').toLowerCase()).join(' ');
 }
 
+let currentResultItems = [];
+
+function itemField(item, names) {
+    for (const n of names) { if (item && item[n] != null && String(item[n]).trim() !== '') return String(item[n]).trim(); }
+    return '';
+}
+
+function bindPhotoFallback(img) {
+    img.addEventListener('error', () => {
+        const alts = String(img.dataset.alts || '').split('|').filter(Boolean);
+        if (alts.length) { img.src = alts.shift(); img.dataset.alts = alts.join('|'); }
+        else { img.classList.add('thumb-missing'); img.removeAttribute('src'); }
+    });
+}
+
+function partCodeChipHtml(partNo) {
+    const code = String(partNo || '');
+    const dot = code.indexOf('.');
+    if (dot < 0) return `<span class="code-chip">${escapeHtml(code || 'N/A')}</span>`;
+    return `<span class="code-chip"><span class="code-chip-prefix">${escapeHtml(code.slice(0, dot))}</span><span class="code-chip-dot">.</span>${escapeHtml(code.slice(dot + 1))}</span>`;
+}
+
 function renderSearchResults(rawQuery) {
     const meta = document.getElementById('searchMeta');
     const query = String(rawQuery || '').toLowerCase().trim();
     searchResults.innerHTML = '';
+    currentResultItems = [];
     if (query.length < 2) {
-        if (meta) meta.textContent = catalogReady ? `${allSearchableItems.length.toLocaleString()} items ready` : 'Catalog still loading…';
+        if (meta) meta.textContent = catalogReady ? `${allSearchableItems.length.toLocaleString()} items ready to search` : 'Catalog still loading…';
         return;
     }
     if (!catalogReady) {
-        searchResults.innerHTML = '<div class="no-results">Catalog is still loading. Try again in a moment.</div>';
+        searchResults.innerHTML = '<div class="no-results">The catalog is still loading. Try again in a moment.</div>';
         return;
     }
     if (query !== lastSearchQuery) {
@@ -853,54 +989,83 @@ function renderSearchResults(rawQuery) {
         const hay = itemSearchText(item);
         return tokens.every(tok => hay.includes(tok));
     });
-    if (meta) meta.textContent = matches.length ? `Showing ${Math.min(matches.length, searchLimit)} of ${matches.length} matches` : 'No matches';
+    if (meta) meta.textContent = matches.length ? `Showing ${Math.min(matches.length, searchLimit)} of ${matches.length.toLocaleString()} matches` : 'No matches';
     if (matches.length === 0) {
-        searchResults.innerHTML = '<div class="no-results">No items found. Click Create item to generate a part code.</div>';
+        searchResults.innerHTML = `<div class="empty-state">
+            <p><strong>Nothing in the catalog matches “${escapeHtml(rawQuery.trim())}”.</strong></p>
+            <p>Ask the assistant where it belongs. It suggests a class and group for the category you pick, then fills in the new item form.</p>
+            <button type="button" class="btn btn-accent" data-act="assist"><i class="fa-solid fa-wand-magic-sparkles"></i> Ask the assistant</button>
+        </div>`;
         return;
     }
-    matches.slice(0, searchLimit).forEach(item => {
-        const partNo = item["Part Code"] || item["Part code"] || "N/A";
-        const desc = item["Description"] || item["description"] || "N/A";
-        const uom = item["UOM"] || "EA";
-        const groupName = item["Group Name"] || item["Group name"] || "N/A";
-        const actName = item["Activity Name"] || item["Activity name"] || item["Activity"] || "N/A";
-        const groupCode = item["Group Code"] || item["Group code"] || "N/A";
-        const seriesCode = item["Series"] || String(partNo).split('.')[1] || "";
-        const classValue = item["Class Code"] || item["Class"] || item["Class Name"] || "N/A";
-        const safeDesc = String(desc).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeGroup = String(groupName).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeAct = String(actName).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const safeClass = String(classValue).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        const div = document.createElement('div');
-        div.className = 'result-item';
-        const safeKey = item.firebaseKey ? `'${item.firebaseKey}'` : null;
-        let actionButtons = `<button class="add-btn" onclick="addToCart('${partNo}', '${safeDesc}', '${uom}', '${safeGroup}', '${safeAct}', '${safeClass}')"><i class="fa-solid fa-plus"></i> Add</button>`;
-        if (safeKey) {
-            if (canEditItems()) actionButtons += `<button class="icon-btn edit" onclick="openEditModal(${safeKey}, '${partNo}', '${seriesCode}', '${safeDesc}', '${uom}', '${groupCode}')" title="Edit item"><i class="fa-solid fa-pen"></i></button>`;
-            if (canDeleteItems()) actionButtons += `<button class="icon-btn delete" onclick="deleteFirebaseItem(${safeKey})" title="Delete item"><i class="fa-solid fa-trash"></i></button>`;
-        }
-        if (canUpdatePhotos()) {
-            const keyArg = item.firebaseKey ? `'${item.firebaseKey}'` : 'null';
-            actionButtons += `<button class="icon-btn edit" onclick="updateItemPhoto(${keyArg}, '${partNo}', '${safeDesc}')" title="Update photo link"><i class="fa-solid fa-image"></i></button>`;
-        }
+    currentResultItems = matches.slice(0, searchLimit);
+    const rows = currentResultItems.map((item, idx) => {
+        const partNo = itemField(item, ['Part Code', 'Part code']) || 'N/A';
+        const desc = itemField(item, ['Description', 'description']) || 'N/A';
+        const uom = itemField(item, ['UOM']) || 'EA';
+        const groupName = itemField(item, ['Group Name', 'Group name']);
+        const groupCode = itemField(item, ['Group Code', 'Group code']);
+        const className = itemField(item, ['Class Name']) || (classByCode[itemField(item, ['Class Code'])] || {}).className || '';
+        const actCode = itemField(item, ['Activity Code']);
+        const actName = itemField(item, ['Activity Name', 'Activity name', 'Activity']);
         const fileName = item.PhotoFile || item.photoFile || item.photoName || '';
         const photoUrls = photoUrlCandidates(fileName);
-        const safePhoto = String(photoUrls[0] || '').replace(/"/g, '&quot;');
-        const safeAlts = photoUrls.slice(1).join('|').replace(/"/g, '&quot;');
-        div.innerHTML = `<div class="result-photo">${safePhoto ? `<img class="item-thumb" src="${safePhoto}" alt="${partNo}" referrerpolicy="no-referrer" data-alts="${safeAlts}" onclick="openPhotoView(this.src, '${partNo} | ${safeDesc}')" onerror="if(this.dataset.alts){const a=this.dataset.alts.split('|').filter(Boolean);if(a.length){this.src=a.shift();this.dataset.alts=a.join('|');}else{this.style.background='#e2e8f0';}}else{this.style.background='#e2e8f0';}">` : ''}</div><div class="result-info"><strong>${partNo}</strong> | ${desc} <em>(${uom})</em><br><span><i class="fa-solid fa-folder-tree"></i> ${groupName} &nbsp;|&nbsp; <i class="fa-solid fa-clipboard-check"></i> ${actName}${fileName ? ` &nbsp;|&nbsp; photo: ${fileName}` : ''}</span></div><div class="result-actions" style="display:flex; align-items:center;">${actionButtons}</div>`;
-        searchResults.appendChild(div);
+        const photo = photoUrls.length
+            ? `<img class="item-thumb" src="${escapeHtml(photoUrls[0])}" alt="" referrerpolicy="no-referrer" data-alts="${escapeHtml(photoUrls.slice(1).join('|'))}" data-act="photo" data-idx="${idx}">`
+            : '<span class="item-thumb thumb-missing" aria-hidden="true"></span>';
+        let actions = `<button type="button" class="add-btn" data-act="add" data-idx="${idx}"><i class="fa-solid fa-plus"></i> Add</button>`;
+        if (item.firebaseKey && canEditItems()) actions += `<button type="button" class="icon-btn edit" data-act="edit" data-idx="${idx}" title="Edit item" aria-label="Edit item"><i class="fa-solid fa-pen"></i></button>`;
+        if (item.firebaseKey && canDeleteItems()) actions += `<button type="button" class="icon-btn delete" data-act="delete" data-idx="${idx}" title="Delete item" aria-label="Delete item"><i class="fa-solid fa-trash"></i></button>`;
+        if (canUpdatePhotos()) actions += `<button type="button" class="icon-btn photo" data-act="setphoto" data-idx="${idx}" title="Set photo" aria-label="Set photo"><i class="fa-solid fa-image"></i></button>`;
+        const tags = [
+            groupName || groupCode ? `<span class="tag" title="Group ${escapeHtml(groupCode)}"><i class="fa-solid fa-folder-tree"></i> ${escapeHtml(groupName || groupCode)}</span>` : '',
+            className ? `<span class="tag"><i class="fa-solid fa-tag"></i> ${escapeHtml(className)}</span>` : '',
+            actName ? `<span class="tag tag-act act-${escapeHtml(actCode)}">${escapeHtml(actCode ? actCode + ' ' : '')}${escapeHtml(actName)}</span>` : ''
+        ].join('');
+        return `<div class="result-item">
+            <div class="result-photo">${photo}</div>
+            <div class="result-info">
+                <div class="result-line">${partCodeChipHtml(partNo)}<span class="result-desc">${escapeHtml(desc)}</span><span class="uom">${escapeHtml(uom)}</span></div>
+                <div class="result-tags">${tags}</div>
+            </div>
+            <div class="result-actions">${actions}</div>
+        </div>`;
     });
+    searchResults.innerHTML = rows.join('');
+    searchResults.querySelectorAll('img[data-alts]').forEach(bindPhotoFallback);
     if (matches.length > searchLimit) {
         const more = document.createElement('div');
         more.className = 'no-results';
-        more.innerHTML = `<button class="ghost-btn" id="showMoreResults">Show more (${matches.length - searchLimit} remaining)</button>`;
+        more.innerHTML = `<button type="button" class="ghost-btn" data-act="more">Show ${Math.min(SEARCH_PAGE_SIZE, matches.length - searchLimit)} more (${(matches.length - searchLimit).toLocaleString()} left)</button>`;
         searchResults.appendChild(more);
-        document.getElementById('showMoreResults').onclick = () => {
-            searchLimit += SEARCH_PAGE_SIZE;
-            renderSearchResults(rawQuery);
-        };
     }
 }
+
+searchResults.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.dataset.act;
+    if (act === 'more') { searchLimit += SEARCH_PAGE_SIZE; renderSearchResults(searchInput.value); return; }
+    if (act === 'assist') { openAssistant(searchInput.value.trim(), true); return; }
+    const item = currentResultItems[Number(el.dataset.idx)];
+    if (!item) return;
+    const partNo = itemField(item, ['Part Code', 'Part code']);
+    const desc = itemField(item, ['Description', 'description']);
+    if (act === 'add') {
+        addToCart(partNo, desc, itemField(item, ['UOM']) || 'EA', itemField(item, ['Group Name', 'Group name']), itemField(item, ['Activity Name', 'Activity name', 'Activity']), itemField(item, ['Class Code', 'Class', 'Class Name']));
+        el.classList.add('added');
+        el.innerHTML = '<i class="fa-solid fa-check"></i> Added';
+        setTimeout(() => { el.classList.remove('added'); el.innerHTML = '<i class="fa-solid fa-plus"></i> Add'; }, 1400);
+    } else if (act === 'edit') {
+        openEditModal(item.firebaseKey);
+    } else if (act === 'delete') {
+        deleteFirebaseItem(item.firebaseKey);
+    } else if (act === 'setphoto') {
+        updateItemPhoto(item.firebaseKey || null, partNo, desc);
+    } else if (act === 'photo') {
+        openPhotoView(el.src, `${partNo} | ${desc}`);
+    }
+});
 
 let searchTimer = null;
 
@@ -1004,13 +1169,13 @@ function renderFullCart() {
     let grandTotal = 0;
     cart.forEach((item, index) => {
         const total = item.qty * item.price; grandTotal += total;
-        const comment = String(item.comment || '').replace(/"/g, '&quot;');
+        const comment = escapeHtml(item.comment || '');
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
             <td>${cartPhotoHtml(item)}</td>
-            <td><strong>${item.partNo}</strong><br><em class="cart-group-name">${item.groupName} (${item.actName || ''})</em></td>
-            <td>${item.description}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${comment}" data-index="${index}"></td>
+            <td><strong>${escapeHtml(item.partNo)}</strong><br><em class="cart-group-name">${escapeHtml(item.groupName)}${item.actName ? ' (' + escapeHtml(item.actName) + ')' : ''}</em></td>
+            <td>${escapeHtml(item.description)}<br><input type="text" class="calc-input cart-comment-input" placeholder="Add a comment (optional)..." value="${comment}" data-index="${index}"></td>
             <td><input type="number" min="1" class="calc-input qty-input" value="${item.qty}" data-index="${index}" data-field="qty"></td>
             <td><select class="calc-input unit-input" data-index="${index}">${unitOptionsHtml(item)}</select></td>
             <td><input type="number" min="0" step="0.01" class="calc-input price-input" value="${item.price}" data-index="${index}" data-field="price"></td>
@@ -1053,8 +1218,8 @@ function renderCart() {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${index + 1}</td>
-            <td><strong>${item.partNo}</strong></td>
-            <td>${item.description}</td>
+            <td><strong>${escapeHtml(item.partNo)}</strong></td>
+            <td>${escapeHtml(item.description)}</td>
             <td class="action-col"><button class="remove-btn" onclick="removeFromCart(${index})"><i class="fa-solid fa-trash"></i></button></td>
         `;
         cartBody.appendChild(tr);
@@ -1248,12 +1413,12 @@ function renderRecentItemsTable(list, tbodyId) {
         const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : (item["Group Name"] || '');
         const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
         tbody.innerHTML += `<tr>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><strong>${item["Part Code"]}</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["Description"] || ''}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${item["UOM"] || ''}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${actText}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${groupText}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; color:#64748b;">${classText}</td>
+            <td><strong>${escapeHtml(item["Part Code"])}</strong></td>
+            <td>${escapeHtml(item["Description"] || '')}</td>
+            <td>${escapeHtml(item["UOM"] || '')}</td>
+            <td class="muted-cell">${escapeHtml(actText)}</td>
+            <td class="muted-cell">${escapeHtml(groupText)}</td>
+            <td class="muted-cell">${escapeHtml(classText)}</td>
         </tr>`;
     });
 }
@@ -1311,116 +1476,368 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
 });
 
 // ==========================================
-// 5. MODAL (CREATE NEW ITEM)
+// 5. CLASSIFICATION PICKER (shared by Create and Edit)
+// Main category (1-5, class.csv) -> Class (locked to its activity) -> Group (class default, or any group from group.csv)
+// Part Code = chosen group code + "." + series. Changing the group only changes the prefix.
 // ==========================================
-const modal = document.getElementById('generatorModal'); 
-const openBtn = document.getElementById('openGeneratorBtn'); 
-const closeBtn = document.getElementById('closeModalBtn');
-if (openBtn && modal) openBtn.addEventListener('click', (e) => {
+const $id = (id) => document.getElementById(id);
+
+function showToast(message, kind) {
+    let host = $id('toastHost');
+    if (!host) {
+        host = document.createElement('div');
+        host.id = 'toastHost';
+        host.className = 'toast-host no-print';
+        host.setAttribute('aria-live', 'polite');
+        document.body.appendChild(host);
+    }
+    const el = document.createElement('div');
+    el.className = 'toast' + (kind ? ' ' + kind : '');
+    el.textContent = message;
+    host.appendChild(el);
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+// Small accessible combobox: focus shows the full list, typing filters, arrows + Enter pick, Esc restores.
+function attachCombo(input, box, cfg) {
+    let items = []; let active = -1; let open = false;
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-expanded', 'false');
+    function paintActive() {
+        box.querySelectorAll('[data-i]').forEach((el) => el.classList.toggle('active', Number(el.dataset.i) === active));
+        const el = box.querySelector(`[data-i="${active}"]`);
+        if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+    function render(q) {
+        items = cfg.options(String(q || '')) || [];
+        active = items.length ? 0 : -1;
+        box.innerHTML = items.length
+            ? items.map((it, i) => `<div class="suggestion-item${it.cls ? ' ' + it.cls : ''}" role="option" data-i="${i}">${it.html}</div>`).join('') + (cfg.footer ? cfg.footer(q, items) : '')
+            : `<div class="suggestion-empty">${escapeHtml(cfg.emptyText ? cfg.emptyText(q) : 'No matches')}</div>`;
+        open = true;
+        box.classList.add('open');
+        input.setAttribute('aria-expanded', 'true');
+        paintActive();
+    }
+    function close(restore) {
+        box.innerHTML = '';
+        open = false;
+        box.classList.remove('open');
+        input.setAttribute('aria-expanded', 'false');
+        if (restore && cfg.restore) input.value = cfg.restore();
+    }
+    function choose(i) {
+        const it = items[i];
+        if (!it) return;
+        close(false);
+        cfg.pick(it.value);
+    }
+    input.addEventListener('focus', () => {
+        if (input.disabled) return;
+        input.select();
+        render('');
+    });
+    input.addEventListener('click', () => { if (!open && !input.disabled) render(''); });
+    input.addEventListener('input', () => render(input.value));
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) render(input.value); else { active = Math.min(items.length - 1, active + 1); paintActive(); } }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(0, active - 1); paintActive(); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (open && active >= 0) choose(active); }
+        else if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); close(true); }
+        else if (e.key === 'Tab' && open) { close(true); }
+    });
+    input.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== input) close(true); }, 150));
+    box.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const el = e.target.closest('[data-i]');
+        if (el) choose(Number(el.dataset.i));
+    });
+    return { render, close };
+}
+
+function textMatchesAll(text, query) {
+    const hay = String(text || '').toLowerCase();
+    return String(query || '').toLowerCase().split(/\s+/).filter(Boolean).every(t => hay.includes(t));
+}
+
+function groupLabel(g) { return g ? `${g.code} - ${g.name}` : ''; }
+
+const pickerRegistry = [];
+function renderCategoryChipsAll() { pickerRegistry.forEach(p => p.renderChips()); }
+
+function createClassificationPicker(ids, onChange) {
+    const chips = $id(ids.chips);
+    const classInput = $id(ids.classInput);
+    const classBox = $id(ids.classBox);
+    const groupInput = $id(ids.groupInput);
+    const groupBox = $id(ids.groupBox);
+    const groupState = $id(ids.groupState);
+    const state = { activityCode: '', cls: null, group: null };
+
+    function defaultGroup() { return state.cls && !state.cls.unknown ? classDefaultGroup(state.cls) : null; }
+    function isDefaultGroup() {
+        const d = defaultGroup();
+        return !!(d && state.group && d.code === state.group.code);
+    }
+    function classDisplay() {
+        if (!state.cls) return '';
+        return state.cls.unknown ? `${state.cls.className || 'Unknown class'} (not in class.csv)` : `${state.cls.className} (class ${state.cls.classCode})`;
+    }
+
+    function renderChips() {
+        if (!chips) return;
+        if (!activityList.length) { chips.innerHTML = '<span class="hint">Loading categories…</span>'; return; }
+        chips.innerHTML = activityList.map(a => `<button type="button" class="cat-chip act-${escapeHtml(a.code)}" data-code="${escapeHtml(a.code)}" aria-pressed="${a.code === state.activityCode}"><span class="cat-num">${escapeHtml(a.code)}</span>${escapeHtml(a.name)}</button>`).join('');
+    }
+
+    function paint() {
+        renderChips();
+        const hasCat = !!state.activityCode;
+        classInput.disabled = !hasCat;
+        classInput.placeholder = hasCat ? 'Click to see the classes, or type to search' : 'Pick a main category first';
+        classInput.value = classDisplay();
+        groupInput.disabled = !state.cls;
+        groupInput.placeholder = state.cls ? 'Keep the default, or type to search all groups' : 'Pick a class first';
+        groupInput.value = groupLabel(state.group);
+        if (ids.dispClass) $id(ids.dispClass).value = state.cls ? `${state.cls.classCode} - ${state.cls.className}` : '';
+        if (ids.dispActivity) $id(ids.dispActivity).value = state.cls ? `${state.cls.activityCode} - ${state.cls.activityName}` : '';
+        if (groupState) {
+            const d = defaultGroup();
+            if (!state.cls || !state.group) { groupState.innerHTML = ''; groupState.className = 'group-state'; }
+            else if (isDefaultGroup() || !d) { groupState.className = 'group-state is-default'; groupState.innerHTML = '<i class="fa-solid fa-circle-check"></i> Default group for this class'; }
+            else {
+                groupState.className = 'group-state is-changed';
+                groupState.innerHTML = `<i class="fa-solid fa-arrow-right-arrow-left"></i> Changed from the class default ${escapeHtml(groupLabel(d))} <button type="button" class="link-btn" data-reset-group>Use default</button>`;
+            }
+        }
+        if (onChange) onChange(get());
+    }
+
+    function setCategory(code) {
+        code = String(code || '');
+        if (code === state.activityCode) return;
+        state.activityCode = code;
+        if (state.cls && state.cls.activityCode !== code) { state.cls = null; state.group = null; }
+        paint();
+    }
+    function setClass(cls, keepGroup) {
+        state.cls = cls;
+        state.activityCode = cls ? cls.activityCode : state.activityCode;
+        if (!keepGroup || !state.group) state.group = classDefaultGroup(cls);
+        paint();
+    }
+    function setGroup(g) { state.group = g ? { code: g.code, name: g.name } : null; paint(); }
+    function reset() { state.activityCode = ''; state.cls = null; state.group = null; paint(); }
+    function get() { return { activityCode: state.activityCode, cls: state.cls, group: state.group, defaultGroup: defaultGroup(), isDefault: isDefaultGroup() }; }
+
+    // Load a saved classification (edit, or a suggestion from the assistant).
+    function load({ activityCode, classCode, className, activityName, groupCode, groupName }) {
+        const known = classByCode[String(classCode || '').trim()];
+        if (known) state.cls = known;
+        else if (classCode || className) state.cls = { classCode: String(classCode || ''), className: className || '', activityCode: String(activityCode || ''), activityName: activityName || '', groupId: '', groupName: '', unknown: true };
+        else state.cls = null;
+        state.activityCode = state.cls ? state.cls.activityCode : String(activityCode || '');
+        const gCode = String(groupCode || '').trim();
+        const g = groupRecord(gCode);
+        state.group = gCode ? { code: gCode, name: (g && g.name) || groupName || gCode } : classDefaultGroup(state.cls);
+        paint();
+    }
+
+    chips?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-code]');
+        if (!btn) return;
+        setCategory(btn.dataset.code);
+        if (!state.cls) setTimeout(() => classInput.focus(), 0);
+    });
+    groupState?.addEventListener('click', (e) => {
+        if (e.target.closest('[data-reset-group]')) setGroup(defaultGroup());
+    });
+
+    attachCombo(classInput, classBox, {
+        options: (q) => (classesByActivity[state.activityCode] || [])
+            .filter(c => !q || textMatchesAll(`${c.classCode} ${c.className} ${c.groupId} ${c.groupName}`, q))
+            .map(c => {
+                const g = classDefaultGroup(c);
+                return {
+                    value: c,
+                    cls: state.cls && state.cls.classCode === c.classCode ? 'current' : '',
+                    html: `<span class="opt-code">${escapeHtml(c.classCode)}</span><span class="opt-main">${escapeHtml(c.className)}<small>Default group ${escapeHtml(groupLabel(g))}</small></span>`
+                };
+            }),
+        pick: (c) => { setClass(c, false); setTimeout(() => groupInput.focus(), 0); },
+        restore: () => classDisplay(),
+        emptyText: (q) => `No class in this category matches “${q}”.`
+    });
+
+    attachCombo(groupInput, groupBox, {
+        options: (q) => {
+            const d = defaultGroup();
+            const list = [];
+            if (d && (!q || textMatchesAll(`${d.code} ${d.name}`, q))) list.push({ value: d, cls: 'is-default-opt', html: `<span class="opt-code">${escapeHtml(d.code)}</span><span class="opt-main">${escapeHtml(d.name)}<small>Default for this class</small></span>` });
+            allGroups.forEach(g => {
+                if (d && g.code === d.code) return;
+                if (q && !textMatchesAll(`${g.code} ${g.name}`, q)) return;
+                list.push({ value: g, cls: state.group && state.group.code === g.code ? 'current' : '', html: `<span class="opt-code">${escapeHtml(g.code)}</span><span class="opt-main">${escapeHtml(g.name)}</span>` });
+            });
+            return list.slice(0, 200);
+        },
+        pick: (g) => setGroup(g),
+        restore: () => groupLabel(state.group),
+        emptyText: (q) => `No group in group.csv matches “${q}”.`
+    });
+
+    const api = { renderChips, setCategory, setClass, setGroup, reset, get, load, paint };
+    pickerRegistry.push(api);
+    renderChips();
+    return api;
+}
+
+// ---------- Series numbers ----------
+// One shared counter (a single number in Firebase) so two people never get the same series,
+// and so we never have to download the whole items list to find the highest series.
+const SERIES_COUNTER_PATH = 'appSettings/lastSeries';
+const SERIES_FLOOR = 100000;
+
+function localMaxSeries() {
+    let max = SERIES_FLOOR;
+    allSearchableItems.forEach(item => {
+        const raw = (item && (item["Series"] || String(itemPartCode(item)).split('.')[1])) || '';
+        const n = parseInt(raw, 10);
+        if (!isNaN(n) && n > max) max = n;
+    });
+    return max;
+}
+
+async function peekNextSeries() {
+    let counter = 0;
+    try { counter = Number((await dbReq.ref(SERIES_COUNTER_PATH).once('value')).val()) || 0; } catch (err) {}
+    return Math.max(counter, localMaxSeries()) + 1;
+}
+
+async function claimNextSeries() {
+    const floor = localMaxSeries();
+    try {
+        const result = await dbReq.ref(SERIES_COUNTER_PATH).transaction(cur => Math.max(Number(cur) || 0, floor) + 1);
+        if (result && result.committed) return Number(result.snapshot.val());
+    } catch (err) {
+        console.warn('Series counter not available; using the local catalog instead.', err);
+    }
+    return floor + 1;
+}
+
+// ---------- Create item ----------
+const modal = $id('generatorModal');
+const saveBtn = $id('saveBtn');
+const createState = { series: null, token: 0 };
+
+const createPicker = createClassificationPicker({
+    chips: 'createCategoryChips', classInput: 'activitySearch', classBox: 'activitySuggestions',
+    groupInput: 'groupSearch', groupBox: 'groupSuggestions', groupState: 'createGroupState',
+    dispClass: 'dispClass', dispActivity: 'dispActivity'
+}, () => updateCreatePreview());
+
+function paintCodeTag(tagId, prefixId, seriesId, prefix, series, changed) {
+    const tag = $id(tagId);
+    if (tag) tag.classList.toggle('is-changed', !!changed);
+    if ($id(prefixId)) $id(prefixId).textContent = prefix || '·····';
+    if ($id(seriesId)) $id(seriesId).textContent = series || '······';
+}
+
+function updateCreatePreview() {
+    const p = createPicker.get();
+    paintCodeTag('createCodeTag', 'previewPrefix', 'previewSeriesNum', p.group && p.group.code, createState.series, p.group && !p.isDefault);
+    const status = $id('seriesStatusText');
+    if (status) {
+        if (!p.cls) status.textContent = 'Pick a category, class and group. The prefix is the group code.';
+        else if (!createState.series) status.textContent = 'Getting the next series number…';
+        else status.textContent = p.isDefault ? 'Prefix is the class default group.' : 'Prefix follows the group you chose. The series stays the same.';
+    }
+    const ready = !!(p.cls && !p.cls.unknown && p.group && createState.series);
+    saveBtn.disabled = !ready;
+    saveBtn.textContent = ready ? 'Save item and add to cart' : (p.cls ? 'Getting series…' : 'Pick a class first');
+    const previewImg = $id('createItemPhotoPreview');
+    if (previewImg) previewImg.style.display = 'none';
+}
+
+async function refreshCreateSeries() {
+    const token = ++createState.token;
+    createState.series = null;
+    updateCreatePreview();
+    const next = await peekNextSeries();
+    if (token !== createState.token) return;
+    createState.series = String(next);
+    updateCreatePreview();
+}
+
+function openCreateModal(prefill) {
+    if (!canAddItems()) { denyAccess('add items'); return; }
+    $id('itemForm').reset();
+    createPicker.reset();
+    if (prefill) {
+        if (prefill.classCode) createPicker.load(prefill);
+        else if (prefill.activityCode) createPicker.setCategory(prefill.activityCode);
+        if (prefill.description) $id('description').value = prefill.description;
+        if (prefill.uom) $id('uom').value = prefill.uom;
+    }
+    modal.classList.add('active');
+    refreshCreateSeries();
+    setTimeout(() => {
+        const p = createPicker.get();
+        if (!p.activityCode) $id('createCategoryChips')?.querySelector('button')?.focus();
+        else if (!p.cls) $id('activitySearch').focus();
+        else $id('description').focus();
+    }, 50);
+}
+window.openCreateModal = openCreateModal;
+
+$id('openGeneratorBtn')?.addEventListener('click', (e) => { e.preventDefault(); openCreateModal(); });
+$id('closeModalBtn')?.addEventListener('click', (e) => { e.preventDefault(); modal.classList.remove('active'); });
+
+$id('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!canAddItems()) { denyAccess('add items'); return; }
-    modal.classList.add('active');
-});
-if (closeBtn && modal) closeBtn.addEventListener('click', (e) => { e.preventDefault(); modal.classList.remove('active'); });
-
-const mainCategoryFilter = document.getElementById('mainCategoryFilter');
-const activitySearch = document.getElementById('activitySearch'); 
-const activitySuggestions = document.getElementById('activitySuggestions');
-const saveBtn = document.getElementById('saveBtn');
-
-let currentCategoryGroups = []; 
-mainCategoryFilter.addEventListener('change', (e) => {
-    const selectedCat = e.target.value; activitySearch.value = ''; activitySuggestions.innerHTML = '';
-    document.getElementById('dispGroup').value = ''; document.getElementById('dispClass').value = ''; document.getElementById('dispActivity').value = '';
-    saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; currentGroupCode = null;
-    if (!selectedCat) { activitySearch.disabled = true; activitySearch.placeholder = "-- Select Main Category First --"; currentCategoryGroups = []; return; }
-    activitySearch.disabled = false; activitySearch.placeholder = "Click to see all, or type to search..."; currentCategoryGroups = activitiesMap[selectedCat] || [];
-});
-
-function showActivitySuggestions(query = "") {
-    activitySuggestions.innerHTML = ''; if (currentCategoryGroups.length === 0) return;
-    const q = query.toLowerCase().trim();
-    const matches = currentCategoryGroups.filter(g => { return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q); });
-    matches.forEach(g => {
-        const div = document.createElement('div'); div.className = 'suggestion-item'; div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
-        div.onclick = async () => {
-            activitySearch.value = `${g.groupName} (Group: ${g.groupCode})`; activitySuggestions.innerHTML = ''; currentGroupCode = g.groupCode; 
-            const data = dynamicActivityData[currentGroupCode]; 
-            document.getElementById('dispGroup').value = `${currentGroupCode} - ${data.groupName}`; document.getElementById('dispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('dispActivity').value = `${data.activityCode} - ${data.activityName}`;
-            await calculateNextSeries(currentGroupCode);
+    const p = createPicker.get();
+    if (!p.cls || p.cls.unknown || !p.group) { alert('Pick a main category, a class and a group first.'); return; }
+    const itemDesc = $id('description').value.trim();
+    const itemUOM = $id('uom').value;
+    if (!itemDesc || !itemUOM) { alert('Enter a description and pick a UOM.'); return; }
+    try {
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+        const series = String(await claimNextSeries());
+        const partCode = `${p.group.code}.${series}`;
+        const newItemRecord = {
+            "Part Code": partCode,
+            "Series": series,
+            "Description": itemDesc,
+            "UOM": itemUOM,
+            "Group Code": p.group.code,
+            "Group Name": p.group.name,
+            "Class Code": p.cls.classCode,
+            "Class Name": p.cls.className,
+            "Activity Code": p.cls.activityCode,
+            "Activity Name": p.cls.activityName,
+            "CreatedAt": new Date().toISOString()
         };
-        activitySuggestions.appendChild(div);
-    });
-}
-activitySearch.addEventListener('focus', () => { showActivitySuggestions(''); });
-activitySearch.addEventListener('click', () => { showActivitySuggestions(''); });
-activitySearch.addEventListener('input', (e) => {
-    showActivitySuggestions(e.target.value); currentGroupCode = null;
-    document.getElementById('dispGroup').value = ''; document.getElementById('dispClass').value = ''; document.getElementById('dispActivity').value = '';
-    saveBtn.disabled = true; saveBtn.textContent = "Select Group First";
-});
-
-async function calculateNextSeries(groupCode) {
-    saveBtn.disabled = true; saveBtn.textContent = "Calculating..."; let highestSeries = 100000; 
-    try {
-        allSearchableItems.forEach(item => { 
-            if (item["Series"]) {
-                const sNum = parseInt(item["Series"], 10); 
-                if (!isNaN(sNum) && sNum > highestSeries) highestSeries = sNum; 
-            }
-        });
-        
-        const snap = await dbReq.ref("items").orderByChild("Series").limitToLast(1).once("value");
-        if (snap.exists()) {
-            snap.forEach((childSnap) => { 
-                const sNum = parseInt(childSnap.val().Series, 10); 
-                if (!isNaN(sNum) && sNum > highestSeries) highestSeries = sNum; 
-            });
-        }
-        
-        generatedSeries = (highestSeries + 1).toString(); generatedPartCode = `${groupCode}.${generatedSeries}`;
-        document.getElementById('previewPartCode').textContent = generatedPartCode; document.getElementById('previewSeries').textContent = `Series: ${generatedSeries}`;
-        const previewImg = document.getElementById('createItemPhotoPreview');
-        if (previewImg) {
-            previewImg.src = itemPhotoUrl(generatedPartCode);
-            previewImg.style.display = '';
-            previewImg.onerror = () => { previewImg.style.display = 'none'; };
-        }
-        saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart";
-    } catch (err) { console.error(err); alert("Error calculating series."); }
-}
-
-document.getElementById('itemForm').addEventListener('submit', async (e) => {
-    e.preventDefault(); if(!currentGroupCode || !generatedSeries) return;
-    if (!canAddItems()) { denyAccess('add items'); return; }
-    const data = dynamicActivityData[currentGroupCode]; const itemDesc = document.getElementById('description').value; const itemUOM = document.getElementById('uom').value;
-    const newItemRecord = { "Part Code": generatedPartCode, "Series": generatedSeries, "Description": itemDesc, "UOM": itemUOM, "Group Code": currentGroupCode, "Group Name": data.groupName, "Class Code": data.classCode, "Class Name": data.className, "Activity Code": data.activityCode, "Activity Name": data.activityName, "CreatedAt": new Date().toISOString() };
-    try {
-        saveBtn.disabled = true; saveBtn.textContent = "Saving...";
-        
         const newRef = dbReq.ref("items").push();
         newItemRecord.firebaseKey = newRef.key;
         await newRef.set(newItemRecord);
-        
-        allSearchableItems.push(newItemRecord); 
+        allSearchableItems.push(newItemRecord);
+        invalidateAssistantIndex();
         sessionNewlyCreatedItems.push(newItemRecord);
-        await publishRecentItem(newItemRecord);
-        await bumpCatalogVersion();
-        const cache = readCatalogCache() || {};
-        cache.firebaseItems = (cache.firebaseItems || []).concat([newItemRecord]);
-        writeCatalogCache({
-            items: cache.items || legacyItems,
-            activities: cache.activities,
-            vendors: cache.vendors || allVendors,
-            sites: cache.sites || allSites,
-            firebaseItems: cache.firebaseItems
-        }); 
-        addToCart(generatedPartCode, itemDesc, itemUOM, data.groupName, data.activityName, data.classCode); 
-        
-        document.getElementById('itemForm').reset(); document.getElementById('previewPartCode').textContent = 'XXXXX.XXXXXX'; document.getElementById('previewSeries').textContent = 'Series: ------';
-        saveBtn.disabled = true; saveBtn.textContent = "Select Group First"; modal.classList.remove('active'); 
-        activitySearch.value = ''; activitySearch.disabled = true; activitySearch.placeholder = "-- Select Main Category First --";
-    } catch (error) { console.error("Error adding item: ", error); alert("Failed to save to Firebase."); saveBtn.disabled = false; saveBtn.textContent = "Save Item & Add to Cart"; }
+        await publishRecentItem(newItemRecord).catch(err => console.warn(err));
+        await commitCatalogChange().catch(err => console.warn(err));
+        addToCart(partCode, itemDesc, itemUOM, p.group.name, p.cls.activityName, p.cls.classCode);
+        modal.classList.remove('active');
+        createPicker.reset();
+        $id('itemForm').reset();
+        showToast(`Saved ${partCode} and added it to the cart.`, 'ok');
+    } catch (error) {
+        console.error('Error adding item: ', error);
+        alert('Could not save to Firebase. Check your connection and sign-in, then try again.');
+    } finally {
+        updateCreatePreview();
+    }
 });
 
 // ==========================================
@@ -1428,131 +1845,119 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 // ==========================================
 window.deleteFirebaseItem = async function(key) {
     if (!canDeleteItems()) { denyAccess('delete items'); return; }
-    if(confirm("Are you sure you want to permanently delete this item from the database?")) {
-        try {
-            await dbReq.ref("items").child(key).remove();
-            await dbReq.ref(RECENT_ITEMS_PATH).child(key).remove().catch(() => {});
-            await bumpCatalogVersion();
-            allSearchableItems = allSearchableItems.filter(item => item.firebaseKey !== key);
-            document.getElementById('searchInput').dispatchEvent(new Event('input'));
-            alert("Item deleted successfully.");
-        } catch (error) { console.error("Error deleting item:", error); alert("Failed to delete item."); }
-    }
+    const item = allSearchableItems.find(i => i.firebaseKey === key);
+    const label = item ? `${itemPartCode(item)} ${item["Description"] || ''}`.trim() : 'this item';
+    if (!confirm(`Delete ${label} from the catalog permanently?`)) return;
+    try {
+        await dbReq.ref("items").child(key).remove();
+        await dbReq.ref(RECENT_ITEMS_PATH).child(key).remove().catch(() => {});
+        allSearchableItems = allSearchableItems.filter(i => i.firebaseKey !== key);
+        invalidateAssistantIndex();
+        await commitCatalogChange().catch(err => console.warn(err));
+        renderSearchResults(searchInput.value);
+        showToast('Item deleted.', 'ok');
+    } catch (error) { console.error("Error deleting item:", error); alert("Could not delete the item. Check your connection and try again."); }
 };
 
-let editCurrentGroupCode = null; let editCurrentSeries = null; let editCategoryGroups = [];
-const editMainCategoryFilter = document.getElementById('editMainCategoryFilter');
-const editActivitySearch = document.getElementById('editActivitySearch');
-const editActivitySuggestions = document.getElementById('editActivitySuggestions');
+const editState = { key: null, item: null, series: '', originalCode: '' };
+const editPicker = createClassificationPicker({
+    chips: 'editCategoryChips', classInput: 'editActivitySearch', classBox: 'editActivitySuggestions',
+    groupInput: 'editGroupSearch', groupBox: 'editGroupSuggestions', groupState: 'editGroupState',
+    dispClass: 'editDispClass', dispActivity: 'editDispActivity'
+}, () => updateEditPreview());
 
-editMainCategoryFilter.addEventListener('change', (e) => {
-    const selectedCat = e.target.value; editActivitySearch.value = ''; editActivitySuggestions.innerHTML = '';
-    document.getElementById('editDispGroup').value = ''; document.getElementById('editDispClass').value = ''; document.getElementById('editDispActivity').value = '';
-    
-    if (!selectedCat) { 
-        editActivitySearch.disabled = true; editActivitySearch.placeholder = "-- Select Main Category First --"; 
-        editCategoryGroups = []; 
-        document.getElementById('editPartCodePreview').textContent = `${document.getElementById('editOriginalGroupCode').value}.${editCurrentSeries}`;
-        editCurrentGroupCode = document.getElementById('editOriginalGroupCode').value;
-        return; 
-    }
-    editActivitySearch.disabled = false; editActivitySearch.placeholder = "Click to see all, or type to search..."; editCategoryGroups = activitiesMap[selectedCat] || [];
-});
-
-function showEditActivitySuggestions(query = "") {
-    editActivitySuggestions.innerHTML = ''; if (editCategoryGroups.length === 0) return;
-    const q = query.toLowerCase().trim();
-    const matches = editCategoryGroups.filter(g => { return g.groupName.toLowerCase().includes(q) || g.groupCode.toLowerCase().includes(q); });
-    matches.forEach(g => {
-        const div = document.createElement('div'); div.className = 'suggestion-item'; div.innerHTML = `<strong>${g.groupCode}</strong> - ${g.groupName}`;
-        div.onclick = () => {
-            editActivitySearch.value = `${g.groupName} (Group: ${g.groupCode})`; editActivitySuggestions.innerHTML = ''; editCurrentGroupCode = g.groupCode; 
-            const data = dynamicActivityData[editCurrentGroupCode]; 
-            document.getElementById('editDispGroup').value = `${editCurrentGroupCode} - ${data.groupName}`; document.getElementById('editDispClass').value = `${data.classCode} - ${data.className}`; document.getElementById('editDispActivity').value = `${data.activityCode} - ${data.activityName}`;
-            document.getElementById('editPartCodePreview').textContent = `${editCurrentGroupCode}.${editCurrentSeries}`;
-        };
-        editActivitySuggestions.appendChild(div);
-    });
+function editNewPartCode() {
+    const p = editPicker.get();
+    if (!editState.series || !p.group) return editState.originalCode;
+    return `${p.group.code}.${editState.series}`;
 }
-editActivitySearch.addEventListener('focus', () => { showEditActivitySuggestions(''); });
-editActivitySearch.addEventListener('click', () => { showEditActivitySuggestions(''); });
-editActivitySearch.addEventListener('input', (e) => { showEditActivitySuggestions(e.target.value); });
 
-window.openEditModal = function(key, partCode, series, desc, uom, groupCode) {
+function updateEditPreview() {
+    if (!editState.key) return;
+    const p = editPicker.get();
+    const newCode = editNewPartCode();
+    const changed = newCode !== editState.originalCode;
+    paintCodeTag('editCodeTag', 'editPrefix', 'editSeriesNum', p.group && p.group.code, editState.series || '', changed);
+    const was = $id('editPartCodeWas');
+    if (was) {
+        if (!editState.series) was.textContent = `This item has no series number, so its part code stays ${editState.originalCode}.`;
+        else was.textContent = changed ? `Was ${editState.originalCode}. Saving changes the prefix only. The series stays ${editState.series}.` : 'Part code unchanged.';
+    }
+    const btn = $id('saveEditBtn');
+    if (btn) btn.disabled = !(p.cls && p.group);
+}
+
+window.openEditModal = function(key) {
     if (!canEditItems()) { denyAccess('edit items'); return; }
-    document.getElementById('editFirebaseKey').value = key;
-    editCurrentSeries = series || partCode.split('.')[1]; 
-    editCurrentGroupCode = groupCode;
-    document.getElementById('editOriginalGroupCode').value = groupCode;
-
-    document.getElementById('editPartCodePreview').textContent = partCode;
-    document.getElementById('editDescription').value = desc;
-    
-    const uomSelect = document.getElementById('editUom');
-    for(let i=0; i<uomSelect.options.length; i++) {
-        if(uomSelect.options[i].value === uom) { uomSelect.selectedIndex = i; break; }
-    }
-
-    if (groupCode && dynamicActivityData[groupCode]) {
-        const data = dynamicActivityData[groupCode];
-        const mainCat = data.activityName;
-        document.getElementById('editMainCategoryFilter').value = mainCat;
-        editCategoryGroups = activitiesMap[mainCat] || [];
-        
-        editActivitySearch.disabled = false;
-        editActivitySearch.value = `${data.groupName} (Group: ${groupCode})`;
-        document.getElementById('editDispGroup').value = `${groupCode} - ${data.groupName}`;
-        document.getElementById('editDispClass').value = `${data.classCode} - ${data.className}`;
-        document.getElementById('editDispActivity').value = `${data.activityCode} - ${data.activityName}`;
-    }
-
-    document.getElementById('editItemModal').classList.add('active');
+    const item = allSearchableItems.find(i => i.firebaseKey === key);
+    if (!item) { alert('This item is no longer in the catalog. Click Refresh catalog and try again.'); return; }
+    const partCode = itemPartCode(item);
+    editState.key = key;
+    editState.item = item;
+    editState.originalCode = partCode;
+    editState.series = String(item["Series"] || (partCode.includes('.') ? partCode.split('.').slice(1).join('.') : '')).trim();
+    $id('editFirebaseKey').value = key;
+    $id('editDescription').value = item["Description"] || '';
+    const uomSelect = $id('editUom');
+    const uom = String(item["UOM"] || '');
+    if (uom && !Array.from(uomSelect.options).some(o => o.value === uom)) uomSelect.add(new Option(uom, uom));
+    uomSelect.value = uom;
+    editPicker.load({
+        activityCode: item["Activity Code"], activityName: item["Activity Name"] || item["Activity"],
+        classCode: item["Class Code"], className: item["Class Name"],
+        groupCode: item["Group Code"] || (partCode.includes('.') ? partCode.split('.')[0] : ''), groupName: item["Group Name"]
+    });
+    updateEditPreview();
+    $id('editItemModal').classList.add('active');
 };
 
-document.getElementById('closeEditModalBtn').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('editItemModal').classList.remove('active'); });
+$id('closeEditModalBtn').addEventListener('click', (e) => { e.preventDefault(); $id('editItemModal').classList.remove('active'); });
 
-document.getElementById('editItemForm').addEventListener('submit', async (e) => {
+$id('editItemForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!canEditItems()) { denyAccess('edit items'); return; }
-    const saveBtn = document.getElementById('saveEditBtn');
-    saveBtn.disabled = true; saveBtn.textContent = "Updating...";
-
-    const key = document.getElementById('editFirebaseKey').value;
-    const newDesc = document.getElementById('editDescription').value;
-    const newUom = document.getElementById('editUom').value;
-    
-    const finalGroupCode = editCurrentGroupCode || document.getElementById('editOriginalGroupCode').value;
-    const data = dynamicActivityData[finalGroupCode];
-    const newPartCode = `${finalGroupCode}.${editCurrentSeries}`;
-
+    const btn = $id('saveEditBtn');
+    const key = editState.key;
+    const p = editPicker.get();
+    if (!key || !p.cls || !p.group) return;
+    const newPartCode = editNewPartCode();
     const updateData = {
         "Part Code": newPartCode,
-        "Description": newDesc,
-        "UOM": newUom,
-        "Group Code": finalGroupCode,
-        "Group Name": data.groupName,
-        "Class Code": data.classCode,
-        "Class Name": data.className,
-        "Activity Code": data.activityCode,
-        "Activity Name": data.activityName
+        "Series": editState.series,
+        "Description": $id('editDescription').value.trim(),
+        "UOM": $id('editUom').value,
+        "Group Code": p.group.code,
+        "Group Name": p.group.name,
+        "Class Code": p.cls.classCode,
+        "Class Name": p.cls.className,
+        "Activity Code": p.cls.activityCode,
+        "Activity Name": p.cls.activityName,
+        "UpdatedAt": new Date().toISOString()
     };
-
+    btn.disabled = true; btn.textContent = 'Updating…';
     try {
         await dbReq.ref("items").child(key).update(updateData);
-        await bumpCatalogVersion();
-        
-        const itemIndex = allSearchableItems.findIndex(item => item.firebaseKey === key);
-        if(itemIndex > -1) {
-            allSearchableItems[itemIndex] = { ...allSearchableItems[itemIndex], ...updateData };
-        }
-        
-        document.getElementById('editItemModal').classList.remove('active');
-        document.getElementById('searchInput').dispatchEvent(new Event('input'));
-        alert("Item successfully updated!");
-    } catch (error) { 
-        console.error("Error updating item:", error); alert("Failed to update item."); 
+        const idx = allSearchableItems.findIndex(item => item.firebaseKey === key);
+        if (idx > -1) allSearchableItems[idx] = { ...allSearchableItems[idx], ...updateData };
+        invalidateAssistantIndex();
+        await commitCatalogChange().catch(err => console.warn(err));
+        // Keep any cart rows for this item in step with the new code.
+        let cartTouched = false;
+        cart.forEach(row => {
+            if (row.partNo === editState.originalCode) {
+                Object.assign(row, { partNo: newPartCode, description: updateData["Description"], groupName: updateData["Group Name"], actName: updateData["Activity Name"], classValue: updateData["Class Code"] });
+                cartTouched = true;
+            }
+        });
+        if (cartTouched) { renderCart(); saveSession(); }
+        $id('editItemModal').classList.remove('active');
+        renderSearchResults(searchInput.value);
+        showToast(newPartCode !== editState.originalCode ? `Updated. Part code is now ${newPartCode}.` : 'Item updated.', 'ok');
+        editState.key = null;
+    } catch (error) {
+        console.error("Error updating item:", error); alert("Could not update the item. Check your connection and try again.");
     } finally {
-        saveBtn.disabled = false; saveBtn.textContent = "Update Item";
+        btn.disabled = false; btn.textContent = "Update item";
     }
 });
 
@@ -1664,23 +2069,38 @@ function pickField(row, aliases) {
     return '';
 }
 
+function normalizePartCodeKey(code) {
+    return String(code || '').trim().replace(/\s+/g, '');
+}
+
 function normalizeCatalogRow(row) {
-    const partCode = pickField(row, ['Part Code', 'Part code', 'Part No', 'Part Number']);
+    const partCode = pickField(row, ['Part Code', 'Part code', 'Part No', 'Part Number', 'PartCode', 'part code']);
     if (!partCode) return null;
-    const groupCode = pickField(row, ['Group Code', 'Group code']);
-    const series = pickField(row, ['Series']) || (partCode.includes('.') ? partCode.split('.').slice(1).join('.') : '');
-    const activityMeta = (groupCode && dynamicActivityData[groupCode]) ? dynamicActivityData[groupCode] : null;
+    const description = pickField(row, ['Description', 'description', 'Item Description']);
+    const uom = pickField(row, ['UOM', 'Uom', 'Unit']);
+    const groupCode = pickField(row, ['Group Code', 'Group code', 'GroupCode', 'group code']) || (partCode.includes('.') ? partCode.split('.')[0] : '');
+    let series = pickField(row, ['Series', 'series']);
+    if (!series && partCode.includes('.')) {
+        series = partCode.split('.').slice(1).join('.');
+    }
+    const knownClass = classByCode[pickField(row, ['Class Code', 'Class code', 'Class', 'ClassCode'])];
+    const knownGroup = groupRecord(groupCode);
+    const groupName = pickField(row, ['Group Name', 'Group name', 'GroupName']) || (knownGroup ? knownGroup.name : '') || (knownClass ? knownClass.groupName : '');
+    const classCode = pickField(row, ['Class Code', 'Class code', 'Class', 'ClassCode']) || '';
+    const className = pickField(row, ['Class Name', 'Class name', 'ClassName']) || (knownClass ? knownClass.className : '');
+    const activityCode = pickField(row, ['Activity Code', 'Activity code', 'ActivityCode']) || (knownClass ? knownClass.activityCode : '');
+    const activityName = pickField(row, ['Activity Name', 'Activity name', 'Activity', 'ActivityName']) || (knownClass ? knownClass.activityName : '');
     return {
         "Part Code": partCode,
         "Series": series,
-        "Description": pickField(row, ['Description', 'description', 'Item Description']),
-        "UOM": pickField(row, ['UOM', 'Unit', 'Unit of Measure']) || 'Pcs',
+        "Description": description,
+        "UOM": uom,
         "Group Code": groupCode,
-        "Group Name": pickField(row, ['Group Name', 'Group name']) || (activityMeta ? activityMeta.groupName : ''),
-        "Class Code": pickField(row, ['Class Code', 'Class']) || (activityMeta ? activityMeta.classCode : ''),
-        "Class Name": pickField(row, ['Class Name']) || (activityMeta ? activityMeta.className : ''),
-        "Activity Code": pickField(row, ['Activity Code']) || (activityMeta ? activityMeta.activityCode : ''),
-        "Activity Name": pickField(row, ['Activity Name', 'Activity']) || (activityMeta ? activityMeta.activityName : '')
+        "Group Name": groupName,
+        "Class Code": classCode,
+        "Class Name": className,
+        "Activity Code": activityCode,
+        "Activity Name": activityName
     };
 }
 
@@ -1720,8 +2140,9 @@ async function importRowsToFirebase(rawRows, sourceLabel) {
     (rawRows || []).forEach((row) => {
         const item = normalizeCatalogRow(row);
         if (!item) return;
-        if (seen.has(item["Part Code"])) return;
-        seen.add(item["Part Code"]);
+        const codeKey = normalizePartCodeKey(item["Part Code"]);
+        if (!codeKey || seen.has(codeKey)) return;
+        seen.add(codeKey);
         normalized.push(item);
     });
     if (!normalized.length) throw new Error('No usable rows found. Check that the file has a Part Code column.');
@@ -1730,22 +2151,38 @@ async function importRowsToFirebase(rawRows, sourceLabel) {
     const existing = await loadFirebaseItems(true);
     const byCode = new Map();
     existing.forEach((item) => {
-        const code = itemPartCode(item);
+        const code = normalizePartCodeKey(itemPartCode(item));
         if (code) byCode.set(code, item);
     });
+
+    // Fields that upload is allowed to replace on matching Part Codes
+    const REPLACE_FIELDS = [
+        "Part Code", "Series", "Description", "UOM",
+        "Group Code", "Group Name", "Class Code", "Class Name",
+        "Activity Code", "Activity Name"
+    ];
 
     const writes = [];
     let skipped = 0;
     let overwrites = 0;
+    let created = 0;
     const now = new Date().toISOString();
     normalized.forEach((item) => {
-        const current = byCode.get(item["Part Code"]);
+        const codeKey = normalizePartCodeKey(item["Part Code"]);
+        const current = byCode.get(codeKey);
         if (current && current.firebaseKey) {
             if (mode === 'skip') { skipped += 1; return; }
-            writes.push({
-                key: current.firebaseKey,
-                record: { ...current, ...item, firebaseKey: current.firebaseKey, UpdatedAt: now, Source: sourceLabel }
+            // Overwrite: keep photo / timestamps / other keys, replace catalog fields from file
+            const record = { ...current };
+            REPLACE_FIELDS.forEach((field) => {
+                if (Object.prototype.hasOwnProperty.call(item, field)) {
+                    record[field] = item[field];
+                }
             });
+            record.firebaseKey = current.firebaseKey;
+            record.UpdatedAt = now;
+            record.Source = sourceLabel;
+            writes.push({ key: current.firebaseKey, record });
             overwrites += 1;
             return;
         }
@@ -1754,11 +2191,12 @@ async function importRowsToFirebase(rawRows, sourceLabel) {
             key,
             record: { ...item, firebaseKey: key, CreatedAt: now, Source: sourceLabel }
         });
+        created += 1;
     });
 
     if (!writes.length) {
-        setImportProgress(`Nothing to import. ${skipped.toLocaleString()} existing Part Codes were skipped.`);
-        return { imported: 0, skipped, overwrites, total: normalized.length };
+        setImportProgress(`Nothing to import. ${skipped.toLocaleString()} existing Part Codes were skipped (conflict mode = Skip). Switch to "Overwrite Firebase with file values" to update them.`);
+        return { imported: 0, skipped, overwrites, created, total: normalized.length };
     }
 
     await writeFirebaseBatches(writes, (done, total) => {
@@ -1769,23 +2207,19 @@ async function importRowsToFirebase(rawRows, sourceLabel) {
     const freshFirebase = await loadFirebaseItems(true);
     const cache = readCatalogCache() || {};
     writeCatalogCache({
-        items: cache.items || legacyItems,
-        activities: cache.activities,
-        vendors: cache.vendors || allVendors,
-        sites: cache.sites || allSites,
+        items: [],
+        ...lookupRows,
         firebaseItems: freshFirebase,
         catalogVersion
     });
     applyCatalog({
-        items: cache.items || legacyItems,
-        activities: cache.activities || [],
-        vendors: cache.vendors || allVendors,
-        sites: cache.sites || allSites,
+        items: [],
+        ...lookupRows,
         firebaseItems: freshFirebase
     }, 'imported');
 
-    setImportProgress(`Done. Imported/updated ${writes.length.toLocaleString()} · skipped ${skipped.toLocaleString()} · source ${sourceLabel}. Refresh catalog if search looks stale.`);
-    return { imported: writes.length, skipped, overwrites, total: normalized.length };
+    setImportProgress(`Done. Updated ${overwrites.toLocaleString()} · created ${created.toLocaleString()} · skipped ${skipped.toLocaleString()} · source ${sourceLabel}.`);
+    return { imported: writes.length, skipped, overwrites, created, total: normalized.length };
 }
 
 document.getElementById('importGithubItemsBtn')?.addEventListener('click', async () => {
@@ -1798,7 +2232,7 @@ document.getElementById('importGithubItemsBtn')?.addEventListener('click', async
         const text = await fetchText(ITEMS_CSV_URL + '?v=' + Date.now());
         const rows = await parseCsv(text);
         const result = await importRowsToFirebase(rows, 'github-import');
-        alert(`Import finished.\nImported/updated: ${result.imported}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
+        alert(`Import finished.\nUpdated existing: ${result.overwrites || 0}\nCreated new: ${result.created || 0}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
     } catch (err) {
         console.error(err);
         setImportProgress('Import failed: ' + (err.message || err));
@@ -1816,13 +2250,13 @@ document.getElementById('importFileItemsBtn')?.addEventListener('click', async (
         alert('Choose an Excel or CSV file first.');
         return;
     }
-    if (!confirm('Import the selected file into Firebase now? Existing Firebase Part Codes will follow the conflict setting below.')) return;
+    if (!confirm('Import the selected file into Firebase now?\n\n• Matching Part Codes will use the conflict setting below.\n• To replace Series, Description, Group, Class, Activity fields on existing items, choose "Overwrite Firebase with file values".')) return;
     btn.disabled = true;
     try {
         setImportProgress('Reading file…');
         const rows = await parseCatalogFile(input.files[0]);
         const result = await importRowsToFirebase(rows, 'excel-import');
-        alert(`Import finished.\nImported/updated: ${result.imported}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
+        alert(`Import finished.\nUpdated existing: ${result.overwrites || 0}\nCreated new: ${result.created || 0}\nSkipped: ${result.skipped}\nRows read: ${result.total}`);
     } catch (err) {
         console.error(err);
         setImportProgress('Import failed: ' + (err.message || err));
@@ -1920,7 +2354,7 @@ document.getElementById('photoViewPrevBtn')?.addEventListener('click', () => sho
 document.getElementById('photoViewNextBtn')?.addEventListener('click', () => showPhotoAt(photoShowIndex + 1));
 document.getElementById('createItemPhotoPreview')?.addEventListener('click', () => {
     const img = document.getElementById('createItemPhotoPreview');
-    if (img && img.src && img.style.display !== 'none') openPhotoView(img.src, document.getElementById('previewPartCode')?.textContent || 'Photo');
+    if (img && img.src && img.style.display !== 'none') openPhotoView(img.src, document.getElementById('createCodeTag')?.textContent || 'Photo');
 });
 
 function itemPhotoUrl(partNo, item) {
@@ -2184,6 +2618,10 @@ if (openSettingsBtn && settingsModal) {
         document.getElementById('photoFolderUrl').value = s.photoFolder || DEFAULT_PHOTO_FOLDER;
         document.getElementById('photoListUrl').value = s.photoListUrl || DEFAULT_PHOTO_LIST_URL;
         document.getElementById('photoExt').value = s.photoExt || 'jpeg';
+        const groqEl = document.getElementById('groqApiKey');
+        if (groqEl) groqEl.value = s.groqKey || '';
+        const groqModelEl = document.getElementById('groqModel');
+        if (groqModelEl) groqModelEl.value = s.groqModel || DEFAULT_GROQ_MODEL;
         const nameEl = document.getElementById('bgFileName');
         loadBgFile().then(f => { if (nameEl) nameEl.textContent = f ? ('Attached: ' + (f.name || 'photo')) : ''; });
         applyAccessUI();
@@ -2193,13 +2631,17 @@ if (openSettingsBtn && settingsModal) {
 }
 if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
 document.getElementById('saveBgBtn')?.addEventListener('click', () => {
+    const prev = loadUiSettings();
     const s = {
+        ...prev,
         bgUrl: document.getElementById('bgImageUrl').value.trim(),
         bgBlur: Number(document.getElementById('bgBlur').value),
         bgDim: Number(document.getElementById('bgDim').value),
         photoFolder: document.getElementById('photoFolderUrl').value.trim() || DEFAULT_PHOTO_FOLDER,
         photoListUrl: document.getElementById('photoListUrl').value.trim() || DEFAULT_PHOTO_LIST_URL,
-        photoExt: document.getElementById('photoExt').value
+        photoExt: document.getElementById('photoExt').value,
+        groqKey: (document.getElementById('groqApiKey')?.value ?? prev.groqKey ?? '').trim(),
+        groqModel: (document.getElementById('groqModel')?.value || prev.groqModel || DEFAULT_GROQ_MODEL).trim()
     };
     saveUiSettings(s);
     applyBackground(s);
@@ -2285,3 +2727,474 @@ document.getElementById('browseGithubPhotosBtn')?.addEventListener('click', asyn
         grid.innerHTML = '<p class="hint">Could not list GitHub folder. Check the repo is public.</p>';
     }
 });
+
+// ==========================================
+// ITEM ASSISTANT
+// 1. You type the item (e.g. "nail").  2. It asks the main category (1-5).
+// 3. It suggests several Class + Group placements, learned from how similar items are
+//    already filed in the catalog. With a Groq key in Settings, an AI ranks them too.
+// Works offline from the cached catalog: no Firebase downloads.
+// ==========================================
+
+// <assistant-engine>
+const ASSIST_STOP = new Set(['for', 'the', 'and', 'with', 'of', 'to', 'in', 'on', 'an', 'new', 'item', 'items', 'need', 'needs', 'want', 'some', 'use', 'used', 'type', 'kind', 'please']);
+
+function assistStem(t) {
+    if (t.length > 4 && /(ches|shes|sses|xes|zes)$/.test(t)) return t.slice(0, -2);
+    if (t.length > 4 && t.endsWith('ies')) return t.slice(0, -3) + 'y';
+    if (t.length > 3 && t.endsWith('s') && !t.endsWith('ss') && !t.endsWith('us')) return t.slice(0, -1);
+    return t;
+}
+
+function assistTokens(text) {
+    return String(text || '').toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 1 && !ASSIST_STOP.has(t)).map(assistStem);
+}
+
+let assistantIndex = null;
+let assistantGroupUsage = null; // activityCode -> groupCode -> Map(classCode -> count)
+
+function invalidateAssistantIndex() { assistantIndex = null; assistantGroupUsage = null; }
+
+function getAssistantIndex() {
+    if (assistantIndex) return assistantIndex;
+    assistantIndex = [];
+    assistantGroupUsage = {};
+    allSearchableItems.forEach(item => {
+        const partCode = itemPartCode(item);
+        if (!partCode) return;
+        const classCode = String(item["Class Code"] || '').trim();
+        const cls = classByCode[classCode];
+        const entry = {
+            item, partCode,
+            desc: String(item["Description"] || ''),
+            tokens: new Set(assistTokens(item["Description"])),
+            classCode,
+            activityCode: String((cls && cls.activityCode) || item["Activity Code"] || '').trim(),
+            groupCode: String(item["Group Code"] || partCode.split('.')[0] || '').trim()
+        };
+        assistantIndex.push(entry);
+        if (cls) {
+            const byGroup = assistantGroupUsage[entry.activityCode] || (assistantGroupUsage[entry.activityCode] = {});
+            const m = byGroup[entry.groupCode] || (byGroup[entry.groupCode] = new Map());
+            m.set(classCode, (m.get(classCode) || 0) + 1);
+        }
+    });
+    return assistantIndex;
+}
+
+function assistScoreItem(entry, qTokens) {
+    let got = 0; let total = 0; let wordHit = false;
+    for (const q of qTokens) {
+        const w = /\d/.test(q) ? 0.5 : 1;
+        total += w;
+        if (entry.tokens.has(q)) { got += w; if (w === 1) wordHit = true; continue; }
+        if (q.length >= 3) {
+            for (const t of entry.tokens) {
+                if (t.startsWith(q) || (t.length >= 4 && q.startsWith(t))) { got += 0.6 * w; if (w === 1) wordHit = true; break; }
+            }
+        }
+    }
+    return wordHit && total ? got / total : 0;
+}
+
+// Class in this category that best fits a group: the class whose default it is, else the class most used with it.
+function bestClassForGroup(groupCode, activityCode) {
+    const list = classesByActivity[activityCode] || [];
+    const own = list.find(c => c.groupId === groupCode);
+    if (own) return own;
+    getAssistantIndex();
+    const usage = assistantGroupUsage[activityCode] && assistantGroupUsage[activityCode][groupCode];
+    if (!usage) return null;
+    let best = null; let bestN = 0;
+    usage.forEach((n, code) => { if (n > bestN && classByCode[code]) { best = classByCode[code]; bestN = n; } });
+    return bestN >= 3 ? best : null;
+}
+
+// General classes of a category (Sundries, Consumables, Miscellaneous), busiest first.
+function genericClasses(activityCode) {
+    getAssistantIndex();
+    const counts = {};
+    Object.values(assistantGroupUsage[activityCode] || {}).forEach(m => m.forEach((n, code) => { counts[code] = (counts[code] || 0) + n; }));
+    return (classesByActivity[activityCode] || [])
+        .filter(c => /sundr|consumab|miscell|general/i.test(c.className))
+        .sort((a, b) => (counts[b.classCode] || 0) - (counts[a.classCode] || 0));
+}
+
+function assistAnalyze(query, activityCode) {
+    const qTokens = Array.from(new Set(assistTokens(query)));
+    const index = getAssistantIndex();
+    const scored = [];
+    if (qTokens.length) index.forEach(e => { const s = assistScoreItem(e, qTokens); if (s >= 0.5) scored.push({ e, s }); });
+    scored.sort((a, b) => b.s - a.s);
+    const inCat = scored.filter(x => x.e.activityCode === activityCode);
+    const outCat = scored.filter(x => x.e.activityCode !== activityCode);
+    const options = new Map();
+
+    function addOpt(cls, group, weight, source, example) {
+        if (!cls || !group || !group.code || cls.activityCode !== activityCode) return null;
+        const key = cls.classCode + '|' + group.code;
+        let o = options.get(key);
+        if (!o) { o = { key, cls, group: { code: group.code, name: group.name }, score: 0, bonus: 0, maxS: 0, sumSq: 0, count: 0, examples: [], sources: new Set(), from: '' }; options.set(key, o); }
+        o.sources.add(source);
+        if (example) {
+            // Catalog evidence: best match counts most, volume counts with diminishing returns.
+            o.count += 1;
+            o.maxS = Math.max(o.maxS, weight);
+            o.sumSq += weight * weight;
+            if (o.examples.length < 3) o.examples.push(example);
+        } else {
+            o.bonus += weight;
+        }
+        o.score = (o.count ? 3 * o.maxS + 1.5 * Math.log2(1 + o.sumSq) : 0) + o.bonus;
+        return o;
+    }
+
+    // 1. How matching items are already filed in this category (strongest signal).
+    inCat.forEach(({ e, s }) => {
+        const cls = classByCode[e.classCode];
+        const g = groupRecord(e.groupCode) || { code: e.groupCode, name: e.item["Group Name"] || e.groupCode };
+        addOpt(cls, g, s, 'catalog', { partCode: e.partCode, desc: e.desc });
+    });
+
+    // 2. Class names and group names that contain the words.
+    (classesByActivity[activityCode] || []).forEach(c => {
+        const names = new Set(assistTokens(c.className));
+        const hit = qTokens.filter(q => names.has(q)).length;
+        if (hit) addOpt(c, classDefaultGroup(c), 2.5 * hit / qTokens.length, 'class-name');
+    });
+    allGroups.forEach(g => {
+        const names = new Set(assistTokens(g.name));
+        const hit = qTokens.filter(q => names.has(q)).length;
+        if (!hit) return;
+        const cls = bestClassForGroup(g.code, activityCode);
+        if (cls) addOpt(cls, g, 2 * hit / qTokens.length, 'group-name');
+    });
+
+    // 3. Only filed under other categories so far: keep the group, pick the best class here.
+    if (options.size < 3 && outCat.length) {
+        const tally = new Map();
+        outCat.slice(0, 80).forEach(({ e, s }) => {
+            const t = tally.get(e.groupCode) || { w: 0, example: null, act: e.activityCode };
+            t.w += s;
+            if (!t.example) t.example = { partCode: e.partCode, desc: e.desc };
+            tally.set(e.groupCode, t);
+        });
+        Array.from(tally.entries()).sort((a, b) => b[1].w - a[1].w).slice(0, 3).forEach(([gCode, t]) => {
+            const g = groupRecord(gCode);
+            if (!g) return;
+            const cls = bestClassForGroup(gCode, activityCode) || genericClasses(activityCode)[0];
+            const o = addOpt(cls, g, 0.6 + 0.1 * t.w, 'other-category');
+            if (o && !o.from) { o.from = t.act; o.elsewhere = t.example; }
+        });
+    }
+
+    // 4. Nothing specific: offer the general classes of this category (or all of them if it is small).
+    if (options.size < 2) {
+        const all = classesByActivity[activityCode] || [];
+        const generic = genericClasses(activityCode);
+        (generic.length ? generic : (all.length <= 6 ? all : [])).slice(0, 3).forEach(c => addOpt(c, classDefaultGroup(c), 0.3, 'general'));
+    }
+
+    const otherCats = {};
+    outCat.forEach(({ e }) => { otherCats[e.activityCode] = (otherCats[e.activityCode] || 0) + 1; });
+    return {
+        qTokens,
+        exact: inCat.filter(x => x.s >= 0.99).slice(0, 5).map(x => x.e),
+        options: Array.from(options.values()).sort((a, b) => b.score - a.score).slice(0, 6),
+        otherCats,
+        matchesAnywhere: scored.filter(x => x.s >= 0.99).length
+    };
+}
+// </assistant-engine>
+
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+function groqSettings() {
+    const s = loadUiSettings();
+    return { key: String(s.groqKey || '').trim(), model: String(s.groqModel || DEFAULT_GROQ_MODEL).trim() };
+}
+
+function parseAssistantJson(text) {
+    const raw = String(text || '').trim();
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start < 0 || end < start) throw new Error('the AI did not return a suggestion');
+    return JSON.parse(raw.slice(start, end + 1));
+}
+
+async function askGroqForPlacement(query, activity, analysis) {
+    const { key, model } = groqSettings();
+    if (!key) return null;
+    const classes = (classesByActivity[activity.code] || []).map(c => `${c.classCode} | ${c.className} | default group ${c.groupId} ${(classDefaultGroup(c) || {}).name || ''}`).join('\n');
+    const groups = allGroups.map(g => `${g.code} | ${g.name}`).join('\n');
+    const evidence = analysis.options.filter(o => o.count).map(o => `class ${o.cls.classCode} ${o.cls.className} + group ${o.group.code} ${o.group.name}: ${o.count} similar items, e.g. ${o.examples.map(x => x.desc).join('; ')}`).join('\n') || 'none';
+    const prompt = `A construction company's procurement team needs a new catalog item.
+Item: "${query}"
+Main category chosen: ${activity.code} ${activity.name}
+
+Rules:
+- The class must be one of the classes listed for this category (each class is locked to its category).
+- The group can be the class's default group or any group from the group list.
+- Prefer how similar items are already filed when that makes sense.
+- Give 2 to 5 options, best first, each with one short reason a site engineer would understand.
+- Also suggest a catalog description in the house style: UPPERCASE, size or spec in brackets, e.g. WOOD NAIL (2 INCH).
+
+Classes in ${activity.name}:
+${classes}
+
+Groups:
+${groups}
+
+How similar items are already filed in ${activity.name}:
+${evidence}
+
+Reply with JSON only:
+{"description":"","options":[{"classCode":"","groupCode":"","why":""}]}`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            signal: ctrl.signal,
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+            body: JSON.stringify({
+                model,
+                temperature: 0.2,
+                max_tokens: 700,
+                messages: [
+                    { role: 'system', content: 'You file construction materials into a company catalog. Reply with JSON only.' },
+                    { role: 'user', content: prompt }
+                ]
+            })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((body.error && body.error.message) || ('Groq error ' + res.status));
+        return parseAssistantJson(body.choices?.[0]?.message?.content || '');
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// Put AI picks first (only valid class/group codes), then the catalog-based ones.
+function mergeAiOptions(analysis, ai, activityCode) {
+    if (!ai || !Array.isArray(ai.options)) return analysis.options;
+    const byKey = new Map(analysis.options.map(o => [o.key, o]));
+    const merged = [];
+    ai.options.forEach(opt => {
+        const cls = classByCode[String(opt.classCode || '').trim()];
+        const g = groupRecord(String(opt.groupCode || '').trim());
+        if (!cls || !g || cls.activityCode !== activityCode) return;
+        const key = cls.classCode + '|' + g.code;
+        if (merged.some(o => o.key === key)) return;
+        const o = byKey.get(key) || { key, cls, group: { code: g.code, name: g.name }, score: 0, count: 0, examples: [], sources: new Set() };
+        o.ai = true;
+        o.aiWhy = String(opt.why || '').trim();
+        merged.push(o);
+        byKey.delete(key);
+    });
+    return merged.concat(Array.from(byKey.values())).slice(0, 6);
+}
+
+function shortText(text, max) {
+    const t = String(text || '').trim();
+    return t.length > max ? t.slice(0, max - 1).trimEnd() + '…' : t;
+}
+
+function optionWhy(o) {
+    if (o.ai && o.aiWhy) return o.aiWhy;
+    if (o.count) return `${o.count} similar item${o.count === 1 ? ' is' : 's are'} filed here, e.g. ${shortText(o.examples[0].desc, 60)}`;
+    if (o.sources.has('class-name')) return 'The class name matches your words.';
+    if (o.sources.has('group-name')) return 'The group name matches your words.';
+    if (o.sources.has('other-category')) {
+        const act = activityByCode(o.from);
+        return `Similar items use this group in ${act ? act.code + ' ' + act.name : 'another category'}${o.elsewhere ? ', e.g. ' + shortText(o.elsewhere.desc, 60) : ''}.`;
+    }
+    return 'General class for this category.';
+}
+
+// ---------- Assistant drawer UI ----------
+const assistantUi = { query: '', activityCode: '', options: [], description: '', busy: false, started: false };
+const assistantDrawer = $id('assistantDrawer');
+const assistantThread = $id('assistantThread');
+const assistantInput = $id('assistantInput');
+
+function assistantModeText() {
+    return groqSettings().key ? 'AI (Groq) + your catalog' : 'Suggestions from your catalog';
+}
+
+function assistantPost(role, html) {
+    const el = document.createElement('div');
+    el.className = 'msg ' + (role === 'user' ? 'msg-user' : 'msg-bot');
+    el.innerHTML = html;
+    assistantThread.appendChild(el);
+    // Show the start of a new answer, not its end.
+    assistantThread.scrollTop = role === 'user' ? assistantThread.scrollHeight : Math.max(0, el.offsetTop - 12);
+    return el;
+}
+
+function categoryChipsHtml(exclude) {
+    return `<div class="cat-chips">${activityList.filter(a => a.code !== exclude).map(a => `<button type="button" class="cat-chip act-${escapeHtml(a.code)}" data-assist-cat="${escapeHtml(a.code)}"><span class="cat-num">${escapeHtml(a.code)}</span>${escapeHtml(a.name)}</button>`).join('')}</div>`;
+}
+
+function assistantIntro() {
+    assistantThread.innerHTML = '';
+    assistantPost('bot', `<p>Tell me the item you need, like <em>wood nail 2 inch</em> or <em>cable 4mm</em>.</p><p>I'll ask which main category it's for, then show where it fits: a class and a group, with the part code prefix.</p>${groqSettings().key ? '' : '<p class="muted">Suggestions come from how your existing items are filed. An admin can add a free Groq key in Settings to have an AI rank them too.</p>'}`);
+    const mode = $id('assistantMode');
+    if (mode) mode.textContent = assistantModeText();
+}
+
+function openAssistant(query, autoSend) {
+    if (!assistantUi.started) { assistantIntro(); assistantUi.started = true; }
+    const mode = $id('assistantMode');
+    if (mode) mode.textContent = assistantModeText();
+    assistantDrawer.classList.add('open');
+    assistantDrawer.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('assistant-open');
+    const q = String(query || '').trim();
+    if (q && autoSend && q.toLowerCase() !== assistantUi.query.toLowerCase()) assistantAskItem(q);
+    else if (q) assistantInput.value = q;
+    setTimeout(() => assistantInput.focus(), 60);
+}
+window.openAssistant = openAssistant;
+
+function closeAssistant() {
+    assistantDrawer.classList.remove('open');
+    assistantDrawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('assistant-open');
+}
+
+function assistantAskItem(query) {
+    const q = String(query || '').trim();
+    if (!q) return;
+    assistantInput.value = '';
+    assistantPost('user', escapeHtml(q));
+    if (!catalogReady || !activityList.length) {
+        assistantPost('bot', '<p>The catalog is still loading. Try again in a moment.</p>');
+        return;
+    }
+    if (!assistTokens(q).length) {
+        assistantPost('bot', '<p>Type at least one word that describes the item, like <em>nail</em> or <em>pvc pipe</em>.</p>');
+        return;
+    }
+    assistantUi.query = q;
+    assistantUi.activityCode = '';
+    const anywhere = assistAnalyze(q, '__none__').matchesAnywhere;
+    const existing = anywhere
+        ? `<p class="note-line"><i class="fa-solid fa-circle-info"></i> ${anywhere.toLocaleString()} item${anywhere === 1 ? '' : 's'} like this ${anywhere === 1 ? 'is' : 'are'} already in the catalog. <button type="button" class="link-btn" data-assist-search>Show in search</button></p>`
+        : '';
+    assistantPost('bot', `${existing}<p>Which main category is <strong>${escapeHtml(q)}</strong> for?</p>${categoryChipsHtml('')}`);
+}
+
+async function assistantRunCategory(code) {
+    const activity = activityByCode(code);
+    if (!activity || !assistantUi.query || assistantUi.busy) return;
+    assistantUi.busy = true;
+    assistantUi.activityCode = code;
+    assistantPost('user', `${escapeHtml(activity.code)} ${escapeHtml(activity.name)}`);
+    const wait = assistantPost('bot', `<p class="thinking"><i class="fa-solid fa-spinner fa-spin"></i> Checking where similar items sit in ${escapeHtml(activity.name)}…</p>`);
+    const analysis = assistAnalyze(assistantUi.query, code);
+    let ai = null; let aiNote = '';
+    if (groqSettings().key) {
+        try { ai = await askGroqForPlacement(assistantUi.query, activity, analysis); }
+        catch (err) { aiNote = `AI is unavailable right now (${err.name === 'AbortError' ? 'timed out' : (err.message || err)}). These picks come from your catalog.`; }
+    }
+    const options = mergeAiOptions(analysis, ai, code);
+    assistantUi.options = options;
+    assistantUi.description = (ai && ai.description ? String(ai.description) : assistantUi.query).trim().toUpperCase();
+    wait.remove();
+
+    let html = '';
+    if (analysis.exact.length) {
+        html += `<div class="assist-existing"><p><strong>Already in ${escapeHtml(activity.name)}.</strong> Check these before creating a new one:</p>${analysis.exact.map(e => `
+            <div class="assist-existing-row">${partCodeChipHtml(e.partCode)}<span class="result-desc">${escapeHtml(e.desc)}</span><button type="button" class="add-btn" data-assist-add="${escapeHtml(e.partCode)}"><i class="fa-solid fa-plus"></i> Add</button></div>`).join('')}</div>`;
+    }
+    if (options.length) {
+        html += `<p>You can file <strong>${escapeHtml(assistantUi.query)}</strong> in ${escapeHtml(activity.code)} ${escapeHtml(activity.name)} under:</p>`;
+        html += options.map((o, i) => {
+            const def = classDefaultGroup(o.cls);
+            const isDefault = def && def.code === o.group.code;
+            return `<div class="assist-option${i === 0 ? ' is-best' : ''}">
+                <div class="assist-option-head">
+                    <span class="code-chip"><span class="code-chip-prefix">${escapeHtml(o.group.code)}</span><span class="code-chip-dot">.</span>series</span>
+                    ${o.ai ? '<span class="badge badge-ai"><i class="fa-solid fa-wand-magic-sparkles"></i> AI pick</span>' : ''}
+                    ${o.count ? `<span class="badge">${o.count} in catalog</span>` : ''}
+                    ${!o.ai && !o.count && !o.sources.has('class-name') && !o.sources.has('group-name') ? '<span class="badge badge-weak">Weaker match</span>' : ''}
+                </div>
+                <dl class="assist-kv">
+                    <dt>Class</dt><dd>${escapeHtml(o.cls.classCode)} ${escapeHtml(o.cls.className)}</dd>
+                    <dt>Group</dt><dd>${escapeHtml(o.group.code)} ${escapeHtml(o.group.name)}${isDefault ? ' <span class="muted">(class default)</span>' : ''}</dd>
+                </dl>
+                <p class="why">${escapeHtml(optionWhy(o))}</p>
+                <button type="button" class="btn btn-accent btn-sm" data-assist-create="${i}"><i class="fa-solid fa-plus"></i> ${canAddItems() ? 'Create item here' : 'Sign in to create'}</button>
+            </div>`;
+        }).join('');
+    } else {
+        html += `<p>I couldn't find a good fit in ${escapeHtml(activity.name)}. Try another category, or open Create item and pick the class yourself.</p>`;
+    }
+    const others = Object.keys(analysis.otherCats).filter(k => activityByCode(k));
+    if (others.length && !analysis.exact.length) {
+        html += `<p class="note-line"><i class="fa-solid fa-circle-info"></i> Similar items exist in ${others.map(k => { const a = activityByCode(k); return `${escapeHtml(a.code)} ${escapeHtml(a.name)}`; }).join(', ')}.</p>`;
+    }
+    if (aiNote) html += `<p class="note-line warn"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(aiNote)}</p>`;
+    html += `<p class="muted">Different category?</p>${categoryChipsHtml(code)}`;
+    assistantPost('bot', html);
+    assistantUi.busy = false;
+}
+
+function assistantCreate(index) {
+    const o = assistantUi.options[index];
+    if (!o) return;
+    if (!canAddItems()) {
+        assistantPost('bot', `<p>Creating items needs an account with Add access. Sign in, or send this to someone who has it: class <strong>${escapeHtml(o.cls.classCode)} ${escapeHtml(o.cls.className)}</strong>, group <strong>${escapeHtml(o.group.code)} ${escapeHtml(o.group.name)}</strong>.</p><button type="button" class="ghost-btn" data-assist-signin><i class="fa-solid fa-user-lock"></i> Sign in</button>`);
+        return;
+    }
+    closeAssistant();
+    openCreateModal({
+        activityCode: o.cls.activityCode, classCode: o.cls.classCode, className: o.cls.className, activityName: o.cls.activityName,
+        groupCode: o.group.code, groupName: o.group.name, description: assistantUi.description
+    });
+}
+
+assistantThread?.addEventListener('click', (e) => {
+    const cat = e.target.closest('[data-assist-cat]');
+    if (cat) { assistantRunCategory(cat.dataset.assistCat); return; }
+    const create = e.target.closest('[data-assist-create]');
+    if (create) { assistantCreate(Number(create.dataset.assistCreate)); return; }
+    const add = e.target.closest('[data-assist-add]');
+    if (add) {
+        const item = allSearchableItems.find(i => itemPartCode(i) === add.dataset.assistAdd);
+        if (item) {
+            addToCart(itemPartCode(item), item["Description"] || '', item["UOM"] || 'EA', item["Group Name"] || '', item["Activity Name"] || '', item["Class Code"] || '');
+            add.innerHTML = '<i class="fa-solid fa-check"></i> Added';
+            add.disabled = true;
+        }
+        return;
+    }
+    if (e.target.closest('[data-assist-search]')) {
+        searchInput.value = assistantUi.query;
+        renderSearchResults(assistantUi.query);
+        if (window.innerWidth < 900) closeAssistant();
+        searchInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        return;
+    }
+    if (e.target.closest('[data-assist-signin]')) {
+        closeAssistant();
+        applyAccessUI();
+        $id('accessModal')?.classList.add('active');
+    }
+});
+
+$id('assistantForm')?.addEventListener('submit', (e) => { e.preventDefault(); assistantAskItem(assistantInput.value); });
+$id('assistantFab')?.addEventListener('click', () => openAssistant(searchInput.value.trim(), false));
+$id('closeAssistantBtn')?.addEventListener('click', closeAssistant);
+$id('assistantRestartBtn')?.addEventListener('click', () => { assistantUi.query = ''; assistantUi.activityCode = ''; assistantIntro(); assistantInput.focus(); });
+$id('askAssistantBtn')?.addEventListener('click', () => openAssistant(searchInput.value.trim(), true));
+
+// Esc closes the assistant, or the top-most open window.
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (assistantDrawer && assistantDrawer.classList.contains('open')) { closeAssistant(); return; }
+    const open = Array.from(document.querySelectorAll('.modal-overlay.active'));
+    if (open.length) open[open.length - 1].classList.remove('active');
+});
+
