@@ -2314,7 +2314,7 @@ function handleGetTemplate() {
     const row2 = ",Marble Black Carrara 75x13,2,201,100,Main Store";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
-    const encodedUri = encodeURI(csvContent);
+    const encodedUri = (typeof ibaCsvHref === 'function' ? ibaCsvHref(csvContent) : encodeURI(csvContent));
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "Material_Upload_Template_V2.csv");
@@ -3538,7 +3538,7 @@ function downloadFixedStockCSV() {
         csvContent += row.join(",") + "\r\n";
     });
 
-    const encodedUri = encodeURI(csvContent);
+    const encodedUri = (typeof ibaCsvHref === 'function' ? ibaCsvHref(csvContent) : encodeURI(csvContent));
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", `Stock_Report_${currentCategoryFilter || 'Filtered'}.csv`);
@@ -3898,6 +3898,7 @@ function msRenderRequiredListTable() {
 
 
 function msPlayAddSound() {
+    if (window.isAudioMuted) return; // 15.0.0 patch 13: obeys the sound switch
     try {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (!Ctx) return;

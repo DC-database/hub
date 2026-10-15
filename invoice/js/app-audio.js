@@ -228,3 +228,103 @@ observeTables.forEach(tableId => {
         observer.observe(targetNode, { childList: true, subtree: true });
     }
 });
+
+// ======================================================================
+// 15.0.0 patch 13: one sound switch everywhere
+// - Every system sound obeys the switch (before, the login sound, the
+//   Dashboard "not found" beep, the Material Stock beep and a WhatsApp error
+//   sound played even when muted).
+// - The switch follows the person: it is saved on their user record
+//   (approvers/{key}/UiSoundOff) and applied when they log in on any
+//   desktop or phone. The record is already read at login, so this costs no
+//   extra download. If saving is not allowed, it still works per device.
+// - The phone gets its own speaker button (see js/iba-phone.js).
+// ======================================================================
+(function () {
+    const plainPlay = HTMLMediaElement.prototype.play;
+    function userSoundOff() {
+        try {
+            const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : window.currentApprover;
+            if (u && (u.UiSoundOff === true || u.UiSoundOff === false)) return u.UiSoundOff;
+        } catch (_) {}
+        return null;
+    }
+    function guard(el) {
+        if (!el || el.__ibaGuarded) return;
+        el.__ibaGuarded = true;
+        el.play = function () {
+            const acc = userSoundOff();
+            if (acc !== null && acc !== window.isAudioMuted) setMuted(acc, false);
+            if (window.isAudioMuted) return Promise.resolve();
+            return plainPlay.call(this);
+        };
+    }
+    [soundClick, soundClear, soundDelete, soundConfirm, soundSuccess, soundError, soundPop, soundSent].forEach(guard);
+    function guardLogin() { guard(document.getElementById('login-sound')); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', guardLogin, { once: true }); else guardLogin();
+
+    function paint() {
+        const muted = !!window.isAudioMuted;
+        const btn = document.getElementById('audio-toggle-btn');
+        if (btn) {
+            btn.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i> Muted' : '<i class="fa-solid fa-volume-high"></i> Enabled';
+            btn.style.backgroundColor = muted ? '#f44336' : '';
+            btn.style.color = muted ? 'white' : '';
+            btn.style.borderColor = muted ? '#f44336' : '';
+        }
+        document.querySelectorAll('[data-iba-sound-btn]').forEach(function (b) {
+            b.classList.toggle('is-muted', muted);
+            b.setAttribute('aria-pressed', muted ? 'true' : 'false');
+            b.setAttribute('aria-label', muted ? 'Sounds off - tap to turn on' : 'Sounds on - tap to turn off');
+            b.title = muted ? 'Sounds off' : 'Sounds on';
+            b.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+        });
+    }
+    function saveToUser(muted) {
+        try {
+            const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : window.currentApprover;
+            const key = (u && u.key) || localStorage.getItem('approverKey');
+            if (u) u.UiSoundOff = muted;
+            if (!key || key === '__IBA_TEST_PREVIEW__' || typeof db === 'undefined' || !db || !db.ref) return;
+            db.ref('approvers/' + key + '/UiSoundOff').set(muted).catch(function () { /* rules may not allow it: this device still remembers */ });
+        } catch (_) {}
+    }
+    function setMuted(muted, save) {
+        window.isAudioMuted = !!muted;
+        try { localStorage.setItem('iba_audio_muted', window.isAudioMuted); } catch (_) {}
+        if (save) saveToUser(window.isAudioMuted);
+        paint();
+    }
+    window.ibaSetSoundMuted = function (muted) { setMuted(muted, true); return window.isAudioMuted; };
+    window.ibaPaintSoundButtons = paint;
+
+    // the Settings button and the phone button both use this
+    const oldToggle = window.toggleSystemAudio;
+    window.toggleSystemAudio = function () {
+        // the person's record gets the new choice first, so the confirmation
+        // sound played by the switch is not taken for the old choice
+        try {
+            const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : window.currentApprover;
+            if (u) u.UiSoundOff = !window.isAudioMuted;
+        } catch (_) {}
+        const r = oldToggle.apply(this, arguments);
+        saveToUser(window.isAudioMuted);
+        paint();
+        return r;
+    };
+
+    // apply the person's choice after login (checked every 2 s, nothing downloaded)
+    let applied = '';
+    setInterval(function () {
+        try {
+            const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : window.currentApprover;
+            const id = u ? String(u.key || u.Name || '') : '';
+            if (!id || id === applied) return;
+            applied = id;
+            const acc = userSoundOff();
+            if (acc !== null && acc !== window.isAudioMuted) setMuted(acc, false);
+            else paint();
+        } catch (_) {}
+    }, 2000);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paint, { once: true }); else paint();
+})();

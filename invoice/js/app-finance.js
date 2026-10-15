@@ -9,6 +9,53 @@
    - No Firebase paths, report workflow, invoice data logic, or UI behavior changed.
    ========================================================================== */
 
+// 15.0.0 patch 12: CSV downloads are handed over as a file (Blob) instead of a
+// "data:" link. In a data: link a "#" (e.g. an invoice number like INV#12)
+// cut the file off there, so every row after it was missing.
+function ibaCsvHref(csvContent) {
+    try {
+        let body = String(csvContent || '');
+        const m = body.match(/^data:text\/csv[^,]*,/i);
+        if (m) body = body.slice(m[0].length);
+        if (body.charAt(0) !== '\uFEFF') body = '\uFEFF' + body;
+        const url = URL.createObjectURL(new Blob([body], { type: 'text/csv;charset=utf-8' }));
+        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 60000);
+        return url;
+    } catch (_) {
+        return encodeURI(String(csvContent || "")).replace(/#/g, "%23");
+    }
+}
+window.ibaCsvHref = ibaCsvHref;
+
+// 15.0.0 patch 12: when did this invoice reach the status? The last history
+// entry with that status, else the status-change time, else the newest save
+// time. (Before, only "updatedAt" was used: a save from Invoice Entry does not
+// set it, so such invoices were left out of the 2-hour reports.)
+function ibaTimeMs(v) {
+    if (v === null || v === undefined || v === '') return 0;
+    let t = typeof v === 'number' ? v : (Date.parse(v) || parseInt(v, 10) || 0);
+    if (t > 0 && t < 1e12) t *= 1000;
+    return Number.isFinite(t) ? t : 0;
+}
+function ibaStatusReachedAt(inv, statusLower) {
+    if (!inv) return 0;
+    const want = String(statusLower || '').trim().toLowerCase();
+    let best = 0;
+    try {
+        const h = inv.history;
+        const list = Array.isArray(h) ? h : (h && typeof h === 'object' ? Object.values(h) : []);
+        list.forEach((e) => {
+            if (!e || String(e.status || e.action || '').trim().toLowerCase() !== want) return;
+            const t = ibaTimeMs(e.timestamp || e.date);
+            if (t > best) best = t;
+        });
+    } catch (_) {}
+    if (best) return best;
+    const changed = ibaTimeMs(inv.statusChangedAt);
+    if (changed) return changed;
+    return Math.max(ibaTimeMs(inv.updatedAt), ibaTimeMs(inv.lastUpdated)) || ibaTimeMs(inv.enteredAt) || ibaTimeMs(inv.createdAt) || ibaTimeMs(inv.timestamp);
+}
+
 // #region BLOCK 28 — FINANCE REPORTS + EXPORTS
 // Purpose: Report PDF generation/print, daily/with-accounts/report-approved exports, custom Excel/table exports.
 // =================================================================================================
@@ -338,8 +385,7 @@ async function handleDownloadDailyReport() {
                 const inv = invoices[key];
 
                 // Normalize Event Timestamp (prefer status/update time; fallback to created time)
-                let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
-                if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
+                const eventTime = ibaStatusReachedAt(inv, 'under review');
 
                 // Only include invoices that are Under Review in the last 2 hours
                 const statusStr = (inv.status || '').toString().trim().toLowerCase();
@@ -391,7 +437,7 @@ async function handleDownloadDailyReport() {
         });
 
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        const encodedUri = encodeURI(csvContent);
+        const encodedUri = ibaCsvHref(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", `entry_report_last_2hrs_${timestampStr}.csv`);
@@ -434,8 +480,7 @@ async function handleDownloadWithAccountsReport() {
                 const inv = invoices[key];
 
                 // Normalize Event Timestamp (prefer status/update time; fallback to created time)
-                let eventTime = inv.updatedAt || inv.enteredAt || inv.createdAt || inv.timestamp || 0;
-                if (typeof eventTime === 'string') eventTime = new Date(eventTime).getTime();
+                const eventTime = ibaStatusReachedAt(inv, 'with accounts');
 
                 // Only include if status is correct AND in the last 2 hours
                 const statusStr = (inv.status || '').toString().trim().toLowerCase();
@@ -488,7 +533,7 @@ async function handleDownloadWithAccountsReport() {
         });
 
         const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
-        const encodedUri = encodeURI(csvContent);
+        const encodedUri = ibaCsvHref(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         link.setAttribute("download", `with_accounts_report_${timestampStr}.csv`);
@@ -556,15 +601,7 @@ window.downloadReportingTableToExcel = async function() {
 
                     // --- FILTER 2: TIME (Last 2 Hours) ---
                     // Normalize to milliseconds since epoch (handles ISO strings and seconds timestamps)
-                    let itemTime = inv.updatedAt || inv.enteredAt || inv.timestamp || 0;
-                    if (typeof itemTime === 'string') {
-                        const parsed = Date.parse(itemTime);
-                        itemTime = isNaN(parsed) ? (parseInt(itemTime, 10) || 0) : parsed;
-                    }
-                    if (typeof itemTime === 'number' && itemTime > 0 && itemTime < 1e12) {
-                        // likely seconds
-                        itemTime = itemTime * 1000;
-                    }
+                    const itemTime = ibaStatusReachedAt(inv, 'report approved');
                     if (itemTime < cutoffTime) return; // Skip old items
                     
                     // --- DATA MAPPING ---
@@ -593,7 +630,7 @@ window.downloadReportingTableToExcel = async function() {
         }
 
         // 4. Download
-        const encodedUri = encodeURI(csvContent);
+        const encodedUri = ibaCsvHref(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
         const dateStr = new Date().toISOString().split('T')[0];
@@ -757,7 +794,7 @@ window.exportCurrentTableToExcel = function() {
     }
 
     // 5. Trigger File Download
-    const encodedUri = encodeURI(csvContent);
+    const encodedUri = ibaCsvHref(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     const dateStr = new Date().toISOString().split('T')[0];

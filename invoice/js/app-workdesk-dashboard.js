@@ -6803,7 +6803,7 @@ function handleDownloadWorkdeskCSV() {
     }
 
     const csvContent = "data:text/csv;charset=utf-8," + csv.join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const encodedUri = (typeof ibaCsvHref === 'function' ? ibaCsvHref(csvContent) : encodeURI(csvContent));
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "job_records.csv");

@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p11';
+    const VERSION = '15.0.0-p12';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -1166,7 +1166,7 @@
         if (year) year.hidden = trf;
         const rec = $('iba-ai-recent');
         if (rec) {
-            rec.hidden = trf;
+            rec.hidden = trf || !isSuper(); // 15.0.0 patch 12: Super Admin only
             const sel = $('iba-ai-recent-status');
             if (sel && !sel.options.length) {
                 const opts = statusOptions();
@@ -1175,7 +1175,7 @@
                 if (opts.indexOf('Under Review') !== -1 || !opts.length) sel.value = 'Under Review';
             }
             const go = rec.querySelector('[data-recent-go] span');
-            if (go) go.textContent = isSuper() ? 'Find and put in Batch Entry' : 'Find';
+            if (go) go.textContent = 'Find and put in Batch Entry';
         }
         if (form) form.classList.toggle('is-trf', trf);
         if (help) help.textContent = trf
@@ -1511,6 +1511,8 @@
     }
     async function toolRecent(args) {
         const a = args || {};
+        // 15.0.0 patch 12: Super Admin only
+        if (!isSuper()) return { result: { error: 'Recent status changes are for the Super Admin only.' } };
         const want = String(a.status || '').trim();
         if (!want) return { result: { error: 'Which status? e.g. Under Review, CEO Approval, In Process.' } };
         const win = recentWindow(a);
@@ -1970,7 +1972,7 @@
         track_transfer: toolTransfer,
         find_transfers: toolTransferFind
     };
-    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch'];
+    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch', 'recent_status_changes'];
     async function runTool(name, args) {
         if (SUPER_ONLY.indexOf(name) !== -1 && !isSuper()) return { result: { error: 'This job is only for the Super Admin.' } };
         const fn = RUN[name];
@@ -2003,7 +2005,7 @@
             'How an invoice moves: 1) Reception receives the vendor invoice and records a WorkDesk job entry (New Entry). 2) Accounting registers it in Invoice Entry (Under Review / In Process). 3) The Site DC (Head Office DC for head-office items) confirms delivery: For SRV, then SRV Done. 4) Approvals when needed (For Approval, CEO Approval, Report...). 5) With Accounts = payment in process. 6) Paid. Each invoice keeps a history of who changed its status and when.',
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
-            'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).',
+            isSuper() ? 'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).' : '',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
