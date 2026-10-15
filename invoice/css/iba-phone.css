@@ -970,3 +970,7 @@ body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-status:is(.status-r
 #iba-phone .iba-ph-urg button.is-on { border-color: rgba(94,214,196,.8); background: rgba(94,214,196,.16); color: #EAF8F5; }
 #iba-phone .iba-ph-urg button.is-urgent { color: #FFB4A8; }
 #iba-phone .iba-ph-urg button.is-urgent.is-on { border-color: #F07A68; background: rgba(240,122,104,.18); color: #FFE3DE; }
+
+/* 15.0.0 patch 13: sounds on / off button, next to Refresh */
+#iba-phone .iba-ph-head .iba-ph-sound { margin-left: auto; margin-right: -4px; }
+#iba-phone .iba-ph-sound.is-muted { color: #F07A68; border-color: rgba(240, 122, 104, 0.55); }
