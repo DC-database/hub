@@ -1,18 +1,189 @@
-IBA SYSTEM 15.0.0 patch 7
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-6 and everything before)
+IBA SYSTEM 15.0.0 patch 10
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-9 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 7. Copying it over 15.0.0
+  The result is exactly the tested 15.0.0 patch 10. Copying it over 15.0.0
   or any earlier 15.0.0 patch gives the same result.
+  Optional: upload invoice-v1-redirect.html (sent with patch 9) as
+  index.html inside the old /invoice-v1 folder.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p7), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p10), so a normal reload picks them up.
 
-FILES: 42 (+ this note). Changed in patch 7 compared with patch 6:
+FILES: 42 (+ this note). Changed in patch 10 compared with patch 9:
   js/iba-assistant.js, css/iba-assistant.css, index.html
   Nothing needs to change in the Firebase rules.
+
+15.0.0 patch 10 - WHAT CHANGED
+  Today's brief for everyone, no AI key needed
+  - The brief (tasks waiting, inventory jobs at your step, reminders sent
+    to you, next step for each) is built inside IBA, without the AI. It
+    uses no key, no quota and no extra Firebase download.
+  - New sun button in the assistant header, and a "Today's brief" chip
+    (replaces "What's waiting?", which needed the AI). Both open the brief
+    straight away.
+  - Users without a key: opening the assistant shows today's brief at
+    once (before: it opened Track). Typing words like "brief", "waiting",
+    "today", "reminder", "my tasks" or "pending" also gives the brief.
+    Super Admin without a key still opens Setup first.
+  - Daily greeting bubble: always has "Open brief", and now also says how
+    many reminders are waiting ("1 reminder for you").
+  - New "New today" count in the brief (tasks and jobs that arrived today).
+  - Reminders: the list with the "Seen" button is in the brief, so every
+    user can read and clear them without a key.
+  - "Draft a message" (needs the AI) is hidden for users without a key,
+    and their welcome message lists only what works without a key.
+  - The brief's counts fit on one row.
+  - Setup: "Who can use the assistant" now reads "Everyone (brief,
+    reminders and tracking need no key)". Keep it on Everyone so users get
+    the brief.
+
+15.0.0 patch 9 - WHAT CHANGED
+  1. For Approval / CEO Approval: Urgent and Normal tabs, faster approving
+  - Active Task (desktop) and the phone approval list split approvals into
+    "Urgent" and "Normal". Urgent = the invoice Note contains "urgent"
+    (any capitals; "urgently" counts too). Urgent opens first when it has
+    items; each tab shows its count.
+  - Faster approving:
+      * the invoice, its history and the ESN register are now saved
+        together, and the task lists are updated right after in the
+        background (before, each was waited for one after another);
+      * after approving, the row disappears at once and the list is
+        re-read quietly, without downloading all Job Records again (the
+        old forced refresh did that after every approval);
+      * Active Task checks its invoices 8 at a time instead of one by
+        one, so opening it is faster when there are many tasks;
+      * on the phone, "Approve selected" approves 3 at a time; each
+        invoice still gets its own ESN.
+  - Bug fixed (it was in the original 14.0.0): Active Task's recovery of
+    For Approval tasks from the shared list stopped with an error, so
+    those tasks were never recovered. Now it works.
+
+  2. Batch Entry: choosing the Attention person on one row
+  - The row's Attention button opens the same type-to-search list as the
+    Invoice Entry popup, right under the button: the people suggested for
+    the row's status first, then "Everyone else (manual choice)". Type a
+    name, press Enter or click it. Only that row changes.
+  - Before, the popup's search box stayed closed, so typing showed nothing.
+
+  3. Approval print = the original Invoice Records stamp
+  - Active Task "Print" (on an approved invoice) now runs the same routine
+    as the QR icon in Invoice Records: it asks where to place the stamp
+    (1 left, 2 middle, 3 right, 4 auto) and prints the original design
+    (APPROVED/PO(INV no.), ESN/NAME, dashed line, date).
+  - The extra print button that patch 5 of 14.0.0 added in Invoice Records
+    is removed. The original QR icon stays.
+
+  4. Invoice Records: the green WhatsApp icon works again
+  - On a "For Approval" invoice it called a function that no longer
+    existed (also in the original 14.0.0), so nothing happened.
+  - Now it opens WhatsApp with a ready reminder to the person in
+    Attention, using the mobile number saved in their user record: PO,
+    invoice no., vendor, amount, days waiting, note and the invoice PDF
+    link, "please approve in IBA". You only press Send. If no number is
+    saved, it asks for one. A Qatar number saved with 8 digits gets 974.
+
+  5. Active Task: dates as tabs
+  - The queue dates are a row of tabs with counts (e.g. "Oct 06 2 ·
+    Oct 08 1"), oldest first, so every date with entries is visible. The
+    dropdown and the "Queue Date" title are gone.
+
+  6. Invoice Records: filter bar
+  - Big search box and Search button. The filters are compact and labelled
+    Site, Status, Month, Year. "Approved" and "Rejected" now sit right after
+    CEO Approval in Status (they were at the very bottom), so you can list
+    the invoices that are currently Approved.
+  - Bug fixed (original 14.0.0): pressing Search with only Status / Month /
+    Year chosen threw an error in the background (it read a date box that
+    no longer exists). Month and Year alone now count as a search too.
+
+  7. Approved invoices that fell off your Active Task
+  - Active Task now also recovers Approved / Rejected decisions (and CEO
+    Approval) that went back to you from the shared task list, and writes
+    them back to your own list, so the count and blink come back too.
+  - "Check all" (patch 2) also puts them back if they are missing from the
+    shared list as well.
+  - The old system at /invoice-v1 still works on the same Firebase data
+    with its old rules and can remove these again. invoice-v1-redirect.html
+    (sent with this patch) replaces it with a page that sends people to the
+    new system. Upload it as index.html inside the invoice-v1 folder.
+
+  8. Assistant
+  - Skills ask for their number: a skill saved from "show me PO 12345"
+    asks "PO number?" each time you run it and runs for that PO (also
+    transfer numbers and vehicle/item words). The skills list shows what
+    each one asks for.
+  - Clicking a PO in the brief or any list shows that PO's invoices (where
+    each is, who has it), with "Open in Invoice Records" (opens Invoice
+    Records searched for that PO). A PO with no invoice yet says it is not
+    in Invoice Records.
+  - Gemini fixed: Google refused every question because some tools had an
+    empty field list ("properties should be non-empty"); those are now sent
+    without it. Default model gemini-2.5-flash (an older saved
+    "gemini-flash-latest" is switched automatically). Test now checks the
+    key AND a real question, and says plainly what is wrong (not a Gemini
+    key - it must start with AIza; key not accepted; model not found;
+    free limit used up).
+  - Ollama: Setup shows the steps one by one (install, pull the model,
+    OLLAMA_ORIGINS for port.iba.com.qa, restart, Test).
+
+  9. Assistant tracking and brief
+  - A vendor with many POs shows its 10 newest POs and their invoices at
+    once, then its sites as buttons to look further. The "unknown" year
+    step is gone.
+  - The brief lists what waits for you with the next step for each, e.g.
+    "For SRV -> confirm the delivery and mark SRV Done", "Report ->
+    prepare the report and send it for approval". Inventory items too.
+  - Stages follow IBA: Reception > Invoice Entry > SRV (incl. For
+    Approval, Report, Report Approval/Approved) > CEO/COO approval (In
+    Process, CEO Approval) > Accounts > Paid. An invoice that jumped (e.g.
+    from entry straight to In Process) shows at CEO/COO with the skipped
+    steps marked "Skipped".
+
+  10. Assistant: Remind
+  - "Remind" on a tracked PO (and on a transfer card) writes a ready
+    message for the person who has it (you can change the person and the
+    text):
+      * Send reminder - stored in the system; their assistant button
+        blinks with a count, a notice shows, and the reminder is listed at
+        the top of their brief until they press "Seen" (you can see it was
+        seen);
+      * WhatsApp - opens WhatsApp with the same text and their saved
+        number.
+
+  Tested: Urgent/Normal on desktop and phone, approving (no Job Records
+  reload, row removed at once), Approved recovered and written back,
+  Print routed to the original stamp, WhatsApp reminder text and number,
+  batch row picker (type, pick, saved for that row only), Invoice Records
+  bar and the Approved filter, all assistant items above, plus the
+  earlier batch, Check all, Inv Entry ID, note index, transfer and Job
+  Records tests.
+
+15.0.0 patch 8 - WHAT CHANGED
+  1. Inv Entry ID (INV-01, INV-02 ...) stays a series per PO
+  - Why PO 66176 got INV-01 twice (this was in the original system): the
+    next ID was worked out from the copy of the PO loaded when it was
+    opened, and saved without checking again. If another invoice was added
+    to the same PO in the meantime (another user, another tab, or a
+    WorkDesk / IPC job converted to an invoice), both got the same ID.
+  - Now, right before saving, the PO's invoices are read again from
+    Firebase (only that PO, a few KB):
+      * Invoice Entry "Add": if the ID is already taken, the invoice is
+        saved with the next free number and a message says so. The
+        invoice/SRV/report file names follow the new number. The
+        duplicate invoice-number check also uses the fresh list.
+      * Batch Entry: new rows take the next free number of their PO;
+        several new rows of one PO get consecutive numbers. The "Batch
+        Process Complete" message lists any number that was changed.
+  - Existing repeats are NOT changed automatically (the ID is part of file
+    names). Dashboard "Check all" now lists every PO with a repeated ID,
+    e.g. "PO 66176: INV-01 x2 (CI-26-177, 66176.IPC/01)", so you can
+    correct them by hand.
+  - Test: form showed INV-03, another INV-03 was saved meanwhile -> the new
+    invoice was saved as INV-04 with a message (patch 7 saved a second
+    INV-03).
 
 15.0.0 patch 7 - WHAT CHANGED
   1. Assistant Track tab: two buttons instead of a list

@@ -391,10 +391,10 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-14-patch.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-ui.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-ui-popups.css?v=15.0.0-p2" rel="stylesheet"/>
-<link href="css/iba-assistant.css?v=15.0.0-p7" rel="stylesheet"/>
-<link href="css/iba-ui-tables.css?v=15.0.0-p1" rel="stylesheet"/>
+<link href="css/iba-assistant.css?v=15.0.0-p10" rel="stylesheet"/>
+<link href="css/iba-ui-tables.css?v=15.0.0-p9" rel="stylesheet"/>
 <link href="css/iba-approvals.css?v=15.0.0" rel="stylesheet"/>
-<link href="css/iba-phone.css?v=15.0.0" rel="stylesheet"/>
+<link href="css/iba-phone.css?v=15.0.0-p9" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -2168,11 +2168,11 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <button class="primary-btn" id="im-reporting-search-btn" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
 <button class="secondary-btn" id="im-reporting-clear-button" type="button"><i class="fa-solid fa-xmark"></i> Clear</button>
 <div class="filter-group iba-records-filters">
-<select id="im-reporting-site-filter">
-<option value="">All Sites & Projects</option>
+<select id="im-reporting-site-filter" title="Site">
+<option value="">Site</option>
 </select>
-<select id="im-reporting-status-filter">
-<option value="">All Statuses</option>
+<select id="im-reporting-status-filter" title="Status">
+<option value="">Status</option>
 <option value="Negative Balance">Negative Balance (Errors)</option>
 <option value="For SRV">For SRV</option>
 <option value="Pending">Pending</option>
@@ -2185,6 +2185,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <option value="Unresolved">Unresolved</option>
 <option value="For Approval">For Approval</option>
 <option value="CEO Approval">CEO Approval</option>
+<option value="Approved">Approved</option>
+<option value="Rejected">Rejected</option>
 <option value="Report">Report</option>
 <option value="Report Approval">Report Approval</option>
 <option value="Report Approved">Report Approved</option>
@@ -2195,11 +2197,9 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <option value="Paid">Paid</option>
 <option value="Original PO">Original PO</option>
 <option value="Epicore Value">Epicore Value</option>
-<option value="Approved">Approved</option>
-<option value="Rejected">Rejected</option>
 </select>
-<select id="im-reporting-month-filter">
-<option value="">All Months</option>
+<select id="im-reporting-month-filter" title="Month">
+<option value="">Month</option>
 <option value="01">January</option>
 <option value="02">February</option>
 <option value="03">March</option>
@@ -2213,8 +2213,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <option value="11">November</option>
 <option value="12">December</option>
 </select>
-<select id="im-reporting-year-filter">
-<option value="">All Years</option>
+<select id="im-reporting-year-filter" title="Year">
+<option value="">Year</option>
 </select>
 </div>
 </div>
@@ -3700,8 +3700,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=12.9.1"></script>
-<script src="app.js?v=15.0.0-p1"></script>
-<script src="js/iba-approvals.js?v=15.0.0"></script>
+<script src="app.js?v=15.0.0-p9"></script>
+<script src="js/iba-approvals.js?v=15.0.0-p9"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/iba-page-surfaces.js?v=15.0.0"></script>
@@ -3714,7 +3714,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-payments.js?v=12.8.2"></script>
 <script src="js/app-invoice-records.js?v=15.0.0"></script>
 <script src="js/app-po-closeout.js?v=15.0.0"></script>
-<script src="js/app-active-tasks.js?v=15.0.0-p1"></script>
+<script src="js/app-active-tasks.js?v=15.0.0-p9"></script>
 <script src="js/app-workdesk-dashboard.js?v=15.0.0-p1"></script>
 <script src="js/app-general-announcement.js?v=15.0.0"></script>
 <script src="js/app-workdesk-reporting.js?v=15.0.0-p1"></script>
@@ -3724,26 +3724,26 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-modal-navigation-clear.js?v=15.0.0"></script>
 <script src="js/app-invoice-entry-search.js?v=13.0.0w"></script>
 <script src="js/app-attention-validation.js?v=15.0.0"></script>
-<script src="js/iba-attention-picker.js?v=15.0.0-p1"></script>
-<script src="js/app-batch-entry-ui.js?v=15.0.0"></script>
+<script src="js/iba-attention-picker.js?v=15.0.0-p9"></script>
+<script src="js/app-batch-entry-ui.js?v=15.0.0-p9"></script>
 <script src="js/iba-ui-skin.js?v=15.0.0"></script>
-<script src="js/app-im-event-wiring.js?v=15.0.0"></script>
+<script src="js/app-im-event-wiring.js?v=15.0.0-p9"></script>
 <script src="js/app-history-transfer.js?v=15.0.0"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '15.0.0';
+      window.IBA_SYSTEM_VERSION = '15.0.1';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
 <script src="js/iba-shell.js?v=15.0.0"></script>
-<script src="js/iba-phone.js?v=15.0.0"></script>
+<script src="js/iba-phone.js?v=15.0.0-p9"></script>
 <script src="js/iba-live-counts.js?v=15.0.0"></script>
-<script src="js/iba-task-check.js?v=15.0.0-p2"></script>
+<script src="js/iba-task-check.js?v=15.0.0-p8"></script>
 <script src="js/iba-print.js?v=15.0.0"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=15.0.0-p7"></script>
+<script src="js/iba-assistant.js?v=15.0.0-p10"></script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
-</div>    <script src="js/app-approval-print.js?v=15.0.0"></script>
+</div>    <script src="js/app-approval-print.js?v=15.0.0-p9"></script>
 </body>
 </html>

@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '15.0.0';
+const APP_VERSION = '15.0.1';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4456,6 +4456,41 @@ function buildInvoiceReportNameForSave(poNumber, invoiceData = {}, fallbackInvoi
     }
 }
 
+// 15.0.0 patch 8: Inv Entry ID (INV-01, INV-02...) must be a series per PO.
+// The next number was worked out from the copy of the PO loaded when it was
+// opened, and saved without checking again. If someone else (or another tab,
+// or a WorkDesk/IPC conversion) added an invoice to the same PO meanwhile,
+// both got the same number (e.g. PO 66176 had INV-01 twice). Now the PO's
+// invoices are read again from Firebase right before saving (only that PO).
+function imInvEntryNumber(id) {
+    const m = String(id || '').match(/(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+}
+function imInvEntryIdFromNumber(n) {
+    return `INV-${String(n).padStart(2, '0')}`;
+}
+async function imReadPOInvoicesFresh(poNumber) {
+    try {
+        const snap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+        const fresh = snap.val() || {};
+        if (!allInvoiceData) allInvoiceData = {};
+        allInvoiceData[poNumber] = fresh;
+        return fresh;
+    } catch (e) {
+        console.warn('Could not re-check the PO invoices before saving; using the loaded copy.', e);
+        return null;
+    }
+}
+function imUsedInvEntryNumbers(invoices) {
+    const used = new Set();
+    let max = 0;
+    Object.values(invoices || {}).forEach((inv) => {
+        const n = inv ? imInvEntryNumber(inv.invEntryID) : 0;
+        if (n > 0) { used.add(n); if (n > max) max = n; }
+    });
+    return { used, max };
+}
+
 async function handleAddInvoice(e) {
     e.preventDefault();
     if (!currentPO) {
@@ -4511,6 +4546,22 @@ async function handleAddInvoice(e) {
         return; // STOP HERE
     }
     // -----------------------------
+
+    // 15.0.0 patch 8: re-read this PO now, then make sure the Inv Entry ID is
+    // free (next in the series) and the invoice number is not already there.
+    const imFreshPOInvoices = await imReadPOInvoicesFresh(currentPO);
+    if (imFreshPOInvoices) {
+        const series = imUsedInvEntryNumbers(imFreshPOInvoices);
+        const wanted = imInvEntryNumber(invoiceData.invEntryID);
+        if (!wanted || series.used.has(wanted)) {
+            const nextId = imInvEntryIdFromNumber(series.max + 1);
+            if (wanted && series.used.has(wanted)) {
+                alert(`Inv Entry ID ${invoiceData.invEntryID} is already used on PO ${currentPO} (another invoice was added to this PO after you opened it).\n\nThis invoice will be saved as ${nextId}.`);
+            }
+            invoiceData.invEntryID = nextId;
+            try { if (typeof imInvEntryIdInput !== 'undefined' && imInvEntryIdInput) imInvEntryIdInput.value = nextId; } catch (_) {}
+        }
+    }
 
     // ==========================================================
     // DUPLICATE INVOICE NUMBER CHECK (for the same PO)
@@ -5036,7 +5087,7 @@ async function populateSiteFilterDropdown() {
         }
         
         // 4. Build the HTML dropdown options
-        siteFilter.innerHTML = '<option value="">All Sites & Projects</option>';
+        siteFilter.innerHTML = '<option value="">Site</option>'; // 15.0.0 patch 9: short label
         Array.from(uniqueSites).sort().forEach(site => {
             const opt = document.createElement('option');
             opt.value = site;
@@ -5065,7 +5116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Populate Year Filter dynamically
     const yearFilter = document.getElementById('im-reporting-year-filter');
     if (yearFilter) {
-        yearFilter.innerHTML = '<option value="">All Years</option>';
+        yearFilter.innerHTML = '<option value="">Year</option>'; // 15.0.0 patch 9: short label
         const currentYear = new Date().getFullYear();
         for (let i = 0; i < 5; i++) {
             const year = currentYear - i;
@@ -5394,6 +5445,25 @@ async function imBatchSaveRun() {
         }
     }
 
+    // 15.0.0 patch 8: new rows take the next free Inv Entry ID of their PO,
+    // checked against Firebase now; several new rows of one PO get 01, 02, 03.
+    const imBatchSeries = {};
+    const imBatchRenumbered = [];
+    const imBatchTakeInvEntryId = async (poNumber, wanted) => {
+        if (!imBatchSeries[poNumber]) {
+            const fresh = await imReadPOInvoicesFresh(poNumber);
+            imBatchSeries[poNumber] = imUsedInvEntryNumbers(fresh || (allInvoiceData && allInvoiceData[poNumber]) || {});
+        }
+        const series = imBatchSeries[poNumber];
+        let n = imInvEntryNumber(wanted);
+        if (!n || series.used.has(n)) n = series.max + 1;
+        series.used.add(n);
+        if (n > series.max) series.max = n;
+        const id = imInvEntryIdFromNumber(n);
+        if (wanted && wanted !== id) imBatchRenumbered.push(`PO ${poNumber}: ${wanted} -> ${id}`);
+        return id;
+    };
+
     let imBatchRowNo = 0;
     for (const row of rows) {
         imBatchRowNo += 1;
@@ -5430,6 +5500,8 @@ async function imBatchSaveRun() {
                 }
             }
         }
+
+        if (!existingKey) invEntryID = await imBatchTakeInvEntryId(poNumber, invEntryID);
 
         try {
             const originalForGroup = (existingKey && allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][existingKey])
@@ -5658,7 +5730,8 @@ async function imBatchSaveRun() {
 
         if (notesTouchedThisBatch.size > 0) refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
         
-        alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}`);
+        alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}` +
+            (imBatchRenumbered.length ? `\n\nInv Entry ID changed to the next free number:\n- ${imBatchRenumbered.join('\n- ')}` : ''));
         
         if (typeof imClearBatchEntryAfterSuccessfulSave === 'function') {
             imClearBatchEntryAfterSuccessfulSave();
