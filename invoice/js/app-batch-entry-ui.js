@@ -58,7 +58,62 @@ function setBatchRowAttentionValue(row, value, label = null) {
 }
 
 
+// 15.0.0 patch 9: the row's Attention opens the same type-to-search list as
+// Invoice Entry, right under the button: the people suggested for the row's
+// status and site first, then everyone else (manual choice). Before, the
+// popup's search box stayed closed, so typing showed nothing.
+async function imBatchSuggestedAttention(status, site, group) {
+    const got = [];
+    const rec = {
+        setChoices(list) { (list || []).forEach(c => got.push(c)); },
+        clearStore() { got.length = 0; }, clearChoices() { got.length = 0; },
+        removeActiveItems() {}, setChoiceByValue() {}, setValue() {}, getValue() { return ''; }
+    };
+    try {
+        if (typeof populateBatchAttentionDropdownForRow === 'function') await populateBatchAttentionDropdownForRow(rec, status, site, group, false);
+        else if (typeof populateAttentionDropdown === 'function') await populateAttentionDropdown(rec, status, site, false);
+    } catch (e) { console.warn('Batch Attention suggestions failed', e); }
+    const seen = new Set();
+    return got.filter(c => c && c.value && c.value !== 'None' && !c.disabled && !/^manual:/i.test(String(c.label || '')))
+        .filter(c => { const k = String(c.value).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; })
+        .map(c => ({ value: String(c.value), label: String(c.label || c.value) }));
+}
+
 async function openBatchAttentionPicker(row) {
+    const picker = window.ibaAttentionPicker;
+    const anchor = row ? row.querySelector('.batch-attention-btn') : null;
+    if (picker && typeof picker.openFor === 'function' && anchor) {
+        // the button has two click handlers (its own and the batch list's):
+        // one click must open the list once, a later click closes it
+        if (row.__attnBusy) return;
+        if (picker.isOpenFor && picker.isOpenFor(anchor)) {
+            if (Date.now() - (row.__attnOpenedAt || 0) > 400) picker.closeMenu(true);
+            return;
+        }
+        row.__attnBusy = true;
+        setTimeout(() => { row.__attnBusy = false; }, 400);
+        const statusEl = row.querySelector('select[name="status"]');
+        const globalStatus = (typeof imBatchGlobalStatus !== 'undefined' && imBatchGlobalStatus) ? String(imBatchGlobalStatus.value || '').trim() : '';
+        const status = (statusEl ? statusEl.value : '') || globalStatus;
+        const site = row.dataset.site || null;
+        const group = (row.dataset && (row.dataset.group || row.dataset.invoiceGroup)) || 'Normal';
+        const noneOnly = (typeof imBatchShouldForceAttentionNoneForStatus === 'function')
+            ? imBatchShouldForceAttentionNoneForStatus(status)
+            : (typeof imShouldForceAttentionNoneForStatus === 'function' && imShouldForceAttentionNoneForStatus(status));
+        if (noneOnly) { setBatchRowAttentionValue(row, 'None', 'None (Clear Selection)'); return; }
+        let current = '';
+        try { current = row.choicesInstance ? (row.choicesInstance.getValue(true) || '') : ''; } catch (_) {}
+        const suggested = await imBatchSuggestedAttention(status, site, group);
+        row.__attnOpenedAt = Date.now();
+        picker.openFor(anchor, {
+            suggested, current, status,
+            onPick(value, label) {
+                setBatchRowAttentionValue(row, value, value);
+                try { row.classList.remove('im-invalid'); } catch (_) {}
+            }
+        });
+        return;
+    }
     if (!imAttentionPickerModal || !imAttentionPickerSelect) return;
     imAttentionPickerActiveRow = row;
 

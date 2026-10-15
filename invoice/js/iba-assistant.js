@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p7';
+    const VERSION = '15.0.0-p10';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -45,10 +45,17 @@
     const BRAINS = {
         groq: { label: 'Groq (free)', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', needsKey: true,
             keyUrl: 'https://console.groq.com/keys', keyHelp: 'Sign in at console.groq.com (free, no card) > API Keys > Create API Key. Tip: in Settings > Data Controls turn on Zero Data Retention.' },
-        gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-flash-latest', needsKey: true,
-            keyUrl: 'https://aistudio.google.com/apikey', keyHelp: 'Google AI Studio > Get API key. On the free plan Google may use and read what you send.' },
+        gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', needsKey: true,
+            keyUrl: 'https://aistudio.google.com/apikey', keyHelp: 'Open Google AI Studio (aistudio.google.com) > Get API key > Create API key, then copy it here. The key starts with "AIza". On the free plan Google may use and read what you send.' },
         ollama: { label: 'Ollama (a PC)', baseUrl: 'http://localhost:11434/v1', model: 'qwen3:8b', needsKey: false,
-            keyUrl: 'https://ollama.com/download', keyHelp: 'Install Ollama on the PC, pull a model, and start it with OLLAMA_ORIGINS set to this site. Chrome asks once to allow the local connection.' },
+            keyUrl: 'https://ollama.com/download', keyHelp: 'Runs on this PC only (no internet AI, nothing leaves the PC). It needs a strong PC (16 GB RAM or more) and these steps, done once:',
+            guide: [
+                'Download and install Ollama from ollama.com/download, then open it once.',
+                'Open "Command Prompt" and type:  ollama pull qwen3:8b  (a few GB; wait until it finishes).',
+                'Allow this website to use it: press Windows key, type "environment variables", open "Edit the system environment variables" > Environment Variables > New (under "User variables"). Name: OLLAMA_ORIGINS  Value: https://port.iba.com.qa',
+                'Quit Ollama (right-click its icon near the clock > Quit) and open it again.',
+                'Back here: Brain = Ollama, Model = qwen3:8b, press Save, then Test. If Chrome asks to allow access to local devices, press Allow.'
+            ] },
         custom: { label: 'Other (OpenAI-compatible)', baseUrl: '', model: '', needsKey: true, keyUrl: '', keyHelp: 'Any service with an OpenAI-compatible /chat/completions endpoint.' }
     };
 
@@ -235,6 +242,8 @@
         c = c || {};
         const brain = BRAINS[c.brain] ? c.brain : 'groq';
         const def = BRAINS[brain];
+        // 15.0.0 patch 9: older setups saved a Gemini model name that is not always available
+        if (brain === 'gemini' && /^gemini-flash-latest$/i.test(String(c.model || ''))) c.model = def.model;
         return {
             brain: brain,
             baseUrl: String(c.baseUrl || def.baseUrl || '').replace(/\/+$/, ''),
@@ -379,15 +388,32 @@
         ].filter((t) => isSuper() || SUPER_ONLY.indexOf(t.name) === -1);
     }
 
+    // 15.0.0 patch 9: what the holder should do next, by status / step
+    const NEXT_STEP = {
+        'new entry': 'register it in Invoice Entry', 'pending': 'check it and move it to its next status',
+        'under review': 'check the invoice and move it on (For SRV / In Process)',
+        'for srv': 'confirm the delivery and mark SRV Done', 'srv done': 'send it on (approval or In Process)',
+        'for approval': 'approve or reject it', 'ceo approval': 'CEO to approve it',
+        'report': 'prepare the report and send it for approval', 'report approval': 'approve the report',
+        'report approved': 'send it on to In Process', 'approved': 'process it: move it to its next step',
+        'rejected': 'read the approver note, fix it and send it again', 'in process': 'get the CEO/COO approval, then send it With Accounts',
+        'on hold': 'follow up why it is on hold', 'for ipc': 'prepare the IPC', 'ipc application': 'work the IPC application',
+        'ipc processed': 'wait for the actual invoice, then enter it', 'for summary': 'add it to the summary',
+        'unresolved': 'resolve the issue with the vendor or site', 'with accounts': 'pay it', 'po close out': 'confirm the remaining quantity and close the PO',
+        'pending source': 'confirm and send the items', 'pending admin': 'authorize the request', 'in transit': 'confirm the items were received',
+        'pending confirmation': 'confirm the actual usage'
+    };
+    function nextStep(status) { return NEXT_STEP[norm(status)] || 'open it and move it to its next step'; }
+
     function compactTask(r) {
         const o = { type: r.type || r.kind, po: r.po || undefined, ref: r.ref || undefined, vendor: r.vendor || undefined, site: r.site || undefined,
-            status: r.status || undefined, amount: r.amount ? money(r.amount) : undefined, waiting_days: rowWaitDays(r) };
+            status: r.status || undefined, amount: r.amount ? money(r.amount) : undefined, waiting_days: rowWaitDays(r), next: nextStep(r.status) };
         if (r.note) o.note = String(r.note).slice(0, 80);
         return o;
     }
     function compactJob(j) {
         return { control: j.control, type: j.type, product: j.product, step: j.step, from: j.from || undefined, to: j.to || undefined,
-            qty: j.qty || undefined, requestor: j.requestor || undefined, waiting_days: daysSince(j.at) };
+            qty: j.qty || undefined, requestor: j.requestor || undefined, waiting_days: daysSince(j.at), next: nextStep(j.step) };
     }
     function oldestFirst(a, b) { return (a.at || 9e15) - (b.at || 9e15); }
 
@@ -408,9 +434,11 @@
         const result = {
             active_task: w.counts.task || tasks.length,
             active_job: w.counts.job || jobs.length,
+            new_today: tasks.concat(jobs).filter((t) => t.at && new Date(Number(t.at) || t.at).toDateString() === new Date().toDateString()).length,
             tasks_by_status: byStatus,
             oldest_tasks: tasks.slice(0, 8).map(compactTask),
             inventory_jobs: jobs.slice(0, 6).map(compactJob),
+            reminders_for_you: remList.filter((r) => !r.seenAt).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
             inventory_not_loaded: w.jobsNotLoaded || 0,
             po_closeout: closeout || undefined
         };
@@ -787,6 +815,7 @@
                         (i.also_with ? '<br><small>Also in the Active Job of ' + esc(i.also_with) + ' (Attention).</small>' : '') + '</p>';
                     h += '<div class="iba-ai-trf-flow">' + i.flow.map((s, n) => '<span class="' + (i.step_no && n + 1 < i.step_no ? 'is-done' : (i.step_no === n + 1 ? 'is-now' : '')) + '">' + esc(s) + '</span>').join('<i class="fa-solid fa-chevron-right"></i>') + '</div>';
                     if (i.problems) h += '<ul class="iba-ai-warn">' + i.problems.map((w) => '<li>' + esc(w) + '</li>').join('') + '</ul>';
+                    if (i.waiting_for) h += '<div class="iba-ai-trk-acts"><button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ control: i.control || t.control, type: t.type, step: i.next, with: i.waiting_for, days: i.days_at_step })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(i.waiting_for) + '</button></div>';
                 } else {
                     h += '<p class="iba-ai-foot">' + esc(i.step) + ':</p>';
                 }
@@ -1012,11 +1041,15 @@
     // ------------------------------------------------------------------
     // Track an invoice (patch 13) - no AI needed
     // ------------------------------------------------------------------
-    const STAGES = ['Reception', 'Invoice Entry', 'SRV', 'Approval', 'Accounts', 'Paid'];
+    // 15.0.0 patch 9: the stages as IBA works: the approvals of the SRV
+    // (For Approval, Report ...) belong to the SRV step, and In Process /
+    // CEO Approval are the CEO-COO approval, just before Accounts.
+    const STAGES = ['Reception', 'Invoice Entry', 'SRV', 'CEO/COO Approval', 'Accounts', 'Paid'];
     const STAGE_OF = {
-        'under review': 1, 'in process': 1, 'for summary': 1,
+        'under review': 1, 'for summary': 1, 'pending': 1,
         'for srv': 2, 'srv done': 2, 'no need srv': 2,
-        'for approval': 3, 'ceo approval': 3, 'report': 3, 'report approval': 3, 'report approved': 3,
+        'for approval': 2, 'report': 2, 'report approval': 2, 'report approved': 2, 'approved': 2, 'rejected': 2,
+        'in process': 3, 'ceo approval': 3,
         'with accounts': 4, 'paid': 5
     };
     const MAX_POS = 10;
@@ -1139,8 +1172,14 @@
         const paidAt = lastOf('paid');
         const accAt = lastOf('with accounts');
         const enteredAt = (hist[0] && hist[0].at) || Number(inv.createdAt) || 0;
+        // steps the invoice went past without passing through them
+        const seenStages = new Set(hist.map((h) => stageOf(h.status)).filter((x) => x >= 0));
+        seenStages.add(st);
+        const skipped = [];
+        for (let i = 2; i < st; i++) if (!seenStages.has(i)) skipped.push(i);
         return {
             kind: 'invoice', invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
+            skipped: skipped.length ? skipped.map((i) => STAGES[i]) : undefined, skipped_index: skipped.length ? skipped : undefined,
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
@@ -1233,10 +1272,12 @@
         if (!list.length) return { mode: 'none', message: 'Nothing matches that site / year.' };
         list.sort((a, b) => (b.when || 0) - (a.when || 0));
         const vendorLabel = poQ ? (list[0].vendor || '') : (list[0].vendor || vendor);
-        if (!poQ && list.length > MAX_POS && !(site && year)) {
-            return { mode: 'summary', vendor: vendorLabel, total: list.length, by_year: countBy(list, 'year'), by_site: countBy(list, 'siteLabel'),
-                query: { vendor: vendor, site: site, year: year },
-                ask: 'Too many to show at once. Ask which year and/or site.' };
+        // 15.0.0 patch 9: a vendor with many POs shows its newest POs first,
+        // then its sites to look further (no more "unknown" year step)
+        let bySite = null;
+        if (!poQ && list.length > MAX_POS && !site) {
+            bySite = countBy(list, 'siteLabel');
+            delete bySite.unknown;
         }
         const shown = list.slice(0, MAX_POS);
         const jobs = await ensureJobs(shown.map((p) => p.po));
@@ -1253,6 +1294,7 @@
         }));
         const posOut = year ? pos.filter((p) => p.items.length || p.year === year) : pos;
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
+            by_site: bySite || undefined,
             year_rule: year ? 'Invoices with invoice date or paid date in ' + year : undefined,
             query: { po: poQ, vendor: vendor, site: site, year: year }, pos: posOut };
     }
@@ -1700,7 +1742,18 @@
         const c = getCfg();
         if (!ready()) throw Object.assign(new Error('The assistant is not set up yet.'), { setup: true });
         const body = { model: c.model, messages: messages, temperature: 0.3, max_tokens: 1200 };
-        if (withTools) { body.tools = toolDefs().map((t) => ({ type: 'function', function: t })); body.tool_choice = 'auto'; }
+        if (withTools) {
+            // 15.0.0 patch 9: Gemini refuses a tool whose parameters have no fields
+            // ("properties: should be non-empty for OBJECT type"), which made
+            // every question fail after a successful Test.
+            body.tools = toolDefs().map((t) => {
+                const fn = Object.assign({}, t);
+                const props = fn.parameters && fn.parameters.properties;
+                if (!props || !Object.keys(props).length) delete fn.parameters;
+                return { type: 'function', function: fn };
+            });
+            body.tool_choice = 'auto';
+        }
         if (c.brain === 'groq' && /gpt-oss/i.test(c.model) && !(opts && opts.noReasoningEffort)) body.reasoning_effort = 'low';
         const headers = { 'Content-Type': 'application/json' };
         if (c.key) headers.Authorization = 'Bearer ' + c.key;
@@ -1724,8 +1777,13 @@
                 const ra = Number(res.headers.get('retry-after')) || 0;
                 throw Object.assign(new Error('The free limit is used up for now.'), { rate: true, retryAfter: ra });
             }
-            if (res.status === 401 || res.status === 403) throw Object.assign(new Error('The key was not accepted. Check it in Setup.'), { setup: true });
-            if (res.status === 404) throw Object.assign(new Error('Model "' + c.model + '" was not found. Check the model name in Setup.'), { setup: true });
+            const m = String(msg);
+            if (res.status === 401 || res.status === 403 || /api.?key.*(not valid|invalid)|API_KEY_INVALID|permission/i.test(m)) {
+                throw Object.assign(new Error('The key was not accepted' + (c.brain === 'gemini' ? ' by Google. Copy the key again from aistudio.google.com (it starts with "AIza") and paste it without spaces.' : '. Check it in Setup.')), { setup: true });
+            }
+            if (res.status === 404 || /model.*not (found|supported)|is not found for API version/i.test(m)) {
+                throw Object.assign(new Error('Model "' + c.model + '" was not found.' + (c.brain === 'gemini' ? ' Use gemini-2.5-flash.' : ' Check the model name in Setup.')), { setup: true });
+            }
             throw new Error(String(msg).slice(0, 300));
         }
         const choice = data && data.choices && data.choices[0];
@@ -1754,9 +1812,13 @@
             finally { state.busy = false; setBusy(false); }
             return;
         }
+        if (!ready() && /\b(brief|waiting|today|remind(?:er)?s?|my tasks?|pending)\b/i.test(text)) {
+            addUser(text);
+            return openBrief();
+        }
         if (!ready()) {
             addUser(text);
-            addNote(isSuper() ? 'Let\'s set me up first: it takes 2 minutes and is free.' : 'To ask in plain words, add your own free key in Setup (2 minutes). Tracking an invoice works without it.', 'setup');
+            addNote(isSuper() ? 'Let\'s set me up first: it takes 2 minutes and is free.' : 'To ask in plain words, add your own free key in Setup (2 minutes). Today\'s brief (sun button), tracking and reminders work without it.', 'setup');
             showView('setup');
             return;
         }
@@ -1864,11 +1926,72 @@
         saveSkills(list.slice(0, 40));
         return true;
     }
+    // 15.0.0 patch 9: a saved number (PO, transfer, vehicle...) is a blank
+    // that the skill asks for each time it runs, so "Show PO 12345" works
+    // for any PO. Skills without numbers run straight away as before.
+    const SKILL_PARAM_KEYS = { po: 'PO number', pos: 'PO number(s)', control: 'Transfer number', text: 'Vehicle / item / words', vendor: 'Vendor', site: 'Site', person: 'Person', with: 'Person' };
+    function skillParams(sk) {
+        const out = [];
+        const seen = {};
+        (sk.steps || []).forEach((st) => {
+            const a = st.args || {};
+            Object.keys(a).forEach((k) => {
+                const v = a[k];
+                if (v === null || v === undefined || typeof v === 'object' || typeof v === 'boolean') return;
+                const sv = String(v).trim();
+                if (!sv) return;
+                const asks = (k === 'po' || k === 'pos' || k === 'control') || (/\d{3,}/.test(sv) && (k === 'text' || k === 'site'));
+                if (!asks || seen[sv]) return;
+                seen[sv] = true;
+                out.push({ key: k, label: SKILL_PARAM_KEYS[k] || 'Value', example: sv });
+            });
+        });
+        return out;
+    }
+    function skillWithValues(sk, values) {
+        let json = JSON.stringify(sk.steps || []);
+        let prompt = String(sk.prompt || '');
+        values.forEach((pv) => {
+            if (!pv.value || pv.value === pv.example) return;
+            const esc2 = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp(esc2(JSON.stringify(pv.example).slice(1, -1)), 'g');
+            json = json.replace(re, JSON.stringify(pv.value).slice(1, -1));
+            prompt = prompt.replace(new RegExp(esc2(pv.example), 'g'), pv.value);
+        });
+        return Object.assign({}, sk, { steps: JSON.parse(json), prompt: prompt });
+    }
+    function askSkillValues(sk, params) {
+        return new Promise((resolve) => {
+            const f = document.createElement('form');
+            f.className = 'iba-ai-card is-action iba-ai-skill-ask';
+            f.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> ' + esc(sk.name) + '</div>' +
+                params.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span><input type="text" data-i="' + i + '" placeholder="' + esc(p.example) + '"></label>').join('') +
+                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini" data-cancel>Cancel</button></div>';
+            put(f);
+            const first = f.querySelector('input');
+            if (first) first.focus();
+            f.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const vals = params.map((p, i) => Object.assign({}, p, { value: String((f.querySelector('input[data-i="' + i + '"]') || {}).value || '').trim() || p.example }));
+                f.querySelectorAll('input, button').forEach((x) => { x.disabled = true; });
+                resolve(vals);
+            });
+            f.querySelector('[data-cancel]').addEventListener('click', () => { f.remove(); resolve(null); });
+        });
+    }
     async function runSkill(name) {
-        const sk = skills().find((s) => norm(s.name) === norm(name));
+        let sk = skills().find((s) => norm(s.name) === norm(name));
         if (!sk || state.busy) return;
         showView('chat');
-        addUser('▶ ' + sk.name, true);
+        const params = skillParams(sk);
+        if (params.length) {
+            const vals = await askSkillValues(sk, params);
+            if (!vals) return;
+            sk = skillWithValues(sk, vals);
+            addUser('▶ ' + sk.name + ': ' + vals.map((v) => v.value).join(', '), true);
+        } else {
+            addUser('▶ ' + sk.name, true);
+        }
         state.busy = true;
         setBusy(true);
         let minimize = false;
@@ -1921,6 +2044,7 @@
             '<header class="iba-ai-head">' +
               '<span class="iba-ai-mark" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></span>' +
               '<div class="iba-ai-title"><strong>IBA Assistant</strong><small id="iba-ai-brain"></small></div>' +
+              '<button type="button" class="iba-ai-icon" data-ai="brief" title="Today\'s brief: tasks and reminders (no key needed)"><i class="fa-solid fa-sun"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="track" title="Track an invoice"><i class="fa-solid fa-route"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="skills" title="Skills"><i class="fa-solid fa-bolt"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="setup" title="Setup"><i class="fa-solid fa-gear"></i></button>' +
@@ -1946,11 +2070,11 @@
               '<div class="iba-ai-track-out" id="iba-ai-track-out"></div>' +
             '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
-              '<button type="button" data-chip="What is waiting for me?"><i class="fa-solid fa-sun"></i> What\'s waiting?</button>' +
+              '<button type="button" data-ai="brief"><i class="fa-solid fa-sun"></i> Today\'s brief</button>' +
               '<button type="button" data-view-go="track"><i class="fa-solid fa-route"></i> Track invoice</button>' +
               '<button type="button" data-chip-fill="Show PO " data-super-only><i class="fa-solid fa-magnifying-glass"></i> Find PO</button>' +
               '<button type="button" data-chip-fill="New invoice for PO " data-super-only><i class="fa-solid fa-file-circle-plus"></i> New invoice</button>' +
-              '<button type="button" data-chip-fill="Draft a reminder to "><i class="fa-solid fa-pen-nib"></i> Draft a message</button>' +
+              '<button type="button" data-chip-fill="Draft a reminder to " data-needs-ai><i class="fa-solid fa-pen-nib"></i> Draft a message</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
@@ -1998,7 +2122,7 @@
             if (b.dataset.bubble === 'open') {
                 hideBubble();
                 toggle(true);
-                if (b.dataset.then === 'brief') { showView('chat'); runDirect('get_brief', {}); }
+                if (b.dataset.then === 'brief') openBrief();
                 if (b.dataset.then === 'setup') showView('setup');
                 if (b.dataset.then === 'track') showView('track');
             }
@@ -2019,7 +2143,13 @@
             $('iba-ai-brain').textContent = ready() ? brainLabel() : 'Not set up yet';
             syncSkillsDown();
             document.querySelectorAll('#iba-ai-panel [data-super-only]').forEach((el) => { el.hidden = !isSuper(); });
-            if (!ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) showView(isSuper() ? 'setup' : 'track');
+            document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
+            // 15.0.0 patch 10: without a key the panel opens on today's brief
+            // (tasks + reminders), which needs no AI. Super Admin still gets Setup.
+            if (!ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) {
+                if (isSuper()) showView('setup');
+                else if (!$('iba-ai-log').querySelector('.iba-ai-card.is-brief')) setTimeout(openBrief, 0);
+            }
             setTimeout(() => { const t = $('iba-ai-text'); if (t && state.view === 'chat') t.focus(); }, 30);
         }
     }
@@ -2041,6 +2171,7 @@
         const act = b.dataset.ai;
         if (act === 'close') return toggle(false);
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
+        if (act === 'brief') return openBrief();
         if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? 'chat' : act);
         if (b.dataset.viewGo) return showView(b.dataset.viewGo);
         if (b.dataset.track) {
@@ -2081,7 +2212,12 @@
             t.setSelectionRange(t.value.length, t.value.length);
             return;
         }
-        if (b.dataset.aiPo) { e.preventDefault(); return runDirect('open_po', { po: b.dataset.aiPo }); }
+        // 15.0.0 patch 9: a PO in a list shows where its invoices are (with
+        // "Open in Invoice Records"); before it tried to open Invoice Entry.
+        if (b.dataset.aiPo) { e.preventDefault(); showView('chat'); return runTrack({ po: b.dataset.aiPo }); }
+        if (b.dataset.aiRecords) { e.preventDefault(); return openInRecords(b.dataset.aiRecords); }
+        if (b.dataset.remSeen) { e.preventDefault(); const li = b.closest('li'); if (li) li.remove(); return remMarkSeen(b.dataset.remSeen); }
+        if (b.dataset.aiRemind) { e.preventDefault(); let q = {}; try { q = JSON.parse(b.dataset.aiRemind); } catch (_) {} return openRemind(q, b); }
         if (b.dataset.aiNewInv) { showView('chat'); const t = $('iba-ai-text'); t.value = 'New invoice for PO ' + b.dataset.aiNewInv + ': '; t.focus(); return; }
         if (b.dataset.copy !== undefined) {
             const msg = b.closest('.iba-ai-msg');
@@ -2119,6 +2255,19 @@
         }
     }
 
+    // 15.0.0 patch 10: today's brief for everyone, key or not. Waits a few
+    // seconds for the waiting list (Active Task / Active Job) after login.
+    let briefBusy = false;
+    async function openBrief() {
+        if (briefBusy) return;
+        briefBusy = true;
+        try {
+            showView('chat');
+            for (let i = 0; i < 8; i++) { const w = waiting(); if (w && w.running) break; await new Promise((r) => setTimeout(r, 1250)); }
+            await runDirect('get_brief', {});
+        } finally { briefBusy = false; }
+    }
+
     async function runDirect(tool, args) {
         if (state.busy) return;
         state.busy = true;
@@ -2126,6 +2275,7 @@
         try {
             const out = await runTool(tool, args);
             if (out.card) addCard(out.card);
+            else if (out.result && out.result.error) addError(new Error(out.result.error));
             if (out.minimize) peek(out.card && out.card.data && out.card.data.text ? out.card.data.text : 'Done.');
         } finally { state.busy = false; setBusy(false); }
     }
@@ -2216,13 +2366,144 @@
     }
 
     // ---- cards (what the jobs found) -------------------------------------
-    function poLink(po) { return po ? '<button type="button" class="iba-ai-po" data-ai-po="' + esc(po) + '" title="Open on Invoice Entry">' + esc(po) + '</button>' : ''; }
+    function poLink(po) { return po ? '<button type="button" class="iba-ai-po" data-ai-po="' + esc(po) + '" title="Show this PO\'s invoices">' + esc(po) + '</button>' : ''; }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 9: reminders. "Remind" on a PO or transfer writes a short
+    // note for a person (iba_assistant/reminders/{person}); their assistant
+    // shows it until they mark it seen. Optional WhatsApp with the same text.
+    // ------------------------------------------------------------------
+    const REM_SEEN_KEY = 'iba-ai-rem-shown-v1';
+    let remList = [];
+    let remRef = null;
+    function remSafe(n) { return String(n || '').trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_'); }
+    function remText(q) {
+        const me = myName() || 'IBA';
+        if (q.control) {
+            return 'Reminder from ' + me + ': ' + q.control + (q.type ? ' (' + q.type + ')' : '') + ' is waiting for you' + (q.step ? ' - ' + q.step : '') +
+                (q.days != null ? ', ' + q.days + ' day' + (q.days === 1 ? '' : 's') : '') + '. Please action it in Active Job. Thank you.';
+        }
+        const lines = ['Reminder from ' + me + ': PO ' + q.po];
+        (q.items || []).slice(0, 6).forEach((it) => lines.push('- ' + [it.no, it.status, it.days != null ? 'waiting ' + it.days + ' day' + (it.days === 1 ? '' : 's') : ''].filter(Boolean).join(' · ')));
+        lines.push('Please action it. Thank you.');
+        return lines.join('\n');
+    }
+    function remDefaultTo(q) {
+        if (q.with) return q.with;
+        const it = (q.items || []).find((i) => i.with && !/^accounts$/i.test(i.with));
+        return it ? String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0] : '';
+    }
+    function openRemind(q, btn) {
+        const card = btn.closest('.iba-ai-card') || btn.parentElement;
+        const old = card.querySelector('.iba-ai-remind');
+        if (old) { old.remove(); return; }
+        const box = document.createElement('div');
+        box.className = 'iba-ai-remind';
+        const listId = 'iba-ai-rem-people-' + Date.now();
+        box.innerHTML = '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Remind</div>' +
+            '<label class="iba-ai-rem-row"><span>To</span><input type="text" list="' + listId + '" class="iba-ai-rem-to" placeholder="Name" value="' + esc(remDefaultTo(q)) + '"></label>' +
+            '<datalist id="' + listId + '">' + people().map((p) => '<option value="' + esc(p.value) + '">' + esc([p.position, p.site].filter(Boolean).join(' · ')) + '</option>').join('') + '</datalist>' +
+            '<textarea class="iba-ai-rem-text" rows="4">' + esc(remText(q)) + '</textarea>' +
+            '<div class="iba-ai-rem-acts"><button type="button" class="iba-ai-mini is-main" data-rem-send><i class="fa-solid fa-paper-plane"></i> Send reminder</button>' +
+            '<button type="button" class="iba-ai-mini" data-rem-wa><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>' +
+            '<span class="iba-ai-rem-msg"></span></div>';
+        card.appendChild(box);
+        const msg = box.querySelector('.iba-ai-rem-msg');
+        const who = () => {
+            const typed = String(box.querySelector('.iba-ai-rem-to').value || '').trim();
+            const p = people().find((x) => norm(x.value) === norm(typed));
+            return p ? p.value : '';
+        };
+        box.addEventListener('click', async (e) => {
+            const b = e.target.closest('button');
+            if (!b) return;
+            e.stopPropagation();
+            const to = who();
+            const text = String(box.querySelector('.iba-ai-rem-text').value || '').trim();
+            if (!to) { msg.textContent = 'Pick a name from the list.'; msg.className = 'iba-ai-rem-msg is-bad'; return; }
+            if (!text) { msg.textContent = 'Write a message.'; msg.className = 'iba-ai-rem-msg is-bad'; return; }
+            if (b.hasAttribute('data-rem-wa')) {
+                if (window.ibaApprovals && window.ibaApprovals.whatsAppTo) await window.ibaApprovals.whatsAppTo(to, text);
+                return;
+            }
+            if (b.hasAttribute('data-rem-send')) {
+                const d = mainDb();
+                if (!d) { msg.textContent = 'Firebase is not ready.'; return; }
+                b.disabled = true;
+                try {
+                    const ref = d.ref('iba_assistant/reminders/' + remSafe(to)).push();
+                    const sentPath = 'iba_assistant/reminders_sent/' + remSafe(myName()) + '/' + ref.key;
+                    const row = { from: myName() || '', to: to, text: text, po: q.po || '', control: q.control || '', at: firebase.database.ServerValue.TIMESTAMP, sentPath: sentPath };
+                    await Promise.all([ref.set(row), d.ref(sentPath).set({ to: to, text: text, po: q.po || '', control: q.control || '', at: firebase.database.ServerValue.TIMESTAMP })]);
+                    msg.textContent = 'Sent to ' + to + '. It shows in their assistant until they mark it seen.';
+                    msg.className = 'iba-ai-rem-msg is-ok';
+                } catch (err) {
+                    msg.textContent = 'Could not send: ' + ((err && err.message) || err);
+                    msg.className = 'iba-ai-rem-msg is-bad';
+                    b.disabled = false;
+                }
+            }
+        });
+        box.querySelector('.iba-ai-rem-to').focus();
+    }
+    function remindersHtml() {
+        const open = remList.filter((r) => !r.seenAt);
+        if (!open.length) return '';
+        return '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Reminders for you</div><ul class="iba-ai-rows iba-ai-remlist">' + open.map((r) =>
+            '<li><span class="iba-ai-grow"><b>' + esc(r.from || 'Someone') + '</b> · ' + esc(fmtDate(Number(r.at) || 0)) + '<small class="iba-ai-rem-body">' + esc(r.text) + '</small></span>' +
+            (r.po ? poLink(r.po) : '') + (r.control ? '<button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '">' + esc(r.control) + '</button>' : '') +
+            '<button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></li>').join('') + '</ul>';
+    }
+    async function remMarkSeen(id) {
+        const d = mainDb();
+        const r = remList.find((x) => x.id === id);
+        if (!d || !r) return;
+        const upd = {};
+        upd['iba_assistant/reminders/' + remSafe(myName()) + '/' + id + '/seenAt'] = firebase.database.ServerValue.TIMESTAMP;
+        if (r.sentPath) upd[r.sentPath + '/seenAt'] = firebase.database.ServerValue.TIMESTAMP;
+        try { await d.ref().update(upd); } catch (_) {
+            try { await d.ref('iba_assistant/reminders/' + remSafe(myName()) + '/' + id + '/seenAt').set(firebase.database.ServerValue.TIMESTAMP); } catch (__) {}
+        }
+    }
+    function startReminders() {
+        const d = mainDb();
+        const me = myName();
+        if (!d || !me || remRef) return;
+        remRef = d.ref('iba_assistant/reminders/' + remSafe(me)).limitToLast(30);
+        remRef.on('value', (snap) => {
+            const v = (snap && snap.val()) || {};
+            remList = Object.keys(v).map((k) => Object.assign({ id: k }, v[k] || {})).sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
+            const open = remList.filter((r) => !r.seenAt);
+            const fab = $('iba-ai-fab');
+            if (fab) { fab.classList.toggle('has-reminder', open.length > 0); fab.setAttribute('data-rem', open.length ? String(open.length) : ''); }
+            // a new one: say it once
+            const shown = lsGet(REM_SEEN_KEY, []);
+            const fresh = open.filter((r) => shown.indexOf(r.id) === -1);
+            if (fresh.length) {
+                lsSet(REM_SEEN_KEY, shown.concat(fresh.map((r) => r.id)).slice(-100));
+                const r = fresh[0];
+                showBubble('<i class="fa-solid fa-bell"></i><div class="iba-ai-bubble-text"><b>Reminder from ' + esc(r.from || 'someone') + '</b><br>' + esc(String(r.text || '').split('\n')[0].slice(0, 140)) + '</div>' +
+                    '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="brief">Open</button><button type="button" data-bubble="x" title="Dismiss">×</button></div>', 30000);
+            }
+        }, () => { /* no access: reminders off */ });
+    }
+    function stopReminders() { try { if (remRef) remRef.off(); } catch (_) {} remRef = null; remList = []; }
+
+    // 15.0.0 patch 9: Invoice Records, searched for this PO
+    async function openInRecords(po) {
+        if (typeof window.ibaOpenShellPage === 'function') { try { await window.ibaOpenShellPage('im-reporting'); } catch (_) {} }
+        await wait(500);
+        const input = $('im-reporting-search');
+        const form = $('im-reporting-form');
+        if (input) { input.value = po; input.dispatchEvent(new Event('input', { bubbles: true })); }
+        if (form) { if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); }
+        peek('PO ' + po + ' in Invoice Records.');
+    }
     function ageChip(days) {
         if (days === null || days === undefined) return '';
         const tone = days >= 30 ? 'critical' : days >= 8 ? 'alert' : days >= 3 ? 'watch' : 'fresh';
         return '<span class="iba-ai-age is-' + tone + '">' + days + 'd</span>';
     }
-    const STAGE_SHORT = ['Reception', 'Entry', 'SRV', 'Approval', 'Accounts', 'Paid'];
+    const STAGE_SHORT = ['Reception', 'Entry', 'SRV', 'CEO/COO', 'Accounts', 'Paid'];
     function trackQueryAttr(base, extra) { return esc(JSON.stringify(Object.assign({}, base || {}, extra || {}))); }
     function trackHtml(r) {
         if (!r || r.mode === 'error') return '<div class="iba-ai-card-head is-bad"><i class="fa-solid fa-circle-exclamation"></i> ' + esc((r && r.message) || 'Something went wrong.') + '</div>';
@@ -2245,9 +2526,10 @@
             : 'Showing the ' + esc(r.shown) + ' newest; ' + esc(r.more) + ' more. Add a site or year to narrow it down.') + '</p>';
         if (r.year_rule) h += '<p class="iba-ai-foot">' + esc(r.year_rule) + '.</p>';
         r.pos.forEach((p) => {
+            const inRecords = p.items.some((it) => it.kind === 'invoice');
             h += '<div class="iba-ai-trk-po"><div class="iba-ai-trk-po-head"><b>PO ' + esc(p.po) + '</b><span>' + esc([p.vendor, p.site, p.year].filter(Boolean).join(' · ')) + '</span>' +
                 (p.po_value ? '<span class="iba-ai-trk-val">QAR ' + esc(p.po_value) + '</span>' : '') + '</div>';
-            if (!p.items.length) h += '<p class="iba-ai-empty">No invoice received yet for this PO.</p>';
+            if (!p.items.length) h += '<p class="iba-ai-empty">No invoice received yet for this PO - it is not in Invoice Records.</p>';
             p.items.forEach((it) => {
                 const side = !!it.side_status;
                 const now = it.side_status || it.status;
@@ -2256,13 +2538,23 @@
                     '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + '</strong><small>' + esc(who) + '</small></span>' +
                     (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
                     (it.invoice_date || it.paid_on || it.with_accounts_on ? '<div class="iba-ai-trk-dates">' + [it.invoice_date ? 'Invoice ' + esc(it.invoice_date) : '', it.with_accounts_on ? 'With Accounts ' + esc(it.with_accounts_on) : '', it.paid_on ? 'Paid ' + esc(it.paid_on) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
-                    '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + (i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"><span></span>' + lbl + '</li>').join('') + '</ol>' +
+                    '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + ((it.skipped_index || []).indexOf(i) !== -1 ? 'is-skipped' : i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"' + ((it.skipped_index || []).indexOf(i) !== -1 ? ' title="Skipped"' : '') + '><span></span>' + lbl + '</li>').join('') + '</ol>' +
+                    (it.skipped ? '<div class="iba-ai-trk-dates">Skipped: ' + esc(it.skipped.join(', ')) + '</div>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
             });
+            if (inRecords) h += '<div class="iba-ai-trk-acts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' +
+                '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: p.items.filter((it) => it.kind === 'invoice' && it.stage_index < 5).map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind</button></div>';
+            else if (!p.items.length) h += '';
             h += '</div>';
         });
+        if (r.by_site && Object.keys(r.by_site).length) {
+            const base = r.query || {};
+            const sites = Object.keys(r.by_site).sort();
+            h += '<div class="iba-ai-sub">Not in the newest? Look in a site</div><div class="iba-ai-chiprow">' + sites.map((st) =>
+                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
+        }
         return h;
     }
     // ------------------------------------------------------------------
@@ -2396,15 +2688,19 @@
                 '<div class="iba-ai-stats">' +
                   '<div><b>' + esc(r.active_task) + '</b><span>Active Task</span></div>' +
                   '<div><b>' + esc(r.active_job) + '</b><span>Active Job</span></div>' +
+                  '<div><b>' + esc(r.new_today || 0) + '</b><span>New today</span></div>' +
                   (r.po_closeout ? '<div><b>' + esc(r.po_closeout.ready_to_close) + '</b><span>Ready to close</span></div>' : '') +
                 '</div>';
+            h += remindersHtml();
             if (x.tasks.length) {
-                h += '<div class="iba-ai-sub">Oldest waiting</div><ul class="iba-ai-rows">' + x.tasks.map((t) =>
-                    '<li>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc(t.status) + (t.amount ? ' · QAR ' + esc(money(t.amount)) : '') + '</small></span>' + ageChip(daysSince(t.at)) + '</li>').join('') + '</ul>';
+                h += '<div class="iba-ai-sub">Waiting for you - and what to do next</div><ul class="iba-ai-rows">' + x.tasks.map((t) =>
+                    '<li>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small>' +
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) + '</li>').join('') + '</ul>';
             }
             if (x.jobs.length) {
                 h += '<div class="iba-ai-sub">Inventory waiting for your step</div><ul class="iba-ai-rows">' + x.jobs.map((j) =>
-                    '<li><span class="iba-ai-tag">' + esc(j.control) + '</span><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small></span>' + ageChip(daysSince(j.at)) + '</li>').join('') + '</ul>';
+                    '<li><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small>' +
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) + '</li>').join('') + '</ul>';
             }
             if (!x.tasks.length && !x.jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
             if (r.po_closeout) h += '<p class="iba-ai-foot">PO Close Out: ' + esc(r.po_closeout.waiting_site) + ' waiting at Site, ' + esc(r.po_closeout.ready_to_close) + ' ready to close.</p>';
@@ -2535,14 +2831,20 @@
         const box = $('iba-ai-skills');
         const list = skills();
         box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> Skills</h3>' +
-            '<p class="iba-ai-help">A skill repeats a job that worked, in one click, without the AI (no quota used). Save one with "Save as skill" under an answer.</p>' +
+            '<p class="iba-ai-help">A skill repeats a job that worked, in one click, without the AI (no quota used). Save one with "Save as skill" under an answer. A number in it (PO, transfer, vehicle) is asked for each time you run it.</p>' +
             (list.length ? '<ul class="iba-ai-skill-list">' + list.map((s) =>
-                '<li><div class="iba-ai-grow"><strong>' + esc(s.name) + '</strong><small>' + esc(s.prompt) + '</small><small>' + s.steps.length + ' step' + (s.steps.length === 1 ? '' : 's') + ' · ' + esc(fmtDate(s.at)) + '</small></div>' +
+                '<li><div class="iba-ai-grow"><strong>' + esc(s.name) + '</strong><small>' + esc(s.prompt) + '</small><small>' + s.steps.length + ' step' + (s.steps.length === 1 ? '' : 's') + ' · ' + esc(fmtDate(s.at)) +
+                (skillParams(s).length ? ' · asks for: ' + esc(skillParams(s).map((p) => p.label).join(', ')) : '') + '</small></div>' +
                 '<button type="button" class="iba-ai-mini is-main" data-run-skill="' + esc(s.name) + '"><i class="fa-solid fa-play"></i> Run</button>' +
                 '<button type="button" class="iba-ai-mini" data-del-skill="' + esc(s.name) + '" title="Delete"><i class="fa-solid fa-trash"></i></button></li>').join('') + '</ul>'
             : '<p class="iba-ai-empty"><i class="fa-solid fa-bolt"></i> No skills yet.</p>');
     }
 
+    function brainHelpHtml(b) {
+        let h = esc(b.keyHelp) + (b.keyUrl ? ' <a href="' + esc(b.keyUrl) + '" target="_blank" rel="noopener">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : '');
+        if (b.guide && b.guide.length) h += '<ol class="iba-ai-guide">' + b.guide.map((g) => '<li>' + esc(g) + '</li>').join('') + '</ol>';
+        return h;
+    }
     function renderSetup() {
         const box = $('iba-ai-setup');
         const c = getCfg();
@@ -2550,12 +2852,12 @@
         box.innerHTML = '<h3><i class="fa-solid fa-gear"></i> Setup</h3>' +
             '<label class="iba-ai-field"><span>Brain</span><select id="iba-ai-brain-pick">' + Object.keys(BRAINS).map((k) =>
                 '<option value="' + k + '"' + (k === c.brain ? ' selected' : '') + '>' + esc(BRAINS[k].label) + (k === 'groq' ? ' — recommended' : '') + '</option>').join('') + '</select></label>' +
-            '<p class="iba-ai-help" id="iba-ai-key-help">' + esc(b.keyHelp) + (b.keyUrl ? ' <a href="' + esc(b.keyUrl) + '" target="_blank" rel="noopener">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : '') + '</p>' +
+            '<div class="iba-ai-help" id="iba-ai-key-help">' + brainHelpHtml(b) + '</div>' +
             '<label class="iba-ai-field" id="iba-ai-key-row"' + (b.needsKey ? '' : ' hidden') + '><span>API key</span><input id="iba-ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the key here" value="' + esc(c.key) + '"/></label>' +
             '<label class="iba-ai-field"><span>Model</span><input id="iba-ai-model" type="text" spellcheck="false" value="' + esc(c.model) + '"/></label>' +
             '<label class="iba-ai-field"><span>Address</span><input id="iba-ai-url" type="text" spellcheck="false" value="' + esc(c.baseUrl) + '"/></label>' +
             (isSuper() ? '<label class="iba-ai-field"><span>Who can use the assistant</span><select id="iba-ai-aud">' +
-                '<option value="everyone"' + (audience !== 'me' ? ' selected' : '') + '>Everyone (each with their own key; tracking needs no key)</option>' +
+                '<option value="everyone"' + (audience !== 'me' ? ' selected' : '') + '>Everyone (brief, reminders and tracking need no key)</option>' +
                 '<option value="me"' + (audience === 'me' ? ' selected' : '') + '>Only me</option></select></label>' : '') +
             '<div class="iba-ai-setup-actions"><button type="button" class="iba-ai-btn is-main" id="iba-ai-save"><i class="fa-solid fa-floppy-disk"></i> Save</button>' +
             '<button type="button" class="iba-ai-btn" id="iba-ai-test"><i class="fa-solid fa-plug-circle-check"></i> Test</button></div>' +
@@ -2570,7 +2872,7 @@
             $('iba-ai-key-row').hidden = !nb.needsKey;
             const saved = lsGet(cfgKey(), {}) || {};
             $('iba-ai-key').value = saved.brain === pick.value ? (saved.key || '') : '';
-            $('iba-ai-key-help').innerHTML = esc(nb.keyHelp) + (nb.keyUrl ? ' <a href="' + esc(nb.keyUrl) + '" target="_blank" rel="noopener">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : '');
+            $('iba-ai-key-help').innerHTML = brainHelpHtml(nb);
         });
         const save = () => {
             const brain = pick.value;
@@ -2597,15 +2899,26 @@
         $('iba-ai-test').addEventListener('click', async () => {
             save();
             const st = $('iba-ai-setup-status');
+            const cfg = getCfg();
             st.className = 'iba-ai-status';
-            st.textContent = 'Testing…';
+            if (cfg.brain === 'gemini' && cfg.key && !/^AIza/.test(cfg.key)) {
+                st.className = 'iba-ai-status is-bad';
+                st.textContent = 'This does not look like a Gemini key. A Gemini key starts with "AIza". Create one at aistudio.google.com > Get API key.';
+                return;
+            }
+            st.textContent = 'Testing the key…';
             try {
                 const m = await callBrain([{ role: 'system', content: 'Reply with exactly: OK' }, { role: 'user', content: 'Test' }], false);
+                // 15.0.0 patch 9: also test a real question with the tools, as the chat uses them
+                st.textContent = 'Key works. Testing a real question…';
+                await callBrain([{ role: 'system', content: 'Answer in one word.' }, { role: 'user', content: 'Say OK.' }], true);
                 st.className = 'iba-ai-status is-ok';
-                st.textContent = 'Working. The brain answered: ' + String(m.content || '').trim().slice(0, 60);
+                st.textContent = 'Working. The brain answered: ' + String(m.content || '').trim().slice(0, 60) + ' - questions with tools work too.';
             } catch (err) {
                 st.className = 'iba-ai-status is-bad';
-                st.textContent = (err && err.message) || String(err);
+                st.textContent = (err && err.rate) ? 'The key works, but the free limit is used up for now. Try again in a minute.'
+                    : (err && err.network) ? ((err && err.message) || 'Could not reach the service.')
+                    : ((err && err.message) || String(err));
             }
         });
     }
@@ -2616,9 +2929,16 @@
     function greetIfEmpty(force) {
         const l = log();
         if (!l || (l.children.length && !force)) return;
+        if (!ready() && !isSuper()) {
+            // 15.0.0 patch 10: without a key, only show what works without one.
+            addBot(greetingWord() + ', ' + firstName() + '. Here is what I can do for you, no key needed:\n- Sun button: today\'s brief, your tasks and reminders\n- Route button: where an invoice or a transfer (TRF, STK, USE, RET) is\n- Type a transfer number, e.g. "TRF-0361"\nTo ask in plain words, add a free key in Setup (gear button).', {});
+            const l0 = l.lastElementChild;
+            if (l0) { const t = l0.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
+            return;
+        }
         addBot(greetingWord() + ', ' + firstName() + '. How can I help?\n' + (isSuper()
             ? '- "What\'s waiting for me?"\n- "Show PO 12345"\n- "Where is the Al Noor invoice for site 177, 2025?"\n- "New invoice for PO 12345: B-300, 5,000, For SRV to Bob"\n- "Draft a reminder to Bob about PO 12345"'
-            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nTo track an invoice without the AI, use the route button above.'), {});
+            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nNo key needed: the sun button shows today\'s tasks and reminders, the route button tracks invoices and transfers.'), {});
         const last = l.lastElementChild;
         if (last) { const t = last.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
     }
@@ -2655,11 +2975,13 @@
                 ? '<b>' + nt + '</b> task' + (nt === 1 ? '' : 's') + ' and <b>' + nj + '</b> job' + (nj === 1 ? '' : 's') + ' are waiting.' +
                   (oldest && oldest.po ? ' Oldest: PO ' + esc(oldest.po) + (daysSince(oldest.at) !== null ? ' · ' + daysSince(oldest.at) + ' days' : '') + '.' : '')
                 : 'Nothing is waiting for you right now.';
-            const setup = !ready();
-            const track = setup && !isSuper();
+            const setup = !ready() && isSuper();
+            const remN = remList.filter((r) => !r.seenAt).length;
+            if (remN) line += ' <b>' + remN + '</b> reminder' + (remN === 1 ? '' : 's') + ' for you.';
             showBubble('<i class="fa-solid fa-wand-magic-sparkles"></i><div class="iba-ai-bubble-text"><strong>' + esc(greetingWord()) + ', ' + esc(firstName()) + '.</strong> ' + line +
-                (track ? '<br><small>New: ask the assistant where any invoice is, no setup needed.</small>' : setup ? '<br><small>Your assistant is ready to set up (free, 2 minutes).</small>' : '') + '</div>' +
-                '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="' + (track ? 'track' : setup ? 'setup' : 'brief') + '">' + (track ? 'Track invoice' : setup ? 'Set up' : 'Open brief') + '</button>' +
+                (setup ? '<br><small>Plain-word questions need a free key (Setup, 2 minutes).</small>' : '') + '</div>' +
+                '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="brief">Open brief</button>' +
+                (setup ? '<button type="button" data-bubble="open" data-then="setup">Set up</button>' : '') +
                 '<button type="button" data-bubble="x" title="Dismiss">×</button></div>', 20000);
         };
         setTimeout(tick, 4000);
@@ -2688,10 +3010,12 @@
             $('iba-ai-fab').hidden = false;
             refreshFab();
             briefOnce();
+            startReminders();
         } else if (!ok && on) {
             on = false;
             const fab = $('iba-ai-fab');
             if (fab) fab.hidden = true;
+            stopReminders();
             toggle(false);
             hideBubble();
             state.history = [];

@@ -34,7 +34,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '15.0.0-p1';
+    const VERSION = '15.0.0-p9';
     const $ = (id) => document.getElementById(id);
     // Status the loaded invoice was saved with; while the form still shows that
     // status, its own Attention is kept (no automatic suggestion over it).
@@ -190,6 +190,12 @@
     // ------------------------------------------------------------------
     // The list with a search line
     // ------------------------------------------------------------------
+    // 15.0.0 patch 9: the same list can serve another field (Batch Entry rows).
+    // ctx is null for the Invoice Entry box.
+    let ctx = null;
+    function anchorBox() { return ctx ? ctx.anchor : $('iba-attention-visible'); }
+    function currentValue() { return ctx ? String(ctx.current || '') : formValue(); }
+
     let menuNames = [];
     let menuGroups = { suggested: 0, others: 0, status: "" };
     let activeIndex = -1;
@@ -199,14 +205,15 @@
         if (menu) menu.remove();
         window.removeEventListener('scroll', placeMenu, true);
         window.removeEventListener('resize', placeMenu);
-        const box = $('iba-attention-visible');
+        const box = anchorBox();
         if (box) box.setAttribute('aria-expanded', 'false');
         if (focusBox && box) { try { box.focus({ preventScroll: true }); } catch (_) { box.focus(); } }
+        ctx = null;
     }
 
     function placeMenu(e) {
         const menu = $('iba-attention-menu');
-        const box = $('iba-attention-visible');
+        const box = anchorBox();
         if (!menu || !box) return;
         if (e && e.type === 'scroll' && e.target && menu.contains(e.target)) return;
         const r = box.getBoundingClientRect();
@@ -253,7 +260,7 @@
         const list = menu.querySelector('.iba-attn-list');
         const empty = menu.querySelector('.iba-attn-empty');
         const words = norm(query).split(' ').filter(Boolean);
-        const current = formValue();
+        const current = currentValue();
         let rows = menuNames.filter((item) => {
             const hay = norm(item.label + ' ' + item.value);
             return words.every((w) => hay.indexOf(w) !== -1);
@@ -304,6 +311,12 @@
     }
 
     function pick(value) {
+        if (ctx) {
+            const c = ctx;
+            closeMenu(true);
+            try { c.onPick(value, (menuNames.find((n) => n.value === value) || {}).label || value); } catch (e) { console.warn('[attention] pick failed', e); }
+            return;
+        }
         writeAttention(value);
         holdStatus = null;
         const box = $('iba-attention-visible');
@@ -316,15 +329,38 @@
         } catch (_) {}
     }
 
+    // 15.0.0 patch 9: open the list for another field.
+    // opts: { suggested: [{value,label}], current, status, onPick(value,label) }
+    function openFor(anchor, opts) {
+        opts = opts || {};
+        closeMenu(false);
+        ctx = { anchor: anchor, current: opts.current || '', onPick: opts.onPick || function () {} };
+        buildMenu(opts.suggested || [], opts.status || '', opts.initialQuery || '', anchor);
+        // close on a click outside the list and its field
+        const outside = (e) => {
+            const menu = $('iba-attention-menu');
+            if (!ctx || !menu) { document.removeEventListener('mousedown', outside, true); return; }
+            if (menu.contains(e.target) || (anchor && anchor.contains(e.target))) return;
+            document.removeEventListener('mousedown', outside, true);
+            closeMenu(false);
+        };
+        setTimeout(() => document.addEventListener('mousedown', outside, true), 0);
+    }
+    function isOpenFor(anchor) { return !!(ctx && ctx.anchor === anchor && $('iba-attention-menu')); }
+
     async function openMenu(initialQuery) {
         const box = ensureBox();
         if (!box) return;
         closeMenu(false);
         let state = namesState();
         try { if (typeof ibaPrepareAttention === 'function') state = await ibaPrepareAttention(); } catch (_) {}
-        const suggested = ((state && state.names) || []).filter((n) => n && n.value).map((n) => Object.assign({}, n, { other: false }));
+        return buildMenu((state && state.names) || [], currentStatus(), initialQuery, box);
+    }
+
+    function buildMenu(suggestedList, status, initialQuery, box) {
+        const suggested = (suggestedList || []).filter((n) => n && n.value).map((n) => Object.assign({}, n, { other: false }));
         let others = [];
-        if (!isNoneStatus(currentStatus()) && typeof ibaAllAttentionNames === 'function') {
+        if (!isNoneStatus(status) && typeof ibaAllAttentionNames === 'function') {
             const have = {};
             suggested.forEach((n) => { have[norm(n.value)] = true; });
             try {
@@ -333,7 +369,7 @@
             } catch (_) { others = []; }
         }
         menuNames = suggested.concat(others);
-        menuGroups = { suggested: suggested.length, others: others.length, status: currentStatus() };
+        menuGroups = { suggested: suggested.length, others: others.length, status: status };
         const menu = document.createElement('div');
         menu.id = 'iba-attention-menu';
         menu.className = 'iba-attn-menu';
@@ -453,9 +489,10 @@
         window.ibaWriteAttention = writeAttention;
         window.ibaPaintAttentionBox = paintBox;
         window.ibaOpenAttentionMenu = function () { return openMenu(''); };
-        window.ibaCloseAttentionMenu = function () { closeMenu(false); };
+        // the Invoice Entry timer and click handler close only their own list
+        window.ibaCloseAttentionMenu = function () { if (ctx) return; closeMenu(false); };
         wrapFormFunctions();
-        window.ibaAttentionPicker = { VERSION, formValue, writeAttention, paintBox, openMenu, closeMenu };
+        window.ibaAttentionPicker = { VERSION, formValue, writeAttention, paintBox, openMenu, closeMenu, openFor, isOpenFor };
     }
 
     install();

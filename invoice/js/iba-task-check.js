@@ -93,9 +93,17 @@
     });
 
     const byKey = new Map();
+    res.dupIds = [];
     Object.keys(invoices || {}).forEach((po) => {
       const group = invoices[po];
       if (!group || typeof group !== "object") return;
+      // 15.0.0 patch 8: the same Inv Entry ID twice on one PO (only reported)
+      const ids = {};
+      Object.keys(group).forEach((k) => {
+        const id = String((group[k] && group[k].invEntryID) || "").trim().toUpperCase();
+        if (id) (ids[id] = ids[id] || []).push(String(group[k].invNumber || k));
+      });
+      Object.keys(ids).forEach((id) => { if (ids[id].length > 1) res.dupIds.push({ po: po, id: id, invoices: ids[id] }); });
       Object.keys(group).forEach((key) => {
         const inv = group[key];
         if (!inv || typeof inv !== "object") return;
@@ -231,6 +239,12 @@
     ];
     if (!res.personalChecked) lines.push("(Personal lists could not be read, so they were not checked.)");
     if (out.failed) lines.push("Could not write " + fmt(out.failed) + " row(s). Run Check all again.");
+    if (res.dupIds && res.dupIds.length) {
+      lines.push("", "Same Inv Entry ID used twice on one PO (" + fmt(res.dupIds.length) + "). Not changed - please correct by hand:");
+      res.dupIds.slice(0, 15).forEach((d) => lines.push("  PO " + d.po + ": " + d.id + " x" + d.invoices.length + " (" + d.invoices.join(", ") + ")"));
+      if (res.dupIds.length > 15) lines.push("  ... and " + fmt(res.dupIds.length - 15) + " more (listed in the browser console).");
+      if (res.dupIds.length > 15) console.info("[IBA check] repeated Inv Entry IDs", res.dupIds);
+    }
     lines.push("", "Open invoices by status (\"yours\" are under My personal tasks):");
     return lines.concat(statusLines(res)).join("\n");
   }

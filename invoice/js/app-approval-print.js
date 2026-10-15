@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    const MODULE_VERSION = '14.0.0-p8';
+    const MODULE_VERSION = '15.0.0-p9';
     const FINAL_STATUSES = new Set(['Approved', 'Rejected']);
 
     function printButtonForRow(row) {
@@ -63,7 +63,10 @@
     }
 
     function boot() {
-        installInvoiceRecordsPrintButtons();
+        // 15.0.0 patch 9: this extra print button in Invoice Records is no longer
+        // added - the original QR (sticker) icon there is the one approval print.
+        // Active Task Print now opens that same routine.
+        document.querySelectorAll('.iba-approval-print-btn').forEach((b) => b.remove());
         console.info(`%cIBA Approval Print ${MODULE_VERSION} loaded`, 'color:#198754;font-weight:800');
     }
 

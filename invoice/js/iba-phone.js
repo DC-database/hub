@@ -15,7 +15,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p7';
+    const VERSION = '15.0.0-p9';
     const STALE_MS = 60 * 1000;
 
     const state = {
@@ -462,8 +462,21 @@
             html += `<div class="iba-ph-empty"><i class="fa-solid fa-circle-check"></i><p>Nothing is waiting for your approval.</p></div>`;
         }
         if (list.length) {
-            html += bulkBar('inv');
-            html += list.map(invCard).join('');
+            // 15.0.0 patch 9: Urgent | Normal (Note says "urgent")
+            const urgent = list.filter((t) => A().isUrgent(t));
+            const normal = list.filter((t) => !A().isUrgent(t));
+            if (!state.inv.urg || (state.inv.urg === 'urgent' && !urgent.length) || (state.inv.urg === 'normal' && !normal.length)) state.inv.urg = urgent.length ? 'urgent' : 'normal';
+            const shown = state.inv.urg === 'urgent' ? urgent : normal;
+            html += `<div class="iba-ph-urg" role="tablist">
+                <button type="button" role="tab" data-act="inv-urg" data-urg="urgent" class="is-urgent${state.inv.urg === 'urgent' ? ' is-on' : ''}"><i class="fa-solid fa-bolt"></i> Urgent <b>${urgent.length}</b></button>
+                <button type="button" role="tab" data-act="inv-urg" data-urg="normal" class="${state.inv.urg === 'normal' ? 'is-on' : ''}"><i class="fa-regular fa-clock"></i> Normal <b>${normal.length}</b></button>
+              </div>`;
+            if (shown.length) {
+                html += bulkBar('inv');
+                html += shown.map(invCard).join('');
+            } else {
+                html += `<div class="iba-ph-empty"><i class="fa-solid fa-circle-check"></i><p>Nothing ${state.inv.urg === 'urgent' ? 'urgent' : 'normal'} is waiting.</p></div>`;
+            }
         }
         pane.innerHTML = html;
         updateBulk('inv');
@@ -512,16 +525,26 @@
         busy(true, 'Approving…');
         const results = [];
         const failed = [];
-        for (let i = 0; i < tasks.length; i++) {
-            busy(true, `Approving ${i + 1} of ${tasks.length}…`);
-            try { results.push(await A().decide(tasks[i], 'Approved', { note: r.note })); }
-            catch (e) { failed.push(`${tasks[i].po} / ${tasks[i].invNumber || ''}: ${e && e.message ? e.message : e}`); }
-        }
+        // 15.0.0 patch 9: three invoices at a time instead of one by one; each
+        // still gets its own ESN and slot (both are claimed safely in Firebase).
+        let next = 0, doneCount = 0;
+        const worker = async () => {
+            while (next < tasks.length) {
+                const t = tasks[next++];
+                try { results.push(await A().decide(t, 'Approved', { note: r.note })); }
+                catch (e) { failed.push(`${t.po} / ${t.invNumber || ''}: ${e && e.message ? e.message : e}`); }
+                doneCount += 1;
+                busy(true, `Approving ${doneCount} of ${tasks.length}…`);
+            }
+        };
+        busy(true, `Approving 0 of ${tasks.length}…`);
+        await Promise.all(Array.from({ length: Math.min(3, tasks.length) }, worker));
         busy(false);
         const done = new Set(results.map(x => x.po + '_' + x.key));
         state.inv.list = state.inv.list.filter(t => !done.has(t.key));
         paintSwitch(); paintTabs(); renderInvoiceApprove();
         await showResults(results, failed);
+        try { if (A().settle) await A().settle(); } catch (_) {}
         loadInvoice(true);
     }
 
@@ -877,6 +900,7 @@
         if (!b || !b.closest('#iba-phone')) return;
         const act = b.getAttribute('data-act');
         const key = b.getAttribute('data-key');
+        if (act === 'inv-urg') { state.inv.urg = b.getAttribute('data-urg') === 'urgent' ? 'urgent' : 'normal'; renderInvoiceApprove(); return; }
         if (act === 'inv-approve') approveInvoices([key]);
         else if (act === 'inv-reject') rejectInvoice(key);
         else if (act === 'inv-approve-selected') approveInvoices(selected('inv'));

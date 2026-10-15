@@ -20,7 +20,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '14.0.0-p5';
+    const VERSION = '15.0.0-p9';
     const MAX_APPROVALS = 3;
     const SLOTS = [1, 2, 3];
 
@@ -152,6 +152,30 @@
     // ------------------------------------------------------------------
     // Approval record (manager_approved/{PO}_{key})
     // ------------------------------------------------------------------
+    // 15.0.0 patch 9: an approval is Urgent when its Note says "urgent"
+    // (any capitals; "urgently" counts too). Everything else is Normal.
+    function isUrgent(t) { return /\burgent/i.test(String((t && (t.note || t.invoiceNote)) || '')); }
+    function isApprovalStatus(s) { const n = statusNorm(s); return n === 'for approval' || n === 'ceo approval'; }
+
+    // 15.0.0 patch 9: background writes that a refresh must wait for.
+    const backgroundWrites = new Set();
+    function track(p) {
+        backgroundWrites.add(p);
+        p.finally(() => backgroundWrites.delete(p));
+        return p;
+    }
+    function settle() { return Promise.allSettled(Array.from(backgroundWrites)); }
+    // Refresh Active Task after decisions without re-downloading job records:
+    // the row is removed at once, the list is re-read quietly afterwards.
+    let refreshTimer = null;
+    function refreshAfterDecision() {
+        try { if (typeof handleActiveTaskSearch === 'function') { const i = document.getElementById('active-task-search'); handleActiveTaskSearch(i ? i.value : ''); } } catch (_) {}
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+            settle().then(() => { try { if (typeof populateActiveTasks === 'function') populateActiveTasks(false); } catch (_) {} });
+        }, 600);
+    }
+
     async function readRecord(po, key) {
         const d = mainDb();
         if (!d || !po || !key) return {};
@@ -234,6 +258,8 @@
         if (!po || !key || !idb) throw new Error('Invoice identifiers are missing. Please refresh.');
 
         const ref = idb.ref(`invoice_entries/${po}/${key}`);
+        // 15.0.0 patch 9: read the invoice and its approval record together.
+        const beforePromise = (action === 'Approved') ? readRecord(po, key).catch(() => ({})) : Promise.resolve({});
         const snap = await ref.once('value');
         const inv = snap.val();
         if (!inv) throw new Error('This invoice was not found. It may have been deleted.');
@@ -248,10 +274,11 @@
         const now = new Date();
         const ceo = isCEOUser();
         let esn = '', slot = '', count = null, esnBase = '';
+        let registryWrite = Promise.resolve();
 
         if (action === 'Approved') {
             // Quick check first, so a full invoice does not burn an ESN.
-            const before = await readRecord(po, key);
+            const before = await beforePromise;
             if (ceo && before.esn_ceo) throw new Error(`This invoice already has the CEO approval (${before.esn_ceo}).`);
             if (!ceo && countIn(before) >= MAX_APPROVALS) throw new Error(`This invoice already has ${MAX_APPROVALS} approvals.`);
 
@@ -265,7 +292,7 @@
             }
             slot = claim.slot;
             count = claim.count;
-            await registry.update({
+            registryWrite = registry.update({
                 esn, po, invoiceKey: key,
                 inv_no: inv.invNumber || '',
                 approver, slot: String(slot),
@@ -306,15 +333,18 @@
             updates.approvalCount = count;
         }
 
-        await ref.update(updates);
         const hist = { action, by: approver, timestamp: ts(), note: note || (action === 'Approved' ? 'Approved' : 'Rejected') };
         if (esn) { hist.esn = esn; hist.slot = String(slot); }
-        await ref.child('history').push(hist);
+        // 15.0.0 patch 9: the invoice, its history and the ESN register are
+        // written together; the task lists are updated right after in the
+        // background (settle() waits for them before any refresh).
+        await Promise.all([ref.update(updates), ref.child('history').push(hist), registryWrite]);
 
         const merged = Object.assign({}, inv, updates);
-        try {
-            if (typeof updateInvoiceTaskLookup === 'function') await updateInvoiceTaskLookup(po, key, merged, inv.attention || '');
-        } catch (e) { console.warn('[approvals] task lookup update failed', e); }
+        if (typeof updateInvoiceTaskLookup === 'function') {
+            track(Promise.resolve().then(() => updateInvoiceTaskLookup(po, key, merged, inv.attention || ''))
+                .catch((e) => console.warn('[approvals] task lookup update failed', e)));
+        }
         try { if (typeof updateLocalInvoiceCache === 'function') updateLocalInvoiceCache(po, key, updates); } catch (_) {}
 
         // Drop it from the in-memory Active Task list straight away.
@@ -436,7 +466,17 @@
     // Print (ESN stamp for the Site Approval area of the SRV)
     // ------------------------------------------------------------------
     let printRoot = null;
+    // 15.0.0 patch 9: Print uses the original Invoice Records sticker routine
+    // (the QR icon): it asks where to place the stamp (left / middle / right /
+    // auto) and prints the original design - APPROVED/PO(INV no.), ESN/NAME,
+    // a dashed line and the date. The older own print below is only a fallback.
     async function printStamp(po, key, inv) {
+        if (typeof window.handlePrintSticker === 'function' && po && key) {
+            return window.handlePrintSticker(key, 'Invoice', po);
+        }
+        return printStampOwn(po, key, inv);
+    }
+    async function printStampOwn(po, key, inv) {
         if (!inv) {
             try { const s = await invDb().ref(`invoice_entries/${po}/${key}`).once('value'); inv = s.val() || {}; } catch (_) { inv = {}; }
         }
@@ -707,9 +747,7 @@
                 if (row) row.remove();
             } catch (_) {}
             decisionToast([result]);
-            if (typeof populateActiveTasks === 'function') {
-                try { await populateActiveTasks(true); } catch (_) {}
-            }
+            refreshAfterDecision();
         } catch (e) {
             errEl.textContent = (e && e.message) ? e.message : String(e);
             buttons.forEach(b => { b.disabled = false; });
@@ -814,6 +852,77 @@
         }
     }
 
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 9: WhatsApp to a person in the system (their saved mobile)
+    // ------------------------------------------------------------------
+    function approverRecord(name) {
+        const n = norm(name);
+        if (!n) return null;
+        try {
+            const src = (typeof allApproverData !== 'undefined' && allApproverData) ? allApproverData : null;
+            const list = src ? (Array.isArray(src) ? src : Object.values(src)) : [];
+            return list.find((a) => a && norm(a.Name || a.name) === n) || null;
+        } catch (_) { return null; }
+    }
+    function phoneOf(name) {
+        const a = approverRecord(name);
+        let d = String((a && (a.Mobile || a.mobile || a.Phone || a.phone)) || '').replace(/\D+/g, '');
+        if (d.startsWith('00')) d = d.slice(2);
+        if (d.length === 8) d = '974' + d; // a Qatar number saved without the country code
+        return d.length >= 8 ? d : '';
+    }
+    async function ensureApprovers() {
+        try {
+            if (typeof allApproverData !== 'undefined' && allApproverData) return;
+            const snap = await mainDb().ref('approvers').once('value');
+            allApproverData = snap.val() || {};
+        } catch (_) {}
+    }
+    async function whatsAppTo(name, text) {
+        await ensureApprovers();
+        let phone = phoneOf(name);
+        if (!phone) {
+            const typed = prompt(`No mobile number is saved for ${name || 'this person'}.\nWhatsApp number (with country code):`, '974');
+            if (!typed) return false;
+            phone = String(typed).replace(/\D+/g, '');
+            if (!phone) return false;
+        }
+        window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(text), '_blank');
+        return true;
+    }
+    function waitingDays(inv) {
+        const t = Number(inv && (inv.approvalRequestedAt || inv.statusQueueAt || inv.statusChangedAt || inv.lastUpdated)) || 0;
+        return t ? Math.max(0, Math.floor((Date.now() - t) / 86400000)) : null;
+    }
+    // Invoice Records: the green WhatsApp icon on a "For Approval" invoice.
+    // It was left from the old system with nothing behind it; now it opens
+    // WhatsApp with a ready reminder for the person in Attention.
+    async function shareForApproval(po, key) {
+        let inv = null;
+        try { inv = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[po]) ? allInvoiceData[po][key] : null; } catch (_) {}
+        if (!inv) {
+            try { const s = await invDb().ref(`invoice_entries/${po}/${key}`).once('value'); inv = s.val(); } catch (_) {}
+        }
+        if (!inv) { alert('This invoice was not found.'); return; }
+        const who = String(inv.attention || '').split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i).map((x) => x.trim()).filter(Boolean)[0] || '';
+        if (!who) { alert('Nobody is in Attention for this invoice.'); return; }
+        const days = waitingDays(inv);
+        const link = pdfUrl(inv);
+        const lines = [
+            `Hello ${who},`,
+            '',
+            'A reminder: this invoice is waiting for your approval in IBA.',
+            `PO ${po} · ${inv.invNumber || inv.invEntryID || ''}${inv.vendorName || inv.vendor_name ? ' · ' + (inv.vendorName || inv.vendor_name) : ''}`,
+            `Amount: QAR ${money(inv.amountPaid || inv.invValue || 0)}`
+        ];
+        if (days !== null) lines.push(`Waiting: ${days} day${days === 1 ? '' : 's'}`);
+        if (inv.note) lines.push(`Note: ${inv.note}`);
+        if (link) lines.push('', `Invoice: ${link}`);
+        lines.push('', 'Please approve it in IBA (WorkDesk > Active Task).', `Thank you, ${myName() || 'IBA'}`);
+        await whatsAppTo(who, lines.join('\n'));
+    }
+    window.imShareInvoiceForApprovalWhatsApp = shareForApproval;
+
     // Row decoration for the Active Task table (called by app-active-tasks.js)
     function rowActionsHtml(task) {
         if (!task || !isOpenReturn(task)) return '';
@@ -849,7 +958,9 @@
         readRecord, countApprovals, approvalsList,
         decide, prepareStatusSave, loadMyInvoiceApprovals,
         openDialog, closeDialog, printStamp, sendWhatsApp, decisionToast, toast, processReturned,
-        rowActionsHtml, returnNoteText
+        rowActionsHtml, returnNoteText,
+        settle, refreshAfterDecision, isUrgent, isApprovalStatus,
+        whatsAppTo, phoneOf, shareForApproval
     };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });

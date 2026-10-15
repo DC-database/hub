@@ -625,7 +625,10 @@ const invoiceRow = e.target.closest('.nested-invoice-row');
         imReportingForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const searchTerm = imReportingSearchInput.value.trim();
-            if (!searchTerm && !document.getElementById('im-reporting-site-filter').value && !document.getElementById('im-reporting-date-filter').value && !document.getElementById('im-reporting-status-filter').value) {
+            // 15.0.0 patch 9: the old date filter box no longer exists; reading it threw an
+            // error each time Search was pressed with only Status / Month / Year chosen.
+            const fv = (id) => { const el = document.getElementById(id); return el ? String(el.value || '') : ''; };
+            if (!searchTerm && !fv('im-reporting-site-filter') && !fv('im-reporting-date-filter') && !fv('im-reporting-status-filter') && !fv('im-reporting-month-filter') && !fv('im-reporting-year-filter')) {
                 document.getElementById('im-reporting-content').innerHTML = '<p style="color: red; font-weight: bold;">Please specify at least one search criteria.</p>';
                 imUpdateInvoiceRecordsTotals([]);
                 return;

@@ -667,9 +667,21 @@ function wdActiveTaskQueueFields(task, invMeta = {}) {
     };
 }
 
+let wdAtUrgencyTab = '';
+let wdAtUrgencyStatus = '';
+window.wdSelectActiveTaskUrgency = function(kind) {
+    wdAtUrgencyTab = kind === 'urgent' ? 'urgent' : 'normal';
+    wdAtUrgencyStatus = String(currentActiveTaskFilter || '');
+    wdActiveTaskSelectedDateKey = '';
+    if (typeof handleActiveTaskSearch === 'function') {
+        const input = document.getElementById('active-task-search');
+        handleActiveTaskSearch(input ? input.value : '');
+    }
+};
+
 window.wdSelectActiveTaskDateTab = function(dateKey) {
     wdActiveTaskSelectedDateKey = String(dateKey || '');
-    wdActiveTaskSelectedDateStatus = String(currentActiveTaskFilter || '');
+    wdActiveTaskSelectedDateStatus = String(currentActiveTaskFilter || '') + '|' + ((window.ibaApprovals && window.ibaApprovals.isApprovalStatus && window.ibaApprovals.isApprovalStatus(currentActiveTaskFilter)) ? wdAtUrgencyTab : '');
     if (typeof handleActiveTaskSearch === 'function') {
         const input = document.getElementById('active-task-search');
         handleActiveTaskSearch(input ? input.value : '');
@@ -770,32 +782,50 @@ function renderWorkdeskActiveTaskTable(tasks) {
         return task.remarks === currentActiveTaskFilter;
     });
 
+    // 15.0.0 patch 9: For Approval / CEO Approval are split into Urgent and
+    // Normal (the Note says "urgent"), and the queue dates are a row of tabs
+    // with counts instead of a dropdown, so every date with entries is seen.
+    const apvRules = window.ibaApprovals || null;
+    const isApprovalTab = !!(apvRules && apvRules.isApprovalStatus && apvRules.isApprovalStatus(currentActiveTaskFilter));
+    let urgencyHtml = '';
+    let queueTasks = statusFilteredTasks;
+    if (isApprovalTab) {
+        const urgentList = statusFilteredTasks.filter(t => apvRules.isUrgent(t));
+        const normalList = statusFilteredTasks.filter(t => !apvRules.isUrgent(t));
+        if (wdAtUrgencyStatus !== String(currentActiveTaskFilter || '')) { wdAtUrgencyTab = ''; wdAtUrgencyStatus = String(currentActiveTaskFilter || ''); }
+        if (!wdAtUrgencyTab || (wdAtUrgencyTab === 'urgent' && !urgentList.length) || (wdAtUrgencyTab === 'normal' && !normalList.length)) {
+            wdAtUrgencyTab = urgentList.length ? 'urgent' : 'normal';
+        }
+        queueTasks = wdAtUrgencyTab === 'urgent' ? urgentList : normalList;
+        urgencyHtml = `<div class="wd-at-urg" role="tablist">
+                <button type="button" role="tab" class="is-urgent${wdAtUrgencyTab === 'urgent' ? ' is-on' : ''}" onclick="window.wdSelectActiveTaskUrgency('urgent')"><i class="fa-solid fa-bolt"></i> Urgent <b>${urgentList.length}</b></button>
+                <button type="button" role="tab" class="${wdAtUrgencyTab === 'normal' ? 'is-on' : ''}" onclick="window.wdSelectActiveTaskUrgency('normal')"><i class="fa-regular fa-clock"></i> Normal <b>${normalList.length}</b></button>
+            </div>`;
+    }
+
     const dateTabsEl = wdActiveTaskEnableDateTabs();
-    const dateGroups = wdActiveTaskBuildDateGroups(statusFilteredTasks);
+    const dateGroups = wdActiveTaskBuildDateGroups(queueTasks);
     if (dateTabsEl) {
-        if (!dateGroups.length) {
+        if (!dateGroups.length && !urgencyHtml) {
             wdActiveTaskClearDateTabs();
         } else {
-            if (wdActiveTaskSelectedDateStatus !== String(currentActiveTaskFilter || '')) {
+            const dateScope = String(currentActiveTaskFilter || '') + '|' + (isApprovalTab ? wdAtUrgencyTab : '');
+            if (wdActiveTaskSelectedDateStatus !== dateScope) {
                 wdActiveTaskSelectedDateKey = '';
-                wdActiveTaskSelectedDateStatus = String(currentActiveTaskFilter || '');
+                wdActiveTaskSelectedDateStatus = dateScope;
             }
-            if (!wdActiveTaskSelectedDateKey || !dateGroups.some(g => g.key === wdActiveTaskSelectedDateKey)) {
+            if (dateGroups.length && (!wdActiveTaskSelectedDateKey || !dateGroups.some(g => g.key === wdActiveTaskSelectedDateKey))) {
                 wdActiveTaskSelectedDateKey = dateGroups[0].key;
             }
             const tone = /srv/i.test(String(currentActiveTaskFilter || '')) ? 'srv' : 'entry';
-            const options = dateGroups.map(group => {
-                const selected = group.key === wdActiveTaskSelectedDateKey ? ' selected' : '';
-                return `<option value="${wdUiEscape(group.key)}"${selected}>${wdUiEscape(group.label)}</option>`;
+            const chips = dateGroups.map(group => {
+                const on = group.key === wdActiveTaskSelectedDateKey;
+                return `<button type="button" class="wd-at-date-tab${on ? ' is-on' : ''}" title="${wdUiEscape(group.fullLabel || group.label)}" onclick="window.wdSelectActiveTaskDateTab('${wdUiEscape(group.key)}')"><span>${wdUiEscape(group.label)}</span><b>${group.tasks.length}</b></button>`;
             }).join('');
             dateTabsEl.innerHTML = `
-                <div class="wd-at-queue" data-tone="${tone}">
-                    <div class="wd-at-queue-kicker">Queue Date</div>
-                    <label class="wd-at-date-pill">
-                        <i class="fa-regular fa-calendar-days"></i>
-                        <select onchange="window.wdSelectActiveTaskDateTab(this.value)">${options}</select>
-                    </label>
-                    <p class="wd-at-queue-note">Oldest first — any date still works.</p>
+                <div class="wd-at-queue wd-at-queue-tabs" data-tone="${tone}">
+                    ${urgencyHtml}
+                    ${chips ? `<div class="wd-at-date-tabs" role="tablist">${chips}</div>` : ''}
                 </div>`;
         }
     }
@@ -1200,7 +1230,12 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
             isApprovalFallback: true
         });
 
+        // 15.0.0 patch 9: the rows are checked against their invoices in
+        // parallel (8 at a time) instead of one after another. Same rows, same
+        // order, same result - only faster (approvers with many tasks waited
+        // one network round trip per invoice before).
         const seen = new Set();
+        const pending = [];
         for (const bucket of snapshots) {
             const inbox = bucket.data || {};
             for (const invoiceKey in inbox) {
@@ -1209,10 +1244,18 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
 
                 const rawTaskStatus = task.status || task.remarks || task.Status || task.Remarks || '';
                 const isForApproval = wdActiveTaskQueueStatusNorm(rawTaskStatus) === 'for approval';
+                // 15.0.0 patch 9: the owner is kept in its own variable. The original
+                // code re-assigned the loop constant here, which threw an error, so
+                // the For Approval recovery from the shared queue never worked.
+                let ownerName = bucket.name;
 
                 if (bucket.isApprovalFallback) {
-                    // Shared All is used ONLY to recover For Approval tasks.
-                    if (!isForApproval) continue;
+                    // Shared All is used ONLY to recover approval tasks: For Approval /
+                    // CEO Approval for the approver, and (15.0.0 patch 9) Approved /
+                    // Rejected decisions that went back to the sender. Those were lost
+                    // from Irwin's list when the old system cleaned it.
+                    const normStatus = wdActiveTaskQueueStatusNorm(rawTaskStatus);
+                    if (!isForApproval && !['ceo approval', 'approved', 'rejected'].includes(normStatus)) continue;
 
                     const rawAttention = task.attention || task.Attention || task.assignedTo || '';
                     const matchedOwner = uniqueNames.find(name =>
@@ -1222,7 +1265,7 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
 
                     // The owner used for validation is the actual matched approver,
                     // not the literal "All" bucket.
-                    bucket = { ...bucket, name: matchedOwner };
+                    ownerName = matchedOwner;
                 }
 
                 const poNumber = String(task.po || task.originalPO || '').trim();
@@ -1230,7 +1273,42 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
                 if (seen.has(uniqueKey)) continue;
                 seen.add(uniqueKey);
 
-                const validatedTask = await wdActiveTaskValidateLookupSource(task, bucket.name, invoiceKey);
+                pending.push({ task, bucketName: ownerName, invoiceKey, poNumber, uniqueKey, fromShared: !!bucket.isApprovalFallback });
+            }
+        }
+
+        const validated = new Array(pending.length);
+        let nextIndex = 0;
+        const worker = async () => {
+            while (nextIndex < pending.length) {
+                const i = nextIndex++;
+                const p = pending[i];
+                try { validated[i] = await wdActiveTaskValidateLookupSource(p.task, p.bucketName, p.invoiceKey); }
+                catch (_) { validated[i] = null; }
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(8, pending.length) }, worker));
+
+        // 15.0.0 patch 9: a task found only in the shared queue is written back to
+        // the person's own list, so their count and blink come back too.
+        try {
+            const ownKeys = new Set();
+            snapshots.forEach(b => { if (!b.isApprovalFallback) Object.keys(b.data || {}).forEach(k => ownKeys.add(k)); });
+            const repairs = [];
+            pending.forEach((p, i) => {
+                if (!p.fromShared || !validated[i] || ownKeys.has(p.invoiceKey)) return;
+                const safeOwner = wdActiveTaskSafeFirebaseKey(p.bucketName);
+                if (!safeOwner) return;
+                repairs.push(invoiceDb.ref(`invoice_tasks_by_user/${safeOwner}/${p.invoiceKey}`).set(p.task));
+            });
+            if (repairs.length) Promise.allSettled(repairs).then(() => console.info(`[Active Task] put back ${repairs.length} task(s) missing from the personal list.`));
+        } catch (_) { /* repair is best effort */ }
+
+        for (let pi = 0; pi < pending.length; pi++) {
+            {
+                const { task, invoiceKey, poNumber, uniqueKey } = pending[pi];
+                const bucket = { name: pending[pi].bucketName };
+                const validatedTask = validated[pi];
                 if (!validatedTask) continue;
 
                 const invoiceStatus = wdActiveTaskStatusFromLookup(validatedTask);
