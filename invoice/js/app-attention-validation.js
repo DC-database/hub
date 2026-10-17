@@ -535,17 +535,39 @@ function imBatchFixedAttentionForStatus(statusValue) {
     return '';
 }
 async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
+    // 15.0.0 patch 19: For SRV routing by invoice group (Invoice Entry and
+    // Batch Entry share this):
+    //   Logistic group -> the Logistic person at that site; if none there,
+    //                     any Logistic person; if none at all, the site's
+    //                     Site DC / Storekeeper / Camp Boss.
+    //   Normal (any other group) -> the Site DC / Storekeeper / Camp Boss at
+    //                     that site; only when the site has none of them, the
+    //                     Logistic person attached to that site.
+    //   Nobody -> Irwin (fallback), as before.
     await imBatchEnsureApproverData();
     const group = imBatchNormalizeGroup(groupValue);
     const allCandidates = getSiteMatchedAttentionCandidatesForSRV(siteCode, group);
-    if (allCandidates.length === 0) {
-        return [{ name: imBatchFallbackAttentionName(), position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
-    }
+    const isLog = (c) => imBatchPositionMatches(c.position, 'logistic');
+    const siteLogistic = allCandidates.filter(isLog);
+    const siteTeam = allCandidates.filter((c) => !isLog(c));
+    const tag = (list) => list.map((c) => Object.assign({}, c, { group, site: siteCode }));
     if (imBatchIsLogisticGroup(group)) {
-        const logisticCandidates = allCandidates.filter(c => imBatchPositionMatches(c.position, 'logistic'));
-        if (logisticCandidates.length > 0) return logisticCandidates;
+        if (siteLogistic.length) return tag(siteLogistic);
+        const anyLogistic = [];
+        const seen = new Set();
+        imBatchApproverUsers().forEach((u) => {
+            if (!u || !u.name || !imBatchPositionMatches(u.position, 'logistic') || seen.has(u.name)) return;
+            seen.add(u.name);
+            const name = (typeof resolveVacationAssignee === 'function') ? (resolveVacationAssignee(u.name) || u.name) : u.name;
+            anyLogistic.push({ name, position: u.position });
+        });
+        if (anyLogistic.length) return tag(anyLogistic);
+        if (siteTeam.length) return tag(siteTeam);
+    } else {
+        if (siteTeam.length) return tag(siteTeam);
+        if (siteLogistic.length) return tag(siteLogistic);
     }
-    return allCandidates;
+    return [{ name: imBatchFallbackAttentionName(), position: 'Fallback', group, role: 'fallback', site: siteCode, isFallback: true }];
 }
 async function populateBatchAttentionDropdownForRow(choicesInstance, statusValue, siteCode, groupValue, allowOverrideSearch = true) {
     if (!choicesInstance) return;
