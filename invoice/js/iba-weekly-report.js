@@ -18,7 +18,7 @@
    ========================================================================== */
 (function () {
   "use strict";
-  const VERSION = "15.0.0-p21";
+  const VERSION = "15.0.0-p22";
   const DAY = 86400000;
   const SNAP_MAX = 24 * 3600000;
   const $ = (id) => document.getElementById(id);
@@ -164,7 +164,7 @@
 
   // ------------------------------------------------------------------
   // Rules (15.0.0 patch 20: brief - only the WorkDesk action statuses)
-  //   In:  For SRV, For Approval, On Hold, Pending, Unresolved
+  //   In:  For SRV, For Approval, On Hold, Pending, Unresolved (+ IPC and Report, patches 21-22)
   //   Out: With Accounts, Paid, New Entry, CEO Approval, In Process,
   //        For Summary and any other CEO / COO step
   // ------------------------------------------------------------------
@@ -174,6 +174,11 @@
     { id: "on hold", label: "On Hold", color: "#1baf7a" },
     { id: "pending", label: "Pending", color: "#eda100" },
     { id: "unresolved", label: "Unresolved", color: "#e87ba4" },
+    // 15.0.0 patch 22: IPC, same buckets as the WorkDesk Dashboard. WorkDesk IPC
+    // jobs (for: IPC Application / IPC / IPC Processed) by their type; invoices
+    // by their status (IPC Application, IPC Issue, Waiting Invoice)
+    { id: "ipc application", label: "IPC Application", color: "#7a4bb3", match: /^(ipc application|ipc issue)$/ },
+    { id: "ipc processed", label: "IPC Processed", color: "#285f9f", match: /^(ipc processed|ipc|waiting invoice)$/ },
     // 15.0.0 patch 21: the report steps (Report, Report Approval, Report Approved)
     { id: "report", label: "Report", color: "#008300", match: /^report( approval| approved)?$/ }
   ];
@@ -185,7 +190,10 @@
     if (s === "on hold") return "Decide: release or cancel" + (r.note ? "" : " (no reason noted)");
     if (s === "unresolved") return "Resolve with the vendor / site";
     if (s === "report approved") return "Send it to In Process";
+    if (s === "ipc issue") return "Resolve the IPC issue" + (who ? " with " + who : "");
+    if (s === "ipc processed" || s === "waiting invoice" || s === "ipc") return (late ? "Escalate: " : "") + (who ? who + " to " : "") + "get the invoice from the vendor";
     if (!who) return "Assign a person (no Attention)";
+    if (s === "ipc application") return (late ? "Escalate: " : "") + who + " to finish the IPC application";
     if (s === "report") return (late ? "Escalate: " : "") + who + " to prepare the report and send it for approval";
     if (s === "report approval") return (late ? "Escalate: " : "") + who + " to approve the report";
     if (s === "for srv") return late ? "Escalate: " + who + " to confirm delivery (SRV Done) or report the problem" : "Remind " + who + " to do SRV Done";
@@ -211,7 +219,21 @@
     } catch (_) {}
     return best || tms(inv.statusChangedAt) || Math.max(tms(inv.updatedAt), tms(inv.lastUpdated)) || latest || tms(inv.createdAt) || tms(inv.enteredAt);
   }
+  function ipcOpen(st) {
+    try { if (typeof wdIsOpenIPCJobStatus === "function") return !!wdIsOpenIPCJobStatus(st); } catch (_) {}
+    const r = norm(st);
+    if (!r) return true;
+    return !/(with accounts|closed|cancel|deleted|srv done|completed|paid)/.test(r);
+  }
   function siteNo(v) { return (String(v == null ? "" : v).match(/\d+/) || [""])[0]; }
+  // 15.0.0 patch 22: the exact site code, as Invoice Records shows it
+  // ("177 - Lusail" -> "177", "M170 - Mall" -> "M170"). No more digits-only
+  // grouping, so 170 and M170 are two different sites.
+  function siteCode(v) {
+    const s = String(v == null ? "" : v).trim();
+    if (!s || /^n\/?a$/i.test(s)) return "";
+    return s.split(/\s+-\s*|\s*-\s+|\s+/)[0].toUpperCase();
+  }
 
   // ------------------------------------------------------------------
   // Build the data
@@ -220,6 +242,12 @@
     const now = Date.now();
     const pm = poMap();
     const all = [];
+    const mismatch = [];
+    // the site of a PO = its Project ID, exactly like Invoice Records
+    const poSite = (po) => { const r = pm[po]; const v = r && String(r["Project ID"] || "").trim(); return v && !/^n\/?a$/i.test(v) ? v : ""; };
+    const labelOf = {};
+    Object.keys(pm).forEach((po) => { const v = poSite(po), c = siteCode(v); if (!c) return; const m = labelOf[c] = labelOf[c] || {}; m[v] = (m[v] || 0) + 1; });
+    const siteLabel = (c, fallback) => { const m = labelOf[c]; if (!m) return fallback || c; return Object.keys(m).sort((a, b) => m[b] - m[a])[0]; };
     Object.keys(invData || {}).forEach((po) => {
       const rows = invData[po] || {};
       if (typeof rows !== "object") return;
@@ -230,8 +258,10 @@
         const kp = keepOf(inv.status);
         if (!kp) return;
         const at = lastStatusTime(inv);
+        const own = String(inv.site || inv.site_name || inv.siteName || "").trim(), ps = poSite(po);
+        if (own && ps && siteCode(own) && siteCode(own) !== siteCode(ps)) mismatch.push({ po: po, inv: inv.invNumber || inv.invEntryID || "", saved: own, poSite: ps, status: String(inv.status || "").trim() });
         all.push({ kind: "invoice", po: po, key: k, inv: inv.invNumber || inv.invEntryID || "", vendor: inv.vendorName || inv.vendor_name || rec["Supplier Name"] || rec["Supplier"] || "",
-          site: inv.site || inv.site_name || rec["Project ID"] || "", status: kp.match ? String(inv.status).trim() : kp.label, sk: kp.id, with: String(inv.attention || "").trim(), value: num(inv.invValue || inv.amount),
+          site: ps || own, status: kp.match ? String(inv.status).trim() : kp.label, sk: kp.id, with: String(inv.attention || "").trim(), value: num(inv.invValue || inv.amount),
           note: [inv.note, inv.approvalNote ? "Approver: " + inv.approvalNote : ""].filter(Boolean).join(" · "), days: at ? Math.max(0, Math.floor((now - at) / DAY)) : null });
       });
     });
@@ -239,15 +269,24 @@
     (jobs || []).forEach((e) => {
       if (!e || !e.key) return;
       try { if (typeof isWorkdeskTaskRecord === "function" && !isWorkdeskTaskRecord(e)) return; } catch (_) {}
-      try { if (typeof isTaskComplete === "function" && isTaskComplete(e)) return; } catch (_) {}
       if (String(e.for || "") === "Invoice") return; // reception entries (New Entry) are left out
-      const kp = keepOf(e.remarks || e.status);
-      if (!kp) return;
+      const ft = norm(e.for || e.type), raw = String(e.remarks || e.status || "").trim();
+      let kp, ipcNote = "";
+      if (ft === "ipc" || ft === "ipc processed" || ft === "ipc application") {
+        // IPC jobs: open until closed, whatever the remark says (as the Dashboard)
+        if (!ipcOpen(raw)) return;
+        kp = KEEP.find((k) => k.id === (ft === "ipc application" ? "ipc application" : "ipc processed"));
+        if (raw && norm(raw) !== kp.id && !/^(pending|new entry)$/.test(norm(raw))) ipcNote = "Status: " + (norm(raw) === "ipc" ? "Waiting Invoice" : raw);
+      } else {
+        try { if (typeof isTaskComplete === "function" && isTaskComplete(e)) return; } catch (_) {}
+        kp = keepOf(raw);
+        if (!kp) return;
+      }
       const t = tms(e.timestamp) || tms(e.date);
-      all.push({ kind: "job", po: String(e.po || ""), key: e.key, inv: e.ref || "", type: e.for || "", vendor: e.vendorName || "", site: e.site || "", status: kp.match ? String(e.remarks || e.status).trim() : kp.label, sk: kp.id,
-        with: String(e.attention || "").trim(), value: num(e.amount), note: e.note || e.details || "", days: t ? Math.floor((now - t) / DAY) : null });
+      all.push({ kind: "job", po: String(e.po || ""), key: e.key, inv: e.ref || "", type: ft === "ipc" ? "IPC Processed" : (e.for || ""), vendor: e.vendorName || (pm[String(e.po || "")] || {})["Supplier Name"] || "", site: poSite(String(e.po || "")) || String(e.site || "").trim(), status: ipcNote !== "" || kp.id.indexOf("ipc") === 0 ? kp.label : (kp.match ? raw : kp.label), sk: kp.id,
+        with: String(e.attention || "").trim(), value: num(e.amount), note: [ipcNote, e.note || e.details || ""].filter(Boolean).join(" · "), days: t ? Math.floor((now - t) / DAY) : null });
     });
-    all.forEach((r) => { r.move = nextMove(r); r.siteId = siteNo(r.site) || "—"; });
+    all.forEach((r) => { r.move = nextMove(r); r.siteId = siteCode(r.site) || "—"; r.siteLabel = r.siteId === "—" ? "No site" : siteLabel(r.siteId, r.site); });
     // people assigned per site
     const team = {};
     const users = approvers();
@@ -258,15 +297,15 @@
       if (pos.includes("site dc")) role = "Site DC"; else if (pos.includes("storekeeper")) role = "Storekeeper"; else if (pos.includes("camp boss")) role = "Camp Boss"; else if (pos.includes("logistic")) role = "Logistic";
       if (!role || !a.Name) return;
       String(a.Site || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((s) => {
-        const id = siteNo(s);
-        if (id) (team[id] = team[id] || []).push({ name: String(a.Name).trim(), role: role });
+        const id = siteCode(s);
+        if (id && !(team[id] || []).some((p) => p.name === String(a.Name).trim())) (team[id] = team[id] || []).push({ name: String(a.Name).trim(), role: role });
       });
     });
-    // group by site
+    // group by site (exact site code; the name is the PO's Project ID as in Invoice Records)
     const sites = {};
     all.forEach((r) => {
-      const s = sites[r.siteId] = sites[r.siteId] || { id: r.siteId, label: r.site || r.siteId, items: [], count: {}, holders: {}, oldest: 0 };
-      if (String(r.site).length > String(s.label).length) s.label = r.site;
+      const s = sites[r.siteId] = sites[r.siteId] || { id: r.siteId, label: r.siteLabel, items: [], count: {}, holders: {}, oldest: 0, inv: 0, jobs: 0, pos: {} };
+      if (r.kind === "job") s.jobs++; else { s.inv++; s.pos[r.po] = 1; }
       s.items.push(r);
       s.count[r.sk] = (s.count[r.sk] || 0) + 1;
       s.oldest = Math.max(s.oldest, r.days || 0);
@@ -293,9 +332,15 @@
     const totals = {};
     KEEP.forEach((k) => {
       const list = all.filter((r) => r.sk === k.id);
-      totals[k.id] = { n: list.length, v: list.reduce((a, r) => a + r.value, 0), oldest: list.reduce((a, r) => Math.max(a, r.days || 0), 0), late: list.filter((r) => (r.days || 0) > 30).length };
+      const invs = list.filter((r) => r.kind === "invoice"), pos = {};
+      invs.forEach((r) => { pos[r.po] = 1; });
+      const steps = {};
+      list.forEach((r) => { steps[r.status] = (steps[r.status] || 0) + 1; });
+      totals[k.id] = { n: list.length, inv: invs.length, pos: Object.keys(pos).length, jobs: list.length - invs.length, steps: steps,
+        v: list.reduce((a, r) => a + r.value, 0), oldest: list.reduce((a, r) => Math.max(a, r.days || 0), 0), late: list.filter((r) => (r.days || 0) > 30).length };
     });
-    return { now: now, period: period, info: info, meeting: meeting, all: all, sites: siteList, noTeam: noTeam, shared: shared, close: close, totals: totals,
+    mismatch.sort((a, b) => String(a.po).localeCompare(String(b.po), undefined, { numeric: true }));
+    return { now: now, period: period, info: info, meeting: meeting, all: all, sites: siteList, noTeam: noTeam, shared: shared, close: close, totals: totals, mismatch: mismatch,
       late: all.filter((r) => (r.days || 0) > 30).length };
   }
 
@@ -328,22 +373,35 @@
   // ------------------------------------------------------------------
   function itemId(r) { return (r.kind === "job" ? "j_" : "i_") + String(r.po || "") + "_" + String(r.key || "").replace(/[.#$\[\]\/]/g, "_"); }
   function siteTable(items, dec) {
-    return '<table class="sitet"><colgroup><col style="width:24px"><col style="width:118px"><col style="width:62px"><col style="width:110px"><col style="width:150px"><col style="width:112px"><col style="width:44px"><col style="width:58px"><col><col style="width:220px"><col style="width:140px"></colgroup>' +
-      '<thead><tr><th class="c">✓</th><th>Status</th><th>PO</th><th>Invoice / Ref</th><th>Vendor</th><th>With</th><th class="n">Days</th><th class="n">Value</th><th>Notes / remarks</th><th>Next move</th><th class="dec">Decision</th></tr></thead><tbody>' +
+    // 15.0.0 patch 22: no Invoice / Ref column; widths in % so Notes keeps
+    // real room on screen and in print (it was squeezed to one letter a line)
+    return '<table class="sitet"><colgroup><col style="width:3%"><col style="width:11%"><col style="width:10.5%"><col style="width:12%"><col style="width:8.5%"><col style="width:4.5%"><col style="width:6%"><col style="width:22%"><col style="width:13.5%"><col style="width:9%"></colgroup>' +
+      '<thead><tr><th class="c">✓</th><th>Status</th><th>PO</th><th>Vendor</th><th>With</th><th class="n">Days</th><th class="n">Value</th><th>Notes / remarks</th><th>Next move</th><th class="dec">Decision</th></tr></thead><tbody>' +
       items.map((r) => {
-        const id = itemId(r), d = dec[id] || {}, k = keepOf(r.status) || {};
-        return '<tr data-id="' + esc(id) + '"><td class="c"><input type="checkbox" class="agree"' + (d.agreed ? " checked" : "") + ' title="Agreed"></td>' +
-          '<td><span class="st" style="--c:' + (k.color || "#999") + '">' + esc(r.status) + "</span></td><td><b>" + esc(r.po || "—") + "</b></td><td>" + esc(r.inv || "") + (r.kind === "job" && r.type ? " <small>(" + esc(r.type) + ")</small>" : "") + "</td>" +
-          "<td>" + esc(String(r.vendor || "").slice(0, 34)) + "</td><td>" + esc(r.with || "—") + "</td>" +
+        const id = itemId(r), d = dec[id] || {}, k = KEEP.find((x) => x.id === r.sk) || {};
+        return '<tr data-id="' + esc(id) + '"' + (r.kind === "job" ? ' class="job"' : "") + '><td class="c"><input type="checkbox" class="agree"' + (d.agreed ? " checked" : "") + ' title="Agreed"></td>' +
+          '<td><span class="st" style="--c:' + (k.color || "#999") + '">' + esc(r.status) + "</span></td><td><b>" + esc(r.po || "—") + "</b>" + (r.kind === "job" ? '<span class="wd">WorkDesk' + (r.type ? " · " + esc(r.type) : "") + (r.inv ? " · " + esc(r.inv) : "") + "</span>" : "") + "</td>" +
+          "<td>" + esc(String(r.vendor || "").slice(0, 40)) + "</td><td>" + esc(r.with || "—") + "</td>" +
           '<td class="n' + ((r.days || 0) > 30 ? " late" : (r.days || 0) > 14 ? " warn" : "") + '">' + (r.days == null ? "" : r.days) + '</td><td class="n">' + (r.value ? moneyShort(r.value) : "") + "</td>" +
-          '<td class="note">' + esc(String(r.note || "").slice(0, 120)) + '</td><td class="move">' + esc(r.move) + "</td>" +
+          '<td class="note">' + esc(String(r.note || "").slice(0, 240)) + '</td><td class="move">' + esc(r.move) + "</td>" +
           '<td class="dec"><input class="d-text" value="' + esc(d.decision || "") + '"></td></tr>';
       }).join("") + "</tbody></table>";
   }
 
   function reportHtml(m) {
     const dec = (m.meeting && m.meeting.current && m.meeting.current.items) || {};
-    const tile = (k) => { const t = m.totals[k.id]; return '<div class="kpi" style="--c:' + k.color + '"><b>' + t.n + "</b><span>" + esc(k.label) + "</span><small>" + (t.n ? "oldest " + t.oldest + " d" + (t.late ? " · " + t.late + " over 30 d" : "") : "none") + "</small></div>"; };
+    // 15.0.0 patch 22: each tile says what the number is made of, so it can be
+    // checked against Invoice Records ("Found" there counts POs, not invoices)
+    const tile = (k) => {
+      const t = m.totals[k.id];
+      const parts = [];
+      if (t.inv) parts.push(t.inv + " invoice" + (t.inv === 1 ? "" : "s") + " on " + t.pos + " PO" + (t.pos === 1 ? "" : "s"));
+      if (t.jobs) parts.push(t.jobs + " WorkDesk job" + (t.jobs === 1 ? "" : "s"));
+      const steps = k.match && Object.keys(t.steps).length > 1 ? '<em class="steps">' + Object.keys(t.steps).sort().map((s) => esc(s) + " " + t.steps[s]).join(" · ") + "</em>" : "";
+      return '<div class="kpi" style="--c:' + k.color + '"><b>' + t.n + "</b><span>" + esc(k.label) + "</span>" +
+        (parts.length ? '<em class="mk">' + esc(parts.join(" + ")) + "</em>" : "") + steps +
+        "<small>" + (t.n ? "oldest " + t.oldest + " d" + (t.late ? " · " + t.late + " over 30 d" : "") : "none") + "</small></div>";
+    };
     // follow-up from the last meeting
     let follow = "";
     const prev = m.meeting && m.meeting.prev;
@@ -372,23 +430,30 @@
       if (Object.keys(s.srvHolders).filter((w) => w !== "(nobody)").length >= 2) flags.push('<span class="tag amber">Shared by ' + Object.keys(s.srvHolders).filter((w) => w !== "(nobody)").length + " people</span>");
       if (s.oldest > 30) flags.push('<span class="tag red">Oldest ' + s.oldest + " d</span>");
       const counts = KEEP.filter((k) => s.count[k.id]).map((k) => '<span class="chip" style="--c:' + k.color + '">' + esc(k.label) + " <b>" + s.count[k.id] + "</b></span>").join("");
-      return '<section class="site"><div class="site-h"><div><h2>' + esc(s.label) + " <small>" + s.items.length + " open</small></h2>" +
+      const made = [s.inv ? s.inv + " invoice" + (s.inv === 1 ? "" : "s") + " on " + Object.keys(s.pos).length + " PO" + (Object.keys(s.pos).length === 1 ? "" : "s") : "", s.jobs ? s.jobs + " WorkDesk" : ""].filter(Boolean).join(" + ");
+      return '<section class="site"><div class="site-h"><div><h2>' + esc(s.label) + " <small>" + s.items.length + " open · " + esc(made) + "</small></h2>" +
         '<div class="team">' + (s.people.length ? s.people.map((p) => esc(p.name) + " <i>" + esc(p.role) + "</i>").join(" · ") : '<span class="late">Nobody assigned to this site</span>') + "</div></div>" +
         '<div class="site-r">' + counts + flags.join("") + "</div></div>" + siteTable(s.items, dec) + "</section>";
     }).join("");
     // PO close out: just PO, site, close-out total against the PO value
     const ctab = (rows) => rows.length ? '<table class="co"><thead><tr><th>PO</th><th>Site</th><th class="n">PO value</th><th class="n">Close-out total</th><th class="n">Balance</th></tr></thead><tbody>' +
       rows.map((r) => { const pv = num(r.poValue), iv = num(r.invoiceValue); return "<tr><td><b>" + esc(r.poNumber) + "</b></td><td>" + esc(r.site || "") + '</td><td class="n">' + (pv ? money(pv) : "") + '</td><td class="n">' + (iv ? money(iv) : "") + '</td><td class="n">' + (pv ? money(pv - iv) : "") + "</td></tr>"; }).join("") + "</tbody></table>" : '<p class="none">None.</p>';
+    // invoices saved with a site different from their PO's site (Project ID)
+    const MM = 60;
+    const mism = m.mismatch.length ? '<section class="sec"><h2>Site check <small>' + m.mismatch.length + " invoice(s) saved with a site different from their PO - the report uses the PO site, like Invoice Records</small></h2>" +
+      '<table class="co mm"><thead><tr><th>PO</th><th>Invoice</th><th>Status</th><th>Site saved on the invoice</th><th>PO site (used)</th></tr></thead><tbody>' +
+      m.mismatch.slice(0, MM).map((x) => "<tr><td><b>" + esc(x.po) + "</b></td><td>" + esc(x.inv) + "</td><td>" + esc(x.status) + '</td><td class="late">' + esc(x.saved) + "</td><td>" + esc(x.poSite) + "</td></tr>").join("") +
+      "</tbody></table>" + (m.mismatch.length > MM ? '<p class="none">+ ' + (m.mismatch.length - MM) + " more</p>" : "") + "</section>" : "";
     const info = m.info;
     const dataLine = info.mode === "saved" ? "saved copy from " + fmtDT(info.snapAt) + " + " + info.changed + " changed PO(s) read live" : "full read of all invoices";
     const total = m.all.length;
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>IBA weekly site report - ' + esc(m.period.label) + "</title><style>" + CSS + "</style></head><body>" +
       '<div class="tools"><span id="saveNote"></span><button id="saveBtn" type="button">Save decisions</button><button type="button" onclick="window.print()">Print / Save as PDF</button><button type="button" class="ghost" onclick="window.close()">Close</button></div>' +
-      '<header class="top"><div><div class="brand">IBA</div><h1>Weekly site report<small>' + esc(m.period.label) + '</small></h1></div><div class="meta">Prepared ' + esc(fmtDT(m.now)) + " · " + esc(me().Name || "") + "<br>For SRV · For Approval · On Hold · Pending · Unresolved · Report<br>" + total + " open · " + m.late + " over 30 days</div></header>" +
+      '<header class="top"><div><div class="brand">IBA</div><h1>Weekly site report<small>' + esc(m.period.label) + '</small></h1></div><div class="meta">Prepared ' + esc(fmtDT(m.now)) + " · " + esc(me().Name || "") + "<br>" + KEEP.map((k) => k.label).join(" · ") + "<br>" + total + " open · " + m.late + " over 30 days</div></header>" +
       '<div class="kpis">' + KEEP.map(tile).join("") + "</div>" +
       '<div class="row2"><div class="cbox"><h3>Open tasks per site</h3>' + (m.sites.length ? siteStack(m.sites, 620) : '<p class="none">Nothing open.</p>') + "</div>" + alloc + "</div>" +
       follow + siteBlocks +
-      '<section class="sec"><h2>PO Close Out</h2><div class="row2 co2"><div><h4>Waiting at site (' + m.close.site.length + ")</h4>" + ctab(m.close.site) + "</div><div><h4>Ready to close (" + m.close.ho.length + ")</h4>" + ctab(m.close.ho) + "</div></div></section>" +
+      '<section class="sec"><h2>PO Close Out</h2><div class="row2 co2"><div><h4>Waiting at site (' + m.close.site.length + ")</h4>" + ctab(m.close.site) + "</div><div><h4>Ready to close (" + m.close.ho.length + ")</h4>" + ctab(m.close.ho) + "</div></div></section>" + mism +
       '<footer>IBA ' + esc(VERSION) + " · Data: " + esc(dataLine) + " · about " + sizeText(info.bytes) + " read · " + esc(fmtDT(m.now)) + "</footer>" +
       "</body></html>";
   }
@@ -398,7 +463,7 @@
     ".tools{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:8px 0;background:#fff}.tools button{font:700 12px Arial;padding:8px 14px;border-radius:7px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button.ghost{background:#fff;color:#1E7F74}#saveNote{color:#52514e;font-size:12px}" +
     ".top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0B1724;padding-bottom:10px;margin-bottom:12px}.top>div:first-child{display:flex;gap:14px;align-items:center}.brand{width:52px;height:52px;border-radius:12px;background:#0B1724;color:#E3C98A;font:900 17px Georgia,serif;display:flex;align-items:center;justify-content:center;letter-spacing:.08em}" +
     "h1{margin:0;font-size:23px}h1 small{display:block;font-size:13px;font-weight:600;color:#52514e;margin-top:3px}.meta{text-align:right;color:#52514e;font-size:11px;line-height:1.55}" +
-    ".kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px}.kpi{border:1px solid #d7dde4;border-left:6px solid var(--c);border-radius:10px;padding:9px 12px}.kpi b{display:block;font-size:24px;line-height:1.1}.kpi span{display:block;font-weight:700;font-size:12px}.kpi small{color:#52514e;font-size:10.5px}" +
+    ".kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.kpi{border:1px solid #d7dde4;border-left:6px solid var(--c);border-radius:10px;padding:9px 12px}.kpi b{display:block;font-size:24px;line-height:1.1}.kpi span{display:block;font-weight:700;font-size:12px}.kpi small{display:block;color:#52514e;font-size:10.5px}.kpi em{display:block;font-style:normal;font-size:10.5px;color:#141b24;margin-top:1px}.kpi em.steps{color:#52514e}" +
     ".row2{display:grid;grid-template-columns:1.35fr 1fr;gap:12px;margin-bottom:6px}.co2{grid-template-columns:1fr 1fr}.cbox{border:1px solid #d7dde4;border-radius:10px;padding:10px 12px;page-break-inside:avoid}.cbox h3{margin:0 0 8px;font-size:13px}" +
     "svg.ch{display:block;width:100%;height:auto;overflow:visible}svg .lbl{font-size:11px;fill:#141b24}svg .val{font-size:11px;font-weight:700;fill:#141b24}svg .in{font-size:10px;font-weight:700;fill:#fff}" +
     ".legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:11px;color:#52514e}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}" +
@@ -407,10 +472,10 @@
     ".site{page-break-inside:auto}.site-h{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:7px 10px;background:#0B1724;color:#fff;border-radius:6px 6px 0 0}.site-h h2{margin:0;font-size:14.5px}.site-h h2 small{font-weight:400;color:#C9D3DD;font-size:11px;margin-left:6px}" +
     ".team{color:#C9D3DD;font-size:11px;margin-top:2px}.team i{font-style:normal;color:#E3C98A}.site-r{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end}" +
     ".chip{display:inline-block;padding:2px 8px;border-radius:999px;background:#fff;color:#141b24;border-left:5px solid var(--c);font-size:10.5px}.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;color:#fff}.tag.red{background:#c0392b}.tag.amber{background:#b36b00}" +
-    "table{width:100%;border-collapse:collapse}table.sitet{table-layout:fixed}table.sitet td{overflow-wrap:anywhere}th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#52514e;border-bottom:1.5px solid #9aa6b2;padding:4px 5px;background:#f5f7f9}td{border-bottom:1px solid #e3e8ed;padding:4px 5px;vertical-align:top}tr{page-break-inside:avoid}" +
-    "td.n,th.n{text-align:right;white-space:nowrap}td.c,th.c{width:20px;text-align:center}td.note{color:#3d4854;max-width:230px}td.move{font-weight:700;color:#0b5c53}td.late,.late{color:#c0392b;font-weight:700}td.warn{color:#b36b00;font-weight:700}.ok{color:#1e7f3a;font-weight:700}" +
+    "table{width:100%;border-collapse:collapse}table.sitet{table-layout:fixed}table.sitet td{overflow-wrap:break-word;word-break:normal}table.sitet th{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#52514e;border-bottom:1.5px solid #9aa6b2;padding:4px 5px;background:#f5f7f9}td{border-bottom:1px solid #e3e8ed;padding:4px 5px;vertical-align:top}tr{page-break-inside:avoid}" +
+    "td.n,th.n{text-align:right;white-space:nowrap}td.c,th.c{width:20px;text-align:center}td.note{color:#3d4854;white-space:normal;line-height:1.35}.wd{display:block;font-size:9.5px;font-weight:700;color:#6b4fa0;margin-top:1px}tr.job td:first-child{box-shadow:inset 3px 0 0 #6b4fa0}td.move{font-weight:700;color:#0b5c53}td.late,.late{color:#c0392b;font-weight:700}td.warn{color:#b36b00;font-weight:700}.ok{color:#1e7f3a;font-weight:700}" +
     ".st{display:inline-block;padding:1px 7px;border-radius:999px;border-left:4px solid var(--c);background:#f5f7f9;font-weight:700;font-size:10.5px;white-space:nowrap}" +
-    "td.dec,th.dec{width:140px}td.dec input{width:100%;border:0;border-bottom:1px dotted #9aa6b2;font:11px Arial;padding:2px 0;background:transparent}.none{color:#52514e;font-style:italic;margin:4px 0}" +
+    "td.dec input{width:100%;border:0;border-bottom:1px dotted #9aa6b2;font:11px Arial;padding:2px 0;background:transparent}.none{color:#52514e;font-style:italic;margin:4px 0}" +
     "footer{margin-top:16px;color:#7b8794;font-size:10px;text-align:center}" +
     "@media print{.tools{display:none}body{padding:0}.site-h,.sec h2,.kpi,.chip,.tag,.st{-webkit-print-color-adjust:exact;print-color-adjust:exact}}";
 
@@ -429,7 +494,7 @@
     el.className = "iba-wr-launch";
     el.innerHTML = '<div class="iba-wr-card" role="dialog" aria-label="Weekly project report">' +
       '<h3><i class="fa-solid fa-chart-column"></i> Weekly project report</h3>' +
-      '<p>For SRV, For Approval, On Hold, Pending, Unresolved and Report, grouped by site, with what to do next, sites to sort out and PO Close Out. Print it or save it as PDF.</p>' +
+      '<p>For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed and Report, grouped by site, with what to do next, sites to sort out and PO Close Out. Print it or save it as PDF.</p>' +
       '<label><input type="radio" name="iba-wr-week" value="this"' + (defaultLast ? "" : " checked") + "> This week · " + esc(weekLabel(thisWk)) + "</label>" +
       '<label><input type="radio" name="iba-wr-week" value="last"' + (defaultLast ? " checked" : "") + "> Last week · " + esc(weekLabel(thisWk - 7 * DAY)) + "</label>" +
       '<label class="iba-wr-full"><input type="checkbox" id="iba-wr-full"> Full refresh (read every invoice again)</label>' +

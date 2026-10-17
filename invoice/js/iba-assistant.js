@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p19';
+    const VERSION = '15.0.0-p22';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -2334,7 +2334,7 @@
                 { key: 'status', label: 'Only invoices now in', type: 'select', options: statusOptsWith('Any open status (not With Accounts / Paid)') },
                 { key: 'which', label: 'Which invoices', type: 'select', options: [['all', 'All of them'], ['latest', 'Only the last invoice entered on each PO']] }],
             build: (v) => [{ tool: 'add_to_batch', args: { pos: v.pos.split(/[\s,;]+/).filter(Boolean), status: v.status || undefined, latest_only: v.which === 'latest' } }] },
-        weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, sites to sort out and PO Close Out. Print or PDF.',
+        weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed, Report, sites to sort out and PO Close Out. Print or PDF.',
             ask: () => [], action: () => { if (window.ibaWeeklyReport) window.ibaWeeklyReport.open(); } },
         recent: { name: 'Recent changes to Batch', icon: 'fa-clock-rotate-left', superOnly: true, desc: 'Invoices moved to a status in a time window (e.g. CEO Approval this morning), into Batch Entry.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: statusOptsWith('Pick a status').slice(1) },
