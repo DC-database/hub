@@ -1,19 +1,89 @@
-IBA SYSTEM 15.0.0 patch 18
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-17 and everything before)
+IBA SYSTEM 15.0.0 patch 21
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-20 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 18. Copying it over 15.0.0
-  or any earlier 15.0.0 patch (e.g. your patch 17) gives the same result.
+  The result is exactly the tested 15.0.0 patch 21. Copying it over 15.0.0
+  or any earlier 15.0.0 patch (e.g. your patch 20) gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p18), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p21), so a normal reload picks them up.
 
-FILES: 45 (+ this note).
-  Changed in patch 18 compared with patch 17:
-  js/iba-assistant.js, css/iba-assistant.css, js/app-active-tasks.js,
-  css/iba-ui-tables.css, index.html
+FILES: 46 (+ this note).
+  Changed in patch 21 compared with patch 20:
+  js/iba-weekly-report.js, index.html
+
+15.0.0 patch 21 - WHAT CHANGED
+  Weekly site report: Report steps added
+  - Report, Report Approval and Report Approved are now in the report as a
+    sixth group "Report" (green): its own tile, part of the per-site chart,
+    and listed in each site block with the real step name.
+  - Next move: Report -> "<person> to prepare the report and send it for
+    approval"; Report Approval -> "<person> to approve the report"; Report
+    Approved -> "Send it to In Process".
+
+15.0.0 patch 20 - WHAT CHANGED
+  Weekly report redone: brief, by site (now "Weekly site report")
+  - Only the WorkDesk action statuses: For SRV, For Approval, On Hold,
+    Pending, Unresolved. Left out: With Accounts, Paid, New Entry, Under
+    Review, CEO Approval, In Process, For Summary and other CEO / COO steps.
+  - Page top: 5 tiles (one per status: count, oldest, how many over 30
+    days), one chart "Open tasks per site" (bars split by status, with a
+    legend), and "Site allocation - to sort out":
+      * sites with no Site DC / Storekeeper / Camp Boss whose For SRV go to
+        Irwin or Logistic,
+      * sites where 2 or more people hold For SRV of the same site.
+  - Then one block per site (biggest first): site name, people assigned
+    (role), counts per status and red/amber tags (no site person, shared by
+    N people, oldest N days). Its list: status, PO, invoice, vendor, with,
+    days, value, notes / remarks, next move, tick + decision.
+  - PO Close Out: just PO, site, PO value, close-out total and balance -
+    "Waiting at site" and "Ready to close".
+  - Follow-up from the last meeting stays (short: agreed, then, now, done /
+    moved / not moved).
+  - Same download rule as before (saved copy + changes).
+
+15.0.0 patch 19 - WHAT CHANGED
+  1. For SRV auto-attention by invoice group (Invoice Entry + Batch Entry)
+  - Logistic group: the Logistic person at the invoice's site; if that site
+    has none, any Logistic person; if there is no Logistic at all, the
+    site's Site DC / Storekeeper / Camp Boss.
+  - Normal (any group that is not Logistic): the Site DC / Storekeeper /
+    Camp Boss at the site (you choose when there are several, as before).
+    Only when the site has none of them: the Logistic person attached to
+    that site.
+  - Nobody at all: Irwin, as before. Attention can still be changed by
+    hand.
+
+  2. Weekly project report (Super Admin)
+  - Dashboard > "Weekly report" (next to Check all / Refresh), or the
+    assistant's ready-made skill "Weekly report". Pick This week or Last
+    week (Saturday to Thursday), then Build report. It opens a page to
+    print or save as PDF (A4 landscape).
+  - Open items only: With Accounts and Paid are left out.
+  - Summary: open invoices and value, WorkDesk jobs waiting, new / moved /
+    sent to Accounts this week, stuck over 30 days, PO Close Out.
+  - Charts: where the items are (by step), how long at the current step,
+    open invoices by site, last 8 weeks received vs sent to Accounts.
+  - Lists, each line with notes/remarks, who has it, days at the step,
+    value and a SUGGESTED NEXT MOVE, plus a tick box and Decision / owner /
+    due fields: 1 needs action now (over 30 days - possibly forgotten),
+    2 slowing down (15-30 days), 3 approvals and CEO/COO, 4 For SRV by site,
+    6 reception and Invoice Entry, 7 IPC, 8 On Hold / Unresolved,
+    9 PO Close Out (waiting at site / ready to close), meeting notes.
+  - 5 Site staffing for For SRV: people assigned per site (Site DC,
+    Storekeeper, Camp Boss, Logistic), how many For SRV, oldest and
+    average days, who holds them, with flags and suggestions (nobody
+    assigned, only Logistic, one person overloaded, very old items, items
+    with someone not assigned to the site).
+  - Save decisions: ticks and decisions are saved for that week; next
+    week's report starts with "Follow-up from the last meeting" showing
+    each agreed item as Done / Moved / Not moved.
+  - Download: uses the browser's saved copy of the invoices (if less than
+    24 hours old) + only the invoices changed since then; otherwise (or
+    with "Full refresh") one full read, which refreshes the saved copy. The
+    report's last line shows what was read and how much.
 
 15.0.0 patch 18 - WHAT CHANGED
   1. Site "All" now works in the assistant
