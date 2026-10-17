@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p12';
+    const VERSION = '15.0.0-p15';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -344,7 +344,9 @@
             { name: 'add_to_batch', description: 'Put the existing invoices of one or more POs into Batch Entry so the user can update them together (status, attention, note) and save once. Optional status filter, e.g. "CEO Approval" = only invoices now in that status. Can also fill the Batch Entry "Set All" status / attention / note when the user says what to change. Never saves: the user checks the rows and presses Save.',
               parameters: { type: 'object', properties: {
                   pos: { type: 'array', items: { type: 'string' }, description: 'PO numbers' },
-                  status: { type: 'string', description: 'Only invoices whose current status is this (leave out for all invoices of the POs)' },
+                  status: { type: 'string', description: 'Only invoices whose current status is this (leave out for all open invoices of the POs; With Accounts and Paid are then left out)' },
+                  latest_only: { type: 'boolean', description: 'true = only the last invoice entered on each PO ("the recent / last invoice")' },
+                  include_finished: { type: 'boolean', description: 'true only if the user wants With Accounts / Paid invoices too' },
                   set_status: { type: 'string', description: 'New status for all rows (Set All Statuses To), only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows (Set All Attention To), only if the user asked' },
                   set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
@@ -358,6 +360,9 @@
                   add_to_batch: { type: 'boolean', description: 'false only when the user just wants to see the list' },
                   set_status: { type: 'string', description: 'New status for all rows in Batch Entry, only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows, only if the user asked' } }, required: ['status'] } },
+            { name: 'find_person', description: 'A colleague\'s profile from the IBA user list: name, position, site, mobile number and email, with a button to message them inside IBA. Use for "what is the number of X", "who is X", "email of X", "who is the DC of site 177".',
+              parameters: { type: 'object', properties: {
+                  name: { type: 'string', description: 'Name, first name, position or site (e.g. "Irwin", "Hamad", "Site DC 177")' } }, required: ['name'] } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
               parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
             { name: 'find_transfers', description: 'Inventory / Material: find Transfer, Restock, Return or Usage requests by what they say - a vehicle or equipment number (e.g. 36588), an item or machine (e.g. wheel loader, Komatsu), a product, a person or a site. Lists each matching control number with its items, the matching text, its step and who has it now. It looks through the transfers already loaded; when it says older ones were not searched, tell the user to press "Search all transfers" on the card (or call again with all=true only if the user asked to search everything).',
@@ -1604,6 +1609,31 @@
             card: { kind: 'recent', data: { label: label, rows: rows } } };
     }
 
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 15: people - a colleague's profile from the IBA user list
+    // (already loaded for the Attention lists; nothing extra is downloaded)
+    // ------------------------------------------------------------------
+    async function toolPerson(args) {
+        const q = norm(args && (args.name || args.person || args.text));
+        if (!q) return { result: { error: 'Whose profile? Give a name, position or site.' } };
+        let map = {};
+        try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
+        if (!Object.keys(map).length) {
+            try { if (typeof ensureApproverDataCached === 'function') await withTimeout(ensureApproverDataCached(false), 9000, 'users'); } catch (_) {}
+            try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
+        }
+        const words = q.split(/\s+/).filter(Boolean);
+        const all = Object.keys(map).map((k) => Object.assign({ key: k }, map[k] || {})).filter((a) => a.Name);
+        const hay = (a) => norm([a.Name, a.Position, a.Role, a.Site, a.Email].join(' '));
+        let hits = all.filter((a) => norm(a.Name) === q);
+        if (!hits.length) hits = all.filter((a) => words.every((w) => hay(a).indexOf(w) !== -1));
+        hits = hits.slice(0, 6);
+        const people = hits.map((a) => ({ key: a.key, name: String(a.Name || ''), position: String(a.Position || ''), role: String(a.Role || ''),
+            site: String(a.Site || ''), mobile: String(a.Mobile || a.mobile || a.Phone || ''), email: String(a.Email || a.email || '') }));
+        return { result: { found: people.length, people: people.map((p) => ({ name: p.name, position: p.position, site: p.site, mobile: p.mobile, email: p.email })) },
+            card: { kind: 'person', data: { q: q, people: people } } };
+    }
+
     function statusMatch(status, want) {
         const a = norm(status), b = norm(want);
         if (!b) return true;
@@ -1650,8 +1680,20 @@
             const keys = Object.keys(inv);
             if (!keys.length) { notAdded.push({ po: x.po, reason: 'No invoices on this PO' }); return; }
             const pi = poInfo({ po: x.po, rec: map[x.po] || null });
-            const match = keys.filter((k) => statusMatch((inv[k] || {}).status, want))
+            // 15.0.0 patch 15: without a status, finished invoices (With Accounts,
+            // Paid) are left out unless asked; "latest only" keeps just the
+            // last invoice entered on each PO.
+            const finished = (st) => /^(with accounts|paid)$/.test(norm(st));
+            let match = keys.filter((k) => statusMatch((inv[k] || {}).status, want) && (want || a.include_finished === true || !finished((inv[k] || {}).status)))
                 .sort((p, q) => String((inv[p] || {}).invEntryID || '').localeCompare(String((inv[q] || {}).invEntryID || ''), undefined, { numeric: true }));
+            if (match.length && (a.latest_only === true || norm(a.latest_only) === 'true')) {
+                const t = (k) => Number((inv[k] || {}).createdAt || (inv[k] || {}).enteredAt) || 0;
+                match = [match.slice().sort((p, q) => (t(p) - t(q)) || String((inv[p] || {}).invEntryID || '').localeCompare(String((inv[q] || {}).invEntryID || ''), undefined, { numeric: true })).pop()];
+            }
+            if (!match.length && !want && keys.length && keys.every((k) => finished((inv[k] || {}).status))) {
+                notAdded.push({ po: x.po, reason: 'All its invoices are With Accounts or Paid (left out)' });
+                return;
+            }
             if (!match.length) {
                 const has = Array.from(new Set(keys.map((k) => String((inv[k] || {}).status || '').trim() || 'no status')));
                 notAdded.push({ po: x.po, reason: 'No invoice in ' + want + ' (now: ' + has.join(', ') + ')' });
@@ -1966,6 +2008,7 @@
         reception_received: toolReception,
         job_records: toolJobs,
         add_to_batch: toolBatch,
+        find_person: toolPerson,
         recent_status_changes: toolRecent,
         invoices_by_status: toolStatus,
         invoice_activity: toolActivity,
@@ -2006,6 +2049,7 @@
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
             isSuper() ? 'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).' : '',
+            'A colleague\'s number, email, site or position, or "who is X" -> find_person (it shows a button to message them in IBA).',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
@@ -2265,9 +2309,107 @@
             f.querySelector('[data-cancel]').addEventListener('click', () => { f.remove(); resolve(null); });
         });
     }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 15: ready-made skills. Each asks for what it needs every
+    // time it runs and works without the AI (no key, no quota). You can run
+    // them as they are, or save one under your own name in "My skills".
+    // ------------------------------------------------------------------
+    const WHEN_OPTS = [['2h', 'Last 2 hours'], ['morning', 'This morning'], ['afternoon', 'This afternoon'], ['today', 'Today'], ['yesterday', 'Yesterday']];
+    function statusOptsWith(first) { const o = statusOptions(); return [['', first]].concat((o.length ? o : ['Under Review', 'For SRV', 'SRV Done', 'For Approval', 'In Process', 'CEO Approval', 'For Summary', 'Report', 'On Hold']).map((x) => [x, x])); }
+    const SKILL_TPL = {
+        inv_status: { name: 'Check invoice status', icon: 'fa-file-invoice', desc: 'Asks for a PO or vendor, then shows where each invoice is and who has it.',
+            ask: () => [{ key: 'q', label: 'PO number or vendor', placeholder: 'e.g. 66176 or Al Noor' }],
+            build: (v) => /^\s*(po)?[\s#:-]*\d+\s*$/i.test(v.q) ? [{ tool: 'track_invoices', args: { po: v.q.replace(/\D+/g, '') } }] : [{ tool: 'track_invoices', args: { vendor: v.q } }] },
+        transfer: { name: 'Find a transfer', icon: 'fa-truck-ramp-box', desc: 'Asks for a transfer number, vehicle or item, then shows who must act next.',
+            ask: () => [{ key: 'q', label: 'Transfer no., vehicle or item', placeholder: 'e.g. TRF-0361, 36588, wheel loader' }],
+            build: (v) => looksTransfer(v.q) ? [{ tool: 'track_transfer', args: { control: v.q } }] : [{ tool: 'find_transfers', args: { text: v.q } }] },
+        person: { name: 'Find a colleague', icon: 'fa-id-badge', desc: 'Asks for a name, then shows position, site, mobile and email, with a button to message them.',
+            ask: () => [{ key: 'q', label: 'Name, position or site', placeholder: 'e.g. Irwin' }],
+            build: (v) => [{ tool: 'find_person', args: { name: v.q } }] },
+        brief: { name: 'My brief', icon: 'fa-sun', desc: 'Today\'s tasks, inventory jobs and reminders.', ask: () => [], build: () => [{ tool: 'get_brief', args: {} }] },
+        batch: { name: 'Add to Batch', icon: 'fa-layer-group', superOnly: true, desc: 'Asks for the POs, which status and which invoices, then puts them into Batch Entry. With Accounts and Paid are left out unless you pick them.',
+            ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 66176, 66180 66201' },
+                { key: 'status', label: 'Only invoices now in', type: 'select', options: statusOptsWith('Any open status (not With Accounts / Paid)') },
+                { key: 'which', label: 'Which invoices', type: 'select', options: [['all', 'All of them'], ['latest', 'Only the last invoice entered on each PO']] }],
+            build: (v) => [{ tool: 'add_to_batch', args: { pos: v.pos.split(/[\s,;]+/).filter(Boolean), status: v.status || undefined, latest_only: v.which === 'latest' } }] },
+        recent: { name: 'Recent changes to Batch', icon: 'fa-clock-rotate-left', superOnly: true, desc: 'Invoices moved to a status in a time window (e.g. CEO Approval this morning), into Batch Entry.',
+            ask: () => [{ key: 'status', label: 'Status', type: 'select', options: statusOptsWith('Pick a status').slice(1) },
+                { key: 'when', label: 'When', type: 'select', options: WHEN_OPTS },
+                { key: 'mine', label: 'Whose changes', type: 'select', options: [['me', 'Only mine'], ['all', 'Everyone\'s']] }],
+            build: (v) => {
+                const a = { status: v.status, by_me: v.mine !== 'all' };
+                if (v.when === '2h') a.hours = 2; else if (v.when === 'yesterday') { a.day = 'yesterday'; a.period = 'whole_day'; } else if (v.when === 'today') a.period = 'whole_day'; else a.period = v.when;
+                return [{ tool: 'recent_status_changes', args: a }];
+            } }
+    };
+    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()); }
+    function askTplValues(title, fields) {
+        return new Promise((resolve) => {
+            const f = document.createElement('form');
+            f.className = 'iba-ai-card is-action iba-ai-skill-ask';
+            f.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> ' + esc(title) + '</div>' +
+                fields.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span>' + (p.type === 'select'
+                    ? '<select data-i="' + i + '">' + p.options.map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>').join('') + '</select>'
+                    : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '" required>') + '</label>').join('') +
+                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini" data-cancel>Cancel</button></div>';
+            put(f);
+            const first = f.querySelector('input, select');
+            if (first) first.focus();
+            f.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const vals = {};
+                fields.forEach((p, i) => { vals[p.key] = String((f.querySelector('[data-i="' + i + '"]') || {}).value || '').trim(); });
+                if (fields.some((p) => p.type !== 'select' && !vals[p.key])) return;
+                f.querySelectorAll('input, select, button').forEach((x) => { x.disabled = true; });
+                resolve(vals);
+            });
+            f.querySelector('[data-cancel]').addEventListener('click', () => { f.remove(); resolve(null); });
+        });
+    }
+    async function runTemplate(id, title) {
+        if (!tplAllowed(id)) { showView('chat'); addNote('This skill is for the Super Admin only.'); return; }
+        if (state.busy) return;
+        const t = SKILL_TPL[id];
+        const name = title || t.name;
+        showView('chat');
+        const fields = t.ask();
+        let vals = {};
+        if (fields.length) {
+            vals = await askTplValues(name, fields);
+            if (!vals) return;
+            addUser('▶ ' + name + ': ' + fields.map((p) => {
+                const v = vals[p.key];
+                if (p.type === 'select') { const o = p.options.find((x) => x[0] === v); return o ? o[1] : v; }
+                return v;
+            }).join(' · '), true);
+        } else addUser('▶ ' + name, true);
+        state.busy = true;
+        setBusy(true);
+        try {
+            for (const step of t.build(vals)) {
+                const out = await runTool(step.tool, step.args);
+                if (out.card) addCard(out.card);
+                else if (out.result && out.result.error) addError(new Error(out.result.error));
+            }
+            return addBot('Done — "' + name + '" ran without the AI (no quota used).', {});
+        } finally {
+            state.busy = false;
+            setBusy(false);
+        }
+    }
+    function addTplSkill(name, id) {
+        const clean = String(name || '').trim().slice(0, 60);
+        if (!clean || !tplAllowed(id)) return false;
+        const list = skills().filter((s) => norm(s.name) !== norm(clean));
+        list.unshift({ name: clean, tpl: id, prompt: SKILL_TPL[id].desc, steps: [], at: Date.now() });
+        saveSkills(list.slice(0, 40));
+        return true;
+    }
+
     async function runSkill(name) {
         let sk = skills().find((s) => norm(s.name) === norm(name));
         if (!sk || state.busy) return;
+        if (sk.tpl) return runTemplate(sk.tpl, sk.name);
         showView('chat');
         const params = skillParams(sk);
         if (params.length) {
@@ -2443,6 +2585,7 @@
         $('iba-ai-fab').classList.toggle('is-open', !!open);
         if (open) {
             hideBubble();
+            hideTip();
             $('iba-ai-brain').textContent = ready() ? brainLabel() : 'Not set up yet';
             syncSkillsDown();
             document.querySelectorAll('#iba-ai-panel [data-super-only]').forEach((el) => { el.hidden = !isSuper(); });
@@ -2475,6 +2618,15 @@
         if (act === 'close') return toggle(false);
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
         if (act === 'brief') return openBrief();
+        if (b.dataset.runTpl) return runTemplate(b.dataset.runTpl);
+        if (b.dataset.dmKey) {
+            try {
+                if (typeof dmState !== 'undefined' && dmState && !dmState.initialized && typeof initDirectMessages === 'function') initDirectMessages();
+                if (typeof dmOpenThread === 'function') dmOpenThread(b.dataset.dmKey, b.dataset.dmName || '');
+                else if (typeof dmOpen === 'function') dmOpen();
+            } catch (_) {}
+            return;
+        }
         if (b.dataset.recentWhen) {
             b.parentNode.querySelectorAll('[data-recent-when]').forEach((x) => x.classList.toggle('is-on', x === b));
             return;
@@ -3148,6 +3300,21 @@
                     (x.total > x.shown ? '<p class="iba-ai-foot">Oldest ' + esc(x.shown) + ' of ' + esc(x.total) + '.</p>' : '')
                     : '<p class="iba-ai-empty">No active invoices match that.</p>') +
                 '<p class="iba-ai-foot">' + esc(x.note) + '</p>';
+        } else if (card.kind === 'person') {
+            const ps = x.people || [];
+            const tel = (m) => { const d = String(m || '').replace(/\D+/g, ''); return d ? (d.length === 8 ? '+974' + d : '+' + d.replace(/^00/, '')) : ''; };
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + '</div>' +
+                (ps.length ? ps.map((p) => '<div class="iba-ai-person">' +
+                    '<div class="iba-ai-person-top"><span class="iba-ai-avatar">' + esc(p.name.split(/\s+/).map((w) => w.charAt(0)).join('').slice(0, 2).toUpperCase()) + '</span>' +
+                    '<span class="iba-ai-grow"><strong>' + esc(p.name) + '</strong><small>' + esc([p.position, p.role && p.role !== p.position ? p.role : ''].filter(Boolean).join(' · ') || '—') + '</small></span></div>' +
+                    '<dl class="iba-ai-person-dl">' +
+                      '<dt>Site</dt><dd>' + esc(p.site || '—') + '</dd>' +
+                      '<dt>Mobile</dt><dd>' + (p.mobile ? '<a href="tel:' + esc(tel(p.mobile)) + '">' + esc(p.mobile) + '</a>' : '—') + '</dd>' +
+                      '<dt>Email</dt><dd>' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>' : '—') + '</dd>' +
+                    '</dl>' +
+                    '<div class="iba-ai-person-acts"><button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.key) + '" data-dm-name="' + esc(p.name) + '"><i class="fa-solid fa-comments"></i> Message in IBA</button>' +
+                    (p.mobile ? '<a class="iba-ai-mini" href="https://wa.me/' + esc(tel(p.mobile).replace('+', '')) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>' : '') + '</div>' +
+                    '</div>').join('') : '<p class="iba-ai-empty">No user matches "' + esc(x.q) + '".</p>');
         } else if (card.kind === 'recent') {
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-clock-rotate-left"></i> ' + esc(x.rows.length) + ' found · ' + esc(x.label) + '</div>' +
                 (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
@@ -3210,14 +3377,33 @@
     function renderSkills() {
         const box = $('iba-ai-skills');
         const list = skills();
+        const tpls = Object.keys(SKILL_TPL).filter(tplAllowed);
+        const asks = (s) => s.tpl ? (SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].ask().map((p) => p.label) : []) : skillParams(s).map((p) => p.label);
         box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> Skills</h3>' +
-            '<p class="iba-ai-help">A skill repeats a job that worked, in one click, without the AI (no quota used). Save one with "Save as skill" under an answer. A number in it (PO, transfer, vehicle) is asked for each time you run it.</p>' +
+            '<p class="iba-ai-help">A skill does a job in one click, without the AI (no key, no quota). It asks for what it needs each time it runs.</p>' +
+            '<div class="iba-ai-sub">Ready-made</div>' +
+            '<ul class="iba-ai-skill-list is-ready">' + tpls.map((id) => { const t = SKILL_TPL[id]; return '<li><span class="iba-ai-skill-ico"><i class="fa-solid ' + t.icon + '"></i></span><div class="iba-ai-grow"><strong>' + esc(t.name) + '</strong><small>' + esc(t.desc) + '</small></div>' +
+                '<button type="button" class="iba-ai-mini is-main" data-run-tpl="' + id + '"><i class="fa-solid fa-play"></i> Run</button></li>'; }).join('') + '</ul>' +
+            '<div class="iba-ai-sub">Add your own</div>' +
+            '<form class="iba-ai-skill-new" id="iba-ai-skill-new" autocomplete="off">' +
+              '<input type="text" id="iba-ai-skill-name" maxlength="60" placeholder="Name, e.g. Status of my site invoices" required>' +
+              '<select id="iba-ai-skill-tpl">' + tpls.map((id) => '<option value="' + id + '">' + esc(SKILL_TPL[id].name) + '</option>').join('') + '</select>' +
+              '<button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-plus"></i> Add</button>' +
+            '</form>' +
+            '<p class="iba-ai-help small">Or ask me something, then press "Save as skill" under my answer to keep exactly those steps.</p>' +
+            '<div class="iba-ai-sub">My skills</div>' +
             (list.length ? '<ul class="iba-ai-skill-list">' + list.map((s) =>
-                '<li><div class="iba-ai-grow"><strong>' + esc(s.name) + '</strong><small>' + esc(s.prompt) + '</small><small>' + s.steps.length + ' step' + (s.steps.length === 1 ? '' : 's') + ' · ' + esc(fmtDate(s.at)) +
-                (skillParams(s).length ? ' · asks for: ' + esc(skillParams(s).map((p) => p.label).join(', ')) : '') + '</small></div>' +
+                '<li><div class="iba-ai-grow"><strong>' + esc(s.name) + '</strong><small>' + esc(s.tpl && SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].name : s.prompt) + '</small><small>' +
+                (s.tpl ? 'ready-made' : (s.steps || []).length + ' step' + ((s.steps || []).length === 1 ? '' : 's')) + ' · ' + esc(fmtDate(s.at)) +
+                (asks(s).length ? ' · asks for: ' + esc(asks(s).join(', ')) : '') + '</small></div>' +
                 '<button type="button" class="iba-ai-mini is-main" data-run-skill="' + esc(s.name) + '"><i class="fa-solid fa-play"></i> Run</button>' +
                 '<button type="button" class="iba-ai-mini" data-del-skill="' + esc(s.name) + '" title="Delete"><i class="fa-solid fa-trash"></i></button></li>').join('') + '</ul>'
-            : '<p class="iba-ai-empty"><i class="fa-solid fa-bolt"></i> No skills yet.</p>');
+            : '<p class="iba-ai-empty"><i class="fa-solid fa-bolt"></i> No skills of your own yet.</p>');
+        const form = $('iba-ai-skill-new');
+        if (form) form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (addTplSkill($('iba-ai-skill-name').value, $('iba-ai-skill-tpl').value)) renderSkills();
+        });
     }
 
     function brainHelpHtml(b) {
@@ -3243,13 +3429,16 @@
             '<button type="button" class="iba-ai-btn" id="iba-ai-test"><i class="fa-solid fa-plug-circle-check"></i> Test</button></div>' +
             '<p class="iba-ai-status" id="iba-ai-setup-status"></p>' +
             '<h3 class="iba-ai-look-h"><i class="fa-solid fa-robot"></i> Look and voice</h3>' +
-            '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-bot"' + (look().bot ? ' checked' : '') + '/> Animated assistant (the little robot in the corner)</label>' +
+            '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-bot"' + (look().bot ? ' checked' : '') + '/> Animated assistant (the little engineer robot in the corner)</label>' +
+            '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-tips"' + (look().tips ? ' checked' : '') + '/> Speech bubbles ("Hi, I\'m here if you need me" and tips)</label>' +
             (canSpeak() ? '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-voice"' + (look().voice ? ' checked' : '') + '/> Read answers and the brief aloud</label>' +
                 '<button type="button" class="iba-ai-btn" id="iba-ai-voice-test"><i class="fa-solid fa-volume-high"></i> Test voice</button>' : '<p class="iba-ai-help small">This browser cannot speak. Chrome or Edge can.</p>') +
             '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> This key is yours: it stays only in this browser, for your account. It is not saved in the system or in Firebase, and nobody else uses it. ' +
             'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>';
         const lb = $('iba-ai-look-bot'), lv = $('iba-ai-look-voice'), vt = $('iba-ai-voice-test');
         if (lb) lb.addEventListener('change', () => { setLook({ bot: lb.checked }); paintFab($('iba-ai-fab')); });
+        const lt = $('iba-ai-look-tips');
+        if (lt) lt.addEventListener('change', () => { setLook({ tips: lt.checked }); if (!lt.checked) hideTip(); });
         if (lv) lv.addEventListener('change', () => { setLook({ voice: lv.checked }); if (!lv.checked) stopSpeak(); });
         if (vt) vt.addEventListener('click', () => speak(greetingWord() + ', ' + firstName() + '. I am your IBA assistant. I can read your brief and my answers aloud.'));
         const pick = $('iba-ai-brain-pick');
@@ -3387,26 +3576,36 @@
     // no key). Desktop only, like the rest of the assistant.
     // ------------------------------------------------------------------
     const LOOK_KEY = 'iba-ai-look-v1';
-    function look() { const v = lsGet(LOOK_KEY, {}) || {}; return { bot: v.bot !== false, voice: v.voice === true }; }
+    function look() { const v = lsGet(LOOK_KEY, {}) || {}; return { bot: v.bot !== false, voice: v.voice === true, tips: v.tips !== false }; }
     function setLook(p) { lsSet(LOOK_KEY, Object.assign(look(), p || {})); }
+    // 15.0.0 patch 15: the robot is now a site engineer - yellow hard hat
+    // with a lamp, orange hi-vis vest with reflective stripes, ID badge and
+    // safety boots. Same animations (float, blink, look, wave, talk).
     const BOT_SVG =
-        '<svg class="iba-ai-bot" viewBox="0 0 80 92" aria-hidden="true" focusable="false">' +
+        '<svg class="iba-ai-bot" viewBox="0 0 80 96" aria-hidden="true" focusable="false">' +
           '<defs><linearGradient id="ibaBotHead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B6F84"/><stop offset="1" stop-color="#14364F"/></linearGradient>' +
-          '<linearGradient id="ibaBotBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1F5B6E"/><stop offset="1" stop-color="#0E2A40"/></linearGradient></defs>' +
-          '<ellipse class="bot-shadow" cx="40" cy="88" rx="19" ry="3"/>' +
+          '<linearGradient id="ibaBotHat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDE68A"/><stop offset=".55" stop-color="#FACC15"/><stop offset="1" stop-color="#D99A06"/></linearGradient>' +
+          '<linearGradient id="ibaBotVest" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FB923C"/><stop offset="1" stop-color="#EA580C"/></linearGradient></defs>' +
+          '<ellipse class="bot-shadow" cx="40" cy="92" rx="20" ry="3"/>' +
           '<g class="bot-all">' +
-            '<g class="bot-legs"><rect x="29" y="74" width="8" height="10" rx="4"/><rect x="43" y="74" width="8" height="10" rx="4"/></g>' +
-            '<path class="bot-arm bot-arm-l" d="M27 60 q-8 4 -7 13" />' +
-            '<path class="bot-arm bot-arm-r" d="M53 60 q8 4 7 13" />' +
-            '<rect class="bot-torso" x="25" y="55" width="30" height="23" rx="10"/>' +
-            '<circle class="bot-heart" cx="40" cy="66" r="3.2"/>' +
+            '<g class="bot-legs"><rect x="30" y="78" width="7" height="9" rx="3"/><rect x="43" y="78" width="7" height="9" rx="3"/></g>' +
+            '<g class="bot-boots"><rect x="27" y="85" width="11" height="5" rx="2.2"/><rect x="42" y="85" width="11" height="5" rx="2.2"/></g>' +
+            '<path class="bot-arm bot-arm-l" d="M26 62 q-8 4 -7 13" />' +
+            '<path class="bot-arm bot-arm-r" d="M54 62 q8 4 7 13" />' +
+            '<rect class="bot-torso" x="24" y="57" width="32" height="24" rx="9"/>' +
+            '<path class="bot-vest" d="M24 66 q0 -9 9 -9 h3 l4 9 l4 -9 h3 q9 0 9 9 v6 q0 9 -9 9 h-14 q-9 0 -9 -9 z"/>' +
+            '<rect class="bot-stripe" x="24" y="68" width="32" height="2.6"/><rect class="bot-stripe" x="24" y="74" width="32" height="2.6"/>' +
+            '<rect class="bot-heart" x="27.5" y="60.5" width="6" height="4.5" rx="1"/>' +
             '<g class="bot-head">' +
-              '<line class="bot-antenna" x1="40" y1="12" x2="40" y2="21"/><circle class="bot-bulb" cx="40" cy="10" r="3.6"/>' +
-              '<circle class="bot-ear" cx="15" cy="38" r="4.2"/><circle class="bot-ear" cx="65" cy="38" r="4.2"/>' +
-              '<rect class="bot-skull" x="16" y="20" width="48" height="36" rx="15"/>' +
-              '<rect class="bot-visor" x="22" y="27" width="36" height="21" rx="10"/>' +
-              '<g class="bot-eyes"><rect class="bot-eye" x="29" y="32" width="6" height="9" rx="3"/><rect class="bot-eye" x="45" y="32" width="6" height="9" rx="3"/></g>' +
-              '<path class="bot-mouth" d="M36 44 q4 3 8 0"/>' +
+              '<circle class="bot-ear" cx="15" cy="42" r="4.2"/><circle class="bot-ear" cx="65" cy="42" r="4.2"/>' +
+              '<rect class="bot-skull" x="16" y="26" width="48" height="33" rx="14"/>' +
+              '<rect class="bot-visor" x="22" y="32" width="36" height="20" rx="10"/>' +
+              '<g class="bot-eyes"><rect class="bot-eye" x="29" y="37" width="6" height="9" rx="3"/><rect class="bot-eye" x="45" y="37" width="6" height="9" rx="3"/></g>' +
+              '<path class="bot-mouth" d="M36 48 q4 3 8 0"/>' +
+              '<path class="bot-hat" d="M15 30 Q15 7 40 7 Q65 7 65 30 Z"/>' +
+              '<rect class="bot-ridge" x="36.5" y="7.5" width="7" height="22" rx="3.5"/>' +
+              '<rect class="bot-brim" x="10" y="27.5" width="60" height="5" rx="2.5"/>' +
+              '<circle class="bot-bulb" cx="40" cy="18" r="3.2"/>' +
             '</g>' +
           '</g>' +
         '</svg>';
@@ -3416,6 +3615,65 @@
         fab.classList.toggle('is-bot', bot);
         fab.innerHTML = (bot ? BOT_SVG : '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>') + '<span class="iba-ai-fab-dot" aria-hidden="true"></span>';
     }
+    // 15.0.0 patch 15: the robot says hello in a small speech bubble, then a
+    // helpful tip now and then (at most every 7 minutes, 6 times a visit,
+    // never while the panel or another message is open). Click it to open me.
+    let tipTimer = 0, tipHide = 0, tipN = 0, tipIdx = 0;
+    function tipList() {
+        const n = pillCount();
+        const t = [greetingWord() + ', ' + firstName() + '! I\'m here if you need me.'];
+        if (n) t.push('You have ' + n + ' thing' + (n === 1 ? '' : 's') + ' waiting. Tap me for today\'s brief.');
+        t.push('Tap me for today\'s brief: your tasks and reminders.');
+        t.push('Lost an invoice? Tell me the PO or the vendor and I\'ll find where it is.');
+        t.push('Transfers too: type TRF-0361, a vehicle number or "wheel loader".');
+        t.push('I can print your brief as a checklist with charts.');
+        if (isSuper()) t.push('Moved invoices this morning? I can put them back into Batch Entry for you.');
+        t.push('Need someone\'s number? Ask me for their profile, then message them here.');
+        return t;
+    }
+    function hideTip() { const el = $('iba-ai-tip'); if (el) el.classList.remove('is-on'); clearTimeout(tipHide); }
+    function showTip(text) {
+        const fab = $('iba-ai-fab');
+        if (!fab || fab.hidden || fab.classList.contains('is-open') || !look().bot || !look().tips || document.hidden) return false;
+        const big = $('iba-ai-bubble');
+        if (big && !big.hidden) return false;
+        let el = $('iba-ai-tip');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'iba-ai-tip';
+            el.className = 'iba-ai-tip';
+            el.setAttribute('role', 'status');
+            el.innerHTML = '<span class="iba-ai-tip-text"></span><button type="button" class="iba-ai-tip-x" aria-label="Hide">×</button>';
+            el.addEventListener('click', (e) => {
+                hideTip();
+                if (e.target.closest('.iba-ai-tip-x')) return;
+                build(); toggle(true);
+            });
+            document.body.appendChild(el);
+        }
+        el.querySelector('.iba-ai-tip-text').textContent = text;
+        el.classList.add('is-on');
+        fab.classList.add('is-talking');
+        setTimeout(() => { if (!talking) fab.classList.remove('is-talking'); }, 1600);
+        clearTimeout(tipHide);
+        tipHide = setTimeout(hideTip, 7000);
+        return true;
+    }
+    function nextTip() {
+        if (tipN >= 6) return true;
+        const list = tipList();
+        const text = tipN === 0 ? list[0] : list[1 + (tipIdx % (list.length - 1))];
+        if (!showTip(text)) return false; // busy (panel or another message open): try again soon
+        if (tipN > 0) tipIdx++;
+        tipN++;
+        return true;
+    }
+    function startTips() {
+        stopTips();
+        tipTimer = setTimeout(function loop() { tipTimer = setTimeout(loop, nextTip() ? 7 * 60000 : 25000); }, 8000);
+    }
+    function stopTips() { clearTimeout(tipTimer); hideTip(); }
+
     try {
         document.addEventListener('visibilitychange', () => { document.body && document.body.classList.toggle('iba-ai-tab-hidden', document.hidden); });
     } catch (_) {}
@@ -3511,11 +3769,13 @@
             refreshFab();
             briefOnce();
             startReminders();
+            startTips();
         } else if (!ok && on) {
             on = false;
             const fab = $('iba-ai-fab');
             if (fab) fab.hidden = true;
             stopReminders();
+            stopTips();
             toggle(false);
             hideBubble();
             state.history = [];

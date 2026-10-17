@@ -1181,7 +1181,7 @@
   }
 
   // 14.0.0 patch 4: five openings (a-e). Unknown values fall back to B as before.
-  const OPENING_KINDS = ["a", "b", "c", "d", "e"];
+  const OPENING_KINDS = ["a", "b", "c", "d", "e", "f", "g"];
   function isOpeningKind(v) { return OPENING_KINDS.indexOf(v) >= 0; }
 
   function openingKind() {
@@ -1284,11 +1284,150 @@
         '<path class="iba-op-ground" d="M20 220 L380 220"></path></svg>' +
         '<div class="iba-op-center iba-op-low">' + mark + hello + '</div>';
     }
+    // 15.0.0 patch 15: F - Command center. A futuristic HUD boots up: rings
+    // spin up, systems report online, the IBA letters lock into place and the
+    // screen flashes, with its own synthesized sound (original, no film audio).
+    if (kind === "f") {
+      const log = ["IBA CORE", "WORKDESK", "INVOICES", "INVENTORY", "SITE LINK"].map(function (t, i) {
+        return '<li style="--i:' + i + '"><span>' + t + '</span><b>ONLINE</b></li>';
+      }).join("");
+      return '<div class="iba-hud-grid"></div><div class="iba-hud-scan"></div>' +
+        '<div class="iba-hud-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>' +
+        '<svg class="iba-hud-rings" viewBox="0 0 400 400" aria-hidden="true">' +
+          '<g class="iba-hud-r1"><circle cx="200" cy="200" r="186"></circle></g>' +
+          '<g class="iba-hud-r2"><circle cx="200" cy="200" r="160"></circle></g>' +
+          '<g class="iba-hud-r3"><circle cx="200" cy="200" r="134"></circle></g>' +
+          '<g class="iba-hud-r4"><circle cx="200" cy="200" r="112"></circle></g>' +
+        '</svg>' +
+        '<ul class="iba-hud-log" aria-hidden="true">' + log + '</ul>' +
+        '<div class="iba-hud-ver" aria-hidden="true">IBA SYSTEMS · 15.0.0</div>' +
+        '<div class="iba-op-center">' + mark + '<div class="iba-hud-online">SYSTEM ONLINE</div>' + hello + '</div>' +
+        '<div class="iba-hud-flash"></div>';
+    }
+    // 15.0.0 patch 16: G - Site build. A concrete mixer truck drives in,
+    // transforms into the engineer robot, and the robot builds three
+    // buildings that form the word IBA; the windows light up. Original
+    // drawing and sound (no film characters, logos or music).
+    if (kind === "g") return siteBuildMarkup();
     let towers = "";
     [38, 62, 46, 80, 54, 92, 66, 44, 74, 50, 60, 36].forEach(function (h, i) {
       towers += '<span class="iba-op-tower" style="--h:' + h + '%;--i:' + i + '"></span>';
     });
     return '<div class="iba-op-sky"></div><div class="iba-op-skyline">' + towers + '</div><div class="iba-op-center iba-op-high">' + mark + hello + '</div>';
+  }
+
+  function siteBuildMarkup() {
+    // 15.0.0 patch 17: redrawn with more detail and effects (see css/iba-shell.css)
+    const L = {
+      I: ["111", "010", "010", "010", "111"],
+      B: ["1110", "1001", "1110", "1001", "1110"],
+      A: ["0110", "1001", "1111", "1001", "1001"]
+    };
+    const starts = { I: 372, B: 468, A: 590 };
+    const widths = { I: 3, B: 4, A: 4 };
+    const order = ["I", "B", "A"];
+    let blocks = "", scaff = "", beacons = "";
+    order.forEach(function (ch, li) {
+      const x0 = starts[ch], w = widths[ch] * 25 - 2;
+      scaff += '<rect class="sb-scaf" x="' + (x0 - 4) + '" y="251" width="' + (w + 8) + '" height="129" style="--d:' + (2.4 + li * 0.5).toFixed(2) + 's"></rect>' +
+        '<path class="sb-scaf" d="M' + (x0 - 4) + ' 315 H' + (x0 + w + 4) + '" style="--d:' + (2.45 + li * 0.5).toFixed(2) + 's"></path>';
+      let topLeft = null;
+      L[ch].forEach(function (row, ri) {
+        const fromBottom = 4 - ri;
+        row.split("").forEach(function (bit, ci) {
+          if (bit !== "1") return;
+          const x = x0 + ci * 25, y = 355 - fromBottom * 25;
+          if (ri === 0 && topLeft === null) topLeft = x;
+          const d = (2.55 + li * 0.5 + fromBottom * 0.085 + ci * 0.025).toFixed(3);
+          const wv = ((x - 372) / 320 * 0.6).toFixed(3);
+          blocks += '<g class="sb-blk" style="--d:' + d + 's;--w:' + wv + 's"><rect class="sb-blk-face" x="' + x + '" y="' + y + '" width="23" height="23" rx="2"></rect>' +
+            '<rect class="sb-blk-top" x="' + x + '" y="' + y + '" width="23" height="4" rx="1.5"></rect>' +
+            '<rect class="sb-win" x="' + (x + 5) + '" y="' + (y + 7) + '" width="5" height="5"></rect><rect class="sb-win" x="' + (x + 13) + '" y="' + (y + 7) + '" width="5" height="5"></rect>' +
+            '<rect class="sb-win" x="' + (x + 5) + '" y="' + (y + 15) + '" width="5" height="5"></rect><rect class="sb-win" x="' + (x + 13) + '" y="' + (y + 15) + '" width="5" height="5"></rect></g>';
+        });
+      });
+      beacons += '<circle class="sb-beacon" cx="' + (topLeft + 11) + '" cy="247" r="3" style="--b:' + (li * 0.2).toFixed(1) + 's"></circle>';
+    });
+    let skyline = "";
+    [[20, 300, 34], [58, 318, 26], [88, 286, 30], [124, 330, 22], [150, 296, 28], [640, 310, 30], [676, 290, 26], [706, 322, 34], [744, 300, 24], [772, 330, 30]].forEach(function (b) {
+      skyline += '<rect x="' + b[0] + '" y="' + b[1] + '" width="' + b[2] + '" height="' + (380 - b[1]) + '"></rect>';
+    });
+    let sparks = "";
+    [[-34, -22], [30, -30], [-40, 8], [42, 6], [-14, -40], [18, -44], [-26, 30], [26, 28], [0, -50], [48, -14]].forEach(function (v, i) {
+      sparks += '<circle cx="222" cy="252" r="' + (i % 3 ? 2 : 3) + '" style="--dx:' + v[0] + 'px;--dy:' + v[1] + 'px"></circle>';
+    });
+    const wheel = function (cls, cx) {
+      return '<g class="sb-p ' + cls + '"><circle cx="' + cx + '" cy="352" r="17" class="sb-tyre"></circle><circle cx="' + cx + '" cy="352" r="9" class="sb-rim"></circle>' +
+        '<g class="sb-spokes"><path d="M' + cx + ' 344 V360 M' + (cx - 8) + ' 352 H' + (cx + 8) + '" class="sb-spoke"></path></g><circle cx="' + cx + '" cy="352" r="3" class="sb-hub"></circle></g>';
+    };
+    const truck =
+      '<g class="sb-truck">' +
+        '<g class="sb-exhaust"><rect x="252" y="250" width="5" height="30" rx="2" class="sb-steel-dark"></rect>' +
+          '<circle class="sb-puff" cx="254" cy="246" r="5"></circle><circle class="sb-puff p2" cx="254" cy="246" r="6"></circle><circle class="sb-puff p3" cx="254" cy="246" r="4"></circle></g>' +
+        '<g class="sb-p sb-drum">' +
+          '<ellipse cx="188" cy="300" rx="66" ry="36" class="sb-drum-body"></ellipse>' +
+          '<ellipse cx="188" cy="300" rx="52" ry="26" class="sb-drum-stripe"></ellipse><ellipse cx="188" cy="300" rx="34" ry="16" class="sb-drum-stripe s2"></ellipse>' +
+          '<ellipse cx="188" cy="300" rx="66" ry="36" class="sb-drum-shine"></ellipse>' +
+          '<rect x="250" y="292" width="12" height="16" rx="3" class="sb-steel"></rect></g>' +
+        '<g class="sb-p sb-chute"><rect x="106" y="312" width="34" height="8" rx="3" class="sb-orange" transform="rotate(-18 123 316)"></rect></g>' +
+        '<g class="sb-p sb-legl"><rect x="128" y="331" width="98" height="17" rx="4" class="sb-frame"></rect><rect x="132" y="336" width="90" height="3" class="sb-frame-line"></rect></g>' +
+        '<g class="sb-p sb-legr"><rect x="226" y="331" width="98" height="17" rx="4" class="sb-frame"></rect><rect x="230" y="336" width="90" height="3" class="sb-frame-line"></rect></g>' +
+        '<g class="sb-p sb-fenl"><path d="M134 350 Q134 326 176 326 Q218 326 218 350 Z" class="sb-fender"></path></g>' +
+        '<g class="sb-p sb-fenr"><path d="M272 350 Q272 328 292 328 Q312 328 312 350 Z" class="sb-fender"></path></g>' +
+        '<g class="sb-p sb-bump"><rect x="300" y="330" width="28" height="7" rx="2" class="sb-steel"></rect></g>' +
+        '<g class="sb-p sb-cab">' +
+          '<path d="M262 334 V286 Q262 274 274 274 H304 Q310 274 314 280 L324 296 V334 Z" class="sb-cab-body"></path>' +
+          '<path d="M292 280 H305 L317 297 H292 Z" class="sb-glass"></path><rect x="268" y="281" width="19" height="15" rx="3" class="sb-glass"></rect>' +
+          '<rect x="306" y="312" width="16" height="13" rx="2" class="sb-grille"></rect><path d="M309 315 H319 M309 318.5 H319 M309 322 H319" class="sb-grille-line"></path>' +
+          '<circle cx="322" cy="305" r="3.4" class="sb-headlight"></circle><rect x="258" y="288" width="4" height="10" rx="1.5" class="sb-steel"></rect>' +
+          '<rect x="279" y="268" width="12" height="6" rx="2" class="sb-roof-beacon"></rect></g>' +
+        wheel("sb-w1", 156) + wheel("sb-w2", 196) + wheel("sb-w3", 292) +
+        '<path class="sb-lightcone" d="M324 304 L430 282 L430 352 Z"></path>' +
+      '</g>';
+    const robot =
+      '<g class="sb-robot">' +
+        '<g class="sb-arm-l"><rect x="185" y="228" width="12" height="52" rx="6" class="sb-limb"></rect><circle cx="191" cy="230" r="6" class="sb-joint"></circle><circle cx="191" cy="283" r="7.5" class="sb-hand"></circle></g>' +
+        '<g class="sb-arm-r"><rect x="247" y="228" width="12" height="52" rx="6" class="sb-limb"></rect><circle cx="253" cy="230" r="6" class="sb-joint"></circle><circle cx="253" cy="283" r="7.5" class="sb-hand"></circle>' +
+          '<circle class="sb-spark" cx="253" cy="292" r="5"></circle></g>' +
+        '<g class="sb-eyes"><rect x="205" y="167" width="9" height="12" rx="4.5"></rect><rect x="226" y="167" width="9" height="12" rx="4.5"></rect></g>' +
+        '<g class="sb-hat"><path d="M186 160 Q186 126 220 126 Q254 126 254 160 Z" class="sb-hat-dome"></path>' +
+          '<rect x="213" y="127" width="14" height="32" rx="6" class="sb-hat-ridge"></rect><rect x="178" y="156" width="84" height="8" rx="4" class="sb-hat-brim"></rect>' +
+          '<circle cx="220" cy="142" r="4.5" class="sb-lamp"></circle><text x="220" y="153" class="sb-hat-text">IBA</text></g>' +
+        '<g class="sb-vest"><rect x="199" y="242" width="46" height="5" rx="1" class="sb-reflect"></rect><rect x="199" y="257" width="46" height="5" rx="1" class="sb-reflect"></rect></g>' +
+      '</g>';
+    return '<div class="sb-sky"></div>' +
+      '<svg class="sb-scene" viewBox="0 70 800 380" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+        '<defs>' +
+          '<radialGradient id="sbSun" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFD58A" stop-opacity=".95"/><stop offset=".35" stop-color="#F59E0B" stop-opacity=".45"/><stop offset="1" stop-color="#F59E0B" stop-opacity="0"/></radialGradient>' +
+          '<linearGradient id="sbDrumG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F1F5F9"/><stop offset=".55" stop-color="#CBD5E1"/><stop offset="1" stop-color="#7C8899"/></linearGradient>' +
+          '<linearGradient id="sbCabG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDE047"/><stop offset=".6" stop-color="#FACC15"/><stop offset="1" stop-color="#CA8A04"/></linearGradient>' +
+          '<linearGradient id="sbHatG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FEF08A"/><stop offset=".55" stop-color="#FACC15"/><stop offset="1" stop-color="#D99A06"/></linearGradient>' +
+          '<linearGradient id="sbGlassG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#BAE6FD"/><stop offset=".45" stop-color="#1E3A5F"/><stop offset="1" stop-color="#0B1622"/></linearGradient>' +
+          '<linearGradient id="sbBlkG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B8C4D2"/><stop offset="1" stop-color="#7B8A9C"/></linearGradient>' +
+          '<linearGradient id="sbCone" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF7D6" stop-opacity=".55"/><stop offset="1" stop-color="#FFF7D6" stop-opacity="0"/></linearGradient>' +
+          '<linearGradient id="sbGlint" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
+        '</defs>' +
+        '<g class="sb-cam">' +
+          '<circle class="sb-sun" cx="560" cy="380" r="170" fill="url(#sbSun)"></circle>' +
+          '<g class="sb-skyline">' + skyline + '</g>' +
+          '<g class="sb-cranes"><path d="M742 380 V112 M742 120 H570 M722 120 L742 98 L762 120 M742 120 H780" class="sb-crane"></path>' +
+            '<path d="M742 380 V112" class="sb-crane-lattice"></path><path class="sb-hook" d="M612 120 V164 M606 164 H618"></path></g>' +
+          '<rect x="-800" y="380" width="2400" height="700" class="sb-ground"></rect><path d="M-800 380 H1600" class="sb-ground-line"></path>' +
+          '<g class="sb-barrier"><rect x="20" y="368" width="70" height="8" class="sb-hazard"></rect><rect x="26" y="376" width="4" height="6" class="sb-steel-dark"></rect><rect x="80" y="376" width="4" height="6" class="sb-steel-dark"></rect></g>' +
+          '<g class="sb-cones"><path d="M708 380 L716 356 L724 380 Z" class="sb-cone"></path><path d="M711 371 H721" class="sb-cone-band"></path>' +
+            '<path d="M738 380 L746 356 L754 380 Z" class="sb-cone"></path><path d="M741 371 H751" class="sb-cone-band"></path></g>' +
+          '<g class="sb-scaffold">' + scaff + '</g>' +
+          '<g class="sb-blocks">' + blocks + '</g>' +
+          '<g class="sb-beacons">' + beacons + '</g>' +
+          '<rect class="sb-glint" x="330" y="240" width="60" height="150" fill="url(#sbGlint)"></rect>' +
+          '<g class="sb-dust"><ellipse cx="110" cy="372" rx="12" ry="7"></ellipse><ellipse cx="86" cy="366" rx="15" ry="9"></ellipse><ellipse cx="62" cy="372" rx="10" ry="6"></ellipse></g>' +
+          '<path class="sb-beam" d="M312 232 L470 300"></path>' +
+          '<g class="sb-drive">' + truck + robot + '</g>' +
+          '<g class="sb-sparks">' + sparks + '</g>' +
+          '<g class="sb-flash"><circle cx="222" cy="250" r="80"></circle></g>' +
+        '</g>' +
+      '</svg>' +
+      '<div class="iba-op-center sb-hello"><div class="iba-op-hello">' + openingGreeting().replace(/[<>&]/g, "") + '</div></div>';
   }
 
   function buildOpening(kind) {
@@ -1301,16 +1440,137 @@
     el.setAttribute("aria-hidden", "true");
     el.innerHTML = openingMarkup(kind);
     document.body.appendChild(el);
+    if (kind === "f" && !openingReduced()) playHudSound();
+    if (kind === "g") {
+      if (!openingReduced()) playSiteSound();
+      // a longer story: a click (or Esc) skips it
+      const skip = function () { if (el.parentNode) { el.classList.add("is-skip"); setTimeout(function () { if (el.parentNode) el.remove(); document.body.classList.remove("iba-opening-active"); }, 260); } document.removeEventListener("keydown", onKey); };
+      const onKey = function (e) { if (e.key === "Escape") skip(); };
+      el.addEventListener("click", skip);
+      document.addEventListener("keydown", onKey);
+    }
     // start on the next frame so every opening begins from its first keyframe
     requestAnimationFrame(function () { el.classList.add("is-play"); });
     return el;
   }
 
+  function openingMs(el) {
+    if (openingReduced()) return 1100;
+    const k = el && el.getAttribute ? el.getAttribute("data-kind") : "";
+    return k === "g" ? 6000 : k === "f" ? 3600 : 2900;
+  }
   function dismissOpening(el) {
     setTimeout(function () {
       if (el && el.parentNode) el.remove();
       document.body.classList.remove("iba-opening-active");
-    }, openingReduced() ? 1100 : 2900);
+    }, openingMs(el));
+  }
+
+  // The Site build sound, made in the browser: diesel engine while the truck
+  // drives in, servo whirrs and clanks while it transforms, a thud for each
+  // floor of blocks, then a bright chime when the lights come on.
+  function playSiteSound() {
+    try {
+      if (window.isAudioMuted) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ac = window.__ibaHudAudio || (window.__ibaHudAudio = new Ctx());
+      if (ac.state === "suspended") ac.resume();
+      const t0 = ac.currentTime + 0.05;
+      const master = ac.createGain(); master.gain.value = 0.5; master.connect(ac.destination);
+      const env = function (node, at, peak, attack, decay) {
+        const g = ac.createGain(); g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(peak, at + attack); g.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+        node.connect(g); g.connect(master); return g;
+      };
+      const noise = function (len) {
+        const b = ac.createBuffer(1, Math.floor(ac.sampleRate * len), ac.sampleRate); const d = b.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const s = ac.createBufferSource(); s.buffer = b; return s;
+      };
+      // diesel engine: low sawtooth with a fast tremolo
+      const eng = ac.createOscillator(); eng.type = "sawtooth"; eng.frequency.setValueAtTime(48, t0); eng.frequency.linearRampToValueAtTime(62, t0 + 0.9); eng.frequency.linearRampToValueAtTime(40, t0 + 1.35);
+      const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 320; eng.connect(lp);
+      const trem = ac.createGain(); trem.gain.value = 0.5; const lfo = ac.createOscillator(); lfo.frequency.value = 18; const lfoG = ac.createGain(); lfoG.gain.value = 0.35;
+      lfo.connect(lfoG); lfoG.connect(trem.gain); lp.connect(trem);
+      env(trem, t0, 0.5, 0.25, 1.15); eng.start(t0); lfo.start(t0); eng.stop(t0 + 1.5); lfo.stop(t0 + 1.5);
+      const hiss = noise(0.25); const bp0 = ac.createBiquadFilter(); bp0.type = "highpass"; bp0.frequency.value = 2500; hiss.connect(bp0); env(bp0, t0 + 1.25, 0.15, 0.01, 0.2); hiss.start(t0 + 1.25); // air brake
+      // transformation: servo whirrs + clanks
+      [1.4, 1.62, 1.84, 2.06].forEach(function (dt, i) {
+        const o = ac.createOscillator(); o.type = "square";
+        o.frequency.setValueAtTime(220 + i * 60, t0 + dt); o.frequency.exponentialRampToValueAtTime(700 + i * 120, t0 + dt + 0.16);
+        const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 900; f.Q.value = 1.5; o.connect(f);
+        env(f, t0 + dt, 0.12, 0.02, 0.15); o.start(t0 + dt); o.stop(t0 + dt + 0.2);
+        const n = noise(0.09); const b2 = ac.createBiquadFilter(); b2.type = "bandpass"; b2.frequency.value = 1800; b2.Q.value = 2; n.connect(b2);
+        env(b2, t0 + dt + 0.17, 0.5, 0.003, 0.08); n.start(t0 + dt + 0.17);
+      });
+      // building: a thud per floor (I, B, A rising)
+      [2.6, 2.8, 3.0, 3.15, 3.35, 3.55, 3.7, 3.9, 4.1].forEach(function (dt) {
+        const o = ac.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(120, t0 + dt); o.frequency.exponentialRampToValueAtTime(48, t0 + dt + 0.12);
+        env(o, t0 + dt, 0.45, 0.005, 0.14); o.start(t0 + dt); o.stop(t0 + dt + 0.2);
+      });
+      // lights on: chime
+      [659, 880, 1319].forEach(function (f, i) {
+        const o = ac.createOscillator(); o.type = "triangle"; o.frequency.value = f;
+        env(o, t0 + 4.4 + i * 0.08, 0.1, 0.02, 1.1); o.start(t0 + 4.4 + i * 0.08); o.stop(t0 + 5.8);
+      });
+    } catch (_) {}
+  }
+
+  // The Command center sound, made in the browser (Web Audio): a low rumble
+  // that powers up, three mechanical clicks as the letters lock, then an
+  // impact with a bright shimmer. Silent when sounds are switched off.
+  function playHudSound() {
+    try {
+      if (window.isAudioMuted) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ac = window.__ibaHudAudio || (window.__ibaHudAudio = new Ctx());
+      if (ac.state === "suspended") ac.resume();
+      const t0 = ac.currentTime + 0.05;
+      const master = ac.createGain();
+      master.gain.value = 0.55;
+      master.connect(ac.destination);
+      const env = function (node, at, peak, attack, decay) {
+        const g = ac.createGain();
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(peak, at + attack);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + attack + decay);
+        node.connect(g); g.connect(master);
+        return g;
+      };
+      const noise = function (len) {
+        const b = ac.createBuffer(1, Math.floor(ac.sampleRate * len), ac.sampleRate);
+        const d = b.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        const s = ac.createBufferSource(); s.buffer = b; return s;
+      };
+      // 1) power-up rumble + rising sweep
+      const hum = ac.createOscillator(); hum.type = "sine";
+      hum.frequency.setValueAtTime(42, t0); hum.frequency.linearRampToValueAtTime(64, t0 + 1.5);
+      env(hum, t0, 0.5, 0.6, 1.0); hum.start(t0); hum.stop(t0 + 1.7);
+      const sweep = ac.createOscillator(); sweep.type = "sawtooth";
+      sweep.frequency.setValueAtTime(90, t0 + 0.1); sweep.frequency.exponentialRampToValueAtTime(1400, t0 + 1.45);
+      const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.setValueAtTime(400, t0); lp.frequency.exponentialRampToValueAtTime(3200, t0 + 1.45);
+      sweep.connect(lp); env(lp, t0 + 0.1, 0.07, 1.2, 0.2); sweep.start(t0 + 0.1); sweep.stop(t0 + 1.6);
+      // 2) mechanical clicks (letters locking)
+      [1.0, 1.15, 1.3].forEach(function (dt) {
+        const n = noise(0.08); const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2400; bp.Q.value = 3;
+        n.connect(bp); env(bp, t0 + dt, 0.6, 0.004, 0.07); n.start(t0 + dt);
+        const k = ac.createOscillator(); k.type = "square"; k.frequency.setValueAtTime(140, t0 + dt); k.frequency.exponentialRampToValueAtTime(60, t0 + dt + 0.06);
+        env(k, t0 + dt, 0.12, 0.003, 0.06); k.start(t0 + dt); k.stop(t0 + dt + 0.1);
+      });
+      // 3) impact + shimmer
+      const hit = ac.createOscillator(); hit.type = "sine";
+      hit.frequency.setValueAtTime(110, t0 + 1.55); hit.frequency.exponentialRampToValueAtTime(34, t0 + 2.3);
+      env(hit, t0 + 1.55, 0.9, 0.01, 0.9); hit.start(t0 + 1.55); hit.stop(t0 + 2.6);
+      const whoosh = noise(0.9); const hp = ac.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 900;
+      whoosh.connect(hp); env(hp, t0 + 1.5, 0.22, 0.05, 0.75); whoosh.start(t0 + 1.5);
+      [880, 1320, 1760].forEach(function (f, i) {
+        const o = ac.createOscillator(); o.type = "triangle"; o.frequency.value = f;
+        env(o, t0 + 1.6 + i * 0.04, 0.08, 0.02, 1.3); o.start(t0 + 1.6 + i * 0.04); o.stop(t0 + 3.1);
+      });
+    } catch (_) {}
   }
 
   function playLoginOpening() {
@@ -1327,7 +1587,7 @@
     const k = isOpeningKind(String(kind || "").toLowerCase()) ? String(kind).toLowerCase() : openingKind();
     const el = buildOpening(k);
     el.classList.add("is-preview");
-    setTimeout(function () { if (el && el.parentNode) el.remove(); }, openingReduced() ? 1100 : 2900);
+    setTimeout(function () { if (el && el.parentNode) el.remove(); }, openingMs(el));
     return el;
   };
 
@@ -1347,7 +1607,27 @@
     window.IBA_OLD_VERSION_URL = url;
   }
 
+  // 15.0.0 patch 14: Messages (top bar + side menu) opens the same Messages
+  // window as before; the red number is the unread count kept by app-chat.js.
+  function openMessages() {
+    try {
+      if (typeof dmState !== "undefined" && dmState && !dmState.initialized && typeof initDirectMessages === "function") initDirectMessages();
+      if (typeof dmOpen === "function") dmOpen();
+    } catch (err) { console.warn("[IBA shell] messages", err); }
+  }
+  function wireMessages() {
+    document.addEventListener("click", function (e) {
+      const b = e.target.closest && e.target.closest("#iba-app-shell [data-iba-messages]");
+      if (!b) return;
+      e.preventDefault();
+      openMessages();
+    });
+    try { if (typeof dmUpdateBadges === "function") dmUpdateBadges(); } catch (_) {}
+  }
+  window.ibaOpenMessages = openMessages;
+
   function bind() {
+    wireMessages();
     wireOldVersionLinks();
     tickClock();
     setInterval(tickClock, 1000);
