@@ -381,7 +381,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 
 <link href="css/patch-12.8.4.css?v=12.8.4.1" rel="stylesheet"/>
 <link href="css/patch-12.8.4-announcement.css?v=12.8.4" rel="stylesheet"/>
-<link href="css/iba-shell.css?v=15.0.0-p11" rel="stylesheet"/>
+<link href="css/iba-shell.css?v=15.0.0-p17" rel="stylesheet"/>
 <link href="css/inv-pages.css?v=12.9.8a" rel="stylesheet"/>
 <link href="css/wd-jr-folder.css?v=12.9.6r" rel="stylesheet"/>
 <link href="css/wd-at-personal.css?v=12.9.7a" rel="stylesheet"/>
@@ -391,7 +391,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-14-patch.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-ui.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-ui-popups.css?v=15.0.0-p2" rel="stylesheet"/>
-<link href="css/iba-assistant.css?v=15.0.0-p11" rel="stylesheet"/>
+<link href="css/iba-assistant.css?v=15.0.0-p15" rel="stylesheet"/>
 <link href="css/iba-ui-tables.css?v=15.0.0-p11" rel="stylesheet"/>
 <link href="css/iba-approvals.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-phone.css?v=15.0.0-p13" rel="stylesheet"/>
@@ -594,6 +594,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
   </div>
   <div class="iba-shell-right">
     <span id="iba-shell-username">User</span>
+    <!-- 15.0.0 patch 14: Messages is back on the desktop (it was left out of the 14.0.0 layout) -->
+    <button class="iba-shell-icon-btn iba-shell-msg-btn" id="iba-shell-messages-btn" data-iba-messages type="button" title="Messages" aria-label="Messages"><i class="fa-solid fa-comments"></i><span class="notification-badge dm-unread-badge" style="display:none;">0</span></button>
     <button class="iba-shell-icon-btn" id="iba-shell-settings-btn" type="button" title="Settings"><i class="fa-solid fa-gear"></i></button>
     <button class="iba-shell-icon-btn" id="iba-shell-logout-btn" type="button" title="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
   </div>
@@ -1523,6 +1525,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <button class="iba-open-choice" type="button" data-iba-open="c"><span class="iba-open-sample is-c"><span class="iba-open-mini">IBA</span></span><strong>C · Light wipe</strong><small>A beam of light crosses your login photo.</small></button>
 <button class="iba-open-choice" type="button" data-iba-open="d"><span class="iba-open-sample is-d"><span class="iba-open-mini">IBA</span></span><strong>D · Blueprint</strong><small>Blueprint lines draw a building frame, then the mark.</small></button>
 <button class="iba-open-choice" type="button" data-iba-open="e"><span class="iba-open-sample is-e"><span class="iba-open-mini">IBA</span></span><strong>E · Skyline</strong><small>Towers rise from the ground, then the page opens.</small></button>
+<button class="iba-open-choice" type="button" data-iba-open="f"><span class="iba-open-sample is-f"><span class="iba-open-mini">IBA</span></span><strong>F · Command center</strong><small>A futuristic screen boots up with sound: rings spin, systems report online, the letters lock in.</small></button>
+<button class="iba-open-choice" type="button" data-iba-open="g"><span class="iba-open-sample is-g"><span class="iba-open-mini">IBA</span></span><strong>G · Site build</strong><small>A concrete mixer truck drives in, turns into the engineer robot and builds the word IBA, with sound. Click to skip.</small></button>
 </div>
 <div class="settings-action-row">
 <button class="secondary-btn" id="iba-open-preview" type="button"><i class="fa-solid fa-play"></i> Preview</button>
@@ -3720,17 +3724,17 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '15.0.3';
+      window.IBA_SYSTEM_VERSION = '15.0.7';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
-<script src="js/iba-shell.js?v=15.0.0-p11"></script>
+<script src="js/iba-shell.js?v=15.0.0-p17"></script>
 <script src="js/iba-phone.js?v=15.0.0-p13"></script>
 <script src="js/iba-live-counts.js?v=15.0.0"></script>
 <script src="js/iba-task-check.js?v=15.0.0-p8"></script>
 <script src="js/iba-print.js?v=15.0.0"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=15.0.0-p12"></script>
+<script src="js/iba-assistant.js?v=15.0.0-p15"></script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
 </div>    <script src="js/app-approval-print.js?v=15.0.0-p9"></script>
 </body>

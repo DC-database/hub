@@ -1,19 +1,118 @@
-IBA SYSTEM 15.0.0 patch 13
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-12 and everything before)
+IBA SYSTEM 15.0.0 patch 17
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-16 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 13. Copying it over 15.0.0
-  or any earlier 15.0.0 patch (e.g. your patch 12) gives the same result.
+  The result is exactly the tested 15.0.0 patch 17. Copying it over 15.0.0
+  or any earlier 15.0.0 patch (e.g. your patch 16) gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p13), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p17), so a normal reload picks them up.
 
-FILES: 45 (+ this note). New in the zip: js/app-audio.js.
-  Changed in patch 13 compared with patch 12:
-  js/app-audio.js, js/iba-phone.js, css/iba-phone.css, js/materialStock.js,
-  index.html
+FILES: 45 (+ this note).
+  Changed in patch 17 compared with patch 16:
+  js/iba-shell.js, css/iba-shell.css, index.html
+
+15.0.0 patch 17 - WHAT CHANGED
+  1. Opening G - Site build, redrawn (about 6 seconds, click/Esc skips)
+  - Scene: sunrise glow behind a city skyline, tower crane with a swinging
+    hook, hazard barrier and traffic cones.
+  - Truck: shaded mixer drum with turning orange stripes, yellow cab with
+    windshield, grille, headlight beam and a blinking roof beacon, fenders,
+    bumper, exhaust puffs and dust. The picture shakes as it brakes.
+  - Transformation: the cab swings up into the head, the drum turns into
+    the striped body, the chassis unfolds into legs, the wheels spin into
+    feet and a chest core, the fenders become shoulder pads and the bumper
+    a belt. Sparks fly, the hard hat (with "IBA" on it) drops on, the eyes
+    light up, flash, and a second shake as it locks.
+  - Build: scaffolding outlines draw first, the robot points a beam and
+    the blocks drop in floor by floor (with a little bounce) into I, B, A.
+  - Finish: windows light up left to right, red roof beacons blink, a
+    shine sweeps across the letters, the robot waves, "Welcome back".
+  - Same sound as before (engine, air brake, servos, thuds, chime).
+
+  2. Messages only in the top bar
+  - The "Messages" item in the side menu is removed; the Messages button
+    with the red unread number stays in the top bar next to your name.
+
+15.0.0 patch 16 - WHAT CHANGED
+  New opening after login: G - Site build (about 5.5 seconds)
+  - A concrete mixer truck drives onto the site (wheels turning, drum
+    spinning, dust), stops with an air-brake hiss, then transforms: the cab
+    rises into the head, the drum turns into the body (with its orange
+    stripes as a hi-vis vest), the chassis unfolds into legs and the wheels
+    become feet; the arms swing out, the hard hat drops on and the eyes
+    light up.
+  - The engineer robot points at the plot and builds three buildings block
+    by block, which form the word IBA. The windows light up, the robot
+    waves, and "Welcome back, <name>" appears.
+  - Its own sound, made in the browser: diesel engine, air brake, servo
+    whirrs and clanks for the transformation, a thud for each floor, and a
+    chime when the lights come on. Original drawing and sound (no film
+    characters, music or logos). Silent when sounds are off.
+  - Longer than the others, so a click (or Esc) skips it.
+  - To use it: Settings > Opening > G - Site build > Preview, then Save
+    Opening (Super Admin; it then plays for everyone at login). F - Command
+    center stays available.
+
+15.0.0 patch 15 - WHAT CHANGED
+  1. The assistant robot is now a site engineer
+  - Yellow hard hat with a lamp, orange hi-vis vest with reflective
+    stripes, ID badge and safety boots. Same moves: floats, blinks, looks
+    around, waves for a reminder; the helmet lamp glows when something is
+    waiting.
+  - Speech bubble: a few seconds after login it says "Good morning, Irwin!
+    I'm here if you need me." Later, now and then, a short tip (at most
+    every 7 minutes, 6 times a visit, never while the assistant or another
+    message is open). Click the bubble to open the assistant, x to hide it.
+    Turn the bubbles off in Setup > Look and voice > Speech bubbles.
+
+  2. Colleague profiles
+  - Ask "what is the number of Irwin", "who is Hamad", "email of Maria"
+    (with a key), or use the ready-made skill "Find a colleague" (no key).
+  - Shows name, position, site, mobile (tap to call), email (tap to
+    write), and buttons "Message in IBA" (opens the Messages chat with that
+    person) and "WhatsApp". Uses the user list already loaded in IBA.
+
+  3. Skills - ready-made, and add your own
+  - Skills > Ready-made (run with one click, no key, no quota; each asks
+    what it needs every time):
+      Check invoice status   - asks PO or vendor
+      Find a transfer        - asks transfer no., vehicle or item
+      Find a colleague       - asks a name
+      My brief
+      Add to Batch           - Super Admin: asks the POs, the status
+                               (or "any open"), and "all" or "only the last
+                               invoice entered on each PO"
+      Recent changes to Batch - Super Admin: asks status, when, whose
+  - Skills > Add your own: type a name, pick what it does, Add. It appears
+    in "My skills" and runs the same way. "Save as skill" under an answer
+    still works too.
+  - Add to Batch now leaves out invoices already With Accounts or Paid
+    unless you pick that status (also when asking the AI). New choice:
+    only the last invoice entered on each PO.
+
+  4. New opening after login: F - Command center
+  - A futuristic screen boots up: the floor grid scrolls, rings spin up, a
+    scan line sweeps, "IBA CORE / WORKDESK / INVOICES / INVENTORY / SITE
+    LINK - ONLINE" reports in, the IBA letters lock into place, a flash,
+    then "SYSTEM ONLINE - Welcome back". About 3.5 seconds.
+  - With its own sound made in the browser: power-up rumble, three
+    mechanical clicks as the letters lock, an impact and a shimmer. It is
+    original (no film music or logos) and silent when sounds are off.
+  - To use it: Settings > Opening > F - Command center > Preview, then
+    Save Opening (Super Admin; it then plays for everyone at login).
+
+15.0.0 patch 14 - WHAT CHANGED
+  Messages is back on the desktop
+  - The desktop layout that came with 14.0.0 left out the "Messages" link
+    the old menus had, so there was no way to open Messages on a computer
+    (messages were still received; the phone kept its Messages tab).
+  - Now: a Messages button (speech bubbles) in the top bar, next to
+    Settings, with a red number for unread messages, and a "Messages" item
+    in the side menu under Dashboard. Both open the same Messages window as
+    before. No change to the messages themselves or to Firebase.
 
 15.0.0 patch 13 - WHAT CHANGED
   Sounds on / off - one switch, on the phone too, following the person
