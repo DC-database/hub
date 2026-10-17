@@ -757,3 +757,7 @@
   .iba-ai-skill-ask select { width: 100% !important; height: 32px !important; border-radius: 8px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; }
 }
 @layer iba-ui { .iba-ai-skill-list.is-ready small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; } }
+/* 15.0.0 patch 18: "Do it" in the brief */
+@layer iba-ui {
+  .iba-ai-rows li .iba-ai-go { flex: 0 0 auto !important; margin-left: 4px !important; white-space: nowrap !important; }
+}
