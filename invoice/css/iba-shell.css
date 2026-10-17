@@ -3048,3 +3048,268 @@ html body.iba-dash-focus #wd-dashboard .wd-cork-note {
 #iba-dash-stack.iba-dash-quiet .iba-dash-mini,
 #iba-dash-stack.iba-dash-quiet .iba-dash-hero,
 #iba-dash-stack.iba-dash-quiet .iba-dash-rail { animation: none !important; }
+
+/* 15.0.0 patch 14: Messages button (top bar) and menu item, with unread count */
+#iba-app-shell .iba-shell-msg-btn { position: relative !important; }
+#iba-app-shell .iba-shell-msg-btn .dm-unread-badge,
+#iba-app-shell .iba-nav-msg .dm-unread-badge {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: #E5484D !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+  font-size: 11px; font-weight: 700; line-height: 18px; align-items: center; justify-content: center;
+  box-sizing: border-box;
+}
+#iba-app-shell .iba-shell-msg-btn .dm-unread-badge { position: absolute; top: -6px; right: -8px; margin: 0 !important; }
+#iba-app-shell .iba-nav-msg .dm-unread-badge { margin-left: auto !important; }
+#iba-app-shell .iba-nav-msg .iba-nav-btn { display: flex; align-items: center; gap: 8px; }
+
+/* =============================================================================
+   15.0.0 patch 15: Opening F - Command center (futuristic HUD boot)
+   ============================================================================= */
+.iba-open-sample.is-f { background: radial-gradient(circle at 50% 50%, #0E3A4A, #050B12 70%); color: #8FF3E4; box-shadow: inset 0 0 0 1px rgba(94, 214, 196, 0.6), inset 0 0 14px rgba(94, 214, 196, 0.35); }
+#iba-login-opening.iba-op-f { background: radial-gradient(75% 60% at 50% 50%, #0B2B38 0%, #050B12 72%); }
+#iba-login-opening.iba-op.iba-op-f.is-play { animation: ibaOpLift 3.6s cubic-bezier(.4, 0, .2, 1) forwards; }
+#iba-login-opening.iba-op-f .iba-hud-grid {
+  position: absolute; left: -20%; right: -20%; bottom: -10%; height: 55%;
+  background-image: linear-gradient(rgba(94, 214, 196, .22) 1px, transparent 1px), linear-gradient(90deg, rgba(94, 214, 196, .22) 1px, transparent 1px);
+  background-size: 48px 48px; transform: perspective(520px) rotateX(62deg); transform-origin: top center;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 40%); mask-image: linear-gradient(to bottom, transparent, #000 40%);
+  opacity: 0;
+}
+#iba-login-opening.iba-op-f.is-play .iba-hud-grid { animation: ibaHudGrid 3.6s linear forwards; }
+@keyframes ibaHudGrid { 0% { opacity: 0; background-position: 0 0; } 15% { opacity: .9; } 100% { opacity: .9; background-position: 0 144px; } }
+#iba-login-opening.iba-op-f .iba-hud-scan {
+  position: absolute; left: 0; right: 0; top: -4px; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(143, 243, 228, .95), transparent); box-shadow: 0 0 18px rgba(94, 214, 196, .9); opacity: 0;
+}
+#iba-login-opening.iba-op-f.is-play .iba-hud-scan { animation: ibaHudScan 1.25s ease-in-out .15s 2 forwards; }
+@keyframes ibaHudScan { 0% { opacity: 0; top: -4px; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; top: 100%; } }
+#iba-login-opening.iba-op-f .iba-hud-corners i {
+  position: absolute; width: 64px; height: 64px; border: 2px solid #5ED6C4; opacity: 0; filter: drop-shadow(0 0 6px rgba(94, 214, 196, .8));
+}
+#iba-login-opening.iba-op-f .iba-hud-corners i:nth-child(1) { top: 5vh; left: 4vw; border-right: 0; border-bottom: 0; }
+#iba-login-opening.iba-op-f .iba-hud-corners i:nth-child(2) { top: 5vh; right: 4vw; border-left: 0; border-bottom: 0; }
+#iba-login-opening.iba-op-f .iba-hud-corners i:nth-child(3) { bottom: 5vh; left: 4vw; border-right: 0; border-top: 0; }
+#iba-login-opening.iba-op-f .iba-hud-corners i:nth-child(4) { bottom: 5vh; right: 4vw; border-left: 0; border-top: 0; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-corners i { animation: ibaHudCorner .55s cubic-bezier(.2, .8, .2, 1) .2s forwards; }
+@keyframes ibaHudCorner { from { opacity: 0; transform: scale(1.6); } to { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-f .iba-hud-rings { position: absolute; width: min(88vmin, 720px); height: min(88vmin, 720px); overflow: visible; }
+#iba-login-opening.iba-op-f .iba-hud-rings circle { fill: none; stroke-linecap: round; }
+#iba-login-opening.iba-op-f .iba-hud-rings g { transform-origin: 200px 200px; opacity: 0; }
+#iba-login-opening.iba-op-f .iba-hud-r1 circle { stroke: rgba(94, 214, 196, .35); stroke-width: 1; stroke-dasharray: 2 7; }
+#iba-login-opening.iba-op-f .iba-hud-r2 circle { stroke: #5ED6C4; stroke-width: 3; stroke-dasharray: 210 90 40 90 120 60; filter: drop-shadow(0 0 6px rgba(94, 214, 196, .9)); }
+#iba-login-opening.iba-op-f .iba-hud-r3 circle { stroke: #E3C98A; stroke-width: 6; stroke-dasharray: 1 9; opacity: .8; }
+#iba-login-opening.iba-op-f .iba-hud-r4 circle { stroke: rgba(143, 243, 228, .7); stroke-width: 1.5; stroke-dasharray: 90 30; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-r1 { animation: ibaHudIn .5s ease .05s forwards, ibaHudSpin 14s linear infinite; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-r2 { animation: ibaHudIn .6s ease .2s forwards, ibaHudSpinR 3.2s cubic-bezier(.3, 0, .2, 1) infinite; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-r3 { animation: ibaHudIn .6s ease .35s forwards, ibaHudSpin 6s linear infinite; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-r4 { animation: ibaHudIn .6s ease .5s forwards, ibaHudSpinR 2.2s linear infinite; }
+@keyframes ibaHudIn { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes ibaHudSpin { to { rotate: 360deg; } }
+@keyframes ibaHudSpinR { to { rotate: -360deg; } }
+#iba-login-opening.iba-op-f .iba-hud-log {
+  position: absolute; left: 6vw; top: 50%; transform: translateY(-50%); margin: 0; padding: 0; list-style: none;
+  font: 600 12px/1.9 "Consolas", "Courier New", monospace; letter-spacing: .16em; color: #8FF3E4;
+}
+#iba-login-opening.iba-op-f .iba-hud-log li { display: flex; gap: 18px; justify-content: space-between; min-width: 230px; opacity: 0; transform: translateX(-12px); }
+#iba-login-opening.iba-op-f .iba-hud-log li b { color: #E3C98A; font-weight: 700; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-log li { animation: ibaHudLog .3s ease calc(.35s + var(--i) * .17s) forwards; }
+@keyframes ibaHudLog { to { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-f .iba-hud-ver { position: absolute; right: 6vw; bottom: 9vh; font: 600 11px "Consolas", "Courier New", monospace; letter-spacing: .22em; color: rgba(143, 243, 228, .75); opacity: 0; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-ver { animation: ibaOpFade .6s ease .6s forwards; }
+#iba-login-opening.iba-op-f .iba-op-mark { font-family: "Arial Black", Arial, sans-serif; font-weight: 900; letter-spacing: .08em; perspective: 600px; }
+#iba-login-opening.iba-op-f .iba-op-l {
+  color: transparent; -webkit-text-fill-color: transparent;
+  background: linear-gradient(180deg, #FFFFFF 0%, #CFF7F0 38%, #5ED6C4 52%, #1C5F6B 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 14px rgba(94, 214, 196, .55)); transform: rotateX(90deg) scale(1.3); opacity: 0;
+}
+#iba-login-opening.iba-op-f.is-play .iba-op-l { animation: ibaHudLetter .55s cubic-bezier(.2, .9, .3, 1.2) forwards; }
+#iba-login-opening.iba-op-f.is-play .iba-op-l:nth-child(1) { animation-delay: 1.0s; }
+#iba-login-opening.iba-op-f.is-play .iba-op-l:nth-child(2) { animation-delay: 1.15s; }
+#iba-login-opening.iba-op-f.is-play .iba-op-l:nth-child(3) { animation-delay: 1.3s; }
+@keyframes ibaHudLetter { 0% { opacity: 0; transform: rotateX(90deg) scale(1.3); } 55% { opacity: 1; transform: rotateX(-14deg) scale(.96); } 80% { transform: rotateX(6deg) scale(1.02); } 100% { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-f .iba-hud-online { font: 800 13px/1 "Consolas", "Courier New", monospace; letter-spacing: .5em; color: #E3C98A; opacity: 0; text-shadow: 0 0 10px rgba(227, 201, 138, .7); }
+#iba-login-opening.iba-op-f.is-play .iba-hud-online { animation: ibaHudOnline .9s steps(6, end) 1.65s forwards; }
+@keyframes ibaHudOnline { 0% { opacity: 0; } 30% { opacity: 1; } 45% { opacity: .2; } 60%, 100% { opacity: 1; } }
+#iba-login-opening.iba-op-f.is-play .iba-op-hello { animation-delay: 1.9s; color: #CFE3EE; }
+#iba-login-opening.iba-op-f .iba-hud-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 50%, rgba(207, 247, 240, .95), rgba(94, 214, 196, .35) 35%, transparent 65%); opacity: 0; pointer-events: none; }
+#iba-login-opening.iba-op-f.is-play .iba-hud-flash { animation: ibaHudFlash .55s ease-out 1.52s forwards; }
+@keyframes ibaHudFlash { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0; } }
+#iba-login-opening.iba-op-f.iba-op-reduced .iba-op-l,
+#iba-login-opening.iba-op-f.iba-op-reduced .iba-hud-online,
+#iba-login-opening.iba-op-f.iba-op-reduced .iba-hud-rings g,
+#iba-login-opening.iba-op-f.iba-op-reduced .iba-hud-log li { opacity: 1; transform: none; }
+@media (max-width: 760px) { #iba-login-opening.iba-op-f .iba-hud-log, #iba-login-opening.iba-op-f .iba-hud-ver { display: none; } }
+
+/* =============================================================================
+   15.0.0 patch 16/17: Opening G - Site build (redrawn in patch 17)
+   0.0-1.3 s  a concrete mixer truck drives in at sunrise: headlight beam,
+              roof beacon, exhaust puffs, drum turning, dust; the camera shakes
+              as it stops
+   1.4-2.4 s  it transforms: cab -> head, drum -> body (stripes = hi-vis
+              vest), chassis -> legs, wheels -> feet and chest core, fenders ->
+              shoulder pads, bumper -> belt; sparks fly, arms swing out, the
+              hard hat drops on, the eyes light up, flash and a second shake
+   2.4-4.3 s  scaffolding outlines, the robot points a beam and the blocks
+              drop in floor by floor, forming I, B, A
+   4.35 s     the windows light up left to right, roof beacons blink, a glint
+              sweeps the letters, the robot waves, "Welcome back"
+   ~6 s       lifts off (click or Esc skips)
+   ============================================================================= */
+.iba-open-sample.is-g { background: linear-gradient(180deg, #1B2B44 0%, #3A3550 55%, #8A5A3C 100%); color: #FACC15; box-shadow: inset 0 -6px 0 #2A2016; }
+#iba-login-opening.iba-op.iba-op-g { background: #0E1626; pointer-events: auto; cursor: pointer; }
+#iba-login-opening.iba-op.iba-op-g.is-play { animation: ibaSbLift 6s cubic-bezier(.4, 0, .2, 1) forwards; }
+#iba-login-opening.iba-op-g.is-skip { animation: ibaOpFadeOut .25s ease forwards !important; }
+@keyframes ibaSbLift { 0%, 88% { opacity: 1; transform: none; filter: none; } 100% { opacity: 0; transform: scale(1.03); filter: blur(5px); } }
+@keyframes ibaOpFadeOut { to { opacity: 0; } }
+#iba-login-opening.iba-op-g .sb-sky { position: absolute; inset: 0; background: linear-gradient(180deg, #0D172B 0%, #1F2C49 40%, #4D3F5E 66%, #B4704A 88%, #D89056 100%); }
+#iba-login-opening.iba-op-g .sb-scene { position: relative; z-index: 2; width: min(98vw, 1180px); height: auto; max-height: 92vh; overflow: visible; }
+#iba-login-opening.iba-op-g .sb-scene * { transform-box: fill-box; transform-origin: center; }
+#iba-login-opening.iba-op-g .sb-sun { transform: translateY(46px); }
+#iba-login-opening.iba-op-g.is-play .sb-sun { animation: sbSun 5.4s ease-out forwards; }
+@keyframes sbSun { to { transform: none; } }
+#iba-login-opening.iba-op-g .sb-skyline rect { fill: #24304A; opacity: .75; }
+#iba-login-opening.iba-op-g .sb-ground { fill: #2B2118; }
+#iba-login-opening.iba-op-g .sb-ground-line { stroke: #FACC15; stroke-width: 2; stroke-dasharray: 18 12; opacity: .5; }
+#iba-login-opening.iba-op-g .sb-crane { fill: none; stroke: rgba(255, 220, 160, .26); stroke-width: 4; stroke-linecap: round; }
+#iba-login-opening.iba-op-g .sb-crane-lattice { fill: none; stroke: rgba(255, 220, 160, .22); stroke-width: 12; stroke-dasharray: 2 9; }
+#iba-login-opening.iba-op-g .sb-hook { fill: none; stroke: rgba(255, 220, 160, .35); stroke-width: 2; transform-origin: 50% 0%; }
+#iba-login-opening.iba-op-g.is-play .sb-hook { animation: sbHook 2.4s ease-in-out infinite alternate; }
+@keyframes sbHook { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+#iba-login-opening.iba-op-g .sb-hazard { fill: #FACC15; stroke: #111; stroke-width: 8; stroke-dasharray: 8 8; }
+#iba-login-opening.iba-op-g .sb-cone { fill: #F97316; }
+#iba-login-opening.iba-op-g .sb-cone-band { stroke: #F8FAFC; stroke-width: 3; }
+/* parts */
+#iba-login-opening.iba-op-g .sb-cab-body { fill: url(#sbCabG); stroke: #A16207; stroke-width: 1.5; }
+#iba-login-opening.iba-op-g .sb-glass { fill: url(#sbGlassG); stroke: #0F2537; stroke-width: 1.2; }
+#iba-login-opening.iba-op-g .sb-grille { fill: #1F2937; stroke: #94A3B8; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-grille-line { stroke: #94A3B8; stroke-width: 1.2; }
+#iba-login-opening.iba-op-g .sb-headlight { fill: #FFF7D6; filter: drop-shadow(0 0 4px #FFF7D6); }
+#iba-login-opening.iba-op-g .sb-roof-beacon { fill: #F97316; }
+#iba-login-opening.iba-op-g .sb-lightcone { fill: url(#sbCone); opacity: .9; }
+#iba-login-opening.iba-op-g .sb-steel { fill: #CBD5E1; stroke: #64748B; stroke-width: .8; }
+#iba-login-opening.iba-op-g .sb-steel-dark { fill: #475569; }
+#iba-login-opening.iba-op-g .sb-orange { fill: #F97316; }
+#iba-login-opening.iba-op-g .sb-drum-body { fill: url(#sbDrumG); stroke: #64748B; stroke-width: 2; }
+#iba-login-opening.iba-op-g .sb-drum-shine { fill: none; stroke: rgba(255, 255, 255, .45); stroke-width: 3; stroke-dasharray: 60 400; stroke-dashoffset: -20; }
+#iba-login-opening.iba-op-g .sb-frame { fill: #334155; stroke: #0F172A; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-frame-line { fill: #64748B; }
+#iba-login-opening.iba-op-g .sb-fender { fill: #EAB308; stroke: #A16207; stroke-width: 1.2; }
+#iba-login-opening.iba-op-g .sb-tyre { fill: #0F172A; stroke: #334155; stroke-width: 2.5; }
+#iba-login-opening.iba-op-g .sb-rim { fill: #94A3B8; stroke: #475569; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-spoke { stroke: #334155; stroke-width: 2.2; }
+#iba-login-opening.iba-op-g .sb-hub { fill: #E2E8F0; }
+#iba-login-opening.iba-op-g .sb-puff { fill: rgba(203, 213, 225, .6); opacity: 0; }
+#iba-login-opening.iba-op-g .sb-limb { fill: #475569; stroke: #1E293B; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-joint { fill: #FACC15; stroke: #A16207; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-hand { fill: #CBD5E1; stroke: #475569; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-eyes rect { fill: #5ED6C4; filter: drop-shadow(0 0 4px #5ED6C4); }
+#iba-login-opening.iba-op-g .sb-hat-dome { fill: url(#sbHatG); stroke: #A16207; stroke-width: 1.5; }
+#iba-login-opening.iba-op-g .sb-hat-ridge { fill: #FEF9C3; opacity: .8; }
+#iba-login-opening.iba-op-g .sb-hat-brim { fill: #EAB308; stroke: #A16207; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-lamp { fill: #FFFBEB; filter: drop-shadow(0 0 5px #FDE68A); }
+#iba-login-opening.iba-op-g .sb-hat-text { font: 900 7px Arial, sans-serif; fill: #7C4A03; text-anchor: middle; letter-spacing: .5px; }
+#iba-login-opening.iba-op-g .sb-reflect { fill: #F1F5F9; filter: drop-shadow(0 0 2px rgba(255, 255, 255, .8)); }
+#iba-login-opening.iba-op-g .sb-spark { fill: #FDE047; opacity: 0; }
+#iba-login-opening.iba-op-g .sb-sparks circle { fill: #FDE68A; opacity: 0; }
+#iba-login-opening.iba-op-g .sb-beam { fill: none; stroke: #7DF9E9; stroke-width: 2.5; stroke-dasharray: 6 8; opacity: 0; filter: drop-shadow(0 0 4px #5ED6C4); }
+#iba-login-opening.iba-op-g .sb-dust ellipse { fill: rgba(210, 176, 128, .55); opacity: 0; }
+#iba-login-opening.iba-op-g .sb-flash circle { fill: rgba(255, 251, 235, .95); opacity: 0; }
+#iba-login-opening.iba-op-g .sb-scaf { fill: none; stroke: rgba(250, 204, 21, .55); stroke-width: 1.5; stroke-dasharray: 600; stroke-dashoffset: 600; }
+#iba-login-opening.iba-op-g .sb-blk-face { fill: url(#sbBlkG); stroke: #475569; stroke-width: 1; }
+#iba-login-opening.iba-op-g .sb-blk-top { fill: #DCE3EA; opacity: .8; }
+#iba-login-opening.iba-op-g .sb-win { fill: #1E293B; }
+#iba-login-opening.iba-op-g .sb-blk { opacity: 0; }
+#iba-login-opening.iba-op-g .sb-beacon { fill: #EF4444; opacity: 0; }
+#iba-login-opening.iba-op-g .sb-glint { opacity: 0; mix-blend-mode: screen; }
+#iba-login-opening.iba-op-g .sb-robot > g { opacity: 0; }
+#iba-login-opening.iba-op.iba-op-g .iba-op-center.sb-hello { position: absolute; left: 0; right: 0; bottom: 6vh; z-index: 3; }
+
+/* 1 - drive in */
+#iba-login-opening.iba-op-g.is-play .sb-drive { animation: sbDrive 1.3s cubic-bezier(.15, .7, .25, 1) forwards; }
+@keyframes sbDrive { from { transform: translateX(-700px); } to { transform: none; } }
+#iba-login-opening.iba-op-g.is-play .sb-spokes { animation: sbSpin .28s linear 0s 4, sbSpin .5s ease-out 1.12s 1; }
+@keyframes sbSpin { to { transform: rotate(360deg); } }
+#iba-login-opening.iba-op-g .sb-drum-stripe { fill: none; stroke: #F97316; stroke-width: 10; stroke-dasharray: 22 16; }
+#iba-login-opening.iba-op-g .sb-drum-stripe.s2 { stroke-width: 7; stroke-dasharray: 14 12; }
+#iba-login-opening.iba-op-g.is-play .sb-drum-stripe { animation: sbStripes 1.4s linear forwards; }
+@keyframes sbStripes { to { stroke-dashoffset: -152; } }
+#iba-login-opening.iba-op-g.is-play .sb-puff { animation: sbPuff .6s ease-out 0s 2; }
+#iba-login-opening.iba-op-g.is-play .sb-puff.p2 { animation-delay: .2s; }
+#iba-login-opening.iba-op-g.is-play .sb-puff.p3 { animation-delay: .4s; }
+@keyframes sbPuff { 0% { opacity: .8; transform: none; } 100% { opacity: 0; transform: translate(-26px, -18px) scale(2.2); } }
+#iba-login-opening.iba-op-g.is-play .sb-roof-beacon { animation: sbBlink .25s steps(2, end) 0s 6, ibaOpFadeOut .2s ease 1.55s forwards; }
+@keyframes sbBlink { 50% { fill: #FDE68A; } }
+#iba-login-opening.iba-op-g.is-play .sb-lightcone { animation: ibaOpFadeOut .3s ease 1.3s forwards; }
+#iba-login-opening.iba-op-g.is-play .sb-exhaust { animation: ibaOpFadeOut .3s ease 1.45s forwards; }
+#iba-login-opening.iba-op-g.is-play .sb-dust ellipse { animation: sbDust .9s ease-out .7s forwards; }
+#iba-login-opening.iba-op-g.is-play .sb-dust ellipse:nth-child(2) { animation-delay: .8s; }
+#iba-login-opening.iba-op-g.is-play .sb-dust ellipse:nth-child(3) { animation-delay: .9s; }
+@keyframes sbDust { 0% { opacity: 0; transform: none; } 30% { opacity: .9; } 100% { opacity: 0; transform: translate(-34px, -14px) scale(1.9); } }
+#iba-login-opening.iba-op-g.is-play .sb-cam { animation: sbShake .28s linear 1.28s 1, sbShake .3s linear 2.2s 1; }
+@keyframes sbShake { 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, -1px); } 80% { transform: translate(2px, 1px); } 100% { transform: none; } }
+
+/* 2 - transform */
+#iba-login-opening.iba-op-g.is-play .sb-p { animation-duration: .8s; animation-timing-function: cubic-bezier(.5, -0.3, .3, 1.35); animation-fill-mode: forwards; animation-delay: 1.4s; }
+#iba-login-opening.iba-op-g.is-play .sb-cab  { animation-name: sbCab; animation-delay: 1.55s; }
+#iba-login-opening.iba-op-g.is-play .sb-drum { animation-name: sbDrumT; }
+#iba-login-opening.iba-op-g.is-play .sb-legl { animation-name: sbLegL; animation-delay: 1.5s; }
+#iba-login-opening.iba-op-g.is-play .sb-legr { animation-name: sbLegR; animation-delay: 1.5s; }
+#iba-login-opening.iba-op-g.is-play .sb-w1 { animation-name: sbW1; animation-delay: 1.65s; }
+#iba-login-opening.iba-op-g.is-play .sb-w3 { animation-name: sbW3; animation-delay: 1.65s; }
+#iba-login-opening.iba-op-g.is-play .sb-w2 { animation-name: sbW2; animation-delay: 1.7s; }
+#iba-login-opening.iba-op-g.is-play .sb-fenl { animation-name: sbFenL; animation-delay: 1.75s; }
+#iba-login-opening.iba-op-g.is-play .sb-fenr { animation-name: sbFenR; animation-delay: 1.75s; }
+#iba-login-opening.iba-op-g.is-play .sb-bump { animation-name: sbBump; animation-delay: 1.6s; }
+#iba-login-opening.iba-op-g.is-play .sb-chute { animation-name: sbChute; }
+@keyframes sbCab   { 50% { transform: translate(-36px, -70px) rotate(-14deg); } to { transform: translate(-73px, -120px); } }
+@keyframes sbDrumT { 50% { transform: translate(18px, -30px) rotate(50deg) scale(.82); } to { transform: translate(34px, -46px) rotate(90deg) scale(.66); } }
+@keyframes sbLegL  { to { transform: translate(32px, -3px) rotate(90deg) scale(.88); } }
+@keyframes sbLegR  { to { transform: translate(-40px, -3px) rotate(90deg) scale(.88); } }
+@keyframes sbW1    { 50% { transform: translate(30px, -10px) rotate(180deg) scale(.85); } to { transform: translate(53px, 26px) rotate(360deg) scale(.7); } }
+@keyframes sbW3    { 50% { transform: translate(-30px, -10px) rotate(-180deg) scale(.85); } to { transform: translate(-57px, 26px) rotate(-360deg) scale(.7); } }
+@keyframes sbW2    { to { transform: translate(26px, -98px) rotate(360deg) scale(.45); } }
+@keyframes sbFenL  { to { transform: translate(15px, -112px) rotate(-12deg) scale(.32, .6); } }
+@keyframes sbFenR  { to { transform: translate(-39px, -113px) rotate(12deg) scale(.62, .6); } }
+@keyframes sbBump  { to { transform: translate(-92px, -45px) scale(1.65, 1); } }
+@keyframes sbChute { 60% { opacity: 1; } to { opacity: 0; transform: translate(55px, -25px) rotate(90deg) scale(.6); } }
+#iba-login-opening.iba-op-g.is-play .sb-sparks circle { animation: sbSparkFly .55s ease-out 1.8s 1, sbSparkFly .55s ease-out 2.2s 1; }
+@keyframes sbSparkFly { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(.4); } }
+#iba-login-opening.iba-op-g.is-play .sb-arm-l,
+#iba-login-opening.iba-op-g.is-play .sb-arm-r { transform-origin: 50% 0%; animation: sbArmIn .35s cubic-bezier(.3, 1.5, .5, 1) 2.05s forwards; }
+@keyframes sbArmIn { from { opacity: 0; transform: scaleY(0); } to { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-g.is-play .sb-hat { animation: sbHat .45s cubic-bezier(.3, 1.6, .5, 1) 2.15s forwards; }
+@keyframes sbHat { from { opacity: 0; transform: translateY(-80px) rotate(-16deg); } to { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-g.is-play .sb-eyes { animation: sbEyes .5s steps(3, end) 2.3s forwards, sbBlinkEyes 2.6s ease 3s infinite; }
+@keyframes sbEyes { 0% { opacity: 0; } 50% { opacity: 1; } 70% { opacity: .2; } 100% { opacity: 1; } }
+@keyframes sbBlinkEyes { 0%, 92%, 100% { opacity: 1; transform: none; } 95% { opacity: 1; transform: scaleY(.15); } }
+#iba-login-opening.iba-op-g.is-play .sb-vest { animation: ibaOpFade .3s ease 2.25s forwards; }
+#iba-login-opening.iba-op-g.is-play .sb-flash circle { animation: sbFlash .45s ease-out 2.2s forwards; }
+@keyframes sbFlash { 0% { opacity: 0; transform: scale(.3); } 25% { opacity: .9; } 100% { opacity: 0; transform: scale(2.2); } }
+
+/* 3 - build */
+#iba-login-opening.iba-op-g.is-play .sb-robot > .sb-arm-r { animation: sbArmIn .35s cubic-bezier(.3, 1.5, .5, 1) 2.05s forwards, sbPoint .4s ease-out 2.5s forwards; }
+@keyframes sbPoint { from { opacity: 1; transform: none; } to { opacity: 1; transform: rotate(-78deg); } }
+#iba-login-opening.iba-op-g.is-play .sb-spark { animation: sbSpark .18s linear 2.6s 10 alternate; }
+@keyframes sbSpark { from { opacity: .2; transform: scale(.6); } to { opacity: 1; transform: scale(1.5); } }
+#iba-login-opening.iba-op-g.is-play .sb-beam { animation: sbBeam 1.8s linear 2.6s forwards; }
+@keyframes sbBeam { 0% { opacity: 0; stroke-dashoffset: 0; } 8%, 85% { opacity: .9; } 100% { opacity: 0; stroke-dashoffset: -140; } }
+#iba-login-opening.iba-op-g.is-play .sb-scaf { animation: sbScaf .6s ease-out var(--d) forwards, ibaOpFadeOut .5s ease 4.3s forwards; }
+@keyframes sbScaf { to { stroke-dashoffset: 0; } }
+#iba-login-opening.iba-op-g.is-play .sb-blk { animation: sbBlock .32s cubic-bezier(.3, 1.4, .5, 1) var(--d) forwards; }
+@keyframes sbBlock { 0% { opacity: 0; transform: translateY(-50px); } 75% { opacity: 1; transform: translateY(1px) scale(1.04, .94); } 100% { opacity: 1; transform: none; } }
+#iba-login-opening.iba-op-g.is-play .sb-win { animation: sbLights .35s steps(2, end) calc(4.35s + var(--w)) forwards; }
+@keyframes sbLights { to { fill: #FDE68A; filter: drop-shadow(0 0 2px #FDE68A); } }
+#iba-login-opening.iba-op-g.is-play .sb-beacon { animation: sbBeacon .5s steps(2, end) calc(4.6s + var(--b)) infinite; }
+@keyframes sbBeacon { 0% { opacity: 1; } 50% { opacity: .15; } 100% { opacity: 1; } }
+#iba-login-opening.iba-op-g.is-play .sb-glint { animation: sbGlint .8s ease-in-out 4.85s forwards; }
+@keyframes sbGlint { 0% { opacity: 0; transform: translateX(0) skewX(-20deg); } 15% { opacity: .9; } 85% { opacity: .9; } 100% { opacity: 0; transform: translateX(380px) skewX(-20deg); } }
+
+/* 4 - wave and greeting */
+#iba-login-opening.iba-op-g.is-play .sb-robot > .sb-arm-l { animation: sbArmIn .35s cubic-bezier(.3, 1.5, .5, 1) 2.05s forwards, sbWave .32s ease-in-out 4.6s 4 alternate; }
+@keyframes sbWave { from { opacity: 1; transform: rotate(0); } to { opacity: 1; transform: rotate(150deg); } }
+#iba-login-opening.iba-op.iba-op-g.is-play .iba-op-hello { animation: ibaOpFadeUp .6s ease 4.7s forwards; color: #FFF7E0; font-size: clamp(16px, 1.7vw, 22px); font-weight: 700; letter-spacing: .03em; text-shadow: 0 2px 8px rgba(0, 0, 0, .6); }
+#iba-login-opening.iba-op-g.iba-op-reduced .sb-blk,
+#iba-login-opening.iba-op-g.iba-op-reduced .iba-op-hello { opacity: 1; }
+#iba-login-opening.iba-op-g.iba-op-reduced .sb-robot,
+#iba-login-opening.iba-op-g.iba-op-reduced .sb-lightcone,
+#iba-login-opening.iba-op-g.iba-op-reduced .sb-scaffold { display: none; }

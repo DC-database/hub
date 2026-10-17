@@ -699,3 +699,61 @@
 @keyframes ibaBotWave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-115deg); } }
 @keyframes ibaBotTalk { from { transform: scaleY(1); } to { transform: scaleY(2.6); } }
 @keyframes ibaBotMark { from { box-shadow: 0 0 0 0 rgba(94, 214, 196, 0.6); } to { box-shadow: 0 0 0 6px rgba(94, 214, 196, 0); } }
+
+/* ==========================================================================
+   15.0.0 patch 15: engineer robot, speech bubble, people card, skills
+   ========================================================================== */
+@layer iba-ui {
+  .iba-ai-fab.is-bot { height: 90px !important; }
+  .iba-ai-bot { height: 90px !important; }
+  .iba-ai-bot .bot-hat { fill: url(#ibaBotHat); stroke: #A16207; stroke-width: 1.2; }
+  .iba-ai-bot .bot-ridge { fill: #FDE68A; opacity: .85; }
+  .iba-ai-bot .bot-brim { fill: #EAB308; stroke: #A16207; stroke-width: 1; }
+  .iba-ai-bot .bot-bulb { fill: #FFFBEB; stroke: #A16207; stroke-width: .8; }
+  .iba-ai-bot .bot-ear { fill: #94A3B8; }
+  .iba-ai-bot .bot-vest { fill: url(#ibaBotVest); stroke: #9A3412; stroke-width: .8; }
+  .iba-ai-bot .bot-stripe { fill: #E5E7EB; opacity: .92; }
+  .iba-ai-bot .bot-heart { fill: #F8FAFC; stroke: #0E2A40; stroke-width: .6; }
+  .iba-ai-bot .bot-boots rect { fill: #3F2A14; stroke: #E3C98A; stroke-width: .8; }
+  .iba-ai-bot :is(.bot-hat, .bot-brim, .bot-ridge, .bot-vest) { transform-box: fill-box; }
+  .iba-ai-fab.is-bot.has-items .bot-bulb { fill: #FDE047; }
+  .iba-ai-fab.is-bot.has-reminder .bot-bulb { fill: #F07A68; }
+
+  /* speech bubble above the robot */
+  .iba-ai-tip {
+    position: fixed !important; right: 24px !important; bottom: 104px !important; z-index: 9991 !important;
+    display: flex !important; align-items: flex-start !important; gap: 8px !important;
+    max-width: 250px !important; padding: 10px 12px !important; border-radius: 14px 14px 4px 14px !important;
+    background: #FFFFFF !important; color: #0F2537 !important; -webkit-text-fill-color: #0F2537 !important;
+    border: 2px solid #FACC15 !important; box-shadow: 0 12px 26px rgba(0, 0, 0, .35) !important;
+    font-size: 13px !important; font-weight: 600 !important; line-height: 1.35 !important; cursor: pointer !important;
+    opacity: 0 !important; transform: translateY(8px) scale(.96) !important; transform-origin: bottom right !important;
+    pointer-events: none !important; transition: opacity .2s ease, transform .2s ease !important;
+  }
+  .iba-ai-tip.is-on { opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+  .iba-ai-tip::after { content: "" !important; position: absolute !important; right: 18px !important; bottom: -9px !important; border: 8px solid transparent !important; border-top-color: #FACC15 !important; border-bottom: 0 !important; }
+  .iba-ai-tip-x { flex: 0 0 auto !important; width: 20px !important; height: 20px !important; margin: -3px -4px 0 0 !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #64748B !important; font-size: 16px !important; line-height: 20px !important; cursor: pointer !important; }
+
+  /* person card */
+  .iba-ai-person { padding: 8px 0 10px !important; border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important; }
+  .iba-ai-person:last-child { border-bottom: 0 !important; }
+  .iba-ai-person-top { display: flex !important; align-items: center !important; gap: 10px !important; }
+  .iba-ai-avatar { flex: 0 0 auto !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 38px !important; height: 38px !important; border-radius: 50% !important; background: linear-gradient(135deg, #FACC15, #EA580C) !important; color: #0F2537 !important; -webkit-text-fill-color: #0F2537 !important; font-weight: 800 !important; font-size: 13px !important; }
+  .iba-ai-person-top strong { display: block !important; color: #FFFFFF !important; font-size: 14px !important; }
+  .iba-ai-person-top small { color: #9FB0C1 !important; }
+  .iba-ai-person-dl { display: grid !important; grid-template-columns: 62px 1fr !important; gap: 4px 8px !important; margin: 8px 0 !important; font-size: 12.5px !important; }
+  .iba-ai-person-dl dt { color: #7F90A3 !important; font-weight: 700 !important; text-transform: uppercase !important; font-size: 10.5px !important; letter-spacing: .05em !important; padding-top: 2px !important; }
+  .iba-ai-person-dl dd { margin: 0 !important; color: #E6EDF3 !important; word-break: break-word !important; }
+  .iba-ai-person-dl a { color: #5ED6C4 !important; -webkit-text-fill-color: #5ED6C4 !important; text-decoration: none !important; }
+  .iba-ai-person-acts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  .iba-ai-person-acts a.iba-ai-mini { text-decoration: none !important; }
+
+  /* skills */
+  .iba-ai-skill-list.is-ready li { align-items: center !important; }
+  .iba-ai-skill-ico { flex: 0 0 auto !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 30px !important; height: 30px !important; border-radius: 9px !important; background: rgba(250, 204, 21, 0.14) !important; color: #FACC15 !important; -webkit-text-fill-color: #FACC15 !important; }
+  .iba-ai-skill-new { display: grid !important; grid-template-columns: 1fr !important; gap: 6px !important; margin: 0 0 6px !important; }
+  .iba-ai-skill-new input, .iba-ai-skill-new select { height: 34px !important; padding: 0 10px !important; border-radius: 9px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  .iba-ai-skill-new button { justify-self: start !important; }
+  .iba-ai-skill-ask select { width: 100% !important; height: 32px !important; border-radius: 8px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; }
+}
+@layer iba-ui { .iba-ai-skill-list.is-ready small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; } }
