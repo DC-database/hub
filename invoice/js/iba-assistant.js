@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p15';
+    const VERSION = '15.0.0-p18';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -196,7 +196,9 @@
         const tokens = pos.split(/[^a-z0-9]+/).filter(Boolean);
         const sup = isSuper();
         const del = isDelegate();
-        const wide = sup || del || pos.includes('manager') || /senior\s*qs/.test(pos) || tokens.some((t) => WIDE_TOKENS.indexOf(t) !== -1);
+        // 15.0.0 patch 18: Site "All" (as in the rest of IBA) means every site
+        const allSite = /(^|[\s,;\/])all([\s,;\/]|$)/i.test(String(a.Site || ''));
+        const wide = sup || del || allSite || pos.includes('manager') || /senior\s*qs/.test(pos) || tokens.some((t) => WIDE_TOKENS.indexOf(t) !== -1);
         const sites = String(a.Site || '').split(/[,;\/]+/).map((x) => (String(x).match(/\d+/) || [''])[0]).filter(Boolean);
         return { super: sup, delegate: del, allSites: wide, sites: sites, amounts: sup || del || role === 'admin' || tokens.indexOf('accounting') !== -1 };
     }
@@ -2645,6 +2647,8 @@
             return;
         }
         if (b.id === 'iba-ai-mic') return listen(b);
+        if (b.dataset.openTask) { let q = {}; try { q = JSON.parse(b.dataset.openTask); } catch (_) {} return openTaskPage(q); }
+        if (b.dataset.openJob) return openJobPage(b.dataset.openJob);
         if (b.hasAttribute('data-brief-print')) {
             const card = b.closest('.iba-ai-card');
             const data = card && briefStore.get(card.getAttribute('data-brief-id'));
@@ -2739,6 +2743,46 @@
             state.busy = false;
             if (!out) setBusy(false);
         }
+    }
+
+    // 15.0.0 patch 18: "Do it" in the brief takes the user straight to the
+    // task in WorkDesk Active Task (or the request in Inventory Active Job),
+    // on the right tab, highlighted, so they can do the next step there
+    // (e.g. For SRV -> SRV Done, IPC Application -> next status).
+    function waitFor(test, ms) {
+        return new Promise((resolve) => {
+            const t0 = Date.now();
+            const tick = () => { let ok = false; try { ok = !!test(); } catch (_) {} if (ok || Date.now() - t0 > ms) resolve(ok); else setTimeout(tick, 200); };
+            tick();
+        });
+    }
+    async function openTaskPage(q) {
+        if (typeof window.ibaOpenShellPage !== 'function' || typeof window.wdFocusActiveTask !== 'function') return;
+        toggle(false);
+        window.ibaOpenShellPage('wd-active-task');
+        await waitFor(() => window.IBA_ACTIVE_TASK_LAST_MODE === 'workdesk' && document.querySelector('#active-task-filters [data-status-filter]'), 8000);
+        await wait(300);
+        const ok = await window.wdFocusActiveTask(q);
+        if (!ok) peek('PO ' + (q.po || '') + ' is not in your Active Task any more - it may be done already.');
+    }
+    async function openJobPage(control) {
+        if (typeof window.ibaOpenShellPage !== 'function') return;
+        toggle(false);
+        window.ibaOpenShellPage('inv-active-job');
+        await waitFor(() => document.querySelector('#inv-active-job-table-body tr'), 8000);
+        await wait(400);
+        const input = $('inv-active-job-search');
+        if (input) { input.value = control; input.dispatchEvent(new Event('input', { bubbles: true })); }
+        await wait(900);
+        const body = $('inv-active-job-table-body');
+        const rows = body ? Array.from(body.querySelectorAll('tr')).filter((r) => norm(r.textContent).indexOf(norm(control)) !== -1) : [];
+        if (!rows.length) { peek(control + ' is not in your Active Job any more - it may be done already.'); return; }
+        const head = rows.find((r) => r.classList.contains('controlid-group-header'));
+        if (head && !head.classList.contains('open')) head.click();
+        const focus = head ? [head].concat(Array.from(body.querySelectorAll('tr[data-parent-group="' + head.getAttribute('data-group-id') + '"]'))) : rows;
+        focus.forEach((r) => r.classList.add('wd-row-focus'));
+        try { focus[0].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+        setTimeout(() => focus.forEach((r) => r.classList.remove('wd-row-focus')), 7000);
     }
 
     async function runRecent() {
@@ -3219,12 +3263,14 @@
             if (x.tasks.length) {
                 h += '<div class="iba-ai-sub">Waiting for you - and what to do next (' + x.tasks.length + ', oldest first)</div><ul class="iba-ai-rows" data-brief-list="tasks">' + x.tasks.map((t, i) =>
                     '<li' + (i >= MORE ? ' hidden' : '') + '>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) + '</li>').join('') + '</ul>' + moreBtn(x.tasks.length, 'tasks');
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) +
+                    '<button type="button" class="iba-ai-mini iba-ai-go" data-open-task="' + esc(JSON.stringify({ key: t.key || '', po: t.po || '', ref: t.ref || '' })) + '" title="Open it in Active Task to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></li>').join('') + '</ul>' + moreBtn(x.tasks.length, 'tasks');
             }
             if (x.jobs.length) {
                 h += '<div class="iba-ai-sub">Inventory waiting for your step (' + x.jobs.length + ')</div><ul class="iba-ai-rows" data-brief-list="jobs">' + x.jobs.map((j, i) =>
                     '<li' + (i >= MORE ? ' hidden' : '') + '><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) + '</li>').join('') + '</ul>' + moreBtn(x.jobs.length, 'jobs');
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) +
+                    '<button type="button" class="iba-ai-mini iba-ai-go" data-open-job="' + esc(j.control) + '" title="Open it in Active Job to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></li>').join('') + '</ul>' + moreBtn(x.jobs.length, 'jobs');
             }
             if (r.inventory_not_loaded) h += '<p class="iba-ai-foot">' + esc(r.inventory_not_loaded) + ' more Active Job item' + (r.inventory_not_loaded === 1 ? '' : 's') + ' not loaded yet: open Active Job to see them.</p>';
             if (!x.tasks.length && !x.jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';

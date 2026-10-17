@@ -1884,3 +1884,40 @@ function handleActiveTaskSearch(searchTerm) {
 }
 
 // #endregion BLOCK 14 — ACTIVE TASKS DISPLAY + LOADING
+
+// 15.0.0 patch 18: open one task straight from the assistant's brief. Opens
+// its status tab (and Urgent/Normal and date tab), then scrolls to the row
+// and highlights it, with its action buttons pulsing - e.g. For SRV -> SRV
+// Done, IPC Application -> its next status. Nothing is changed by itself.
+window.wdFocusActiveTask = async function (m) {
+    m = m || {};
+    const norm = (v) => String(v || '').trim().toLowerCase();
+    const matches = (t) => {
+        if (!t || !isWorkdeskTaskRecord(t)) return false;
+        if (m.key && (String(t.key) === String(m.key) || String(t.originalKey || '') === String(m.key))) return true;
+        if (!m.po || norm(t.po || t.originalPO) !== norm(m.po)) return false;
+        return !m.ref || norm(t.ref) === norm(m.ref) || norm(t.invNumber) === norm(m.ref);
+    };
+    const find = () => (Array.isArray(userActiveTasks) ? userActiveTasks : []).find(matches);
+    let task = find();
+    if (!task && typeof populateActiveTasks === 'function') { try { await populateActiveTasks(false); } catch (_) {} task = find(); }
+    if (!task) return false;
+    const status = task.remarks || task.status || '';
+    try { if (activeTaskSearchInput) activeTaskSearchInput.value = ''; } catch (_) {}
+    const tab = Array.from(document.querySelectorAll('#active-task-filters [data-status-filter]')).find((b) => b.dataset.statusFilter === status);
+    if (tab && !tab.classList.contains('active')) tab.click();
+    currentActiveTaskFilter = status;
+    const apv = window.ibaApprovals || null;
+    const isApproval = !!(apv && apv.isApprovalStatus && apv.isApprovalStatus(status));
+    if (isApproval) { wdAtUrgencyStatus = status; wdAtUrgencyTab = apv.isUrgent(task) ? 'urgent' : 'normal'; }
+    wdActiveTaskSelectedDateStatus = status + '|' + (isApproval ? wdAtUrgencyTab : '');
+    wdActiveTaskSelectedDateKey = wdActiveTaskDateKey(wdActiveTaskQueueTimestamp(task));
+    document.querySelectorAll('#active-task-filters [data-status-filter]').forEach((b) => b.classList.toggle('active', b.dataset.statusFilter === status));
+    handleActiveTaskSearch('');
+    const row = activeTaskTableBody && Array.from(activeTaskTableBody.querySelectorAll('tr[data-key]')).find((r) => r.getAttribute('data-key') === String(task.key));
+    if (!row) return false;
+    row.classList.add('wd-row-focus');
+    try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) { row.scrollIntoView(); }
+    setTimeout(() => row.classList.remove('wd-row-focus'), 7000);
+    return true;
+};
