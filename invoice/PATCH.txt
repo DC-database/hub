@@ -1,18 +1,40 @@
-IBA SYSTEM 15.0.0 patch 17
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-16 and everything before)
+IBA SYSTEM 15.0.0 patch 18
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-17 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 17. Copying it over 15.0.0
-  or any earlier 15.0.0 patch (e.g. your patch 16) gives the same result.
+  The result is exactly the tested 15.0.0 patch 18. Copying it over 15.0.0
+  or any earlier 15.0.0 patch (e.g. your patch 17) gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p17), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p18), so a normal reload picks them up.
 
 FILES: 45 (+ this note).
-  Changed in patch 17 compared with patch 16:
-  js/iba-shell.js, css/iba-shell.css, index.html
+  Changed in patch 18 compared with patch 17:
+  js/iba-assistant.js, css/iba-assistant.css, js/app-active-tasks.js,
+  css/iba-ui-tables.css, index.html
+
+15.0.0 patch 18 - WHAT CHANGED
+  1. Site "All" now works in the assistant
+  - The rest of IBA already treated a user whose Site is "All" as covering
+    every site, but the assistant only read site numbers, so it said "Ask
+    Irwin to add your site". Now Site "All" (alone or in a list) lets the
+    assistant search every site for that user, the same as in WorkDesk.
+
+  2. "Do it" in the brief - straight to the action page
+  - Every item in the brief has a "Do it" button.
+  - WorkDesk items (invoices For SRV, IPC Application and other job
+    entries, approvals...): opens WorkDesk > Active Task on the item's own
+    status tab (and Urgent/Normal and date tab), scrolls to it and
+    highlights the row in yellow, with its action buttons pulsing (e.g.
+    "SRV Done"), so the person does the next step right there.
+  - Inventory items (TRF, STK, USE, RET): opens Inventory > Active Job,
+    finds the request (opening a Multi transfer), and highlights it.
+  - Nothing is changed by itself - the person still presses the action.
+    If the item is no longer theirs (already done), the assistant says so.
+  - Works for every user, with or without a key, only on pages they can
+    already open (WorkDesk and Inventory).
 
 15.0.0 patch 17 - WHAT CHANGED
   1. Opening G - Site build, redrawn (about 6 seconds, click/Esc skips)
