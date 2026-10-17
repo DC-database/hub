@@ -221,6 +221,17 @@ function applyAccessUI() {
     const adminSection = document.getElementById('userAccessSection');
     if (adminSection) adminSection.style.display = isAccessAdmin() ? '' : 'none';
 
+    // The item assistant (robot) is only for signed-in users.
+    const signedIn = !!currentAccessUser;
+    document.body.classList.toggle('is-signed-in', signedIn);
+    const drawer = document.getElementById('assistantDrawer');
+    if (!signedIn && drawer && drawer.classList.contains('open')) {
+        drawer.classList.remove('open');
+        drawer.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('assistant-open');
+    }
+    if (signedIn) robotGreet();
+
     const importGithub = document.getElementById('importGithubItemsBtn');
     const importFile = document.getElementById('importFileItemsBtn');
     if (importGithub) importGithub.style.display = canAddItems() ? '' : 'none';
@@ -991,11 +1002,16 @@ function renderSearchResults(rawQuery) {
     });
     if (meta) meta.textContent = matches.length ? `Showing ${Math.min(matches.length, searchLimit)} of ${matches.length.toLocaleString()} matches` : 'No matches';
     if (matches.length === 0) {
-        searchResults.innerHTML = `<div class="empty-state">
-            <p><strong>Nothing in the catalog matches “${escapeHtml(rawQuery.trim())}”.</strong></p>
-            <p>Ask the assistant where it belongs. It suggests a class and group for the category you pick, then fills in the new item form.</p>
-            <button type="button" class="btn btn-accent" data-act="assist"><i class="fa-solid fa-wand-magic-sparkles"></i> Ask the assistant</button>
-        </div>`;
+        searchResults.innerHTML = currentAccessUser
+            ? `<div class="empty-state">
+                <p><strong>Nothing in the catalog matches “${escapeHtml(rawQuery.trim())}”.</strong></p>
+                <p>Ask the assistant where it belongs. It suggests a class and group for the category you pick, then fills in the new item form.</p>
+                <button type="button" class="btn btn-accent" data-act="assist"><i class="fa-solid fa-robot"></i> Ask the assistant</button>
+            </div>`
+            : `<div class="empty-state">
+                <p><strong>Nothing in the catalog matches “${escapeHtml(rawQuery.trim())}”.</strong></p>
+                <p>Check the spelling or try fewer words, like <em>nail</em> instead of <em>nails for wood</em>.</p>
+            </div>`;
         return;
     }
     currentResultItems = matches.slice(0, searchLimit);
@@ -2521,6 +2537,10 @@ function loadUiSettings() {
 function saveUiSettings(s) {
     localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(s));
 }
+// ---------- Background photo ----------
+// The photos in GitHub /photo are 2-42 megapixels (up to 6 MB each). Showing them at full size made
+// Settings and the whole page slow. Now each browser downloads the chosen photo once, shrinks it to
+// screen size, keeps the small copy in this browser, and reuses it on every visit.
 const BG_DB = 'pr_bg_db';
 function openBgDb() {
     return new Promise((resolve, reject) => {
@@ -2530,52 +2550,137 @@ function openBgDb() {
         req.onerror = () => reject(req.error);
     });
 }
-async function saveBgFile(file) {
-    const db = await openBgDb();
-    await new Promise((resolve, reject) => {
-        const tx = db.transaction('bg', 'readwrite');
-        tx.objectStore('bg').put(file, 'file');
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
+// Run one request against the 'bg' store and resolve with its result (null on any failure).
+function bgDbOp(mode, fn) {
+    return openBgDb().then(db => new Promise((resolve) => {
+        let out = null;
+        const tx = db.transaction('bg', mode);
+        const req = fn(tx.objectStore('bg'));
+        if (req) req.onsuccess = () => { out = req.result; };
+        tx.oncomplete = () => resolve(out ?? null);
+        tx.onerror = () => resolve(null);
+        tx.onabort = () => resolve(null);
+    })).catch(() => null);
+}
+async function saveBgFile(file) { await bgDbOp('readwrite', st => st.put(file, 'file')); }
+async function loadBgFile() { return (await bgDbOp('readonly', st => st.get('file'))) || null; }
+async function clearBgFile() { await bgDbOp('readwrite', st => st.delete('file')); }
+async function loadBgCache(url) {
+    const rec = await bgDbOp('readonly', st => st.get('cache:' + url));
+    return rec && rec.blob ? rec : null;
+}
+async function saveBgCache(url, blob, maxSide) {
+    await bgDbOp('readwrite', st => {
+        // Keep only the current photo so the browser storage stays small.
+        const keys = st.getAllKeys();
+        keys.onsuccess = () => keys.result.forEach(k => { if (String(k).startsWith('cache:') && k !== 'cache:' + url) st.delete(k); });
+        return st.put({ blob, maxSide, savedAt: Date.now() }, 'cache:' + url);
     });
 }
-async function loadBgFile() {
-    try {
-        const db = await openBgDb();
-        return await new Promise((resolve) => {
-            const tx = db.transaction('bg', 'readonly');
-            const req = tx.objectStore('bg').get('file');
-            req.onsuccess = () => resolve(req.result || null);
-            req.onerror = () => resolve(null);
-        });
-    } catch (e) { return null; }
+
+// The photo's short side must reach this many pixels to cover the screen sharply in any
+// orientation (capped at 2048, so a photo is at most about 3000 px on its long side).
+function bgTargetSide() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const side = Math.max(screen.width || 1920, screen.height || 1080) * dpr;
+    return Math.min(2048, Math.max(1280, Math.round(side)));
 }
-async function clearBgFile() {
-    try {
-        const db = await openBgDb();
-        await new Promise((resolve) => {
-            const tx = db.transaction('bg', 'readwrite');
-            tx.objectStore('bg').delete('file');
-            tx.oncomplete = resolve;
-            tx.onerror = resolve;
-        });
-    } catch (e) {}
+
+function imageSize(blob) {
+    return new Promise((resolve) => {
+        const u = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(u); };
+        img.onerror = () => { resolve(null); URL.revokeObjectURL(u); };
+        img.src = u;
+    });
 }
-let currentBgObjectUrl = '';
-async function applyBackground(settings) {
-    const s = settings || loadUiSettings();
+
+// Shrink a photo so its short side is coverSide. Returns the original if shrinking fails or is not needed.
+async function shrinkImageBlob(blob, coverSide) {
+    try {
+        const size = await imageSize(blob);
+        if (!size || !size.w || typeof createImageBitmap !== 'function') return blob;
+        const scale = Math.min(1, coverSide / Math.min(size.w, size.h));
+        if (scale === 1 && blob.size < 1500000) return blob;
+        const w = Math.max(1, Math.round(size.w * scale));
+        const h = Math.max(1, Math.round(size.h * scale));
+        const bmp = await createImageBitmap(blob, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' });
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(bmp, 0, 0, w, h);
+        if (bmp.close) bmp.close();
+        const out = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.86));
+        return out && out.size < blob.size ? out : blob;
+    } catch (err) {
+        return blob;
+    }
+}
+
+const bgState = { seq: 0, key: '', objectUrl: '' };
+
+function applyBgLook(s) {
     document.documentElement.style.setProperty('--bg-blur', (s.bgBlur ?? 2) + 'px');
     document.documentElement.style.setProperty('--bg-dim', String((s.bgDim ?? 12) / 100));
+}
+
+function setBgLayer(cssUrl, objectUrl) {
+    if (cssUrl) document.documentElement.style.setProperty('--bg-image', `url("${cssUrl}")`);
+    else document.documentElement.style.removeProperty('--bg-image');
+    if (bgState.objectUrl && bgState.objectUrl !== objectUrl) URL.revokeObjectURL(bgState.objectUrl);
+    bgState.objectUrl = objectUrl || '';
+}
+
+// Decode before swapping so the page does not stutter when the new photo appears.
+async function decodedObjectUrl(blob) {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = url;
+    try { await img.decode(); } catch (err) {}
+    return url;
+}
+
+async function backgroundBlobForUrl(url) {
+    const side = bgTargetSide();
+    const cached = await loadBgCache(url);
+    if (cached && (cached.maxSide || 0) >= side * 0.9) return cached.blob;
+    const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const small = await shrinkImageBlob(await res.blob(), side);
+    saveBgCache(url, small, side);
+    return small;
+}
+
+async function applyBackground(settings) {
+    const seq = ++bgState.seq;
+    const s = settings || loadUiSettings();
+    applyBgLook(s);
     const file = await loadBgFile();
+    if (seq !== bgState.seq) return;
     if (file) {
-        if (currentBgObjectUrl) URL.revokeObjectURL(currentBgObjectUrl);
-        currentBgObjectUrl = URL.createObjectURL(file);
-        document.documentElement.style.setProperty('--bg-image', `url("${currentBgObjectUrl}")`);
+        const key = 'file:' + (file.name || '') + ':' + file.size;
+        if (key === bgState.key) return;
+        const obj = await decodedObjectUrl(file);
+        if (seq !== bgState.seq) { URL.revokeObjectURL(obj); return; }
+        setBgLayer(obj, obj);
+        bgState.key = key;
         return;
     }
     const url = (s.bgUrl || '').trim();
-    if (url) document.documentElement.style.setProperty('--bg-image', `url("${url.replace(/"/g, '')}")`);
-    else document.documentElement.style.removeProperty('--bg-image');
+    if (!url) { setBgLayer('', ''); bgState.key = ''; return; }
+    if (bgState.key === 'url:' + url) return;
+    try {
+        const blob = await backgroundBlobForUrl(url);
+        if (seq !== bgState.seq) return;
+        const obj = await decodedObjectUrl(blob);
+        if (seq !== bgState.seq) { URL.revokeObjectURL(obj); return; }
+        setBgLayer(obj, obj);
+    } catch (err) {
+        // The site does not allow downloading (no CORS): show the link as it is.
+        if (seq !== bgState.seq) return;
+        setBgLayer(url.replace(/"/g, ''), '');
+    }
+    bgState.key = 'url:' + url;
 }
 applyBackground();
 
@@ -2587,6 +2692,7 @@ if (isPrimaryTab) dbReq.ref(SHARED_BG_PATH).on("value", (snap) => {
     const url = snap.val();
     if (!url) return;
     const s = loadUiSettings();
+    if (s.bgUrl === url && bgState.key === 'url:' + url) return; // already showing it
     s.bgUrl = url;
     saveUiSettings(s);
     const input = document.getElementById('bgImageUrl');
@@ -2629,7 +2735,18 @@ if (openSettingsBtn && settingsModal) {
         settingsModal.classList.add('active');
     });
 }
-if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('active'));
+// Closing without saving puts the saved blur and dim back.
+function closeSettings() {
+    settingsModal.classList.remove('active');
+    applyBgLook(loadUiSettings());
+}
+if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', closeSettings);
+
+// Blur and dim preview live while you drag (cheap now that the photo is small).
+['bgBlur', 'bgDim'].forEach(id => document.getElementById(id)?.addEventListener('input', () => {
+    applyBgLook({ bgBlur: Number(document.getElementById('bgBlur').value), bgDim: Number(document.getElementById('bgDim').value) });
+}));
+
 document.getElementById('saveBgBtn')?.addEventListener('click', () => {
     const prev = loadUiSettings();
     const s = {
@@ -2645,22 +2762,30 @@ document.getElementById('saveBgBtn')?.addEventListener('click', () => {
     };
     saveUiSettings(s);
     applyBackground(s);
-    if (s.bgUrl) saveSharedBackground(s.bgUrl);
-    dbReq.ref(SHARED_PHOTO_FOLDER_PATH).set(s.photoFolder || null);
+    // Only write to Firebase when something shared actually changed.
+    if (s.bgUrl && s.bgUrl !== prev.bgUrl) saveSharedBackground(s.bgUrl);
+    if (s.photoFolder !== (prev.photoFolder || DEFAULT_PHOTO_FOLDER)) dbReq.ref(SHARED_PHOTO_FOLDER_PATH).set(s.photoFolder || null);
     settingsModal.classList.remove('active');
+    showToast('Settings saved.', 'ok');
 });
+
 document.getElementById('bgImageFile')?.addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    await saveBgFile(file);
+    const nameEl = document.getElementById('bgFileName');
+    if (nameEl) nameEl.textContent = 'Preparing photo…';
+    const small = await shrinkImageBlob(file, bgTargetSide());
+    const stored = small === file ? file : new File([small], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+    await saveBgFile(stored);
     const s = loadUiSettings();
     s.bgUrl = '';
     saveUiSettings(s);
     document.getElementById('bgImageUrl').value = '';
-    const nameEl = document.getElementById('bgFileName');
     if (nameEl) nameEl.textContent = 'Attached: ' + file.name;
-    applyBackground(s);
+    await applyBackground(s);
+    markSelectedPhoto('');
 });
+
 document.getElementById('clearBgBtn')?.addEventListener('click', async () => {
     const s = loadUiSettings();
     s.bgUrl = '';
@@ -2671,7 +2796,8 @@ document.getElementById('clearBgBtn')?.addEventListener('click', async () => {
     const nameEl = document.getElementById('bgFileName');
     if (nameEl) nameEl.textContent = '';
     await clearBgFile();
-    applyBackground(s);
+    await applyBackground(s);
+    markSelectedPhoto('');
     saveSharedBackground(null);
 });
 
@@ -2693,39 +2819,73 @@ document.getElementById('fullCopyReqEntryBtn')?.addEventListener('click', copyRe
 
 const GITHUB_PHOTO_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
 const GITHUB_PHOTO_RAW = "https://raw.githubusercontent.com/DC-database/hub/main/photo/";
+// Small previews live in photo/thumbs/ with the same file names (about 20 KB each instead of 2-6 MB).
+const GITHUB_PHOTO_THUMBS = GITHUB_PHOTO_RAW + 'thumbs/';
+const PHOTO_FOLDER_LIST_KEY = 'pr_bg_photo_list_v1';
 
-document.getElementById('browseGithubPhotosBtn')?.addEventListener('click', async () => {
+// GitHub allows 60 folder listings an hour per network, so keep the list for an hour.
+async function listGithubPhotos(force) {
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(PHOTO_FOLDER_LIST_KEY) || 'null'); } catch (err) {}
+    if (!force && cached && Array.isArray(cached.files) && Date.now() - cached.savedAt < 60 * 60 * 1000) return cached.files;
+    let res;
+    try { res = await fetch(GITHUB_PHOTO_API); } catch (err) { if (cached) return cached.files; throw err; }
+    if (!res.ok) {
+        if (cached && Array.isArray(cached.files)) return cached.files;
+        throw new Error(res.status === 403 ? 'GitHub limits how often the photo folder can be listed. Try again in an hour.' : 'GitHub answered ' + res.status + '.');
+    }
+    const files = (await res.json() || [])
+        .filter(f => f && f.type === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(f.name))
+        .map(f => ({ name: f.name, url: f.download_url || (GITHUB_PHOTO_RAW + encodeURIComponent(f.name)) }));
+    try { localStorage.setItem(PHOTO_FOLDER_LIST_KEY, JSON.stringify({ files, savedAt: Date.now() })); } catch (err) {}
+    return files;
+}
+
+function markSelectedPhoto(url) {
+    document.querySelectorAll('#githubPhotoGrid .photo-tile').forEach(t => t.classList.toggle('selected', !!url && t.dataset.url === url));
+}
+
+async function renderGithubPhotoGrid() {
     const grid = document.getElementById('githubPhotoGrid');
     if (!grid) return;
     grid.innerHTML = '<p class="hint">Loading photos…</p>';
     try {
-        const res = await fetch(GITHUB_PHOTO_API);
-        const files = await res.json();
-        const images = (Array.isArray(files) ? files : []).filter(f => /\.(jpg|jpeg|png|webp|gif)$/i.test(f.name));
-        if (!images.length) { grid.innerHTML = '<p class="hint">No images found in /photo.</p>'; return; }
-        grid.innerHTML = '';
-        images.forEach(f => {
-            const url = f.download_url || (GITHUB_PHOTO_RAW + f.name);
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = f.name;
-            img.title = f.name;
-            img.onclick = () => {
-                grid.querySelectorAll('img').forEach(i => i.classList.remove('selected'));
-                img.classList.add('selected');
-                document.getElementById('bgImageUrl').value = url;
-                const s = loadUiSettings();
-                s.bgUrl = url;
-                saveUiSettings(s);
-                clearBgFile();
-                applyBackground(s);
-                saveSharedBackground(url);
-            };
-            grid.appendChild(img);
-        });
+        const files = await listGithubPhotos(false);
+        if (!files.length) { grid.innerHTML = '<p class="hint">No photos found in the GitHub photo folder.</p>'; return; }
+        const current = (loadUiSettings().bgUrl || '').trim();
+        grid.innerHTML = files.map(f => `
+            <button type="button" class="photo-tile${f.url === current ? ' selected' : ''}" data-url="${escapeHtml(f.url)}" title="${escapeHtml(f.name)}">
+                <img src="${escapeHtml(GITHUB_PHOTO_THUMBS + encodeURIComponent(f.name))}" alt="${escapeHtml(f.name)}" loading="lazy" decoding="async" width="160" height="110">
+                <span class="photo-tile-name">${escapeHtml(f.name)}</span>
+            </button>`).join('');
+        // No small preview yet (a new photo): show the name instead of downloading the big file.
+        grid.querySelectorAll('.photo-tile img').forEach(img => img.addEventListener('error', () => img.closest('.photo-tile').classList.add('no-thumb'), { once: true }));
     } catch (err) {
-        grid.innerHTML = '<p class="hint">Could not list GitHub folder. Check the repo is public.</p>';
+        grid.innerHTML = `<p class="hint">Could not list the GitHub photo folder. ${escapeHtml(err.message || '')}</p>`;
     }
+}
+
+document.getElementById('browseGithubPhotosBtn')?.addEventListener('click', renderGithubPhotoGrid);
+
+document.getElementById('githubPhotoGrid')?.addEventListener('click', async (e) => {
+    const tile = e.target.closest('.photo-tile');
+    if (!tile || tile.classList.contains('busy')) return;
+    const url = tile.dataset.url;
+    const prevUrl = (loadUiSettings().bgUrl || '').trim();
+    tile.classList.add('busy');
+    document.getElementById('bgImageUrl').value = url;
+    const s = loadUiSettings();
+    s.bgUrl = url;
+    saveUiSettings(s);
+    await clearBgFile();
+    const fileInput = document.getElementById('bgImageFile');
+    if (fileInput) fileInput.value = '';
+    const nameEl = document.getElementById('bgFileName');
+    if (nameEl) nameEl.textContent = '';
+    await applyBackground(s);
+    tile.classList.remove('busy');
+    markSelectedPhoto(url);
+    if (url !== prevUrl) saveSharedBackground(url);
 });
 
 // ==========================================
@@ -3044,6 +3204,7 @@ function assistantIntro() {
 }
 
 function openAssistant(query, autoSend) {
+    if (!currentAccessUser) return; // signed-in users only
     if (!assistantUi.started) { assistantIntro(); assistantUi.started = true; }
     const mode = $id('assistantMode');
     if (mode) mode.textContent = assistantModeText();
@@ -3089,6 +3250,7 @@ async function assistantRunCategory(code) {
     const activity = activityByCode(code);
     if (!activity || !assistantUi.query || assistantUi.busy) return;
     assistantUi.busy = true;
+    assistantDrawer.classList.add('is-thinking');
     assistantUi.activityCode = code;
     assistantPost('user', `${escapeHtml(activity.code)} ${escapeHtml(activity.name)}`);
     const wait = assistantPost('bot', `<p class="thinking"><i class="fa-solid fa-spinner fa-spin"></i> Checking where similar items sit in ${escapeHtml(activity.name)}…</p>`);
@@ -3139,6 +3301,7 @@ async function assistantRunCategory(code) {
     html += `<p class="muted">Different category?</p>${categoryChipsHtml(code)}`;
     assistantPost('bot', html);
     assistantUi.busy = false;
+    assistantDrawer.classList.remove('is-thinking');
 }
 
 function assistantCreate(index) {
@@ -3190,11 +3353,27 @@ $id('closeAssistantBtn')?.addEventListener('click', closeAssistant);
 $id('assistantRestartBtn')?.addEventListener('click', () => { assistantUi.query = ''; assistantUi.activityCode = ''; assistantIntro(); assistantInput.focus(); });
 $id('askAssistantBtn')?.addEventListener('click', () => openAssistant(searchInput.value.trim(), true));
 
+// The robot says hi once per browser session after sign-in.
+function robotGreet() {
+    try {
+        if (sessionStorage.getItem('pr_robot_greeted')) return;
+        sessionStorage.setItem('pr_robot_greeted', '1');
+    } catch (err) {}
+    setTimeout(() => {
+        const dock = document.getElementById('robotDock');
+        if (!dock || document.body.classList.contains('assistant-open') || !document.body.classList.contains('is-signed-in')) return;
+        dock.classList.add('greet');
+        setTimeout(() => dock.classList.remove('greet'), 6500);
+    }, 1400);
+}
+
 // Esc closes the assistant, or the top-most open window.
 document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (assistantDrawer && assistantDrawer.classList.contains('open')) { closeAssistant(); return; }
     const open = Array.from(document.querySelectorAll('.modal-overlay.active'));
-    if (open.length) open[open.length - 1].classList.remove('active');
+    const top = open[open.length - 1];
+    if (top === settingsModal) closeSettings();
+    else if (top) top.classList.remove('active');
 });
 
