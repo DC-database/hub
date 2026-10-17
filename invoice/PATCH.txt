@@ -1,18 +1,49 @@
-IBA SYSTEM 15.0.0 patch 21
-(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-20 and everything before)
+IBA SYSTEM 15.0.0 patch 22
+(built on the original 14.0.0 (Grok); includes 15.0.0, patches 1-21 and everything before)
 
 HOW TO INSTALL
   Copy this zip over the ORIGINAL 14.0.0 (Grok) build, keeping folders.
-  The result is exactly the tested 15.0.0 patch 21. Copying it over 15.0.0
-  or any earlier 15.0.0 patch (e.g. your patch 20) gives the same result.
+  The result is exactly the tested 15.0.0 patch 22. Copying it over 15.0.0
+  or any earlier 15.0.0 patch (e.g. your patch 21) gives the same result.
 
 VERSION
   - Still 15.0.0 (version.json and the app). Files changed in a patch load
-    fresh (?v=15.0.0-p1 ... -p21), so a normal reload picks them up.
+    fresh (?v=15.0.0-p1 ... -p22), so a normal reload picks them up.
 
 FILES: 46 (+ this note).
-  Changed in patch 21 compared with patch 20:
-  js/iba-weekly-report.js, index.html
+  Changed in patch 22 compared with patch 21:
+  js/iba-weekly-report.js, js/iba-assistant.js (skill text), index.html
+
+15.0.0 patch 22 - WHAT CHANGED
+  Weekly site report: sites and counts now match Invoice Records
+  - Site = the PO's Project ID, exactly as Invoice Records shows it. Before,
+    the site typed on the invoice / WorkDesk job came first, sites were
+    grouped by their number only (170 = M170 = S170) and a block took the
+    longest site text as its name - that is how "M170" appeared.
+    WorkDesk jobs with a PO use the PO's site; jobs without a PO use their
+    own site. Sites are grouped by their exact code (M170 and 170 are two
+    different sites); site people are matched by the exact code too.
+  - New "Site check" section (only when needed): invoices saved with a site
+    different from their PO's site, with both sites, so they can be fixed.
+  - Every tile says what its number is made of: "N invoices on M POs + K
+    WorkDesk jobs" (Invoice Records "Found" counts POs, not invoices). The
+    Report tile also splits Report / Report Approval / Report Approved.
+    Each site heading shows the same split.
+  - WorkDesk jobs are marked in the list ("WorkDesk · type · ref", purple
+    line on the left).
+  - IPC added, same as the WorkDesk Dashboard:
+      * IPC Application (purple): WorkDesk IPC Application jobs + invoices
+        in IPC Application (or IPC Issue) status.
+      * IPC Processed (dark blue): WorkDesk IPC / IPC Processed jobs
+        (Waiting Invoice) + invoices in Waiting Invoice status.
+    IPC jobs stay in until they are closed / cancelled / with accounts
+    (the Dashboard rule), and no longer fall under Pending. Next move:
+    "<person> to finish the IPC application" / "get the invoice from the
+    vendor". Now 8 tiles in two rows.
+  - Lists: Invoice / Ref column removed; column widths set in % so Notes /
+    remarks keeps real room and wraps by words on screen and in print
+    (before it was squeezed to one letter per line). Notes show up to 240
+    characters.
 
 15.0.0 patch 21 - WHAT CHANGED
   Weekly site report: Report steps added
