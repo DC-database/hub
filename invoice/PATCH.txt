@@ -1,34 +1,17 @@
-IBA SYSTEM 15.0.0 patch 39  (small patch - copy over 15.0.0 patch 38)
+IBA SYSTEM 15.0.0 patch 40  (small patch - copy over 15.0.0 patch 39)
 
 HOW TO INSTALL
-  Copy these 5 files over your 15.0.0 patch 38 (keeping folders):
+  Copy these 2 files over your 15.0.0 patch 39 (keeping folders):
     index.html
-    js/app-chat.js
-    js/app-workdesk-dashboard.js
     js/iba-assistant.js
-    js/iba-vacation-handover.js
-  Everything else stays as patch 38. (preview_patch39.png is only a picture.)
+  Everything else stays as patch 39. (preview_patch40.png is only a picture.)
 
 WHAT CHANGED
-  1. Messages to yourself
-     - Forward (Dashboard): you are no longer in the "Send to" list. If the
-       task's Attention is you, it asks you to choose a person.
-     - A message to yourself is refused everywhere.
-     - The stuck "1" from the message you sent yourself clears by itself
-       when you sign in (that chat was never listed, so it could not be read).
-
-  2. Vacation hand-over safety (the Active Task count going to 0)
-     If a profile still says Vacation = Yes (e.g. left on after a vacation),
-     the hand-over used to move that person's open tasks to the replacement.
-     Now a person who is working is NEVER treated as away:
-       - not the person signed in on that computer
-       - not anyone who signed in during the last 12 hours
-     Only people really away (Vacation = Yes and not signed in for 12 hours)
-     have their tasks moved.
-
-  3. New Super Admin skill "Vacation hand-overs"
-     - Shows who the system treats as on vacation now (and their replacement)
-     - Lists the recent automatic hand-overs: who -> who, how many, which POs
-     - Undo: puts the tasks back to the person (only those still with the
-       receiver; ones already moved on or finished are left as they are).
-       Each undo is written in the invoice history.
+  Invoice tracking (PO or vendor), phone and computer:
+  - Every open invoice now has its own "Remind" button, next to INV and
+    Mark urgent. It opens the reminder box right under that invoice,
+    addressed to the person who has it, about that invoice only.
+  - The button at the bottom of the PO is now "Remind all (N)" when the PO
+    has several open invoices (one reminder listing all of them).
+  (Before, there was only one Remind at the very bottom of the PO card, so
+  on the phone it looked missing behind the invoices.)
