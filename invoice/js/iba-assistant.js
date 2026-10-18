@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p39';
+    const VERSION = '15.0.0-p40';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -3611,8 +3611,8 @@
         return it ? String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0] : '';
     }
     function openRemind(q, btn) {
-        const card = btn.closest('.iba-ai-card') || btn.parentElement;
-        const old = card.querySelector('.iba-ai-remind');
+        const card = btn.closest('.iba-ai-trk-item') || btn.closest('.iba-ai-card') || btn.parentElement;
+        const old = card.querySelector(':scope > .iba-ai-remind');
         if (old) { old.remove(); return; }
         const box = document.createElement('div');
         box.className = 'iba-ai-remind';
@@ -3765,6 +3765,8 @@
                     (it.invoice_date || it.paid_on || it.with_accounts_on ? '<div class="iba-ai-trk-dates">' + [it.invoice_date ? 'Invoice ' + esc(it.invoice_date) : '', it.with_accounts_on ? 'With Accounts ' + esc(it.with_accounts_on) : '', it.paid_on ? 'Paid ' + esc(it.paid_on) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
                     '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + ((it.skipped_index || []).indexOf(i) !== -1 ? 'is-skipped' : i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"' + ((it.skipped_index || []).indexOf(i) !== -1 ? ' title="Skipped"' : '') + '><span></span>' + lbl + '</li>').join('') + '</ol>' +
                     (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
+                    // 15.0.0 patch 40: Remind on each open invoice, to the person who has it
+                    (it.stage_index < 5 && it.with ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && APPROVAL_RX.test(String(it.status || '')) && (it.urgent ? isSuper() : isAdminUser()) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
@@ -3773,7 +3775,7 @@
             // 15.0.0 patch 27: Remind also for items still at Reception or with the QS
             const openIt = p.items.filter((it) => it.stage_index < 5);
             if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
-                (openIt.length ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind</button>' : '') + '</div>';
+                (openIt.length ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> ' + (openIt.length > 1 ? 'Remind all (' + openIt.length + ')' : 'Remind') + '</button>' : '') + '</div>';
             h += '</div>';
         });
         if (r.by_site && Object.keys(r.by_site).length) {
