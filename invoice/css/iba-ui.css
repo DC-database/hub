@@ -6032,3 +6032,24 @@
   #iba-shell-bg-settings .iba-dim-box.is-dirty .iba-dim-note { color: var(--ui-gold, #E8C46A) !important; -webkit-text-fill-color: var(--ui-gold, #E8C46A) !important; }
   #iba-shell-bg-settings .iba-dim-note.is-bad { color: var(--ui-red, #F07070) !important; -webkit-text-fill-color: var(--ui-red, #F07070) !important; }
 }
+
+/* 15.0.0 patch 26: the Invoice Entry "Active Jobs" side panel uses the same
+   see-through glass as the left menu (it was 80% solid). */
+@layer iba-ui {
+  html body.iba-shell-on #invoice-management-view #im-entry-sidebar#im-entry-sidebar {
+    background: rgba(8, 12, 22, 0.25) !important;
+    background-color: rgba(8, 12, 22, 0.25) !important;
+    background-image: none !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-left: 1px solid rgba(232, 217, 182, 0.28) !important;
+  }
+  html body.iba-shell-on #im-entry-sidebar .im-sidebar-item {
+    background: rgba(8, 12, 22, 0.35) !important;
+    background-color: rgba(8, 12, 22, 0.35) !important;
+  }
+  html body.iba-shell-on #im-entry-sidebar .im-sidebar-item:hover {
+    background: rgba(8, 12, 22, 0.55) !important;
+    background-color: rgba(8, 12, 22, 0.55) !important;
+  }
+}
