@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p33';
+    const VERSION = '15.0.0-p39';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -243,6 +243,8 @@
         return 'Irwin';
     }
     function isSuper() { const n = myName(); return !!n && norm(n) === norm(superName()); }
+    // 15.0.0 patch 37: Admins (and the Super Admin) may mark approvals urgent
+    function isAdminUser() { const a = me(); return isSuper() || (!!a && norm(a.Role).indexOf('admin') !== -1); }
     function isDelegate() {
         try { return typeof isVacationDelegateUser === 'function' && !!isVacationDelegateUser(); } catch (_) { return false; }
     }
@@ -1424,14 +1426,15 @@
         // 15.0.0 patch 11: a step the invoice went past is counted as done
         // (it already moved on), so nothing is marked as skipped any more.
         return {
-            kind: 'invoice', invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
+            kind: 'invoice', key: inv.__key || undefined, pdf: invPdfUrl(inv) || undefined, urgent: (APPROVAL_RX.test(status) && isUrgentNote(inv.note)) || undefined, invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
             with_accounts_on: accAt ? fmtDate(accAt) : undefined, paid_on: paidAt ? fmtDate(paidAt) : undefined,
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
-            steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) }))
+            steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) })),
+            _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0
         };
     }
     function receptionItems(jobs, po, acc) {
@@ -1443,7 +1446,7 @@
             return r === 'new entry' || r === 'pending' || r === '';
         }).map((e) => {
             const at = Number(e.timestamp) || Date.parse(e.date || '') || 0;
-            return { kind: 'reception', invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'reception', _t: at, invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1470,7 +1473,7 @@
             const at = Number(e.statusChangedAt) || Number(e.updatedAt) || Number(e.timestamp) || Date.parse(e.date || '') || 0;
             const processed = ft !== 'ipc application';
             const label = processed ? 'IPC done - waiting for the actual invoice' : 'With QS for IPC' + (raw && !/^(pending|new entry|ipc application)$/i.test(raw) ? ' (' + raw + ')' : '');
-            return { kind: 'ipc', invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'ipc', _t: at, invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1556,14 +1559,22 @@
         const pos = await Promise.all(shown.map(async (p) => {
             let invMap = {};
             try { invMap = await poInvoices(p.po); } catch (_) { invMap = {}; }
-            const invs = Object.keys(invMap || {}).map((k) => invMap[k] || {})
+            const invs = Object.keys(invMap || {}).map((k) => Object.assign({ __key: k }, invMap[k] || {}))
                 .sort((a, b) => String(a.invEntryID || '').localeCompare(String(b.invEntryID || ''), undefined, { numeric: true }));
             let items = receptionItems(jobs, p.po, acc).concat(invs.map((inv) => trackInvoice(inv, acc)));
             if (year) items = items.filter((i) => (i._years || []).indexOf(year) !== -1);
-            items.forEach((i) => { delete i._years; });
+            // 15.0.0 patch 36: still in progress first, With Accounts / Paid last;
+            // newest first inside each group
+            const done = (i) => (i.stage_index >= 4 && !i.side_status) ? 1 : 0;
+            items.sort((a, b) => (done(a) - done(b)) || ((b._t || 0) - (a._t || 0)));
+            const open = items.some((i) => !done(i));
+            const last = items.reduce((m, i) => Math.max(m, i._t || 0), 0);
+            items.forEach((i) => { delete i._years; delete i._t; });
             return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
-                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items };
+                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items, _open: open, _last: last };
         }));
+        pos.sort((a, b) => ((b._open ? 1 : 0) - (a._open ? 1 : 0)) || ((b._last || 0) - (a._last || 0)));
+        pos.forEach((p) => { delete p._open; delete p._last; });
         const posOut = year ? pos.filter((p) => p.items.length || p.year === year) : pos;
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
             by_site: bySite || undefined,
@@ -1771,14 +1782,22 @@
         };
         const everyone = Object.keys(map).map((k) => map[k] || {});
         const coverFor = (name) => everyone.filter((x) => x.Name && awayOf(x) && norm(x.ReplacementName) === norm(name)).map((x) => String(x.Name));
+        // 15.0.0 patch 34: the replacement's contact on a vacation card
+        const keyOfName = {}; Object.keys(map).forEach((k) => { const x = map[k] || {}; if (x.Name) keyOfName[norm(x.Name)] = k; });
+        const contactOf = (name) => {
+            const k = keyOfName[norm(name)]; if (!k) return null;
+            const x = map[k] || {};
+            return { key: k, name: String(x.Name || name), position: String(x.Position || ''), mobile: String(x.Mobile || x.mobile || x.Phone || ''), email: String(x.Email || x.email || '') };
+        };
         const people = hits.map((a) => {
             const v = awayOf(a);
             return { key: a.key, name: String(a.Name || ''), position: String(a.Position || ''), role: String(a.Role || ''),
                 site: String(a.Site || ''), mobile: String(a.Mobile || a.mobile || a.Phone || ''), email: String(a.Email || a.email || ''),
-                status: v ? 'On vacation' : 'Active', back: v ? v.back : '', replacement: v ? v.by : '', covering: coverFor(a.Name) };
+                status: v ? 'On vacation' : 'Active', back: v ? v.back : '', replacement: v ? v.by : '', rep: v && v.by ? contactOf(v.by) : null, covering: coverFor(a.Name) };
         });
         return { result: { found: people.length, people: people.map((p) => ({ name: p.name, position: p.position, site: p.site, mobile: p.mobile, email: p.email,
-            status: p.status, back_on: p.back || undefined, replacement: p.replacement || undefined, covering_for: p.covering.length ? p.covering : undefined })) },
+            status: p.status, back_on: p.back || undefined, replacement: p.replacement || undefined,
+            replacement_contact: p.rep ? { position: p.rep.position || undefined, mobile: p.rep.mobile || undefined, email: p.rep.email || undefined } : undefined, covering_for: p.covering.length ? p.covering : undefined })) },
             card: { kind: 'person', data: { q: [a.position || '', site ? 'site ' + site : '', q].filter(Boolean).join(' · '), people: people } } };
     }
 
@@ -2553,14 +2572,32 @@
         });
         return Object.assign({}, sk, { steps: JSON.parse(json), prompt: prompt });
     }
+    // 15.0.0 patch 36: every question form can be closed - Cancel, the x in
+    // its corner or Esc; opening another skill closes an unanswered form
+    let openAsk = null;
+    function wireAskCancel(f, resolve) {
+        const close = () => {
+            if (openAsk === close) openAsk = null;
+            if (f.querySelector('button[type="submit"]:disabled')) return; // already answered and running
+            if (f.parentNode) f.remove();
+            resolve(null);
+        };
+        if (openAsk) { try { openAsk(); } catch (_) {} }
+        openAsk = close;
+        const head = f.querySelector('.iba-ai-card-head');
+        if (head) head.insertAdjacentHTML('beforeend', '<button type="button" class="iba-ai-ask-x" data-cancel-x title="Close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>');
+        f.querySelectorAll('[data-cancel], [data-cancel-x]').forEach((b) => b.addEventListener('click', close));
+        f.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } });
+    }
     function askSkillValues(sk, params) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
             f.className = 'iba-ai-card is-action iba-ai-skill-ask';
             f.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> ' + esc(sk.name) + '</div>' +
                 params.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span><input type="text" data-i="' + i + '" placeholder="' + esc(p.example) + '"></label>').join('') +
-                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini" data-cancel>Cancel</button></div>';
+                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini iba-ai-cancel" data-cancel><i class="fa-solid fa-xmark"></i> Cancel</button></div>';
             put(f);
+            wireAskCancel(f, resolve);
             const first = f.querySelector('input');
             if (first) first.focus();
             f.addEventListener('submit', (e) => {
@@ -2569,7 +2606,6 @@
                 f.querySelectorAll('input, button').forEach((x) => { x.disabled = true; });
                 resolve(vals);
             });
-            f.querySelector('[data-cancel]').addEventListener('click', () => { f.remove(); resolve(null); });
         });
     }
     // ------------------------------------------------------------------
@@ -2626,6 +2662,12 @@
                 const r = await window.ibaWeeklyReport.siteList({ site: v.site, status: v.status || 'for srv' });
                 return 'Opened the list in a new tab: ' + r.count + ' item' + (r.count === 1 ? '' : 's') + (v.site ? '' : ' on ' + r.sites + ' site' + (r.sites === 1 ? '' : 's')) + '. Press "Print / Save as PDF" there. No AI used' + (r.mode === 'saved' ? ', only the changed POs were read.' : '.');
             } },
+        // 15.0.0 patch 37: mark For Approval / CEO Approval invoices URGENT
+        urgent: { name: 'Mark urgent', icon: 'fa-bolt', adminOnly: true, desc: 'Lists every invoice now in For Approval or CEO Approval. Tick the ones to rush and press Mark urgent: they move to the approver\'s Urgent tab right away. No AI used.',
+            ask: () => [], run: async () => { await urgentCard(); return null; } },
+        // 15.0.0 patch 39: see and undo vacation hand-overs
+        handover: { name: 'Vacation hand-overs', icon: 'fa-people-arrows', superOnly: true, desc: 'Who the system treats as on vacation now, and the recent automatic hand-overs. Undo puts the tasks back to the person (only those still with the receiver).',
+            ask: () => [], run: async () => { await handoverCard(); return null; } },
         export: { name: 'Download invoice list', icon: 'fa-file-csv', superOnly: true, desc: 'Asks for a status (Under Review, With Accounts, Paid, ...) and a period, then gives a CSV file for Excel. Uses the saved copy: little or no download.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
                 { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
@@ -2640,7 +2682,7 @@
                 return [{ tool: 'recent_status_changes', args: a }];
             } }
     };
-    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
+    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
     function askTplValues(title, fields) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
@@ -2649,8 +2691,9 @@
                 fields.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span>' + (p.type === 'select'
                     ? '<select data-i="' + i + '">' + p.options.map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>').join('') + '</select>'
                     : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '" required>') + '</label>').join('') +
-                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini" data-cancel>Cancel</button></div>';
+                '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini iba-ai-cancel" data-cancel><i class="fa-solid fa-xmark"></i> Cancel</button></div>';
             put(f);
+            wireAskCancel(f, resolve);
             const first = f.querySelector('input, select');
             if (first) first.focus();
             f.addEventListener('submit', (e) => {
@@ -2661,7 +2704,194 @@
                 f.querySelectorAll('input, select, button').forEach((x) => { x.disabled = true; });
                 resolve(vals);
             });
-            f.querySelector('[data-cancel]').addEventListener('click', () => { f.remove(); resolve(null); });
+        });
+    }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 37: URGENT for approvals. An approval is Urgent when its
+    // Note says "urgent" (the rule the approver's Urgent tab already uses),
+    // so marking = "URGENT · " in front of the note, with a history line and
+    // the approver's task list updated so it moves to Urgent at once.
+    // ------------------------------------------------------------------
+    const APPROVAL_RX = /^(for approval|ceo approval)$/i;
+    const isUrgentNote = (n) => /\burgent/i.test(String(n || ''));
+    const stripUrgent = (n) => String(n || '').replace(/\burgent(ly)?\b\s*[·:\-|,!]*\s*/gi, '').trim();
+    // 15.0.0 patch 38: the invoice attachment (same link as the Dashboard's INV button)
+    function invPdfUrl(inv) {
+        try {
+            const name = inv && inv.invName;
+            if (!name || /^nil$/i.test(String(name).trim()) || typeof buildSharePointPdfUrl !== 'function' || typeof PDF_BASE_PATH === 'undefined') return '';
+            return buildSharePointPdfUrl(PDF_BASE_PATH, name) || '';
+        } catch (_) { return ''; }
+    }
+    function invPdfBtn(inv) {
+        const u = invPdfUrl(inv);
+        return u ? '<a class="iba-ai-mini" href="' + esc(u) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '';
+    }
+    // on: true = mark (Admins, Super Admin), false = remove (Super Admin only)
+    async function setUrgent(list, on, remind, reason) {
+        if (!on && !isSuper()) throw new Error('Only the Super Admin can remove urgent.');
+        if (on && !isAdminUser()) throw new Error('Only Admins can mark urgent.');
+        const idb = (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) ? invoiceDb : null;
+        if (!idb) throw new Error('The invoice database is not available on this page.');
+        const TS = firebase.database.ServerValue.TIMESTAMP;
+        const why = String(reason || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+        const done = [], skipped = [];
+        await Promise.all(list.map(async (x) => {
+            try {
+                const ref = idb.ref('invoice_entries/' + x.po + '/' + x.key);
+                const inv = (await ref.once('value')).val();
+                if (!inv || !APPROVAL_RX.test(String(inv.status || '').trim())) { skipped.push(Object.assign({ why: inv ? 'now ' + inv.status : 'not found' }, x)); return; }
+                const old = String(inv.note || '');
+                if (on === isUrgentNote(old)) { done.push(Object.assign({ inv: inv }, x)); return; }
+                let upd;
+                if (on) {
+                    // "URGENT - reason · old note"; the old note is kept to put back on Remove
+                    const note = 'URGENT' + (why ? ' - ' + why : '') + (old.trim() ? ' · ' + old.trim() : '');
+                    upd = { note: note, urgentPrevNote: old, urgentReason: why || null, urgentBy: myName(), urgentAt: TS, lastUpdated: TS };
+                } else {
+                    const back = typeof inv.urgentPrevNote === 'string' ? inv.urgentPrevNote : stripUrgent(old);
+                    upd = { note: back, urgentPrevNote: null, urgentReason: null, urgentBy: null, urgentAt: null, lastUpdated: TS };
+                }
+                await Promise.all([
+                    ref.update(upd),
+                    ref.child('history').push({ action: on ? 'Marked urgent' : 'Urgent removed', status: inv.status || '', by: myName(), timestamp: TS,
+                        note: on ? 'Marked URGENT for ' + (inv.attention || 'the approver') + (why ? ': ' + why : '') : 'Back to normal' })
+                ]);
+                const nv = Object.assign({}, inv, { note: upd.note });
+                try { if (typeof updateInvoiceTaskLookup === 'function') await updateInvoiceTaskLookup(x.po, x.key, nv, inv.attention); } catch (e) { console.warn('urgent: task list', e); }
+                done.push(Object.assign({ inv: nv }, x));
+            } catch (e) { skipped.push(Object.assign({ why: (e && e.message) || 'error' }, x)); }
+        }));
+        if (on && remind && done.length) {
+            const d = mainDb(), by = {};
+            done.forEach((x) => { const w = String(x.inv.attention || '').trim(); if (w) (by[w] = by[w] || []).push(x); });
+            await Promise.all(Object.keys(by).map((w) => {
+                const rows = by[w];
+                const text = rows.length + ' invoice' + (rows.length === 1 ? '' : 's') + ' marked URGENT by ' + myName() + (why ? ' - ' + why : '') + ':\n' + rows.slice(0, 12).map((x) => '- PO ' + x.po + ' · ' + (x.inv.invNumber || x.inv.invEntryID || '') + ' · ' + x.inv.status).join('\n') + '\nPlease approve first.';
+                const ref = d.ref('iba_assistant/reminders/' + remSafe(w)).push();
+                return ref.set({ from: myName(), to: w, text: text, po: rows[0].po, at: TS }).catch(() => {});
+            }));
+        }
+        return { done: done, skipped: skipped };
+    }
+    async function handoverCard() {
+        addUser('▶ Vacation hand-overs', true);
+        const card = document.createElement('div');
+        card.className = 'iba-ai-card';
+        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-people-arrows"></i> Vacation hand-overs</div><div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        put(card);
+        const vh = window.ibaVacationHandover;
+        if (!vh || typeof vh.log !== 'function') { card.innerHTML = '<div class="iba-ai-note is-error">The hand-over module is not loaded.</div>'; return; }
+        let list = [];
+        try { list = await vh.log(30); } catch (e) { card.innerHTML = '<div class="iba-ai-note is-error">' + esc((e && e.message) || e) + '</div>'; return; }
+        let away = [];
+        try { away = vh.away() || []; } catch (_) {}
+        const when = (t) => t ? fmtDate(t) + ' ' + new Date(Number(t)).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '';
+        const paint = () => {
+            card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-people-arrows"></i> Vacation hand-overs</div>' +
+                '<div class="iba-ai-sub">On vacation now (tasks move to the replacement)</div>' +
+                (away.length ? '<ul class="iba-ai-rows">' + away.map((a) => '<li><span class="iba-ai-grow"><strong>' + esc(a.name) + '</strong><small>' + esc(a.noReplacement ? 'No replacement set - tasks go to ' + a.target : 'Replacement: ' + a.target) + '</small></span></li>').join('') + '</ul>'
+                    : '<p class="iba-ai-empty">Nobody. (People signed in during the last 12 hours are never treated as away, even if Vacation is still Yes in their profile.)</p>') +
+                '<div class="iba-ai-sub">Recent hand-overs</div>' +
+                (list.length ? '<ul class="iba-ai-rows">' + list.map((x, i) => '<li><span class="iba-ai-grow"><strong>' + esc(x.from) + ' → ' + esc(x.to) + ' · ' + esc(x.count) + ' task' + (x.count === 1 ? '' : 's') + '</strong><small>' +
+                    esc([when(x.at), x.noReplacement ? 'no replacement set' : '', (x.items || []).slice(0, 4).map((m) => (m.po ? 'PO ' + m.po + ' ' : '') + (m.ref || '')).join(', ')].filter(Boolean).join(' · ')) + '</small></span>' +
+                    '<button type="button" class="iba-ai-mini is-danger" data-ho-undo="' + i + '"><i class="fa-solid fa-rotate-left"></i> Undo</button></li>').join('') + '</ul>'
+                    : '<p class="iba-ai-empty">No hand-overs so far.</p>') + '<p class="iba-ai-urg-msg"></p>';
+        };
+        paint();
+        card.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-ho-undo]');
+            if (!b) return;
+            const x = list[Number(b.dataset.hoUndo)];
+            b.disabled = true;
+            const msg = card.querySelector('.iba-ai-urg-msg');
+            if (msg) msg.textContent = 'Putting the tasks back to ' + x.from + '…';
+            try {
+                const r = await vh.undo(x.id);
+                list = list.filter((y) => y !== x);
+                paint();
+                const m2 = card.querySelector('.iba-ai-urg-msg');
+                if (m2) m2.textContent = r.back + ' task' + (r.back === 1 ? '' : 's') + ' back with ' + r.from + '.' + (r.left ? ' ' + r.left + ' left as they are (already moved on or finished).' : '');
+            } catch (err) { b.disabled = false; if (msg) msg.textContent = 'Could not undo: ' + ((err && err.message) || err); }
+        });
+    }
+    async function urgentCard() {
+        addUser('▶ Mark urgent', true);
+        const card = document.createElement('div');
+        card.className = 'iba-ai-card iba-ai-urgent';
+        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · For Approval / CEO Approval</div><div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        put(card);
+        let data;
+        try {
+            if (!window.ibaWeeklyReport || typeof window.ibaWeeklyReport.loadInvoices !== 'function') throw new Error('The invoice list is not available on this page.');
+            data = (await window.ibaWeeklyReport.loadInvoices(false)).data || {};
+        } catch (e) { card.innerHTML = '<div class="iba-ai-note is-error">' + esc((e && e.message) || e) + '</div>'; return; }
+        const pm = poMap();
+        const rows = [];
+        Object.keys(data).forEach((po) => {
+            const m = data[po] || {};
+            if (typeof m !== 'object') return;
+            Object.keys(m).forEach((k) => {
+                const inv = m[k];
+                if (!inv || !APPROVAL_RX.test(String(inv.status || '').trim())) return;
+                const at = Number(inv.statusChangedAt) || Number(inv.lastUpdated) || Number(inv.createdAt) || 0;
+                const rec = pm[String(po).toUpperCase()] || {};
+                rows.push({ po: po, key: k, no: inv.invNumber || inv.invEntryID || '', vendor: inv.vendorName || rec['Supplier Name'] || '', value: Number(String(inv.invValue || 0).replace(/,/g, '')) || 0,
+                    status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentNote(inv.note), pdf: invPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
+            });
+        });
+        const order = () => rows.sort((a, b) => (b.days || 0) - (a.days || 0));
+        order();
+        let filter = 'all';
+        const sup = isSuper();
+        const pdf = (r) => r.pdf ? '<a class="iba-ai-mini" href="' + esc(r.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '';
+        const line = (r) => '<span class="iba-ai-grow"><strong>PO ' + esc(r.po) + ' · ' + esc(r.no) + '</strong><small>' + esc([r.vendor, r.status, r.with ? 'with ' + r.with : '', r.days != null ? r.days + ' day' + (r.days === 1 ? '' : 's') : ''].filter(Boolean).join(' · ')) + '</small>' +
+            (r.note ? '<small class="iba-ai-urg-note">' + esc(r.note.slice(0, 140)) + '</small>' : '') + '</span>' + (r.value ? '<span class="iba-ai-trk-val">' + esc(money(r.value)) + '</span>' : '');
+        const paint = () => {
+            const inF = (r) => filter === 'all' || norm(r.status) === filter;
+            const normal = rows.filter((r) => !r.urgent && inF(r)), urg = rows.filter((r) => r.urgent && inF(r));
+            const cnt = (st) => rows.filter((r) => !r.urgent && norm(r.status) === st).length;
+            const openNow = card.querySelector('details.iba-ai-urg-done') && card.querySelector('details.iba-ai-urg-done').open;
+            card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · ' + rows.filter((r) => !r.urgent).length + ' waiting for approval</div>' +
+                '<div class="iba-ai-chiprow">' + [['all', 'All', rows.filter((r) => !r.urgent).length], ['for approval', 'For Approval (COO)', cnt('for approval')], ['ceo approval', 'CEO Approval', cnt('ceo approval')]].map((c) =>
+                    '<button type="button" class="iba-ai-chip' + (filter === c[0] ? ' is-on' : '') + '" data-urg-filter="' + c[0] + '">' + esc(c[1]) + ' <b>' + c[2] + '</b></button>').join('') + '</div>' +
+                (normal.length ? '<ul class="iba-ai-urg-list">' + normal.map((r) => '<li><input type="checkbox" data-urg-i="' + rows.indexOf(r) + '" aria-label="Select">' + line(r) + pdf(r) + '</li>').join('') + '</ul>'
+                    : '<p class="iba-ai-empty">Nothing else is waiting in ' + (filter === 'all' ? 'For Approval or CEO Approval' : esc(filter)) + '.</p>') +
+                (normal.length ? '<div class="iba-ai-urg-acts"><label class="iba-ai-urg-all"><input type="checkbox" data-urg-all> Select all shown</label>' +
+                    '<label class="iba-ai-urg-reason"><span>Reason (optional) - the approver sees it in the note</span><input type="text" maxlength="200" data-urg-reason placeholder="e.g. Supplier needs this payment to pay another supplier"></label>' +
+                    '<label class="iba-ai-urg-all"><input type="checkbox" data-urg-remind> Also send the approver a reminder</label>' +
+                    '<button type="button" class="iba-ai-mini is-main is-danger" data-urg-go><i class="fa-solid fa-bolt"></i> Mark urgent</button><span class="iba-ai-urg-msg"></span></div>' : '') +
+                (urg.length ? '<details class="iba-ai-urg-done"' + (openNow ? ' open' : '') + '><summary><span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span> Already urgent <b>' + urg.length + '</b></summary><ul class="iba-ai-urg-list">' +
+                    urg.map((r) => '<li class="is-urgent">' + line(r) + pdf(r) + (sup ? '<button type="button" class="iba-ai-mini" data-urg-off="' + rows.indexOf(r) + '" title="Back to normal (Super Admin)">Remove</button>' : '') + '</li>').join('') + '</ul></details>' : '');
+        };
+        paint();
+        card.addEventListener('click', async (e) => {
+            const b = e.target.closest('button, input[data-urg-all]');
+            if (!b) return;
+            if (b.dataset.urgFilter) { filter = b.dataset.urgFilter; paint(); return; }
+            if (b.hasAttribute('data-urg-all')) { card.querySelectorAll('input[data-urg-i]').forEach((x) => { x.checked = b.checked; }); return; }
+            const msg = () => card.querySelector('.iba-ai-urg-msg');
+            if (b.dataset.urgOff !== undefined) {
+                const r = rows[Number(b.dataset.urgOff)];
+                b.disabled = true;
+                try { const out = await setUrgent([r], false, false); if (out.done.length) { r.urgent = false; r.note = String(out.done[0].inv.note || ''); } paint(); } catch (err) { b.disabled = false; }
+                return;
+            }
+            if (b.hasAttribute('data-urg-go')) {
+                const pick = Array.from(card.querySelectorAll('input[data-urg-i]:checked')).map((x) => rows[Number(x.dataset.urgI)]);
+                if (!pick.length) { if (msg()) msg().textContent = 'Tick at least one invoice.'; return; }
+                const remind = !!(card.querySelector('input[data-urg-remind]') || {}).checked;
+                const reason = String((card.querySelector('input[data-urg-reason]') || {}).value || '');
+                b.disabled = true; if (msg()) msg().textContent = 'Marking ' + pick.length + '…';
+                try {
+                    const out = await setUrgent(pick, true, remind, reason);
+                    out.done.forEach((x) => { const r = rows.find((y) => y.po === x.po && y.key === x.key); if (r) { r.urgent = true; r.note = String(x.inv.note || ''); } });
+                    paint();
+                    const m = msg();
+                    const text = out.done.length + ' marked urgent' + (remind ? ' and the approver reminded' : '') + '.' + (out.skipped.length ? ' ' + out.skipped.length + ' skipped (status changed).' : '');
+                    if (m) m.textContent = text; else card.insertAdjacentHTML('beforeend', '<p class="iba-ai-urg-msg">' + esc(text) + '</p>');
+                } catch (err) { b.disabled = false; if (msg()) msg().textContent = 'Could not mark: ' + ((err && err.message) || err); }
+            }
         });
     }
     async function runTemplate(id, title) {
@@ -2686,7 +2916,7 @@
         setBusy(true);
         try {
             if (t.run) {
-                try { return addBot(await t.run(vals), {}); }
+                try { const msg = await t.run(vals); return msg ? addBot(msg, {}) : null; }
                 catch (err) { return addError(err); }
             }
             for (const step of t.build(vals)) {
@@ -2944,6 +3174,53 @@
         if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
         if (act === 'brief') return openBrief();
         if (b.dataset.runTpl) return runTemplate(b.dataset.runTpl);
+        if (b.dataset.urgConfirm !== undefined) {
+            // 15.0.0 patch 38: the small reason box under "Mark urgent" on a tracking result
+            e.preventDefault();
+            const box = b.closest('.iba-ai-urg-mini');
+            const btn = box && box.__btn;
+            if (!box || !btn) return;
+            if (b.dataset.urgConfirm === 'no') { box.remove(); return; }
+            const reason = String((box.querySelector('input') || {}).value || '');
+            box.remove();
+            btn.dataset.urgReason = reason;
+            btn.dataset.urgGo = '1';
+            btn.click();
+            return;
+        }
+        if (b.dataset.urgPo) {
+            // 15.0.0 patch 37/38: Mark urgent (with an optional reason) / Remove urgent (Super Admin)
+            e.preventDefault();
+            const on = b.dataset.urgOn === '1';
+            if (on && b.dataset.urgGo !== '1') {
+                const holder = b.closest('.iba-ai-trk-item');
+                if (!holder || holder.querySelector('.iba-ai-urg-mini')) return;
+                const box = document.createElement('div');
+                box.className = 'iba-ai-urg-mini';
+                box.innerHTML = '<input type="text" maxlength="200" placeholder="Reason (optional), e.g. supplier needs the payment">' +
+                    '<button type="button" class="iba-ai-mini is-main is-danger" data-urg-confirm="yes"><i class="fa-solid fa-bolt"></i> Mark urgent</button>' +
+                    '<button type="button" class="iba-ai-mini iba-ai-cancel" data-urg-confirm="no"><i class="fa-solid fa-xmark"></i> Cancel</button>';
+                box.__btn = b;
+                holder.appendChild(box);
+                box.querySelector('input').focus();
+                box.querySelector('input').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); box.querySelector('[data-urg-confirm="yes"]').click(); } if (ev.key === 'Escape') box.remove(); });
+                return;
+            }
+            const reason = b.dataset.urgReason || '';
+            delete b.dataset.urgGo; delete b.dataset.urgReason;
+            b.disabled = true;
+            setUrgent([{ po: b.dataset.urgPo, key: b.dataset.urgKey }], on, false, reason).then((out) => {
+                b.disabled = false;
+                if (!out.done.length) { b.textContent = 'Status changed - not marked'; return; }
+                b.dataset.urgOn = on ? '0' : '1';
+                b.classList.toggle('is-danger', !on);
+                b.innerHTML = '<i class="fa-solid fa-bolt"></i> ' + (on ? 'Remove urgent' : 'Mark urgent');
+                const strong = b.closest('.iba-ai-trk-item') && b.closest('.iba-ai-trk-item').querySelector('.iba-ai-trk-top strong');
+                if (strong) { const old = strong.querySelector('.iba-ai-urg-badge'); if (on && !old) strong.insertAdjacentHTML('beforeend', ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>'); if (!on && old) old.remove(); }
+                if (on && !isSuper()) b.remove(); // only the Super Admin can take it back
+            }).catch((err) => { b.disabled = false; b.title = (err && err.message) || ''; });
+            return;
+        }
         if (b.dataset.dmKey) {
             try {
                 if (onPhone()) toggle(false); // the message window opens on the phone screen
@@ -3346,8 +3623,12 @@
             '<textarea class="iba-ai-rem-text" rows="4">' + esc(remText(q)) + '</textarea>' +
             '<div class="iba-ai-rem-acts"><button type="button" class="iba-ai-mini is-main" data-rem-send><i class="fa-solid fa-paper-plane"></i> Send reminder</button>' +
             '<button type="button" class="iba-ai-mini" data-rem-wa><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>' +
+            '<button type="button" class="iba-ai-mini iba-ai-cancel" data-rem-cancel><i class="fa-solid fa-xmark"></i> Cancel</button>' +
             '<span class="iba-ai-rem-msg"></span></div>';
         card.appendChild(box);
+        // 15.0.0 patch 36: the reminder box can be closed without sending
+        box.querySelector('[data-rem-cancel]').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); box.remove(); });
+        box.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); box.remove(); } });
         const msg = box.querySelector('.iba-ai-rem-msg');
         const who = () => {
             const typed = String(box.querySelector('.iba-ai-rem-to').value || '').trim();
@@ -3479,10 +3760,12 @@
                 const now = it.side_status || it.status;
                 const who = [it.stage_index === 4 && !side ? 'payment in process' : '', it.with ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? (it.stage_index === 5 && !side ? 'paid ' : 'since ') + it.since : ''].filter(Boolean).join(' · ');
                 h += '<div class="iba-ai-trk-item' + (side ? ' is-side' : '') + '">' +
-                    '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + '</strong><small>' + esc(who) + '</small></span>' +
+                    '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + (it.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') + '</strong><small>' + esc(who) + '</small></span>' +
                     (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
                     (it.invoice_date || it.paid_on || it.with_accounts_on ? '<div class="iba-ai-trk-dates">' + [it.invoice_date ? 'Invoice ' + esc(it.invoice_date) : '', it.with_accounts_on ? 'With Accounts ' + esc(it.with_accounts_on) : '', it.paid_on ? 'Paid ' + esc(it.paid_on) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
                     '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + ((it.skipped_index || []).indexOf(i) !== -1 ? 'is-skipped' : i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"' + ((it.skipped_index || []).indexOf(i) !== -1 ? ' title="Skipped"' : '') + '><span></span>' + lbl + '</li>').join('') + '</ol>' +
+                    (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
+                    (it.kind === 'invoice' && it.key && APPROVAL_RX.test(String(it.status || '')) && (it.urgent ? isSuper() : isAdminUser()) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
@@ -3741,6 +4024,12 @@
                     '<span class="iba-ai-grow"><strong>' + esc(p.name) + '</strong><small>' + esc([p.position, p.role && p.role !== p.position ? p.role : ''].filter(Boolean).join(' · ') || '—') + '</small></span>' +
                     (p.status ? '<span style="flex:0 0 auto;align-self:flex-start;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;' + (p.status === 'On vacation' ? 'background:rgba(245,158,11,.18);color:#FBBF24;-webkit-text-fill-color:#FBBF24;border:1px solid rgba(245,158,11,.45)' : 'background:rgba(34,197,94,.15);color:#4ADE80;-webkit-text-fill-color:#4ADE80;border:1px solid rgba(34,197,94,.4)') + '">' + (p.status === 'On vacation' ? '<i class="fa-solid fa-umbrella-beach"></i> On vacation' : '<i class="fa-solid fa-circle-check"></i> Active') + '</span>' : '') + '</div>' +
                     (p.status === 'On vacation' ? '<p style="margin:6px 0 0;font-size:12px;color:#FCD34D;-webkit-text-fill-color:#FCD34D">' + esc((p.back ? 'Back on ' + p.back : 'Return date not set') + ' · ' + (p.replacement ? 'Replacement: ' + p.replacement : 'No replacement set - tasks go to Irwin')) + '</p>' : '') +
+                    (p.rep ? '<div style="margin:8px 0 2px;padding:8px 10px;border-radius:10px;border:1px dashed rgba(245,158,11,.5);background:rgba(245,158,11,.07)">' +
+                        '<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#FCD34D;-webkit-text-fill-color:#FCD34D">Contact instead</div>' +
+                        '<div style="margin:2px 0 6px;font-size:13px"><strong>' + esc(p.rep.name) + '</strong>' + (p.rep.position ? ' · ' + esc(p.rep.position) : '') +
+                        (p.rep.mobile ? ' · <a href="tel:' + esc(tel(p.rep.mobile)) + '">' + esc(p.rep.mobile) + '</a>' : '') + (p.rep.email ? ' · <a href="mailto:' + esc(p.rep.email) + '">' + esc(p.rep.email) + '</a>' : '') + '</div>' +
+                        '<div class="iba-ai-person-acts"><button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.rep.key) + '" data-dm-name="' + esc(p.rep.name) + '"><i class="fa-solid fa-comments"></i> Message ' + esc(p.rep.name.split(/\s+/)[0]) + '</button>' +
+                        (p.rep.mobile ? '<a class="iba-ai-mini" href="https://wa.me/' + esc(tel(p.rep.mobile).replace('+', '')) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>' : '') + '</div></div>' : '') +
                     (p.covering && p.covering.length ? '<p style="margin:6px 0 0;font-size:12px;color:#93C5FD;-webkit-text-fill-color:#93C5FD">Covering for ' + esc(p.covering.join(', ')) + ' (on vacation)</p>' : '') +
                     '<dl class="iba-ai-person-dl">' +
                       '<dt>Site</dt><dd>' + esc(p.site || '—') + '</dd>' +
@@ -3824,7 +4113,7 @@
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
-        site_list: ['For SRV by site, to print', '#2563eb'],
+        site_list: ['For SRV by site, to print', '#2563eb'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490']
     };
     function skillTile(attr, icon, name, sub, color, title, extra) {
@@ -3840,7 +4129,7 @@
             '<p class="iba-ai-help">A skill does a job in one click, without the AI (no key, no quota). It asks for what it needs each time it runs.</p>' +
             '<div class="iba-ai-sub">Ready-made · tap to run</div>' +
             '<div class="iba-ai-tiles">' + tpls.map((id) => { const t = SKILL_TPL[id], l = SKILL_LOOK[id] || [t.desc, '#2a78d6'];
-                return skillTile('data-run-tpl="' + id + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly ? '<span class="iba-ai-tile-admin" title="Super Admin only"><i class="fa-solid fa-shield-halved"></i></span>' : ''); }).join('') + '</div>' +
+                return skillTile('data-run-tpl="' + id + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly || t.adminOnly ? '<span class="iba-ai-tile-admin" title="' + (t.superOnly ? 'Super Admin only' : 'Admins only') + '"><i class="fa-solid fa-shield-halved"></i></span>' : ''); }).join('') + '</div>' +
             '<div class="iba-ai-sub">My skills</div>' +
             (list.length ? '<div class="iba-ai-tiles">' + list.map((s) => {
                 const t = s.tpl && SKILL_TPL[s.tpl], l = (s.tpl && SKILL_LOOK[s.tpl]) || ['', '#475569'];

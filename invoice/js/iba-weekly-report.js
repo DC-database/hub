@@ -18,7 +18,7 @@
    ========================================================================== */
 (function () {
   "use strict";
-  const VERSION = "15.0.0-p28";
+  const VERSION = "15.0.0-p37";
   const DAY = 86400000;
   const SNAP_MAX = 24 * 3600000;
   const $ = (id) => document.getElementById(id);
@@ -617,16 +617,39 @@
     const jobs = items.length - inv.length;
     return [inv.length ? inv.length + " invoice" + (inv.length === 1 ? "" : "s") + " on " + Object.keys(pos).length + " PO" + (Object.keys(pos).length === 1 ? "" : "s") : "", jobs ? jobs + " WorkDesk job" + (jobs === 1 ? "" : "s") : ""].filter(Boolean).join(" + ");
   }
+  // 15.0.0 patch 37: chart - one bar per site, split by how long items wait
+  const AGE = [{ id: "a", label: "Under 15 days", color: "#1baf7a", test: (d) => (d || 0) < 15 }, { id: "b", label: "15-30 days", color: "#eda100", test: (d) => (d || 0) >= 15 && (d || 0) <= 30 }, { id: "c", label: "Over 30 days", color: "#c0392b", test: (d) => (d || 0) > 30 }];
+  function ageChart(sites) {
+    const rows = sites.slice(0, 30);
+    const max = Math.max(1, ...rows.map((s) => s.items.length));
+    const W = 760, lw = 180, rowH = 26, bw = W - lw - 50, h = rows.length * rowH + 6;
+    const bars = rows.map((s, i) => {
+      const y = i * rowH + 4;
+      let x = lw, out = '<text x="' + (lw - 8) + '" y="' + (y + 13) + '" text-anchor="end" class="lbl">' + esc(String(s.label).slice(0, 28)) + "</text>";
+      AGE.forEach((a) => {
+        const n = s.items.filter((r) => a.test(r.days)).length;
+        if (!n) return;
+        const len = Math.max(4, bw * n / max - 2);
+        out += '<rect x="' + x + '" y="' + y + '" width="' + len + '" height="17" rx="3" fill="' + a.color + '"><title>' + esc(s.label + " - " + a.label + ": " + n) + "</title></rect>";
+        if (len > 18) out += '<text x="' + (x + len / 2) + '" y="' + (y + 12.5) + '" text-anchor="middle" class="in">' + n + "</text>";
+        x += len + 2;
+      });
+      return out + '<text x="' + (x + 6) + '" y="' + (y + 13) + '" class="val">' + s.items.length + "</text>";
+    }).join("");
+    return '<div class="chartbox"><svg class="ch" viewBox="0 0 ' + W + " " + h + '" role="img" aria-label="Items per site by days waiting">' + bars + "</svg>" +
+      '<div class="legend">' + AGE.map((a) => '<span><i style="background:' + a.color + '"></i>' + esc(a.label) + "</span>").join("") + (sites.length > 30 ? "<span>(first 30 sites)</span>" : "") + "</div></div>";
+  }
   function listHtml(m, o) {
     const total = m.sites.reduce((a, s) => a + s.items.length, 0);
     const value = m.sites.reduce((a, s) => a + s.items.reduce((b, r) => b + (r.value || 0), 0), 0);
     const all = [].concat.apply([], m.sites.map((s) => s.items));
     const late = all.filter((r) => (r.days || 0) > 30).length;
     const title = o.statusLabel + " list · " + (o.site ? m.sites[0] ? m.sites[0].label : o.site : "All sites");
-    const summary = !o.site && m.sites.length > 1 ? '<section class="sum"><h2>By site</h2><table class="st"><colgroup><col style="width:24%"><col style="width:8%"><col style="width:24%"><col style="width:9%"><col style="width:10%"><col style="width:25%"></colgroup><thead><tr><th>Site</th><th class="n">Open</th><th>Made of</th><th class="n">Oldest</th><th class="n">Over 30 d</th><th>With</th></tr></thead><tbody>' +
+    const summary = !o.site && m.sites.length > 1 ? '<section class="sum"><h2>By site</h2>' + ageChart(m.sites) + '<table class="st"><colgroup><col style="width:24%"><col style="width:8%"><col style="width:24%"><col style="width:9%"><col style="width:10%"><col style="width:25%"></colgroup><thead><tr><th>Site</th><th class="n">Open</th><th>Made of</th><th class="n">Oldest</th><th class="n">Over 30 d</th><th>With</th></tr></thead><tbody>' +
       m.sites.map((s) => "<tr><td><b>" + esc(s.label) + '</b></td><td class="n">' + s.items.length + "</td><td>" + esc(madeOf(s.items)) + '</td><td class="n' + (s.oldest > 30 ? " late" : "") + '">' + s.oldest + ' d</td><td class="n">' + s.items.filter((r) => (r.days || 0) > 30).length + "</td><td>" + holdersLine(s.items) + "</td></tr>").join("") +
       "</tbody></table></section>" : "";
     const blocks = m.sites.map((s, i) => '<section class="site' + (!o.site && i > 0 && o.pageEach ? " brk" : "") + '"><div class="site-h"><h2>' + esc(s.label) + " <small>" + s.items.length + " · " + esc(madeOf(s.items)) + "</small></h2>" +
+      (o.site ? ageChart([s]) : "") +
       '<div class="team">Site team: ' + (s.people.length ? s.people.map((p) => esc(p.name) + " <i>" + esc(p.role) + "</i>").join(" · ") : '<span class="late">nobody assigned</span>') + '</div><div class="team">With: ' + holdersLine(s.items) + "</div></div>" +
       listTable(s.items) + "</section>").join("");
     const info = m.info;
@@ -647,6 +670,8 @@
     "table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d7dde4;padding:4px 5px;vertical-align:top;text-align:left;overflow-wrap:anywhere}th{background:#eef2f6;font-size:10px;text-transform:uppercase;letter-spacing:.02em}" +
     "thead{display:table-header-group}tr{break-inside:avoid}td.n,th.n{text-align:right}td.c,th.c{text-align:center}td.note{white-space:normal;color:#30353b}.box{display:inline-block;width:11px;height:11px;border:1.5px solid #52514e;border-radius:2px}" +
     "tr.job td{background:#f7f5ff}.wd{display:block;font-size:9.5px;color:#7a4bb3}.late{color:#b42318;font-weight:700}.warn{color:#b36b00;font-weight:700}.none{color:#52514e;font-size:13px;padding:30px 0}" +
+    ".chartbox{border:1px solid #d7dde4;border-radius:10px;padding:10px 12px;margin:0 0 10px;break-inside:avoid}svg.ch{display:block;width:100%;max-width:820px;height:auto;overflow:visible}svg .lbl{font-size:11px;fill:#141b24}svg .val{font-size:11px;font-weight:700;fill:#141b24}svg .in{font-size:10px;font-weight:700;fill:#fff}" +
+    ".legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:10.5px;color:#52514e}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}" +
     "footer{margin-top:18px;color:#8a8f96;font-size:10px;border-top:1px solid #d7dde4;padding-top:6px}@media print{.tools{display:none}body{padding:0}}";
 
   async function siteList(opts, w) {

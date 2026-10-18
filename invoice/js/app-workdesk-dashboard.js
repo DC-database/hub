@@ -5164,6 +5164,10 @@ function wdEnsureForwardModal() {
                     <select id="wd-forward-recipient"></select>
                 </label>
                 <div id="wd-forward-recipient-note" class="wd-forward-recipient-note"></div>
+                <label id="wd-forward-transfer-row" hidden style="display:flex;align-items:flex-start;gap:10px;margin:2px 0 0;padding:10px 12px;border-radius:14px;border:1px solid #f2c46d;background:#fff8e6;color:#5b4508;font-size:.82rem;font-weight:700;cursor:pointer;line-height:1.4">
+                    <input type="checkbox" id="wd-forward-transfer" style="width:18px;height:18px;margin:1px 0 0;flex:0 0 auto;accent-color:#b7791f">
+                    <span>Also make <strong id="wd-forward-transfer-name"></strong> the Attention (transfer the task)<small style="display:block;font-weight:600;color:#8a6d1f;margin-top:2px">Leave it unticked to only inform. Ticked: the task moves to that person's Active Task and the change is written in the history.</small></span>
+                </label>
                 <label class="wd-forward-field">
                     <span>Message preview</span>
                     <textarea id="wd-forward-preview" readonly rows="7"></textarea>
@@ -5208,6 +5212,17 @@ function wdUpdateForwardRecipientNote() {
 
     const selectedName = select.options[select.selectedIndex]?.textContent || '';
     const original = wdText(wdForwardPending.attention || '');
+    // 15.0.0 patch 35: optional "transfer the task" (change Attention)
+    try {
+        const row = modal.querySelector('#wd-forward-transfer-row');
+        const nameEl = modal.querySelector('#wd-forward-transfer-name');
+        const toName = select.options[select.selectedIndex]?.dataset?.name || '';
+        const same = !!toName && wdNormalize(toName) === wdNormalize(original);
+        const can = wdForwardCanTransfer(wdForwardPending.task) && !!toName && !same;
+        if (row) { row.hidden = !can; row.style.display = can ? 'flex' : 'none'; }
+        if (nameEl) nameEl.textContent = toName;
+        if (!can) { const cb = modal.querySelector('#wd-forward-transfer'); if (cb) cb.checked = false; }
+    } catch (_) {}
     if (original && selectedName && wdNormalize(selectedName) !== wdNormalize(original)) {
         note.innerHTML = `<i class="fa-solid fa-circle-info"></i> Original Attention: <strong>${wdSafe(original)}</strong> · Sending to: <strong>${wdSafe(selectedName)}</strong>`;
     } else if (original) {
@@ -5232,7 +5247,10 @@ async function wdOpenForwardTaskPreview(taskId, triggerBtn) {
         console.warn('Could not refresh approver list for forward modal:', e);
     }
 
-    const recipients = wdGetForwardRecipients();
+    // 15.0.0 patch 39: you cannot forward to yourself
+    const meKey = String(((typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.key : '') || '');
+    const meName = wdNormalize(((typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '') || '');
+    const recipients = wdGetForwardRecipients().filter(user => user.key !== meKey && wdNormalize(user.name) !== meName);
     if (!recipients.length) {
         alert('No Message recipients are available. Please refresh and try again.');
         return;
@@ -5243,8 +5261,8 @@ async function wdOpenForwardTaskPreview(taskId, triggerBtn) {
     if (attention && typeof window.dmResolveUserByDisplayName === 'function') {
         defaultRecipient = window.dmResolveUserByDisplayName(attention);
     }
-    if (!defaultRecipient || !defaultRecipient.key) {
-        defaultRecipient = recipients.find(user => wdNormalize(user.name) === wdNormalize(attention)) || recipients[0];
+    if (!defaultRecipient || !defaultRecipient.key || defaultRecipient.key === meKey) {
+        defaultRecipient = recipients.find(user => wdNormalize(user.name) === wdNormalize(attention)) || null;
     }
 
     wdForwardPending = {
@@ -5262,14 +5280,16 @@ async function wdOpenForwardTaskPreview(taskId, triggerBtn) {
     const sendBtn = modal.querySelector('#wd-forward-send-btn');
 
     if (select) {
-        select.innerHTML = recipients.map(user => {
+        select.innerHTML = (defaultRecipient ? '' : '<option value="" selected disabled>Choose who to send it to</option>') + recipients.map(user => {
             const meta = [user.position, user.site].filter(Boolean).join(' · ');
             const label = meta ? `${user.name} (${meta})` : user.name;
-            const selected = user.key === defaultRecipient.key ? 'selected' : '';
+            const selected = defaultRecipient && user.key === defaultRecipient.key ? 'selected' : '';
             return `<option value="${wdSafe(user.key)}" data-name="${wdSafe(user.name)}" ${selected}>${wdSafe(label)}</option>`;
         }).join('');
     }
     if (preview) preview.value = wdForwardPending.preview;
+    const transferBox = modal.querySelector('#wd-forward-transfer');
+    if (transferBox) transferBox.checked = false;
     if (sendBtn) {
         sendBtn.disabled = false;
         sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send Message';
@@ -5309,18 +5329,25 @@ async function wdSendForwardTaskMessageFromModal() {
         sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
     }
 
+    const transfer = !!modal.querySelector('#wd-forward-transfer')?.checked && wdForwardCanTransfer(wdForwardPending.task);
     try {
-        await window.dmSendDirectMessage(toKey, toName, wdForwardPending.message);
+        let message = wdForwardPending.message;
+        if (transfer) {
+            const from = await wdTransferTaskAttention(wdForwardPending.task, toName);
+            message += ` | Attention changed to you${from ? ' (from ' + from + ')' : ''} - it is now in your Active Task.`;
+        }
+        await window.dmSendDirectMessage(toKey, toName, message);
         const triggerBtn = wdForwardPending.triggerBtn;
         wdCloseForwardTaskModal();
         if (triggerBtn) {
             triggerBtn.classList.add('sent');
             setTimeout(() => triggerBtn.classList.remove('sent'), 1200);
         }
-        alert(`Task detail forwarded to ${toName}.`);
+        alert(transfer ? `Task transferred to ${toName} (now the Attention) and the details were sent.` : `Task detail forwarded to ${toName}.`);
+        if (transfer) { try { wdSoftRebuildDashboardFromLiveSource('forward-transfer'); } catch (_) {} }
     } catch (err) {
         console.error('Forward task detail failed:', err);
-        alert('Could not forward the task detail. Please try again.');
+        alert((transfer && err && err.ibaTransfer) || /yourself/i.test(String(err && err.message)) ? err.message : 'Could not forward the task detail. Please try again.');
     } finally {
         if (sendBtn) {
             sendBtn.disabled = false;
@@ -5330,6 +5357,70 @@ async function wdSendForwardTaskMessageFromModal() {
 }
 
 window.wdOpenForwardTaskPreview = wdOpenForwardTaskPreview;
+
+// ------------------------------------------------------------------
+// 15.0.0 patch 35: Forward can also transfer the task (change Attention).
+// Allowed for the Super Admin / Admins, the person who has the task now,
+// and the replacement of that person while they are on vacation.
+// ------------------------------------------------------------------
+function wdForwardTaskTarget(task) {
+    if (!task) return null;
+    const src = wdNormalize(task.source || '');
+    if (src === 'transfer_entry') return null;
+    if (src === 'job_entry' || src === 'ipc_job_record') return task.key ? { kind: 'job', key: String(task.key) } : null;
+    const po = wdText(task.originalPO || task.po || '');
+    const key = wdText(task.originalKey || task.invoiceKey || (src.indexOf('invoice') === 0 ? task.key : '') || '');
+    if (po && key && (src.indexOf('invoice') === 0 || task.originalPO)) return { kind: 'invoice', po, key };
+    return null;
+}
+function wdForwardCanTransfer(task) {
+    if (!wdForwardTaskTarget(task)) return false;
+    const me = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : (window.currentApprover || {});
+    const role = wdNormalize(me.Role || '');
+    if (document.body && document.body.classList.contains('iba-is-super-admin')) return true;
+    if (role.includes('admin')) return true;
+    const att = wdNormalize(task.attention || task.Attention || '');
+    if (att && att === wdNormalize(me.Name || '')) return true;
+    try {
+        const del = (typeof getDelegatorsForReplacement === 'function') ? (getDelegatorsForReplacement(me.Name || '') || []) : [];
+        if (att && del.some(n => wdNormalize(n) === att)) return true;
+    } catch (_) {}
+    return false;
+}
+async function wdTransferTaskAttention(task, toName) {
+    const t = wdForwardTaskTarget(task);
+    const fail = (m) => { const e = new Error(m); e.ibaTransfer = true; return e; };
+    if (!t) throw fail('This task cannot be transferred from here.');
+    const me = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : (window.currentApprover || {});
+    const TS = firebase.database.ServerValue.TIMESTAMP;
+    if (t.kind === 'invoice') {
+        const ref = invoiceDb.ref(`invoice_entries/${t.po}/${t.key}`);
+        const inv = (await ref.once('value')).val();
+        if (!inv) throw fail('This invoice was not found (it may have been moved). Refresh the Dashboard and try again.');
+        if (/(with accounts|paid|srv done|closed|cancel)/i.test(String(inv.status || ''))) throw fail(`This invoice is already "${inv.status}" - nothing to transfer.`);
+        const from = wdText(inv.attention || '');
+        await Promise.all([
+            ref.update({ attention: toName, lastUpdated: TS }),
+            ref.child('history').push({ action: 'Attention changed', status: inv.status || '', by: me.Name || '', timestamp: TS, note: `Forwarded from Dashboard: ${from || '—'} -> ${toName}` })
+        ]);
+        if (typeof updateInvoiceTaskLookup === 'function') await updateInvoiceTaskLookup(t.po, t.key, Object.assign({}, inv, { attention: toName }), from);
+        task.attention = toName;
+        return from;
+    }
+    const ref = db.ref(`job_entries/${t.key}`);
+    const job = (await ref.once('value')).val();
+    if (!job) throw fail('This job was not found (it may have been closed). Refresh the Dashboard and try again.');
+    const from = wdText(job.attention || '');
+    await Promise.all([
+        ref.update({ attention: toName }),
+        ref.child('history').push({ action: 'Attention changed', status: job.remarks || job.status || '', by: me.Name || '', timestamp: TS, note: `Forwarded from Dashboard: ${from || '—'} -> ${toName}` })
+    ]);
+    const local = Object.assign({}, job, { key: t.key, attention: toName });
+    try { if (typeof wdUpsertLocalWorkdeskJobEntryCache === 'function') wdUpsertLocalWorkdeskJobEntryCache(t.key, local); } catch (_) {}
+    try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await wdWriteWorkdeskJobRecentMarker(t.key, local, 'updated'); } catch (_) {}
+    task.attention = toName;
+    return from;
+}
 
 function wdRenderDashboardCorkNote(task, index, options = {}) {
     const displayStatus = wdTaskDisplayStatus(task);

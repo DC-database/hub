@@ -17,8 +17,9 @@
 // only the invoices in it. One browser at a time does the work (a lock).
 (function () {
   "use strict";
-  const VERSION = "15.0.0-p30";
+  const VERSION = "15.0.0-p39";
   const EVERY = 30 * 60000;
+  const ACTIVE_MS = 12 * 3600000;
   const CLOSED = /(with accounts|paid|srv done|closed|cancel|deleted|archived|complete)/i;
   const norm = (v) => String(v == null ? "" : v).trim().toLowerCase();
   const safe = (k) => String(k || "").replace(/[.#$[\]\/\\]/g, "_").replace(/\s+/g, "_");
@@ -66,6 +67,12 @@
     Object.values(approvers()).forEach((a) => {
       if (!a || !a.Name || !onVacationFlag(a.Vacation) || returned(a)) return;
       const name = String(a.Name).trim();
+      // 15.0.0 patch 39: someone who is working is not away, whatever the
+      // Vacation flag says (a flag left on by mistake must not move tasks):
+      // never the person signed in here, nor anyone signed in in the last 12 h
+      if (me() && norm(me().Name) === norm(name)) return;
+      const ds = a.DesktopSession;
+      if (ds && Number(ds.at) && Date.now() - Number(ds.at) < ACTIVE_MS) return;
       const rep = String(a.ReplacementName || "").trim();
       const valid = rep && norm(rep) !== norm(name) && exists(rep);
       let target = valid ? finalTarget(rep) : fb;
@@ -216,6 +223,40 @@
     setTimeout(first, 20000);
     setInterval(() => { run(false).catch(() => {}); }, EVERY);
   }
-  window.ibaVacationHandover = { VERSION: VERSION, run: run, away: awayList };
+  // 15.0.0 patch 39: Super Admin - undo a hand-over (puts back only the tasks
+  // that are still with the person who received them)
+  async function log(limit) {
+    const d = mainDb();
+    if (!d) return [];
+    const s = await d.ref("iba_assistant/handover_log").limitToLast(limit || 30).once("value");
+    const v = (s && s.val()) || {};
+    const arr = (x) => Array.isArray(x) ? x.filter(Boolean) : Object.values(x || {}).filter(Boolean);
+    return Object.keys(v).map((k) => Object.assign({ id: k }, v[k] || {}, { items: arr((v[k] || {}).items) })).filter((x) => !x.undone).reverse();
+  }
+  async function undo(id) {
+    const d = mainDb();
+    const u = me();
+    if (!document.body || !document.body.classList.contains("iba-is-super-admin")) throw new Error("Only the Super Admin can undo a hand-over.");
+    const s = await d.ref("iba_assistant/handover_log/" + id).once("value");
+    const x = s && s.val();
+    if (!x) throw new Error("Hand-over not found.");
+    let back = 0, left = 0;
+    const items = Array.isArray(x.items) ? x.items.filter(Boolean) : Object.values(x.items || {}).filter(Boolean);
+    for (const m of items) {
+      try {
+        let r = null;
+        if (m.kind === "invoice") r = await moveInvoice(m.po, m.key, x.to, x.from, "Hand-over undone by " + ((u && u.Name) || "Super Admin"));
+        else {
+          const js = await d.ref("job_entries/" + m.key).once("value"), e = js && js.val();
+          if (e && jobOpen(Object.assign({ key: m.key }, e)) && norm(e.attention) === norm(x.to)) r = await moveJob(Object.assign({ key: m.key }, e), x.to, x.from, "Hand-over undone");
+        }
+        if (r) back++; else left++;
+      } catch (_) { left++; }
+    }
+    await d.ref("iba_assistant/handover_log/" + id).update({ undone: true, undoneAt: firebase.database.ServerValue.TIMESTAMP, undoneBy: (u && u.Name) || "" });
+    try { await d.ref("iba_assistant/handover_pending/" + safe(x.from)).remove(); } catch (_) {}
+    return { back: back, left: left, from: x.from, to: x.to };
+  }
+  window.ibaVacationHandover = { VERSION: VERSION, run: run, away: awayList, log: log, undo: undo };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();

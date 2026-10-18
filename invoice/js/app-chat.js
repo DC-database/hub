@@ -711,6 +711,9 @@ async function dmSendMessage(toKey, toName, text) {
     const fromName = dmState.userName;
     const threadId = dmGetThreadId(fromKey, toKey);
     if (!fromKey || !toKey || !threadId) return;
+    // 15.0.0 patch 39: no messages to yourself (that chat is never listed, so
+    // its unread count could not be cleared)
+    if (String(fromKey) === String(toKey)) throw new Error('You cannot send a message to yourself.');
 
     const msgId = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages`).push().key;
     const msg = {
@@ -1022,6 +1025,13 @@ function dmSubscribeUnread() {
     dmState.unreadRef = db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}`);
     dmState.onUnread = (snap) => {
         dmState.unreadCache = snap.val() || {};
+        // 15.0.0 patch 39: an old message to yourself left a count that could
+        // never be cleared - drop it
+        const selfThread = dmGetThreadId(dmState.userKey, dmState.userKey);
+        if (selfThread && dmState.unreadCache[selfThread]) {
+            delete dmState.unreadCache[selfThread];
+            db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${selfThread}`).remove().catch(() => {});
+        }
         dmUpdateBadges();
         if (dmState.open) dmRenderUserList();
     };
