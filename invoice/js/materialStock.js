@@ -227,6 +227,8 @@ function msPreparePhotoDataForSave(value) {
 
         // If it is from the fixed SharePoint photo folder, save only the filename.
         if (msIsMaterialPhotoBaseUrl(cleanUrl)) {
+            // 15.0.0 patch 42: a .jpeg / .png in the Photo folder keeps its full link
+            try { const f = decodeURIComponent(new URL(cleanUrl).pathname.split('/').pop() || ''); const e = msPhotoExtOf(f); if (e && !/^\.jpg$/i.test(e)) return { photoName: '', photoUrl: cleanUrl }; } catch (_) {}
             const extractedName = msExtractPhotoNameFromUrl(cleanUrl);
             if (!extractedName) return null;
             return { photoName: extractedName, photoUrl: '' };
@@ -236,10 +238,141 @@ function msPreparePhotoDataForSave(value) {
         return { photoName: '', photoUrl: cleanUrl };
     }
 
+    // 15.0.0 patch 42: "nail.jpeg" / "nail.png" -> full OneDrive link (every screen shows photoUrl)
+    const otherExt = msPhotoOtherExtUrl(raw);
+    if (otherExt) return { photoName: '', photoUrl: otherExt };
+
     const cleanName = msNormalizePhotoName(raw);
     if (!cleanName) return null;
 
     return { photoName: cleanName, photoUrl: '' };
+}
+
+// ---- 15.0.0 patch 42: find photos in the OneDrive Photo folder without a CSV ----
+const MS_PHOTO_PROBE_EXTS = ['.jpg', '.jpeg', '.png', '.webp'];
+function msPhotoBaseName(raw) { return String(raw || '').trim().split(/[\\/]/).pop().trim(); }
+function msPhotoExtOf(name) { const m = String(name || '').match(/\.(jpe?g|png|webp|gif)$/i); return m ? m[0] : ''; }
+// a file name with an extension other than .jpg -> its full link, else ''
+function msPhotoOtherExtUrl(raw) {
+    const v = String(raw || '').trim();
+    if (!v || /^https?:\/\//i.test(v)) return '';
+    const base = msPhotoBaseName(v);
+    const ext = msPhotoExtOf(base);
+    if (!ext || /^\.jpg$/i.test(ext) || /[?#<>:"|*]/.test(base)) return '';
+    return MS_MATERIAL_PHOTO_BASE_URL + encodeURIComponent(base);
+}
+// any typed value (name, name.ext or link) -> the link to show
+function msPhotoUrlFromInput(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v)) return msNormalizePhotoUrl(v);
+    return msPhotoOtherExtUrl(v) || msBuildMaterialPhotoUrlFromName(v);
+}
+// what to put in the box: "nail" for nail.jpg, "nail.jpeg" for other extensions
+function msPhotoInputValue(raw) {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    if (/^https?:\/\//i.test(v)) {
+        if (msIsMaterialPhotoBaseUrl(v)) {
+            try { const f = decodeURIComponent(new URL(v).pathname.split('/').pop() || ''); const e = msPhotoExtOf(f); return e && !/^\.jpg$/i.test(e) ? f : msNormalizePhotoName(f); } catch (_) { return v; }
+        }
+        return v;
+    }
+    return msPhotoOtherExtUrl(v) ? msPhotoBaseName(v) : msNormalizePhotoName(v);
+}
+function msPhotoNameVariants(text) {
+    const s = String(text || '').trim().replace(/\.(jpe?g|png|webp|gif)$/i, '').replace(/[?#<>:"|*\\/]/g, ' ').trim();
+    if (!s) return [];
+    const words = s.toLowerCase().split(/[\s_\-]+/).filter(Boolean);
+    const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+    const out = [s, s.toLowerCase(), words.join('-'), words.join('_'), words.join(' '), words.join(''), words.map(cap).join(' '), words.map(cap).join('-')];
+    return Array.from(new Set(out.filter(Boolean)));
+}
+function msPhotoProbeOne(url) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        let done = false;
+        const end = (ok) => { if (done) return; done = true; clearTimeout(t); img.onload = img.onerror = null; resolve(ok); };
+        const t = setTimeout(() => end(false), 9000);
+        img.onload = () => end(img.naturalWidth > 0);
+        img.onerror = () => end(false);
+        img.src = url;
+    });
+}
+// checks name variants x extensions in the OneDrive Photo folder; returns the files that exist
+async function msPhotoProbe(texts) {
+    const bases = [];
+    (texts || []).forEach((t) => msPhotoNameVariants(t).slice(0, 8).forEach((b) => { if (bases.indexOf(b) === -1) bases.push(b); }));
+    const tries = [];
+    bases.slice(0, 14).forEach((b) => MS_PHOTO_PROBE_EXTS.forEach((e) => tries.push({ file: b + e, url: MS_MATERIAL_PHOTO_BASE_URL + encodeURIComponent(b + e) })));
+    const seen = new Set();
+    const found = [];
+    await Promise.all(tries.map(async (x) => {
+        if (await msPhotoProbeOne(x.url)) {
+            const k = x.file.toLowerCase();
+            if (!seen.has(k)) { seen.add(k); found.push(x); }
+        }
+    }));
+    return { found: found.sort((a, b) => a.file.localeCompare(b.file)), checked: tries.length, bases: bases.slice(0, 14) };
+}
+let msPhotoProbeSeq = 0;
+let msPhotoProbeTimer = null;
+function msPhotoFoundBox() {
+    let box = document.getElementById('ms-photo-found');
+    if (box) return box;
+    const top = document.querySelector('#ms-photo-browser-modal .ms-photo-browser-top');
+    if (!top) return null;
+    box = document.createElement('div');
+    box.id = 'ms-photo-found';
+    box.className = 'ms-photo-found';
+    top.insertAdjacentElement('afterend', box);
+    if (!document.getElementById('ms-photo-found-style')) {
+        const st = document.createElement('style');
+        st.id = 'ms-photo-found-style';
+        st.textContent = '.ms-photo-found{margin:10px 0 4px}.ms-photo-found-head{font-size:12px;font-weight:700;opacity:.85;margin:0 0 6px}' +
+            '.ms-photo-found-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px}' +
+            '.ms-photo-found-grid button{display:flex;flex-direction:column;gap:4px;align-items:stretch;padding:6px;border-radius:10px;border:1px solid rgba(128,128,128,.35);background:rgba(255,255,255,.06);cursor:pointer;color:inherit;text-align:left}' +
+            '.ms-photo-found-grid button.is-on{border-color:#1E7F74;box-shadow:0 0 0 2px rgba(30,127,116,.45)}' +
+            '.ms-photo-found-grid img{width:100%;height:84px;object-fit:cover;border-radius:7px;background:#fff}' +
+            '.ms-photo-found-grid span{font-size:11px;word-break:break-all;line-height:1.25}';
+        document.head.appendChild(st);
+    }
+    return box;
+}
+function msRunPhotoProbe(extraText) {
+    clearTimeout(msPhotoProbeTimer);
+    msPhotoProbeTimer = setTimeout(async () => {
+        const manual = document.getElementById('ms-photo-browser-manual');
+        const typed = String((manual && manual.value) || '').trim();
+        const texts = [typed, extraText || ''].filter((t) => t && t.replace(/\.(jpe?g|png|webp|gif)$/i, '').trim().length >= 2);
+        const box = msPhotoFoundBox();
+        if (!box) return;
+        if (!texts.length) { box.innerHTML = ''; return; }
+        const seq = ++msPhotoProbeSeq;
+        box.innerHTML = '<div class="ms-photo-found-head"><i class="fa-solid fa-spinner fa-spin"></i> Looking in the OneDrive Photo folder…</div>';
+        const r = await msPhotoProbe(texts);
+        if (seq !== msPhotoProbeSeq) return;
+        if (!r.found.length) {
+            box.innerHTML = '<div class="ms-photo-found-head">No photo found in OneDrive for ' + msEscapeHtml(texts.join(' / ')) + ' (checked ' + msEscapeHtml(r.bases.slice(0, 4).join(', ')) + ' as .jpg / .jpeg / .png). Type the exact file name, or open OneDrive once in this browser so photos can load.</div>';
+            return;
+        }
+        const cur = msPhotoInputValue(typed).toLowerCase();
+        box.innerHTML = '<div class="ms-photo-found-head"><i class="fa-solid fa-check"></i> Found in OneDrive - tap one, then Use This Photo</div><div class="ms-photo-found-grid">' +
+            r.found.map((x) => { const v = msPhotoInputValue(x.file); return '<button type="button" data-photo-value="' + msEscapeHtml(v) + '" class="' + (v.toLowerCase() === cur ? 'is-on' : '') + '" title="' + msEscapeHtml(x.file) + '"><img src="' + msEscapeHtml(x.url) + '" alt="" loading="lazy"><span>' + msEscapeHtml(x.file) + '</span></button>'; }).join('') + '</div>';
+        box.querySelectorAll('[data-photo-value]').forEach((b) => {
+            b.addEventListener('click', () => {
+                const m = document.getElementById('ms-photo-browser-manual');
+                if (m) m.value = b.dataset.photoValue;
+                box.querySelectorAll('[data-photo-value]').forEach((x) => x.classList.toggle('is-on', x === b));
+                msRenderPhotoBrowserPreview(b.dataset.photoValue);
+            });
+            b.addEventListener('dblclick', () => msUseSelectedPhotoName(b.dataset.photoValue));
+        });
+        // the big preview shows the photo found for what was typed (e.g. "nail" -> nail.jpeg)
+        const base = typed.replace(/\.(jpe?g|png|webp|gif)$/i, '').toLowerCase();
+        const match = r.found.find((x) => x.file.replace(/\.(jpe?g|png|webp|gif)$/i, '').toLowerCase() === base);
+        if (match && !/\.(jpe?g|png|webp|gif)$/i.test(typed)) msRenderPhotoBrowserPreview(msPhotoInputValue(match.file));
+    }, 450);
 }
 
 function msGetMaterialPhotoInputValue(item) {
@@ -371,6 +504,9 @@ function msParsePhotoIndexText(text) {
 }
 
 async function msFetchOptionalPhotoIndexNames() {
+    // 15.0.0 patch 42: the GitHub PhotoIndex.csv is not used any more. Photos are
+    // found by checking the OneDrive Photo folder directly (msPhotoProbe).
+    if (!window.MS_MATERIAL_PHOTO_INDEX_URL) return [];
     const indexUrl = (window.MS_MATERIAL_PHOTO_INDEX_URL || MS_MATERIAL_PHOTO_INDEX_URL || '').trim();
     if (!indexUrl || !/^https?:\/\//i.test(indexUrl)) return [];
 
@@ -486,7 +622,7 @@ function msRenderPhotoBrowserPreview(photoName) {
         return;
     }
     preview.hidden = false;
-    const url = msBuildMaterialPhotoUrlFromName(cleanName);
+    const url = msPhotoUrlFromInput(photoName) || msBuildMaterialPhotoUrlFromName(cleanName);
     preview.innerHTML = `
         <div class="ms-photo-browser-preview-card clean">
             <img src="${msEscapeHtml(url)}" alt="${msEscapeHtml(cleanName)}" onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
@@ -519,7 +655,7 @@ function msFilterAndRenderPhotoLibrary(names) {
     if (grid) grid.innerHTML = '';
 
     if (!sourceNames.length) {
-        msSetPhotoBrowserStatus('PhotoIndex.csv was not loaded yet. You can still type the exact OneDrive file name manually.', false);
+        msSetPhotoBrowserStatus('Type a photo name (e.g. nail) - the system looks for it in the OneDrive Photo folder.', false);
         return;
     }
 
@@ -529,7 +665,7 @@ function msFilterAndRenderPhotoLibrary(names) {
     }
 
     if (!filtered.length) {
-        msSetPhotoBrowserStatus('No matching photo name found in PhotoIndex.csv. If the file exists in OneDrive, you can still use this exact name.', false);
+        msSetPhotoBrowserStatus('Not used before - see what was found in OneDrive above, or type the exact file name.', false);
         return;
     }
 
@@ -560,7 +696,7 @@ async function msOpenMaterialPhotoBrowser(options = {}) {
     const search = document.getElementById('ms-photo-browser-search');
     const targetLabel = document.getElementById('ms-photo-browser-target');
     const item = msPhotoBrowserContext.itemKey ? (allMaterialStockData || []).find(i => i.key === msPhotoBrowserContext.itemKey) : null;
-    const initialName = msNormalizePhotoName(msPhotoBrowserContext.prefill || (item ? msGetMaterialPhotoInputValue(item) : (document.getElementById(msPhotoBrowserContext.targetInputId)?.value || '')));
+    const initialName = msPhotoInputValue(msPhotoBrowserContext.prefill || (item ? (item.photoUrl && !item.photoName ? item.photoUrl : msGetMaterialPhotoInputValue(item)) : (document.getElementById(msPhotoBrowserContext.targetInputId)?.value || '')));
 
     if (manual) manual.value = initialName;
     if (search) search.value = '';
@@ -571,6 +707,13 @@ async function msOpenMaterialPhotoBrowser(options = {}) {
     msRenderPhotoBrowserPreview(initialName);
     modal.classList.remove('hidden');
     msSetPhotoBrowserStatus('Loading photo library...', false);
+
+    const foundBox = msPhotoFoundBox();
+    if (foundBox) foundBox.innerHTML = '';
+    // 15.0.0 patch 42: look for the item's own photo right away (by its name)
+    const itemName = item ? String(item.productName || '') : String(document.getElementById('ms-new-name')?.value || '');
+    msPhotoBrowserContext.itemName = itemName;
+    msRunPhotoProbe(itemName);
 
     const names = await msGetMaterialPhotoLibraryNames();
     window.__msLastPhotoLibraryNames = names;
@@ -583,7 +726,8 @@ function msCloseMaterialPhotoBrowser() {
 }
 
 async function msSavePhotoNameForItem(itemKey, photoName) {
-    const cleanName = msNormalizePhotoName(photoName);
+    const prep = msPreparePhotoDataForSave(photoName) || {};
+    const cleanName = prep.photoName || (prep.photoUrl ? msPhotoInputValue(prep.photoUrl) : '');
     if (!itemKey || !cleanName) {
         alert('Please select or type a valid photo name.');
         return;
@@ -596,8 +740,8 @@ async function msSavePhotoNameForItem(itemKey, photoName) {
     try {
         const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         await database.ref(`material_stock/${itemKey}`).update({
-            photoName: cleanName,
-            photoUrl: null,
+            photoName: prep.photoName || null,
+            photoUrl: prep.photoUrl || null,
             photoUpdatedBy: msGetCurrentMaterialUserName() || 'System',
             photoUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
             lastUpdated: firebase.database.ServerValue.TIMESTAMP
@@ -606,15 +750,16 @@ async function msSavePhotoNameForItem(itemKey, photoName) {
 
         const item = (allMaterialStockData || []).find(i => i.key === itemKey);
         if (item) {
-            item.photoName = cleanName;
-            item.photoUrl = '';
+            item.photoName = prep.photoName || '';
+            item.photoUrl = prep.photoUrl || '';
             item.photoUpdatedBy = msGetCurrentMaterialUserName() || 'System';
         }
 
         localStorage.removeItem(STOCK_CACHE_KEY);
         msCloseMaterialPhotoBrowser();
         renderMaterialStockTable(allMaterialStockData);
-        alert(`Photo attached: ${cleanName}.jpg`);
+        try { await window.inventoryPocket?.publishMaterialByKey(itemKey); } catch (_) {}
+        alert(`Photo attached: ${prep.photoName ? cleanName + '.jpg' : cleanName}`);
     } catch (err) {
         console.error('Failed to attach photo:', err);
         alert('Could not attach photo. Please check your connection or permission.');
@@ -671,8 +816,7 @@ function msRefreshRegPhotoPreview() {
     const box = document.getElementById('ms-reg-photo-preview');
     const input = document.getElementById('ms-new-photo-url');
     if (!box) return;
-    const name = msNormalizePhotoName((input && input.value) || '');
-    const url = name && typeof msBuildMaterialPhotoUrlFromName === 'function' ? msBuildMaterialPhotoUrlFromName(name) : '';
+    const url = msPhotoUrlFromInput((input && input.value) || '');
     if (!url) {
         box.hidden = true;
         box.innerHTML = '';
@@ -683,7 +827,7 @@ function msRefreshRegPhotoPreview() {
 }
 
 async function msUseSelectedPhotoName(photoName) {
-    const cleanName = msNormalizePhotoName(photoName || document.getElementById('ms-photo-browser-manual')?.value || '');
+    const cleanName = msPhotoInputValue(photoName || document.getElementById('ms-photo-browser-manual')?.value || '');
     if (!cleanName) {
         alert('Please type or choose a valid photo name. Example: IBA-Sample');
         return;
@@ -723,6 +867,7 @@ function msInitPhotoBrowserUI() {
         const refreshDropdownAndPreview = () => {
             msRenderPhotoBrowserPreview(manual.value);
             msFilterAndRenderPhotoLibrary(window.__msLastPhotoLibraryNames || []);
+            msRunPhotoProbe(msPhotoBrowserContext.itemName || '');
         };
         manual.addEventListener('input', refreshDropdownAndPreview);
         manual.addEventListener('change', refreshDropdownAndPreview);

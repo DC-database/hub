@@ -527,6 +527,7 @@ function dmRenderUserList() {
 
     const q = String(document.getElementById('dm-user-search')?.value || '').trim().toLowerCase();
     const users = dmGetApproversList().filter(u => {
+        if (String(u.key) === String(dmState.userKey)) return false; // 15.0.0 patch 41: never yourself
         if (!q) return true;
         return u.name.toLowerCase().includes(q) || (u.position || '').toLowerCase().includes(q);
     });

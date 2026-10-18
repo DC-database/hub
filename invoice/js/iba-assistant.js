@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p40';
+    const VERSION = '15.0.0-p41';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -437,7 +437,7 @@
                   set_attention: { type: 'string', description: 'Person for all rows, only if the user asked' } }, required: ['status'] } },
             { name: 'find_person', description: 'A colleague\'s profile from the IBA user list: name, position, site, mobile number and email, with a button to message them inside IBA. Use for "what is the number of X", "who is X", "email of X", "who is the DC of site 177", "who works at site 178" (site + position).',
               parameters: { type: 'object', properties: {
-                  name: { type: 'string', description: 'Name or first name (e.g. "Irwin"). Leave out when searching by site / position.' },
+                  name: { type: 'string', description: 'Name or first name (e.g. "Irwin"), or a mobile number (e.g. 55512345). Leave out when searching by site / position.' },
                   site: { type: 'string', description: 'Site number, e.g. "178": everyone working at that site' },
                   position: { type: 'string', description: 'Position(s), several separated by commas, e.g. "Site DC, Storekeeper"' } } } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
@@ -1752,7 +1752,7 @@
         let site = siteTokenOf(a.site);
         let wanted = posWanted(a.position || a.positions);
         // a site number typed in the name box ("site dc 178") is a site filter
-        if (!site && q) { const m = q.match(/(?:^|\s)(?:site\s*)?([a-z]?\d{2,4})(?:\s|$)/i); if (m && (a.site === undefined)) { site = m[1].toUpperCase(); q = norm(q.replace(m[0], ' ')).replace(/^site\s*|\s*site$/g, '').trim(); } }
+        if (!site && q && !/^\+?[\d\s\-()]{7,}$/.test(q)) { const m = q.match(/(?:^|\s)(?:site\s*)?([a-z]?\d{2,4})(?:\s|$)/i); if (m && (a.site === undefined)) { site = m[1].toUpperCase(); q = norm(q.replace(m[0], ' ')).replace(/^site\s*|\s*site$/g, '').trim(); } }
         if (!q && !site && !wanted.length) return { result: { error: 'Whose profile? Give a name, a position or a site.' } };
         let map = {};
         try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
@@ -1766,6 +1766,13 @@
         if (wanted.length) all = all.filter((x) => posMatches(x.Position, wanted));
         const hay = (a) => norm([a.Name, a.Position, a.Role, a.Site, a.Email].join(' '));
         let hits = q ? all.filter((a) => norm(a.Name) === q) : [];
+        // 15.0.0 patch 41: a mobile number finds the person (with or without +974 / spaces)
+        const digits = q.replace(/[\s+\-()]/g, '');
+        if (!hits.length && /^\d{5,}$/.test(digits)) {
+            const d8 = digits.replace(/^(00)?974/, '');
+            hits = all.filter((a) => { const m = String(a.Mobile || a.mobile || a.Phone || '').replace(/\D+/g, '').replace(/^(00)?974/, ''); return m && (m.indexOf(d8) !== -1 || d8.indexOf(m) !== -1); });
+            if (hits.length) words.length = 0;
+        }
         if (!hits.length) hits = all.filter((a) => words.every((w) => hay(a).indexOf(w) !== -1));
         // site lists: the site people first (Site DC, Storekeeper, Camp Boss, Logistic), then by name
         const rank = (x) => { const p = norm(x.Position); return /site\s*dc/.test(p) ? 0 : /store\s*keeper/.test(p) ? 1 : /camp boss/.test(p) ? 2 : /logistic/.test(p) ? 3 : 4; };
@@ -2204,6 +2211,13 @@
         const snap = await invoiceDb.ref('invoice_entries').once('value');
         return { data: (snap && snap.val()) || {}, info: { mode: 'full', bytes: 0 } };
     }
+    function fileNameFor(inv, st) {
+        const s2 = norm(st);
+        const pick = (...k) => { for (const x of k) { const v = String((inv && inv[x]) || '').trim(); if (v && !/^nil$/i.test(v)) return v; } return ''; };
+        if (/report/.test(s2)) return pick('reportName', 'report_name');
+        if (/with accounts|srv done|paid/.test(s2)) return pick('srvName', 'srv_name');
+        return pick('invName', 'inv_name');
+    }
     function csvCell(v) {
         const t = String(v === null || v === undefined ? '' : v).replace(/\r?\n/g, ' ');
         return /[",;]/.test(t) || /^\s|\s$/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
@@ -2239,12 +2253,16 @@
                 rows.push({ po: po, key: k, invoice_no: String(inv.invNumber || '').trim(), entry: String(inv.invEntryID || '').trim(), vendor: vendor, site: site,
                     invoice_date: inv.invoiceDate || '', value: num(inv.invValue), paid: num(inv.amountPaid), status: st, since: at ? fmtDate(at) + ' ' + fmtClock(at) : '',
                     days: at ? Math.max(0, Math.floor((Date.now() - at) / 86400000)) : '', attention: String(inv.attention || '').trim(), entered_by: String(inv.enteredBy || '').trim(),
-                    release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0 });
+                    release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0, file: fileNameFor(inv, st) });
             });
         });
         rows.sort((x, y) => (x._at - y._at) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }));
-        const head = ['PO', 'Invoice No', 'Entry ID', 'Vendor', 'Site', 'Invoice Date', 'Invoice Value', 'Amount Paid', 'Status', 'Status Since', 'Days in Status', 'Attention', 'Entered By', 'Release Date', 'Note'];
-        const csv = [head.join(',')].concat(rows.map((r) => [r.po, r.invoice_no, r.entry, r.vendor, r.site, r.invoice_date, r.value.toFixed(2), r.paid.toFixed(2), r.status, r.since, r.days, r.attention, r.entered_by, r.release, r.note].map(csvCell).join(','))).join('\r\n');
+        // 15.0.0 patch 41: only what is needed to rename the scanned files.
+        // "Inv name / SRV name / Report name" is the one name that changes with the
+        // status: Report steps -> report name, With Accounts / SRV Done / Paid ->
+        // SRV name, everything else (e.g. Under Review) -> invoice name.
+        const head = ['Time', 'PO', 'Site', 'Inv No', 'Inv name / SRV name / Report name', 'Inv Amount', 'Amount Paid', 'Status'];
+        const csv = [head.join(',')].concat(rows.map((r) => [r.since, r.po, r.site, r.invoice_no, r.file, r.value.toFixed(2), r.paid.toFixed(2), r.status].map(csvCell).join(','))).join('\r\n');
         const pos = new Set(rows.map((r) => r.po)).size;
         const total = rows.reduce((t, r) => t + r.value, 0);
         const label = wants.map((w) => (exportStatusOpts().find((o) => norm(o[0]) === w) || [w])[0]).join(' + ') + (win ? ' · ' + win.label : '') + (a.site ? ' · site ' + a.site : '') + (a.vendor ? ' · ' + a.vendor : '');
@@ -3221,6 +3239,7 @@
             }).catch((err) => { b.disabled = false; b.title = (err && err.message) || ''; });
             return;
         }
+        if (b.dataset.dmKey && ((me() || {}).key && String(b.dataset.dmKey) === String(me().key))) return;
         if (b.dataset.dmKey) {
             try {
                 if (onPhone()) toggle(false); // the message window opens on the phone screen
@@ -3335,7 +3354,7 @@
     // 15.0.0 patch 25: phone home logic (no AI needed)
     // ------------------------------------------------------------------
     const APH_MODE_KEY = 'iba-ai-aph-mode';
-    const APH_HINT = { auto: 'PO, vendor, transfer no. or a name', inv: 'PO number or vendor name', trf: 'TRF-0361, vehicle no. or item', person: 'Name, position or site' };
+    const APH_HINT = { auto: 'PO, vendor, transfer no. or a name', inv: 'PO number or vendor name', trf: 'TRF-0361, vehicle no. or item', person: 'Name, position, site or mobile no.' };
     let aphMode = 'auto';
     function setPhoneMode(m, user) {
         aphMode = (user && aphMode === m) ? 'auto' : (APH_HINT[m] !== undefined ? m : 'auto');
@@ -3380,6 +3399,8 @@
         const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
         if (m === 'inv') return runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q }, out);
         // auto: a PO number, a colleague's name, else a vendor
+        // 15.0.0 patch 41: a mobile number (8+ digits) looks up the colleague
+        if (/^\+?[\d\s\-()]{8,}$/.test(q) && q.replace(/\D+/g, '').length >= 8) return phoneCard(() => runTool('find_person', { name: q }), out);
         if (looksPO) return runTrack({ po: q, vendor: '' }, out);
         const pr = resolvePerson(q);
         if (pr.name || (pr.matches.length && pr.matches.length <= 3 && pr.matches.every((x) => norm(x.value).includes(norm(q))))) return phoneCard(() => runTool('find_person', { name: q }), out);
@@ -4019,6 +4040,9 @@
                 '<p class="iba-ai-foot">' + esc(x.note) + '</p>';
         } else if (card.kind === 'person') {
             const ps = x.people || [];
+            // 15.0.0 patch 41: you never message yourself
+            const meA = me() || {};
+            const isMe = (q) => !!q && ((meA.key && String(q.key) === String(meA.key)) || (myName() && norm(q.name) === norm(myName())));
             const tel = (m) => { const d = String(m || '').replace(/\D+/g, ''); return d ? (d.length === 8 ? '+974' + d : '+' + d.replace(/^00/, '')) : ''; };
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + (ps.length > 1 && x.q ? ' · ' + esc(x.q) : '') + '</div>' +
                 (ps.length ? ps.map((p) => '<div class="iba-ai-person">' +
@@ -4030,7 +4054,7 @@
                         '<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#FCD34D;-webkit-text-fill-color:#FCD34D">Contact instead</div>' +
                         '<div style="margin:2px 0 6px;font-size:13px"><strong>' + esc(p.rep.name) + '</strong>' + (p.rep.position ? ' · ' + esc(p.rep.position) : '') +
                         (p.rep.mobile ? ' · <a href="tel:' + esc(tel(p.rep.mobile)) + '">' + esc(p.rep.mobile) + '</a>' : '') + (p.rep.email ? ' · <a href="mailto:' + esc(p.rep.email) + '">' + esc(p.rep.email) + '</a>' : '') + '</div>' +
-                        '<div class="iba-ai-person-acts"><button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.rep.key) + '" data-dm-name="' + esc(p.rep.name) + '"><i class="fa-solid fa-comments"></i> Message ' + esc(p.rep.name.split(/\s+/)[0]) + '</button>' +
+                        '<div class="iba-ai-person-acts">' + (isMe(p.rep) ? '<span class="iba-ai-me-tag"><i class="fa-solid fa-user"></i> You are the replacement</span>' : '<button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.rep.key) + '" data-dm-name="' + esc(p.rep.name) + '"><i class="fa-solid fa-comments"></i> Message ' + esc(p.rep.name.split(/\s+/)[0]) + '</button>') +
                         (p.rep.mobile ? '<a class="iba-ai-mini" href="https://wa.me/' + esc(tel(p.rep.mobile).replace('+', '')) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>' : '') + '</div></div>' : '') +
                     (p.covering && p.covering.length ? '<p style="margin:6px 0 0;font-size:12px;color:#93C5FD;-webkit-text-fill-color:#93C5FD">Covering for ' + esc(p.covering.join(', ')) + ' (on vacation)</p>' : '') +
                     '<dl class="iba-ai-person-dl">' +
@@ -4038,8 +4062,8 @@
                       '<dt>Mobile</dt><dd>' + (p.mobile ? '<a href="tel:' + esc(tel(p.mobile)) + '">' + esc(p.mobile) + '</a>' : '—') + '</dd>' +
                       '<dt>Email</dt><dd>' + (p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>' : '—') + '</dd>' +
                     '</dl>' +
-                    '<div class="iba-ai-person-acts"><button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.key) + '" data-dm-name="' + esc(p.name) + '"><i class="fa-solid fa-comments"></i> Message in IBA</button>' +
-                    (p.mobile ? '<a class="iba-ai-mini" href="https://wa.me/' + esc(tel(p.mobile).replace('+', '')) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>' : '') + '</div>' +
+                    '<div class="iba-ai-person-acts">' + (isMe(p) ? '<span class="iba-ai-me-tag"><i class="fa-solid fa-user"></i> This is you</span>' : '<button type="button" class="iba-ai-mini is-main" data-dm-key="' + esc(p.key) + '" data-dm-name="' + esc(p.name) + '"><i class="fa-solid fa-comments"></i> Message in IBA</button>') +
+                    (p.mobile && !isMe(p) ? '<a class="iba-ai-mini" href="https://wa.me/' + esc(tel(p.mobile).replace('+', '')) + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>' : '') + '</div>' +
                     '</div>').join('') : '<p class="iba-ai-empty">No user matches "' + esc(x.q) + '".</p>');
         } else if (card.kind === 'recent') {
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-clock-rotate-left"></i> ' + esc(x.rows.length) + ' found · ' + esc(x.label) + '</div>' +
@@ -4052,7 +4076,7 @@
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-file-csv"></i> ' + esc(x.label) + '</div>' +
                 '<div class="iba-ai-stats"><div><b>' + esc(x.found) + '</b><span>Invoices</span></div><div><b>' + esc(x.pos) + '</b><span>POs</span></div><div><b>' + esc(x.total_value) + '</b><span>Value (QAR)</span></div></div>' +
                 (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no || r.entry) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
-                    '<small>' + esc([money(r.value), r.since ? 'since ' + r.since : '', r.attention ? 'with ' + r.attention : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' +
+                    '<small>' + esc([r.file ? 'File: ' + r.file : 'No file name yet', money(r.value), r.since ? 'since ' + r.since : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' +
                     (x.found > x.rows.length ? '<p class="iba-ai-foot">+ ' + esc(x.found - x.rows.length) + ' more in the file</p>' : '') : '<p class="iba-ai-empty">' + esc(x.note || 'Nothing found.') + '</p>') +
                 (x.found && href ? '<p class="iba-ai-foot"><a class="iba-ai-mini is-main" href="' + esc(href) + '" download="' + esc(x.file) + '"><i class="fa-solid fa-download"></i> Download CSV (' + esc(x.found) + ')</a></p>' : '') +
                 '<p class="iba-ai-foot">Data: ' + esc(x.source) + '</p>';
