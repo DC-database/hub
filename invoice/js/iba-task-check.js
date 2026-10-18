@@ -137,10 +137,16 @@
     // old copies in personal lists (only when the invoice can be found)
     Object.keys(tasksRoot || {}).forEach((owner) => {
       if (norm(owner) === "all") return;
+      // 15.0.0 patch 23: POCloseOutHO is the shared PO Close Out list (Waiting
+      // at site / Ready to close), not a person's inbox. Its rows point at
+      // SRV Done / With Accounts invoices on purpose and must never be removed
+      // here (before, the check wiped the Ready to close list).
+      if (norm(owner) === "pocloseoutho") return;
       const rows = tasksRoot[owner];
       if (!rows || typeof rows !== "object") return;
       Object.keys(rows).forEach((k) => {
         const r = rows[k] || {};
+        if (r.poNumber && (r.waitingHo !== undefined || r.waitingSite !== undefined)) return; // a close-out pointer
         const hit = byKey.get(k) || (r.originalKey && byKey.get(r.originalKey)) || (r.invoiceKey && byKey.get(r.invoiceKey));
         if (!hit) return; // cannot be checked here: leave it
         const rowPo = r.po || r.originalPO;

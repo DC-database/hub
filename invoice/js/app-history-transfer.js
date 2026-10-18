@@ -379,7 +379,7 @@ window.printHistorySticker = function(esn) {
         <head>
             <title>Print Approval - ${safeEsn}</title>
             <style>
-                @page { size: A4; margin: 0; }
+                @page { margin: 0; }
                 body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; }
                 #sticker-container {
                     position: absolute;

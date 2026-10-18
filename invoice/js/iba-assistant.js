@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p22';
+    const VERSION = '15.0.0-p33';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -45,10 +45,11 @@
     const BRAINS = {
         groq: { label: 'Groq (free)', baseUrl: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', needsKey: true,
             keyUrl: 'https://console.groq.com/keys', keyHelp: 'Sign in at console.groq.com (free, no card) > API Keys > Create API Key. Tip: in Settings > Data Controls turn on Zero Data Retention.' },
-        gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-2.5-flash', needsKey: true,
-            keyUrl: 'https://aistudio.google.com/apikey', keyHelp: 'Open Google AI Studio (aistudio.google.com) > Get API key > Create API key, then copy it here. The key starts with "AIza". On the free plan Google may use and read what you send.' },
+        gemini: { label: 'Google Gemini', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', model: 'gemini-3.8-flash', needsKey: true,
+            keyUrl: 'https://aistudio.google.com/apikey', keyHelp: 'Open Google AI Studio (aistudio.google.com) > Get API key > Create API key, then copy it here. Use the copy button next to the key so the whole key is copied. On the free plan Google may use and read what you send.' },
         ollama: { label: 'Ollama (a PC)', baseUrl: 'http://localhost:11434/v1', model: 'qwen3:8b', needsKey: false,
-            keyUrl: 'https://ollama.com/download', keyHelp: 'Runs on this PC only (no internet AI, nothing leaves the PC). It needs a strong PC (16 GB RAM or more) and these steps, done once:',
+            keyUrl: 'https://ollama.com/download', keyHelp: 'Runs on this PC only (no internet AI, nothing leaves the PC). Needs a good PC (8 GB RAM or more; 16 GB is better). Easiest: press "Download setup file", run it once (double-click), then come back and press Find models, Save and Test.',
+            setupFile: true,
             guide: [
                 'Download and install Ollama from ollama.com/download, then open it once.',
                 'Open "Command Prompt" and type:  ollama pull qwen3:8b  (a few GB; wait until it finishes).',
@@ -56,8 +57,66 @@
                 'Quit Ollama (right-click its icon near the clock > Quit) and open it again.',
                 'Back here: Brain = Ollama, Model = qwen3:8b, press Save, then Test. If Chrome asks to allow access to local devices, press Allow.'
             ] },
-        custom: { label: 'Other (OpenAI-compatible)', baseUrl: '', model: '', needsKey: true, keyUrl: '', keyHelp: 'Any service with an OpenAI-compatible /chat/completions endpoint.' }
+        // 15.0.0 patch 25: more ready-made services (all "OpenAI-compatible").
+        // Paste a key and the right one is picked; the model list comes from
+        // the service itself (Find models), so new model names just work.
+        openrouter: { label: 'OpenRouter (free models)', baseUrl: 'https://openrouter.ai/api/v1', model: 'openai/gpt-oss-20b:free', needsKey: true,
+            keyUrl: 'https://openrouter.ai/keys', keyHelp: 'Sign in at openrouter.ai > Keys > Create key (starts with "sk-or-"). Models whose name ends with ":free" cost nothing.' },
+        cerebras: { label: 'Cerebras (free)', baseUrl: 'https://api.cerebras.ai/v1', model: 'gpt-oss-120b', needsKey: true,
+            keyUrl: 'https://cloud.cerebras.ai/platform', keyHelp: 'Sign in at cloud.cerebras.ai > API Keys > Generate (starts with "csk-"). Free plan with daily limits.' },
+        mistral: { label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', model: 'mistral-small-latest', needsKey: true,
+            keyUrl: 'https://console.mistral.ai/api-keys', keyHelp: 'Sign in at console.mistral.ai > API Keys > Create new key. The free "Experiment" plan works.' },
+        openai: { label: 'OpenAI (paid)', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', needsKey: true,
+            keyUrl: 'https://platform.openai.com/api-keys', keyHelp: 'platform.openai.com > API keys > Create new secret key (starts with "sk-"). Paid per use.' },
+        custom: { label: 'Other (OpenAI-compatible)', baseUrl: '', model: '', needsKey: true, keyUrl: '', keyHelp: 'Any other AI service that says "OpenAI-compatible": paste its address (ends with /v1) and its key, then press Find models.' }
     };
+    // which service a key belongs to, from how it starts
+    function brainOfKey(k) {
+        const key = String(k || '').trim();
+        if (/^gsk_/i.test(key)) return 'groq';
+        if (/^(AIza|AQ\.)/.test(key)) return 'gemini';
+        if (/^sk-or-/i.test(key)) return 'openrouter';
+        if (/^csk-/i.test(key)) return 'cerebras';
+        if (/^sk-(proj-|svcacct-|admin-)?[A-Za-z0-9_-]{20,}/.test(key)) return 'openai';
+        return '';
+    }
+    // the best model from the service's own list
+    const MODEL_PREF = {
+        groq: [/^openai\/gpt-oss-120b$/, /^llama-3\.3-70b-versatile$/, /^openai\/gpt-oss-20b$/, /llama|qwen|gpt-oss/],
+        gemini: [/^gemini-[\d.]+-flash$/, /^gemini-flash-latest$/, /^gemini-[\d.]+-flash(-\d+)?$/, /flash(?!.*(lite|image|tts|live|audio|embed|thinking))/, /^gemini-[\d.]+-pro$/],
+        openrouter: [/gpt-oss-120b:free$/, /gpt-oss-20b:free$/, /llama-3\.3-70b-instruct:free$/, /qwen.*:free$/, /:free$/],
+        cerebras: [/^gpt-oss-120b$/, /^llama-3\.3-70b$/, /qwen-3/, /llama/],
+        mistral: [/^mistral-small-latest$/, /^mistral-medium-latest$/, /^mistral-large-latest$/, /^mistral-/],
+        openai: [/^gpt-4\.1-mini$/, /^gpt-4o-mini$/, /^gpt-[\d.]+-mini$/, /^gpt-/],
+        ollama: [/^qwen3/, /^qwen/, /^llama3/, /./],
+        custom: [/./]
+    };
+    const MODEL_SKIP = /(embed|whisper|tts|audio|image|vision-only|guard|moderation|transcribe|dall-e|veo|imagen|aqa|rerank|-live)/i;
+    function pickModel(brain, ids, current) {
+        const list = (ids || []).filter((m) => !MODEL_SKIP.test(m));
+        if (current && list.indexOf(current) !== -1) return current;
+        const prefs = MODEL_PREF[brain] || [/./];
+        for (const re of prefs) {
+            const hits = list.filter((m) => re.test(m)).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            if (hits.length) return hits[0];
+        }
+        return list[0] || current || '';
+    }
+    async function listModels(c) {
+        const url = String(c.baseUrl || '').replace(/\/+$/, '') + '/models';
+        const tryOnce = async (googleHeader) => {
+            const headers = {};
+            if (c.key && googleHeader) headers['x-goog-api-key'] = c.key;
+            else if (c.key) headers.Authorization = 'Bearer ' + c.key;
+            const res = await fetch(url, { headers: headers, cache: 'no-store' });
+            let data = null; try { data = await res.json(); } catch (_) {}
+            if (!res.ok) { const e = new Error((data && data.error && (data.error.message || data.error)) || ('HTTP ' + res.status)); e.status = res.status; throw e; }
+            const arr = (data && (data.data || data.models)) || [];
+            return arr.map((m) => String((m && (m.id || m.name)) || '').replace(/^models\//, '')).filter(Boolean);
+        };
+        try { return await tryOnce(false); }
+        catch (e) { if (c.brain === 'gemini' && (e.status === 401 || e.status === 403)) return await tryOnce(true); throw e; }
+    }
 
     // ------------------------------------------------------------------
     // Small helpers
@@ -220,9 +279,21 @@
             watch();
         }).catch(() => { audience = 'everyone'; watch(); });
     }
+    // 15.0.0 patch 23: the assistant also runs on the phone, opened from a
+    // robot button in the phone's top bar (no floating robot or tips there),
+    // full screen. Jobs that open desktop pages are left out on the phone.
+    function onPhone() { const b = document.body; return !!(b && b.classList.contains('iba-phone')); }
+    // 15.0.0 patch 25: on the phone the assistant only searches, tracks,
+    // reminds and messages. Everything else (brief, Batch Entry, new invoice,
+    // reports, downloads) is on the computer.
+    // 15.0.0 patch 27: invoices by PO or vendor only (no search by status)
+    const PHONE_ALLOW = ['track_invoices', 'invoice_activity', 'find_po', 'track_transfer', 'find_transfers', 'find_person'];
+    const PHONE_TPL = ['inv_status', 'transfer', 'person'];
+    function phoneOk(name) { return !onPhone() || PHONE_ALLOW.indexOf(name) !== -1; }
+    const PHONE_NO = 'On the phone the assistant searches, tracks, reminds and messages. The brief, Batch Entry, new invoices, reports and downloads are on the computer.';
     function allowed() {
         const b = document.body;
-        if (!b || !b.classList.contains('iba-shell-on') || b.classList.contains('iba-phone')) return false;
+        if (!b || !(b.classList.contains('iba-shell-on') || b.classList.contains('iba-phone'))) return false;
         if (!myName()) return false;
         readAudience();
         if (isSuper()) return true;
@@ -362,9 +433,11 @@
                   add_to_batch: { type: 'boolean', description: 'false only when the user just wants to see the list' },
                   set_status: { type: 'string', description: 'New status for all rows in Batch Entry, only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows, only if the user asked' } }, required: ['status'] } },
-            { name: 'find_person', description: 'A colleague\'s profile from the IBA user list: name, position, site, mobile number and email, with a button to message them inside IBA. Use for "what is the number of X", "who is X", "email of X", "who is the DC of site 177".',
+            { name: 'find_person', description: 'A colleague\'s profile from the IBA user list: name, position, site, mobile number and email, with a button to message them inside IBA. Use for "what is the number of X", "who is X", "email of X", "who is the DC of site 177", "who works at site 178" (site + position).',
               parameters: { type: 'object', properties: {
-                  name: { type: 'string', description: 'Name, first name, position or site (e.g. "Irwin", "Hamad", "Site DC 177")' } }, required: ['name'] } },
+                  name: { type: 'string', description: 'Name or first name (e.g. "Irwin"). Leave out when searching by site / position.' },
+                  site: { type: 'string', description: 'Site number, e.g. "178": everyone working at that site' },
+                  position: { type: 'string', description: 'Position(s), several separated by commas, e.g. "Site DC, Storekeeper"' } } } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
               parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
             { name: 'find_transfers', description: 'Inventory / Material: find Transfer, Restock, Return or Usage requests by what they say - a vehicle or equipment number (e.g. 36588), an item or machine (e.g. wheel loader, Komatsu), a product, a person or a site. Lists each matching control number with its items, the matching text, its step and who has it now. It looks through the transfers already loaded; when it says older ones were not searched, tell the user to press "Search all transfers" on the card (or call again with all=true only if the user asked to search everything).',
@@ -373,8 +446,6 @@
                   open_only: { type: 'boolean', description: 'Only requests still waiting for someone' },
                   site: { type: 'string' }, when: { type: 'string', description: 'Optional period words for the request date' },
                   all: { type: 'boolean', description: 'Search every transfer (one download). Only when the user asks to search everything.' } }, required: ['text'] } },
-            { name: 'find_person', description: 'Find people in the system by name, position or site (for Attention or for a message).',
-              parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
             { name: 'track_invoices', description: 'Where invoices are now and who has them: by PO number, or by vendor name with optional site and year. Each invoice shows its stage (Reception, Invoice Entry, SRV, Approval, Accounts, Paid), who has it, since when, and recent steps. When a vendor has many POs it returns counts by year and site instead: then ask the user which year or site.',
               parameters: { type: 'object', properties: {
                   po: { type: 'string', description: 'PO number' },
@@ -396,13 +467,18 @@
               parameters: { type: 'object', properties: {
                   status: { type: 'string' }, site: { type: 'string' }, vendor: { type: 'string' },
                   with: { type: 'string', description: 'Who has it (Attention): name or role' } } } },
+            { name: 'download_invoices', description: 'Make a CSV file (opens in Excel) of the invoices now in ANY status, including Under Review, With Accounts and Paid - the same set Invoice Records shows for that status - optionally only those that reached it in a period, at a site or for a vendor. The user downloads it from the card. Use for "download / export / list / excel / csv" of invoices in a status.',
+              parameters: { type: 'object', properties: {
+                  status: { type: 'string', description: 'One status, or several joined with commas, e.g. "Under Review, With Accounts"' },
+                  when: { type: 'string', description: 'any (default), 2h, today, yesterday, week, month, 30d' },
+                  site: { type: 'string' }, vendor: { type: 'string' } }, required: ['status'] } },
             { name: 'invoice_activity', description: 'Who handled the invoices of a vendor or a PO and when: the latest actions (status changes and who did them, newest first), the last action, and who has each invoice now. Looks at the newest POs of the vendor. Use for "who last handled", "who managed", "what happened".',
               parameters: { type: 'object', properties: {
                   vendor: { type: 'string' }, po: { type: 'string' },
                   when: { type: 'string', description: 'Optional period words, e.g. "past week", "2026"' },
                   from: { type: 'string' }, to: { type: 'string' },
                   person: { type: 'string', description: 'Only actions by this person' } } } }
-        ].filter((t) => isSuper() || SUPER_ONLY.indexOf(t.name) === -1);
+        ].filter((t) => (isSuper() || SUPER_ONLY.indexOf(t.name) === -1) && phoneOk(t.name));
     }
 
     // 15.0.0 patch 9: what the holder should do next, by status / step
@@ -520,7 +596,7 @@
         const box = '<span class="box"></span>';
         const kpi = (n, l) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
         const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>IBA brief - ' + esc(firstName()) + ' - ' + esc(fmtDate(now.getTime())) + '</title><style>' +
-            '@page{size:A4;margin:14mm 12mm}*{box-sizing:border-box}body{margin:0;font:12px/1.4 Arial,Helvetica,sans-serif;color:#1b2430;background:#fff}' +
+            '@page{margin:14mm 12mm}*{box-sizing:border-box}body{margin:0;font:12px/1.4 Arial,Helvetica,sans-serif;color:#1b2430;background:#fff}' +
             '.bar-top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1E7F74;padding-bottom:8px;margin-bottom:12px}' +
             'h1{margin:0;font-size:20px;letter-spacing:.02em}h1 small{display:block;font-size:12px;font-weight:400;color:#5b6775;margin-top:2px}.meta{text-align:right;color:#5b6775;font-size:11px}' +
             '.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.kpi{border:1px solid #d5dce3;border-radius:8px;padding:8px 10px}.kpi b{display:block;font-size:20px}.kpi span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#5b6775}' +
@@ -570,9 +646,18 @@
         briefStore.forEach((d) => { if (v && d.result && d.result.po_closeout_loading) { d.result.po_closeout = v; delete d.result.po_closeout_loading; } });
     }
 
+    // 15.0.0 patch 25: right after sign-in the task counter needs a few
+    // seconds; wait for it (up to 12 s) instead of failing at once.
+    async function waitingReady(ms) {
+        let w = waiting();
+        const t0 = Date.now();
+        while ((!w || !w.running) && Date.now() - t0 < (ms || 12000)) { await wait(400); w = waiting(); }
+        return (w && w.running) ? w : null;
+    }
+    const NOT_READY = 'Your task list is still loading after sign-in. Please try again in a moment.';
     async function toolBrief() {
-        const w = waiting();
-        if (!w || !w.running) return { result: { error: 'The waiting list is not ready yet. Try again in a few seconds.' } };
+        const w = await waitingReady();
+        if (!w) return { result: { error: NOT_READY } };
         const lists = briefLists(w);
         const tasks = lists.tasks.sort(oldestFirst);
         const jobs = lists.jobs.sort(oldestFirst);
@@ -602,8 +687,8 @@
     }
 
     async function toolList(args) {
-        const w = waiting();
-        if (!w || !w.running) return { result: { error: 'The waiting list is not ready yet.' } };
+        const w = await waitingReady();
+        if (!w) return { result: { error: NOT_READY } };
         const kind = norm(args && args.kind) || 'any';
         const text = norm(args && args.text);
         let limit = Math.round(num(args && args.limit)) || 15;
@@ -768,13 +853,6 @@
         return { result: result, card: { kind: 'form', data: result }, minimize: true };
     }
 
-    async function toolPerson(args) {
-        const q = norm(args && args.query);
-        if (!q) return { result: { error: 'Who should I look for?' } };
-        const list = people().filter((p) => norm([p.value, p.position, p.site].join(' ')).includes(q)).slice(0, 8)
-            .map((p) => ({ name: p.value, position: p.position || undefined, site: p.site || undefined }));
-        return { result: { found: list.length, people: list }, card: { kind: 'people', data: list } };
-    }
 
 
     // ------------------------------------------------------------------
@@ -1369,6 +1447,33 @@
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
+        }).concat(ipcItems(jobs, po, acc));
+    }
+    // 15.0.0 patch 27: received jobs sent to the QS for IPC show in the same
+    // trail (Reception step, marked "with QS"), so a vendor / PO search shows
+    // where every received item is and who has it.
+    function ipcOpen(st) {
+        try { if (typeof wdIsOpenIPCJobStatus === 'function') return !!wdIsOpenIPCJobStatus(st); } catch (_) {}
+        const r = norm(st);
+        return !r || !/(with accounts|closed|cancel|deleted|srv done|completed|paid)/.test(r);
+    }
+    function ipcItems(jobs, po, acc) {
+        return (jobs || []).filter((e) => {
+            if (!e || String(e.po || '').trim().toUpperCase() !== po) return false;
+            const ft = norm(e.for || e.type);
+            if (ft !== 'ipc application' && ft !== 'ipc' && ft !== 'ipc processed') return false;
+            if (e.convertedToInvoice || e.archived) return false;
+            return ipcOpen(String(e.remarks || e.status || ''));
+        }).sort((a, b) => (norm(a.for || a.type) === 'ipc application' ? 0 : 1) - (norm(b.for || b.type) === 'ipc application' ? 0 : 1)).map((e) => {
+            const ft = norm(e.for || e.type);
+            const raw = String(e.remarks || e.status || '').trim();
+            const at = Number(e.statusChangedAt) || Number(e.updatedAt) || Number(e.timestamp) || Date.parse(e.date || '') || 0;
+            const processed = ft !== 'ipc application';
+            const label = processed ? 'IPC done - waiting for the actual invoice' : 'With QS for IPC' + (raw && !/^(pending|new entry|ipc application)$/i.test(raw) ? ' (' + raw + ')' : '');
+            return { kind: 'ipc', invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+                entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
+                with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
+                value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
         });
     }
     function vendorPOs(vendor, map) {
@@ -1615,9 +1720,29 @@
     // 15.0.0 patch 15: people - a colleague's profile from the IBA user list
     // (already loaded for the Attention lists; nothing extra is downloaded)
     // ------------------------------------------------------------------
+    // 15.0.0 patch 31: site and position filters ("Site DC and Storekeeper at 178")
+    function userSiteCodes(v) {
+        return String(v == null ? '' : v).split(/[,;\/]+/).map((x) => x.trim()).filter(Boolean)
+            .map((x) => x.split(/\s+-\s*|\s*-\s+|\s+/)[0].toUpperCase());
+    }
+    function siteTokenOf(v) { const s = String(v == null ? '' : v).trim(); return s ? s.split(/\s+-\s*|\s*-\s+|\s+/)[0].toUpperCase() : ''; }
+    const POS_ALIASES = { 'srv team': ['site dc', 'storekeeper', 'camp boss'], 'store keeper': ['storekeeper'], 'storekeeper': ['storekeeper', 'store keeper'], 'dc': ['site dc'], 'site dc': ['site dc'] };
+    function posWanted(v) {
+        return String(v == null ? '' : v).split(/[,;\/&]+|\band\b/i).map((x) => norm(x)).filter(Boolean)
+            .reduce((a, x) => a.concat(POS_ALIASES[x] || [x.replace(/s$/, '')]), []);
+    }
+    function posMatches(pos, wanted) {
+        const p = norm(pos), c = p.replace(/[.\s_\-]+/g, '');
+        return wanted.some((w) => p.indexOf(w) !== -1 || c.indexOf(w.replace(/[.\s_\-]+/g, '')) !== -1);
+    }
     async function toolPerson(args) {
-        const q = norm(args && (args.name || args.person || args.text));
-        if (!q) return { result: { error: 'Whose profile? Give a name, position or site.' } };
+        const a = args || {};
+        let q = norm(a.name || a.person || a.text || a.query);
+        let site = siteTokenOf(a.site);
+        let wanted = posWanted(a.position || a.positions);
+        // a site number typed in the name box ("site dc 178") is a site filter
+        if (!site && q) { const m = q.match(/(?:^|\s)(?:site\s*)?([a-z]?\d{2,4})(?:\s|$)/i); if (m && (a.site === undefined)) { site = m[1].toUpperCase(); q = norm(q.replace(m[0], ' ')).replace(/^site\s*|\s*site$/g, '').trim(); } }
+        if (!q && !site && !wanted.length) return { result: { error: 'Whose profile? Give a name, a position or a site.' } };
         let map = {};
         try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
         if (!Object.keys(map).length) {
@@ -1625,15 +1750,36 @@
             try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
         }
         const words = q.split(/\s+/).filter(Boolean);
-        const all = Object.keys(map).map((k) => Object.assign({ key: k }, map[k] || {})).filter((a) => a.Name);
+        let all = Object.keys(map).map((k) => Object.assign({ key: k }, map[k] || {})).filter((a) => a.Name);
+        if (site) all = all.filter((x) => userSiteCodes(x.Site).indexOf(site) !== -1);
+        if (wanted.length) all = all.filter((x) => posMatches(x.Position, wanted));
         const hay = (a) => norm([a.Name, a.Position, a.Role, a.Site, a.Email].join(' '));
-        let hits = all.filter((a) => norm(a.Name) === q);
+        let hits = q ? all.filter((a) => norm(a.Name) === q) : [];
         if (!hits.length) hits = all.filter((a) => words.every((w) => hay(a).indexOf(w) !== -1));
-        hits = hits.slice(0, 6);
-        const people = hits.map((a) => ({ key: a.key, name: String(a.Name || ''), position: String(a.Position || ''), role: String(a.Role || ''),
-            site: String(a.Site || ''), mobile: String(a.Mobile || a.mobile || a.Phone || ''), email: String(a.Email || a.email || '') }));
-        return { result: { found: people.length, people: people.map((p) => ({ name: p.name, position: p.position, site: p.site, mobile: p.mobile, email: p.email })) },
-            card: { kind: 'person', data: { q: q, people: people } } };
+        // site lists: the site people first (Site DC, Storekeeper, Camp Boss, Logistic), then by name
+        const rank = (x) => { const p = norm(x.Position); return /site\s*dc/.test(p) ? 0 : /store\s*keeper/.test(p) ? 1 : /camp boss/.test(p) ? 2 : /logistic/.test(p) ? 3 : 4; };
+        if (site || wanted.length) hits.sort((x, y) => rank(x) - rank(y) || String(x.Name).localeCompare(String(y.Name)));
+        hits = hits.slice(0, site || wanted.length ? 40 : 6);
+        if (!hits.length && (site || wanted.length)) return { result: { found: 0, error: 'Nobody' + (wanted.length ? ' with position ' + (a.position || wanted.join(', ')) : '') + (site ? ' at site ' + site : '') + ' in the user list.' } };
+        // 15.0.0 patch 33: Active / On vacation (same rule as the vacation hand-over)
+        const awayOf = (x) => {
+            const on = x.Vacation === true || norm(x.Vacation) === 'yes';
+            if (!on) return null;
+            const r = String(x.DateReturn || '').trim();
+            if (r) { const d = new Date(r); if (!isNaN(d)) { d.setHours(23, 59, 59, 999); if (Date.now() > d.getTime()) return null; } }
+            return { back: r ? fmtDate(r) || r : '', by: String(x.ReplacementName || '').trim() };
+        };
+        const everyone = Object.keys(map).map((k) => map[k] || {});
+        const coverFor = (name) => everyone.filter((x) => x.Name && awayOf(x) && norm(x.ReplacementName) === norm(name)).map((x) => String(x.Name));
+        const people = hits.map((a) => {
+            const v = awayOf(a);
+            return { key: a.key, name: String(a.Name || ''), position: String(a.Position || ''), role: String(a.Role || ''),
+                site: String(a.Site || ''), mobile: String(a.Mobile || a.mobile || a.Phone || ''), email: String(a.Email || a.email || ''),
+                status: v ? 'On vacation' : 'Active', back: v ? v.back : '', replacement: v ? v.by : '', covering: coverFor(a.Name) };
+        });
+        return { result: { found: people.length, people: people.map((p) => ({ name: p.name, position: p.position, site: p.site, mobile: p.mobile, email: p.email,
+            status: p.status, back_on: p.back || undefined, replacement: p.replacement || undefined, covering_for: p.covering.length ? p.covering : undefined })) },
+            card: { kind: 'person', data: { q: [a.position || '', site ? 'site ' + site : '', q].filter(Boolean).join(' · '), people: people } } };
     }
 
     function statusMatch(status, want) {
@@ -1999,13 +2145,106 @@
         return { result: result, card: { kind: 'activity', data: Object.assign({}, result, { all_events: ev.map((x) => ({ date: fmtDate(x.at || x.day), po: x.po, invoice_no: x.invoice_no, action: x.action, by: x.by })), all_now: now }) } };
     }
 
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 23: download a list of invoices in ANY status (Under
+    // Review, With Accounts, Paid, ...) as a CSV for Excel, the same set
+    // Invoice Records shows for that status. Low cost: it uses the invoices
+    // already in memory, or the saved copy (Invoice Records / weekly report)
+    // plus only the POs changed since then; a full read happens only when
+    // there is no copy from the last 24 hours (and that copy is then saved).
+    // ------------------------------------------------------------------
+    const EXPORT_WHEN = [['any', 'Any time (all now in this status)'], ['2h', 'Last 2 hours'], ['today', 'Today'], ['yesterday', 'Yesterday'],
+        ['week', 'This week (from Saturday)'], ['month', 'This month'], ['30d', 'Last 30 days']];
+    function exportStatusOpts() {
+        const base = ['Under Review', 'With Accounts', 'Paid', 'SRV Done', 'For SRV', 'For Approval', 'CEO Approval', 'In Process', 'For Summary', 'Report', 'Report Approval', 'Report Approved', 'On Hold', 'Pending', 'Unresolved', 'IPC Application'];
+        const seen = new Set();
+        return base.concat(statusOptions()).filter((x) => { const k = norm(x); if (!k || seen.has(k)) return false; seen.add(k); return true; }).map((x) => [x, x]);
+    }
+    function exportWindow(when) {
+        const w = norm(when || 'any'), now = Date.now();
+        if (!w || w === 'any' || w === 'all') return null;
+        if (w === '2h') return { from: now - 2 * 3600000, to: now, label: 'last 2 hours' };
+        if (w === 'today') return { from: qMidnight(0), to: now, label: 'today' };
+        if (w === 'yesterday') return { from: qMidnight(-1), to: qMidnight(0), label: 'yesterday' };
+        if (w === 'week') { const back = (qDay().getUTCDay() + 1) % 7; return { from: qMidnight(-back), to: now, label: 'this week' }; }
+        if (w === 'month') { const d = qDay(); return { from: qMidnight(-(d.getUTCDate() - 1)), to: now, label: 'this month' }; }
+        if (w === '30d') return { from: now - 30 * 86400000, to: now, label: 'last 30 days' };
+        const h = parseFloat(w);
+        if (Number.isFinite(h) && h > 0) return { from: now - h * 3600000, to: now, label: 'last ' + h + ' hours' };
+        return null;
+    }
+    async function exportLoadInvoices() {
+        try {
+            if (window.__invoiceEntriesFullLoaded === true && typeof allInvoiceData !== 'undefined' && allInvoiceData && Object.keys(allInvoiceData).length) {
+                return { data: allInvoiceData, info: { mode: 'memory', bytes: 0 } };
+            }
+        } catch (_) {}
+        if (window.ibaWeeklyReport && typeof window.ibaWeeklyReport.loadInvoices === 'function') {
+            return await window.ibaWeeklyReport.loadInvoices(false, () => {});
+        }
+        const snap = await invoiceDb.ref('invoice_entries').once('value');
+        return { data: (snap && snap.val()) || {}, info: { mode: 'full', bytes: 0 } };
+    }
+    function csvCell(v) {
+        const t = String(v === null || v === undefined ? '' : v).replace(/\r?\n/g, ' ');
+        return /[",;]/.test(t) || /^\s|\s$/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+    }
+    async function toolExport(args) {
+        const a = args || {};
+        if (!isSuper()) return { result: { error: 'Downloading invoice lists is for the Super Admin only.' } };
+        const want = String(a.status || '').trim();
+        if (!want) return { result: { error: 'Which status? e.g. Under Review, With Accounts, Paid.' } };
+        const wants = want.split(/\s*[,+&]\s*|\s+and\s+/i).map(norm).filter(Boolean);
+        const win = exportWindow(a.when || a.period);
+        const siteQ = norm(a.site), vendorQ = norm(a.vendor);
+        const loaded = await exportLoadInvoices();
+        const data = loaded.data || {};
+        const poMapX = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : {};
+        const reached = (inv, st) => (typeof ibaStatusReachedAt === 'function') ? ibaStatusReachedAt(inv, st) : (Number(inv.statusChangedAt) || 0);
+        const rows = [];
+        Object.keys(data).forEach((po) => {
+            const bucket = data[po];
+            if (!bucket || typeof bucket !== 'object') return;
+            const rec = poMapX[po] || {};
+            Object.keys(bucket).forEach((k) => {
+                const inv = bucket[k];
+                if (!inv || typeof inv !== 'object') return;
+                const st = String(inv.status || '').trim();
+                if (wants.indexOf(norm(st)) === -1) return; // exact, as Invoice Records
+                const site = String(rec['Project ID'] || inv.site || '').trim();
+                const vendor = String(inv.vendorName || inv.vendor_name || rec['Supplier Name'] || '').trim();
+                if (siteQ && norm(site).indexOf(siteQ) === -1) return;
+                if (vendorQ && norm(vendor).indexOf(vendorQ) === -1) return;
+                const at = reached(inv, norm(st));
+                if (win && (!at || at < win.from || at > win.to)) return;
+                rows.push({ po: po, key: k, invoice_no: String(inv.invNumber || '').trim(), entry: String(inv.invEntryID || '').trim(), vendor: vendor, site: site,
+                    invoice_date: inv.invoiceDate || '', value: num(inv.invValue), paid: num(inv.amountPaid), status: st, since: at ? fmtDate(at) + ' ' + fmtClock(at) : '',
+                    days: at ? Math.max(0, Math.floor((Date.now() - at) / 86400000)) : '', attention: String(inv.attention || '').trim(), entered_by: String(inv.enteredBy || '').trim(),
+                    release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0 });
+            });
+        });
+        rows.sort((x, y) => (x._at - y._at) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }));
+        const head = ['PO', 'Invoice No', 'Entry ID', 'Vendor', 'Site', 'Invoice Date', 'Invoice Value', 'Amount Paid', 'Status', 'Status Since', 'Days in Status', 'Attention', 'Entered By', 'Release Date', 'Note'];
+        const csv = [head.join(',')].concat(rows.map((r) => [r.po, r.invoice_no, r.entry, r.vendor, r.site, r.invoice_date, r.value.toFixed(2), r.paid.toFixed(2), r.status, r.since, r.days, r.attention, r.entered_by, r.release, r.note].map(csvCell).join(','))).join('\r\n');
+        const pos = new Set(rows.map((r) => r.po)).size;
+        const total = rows.reduce((t, r) => t + r.value, 0);
+        const label = wants.map((w) => (exportStatusOpts().find((o) => norm(o[0]) === w) || [w])[0]).join(' + ') + (win ? ' · ' + win.label : '') + (a.site ? ' · site ' + a.site : '') + (a.vendor ? ' · ' + a.vendor : '');
+        const src = loaded.info && loaded.info.mode === 'memory' ? 'invoices already loaded (no download)'
+            : loaded.info && loaded.info.mode === 'saved' ? 'saved copy + ' + (loaded.info.changed || 0) + ' changed PO(s) read'
+            : 'all invoices read once (saved for next time)';
+        const fname = 'IBA_' + wants.map((w) => w.replace(/[^a-z0-9]+/g, '_')).join('_') + (win ? '_' + norm(win.label).replace(/[^a-z0-9]+/g, '_') : '') + '_' + todayISO() + '.csv';
+        const result = { found: rows.length, pos: pos, total_value: money(total), label: label, source: src,
+            first: rows.slice(0, 15).map((r) => ({ po: r.po, invoice_no: r.invoice_no, vendor: r.vendor, value: money(r.value), since: r.since, with: r.attention })) };
+        if (!rows.length) result.note = 'No invoice is in that status' + (win ? ' for that time' : '') + '.';
+        return { result: result, card: { kind: 'export', data: Object.assign({}, result, { csv: csv, file: fname, rows: rows.slice(0, 8) }) } };
+    }
+
     const RUN = {
         get_brief: toolBrief,
         list_my_tasks: toolList,
         find_po: toolFindPO,
         open_po: toolOpenPO,
         fill_invoice_form: toolFill,
-        find_person: toolPerson,
         track_invoices: toolTrack,
         reception_received: toolReception,
         job_records: toolJobs,
@@ -2015,11 +2254,13 @@
         invoices_by_status: toolStatus,
         invoice_activity: toolActivity,
         track_transfer: toolTransfer,
-        find_transfers: toolTransferFind
+        find_transfers: toolTransferFind,
+        download_invoices: toolExport
     };
-    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch', 'recent_status_changes'];
+    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch', 'recent_status_changes', 'download_invoices'];
     async function runTool(name, args) {
         if (SUPER_ONLY.indexOf(name) !== -1 && !isSuper()) return { result: { error: 'This job is only for the Super Admin.' } };
+        if (!phoneOk(name)) return { result: { error: PHONE_NO } };
         const fn = RUN[name];
         if (!fn) return { result: { error: 'Unknown job: ' + name } };
         try { return await fn(args || {}); }
@@ -2050,8 +2291,9 @@
             'How an invoice moves: 1) Reception receives the vendor invoice and records a WorkDesk job entry (New Entry). 2) Accounting registers it in Invoice Entry (Under Review / In Process). 3) The Site DC (Head Office DC for head-office items) confirms delivery: For SRV, then SRV Done. 4) Approvals when needed (For Approval, CEO Approval, Report...). 5) With Accounts = payment in process. 6) Paid. Each invoice keeps a history of who changed its status and when.',
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
-            isSuper() ? 'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).' : '',
+            isSuper() && !onPhone() ? 'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).' : '',
             'A colleague\'s number, email, site or position, or "who is X" -> find_person (it shows a button to message them in IBA).',
+            isSuper() ? 'A file / download / Excel / CSV / full list of invoices in a status (also Under Review, With Accounts, Paid, which invoices_by_status leaves out) -> download_invoices; then say the file is ready on the card.' : '',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
@@ -2061,7 +2303,8 @@
             'PAYMENT RULE: an invoice is paid ONLY when its status is "Paid". Status "With Accounts" means payment is in process (Accounts will pay). Every other status (SRV Done, For SRV, approvals, On Hold, ...) means NOT paid yet. "Invoiced" means invoices received, not paid. Always use the payment field; never say paid otherwise.',
             'When the user names a vendor, supplier or company (with or without a PO), call track_invoices with vendor (and site / year if given). If it returns suggestions, ask which vendor they mean.',
             'You cannot save, approve, delete or send anything. To prepare a new invoice use fill_invoice_form, then tell the user to check the form and press Add.',
-            isSuper() ? 'To update several invoices at once use Batch Entry: add_to_batch with the PO numbers (status filter when the user names the current status, e.g. "the CEO Approval ones"; set_status / set_attention / set_note only when the user says what to change). Then tell the user to check the rows and press Save. You can use Batch Entry; never say you cannot.' : '',
+            onPhone() ? 'The user is on the PHONE. Here you only search and track by PO or vendor (track_invoices shows every received item: at Reception, with the QS for IPC, in Invoice Entry, approvals, Accounts, paid) and transfers, help them remind someone (the Remind button on a result) and find a colleague to message or call (find_person). For anything else (brief, Batch Entry, new invoice, reports, downloads) say it is on the computer.' : '',
+            isSuper() && !onPhone() ? 'To update several invoices at once use Batch Entry: add_to_batch with the PO numbers (status filter when the user names the current status, e.g. "the CEO Approval ones"; set_status / set_attention / set_note only when the user says what to change). Then tell the user to check the rows and press Save. You can use Batch Entry; never say you cannot.' : '',
             'For a message or reminder, write it ready to copy: short, polite, with the PO/invoice facts from the tools. Do not invent phone numbers or emails.',
             'If something is not found, say so plainly and suggest the next step.',
             'To answer where an invoice is, who has it or what happened to it, use track_invoices. If it returns counts by year and site, ask the user to choose before going further.',
@@ -2087,7 +2330,12 @@
         }
         if (c.brain === 'groq' && /gpt-oss/i.test(c.model) && !(opts && opts.noReasoningEffort)) body.reasoning_effort = 'low';
         const headers = { 'Content-Type': 'application/json' };
-        if (c.key) headers.Authorization = 'Bearer ' + c.key;
+        // 15.0.0 patch 24: Google AI Studio now gives "AQ." keys. They normally
+        // work as "Bearer" on the OpenAI-compatible address; if Google refuses
+        // that, the call is tried once more with Google's own key header.
+        const googleHeader = !!(opts && opts.googleKeyHeader);
+        if (c.key && googleHeader) headers['x-goog-api-key'] = c.key;
+        else if (c.key) headers.Authorization = 'Bearer ' + c.key;
         const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
         const timer = ctrl ? setTimeout(() => ctrl.abort(), 60000) : 0;
         let res;
@@ -2109,11 +2357,24 @@
                 throw Object.assign(new Error('The free limit is used up for now.'), { rate: true, retryAfter: ra });
             }
             const m = String(msg);
+            const reasonOf = () => { try { const det = (data && data.error && data.error.details) || []; const r = det.map((d) => d && d.reason).filter(Boolean)[0]; return r || ((m.match(/[A-Z_]{12,}/) || [])[0] || ''); } catch (_) { return ''; } };
             if (res.status === 401 || res.status === 403 || /api.?key.*(not valid|invalid)|API_KEY_INVALID|permission/i.test(m)) {
-                throw Object.assign(new Error('The key was not accepted' + (c.brain === 'gemini' ? ' by Google. Copy the key again from aistudio.google.com (it starts with "AIza") and paste it without spaces.' : '. Check it in Setup.')), { setup: true });
+                if (c.brain === 'gemini' && !googleHeader) return callBrain(messages, withTools, Object.assign({}, opts || {}, { googleKeyHeader: true }));
+                const why = reasonOf();
+                let tip = '. Check it in Setup.';
+                if (c.brain === 'gemini') {
+                    tip = ' by Google' + (why ? ' (' + why + ')' : '') + '. ';
+                    if (/SERVICE_BLOCKED|API_KEY_SERVICE/i.test(why)) tip += 'The key is not allowed to use the Gemini API: in aistudio.google.com > API Keys open the key, or in Google Cloud > Credentials set its API restriction to "Generative Language API" (or no restriction), then Test again.';
+                    else if (/TOKEN_TYPE|INVALID|EXPIRED/i.test(why)) tip += 'Usually the key was not copied whole. In aistudio.google.com > API Keys press the copy button on the key row and paste it here again (no spaces). If it still fails, create a new key in the same page.';
+                    else tip += 'In aistudio.google.com > API Keys press the copy button on the key row and paste the whole key here (no spaces).';
+                }
+                throw Object.assign(new Error('The key was not accepted' + tip), { setup: true });
             }
             if (res.status === 404 || /model.*not (found|supported)|is not found for API version/i.test(m)) {
-                throw Object.assign(new Error('Model "' + c.model + '" was not found.' + (c.brain === 'gemini' ? ' Use gemini-2.5-flash.' : ' Check the model name in Setup.')), { setup: true });
+                throw Object.assign(new Error('Model "' + c.model + '" was not found. In Setup press Find models (or Test) to pick one your key can use.'), { setup: true });
+            }
+            if (withTools && /tool|function.?call/i.test(m) && (res.status === 400 || res.status === 404 || res.status === 422)) {
+                throw Object.assign(new Error('Model "' + c.model + '" cannot use the assistant\'s jobs (tools). In Setup pick another model (Find models), e.g. one with "gpt-oss", "llama-3.3" or "qwen" in the name.'), { setup: true });
             }
             throw new Error(String(msg).slice(0, 300));
         }
@@ -2318,6 +2579,15 @@
     // ------------------------------------------------------------------
     const WHEN_OPTS = [['2h', 'Last 2 hours'], ['morning', 'This morning'], ['afternoon', 'This afternoon'], ['today', 'Today'], ['yesterday', 'Yesterday']];
     function statusOptsWith(first) { const o = statusOptions(); return [['', first]].concat((o.length ? o : ['Under Review', 'For SRV', 'SRV Done', 'For Approval', 'In Process', 'CEO Approval', 'For Summary', 'Report', 'On Hold']).map((x) => [x, x])); }
+    function teamSiteOptions() {
+        let map = {};
+        try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
+        const codes = {};
+        Object.values(map).forEach((a) => { if (a && a.Name) userSiteCodes(a.Site).forEach((c) => { if (c && /\d/.test(c)) codes[c] = 1; }); });
+        let labels = {};
+        try { (window.ibaWeeklyReport && window.ibaWeeklyReport.siteChoices ? window.ibaWeeklyReport.siteChoices() : []).forEach((x) => { labels[x[0]] = x[1]; }); } catch (_) {}
+        return Object.keys(codes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((c) => [c, labels[c] || c]);
+    }
     const SKILL_TPL = {
         inv_status: { name: 'Check invoice status', icon: 'fa-file-invoice', desc: 'Asks for a PO or vendor, then shows where each invoice is and who has it.',
             ask: () => [{ key: 'q', label: 'PO number or vendor', placeholder: 'e.g. 66176 or Al Noor' }],
@@ -2328,6 +2598,11 @@
         person: { name: 'Find a colleague', icon: 'fa-id-badge', desc: 'Asks for a name, then shows position, site, mobile and email, with a button to message them.',
             ask: () => [{ key: 'q', label: 'Name, position or site', placeholder: 'e.g. Irwin' }],
             build: (v) => [{ tool: 'find_person', args: { name: v.q } }] },
+        // 15.0.0 patch 31: who works at a site (no AI): site + position
+        site_team: { name: 'Site team', icon: 'fa-people-group', desc: 'Pick a site and the positions you need (e.g. Site DC and Storekeeper) and get each person with mobile, email, WhatsApp and Message. No AI used.',
+            ask: () => [{ key: 'site', label: 'Site', type: 'select', options: teamSiteOptions() },
+                { key: 'pos', label: 'Who', type: 'select', options: [['site dc, storekeeper, camp boss', 'SRV team: Site DC, Storekeeper, Camp Boss'], ['site dc', 'Site DC'], ['storekeeper', 'Storekeeper'], ['camp boss', 'Camp Boss'], ['logistic', 'Logistic'], ['engineer', 'Engineer'], ['', 'Everyone at the site']] }],
+            build: (v) => [{ tool: 'find_person', args: { site: v.site, position: v.pos } }] },
         brief: { name: 'My brief', icon: 'fa-sun', desc: 'Today\'s tasks, inventory jobs and reminders.', ask: () => [], build: () => [{ tool: 'get_brief', args: {} }] },
         batch: { name: 'Add to Batch', icon: 'fa-layer-group', superOnly: true, desc: 'Asks for the POs, which status and which invoices, then puts them into Batch Entry. With Accounts and Paid are left out unless you pick them.',
             ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 66176, 66180 66201' },
@@ -2336,6 +2611,25 @@
             build: (v) => [{ tool: 'add_to_batch', args: { pos: v.pos.split(/[\s,;]+/).filter(Boolean), status: v.status || undefined, latest_only: v.which === 'latest' } }] },
         weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed, Report, sites to sort out and PO Close Out. Print or PDF.',
             ask: () => [], action: () => { if (window.ibaWeeklyReport) window.ibaWeeklyReport.open(); } },
+        // 15.0.0 patch 28: For SRV (or another status) by site, as a printable
+        // list. No AI, no key: same low-cost data as the weekly report.
+        site_list: { name: 'Site list by status', icon: 'fa-clipboard-list', superOnly: true, desc: 'Pick a site (or all sites) and a status - For SRV by default - and get a printable list: PO, invoice, vendor, value, who has it and days. Each site on its own page. No AI used.',
+            ask: () => {
+                const wr = window.ibaWeeklyReport || {};
+                const sites = typeof wr.siteChoices === 'function' ? wr.siteChoices() : [];
+                const sts = typeof wr.statusChoices === 'function' ? wr.statusChoices() : [['for srv', 'For SRV']];
+                return [{ key: 'site', label: 'Site', type: 'select', options: [['', 'All sites (each on its own page)']].concat(sites) },
+                    { key: 'status', label: 'Status', type: 'select', options: sts.concat([['all', 'All of these statuses']]) }];
+            },
+            run: async (v) => {
+                if (!window.ibaWeeklyReport || typeof window.ibaWeeklyReport.siteList !== 'function') throw new Error('The report module is not loaded on this page.');
+                const r = await window.ibaWeeklyReport.siteList({ site: v.site, status: v.status || 'for srv' });
+                return 'Opened the list in a new tab: ' + r.count + ' item' + (r.count === 1 ? '' : 's') + (v.site ? '' : ' on ' + r.sites + ' site' + (r.sites === 1 ? '' : 's')) + '. Press "Print / Save as PDF" there. No AI used' + (r.mode === 'saved' ? ', only the changed POs were read.' : '.');
+            } },
+        export: { name: 'Download invoice list', icon: 'fa-file-csv', superOnly: true, desc: 'Asks for a status (Under Review, With Accounts, Paid, ...) and a period, then gives a CSV file for Excel. Uses the saved copy: little or no download.',
+            ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
+                { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
+            build: (v) => [{ tool: 'download_invoices', args: { status: v.status, when: v.when } }] },
         recent: { name: 'Recent changes to Batch', icon: 'fa-clock-rotate-left', superOnly: true, desc: 'Invoices moved to a status in a time window (e.g. CEO Approval this morning), into Batch Entry.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: statusOptsWith('Pick a status').slice(1) },
                 { key: 'when', label: 'When', type: 'select', options: WHEN_OPTS },
@@ -2346,7 +2640,7 @@
                 return [{ tool: 'recent_status_changes', args: a }];
             } }
     };
-    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()); }
+    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
     function askTplValues(title, fields) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
@@ -2391,6 +2685,10 @@
         state.busy = true;
         setBusy(true);
         try {
+            if (t.run) {
+                try { return addBot(await t.run(vals), {}); }
+                catch (err) { return addError(err); }
+            }
             for (const step of t.build(vals)) {
                 const out = await runTool(step.tool, step.args);
                 if (out.card) addCard(out.card);
@@ -2477,6 +2775,7 @@
             '<header class="iba-ai-head">' +
               '<span class="iba-ai-mark" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i></span>' +
               '<div class="iba-ai-title"><strong>IBA Assistant</strong><small id="iba-ai-brain"></small></div>' +
+              '<button type="button" class="iba-ai-icon iba-aph-only" data-ai="phone" title="Search"><i class="fa-solid fa-house"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="brief" title="Today\'s brief: tasks and reminders (no key needed)"><i class="fa-solid fa-sun"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="track" title="Track an invoice"><i class="fa-solid fa-route"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="skills" title="Skills"><i class="fa-solid fa-bolt"></i></button>' +
@@ -2518,6 +2817,22 @@
               '</details>' +
               '<div class="iba-ai-track-out" id="iba-ai-track-out"></div>' +
             '</div></div>' +
+            // 15.0.0 patch 25: the phone home - search, track, remind, message
+            '<div class="iba-ai-view iba-ai-phone" data-view="phone" hidden><div class="iba-ai-pane">' +
+              '<div class="iba-aph-hero"><span class="iba-aph-bot">' + BOT_SVG + '</span><div class="iba-aph-hi"><strong id="iba-aph-hello">Hello</strong><small>Search · Track · Remind · Message</small></div></div>' +
+              '<form class="iba-aph-search" id="iba-aph-form" autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
+                '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +
+                '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
+              '<div class="iba-aph-tiles" role="radiogroup" aria-label="What to look for">' +
+                '<button type="button" data-aph-mode="inv" style="--c:#2a78d6"><i class="fa-solid fa-file-invoice"></i><b>Invoice</b><small>PO or vendor: received, QS, entry, paid</small></button>' +
+                '<button type="button" data-aph-mode="trf" style="--c:#14a37f"><i class="fa-solid fa-truck-ramp-box"></i><b>Inventory</b><small>Transfer, vehicle, item</small></button>' +
+                '<button type="button" data-aph-mode="person" style="--c:#eb6834"><i class="fa-solid fa-id-badge"></i><b>Colleague</b><small>Message, call, WhatsApp</small></button>' +
+              '</div>' +
+              '<div class="iba-aph-rem" id="iba-aph-rem"></div>' +
+              '<div class="iba-ai-track-out iba-aph-out" id="iba-aph-out"></div>' +
+              '<p class="iba-aph-foot"><i class="fa-solid fa-bell"></i> Every invoice or transfer you find has a <b>Remind</b> button. The full assistant is on the computer.' +
+                ' <button type="button" class="iba-ai-mini" data-aph-chat data-needs-ai><i class="fa-solid fa-comments"></i> Ask in words</button></p>' +
+            '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
               '<button type="button" data-ai="brief"><i class="fa-solid fa-sun"></i> Today\'s brief</button>' +
               '<button type="button" data-view-go="track"><i class="fa-solid fa-route"></i> Track invoice</button>' +
@@ -2558,6 +2873,7 @@
             const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
             runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q, site: $('iba-ai-track-site').value, year: $('iba-ai-track-year').value }, $('iba-ai-track-out'));
         });
+        $('iba-aph-form').addEventListener('submit', (e) => { e.preventDefault(); const q = $('iba-aph-q'); phoneSearch(q.value); q.blur(); });
         const ta = $('iba-ai-text');
         ta.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('iba-ai-form').requestSubmit ? $('iba-ai-form').requestSubmit() : $('iba-ai-form').dispatchEvent(new Event('submit', { cancelable: true })); }
@@ -2597,7 +2913,11 @@
             document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
             // 15.0.0 patch 10: without a key the panel opens on today's brief
             // (tasks + reminders), which needs no AI. Super Admin still gets Setup.
-            if (!ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) {
+            if (onPhone()) {
+                if (state.view !== 'setup' && !(state.view === 'chat' && state.phoneChat)) showView('phone');
+                paintPhone();
+            } else if (state.view === 'phone') showView('chat');
+            if (!onPhone() && !ready() && state.view === 'chat' && !$('iba-ai-log').querySelector('.is-user')) {
                 if (isSuper()) showView('setup');
                 else if (!$('iba-ai-log').querySelector('.iba-ai-card.is-brief')) setTimeout(openBrief, 0);
             }
@@ -2626,6 +2946,7 @@
         if (b.dataset.runTpl) return runTemplate(b.dataset.runTpl);
         if (b.dataset.dmKey) {
             try {
+                if (onPhone()) toggle(false); // the message window opens on the phone screen
                 if (typeof dmState !== 'undefined' && dmState && !dmState.initialized && typeof initDirectMessages === 'function') initDirectMessages();
                 if (typeof dmOpenThread === 'function') dmOpenThread(b.dataset.dmKey, b.dataset.dmName || '');
                 else if (typeof dmOpen === 'function') dmOpen();
@@ -2665,7 +2986,10 @@
             b.remove();
             return;
         }
-        if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? 'chat' : act);
+        if (act === 'phone') { state.phoneChat = false; showView('phone'); return paintPhone(); }
+        if (b.dataset.aphMode) return setPhoneMode(b.dataset.aphMode, true);
+        if (b.hasAttribute('data-aph-chat')) { state.phoneChat = true; return showView('chat'); }
+        if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? (onPhone() ? 'phone' : 'chat') : act);
         if (b.dataset.viewGo) return showView(b.dataset.viewGo);
         if (b.dataset.track) {
             let q = {};
@@ -2728,6 +3052,61 @@
         }
         if (b.dataset.showForm !== undefined) { peek('Check the form, then press Add.'); return; }
         if (b.dataset.showBatch !== undefined) { peek('Check the rows in Batch Entry, then press Save.'); return; }
+    }
+
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 25: phone home logic (no AI needed)
+    // ------------------------------------------------------------------
+    const APH_MODE_KEY = 'iba-ai-aph-mode';
+    const APH_HINT = { auto: 'PO, vendor, transfer no. or a name', inv: 'PO number or vendor name', trf: 'TRF-0361, vehicle no. or item', person: 'Name, position or site' };
+    let aphMode = 'auto';
+    function setPhoneMode(m, user) {
+        aphMode = (user && aphMode === m) ? 'auto' : (APH_HINT[m] !== undefined ? m : 'auto');
+        lsSet(APH_MODE_KEY, aphMode);
+        document.querySelectorAll('#iba-ai-panel [data-aph-mode]').forEach((x) => { const on = x.dataset.aphMode === aphMode; x.classList.toggle('is-on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
+        const q = $('iba-aph-q');
+        if (q) q.placeholder = APH_HINT[aphMode] || APH_HINT.auto;
+        if (user && q) q.focus();
+    }
+    function paintPhoneRem() {
+        const box = $('iba-aph-rem');
+        if (box) box.innerHTML = remindersHtml();
+    }
+    function paintPhone() {
+        const h = $('iba-aph-hello');
+        if (h) h.textContent = greetingWord() + (firstName() ? ', ' + firstName() : '');
+        if (!document.querySelector('#iba-ai-panel [data-aph-mode].is-on') && aphMode === 'auto') setPhoneMode(lsGet(APH_MODE_KEY, 'auto'), false);
+        document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
+        paintPhoneRem();
+    }
+    async function phoneCard(promise, out) {
+        if (state.busy) return;
+        state.busy = true;
+        out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        try {
+            const o = await promise();
+            out.innerHTML = '';
+            if (o && o.card) addCard(o.card, out);
+            else out.innerHTML = '<div class="iba-ai-note is-error">' + esc((o && o.result && o.result.error) || 'Nothing found.') + '</div>';
+        } catch (err) {
+            out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+        } finally { state.busy = false; }
+    }
+    function phoneSearch(raw) {
+        const q = String(raw || '').trim();
+        const out = $('iba-aph-out');
+        if (!q || !out) return;
+        const m = aphMode;
+        if (m === 'person') return phoneCard(() => runTool('find_person', { name: q }), out);
+        if (looksTransfer(q)) return runTransferTrack(q, out);
+        if (m === 'trf') return runTransferFind({ text: q }, out);
+        const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
+        if (m === 'inv') return runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q }, out);
+        // auto: a PO number, a colleague's name, else a vendor
+        if (looksPO) return runTrack({ po: q, vendor: '' }, out);
+        const pr = resolvePerson(q);
+        if (pr.name || (pr.matches.length && pr.matches.length <= 3 && pr.matches.every((x) => norm(x.value).includes(norm(q))))) return phoneCard(() => runTool('find_person', { name: q }), out);
+        return runTrack({ po: '', vendor: q }, out);
     }
 
     async function runTrack(q, out) {
@@ -3037,6 +3416,9 @@
             const open = remList.filter((r) => !r.seenAt);
             const fab = $('iba-ai-fab');
             if (fab) { fab.classList.toggle('has-reminder', open.length > 0); fab.setAttribute('data-rem', open.length ? String(open.length) : ''); }
+            const phb = $('iba-ph-ai');
+            if (phb) { phb.classList.toggle('has-reminder', open.length > 0); phb.setAttribute('data-rem', open.length ? String(open.length) : ''); }
+            paintPhoneRem();
             // a new one: say it once
             const shown = lsGet(REM_SEEN_KEY, []);
             const fresh = open.filter((r) => shown.indexOf(r.id) === -1);
@@ -3105,9 +3487,10 @@
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
             });
-            if (inRecords) h += '<div class="iba-ai-trk-acts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' +
-                '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: p.items.filter((it) => it.kind === 'invoice' && it.stage_index < 5).map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind</button></div>';
-            else if (!p.items.length) h += '';
+            // 15.0.0 patch 27: Remind also for items still at Reception or with the QS
+            const openIt = p.items.filter((it) => it.stage_index < 5);
+            if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
+                (openIt.length ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind</button>' : '') + '</div>';
             h += '</div>';
         });
         if (r.by_site && Object.keys(r.by_site).length) {
@@ -3352,10 +3735,13 @@
         } else if (card.kind === 'person') {
             const ps = x.people || [];
             const tel = (m) => { const d = String(m || '').replace(/\D+/g, ''); return d ? (d.length === 8 ? '+974' + d : '+' + d.replace(/^00/, '')) : ''; };
-            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + '</div>' +
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + (ps.length > 1 && x.q ? ' · ' + esc(x.q) : '') + '</div>' +
                 (ps.length ? ps.map((p) => '<div class="iba-ai-person">' +
                     '<div class="iba-ai-person-top"><span class="iba-ai-avatar">' + esc(p.name.split(/\s+/).map((w) => w.charAt(0)).join('').slice(0, 2).toUpperCase()) + '</span>' +
-                    '<span class="iba-ai-grow"><strong>' + esc(p.name) + '</strong><small>' + esc([p.position, p.role && p.role !== p.position ? p.role : ''].filter(Boolean).join(' · ') || '—') + '</small></span></div>' +
+                    '<span class="iba-ai-grow"><strong>' + esc(p.name) + '</strong><small>' + esc([p.position, p.role && p.role !== p.position ? p.role : ''].filter(Boolean).join(' · ') || '—') + '</small></span>' +
+                    (p.status ? '<span style="flex:0 0 auto;align-self:flex-start;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;' + (p.status === 'On vacation' ? 'background:rgba(245,158,11,.18);color:#FBBF24;-webkit-text-fill-color:#FBBF24;border:1px solid rgba(245,158,11,.45)' : 'background:rgba(34,197,94,.15);color:#4ADE80;-webkit-text-fill-color:#4ADE80;border:1px solid rgba(34,197,94,.4)') + '">' + (p.status === 'On vacation' ? '<i class="fa-solid fa-umbrella-beach"></i> On vacation' : '<i class="fa-solid fa-circle-check"></i> Active') + '</span>' : '') + '</div>' +
+                    (p.status === 'On vacation' ? '<p style="margin:6px 0 0;font-size:12px;color:#FCD34D;-webkit-text-fill-color:#FCD34D">' + esc((p.back ? 'Back on ' + p.back : 'Return date not set') + ' · ' + (p.replacement ? 'Replacement: ' + p.replacement : 'No replacement set - tasks go to Irwin')) + '</p>' : '') +
+                    (p.covering && p.covering.length ? '<p style="margin:6px 0 0;font-size:12px;color:#93C5FD;-webkit-text-fill-color:#93C5FD">Covering for ' + esc(p.covering.join(', ')) + ' (on vacation)</p>' : '') +
                     '<dl class="iba-ai-person-dl">' +
                       '<dt>Site</dt><dd>' + esc(p.site || '—') + '</dd>' +
                       '<dt>Mobile</dt><dd>' + (p.mobile ? '<a href="tel:' + esc(tel(p.mobile)) + '">' + esc(p.mobile) + '</a>' : '—') + '</dd>' +
@@ -3369,6 +3755,16 @@
                 (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
                     '<small>' + esc([r.status, r.changed_at, r.changed_by ? 'by ' + r.changed_by : '', r.with ? 'with ' + r.with : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>'
                     : '<p class="iba-ai-empty">No invoice was moved to this status in that time.</p>');
+        } else if (card.kind === 'export') {
+            let href = '';
+            try { href = (typeof window.ibaCsvHref === 'function') ? window.ibaCsvHref(x.csv) : URL.createObjectURL(new Blob(['\uFEFF' + x.csv], { type: 'text/csv;charset=utf-8' })); } catch (_) {}
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-file-csv"></i> ' + esc(x.label) + '</div>' +
+                '<div class="iba-ai-stats"><div><b>' + esc(x.found) + '</b><span>Invoices</span></div><div><b>' + esc(x.pos) + '</b><span>POs</span></div><div><b>' + esc(x.total_value) + '</b><span>Value (QAR)</span></div></div>' +
+                (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no || r.entry) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
+                    '<small>' + esc([money(r.value), r.since ? 'since ' + r.since : '', r.attention ? 'with ' + r.attention : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' +
+                    (x.found > x.rows.length ? '<p class="iba-ai-foot">+ ' + esc(x.found - x.rows.length) + ' more in the file</p>' : '') : '<p class="iba-ai-empty">' + esc(x.note || 'Nothing found.') + '</p>') +
+                (x.found && href ? '<p class="iba-ai-foot"><a class="iba-ai-mini is-main" href="' + esc(href) + '" download="' + esc(x.file) + '"><i class="fa-solid fa-download"></i> Download CSV (' + esc(x.found) + ')</a></p>' : '') +
+                '<p class="iba-ai-foot">Data: ' + esc(x.source) + '</p>';
         } else if (card.kind === 'batch') {
             const added = x.added || [], already = x.already_in_batch || [], na = x.not_added || [];
             const f = x.filled || {};
@@ -3423,6 +3819,18 @@
         input.select();
     }
 
+    // 15.0.0 patch 27: skills as tap tiles (like the phone home):
+    // a short line and a colour for each ready-made skill
+    const SKILL_LOOK = {
+        inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        site_list: ['For SRV by site, to print', '#2563eb'],
+        export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490']
+    };
+    function skillTile(attr, icon, name, sub, color, title, extra) {
+        return '<div class="iba-ai-tile-wrap"><button type="button" class="iba-ai-tile" ' + attr + ' style="--c:' + color + '" title="' + esc(title || '') + '">' +
+            '<i class="fa-solid ' + icon + '"></i><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></button>' + (extra || '') + '</div>';
+    }
     function renderSkills() {
         const box = $('iba-ai-skills');
         const list = skills();
@@ -3430,24 +3838,24 @@
         const asks = (s) => s.tpl ? (SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].ask().map((p) => p.label) : []) : skillParams(s).map((p) => p.label);
         box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> Skills</h3>' +
             '<p class="iba-ai-help">A skill does a job in one click, without the AI (no key, no quota). It asks for what it needs each time it runs.</p>' +
-            '<div class="iba-ai-sub">Ready-made</div>' +
-            '<ul class="iba-ai-skill-list is-ready">' + tpls.map((id) => { const t = SKILL_TPL[id]; return '<li><span class="iba-ai-skill-ico"><i class="fa-solid ' + t.icon + '"></i></span><div class="iba-ai-grow"><strong>' + esc(t.name) + '</strong><small>' + esc(t.desc) + '</small></div>' +
-                '<button type="button" class="iba-ai-mini is-main" data-run-tpl="' + id + '"><i class="fa-solid fa-play"></i> Run</button></li>'; }).join('') + '</ul>' +
-            '<div class="iba-ai-sub">Add your own</div>' +
+            '<div class="iba-ai-sub">Ready-made · tap to run</div>' +
+            '<div class="iba-ai-tiles">' + tpls.map((id) => { const t = SKILL_TPL[id], l = SKILL_LOOK[id] || [t.desc, '#2a78d6'];
+                return skillTile('data-run-tpl="' + id + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly ? '<span class="iba-ai-tile-admin" title="Super Admin only"><i class="fa-solid fa-shield-halved"></i></span>' : ''); }).join('') + '</div>' +
+            '<div class="iba-ai-sub">My skills</div>' +
+            (list.length ? '<div class="iba-ai-tiles">' + list.map((s) => {
+                const t = s.tpl && SKILL_TPL[s.tpl], l = (s.tpl && SKILL_LOOK[s.tpl]) || ['', '#475569'];
+                const sub = t ? t.name : (s.steps || []).length + ' step' + ((s.steps || []).length === 1 ? '' : 's') + (asks(s).length ? ' · asks ' + asks(s).join(', ') : '');
+                return skillTile('data-run-skill="' + esc(s.name) + '"', t ? t.icon : 'fa-bolt', s.name, sub, l[1], (t ? t.desc : s.prompt) + ' · saved ' + fmtDate(s.at),
+                    '<button type="button" class="iba-ai-tile-del" data-del-skill="' + esc(s.name) + '" title="Delete this skill" aria-label="Delete ' + esc(s.name) + '"><i class="fa-solid fa-xmark"></i></button>');
+            }).join('') + '</div>'
+            : '<p class="iba-ai-empty"><i class="fa-solid fa-bolt"></i> No skills of your own yet.</p>') +
+            '<details class="iba-ai-skill-add"><summary><i class="fa-solid fa-plus"></i> Add your own skill</summary>' +
             '<form class="iba-ai-skill-new" id="iba-ai-skill-new" autocomplete="off">' +
               '<input type="text" id="iba-ai-skill-name" maxlength="60" placeholder="Name, e.g. Status of my site invoices" required>' +
               '<select id="iba-ai-skill-tpl">' + tpls.map((id) => '<option value="' + id + '">' + esc(SKILL_TPL[id].name) + '</option>').join('') + '</select>' +
               '<button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-plus"></i> Add</button>' +
             '</form>' +
-            '<p class="iba-ai-help small">Or ask me something, then press "Save as skill" under my answer to keep exactly those steps.</p>' +
-            '<div class="iba-ai-sub">My skills</div>' +
-            (list.length ? '<ul class="iba-ai-skill-list">' + list.map((s) =>
-                '<li><div class="iba-ai-grow"><strong>' + esc(s.name) + '</strong><small>' + esc(s.tpl && SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].name : s.prompt) + '</small><small>' +
-                (s.tpl ? 'ready-made' : (s.steps || []).length + ' step' + ((s.steps || []).length === 1 ? '' : 's')) + ' · ' + esc(fmtDate(s.at)) +
-                (asks(s).length ? ' · asks for: ' + esc(asks(s).join(', ')) : '') + '</small></div>' +
-                '<button type="button" class="iba-ai-mini is-main" data-run-skill="' + esc(s.name) + '"><i class="fa-solid fa-play"></i> Run</button>' +
-                '<button type="button" class="iba-ai-mini" data-del-skill="' + esc(s.name) + '" title="Delete"><i class="fa-solid fa-trash"></i></button></li>').join('') + '</ul>'
-            : '<p class="iba-ai-empty"><i class="fa-solid fa-bolt"></i> No skills of your own yet.</p>');
+            '<p class="iba-ai-help small">Or ask me something, then press "Save as skill" under my answer to keep exactly those steps.</p></details>';
         const form = $('iba-ai-skill-new');
         if (form) form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -3457,8 +3865,64 @@
 
     function brainHelpHtml(b) {
         let h = esc(b.keyHelp) + (b.keyUrl ? ' <a href="' + esc(b.keyUrl) + '" target="_blank" rel="noopener">Open <i class="fa-solid fa-arrow-up-right-from-square"></i></a>' : '');
-        if (b.guide && b.guide.length) h += '<ol class="iba-ai-guide">' + b.guide.map((g) => '<li>' + esc(g) + '</li>').join('') + '</ol>';
+        if (b.setupFile) h += '<div class="iba-ai-setupfile"><button type="button" class="iba-ai-btn is-main" data-ollama-bat><i class="fa-solid fa-download"></i> Download setup file (Windows)</button>' +
+            '<small>It installs Ollama if needed, allows this website to use it, and downloads the AI (one time, 3-5 GB). If the browser later asks to allow access to devices on your network, press Allow.</small></div>';
+        if (b.guide && b.guide.length) h += (b.setupFile ? '<details class="iba-ai-manual"><summary>Or do it by hand</summary>' : '') + '<ol class="iba-ai-guide">' + b.guide.map((g) => '<li>' + esc(g) + '</li>').join('') + '</ol>' + (b.setupFile ? '</details>' : '');
         return h;
+    }
+    // 15.0.0 patch 25: a Windows setup file for Ollama (one double-click)
+    function ollamaBat() {
+        const origin = location.origin && /^https?:/.test(location.origin) ? location.origin : 'https://port.iba.com.qa';
+        const origins = origin + ',http://localhost,http://127.0.0.1';
+        return [
+            '@echo off',
+            'title IBA Assistant - free AI on this PC (Ollama)',
+            'echo.',
+            'echo  IBA Assistant - setting up the free AI on this PC (Ollama)',
+            'echo  This is done once. Keep this window open until it says DONE.',
+            'echo.',
+            'set "OLLAMA_EXE="',
+            'where ollama >nul 2>nul && set "OLLAMA_EXE=ollama"',
+            'if not defined OLLAMA_EXE if exist "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe" set "OLLAMA_EXE=%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe"',
+            'if defined OLLAMA_EXE goto have',
+            'echo [1/4] Installing Ollama (a few minutes)...',
+            'winget install -e --id Ollama.Ollama --accept-source-agreements --accept-package-agreements',
+            'if exist "%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe" (set "OLLAMA_EXE=%LOCALAPPDATA%\\Programs\\Ollama\\ollama.exe" & goto have)',
+            'echo Could not install it automatically. The download page will open: install Ollama, then run this file again.',
+            'start https://ollama.com/download',
+            'pause',
+            'exit /b 1',
+            ':have',
+            'echo [1/4] Ollama is installed.',
+            'echo [2/4] Allowing the IBA website to use it...',
+            'setx OLLAMA_ORIGINS "' + origins + '" >nul',
+            'set "OLLAMA_ORIGINS=' + origins + '"',
+            'echo [3/4] Restarting Ollama...',
+            'taskkill /f /im "ollama app.exe" >nul 2>nul',
+            'taskkill /f /im ollama.exe >nul 2>nul',
+            'timeout /t 2 /nobreak >nul',
+            'if exist "%LOCALAPPDATA%\\Programs\\Ollama\\ollama app.exe" (start "" "%LOCALAPPDATA%\\Programs\\Ollama\\ollama app.exe") else (start "Ollama" /min "%OLLAMA_EXE%" serve)',
+            'timeout /t 6 /nobreak >nul',
+            'set "MODEL=qwen3:8b"',
+            'for /f %%a in (\'powershell -NoProfile -Command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory/1GB)"\') do set "RAM=%%a"',
+            'if defined RAM if %RAM% LSS 14 set "MODEL=qwen3:4b"',
+            'echo [4/4] Downloading the AI model %MODEL% (one time, a few GB)...',
+            '"%OLLAMA_EXE%" pull %MODEL%',
+            'echo.',
+            'echo  DONE. Go back to IBA: Assistant ^> Setup ^> Brain = Ollama ^> Find models ^> Save ^> Test.',
+            'echo.',
+            'pause',
+            ''
+        ].join('\r\n');
+    }
+    function downloadOllamaBat() {
+        try {
+            const url = URL.createObjectURL(new Blob([ollamaBat()], { type: 'application/octet-stream' }));
+            const a = document.createElement('a');
+            a.href = url; a.download = 'IBA-Ollama-Setup.bat';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (_) {}
     }
     function renderSetup() {
         const box = $('iba-ai-setup');
@@ -3469,7 +3933,9 @@
                 '<option value="' + k + '"' + (k === c.brain ? ' selected' : '') + '>' + esc(BRAINS[k].label) + (k === 'groq' ? ' — recommended' : '') + '</option>').join('') + '</select></label>' +
             '<div class="iba-ai-help" id="iba-ai-key-help">' + brainHelpHtml(b) + '</div>' +
             '<label class="iba-ai-field" id="iba-ai-key-row"' + (b.needsKey ? '' : ' hidden') + '><span>API key</span><input id="iba-ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the key here" value="' + esc(c.key) + '"/></label>' +
-            '<label class="iba-ai-field"><span>Model</span><input id="iba-ai-model" type="text" spellcheck="false" value="' + esc(c.model) + '"/></label>' +
+            '<label class="iba-ai-field"><span>Model</span><span class="iba-ai-model-row"><input id="iba-ai-model" type="text" spellcheck="false" list="iba-ai-models" value="' + esc(c.model) + '"/>' +
+              '<button type="button" class="iba-ai-btn" id="iba-ai-models-btn" title="Ask the service which models your key can use, and pick a good one"><i class="fa-solid fa-list"></i> Find models</button></span></label>' +
+            '<datalist id="iba-ai-models"></datalist>' +
             '<label class="iba-ai-field"><span>Address</span><input id="iba-ai-url" type="text" spellcheck="false" value="' + esc(c.baseUrl) + '"/></label>' +
             (isSuper() ? '<label class="iba-ai-field"><span>Who can use the assistant</span><select id="iba-ai-aud">' +
                 '<option value="everyone"' + (audience !== 'me' ? ' selected' : '') + '>Everyone (brief, reminders and tracking need no key)</option>' +
@@ -3499,7 +3965,60 @@
             const saved = lsGet(cfgKey(), {}) || {};
             $('iba-ai-key').value = saved.brain === pick.value ? (saved.key || '') : '';
             $('iba-ai-key-help').innerHTML = brainHelpHtml(nb);
+            const st0 = $('iba-ai-setup-status'); if (st0) { st0.className = 'iba-ai-status'; st0.textContent = ''; }
+            if (pick.value === 'ollama') setTimeout(() => findModels(true), 50); // already installed? fill the model
         });
+        // 15.0.0 patch 25: a pasted key picks its service; Find models fills the list
+        const keyEl = $('iba-ai-key');
+        const stEl = () => $('iba-ai-setup-status');
+        let msgSeq = 0; // a newer action (e.g. Test) wins the status line
+        const findModels = async (quiet) => {
+            const mySeq = ++msgSeq;
+            const cfgNow = { brain: pick.value, key: String(keyEl.value || '').trim(), baseUrl: String($('iba-ai-url').value || '').trim().replace(/\/+$/, '') };
+            if (!cfgNow.baseUrl || (BRAINS[cfgNow.brain].needsKey && !cfgNow.key)) { if (!quiet) { stEl().className = 'iba-ai-status is-bad'; stEl().textContent = 'Paste the key (and the address for "Other") first.'; } return null; }
+            const st = stEl();
+            if (!quiet) { st.className = 'iba-ai-status'; st.textContent = 'Asking ' + BRAINS[cfgNow.brain].label + ' which models your key can use…'; }
+            try {
+                const ids = await listModels(cfgNow);
+                if (quiet && mySeq !== msgSeq) return null;
+                const dl = $('iba-ai-models');
+                if (dl) dl.innerHTML = ids.filter((m) => !MODEL_SKIP.test(m)).slice(0, 200).map((m) => '<option value="' + esc(m) + '"></option>').join('');
+                const cur = String($('iba-ai-model').value || '').trim();
+                const best = pickModel(cfgNow.brain, ids, cur);
+                if (best) $('iba-ai-model').value = best;
+                if (!ids.length) return null;
+                st.className = 'iba-ai-status is-ok';
+                st.textContent = ids.length + ' models found. Using "' + best + '"' + (cur && best !== cur ? ' ("' + cur + '" is not available for this key)' : '') + '. You can pick another from the list. Press Save.';
+                return { ids: ids, model: best };
+            } catch (err) {
+                if (quiet) return null; // automatic look-up: Test reports problems
+                st.className = 'iba-ai-status is-bad';
+                st.textContent = 'Could not get the model list: ' + ((err && err.message) || err) + (cfgNow.brain === 'ollama' ? ' Is Ollama running? Run the setup file once.' : ' Check the key.');
+                return null;
+            }
+        };
+        let keyTimer = 0;
+        const onKey = () => {
+            clearTimeout(keyTimer);
+            keyTimer = setTimeout(() => {
+                const k = String(keyEl.value || '').trim();
+                if (!k) return;
+                const guess = brainOfKey(k);
+                if (guess && guess !== pick.value && !(guess === 'openai' && pick.value === 'custom')) {
+                    pick.value = guess;
+                    const nb = BRAINS[guess];
+                    $('iba-ai-model').value = nb.model; $('iba-ai-url').value = nb.baseUrl;
+                    $('iba-ai-key-row').hidden = !nb.needsKey;
+                    $('iba-ai-key-help').innerHTML = brainHelpHtml(nb);
+                    stEl().className = 'iba-ai-status'; stEl().textContent = 'This is a ' + nb.label + ' key - switched to ' + nb.label + '.';
+                }
+                findModels(true);
+            }, 450);
+        };
+        keyEl.addEventListener('input', onKey);
+        keyEl.addEventListener('paste', () => setTimeout(onKey, 0));
+        $('iba-ai-models-btn').addEventListener('click', () => findModels(false));
+        $('iba-ai-key-help').addEventListener('click', (e) => { if (e.target.closest('[data-ollama-bat]')) downloadOllamaBat(); });
         const save = () => {
             const brain = pick.value;
             setCfg({ brain: brain, key: String($('iba-ai-key').value || '').trim(), model: String($('iba-ai-model').value || '').trim(),
@@ -3523,13 +4042,22 @@
             st.textContent = ready() ? 'Saved. Press Test, or go back and ask me something.' : 'Saved, but the key or model is still missing.';
         });
         $('iba-ai-test').addEventListener('click', async () => {
+            clearTimeout(keyTimer); msgSeq++;
             save();
             const st = $('iba-ai-setup-status');
             const cfg = getCfg();
             st.className = 'iba-ai-status';
-            if (cfg.brain === 'gemini' && cfg.key && !/^AIza/.test(cfg.key)) {
+            // 15.0.0 patch 24: Google now also gives keys that do not start with
+            // "AIza" (newer AI Studio keys). The key is no longer judged by its
+            // first letters: Test asks Google, which says if it is accepted.
+            if (cfg.brain === 'gemini' && cfg.key && /\s/.test(cfg.key)) {
                 st.className = 'iba-ai-status is-bad';
-                st.textContent = 'This does not look like a Gemini key. A Gemini key starts with "AIza". Create one at aistudio.google.com > Get API key.';
+                st.textContent = 'The key has a space or line break inside. Copy it again with the copy button in Google AI Studio and paste it here.';
+                return;
+            }
+            if (cfg.brain === 'gemini' && cfg.key && /^\.\.\./.test(cfg.key)) {
+                st.className = 'iba-ai-status is-bad';
+                st.textContent = 'That is only the end of the key as the list shows it. In Google AI Studio press the copy button on the key row, then paste the whole key here.';
                 return;
             }
             st.textContent = 'Testing the key…';
@@ -3540,7 +4068,22 @@
                 await callBrain([{ role: 'system', content: 'Answer in one word.' }, { role: 'user', content: 'Say OK.' }], true);
                 st.className = 'iba-ai-status is-ok';
                 st.textContent = 'Working. The brain answered: ' + String(m.content || '').trim().slice(0, 60) + ' - questions with tools work too.';
-            } catch (err) {
+            } catch (err0) {
+                let err = err0;
+                // 15.0.0 patch 25: the model was retired or not offered to this key:
+                // pick one from the service's own list and try again once
+                if (err && /was not found|not found|does not exist|not available|decommission|deprecat/i.test(err.message || '') && !err.rate && !err.network) {
+                    const got = await findModels(true);
+                    if (got && got.model) {
+                        save();
+                        try {
+                            await callBrain([{ role: 'system', content: 'Answer in one word.' }, { role: 'user', content: 'Say OK.' }], true);
+                            st.className = 'iba-ai-status is-ok';
+                            st.textContent = 'Working with model "' + got.model + '" (the old model name is no longer offered). Saved.';
+                            return;
+                        } catch (err2) { err = err2; }
+                    }
+                }
                 st.className = 'iba-ai-status is-bad';
                 st.textContent = (err && err.rate) ? 'The key works, but the free limit is used up for now. Try again in a minute.'
                     : (err && err.network) ? ((err && err.message) || 'Could not reach the service.')
@@ -3663,6 +4206,71 @@
         const bot = look().bot;
         fab.classList.toggle('is-bot', bot);
         fab.innerHTML = (bot ? BOT_SVG : '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>') + '<span class="iba-ai-fab-dot" aria-hidden="true"></span>';
+        // 15.0.0 patch 27: on the phone only the robot's head shows, in a round bubble
+        fab.dataset.mode = onPhone() ? 'phone' : 'desk';
+        const svg = fab.querySelector('svg.iba-ai-bot');
+        if (svg && onPhone()) svg.setAttribute('viewBox', '10 4 60 60');
+        placePhoneFab(fab);
+    }
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 27: phone "bubble head" - floats over the screen, tap to
+    // open the assistant, drag it anywhere; it snaps to the nearest side and
+    // the place is remembered on this phone.
+    // ------------------------------------------------------------------
+    const PH_POS_KEY = 'iba-ai-ph-bubble-pos';
+    function placePhoneFab(fab) {
+        if (!fab) return;
+        const setPos = (l, t, r, b) => {
+            [['--iba-ph-l', l], ['--iba-ph-t', t], ['--iba-ph-r', r], ['--iba-ph-b', b]].forEach(([k, v]) => { if (v == null) fab.style.removeProperty(k); else fab.style.setProperty(k, v); });
+        };
+        fab.__setPos = setPos;
+        const pos = onPhone() ? lsGet(PH_POS_KEY, null) : null;
+        if (!pos || !Number.isFinite(Number(pos.y))) { setPos(null, null, null, null); return; }
+        const size = fab.offsetWidth || 62;
+        const y = Math.max(70, Math.min(window.innerHeight - size - 70, Number(pos.y) * window.innerHeight));
+        // left in pixels on both sides, so the snap to the side glides
+        const x = pos.side === 'left' ? 12 : Math.max(12, window.innerWidth - size - 12);
+        setPos(x + 'px', y + 'px', 'auto', 'auto');
+    }
+    function bindPhoneDrag(fab) {
+        if (!fab || fab.__phDrag) return;
+        fab.__phDrag = true;
+        let start = null, moved = false;
+        fab.addEventListener('pointerdown', (e) => {
+            if (!onPhone()) return;
+            const r = fab.getBoundingClientRect();
+            start = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, id: e.pointerId };
+            moved = false;
+        });
+        fab.addEventListener('pointermove', (e) => {
+            if (!start || e.pointerId !== start.id) return;
+            if (!moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8) return;
+            if (!moved) { moved = true; fab.classList.add('is-dragging'); try { fab.setPointerCapture(start.id); } catch (_) {} hideTip(); }
+            const size = fab.offsetWidth || 60;
+            const x = Math.max(4, Math.min(window.innerWidth - size - 4, e.clientX - start.dx));
+            const y = Math.max(60, Math.min(window.innerHeight - size - 8, e.clientY - start.dy));
+            if (fab.__setPos) fab.__setPos(x + 'px', y + 'px', 'auto', 'auto');
+            e.preventDefault();
+        });
+        const end = (e) => {
+            if (!start) return;
+            const wasMoved = moved;
+            start = null;
+            fab.classList.remove('is-dragging');
+            if (!wasMoved) return;
+            const r = fab.getBoundingClientRect();
+            const side = (r.left + r.width / 2) < window.innerWidth / 2 ? 'left' : 'right';
+            lsSet(PH_POS_KEY, { side: side, y: r.top / window.innerHeight });
+            placePhoneFab(fab);
+            fab.__justDragged = Date.now();
+        };
+        fab.addEventListener('pointerup', end);
+        fab.addEventListener('pointercancel', end);
+        // a drag is not a tap: do not open the assistant after dragging
+        fab.addEventListener('click', (e) => {
+            if (fab.__justDragged && Date.now() - fab.__justDragged < 400) { e.stopImmediatePropagation(); e.preventDefault(); }
+        }, true);
+        window.addEventListener('resize', () => placePhoneFab(fab));
     }
     // 15.0.0 patch 15: the robot says hello in a small speech bubble, then a
     // helpful tip now and then (at most every 7 minutes, 6 times a visit,
@@ -3811,14 +4419,17 @@
     let on = false;
     function watch() {
         const ok = allowed();
+        const phBtn = $('iba-ph-ai');
+        if (phBtn) phBtn.hidden = !ok;
         if (ok && !on) {
             on = true;
             build();
             $('iba-ai-fab').hidden = false;
+            bindPhoneDrag($('iba-ai-fab'));
+            if ($('iba-ai-fab').dataset.mode !== (onPhone() ? 'phone' : 'desk')) paintFab($('iba-ai-fab'));
             refreshFab();
-            briefOnce();
+            if (!onPhone()) { briefOnce(); startTips(); }
             startReminders();
-            startTips();
         } else if (!ok && on) {
             on = false;
             const fab = $('iba-ai-fab');
@@ -3831,7 +4442,17 @@
             state.lastTurn = null;
             if (log()) log().innerHTML = '';
             skillsPulled = false;
-        } else if (ok) refreshFab();
+        } else if (ok) {
+            const fab = $('iba-ai-fab');
+            if (fab && fab.dataset.mode !== (onPhone() ? 'phone' : 'desk')) {
+                fab.hidden = false;
+                bindPhoneDrag(fab);
+                paintFab(fab);
+                if (onPhone()) { stopTips(); hideBubble(); hideTip(); } else startTips();
+            }
+            refreshFab();
+            if (phBtn) phBtn.classList.toggle('has-items', !!(fab && fab.classList.contains('has-items')));
+        }
     }
     function boot() {
         watch();

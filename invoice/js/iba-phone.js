@@ -126,6 +126,7 @@
                 <small id="iba-ph-pos"></small>
               </div>
             </div>
+            <button type="button" class="iba-ph-icon iba-ph-ai" id="iba-ph-ai" aria-label="IBA Assistant" title="IBA Assistant" hidden><i class="fa-solid fa-robot"></i></button>
             <button type="button" class="iba-ph-icon iba-ph-sound" id="iba-ph-sound" data-iba-sound-btn aria-label="Sounds"><i class="fa-solid fa-volume-high"></i></button>
             <button type="button" class="iba-ph-icon" id="iba-ph-refresh" aria-label="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
           </header>
@@ -165,6 +166,9 @@
         document.body.appendChild(root);
 
         $('iba-ph-refresh').addEventListener('click', () => refresh(true));
+        // 15.0.0 patch 23: the assistant on the phone (shown by the assistant
+        // itself when the user may use it)
+        $('iba-ph-ai').addEventListener('click', () => { if (window.ibaAssistant) window.ibaAssistant.open(); });
         // 15.0.0 patch 13: sounds on / off on the phone (same switch as Settings on the desktop)
         $('iba-ph-sound').addEventListener('click', () => {
             if (typeof window.toggleSystemAudio === 'function') window.toggleSystemAudio();

@@ -2017,6 +2017,7 @@ async function ibaPrepareAttention() {
         });
         var real = candidates.filter(function (item) { return item && item.name && !item.isFallback; });
         if (real.length === 1) auto = real[0].name;
+        else if (real.length > 1 && typeof imSrvBestCandidate === 'function') auto = imSrvBestCandidate(real); // patch 29: by rank
         else if (!real.length && names.length === 1) auto = names[0].value;
     } else {
         names = ibaFilterAttention(status, siteRaw);

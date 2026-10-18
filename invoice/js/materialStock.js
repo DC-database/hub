@@ -2194,9 +2194,10 @@ async function handleSaveNewMaterial() {
             }
 
             await database.ref(`material_stock/${editingItemKey}`).update(updates);
-            try { await window.inventoryPocket?.publishMaterialByKey(editingItemKey); } catch (pocketError) { console.warn('Inventory Pocket update failed:', pocketError); }
-            if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
-            alert("Item Updated Successfully!");
+            // 15.0.0 patch 25: the follow-up saves run in the background
+            try { Promise.resolve(window.inventoryPocket?.publishMaterialByKey(editingItemKey)).catch((pocketError) => console.warn('Inventory Pocket update failed:', pocketError)); } catch (pocketError) { console.warn('Inventory Pocket update failed:', pocketError); }
+            if (photoData.photoName) Promise.resolve(msRememberMaterialPhotoName(photoData.photoName)).catch(() => {});
+            if (typeof window.ibaToast === 'function') window.ibaToast('Item updated.'); else alert("Item Updated Successfully!");
 
         } else {
             // === CREATE NEW MODE ===
@@ -2251,9 +2252,9 @@ async function handleSaveNewMaterial() {
             createUpdates[`${STOCK_META_PATH}/count`] = firebase.database.ServerValue.increment(1);
             createUpdates[`${STOCK_META_PATH}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
             await database.ref().update(createUpdates);
-            try { await window.inventoryPocket?.publishMaterialItem({ key: newMaterialKey, ...newMaterial }, newMaterialKey); } catch (pocketError) { console.warn('Inventory Pocket create failed:', pocketError); }
-            if (photoData.photoName) await msRememberMaterialPhotoName(photoData.photoName);
-            alert(`Success! Created: ${productID}`);
+            try { Promise.resolve(window.inventoryPocket?.publishMaterialItem({ key: newMaterialKey, ...newMaterial }, newMaterialKey)).catch((pocketError) => console.warn('Inventory Pocket create failed:', pocketError)); } catch (pocketError) { console.warn('Inventory Pocket create failed:', pocketError); }
+            if (photoData.photoName) Promise.resolve(msRememberMaterialPhotoName(photoData.photoName)).catch(() => {});
+            if (typeof window.ibaToast === 'function') window.ibaToast(`Created: ${productID}`); else alert(`Success! Created: ${productID}`);
         }
 
         if (typeof window.msCloseNewMaterialModal === 'function') {

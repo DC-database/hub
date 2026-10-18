@@ -108,7 +108,7 @@ window.imUpdateInvoiceRecordsTotals = imUpdateInvoiceRecordsTotals;
  * This ONLY affects the Invoice Records print preview/modal flow.
  */
 const IM_INVOICE_REPORT_PRINT_CSS = `
-  @page { size: A4 landscape; margin: 10mm; }
+  @page { margin: 10mm; }
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }

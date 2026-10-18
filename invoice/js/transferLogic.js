@@ -91,6 +91,11 @@ let multiItemBuffer = [];
 let activeTransfersCache = [];
 // 10.0.2: cache material_stock key lookups during mobile/bulk approvals so repeated transactions do not re-query the same product.
 let transferStockItemKeyCache = {};
+// 15.0.0 patch 25: remember which stock card belongs to a product in this
+// browser, so the card is not searched in Firebase again on every approval.
+const TF_STOCK_KEY_STORE = 'IBA_STOCK_CARD_KEYS_V1';
+try { const saved = JSON.parse(localStorage.getItem(TF_STOCK_KEY_STORE) || '{}'); if (saved && typeof saved === 'object') transferStockItemKeyCache = saved; } catch (_) {}
+function tfSaveStockKeys() { try { localStorage.setItem(TF_STOCK_KEY_STORE, JSON.stringify(transferStockItemKeyCache)); } catch (_) {} }
 
 // ==========================================================================
 // 1. OPEN NEW TRANSFER
@@ -482,6 +487,27 @@ window.openTransferActionModal = async function(task) {
 // ==========================================================================
 // 3. ACTION HANDLER (WITH SAFETY CONFIRMATION POPUP)
 // ==========================================================================
+// 15.0.0 patch 25: find the stock card of the product while the request is
+// being read (both at the same time), so the stock step does not wait for it.
+function tfWarmStockKey(pID) {
+    const id = String(pID || '').trim();
+    if (!id) return Promise.resolve();
+    try { if (transferStockItemKeyCache[id]) return Promise.resolve(); } catch (_) { return Promise.resolve(); }
+    try {
+        if (typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData) &&
+            allMaterialStockData.some(i => i && i.key && String(i.productID || i.productId || '').trim() === id)) return Promise.resolve();
+    } catch (_) {}
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    return database.ref('material_stock').orderByChild('productID').equalTo(id).once('value')
+        .then((snap) => { if (snap && snap.exists() && !transferStockItemKeyCache[id]) { transferStockItemKeyCache[id] = Object.keys(snap.val())[0]; tfSaveStockKeys(); } })
+        .catch(() => {});
+}
+// 15.0.0 patch 25: a short message instead of an OK pop-up, shown after the
+// save (before, some steps showed the pop-up first and only saved after OK).
+function tfDone(msg) {
+    try { if (typeof window.ibaToast === 'function') { window.ibaToast(msg); return; } } catch (_) {}
+    alert(msg);
+}
 window.handleTransferAction = async (status, options = {}) => {
     const opts = options || {};
     const silentMode = !!opts.silent;
@@ -521,6 +547,17 @@ window.handleTransferAction = async (status, options = {}) => {
         return result.split('').sort(() => 0.5 - Math.random()).join('');
     };
 
+    let warmStock = null;
+    try {
+        const lists = [];
+        try { if (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) lists.push(userActiveTasks); } catch (_) {}
+        try { if (typeof inventoryActiveTasks !== 'undefined' && Array.isArray(inventoryActiveTasks)) lists.push(inventoryActiveTasks); } catch (_) {}
+        try { if (typeof inventorySystemEntries !== 'undefined' && Array.isArray(inventorySystemEntries)) lists.push(inventorySystemEntries); } catch (_) {}
+        const local = (opts.prefetchedTask) || lists.reduce((f, l) => f || l.find(t => t && String(t.key || '') === String(key || '')), null);
+        const pidLocal = local && (local.productID || local.productId);
+        if (pidLocal) warmStock = tfWarmStockKey(pidLocal);
+    } catch (_) {}
+
     try {
         let task = null;
         if (opts.prefetchedTask && String(opts.prefetchedTask.key || '') === String(key || '')) {
@@ -537,6 +574,7 @@ window.handleTransferAction = async (status, options = {}) => {
         const destSite = String(task.toLocation || task.toSite || '').trim();
         const sourceSite = String(task.fromLocation || task.fromSite || '').trim();
         const pID = task.productID || task.productId;
+        if (warmStock) await warmStock;
         const jobType = (task.jobType || task.for || '').trim();
 
         let updates = { note: note, dateResponded: new Date().toLocaleDateString('en-GB') };
@@ -577,7 +615,7 @@ window.handleTransferAction = async (status, options = {}) => {
 
                     setProgress('Saving Receipt...');
                     await commitUpdate(database, key, updates, note, opts);
-                    if (!silentMode) alert(`Restock Confirmed! ${qty} Added to Stock.`);
+                    if (!silentMode) tfDone(`Restock confirmed. ${qty} added to stock.`);
                     return true;
                 }
             }
@@ -588,8 +626,8 @@ window.handleTransferAction = async (status, options = {}) => {
 
                     if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
 
-                    if (!silentMode) alert("Usage Authorized. Stock Deducted.");
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    await commitUpdate(database, key, updates, note, opts);
+                    if (!silentMode) tfDone("Usage authorized. Stock deducted."); return true;
                 }
                 if (task.remarks === 'Pending Confirmation') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty;
@@ -599,8 +637,8 @@ window.handleTransferAction = async (status, options = {}) => {
                     if (diff > 0 && pID && sourceSite) await runStockTransaction(pID, diff, 'Add', sourceSite); // Return unused
                     else if (diff < 0) await runStockTransaction(pID, Math.abs(diff), 'Deduct', sourceSite); // Consumed more
 
-                    if (!silentMode) alert("Usage Closed.");
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    await commitUpdate(database, key, updates, note, opts);
+                    if (!silentMode) tfDone("Usage closed."); return true;
                 }
             }
 
@@ -611,8 +649,8 @@ window.handleTransferAction = async (status, options = {}) => {
                     updates.status = 'Pending';
                     updates.remarks = 'Pending Admin';
                     updates.attention = task.approver;
-                    if (!silentMode) alert("Source Confirmed. Sent to Admin.");
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    await commitUpdate(database, key, updates, note, opts);
+                    if (!silentMode) tfDone("Source confirmed. Sent to Admin."); return true;
                 }
 
                 // Step 2: Admin Authorizes (DEDUCTION HAPPENS HERE)
@@ -626,8 +664,8 @@ window.handleTransferAction = async (status, options = {}) => {
                     // --- ATOMIC DEDUCT CALL ---
                     if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
 
-                    if (!silentMode) alert(`Transfer Authorized. ${qty} Deducted from Source.`);
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    await commitUpdate(database, key, updates, note, opts);
+                    if (!silentMode) tfDone(`Transfer authorized. ${qty} deducted from source.`); return true;
                 }
 
                 // Step 3: Receiver Confirms (ADDITION HAPPENS HERE)
@@ -647,7 +685,7 @@ window.handleTransferAction = async (status, options = {}) => {
 
                     setProgress('Saving Receipt...');
                     await commitUpdate(database, key, updates, note, opts);
-                    if (!silentMode) alert(`Transfer Received. ${qty} Added to Destination.`);
+                    if (!silentMode) tfDone(`Transfer received. ${qty} added to destination.`);
                     return true;
                 }
             }
@@ -665,8 +703,8 @@ window.handleTransferAction = async (status, options = {}) => {
                         updates.status = 'In Transit'; updates.remarks = 'In Transit'; updates.attention = task.receiver;
                         if (pID && sourceSite) await runStockTransaction(pID, qty, 'Deduct', sourceSite);
                     }
-                    if (!silentMode) alert("Return Authorized.");
-                    await commitUpdate(database, key, updates, note, opts); return true;
+                    await commitUpdate(database, key, updates, note, opts);
+                    if (!silentMode) tfDone("Return authorized."); return true;
                 }
                 if (task.remarks === 'In Transit') {
                     updates.status = 'Completed'; updates.remarks = 'Completed'; updates.attention = 'Records'; updates.receivedQty = qty;
@@ -676,7 +714,7 @@ window.handleTransferAction = async (status, options = {}) => {
                     await runStockTransaction(pID, qty, 'Add', destSite);
                     setProgress('Saving Receipt...');
                     await commitUpdate(database, key, updates, note, opts);
-                    if (!silentMode) alert("Return Received.");
+                    if (!silentMode) tfDone("Return received.");
                     return true;
                 }
             }
@@ -717,7 +755,9 @@ async function commitUpdate(db, key, updates, note, options = {}) {
     }
 
     if (!options.deferRefresh) {
-        if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+        // 15.0.0 patch 25: the list refreshes in the background; the row already
+        // shows its new step from the local update above
+        if (typeof populateActiveTasks === 'function') setTimeout(() => { try { Promise.resolve(populateActiveTasks()).catch(() => {}); } catch (_) {} }, 30);
     }
 }
 
@@ -800,7 +840,9 @@ async function runStockTransaction(id, qty, action, siteName, _redirectDepth = 0
         }
 
         if (key) {
+            const keyWasRemembered = transferStockItemKeyCache[cleanId] === key;
             transferStockItemKeyCache[cleanId] = key;
+            tfSaveStockKeys();
             const ref = database.ref(`material_stock/${key}`);
 
             // 3. ATOMIC TRANSACTION
@@ -854,6 +896,9 @@ async function runStockTransaction(id, qty, action, siteName, _redirectDepth = 0
             if (transactionResult && transactionResult.committed === true &&
                 (!transactionResult.snapshot || !transactionResult.snapshot.exists())) {
                 delete transferStockItemKeyCache[cleanId];
+                tfSaveStockKeys();
+                // 15.0.0 patch 25: a remembered card that no longer exists -> search again once
+                if (keyWasRemembered && _redirectDepth < 3) return runStockTransaction(id, qty, action, siteName, _redirectDepth + 1);
                 throw new Error(`Stock item ${cleanId} could not be found at its saved location. Refresh Material Stock and try again. Nothing was completed.`);
             }
             if (!transactionResult || transactionResult.committed !== true) {
@@ -866,7 +911,9 @@ async function runStockTransaction(id, qty, action, siteName, _redirectDepth = 0
             try {
                 const committedItem = transactionResult.snapshot && transactionResult.snapshot.val ? transactionResult.snapshot.val() : null;
                 if (window.inventoryPocket) {
-                    await window.inventoryPocket.publishMaterialItem({ key, ...(committedItem || {}) }, key);
+                    // 15.0.0 patch 25: published in the background (the stock change is already final)
+                    Promise.resolve(window.inventoryPocket.publishMaterialItem({ key, ...(committedItem || {}) }, key))
+                        .catch((pocketError) => console.warn('Inventory Pocket publish failed after committed stock update:', pocketError));
                 }
             } catch (pocketError) {
                 // Pocket failure must never undo a successful permanent stock transaction.
@@ -1075,11 +1122,14 @@ async function saveTransferEntry(e) {
         });
 
         await Promise.all(promises);
-        alert(`Successfully saved ${itemsToSave.length} transfers!`);
+        tfDone(`Saved ${itemsToSave.length} request${itemsToSave.length === 1 ? '' : 's'}.`);
 
         document.getElementById('transfer-job-modal').classList.add('hidden');
-        if(typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true);
-        if(typeof populateActiveTasks === 'function') await populateActiveTasks();
+        // 15.0.0 patch 25: the lists refresh in the background (the form closes at once)
+        setTimeout(async () => {
+            try { if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true); } catch (_) {}
+            try { if (typeof populateActiveTasks === 'function') await populateActiveTasks(); } catch (_) {}
+        }, 30);
 
     } catch (e) { console.error(e); alert("Error saving."); }
     finally { btn.disabled = false; btn.textContent = isMultiMode ? "Save All Items" : "Save Transaction"; }

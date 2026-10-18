@@ -397,7 +397,7 @@ function prepareWorkdeskJobRecordsPrint() {
         pageStyle.media = 'print';
         document.head.appendChild(pageStyle);
     }
-    pageStyle.textContent = '@page { size: A4 landscape; margin: 6mm; }';
+    pageStyle.textContent = '@page { margin: 6mm; }';
     return true;
 }
 

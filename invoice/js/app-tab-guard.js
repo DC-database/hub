@@ -50,9 +50,15 @@
       : '';
   } catch (_) { brands = ''; }
   const uaAll = (ua + ' ' + vendor + ' ' + brands);
-  const isBlockedChromiumFork = /Edg|Microsoft Edge|OPR|Opera|SamsungBrowser|Firefox|FxiOS|Brave|Vivaldi/i.test(uaAll);
+  // 15.0.0 patch 25: Google Chrome, Microsoft Edge and Safari are allowed.
+  // (Each browser keeps its own saved data; one IBA tab per browser and one
+  // computer session per user - js/iba-session-lock.js - keep downloads low.)
+  const isEdge = /Edg\/|EdgA\/|EdgiOS\/|Microsoft Edge/i.test(uaAll);
+  const isOtherBrowser = /OPR\/|Opera|SamsungBrowser|Firefox|FxiOS|Brave|Vivaldi|YaBrowser|UCBrowser/i.test(uaAll);
   const isChromiumLike = /Chrome|CriOS|Chromium|Google Chrome/i.test(uaAll) || /Google Inc\./i.test(vendor);
-  const isChrome = isChromiumLike && !isBlockedChromiumFork;
+  const isSafari = /Apple/i.test(vendor) && /Safari\//.test(ua) && !/Chrome|CriOS|Chromium|Android/i.test(ua);
+  const isChrome = !isOtherBrowser && (isEdge || isChromiumLike || isSafari);
+  const browserName = isEdge ? 'Microsoft Edge' : (isSafari ? 'Safari' : (isChromiumLike ? 'Google Chrome' : 'this browser'));
 
   // Start from booting so unsupported browsers still render the blocking overlay on first load.
   let state = 'booting'; // booting | active | duplicate | unsupported
@@ -210,8 +216,8 @@
     const link = window.location.href;
     const done = function (ok) {
       setOverlaySubMessage(ok
-        ? 'Link copied. Open Google Chrome and paste it in the address bar.'
-        : 'Please manually copy this page link and open it in Google Chrome.');
+        ? 'Link copied. Open Chrome, Edge or Safari and paste it in the address bar.'
+        : 'Please copy this page link and open it in Chrome, Edge or Safari.');
     };
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -228,9 +234,9 @@
     if (state === 'unsupported') {
       return {
         icon: '🌐',
-        title: 'Google Chrome Required',
-        body: 'IBA System is allowed only in Google Chrome. Browser security does not allow this page to open Chrome automatically. Copy this link, then open it in Google Chrome to continue.',
-        sub: 'Edge, Safari, Firefox, Opera, and other browsers are blocked even in Test Mode.',
+        title: 'Please use Chrome, Edge or Safari',
+        body: 'IBA System works in Google Chrome, Microsoft Edge or Safari. Copy this link, then open it in one of them to continue.',
+        sub: 'Firefox, Opera, Brave and other browsers are not supported.',
         duplicate: false,
       };
     }
@@ -317,12 +323,12 @@
       const secondary = overlayEl.querySelector('.iba-tab-guard-secondary');
       const note = overlayEl.querySelector('.iba-tab-guard-note');
       primary.style.display = '';
-      primary.textContent = copy.duplicate ? 'Use This Tab Instead' : 'Copy Link for Chrome';
+      primary.textContent = copy.duplicate ? 'Use This Tab Instead' : 'Copy Link';
       secondary.textContent = copy.duplicate ? 'Recheck' : 'Check Again';
       if (note) {
         note.textContent = copy.duplicate
           ? 'Only the active tab runs Firebase sync.'
-          : 'Open Google Chrome and paste the copied link. Unsupported browsers cannot continue.';
+          : 'Open Chrome, Edge or Safari and paste the copied link.';
       }
       overlayEl.classList.remove('hidden');
     };
@@ -351,6 +357,7 @@
     version: VERSION,
     tabId,
     isChrome,
+    browserName,
     isUnsupportedBrowser: function () { return !isChrome; },
     isActive,
     checkActive,

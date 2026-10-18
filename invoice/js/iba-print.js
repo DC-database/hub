@@ -53,7 +53,7 @@
   }
 
   const CSS = [
-    "@page { size: A4 landscape; margin: 9mm 8mm 10mm; }",
+    "@page { margin: 9mm 8mm 10mm; }",
     "*{box-sizing:border-box}",
     "html,body{margin:0;padding:0;background:#fff;color:#1f2937;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}",
     ".hd{display:flex;align-items:center;gap:12px;padding-bottom:9px;border-bottom:2px solid #0b3a5b}",

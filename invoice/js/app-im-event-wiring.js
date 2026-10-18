@@ -930,6 +930,7 @@ if (settingsVacationCheckbox) {
                 }
             } catch (_) { candidates = []; }
             if (candidates.length === 1) autoAttention = candidates[0].name;
+            else if (candidates.length > 1 && typeof imSrvBestCandidate === 'function' && imSrvBestCandidate(candidates)) autoAttention = imSrvBestCandidate(candidates); // patch 29
             else if (candidates.length > 1 && allowPicker && typeof showCandidatePicker === 'function') autoAttention = await new Promise((resolve) => showCandidatePicker(candidates, 'Select Person for SRV', (selectedName) => resolve(selectedName || '')));
             else autoAttention = '';
         }

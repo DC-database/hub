@@ -2318,7 +2318,7 @@ function renderInventoryMobileActiveTasks(tasks) {
             .txt{min-width:0;overflow:hidden}.brand{font-size:6.6pt;font-weight:900;line-height:1;margin:0 0 1.3mm 0;white-space:nowrap}.name{font-size:6.2pt;font-weight:800;line-height:1.12;margin:0 0 1mm 0;max-height:14pt;overflow:hidden}.code{font-size:6.6pt;font-weight:900;line-height:1.1;word-break:break-all;margin:0 0 .8mm 0}.details{font-size:5.2pt;line-height:1.05;color:#333;max-height:11pt;overflow:hidden}.hint{font-size:4.8pt;color:#555;margin-top:.7mm}@media print{.toolbar{display:none!important}}
         `;
         const officeStyle = `
-            @page{size:A4;margin:12mm}
+            @page{margin:12mm}
             html,body{margin:0;padding:0;background:#f6f8fb;color:#111;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
             .toolbar{position:sticky;top:0;background:#0f2942;color:#fff;padding:10px 12px;font-size:12px;display:flex;gap:8px;align-items:center;justify-content:space-between}.toolbar button{border:0;border-radius:8px;background:#14b8a6;color:#fff;font-weight:800;padding:8px 10px}.toolbar span{opacity:.9}
             .sheet{padding:14mm;display:flex;justify-content:center}.label{width:86mm;min-height:54mm;background:#fff;border:1px solid #111;border-radius:3mm;box-sizing:border-box;padding:5mm;display:grid;grid-template-columns:33mm 1fr;gap:5mm;align-items:center;box-shadow:0 8px 24px rgba(15,23,42,.12)}

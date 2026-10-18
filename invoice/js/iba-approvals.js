@@ -528,7 +528,7 @@
     // The stamps print from their own small page, so the other print rules
     // of the system (Summary Note, app frame) cannot interfere.
     const STAMP_PRINT_CSS = `
-      @page { size: A4 portrait; margin: 0; }
+      @page { margin: 0; }
       html, body { margin: 0; padding: 0; background: #fff; }
       .iba-approval-print-page { position: relative; width: 210mm; height: 297mm; margin: 0; overflow: hidden; background: #fff; }
       .iba-approval-stamp-stack { position: absolute; left: 50%; bottom: 28mm; transform: translateX(-50%); width: 196mm;

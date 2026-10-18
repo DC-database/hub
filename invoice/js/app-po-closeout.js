@@ -247,13 +247,15 @@
             poCloseoutHoPending: needed ? null : true,
             lastUpdated: firebase.database.ServerValue.TIMESTAMP
         };
-        await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
+        // 15.0.0 patch 23: the decision and its history line go out together
+        const saves = [invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)];
         if (typeof updateLocalInvoiceCache === 'function') {
             updateLocalInvoiceCache(poNumber, invoiceKey, updates);
         }
         if (window.logInvoiceHistory) {
-            await window.logInvoiceHistory(poNumber, invoiceKey, needed ? 'PO remaining kept' : 'PO remaining to remove', remark);
+            saves.push(window.logInvoiceHistory(poNumber, invoiceKey, needed ? 'PO remaining kept' : 'PO remaining to remove', remark));
         }
+        await Promise.all(saves);
         try {
             if (needed) {
                 removeCloseoutIndex(poNumber, invoiceKey);
@@ -384,7 +386,11 @@
             btn.textContent = 'Processing...';
         }
         try {
-            if (typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false);
+            // 15.0.0 patch 23: no full invoice_entries download any more. Only
+            // the PO list (POVALUE2) is needed, plus this PO's invoices (read
+            // below, small) for the PO value / invoiced / remaining figures.
+            const hasPOList = (typeof allPOData !== 'undefined' && allPOData && Object.keys(allPOData).length > 0);
+            if (!hasPOList && typeof ensureInvoiceDataFetched === 'function') await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
             const keyStr = String(key || '').trim();
             const taskFromList = (Array.isArray(userActiveTasks)
                 ? (userActiveTasks.find(t => t && String(t.key || '').trim() === keyStr) || {})
@@ -398,9 +404,14 @@
             }
             if (!poNumber || !invoiceKey) throw new Error('Invoice not found for PO Close Out.');
 
-            const snap = await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).once('value');
-            if (!snap.exists()) throw new Error('Invoice entry not found.');
-            const invData = snap.val() || {};
+            let bucket = (typeof imReadPOInvoicesFresh === 'function') ? await imReadPOInvoicesFresh(poNumber) : null;
+            if (!bucket) {
+                const poSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
+                bucket = poSnap.val() || {};
+                try { if (!allInvoiceData) allInvoiceData = {}; allInvoiceData[poNumber] = bucket; } catch (_) {}
+            }
+            if (!bucket[invoiceKey]) throw new Error('Invoice entry not found.');
+            const invData = bucket[invoiceKey] || {};
             const info = { poNumber, ...remainingOnPO(poNumber), mode: 'manual' };
             const needed = await askSiteDecision(info);
             if (needed === null) return;
@@ -413,19 +424,25 @@
                 poCloseoutPending: null,
                 lastUpdated: firebase.database.ServerValue.TIMESTAMP
             };
-            await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
+            const saves = [invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates)];
             if (typeof updateInvoiceTaskLookup === 'function') {
-                await updateInvoiceTaskLookup(poNumber, invoiceKey, { ...invData, ...updates, status: returnStatus, attention: '' }, invData.attention || '');
+                saves.push(updateInvoiceTaskLookup(poNumber, invoiceKey, { ...invData, ...updates, status: returnStatus, attention: '' }, invData.attention || ''));
             }
             if (typeof updateLocalInvoiceCache === 'function') updateLocalInvoiceCache(poNumber, invoiceKey, updates);
             if (window.logInvoiceHistory) {
-                await window.logInvoiceHistory(poNumber, invoiceKey, returnStatus, remark);
+                saves.push(window.logInvoiceHistory(poNumber, invoiceKey, returnStatus, remark));
             }
-            alert('PO Close Out saved. Task removed from Active Tasks.');
-            if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+            await Promise.all(saves);
+            if (typeof window.ibaFinishTaskAction === 'function') {
+                window.ibaFinishTaskAction(keyStr, 'PO Close Out saved. Task removed from Active Tasks.');
+            } else {
+                alert('PO Close Out saved. Task removed from Active Tasks.');
+                if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+            }
         } catch (error) {
             console.error('PO Close Out failed', error);
-            alert(error.message || 'Could not complete PO Close Out.');
+            if (typeof window.ibaToast === 'function') window.ibaToast(error.message || 'Could not complete PO Close Out.', 'error');
+            else alert(error.message || 'Could not complete PO Close Out.');
         } finally {
             if (btn) {
                 btn.disabled = false;

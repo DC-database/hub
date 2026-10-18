@@ -95,6 +95,8 @@ async function autoSetAttentionForStatus(status, siteCode, choicesInstance, grou
         candidates = candidates.filter(c => c && c.name && c.name.trim().length > 0);
         if (candidates.length === 1) {
             targetName = candidates[0].name;
+        } else if (candidates.length > 1 && imSrvBestCandidate(candidates)) {
+            targetName = imSrvBestCandidate(candidates);
         } else if (candidates.length > 1) {
             showCandidatePicker(candidates, 'Select Person for SRV', (selected) => {
                 if (selected) {
@@ -534,6 +536,29 @@ function imBatchFixedAttentionForStatus(statusValue) {
     if (st === 'in process') return imBatchFindPersonByNameOrPosition('', 'coo', '') || fallback;
     return '';
 }
+// 15.0.0 patch 29: For SRV with several people at the site -> pick by rank
+// Site DC, then Storekeeper, then Camp Boss, then Logistic. Only when two
+// people share the top rank (e.g. two Site DCs) the user still chooses.
+function imSrvRoleRank(position) {
+    if (imBatchPositionMatches(position, 'site dc')) return 0;
+    if (imBatchPositionMatches(position, 'storekeeper') || imBatchPositionMatches(position, 'store keeper')) return 1;
+    if (imBatchPositionMatches(position, 'camp boss')) return 2;
+    if (imBatchPositionMatches(position, 'logistic')) return 3;
+    return 4;
+}
+function imSrvBestCandidate(candidates) {
+    const real = (candidates || []).filter((c) => c && c.name && String(c.name).trim() && !c.isFallback);
+    if (!real.length) {
+        const fb = (candidates || []).filter((c) => c && c.name && c.isFallback);
+        return fb.length === 1 ? fb[0].name : '';
+    }
+    const names = new Set(real.map((c) => imBatchNormalizeKey(c.name)));
+    if (names.size === 1) return real[0].name;
+    const top = Math.min.apply(null, real.map((c) => imSrvRoleRank(c.position)));
+    const best = real.filter((c) => imSrvRoleRank(c.position) === top);
+    const bestNames = new Set(best.map((c) => imBatchNormalizeKey(c.name)));
+    return bestNames.size === 1 ? best[0].name : '';
+}
 async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
     // 15.0.0 patch 19: For SRV routing by invoice group (Invoice Entry and
     // Batch Entry share this):
@@ -550,7 +575,8 @@ async function imBatchGetAttentionCandidatesForSRV(siteCode, groupValue) {
     const isLog = (c) => imBatchPositionMatches(c.position, 'logistic');
     const siteLogistic = allCandidates.filter(isLog);
     const siteTeam = allCandidates.filter((c) => !isLog(c));
-    const tag = (list) => list.map((c) => Object.assign({}, c, { group, site: siteCode }));
+    const tag = (list) => list.map((c) => Object.assign({}, c, { group, site: siteCode }))
+        .sort((a, b) => imSrvRoleRank(a.position) - imSrvRoleRank(b.position)); // patch 29: Site DC first
     if (imBatchIsLogisticGroup(group)) {
         if (siteLogistic.length) return tag(siteLogistic);
         const anyLogistic = [];
@@ -639,8 +665,10 @@ async function imBatchResolveAttentionForSave(statusValue, siteCode, groupValue,
         if (attn) return attn;
         const candidates = await imBatchGetAttentionCandidatesForSRV(siteCode, groupValue);
         if (candidates.length === 1) return candidates[0].name || '';
+        const best = imSrvBestCandidate(candidates);
+        if (best) return best;
         const po = row && row.dataset ? (row.dataset.po || '') : '';
-        throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Multiple site-matched SRV candidates are available.`);
+        throw new Error(`Please select Attention for PO ${po || ''} / For SRV. Two or more people with the same position are at this site.`);
     }
     if (st === 'ipc application') {
         if (attn) return attn;

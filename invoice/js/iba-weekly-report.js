@@ -18,7 +18,7 @@
    ========================================================================== */
 (function () {
   "use strict";
-  const VERSION = "15.0.0-p22";
+  const VERSION = "15.0.0-p28";
   const DAY = 86400000;
   const SNAP_MAX = 24 * 3600000;
   const $ = (id) => document.getElementById(id);
@@ -260,7 +260,7 @@
         const at = lastStatusTime(inv);
         const own = String(inv.site || inv.site_name || inv.siteName || "").trim(), ps = poSite(po);
         if (own && ps && siteCode(own) && siteCode(own) !== siteCode(ps)) mismatch.push({ po: po, inv: inv.invNumber || inv.invEntryID || "", saved: own, poSite: ps, status: String(inv.status || "").trim() });
-        all.push({ kind: "invoice", po: po, key: k, inv: inv.invNumber || inv.invEntryID || "", vendor: inv.vendorName || inv.vendor_name || rec["Supplier Name"] || rec["Supplier"] || "",
+        all.push({ kind: "invoice", po: po, key: k, inv: inv.invNumber || inv.invEntryID || "", invDate: inv.invoiceDate || "", vendor: inv.vendorName || inv.vendor_name || rec["Supplier Name"] || rec["Supplier"] || "",
           site: ps || own, status: kp.match ? String(inv.status).trim() : kp.label, sk: kp.id, with: String(inv.attention || "").trim(), value: num(inv.invValue || inv.amount),
           note: [inv.note, inv.approvalNote ? "Approver: " + inv.approvalNote : ""].filter(Boolean).join(" · "), days: at ? Math.max(0, Math.floor((now - at) / DAY)) : null });
       });
@@ -459,7 +459,7 @@
   }
 
   const CSS =
-    "@page{size:A4 landscape;margin:9mm}*{box-sizing:border-box}body{margin:0;padding:16px 22px 36px;font:11.5px/1.4 Arial,Helvetica,sans-serif;color:#141b24;background:#fff}" +
+    "@page{margin:9mm}*{box-sizing:border-box}body{margin:0;padding:16px 22px 36px;font:11.5px/1.4 Arial,Helvetica,sans-serif;color:#141b24;background:#fff}" +
     ".tools{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:8px 0;background:#fff}.tools button{font:700 12px Arial;padding:8px 14px;border-radius:7px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button.ghost{background:#fff;color:#1E7F74}#saveNote{color:#52514e;font-size:12px}" +
     ".top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0B1724;padding-bottom:10px;margin-bottom:12px}.top>div:first-child{display:flex;gap:14px;align-items:center}.brand{width:52px;height:52px;border-radius:12px;background:#0B1724;color:#E3C98A;font:900 17px Georgia,serif;display:flex;align-items:center;justify-content:center;letter-spacing:.08em}" +
     "h1{margin:0;font-size:23px}h1 small{display:block;font-size:13px;font-weight:600;color:#52514e;margin-top:3px}.meta{text-align:right;color:#52514e;font-size:11px;line-height:1.55}" +
@@ -581,5 +581,110 @@
   }
   setInterval(addButton, 2000);
 
-  window.ibaWeeklyReport = { VERSION: VERSION, open: () => { if (isSuper()) launcher(); }, _weekStart: weekStart, _build: buildModel, _next: nextMove };
+  // ------------------------------------------------------------------
+  // 15.0.0 patch 28: site list by status (Super Admin skill, no AI).
+  // One status (For SRV by default) for one site or all sites, as a
+  // printable list. Same data and rules as the weekly report: the PO's
+  // Project ID is the site, saved copy + changed POs only (low download).
+  // ------------------------------------------------------------------
+  function siteChoices() {
+    const pm = poMap(), lab = {};
+    Object.keys(pm).forEach((po) => {
+      const v = String((pm[po] || {})["Project ID"] || "").trim(), c = siteCode(v);
+      if (!c || /^n\/?a$/i.test(v)) return;
+      const m = lab[c] = lab[c] || {}; m[v] = (m[v] || 0) + 1;
+    });
+    return Object.keys(lab).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((c) => [c, Object.keys(lab[c]).sort((a, b) => lab[c][b] - lab[c][a])[0]]);
+  }
+  const statusChoices = () => KEEP.map((k) => [k.id, k.label]);
+
+  function listTable(items) {
+    return '<table class="lt"><colgroup><col style="width:3%"><col style="width:3%"><col style="width:7.5%"><col style="width:11%"><col style="width:16%"><col style="width:10%"><col style="width:9%"><col style="width:12%"><col style="width:6.5%"><col style="width:22%"></colgroup>' +
+      '<thead><tr><th class="c">#</th><th class="c">✓</th><th>PO</th><th>Invoice / Ref</th><th>Vendor</th><th>Inv. date</th><th class="n">Value</th><th>With</th><th class="n">Days</th><th>Notes</th></tr></thead><tbody>' +
+      items.map((r, i) => '<tr' + (r.kind === "job" ? ' class="job"' : "") + '><td class="c">' + (i + 1) + '</td><td class="c"><span class="box"></span></td><td><b>' + esc(r.po || "—") + "</b></td>" +
+        "<td>" + esc(r.inv || "") + (r.kind === "job" ? '<span class="wd">WorkDesk' + (r.type ? " · " + esc(r.type) : "") + "</span>" : "") + (r.sk && r.statusShown ? '<span class="wd">' + esc(r.status) + "</span>" : "") + "</td>" +
+        "<td>" + esc(String(r.vendor || "").slice(0, 60)) + "</td><td>" + esc(r.invDate ? fmtD(tms(r.invDate)) || r.invDate : "") + '</td><td class="n">' + (r.value ? money(r.value) : "") + "</td>" +
+        "<td>" + esc(r.with || "—") + '</td><td class="n' + ((r.days || 0) > 30 ? " late" : (r.days || 0) > 14 ? " warn" : "") + '">' + (r.days == null ? "" : r.days) + "</td>" +
+        '<td class="note">' + esc(String(r.note || "").slice(0, 300)) + "</td></tr>").join("") + "</tbody></table>";
+  }
+  function holdersLine(items) {
+    const h = {}; items.forEach((r) => { const w = r.with || "(nobody)"; h[w] = (h[w] || 0) + 1; });
+    return Object.keys(h).sort((a, b) => h[b] - h[a]).map((w) => esc(w) + " <b>" + h[w] + "</b>").join(" · ");
+  }
+  function madeOf(items) {
+    const inv = items.filter((r) => r.kind === "invoice"), pos = {}; inv.forEach((r) => { pos[r.po] = 1; });
+    const jobs = items.length - inv.length;
+    return [inv.length ? inv.length + " invoice" + (inv.length === 1 ? "" : "s") + " on " + Object.keys(pos).length + " PO" + (Object.keys(pos).length === 1 ? "" : "s") : "", jobs ? jobs + " WorkDesk job" + (jobs === 1 ? "" : "s") : ""].filter(Boolean).join(" + ");
+  }
+  function listHtml(m, o) {
+    const total = m.sites.reduce((a, s) => a + s.items.length, 0);
+    const value = m.sites.reduce((a, s) => a + s.items.reduce((b, r) => b + (r.value || 0), 0), 0);
+    const all = [].concat.apply([], m.sites.map((s) => s.items));
+    const late = all.filter((r) => (r.days || 0) > 30).length;
+    const title = o.statusLabel + " list · " + (o.site ? m.sites[0] ? m.sites[0].label : o.site : "All sites");
+    const summary = !o.site && m.sites.length > 1 ? '<section class="sum"><h2>By site</h2><table class="st"><colgroup><col style="width:24%"><col style="width:8%"><col style="width:24%"><col style="width:9%"><col style="width:10%"><col style="width:25%"></colgroup><thead><tr><th>Site</th><th class="n">Open</th><th>Made of</th><th class="n">Oldest</th><th class="n">Over 30 d</th><th>With</th></tr></thead><tbody>' +
+      m.sites.map((s) => "<tr><td><b>" + esc(s.label) + '</b></td><td class="n">' + s.items.length + "</td><td>" + esc(madeOf(s.items)) + '</td><td class="n' + (s.oldest > 30 ? " late" : "") + '">' + s.oldest + ' d</td><td class="n">' + s.items.filter((r) => (r.days || 0) > 30).length + "</td><td>" + holdersLine(s.items) + "</td></tr>").join("") +
+      "</tbody></table></section>" : "";
+    const blocks = m.sites.map((s, i) => '<section class="site' + (!o.site && i > 0 && o.pageEach ? " brk" : "") + '"><div class="site-h"><h2>' + esc(s.label) + " <small>" + s.items.length + " · " + esc(madeOf(s.items)) + "</small></h2>" +
+      '<div class="team">Site team: ' + (s.people.length ? s.people.map((p) => esc(p.name) + " <i>" + esc(p.role) + "</i>").join(" · ") : '<span class="late">nobody assigned</span>') + '</div><div class="team">With: ' + holdersLine(s.items) + "</div></div>" +
+      listTable(s.items) + "</section>").join("");
+    const info = m.info;
+    const dataLine = info.mode === "saved" ? "saved copy from " + fmtDT(info.snapAt) + " + " + info.changed + " changed PO(s) read live" : "full read of all invoices";
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>IBA ' + esc(title) + "</title><style>" + LCSS + "</style></head><body>" +
+      '<div class="tools"><button type="button" onclick="window.print()">Print / Save as PDF</button><button type="button" class="ghost" onclick="window.close()">Close</button></div>' +
+      '<header class="top"><div><div class="brand">IBA</div><h1>' + esc(o.statusLabel) + ' list<small>' + esc(o.site ? (m.sites[0] ? m.sites[0].label : "Site " + o.site) : "All sites · " + m.sites.length + " site" + (m.sites.length === 1 ? "" : "s")) + "</small></h1></div>" +
+      '<div class="meta">Prepared ' + esc(fmtDT(m.now)) + " · " + esc(me().Name || "") + "<br><b>" + total + "</b> open · " + esc(madeOf(all) || "none") + (value ? " · QAR " + money(value) : "") + "<br>" + (late ? '<span class="late">' + late + " over 30 days</span>" : "none over 30 days") + "</div></header>" +
+      (total ? summary + blocks : '<p class="none">Nothing is in ' + esc(o.statusLabel) + (o.site ? " for this site" : "") + " right now.</p>") +
+      "<footer>IBA " + esc(VERSION) + " · Data: " + esc(dataLine) + " · about " + sizeText(info.bytes) + " read · no AI used</footer></body></html>";
+  }
+  const LCSS =
+    "@page{margin:9mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}th{white-space:nowrap}body{margin:0;padding:14px 20px 30px;font:11px/1.4 Arial,Helvetica,sans-serif;color:#141b24;background:#fff}" +
+    ".tools{position:sticky;top:0;z-index:5;display:flex;gap:8px;justify-content:flex-end;padding:8px 0;background:#fff}.tools button{font:700 12px Arial;padding:8px 14px;border-radius:7px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button.ghost{background:#fff;color:#1E7F74}" +
+    ".top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;border-bottom:3px solid #0B1724;padding-bottom:10px;margin-bottom:12px}.top>div:first-child{display:flex;gap:12px;align-items:center}.brand{width:48px;height:48px;border-radius:11px;background:#0B1724;color:#E3C98A;font:900 16px Georgia,serif;display:flex;align-items:center;justify-content:center;letter-spacing:.08em}" +
+    "h1{margin:0;font-size:21px}h1 small{display:block;font-size:13px;font-weight:600;color:#52514e;margin-top:3px}.meta{text-align:right;color:#52514e;font-size:11px;line-height:1.6}.meta b{color:#141b24;font-size:13px}" +
+    "h2{font-size:14px;margin:0 0 4px}h2 small{font-weight:600;color:#52514e;font-size:11px}.sum{margin-bottom:14px}.site{margin:0 0 16px}.site.brk{break-before:page}.site-h{margin-bottom:6px}.team{color:#52514e;font-size:10.5px}.team i{font-style:normal;color:#8a8f96}.team b{color:#141b24}" +
+    "table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #d7dde4;padding:4px 5px;vertical-align:top;text-align:left;overflow-wrap:anywhere}th{background:#eef2f6;font-size:10px;text-transform:uppercase;letter-spacing:.02em}" +
+    "thead{display:table-header-group}tr{break-inside:avoid}td.n,th.n{text-align:right}td.c,th.c{text-align:center}td.note{white-space:normal;color:#30353b}.box{display:inline-block;width:11px;height:11px;border:1.5px solid #52514e;border-radius:2px}" +
+    "tr.job td{background:#f7f5ff}.wd{display:block;font-size:9.5px;color:#7a4bb3}.late{color:#b42318;font-weight:700}.warn{color:#b36b00;font-weight:700}.none{color:#52514e;font-size:13px;padding:30px 0}" +
+    "footer{margin-top:18px;color:#8a8f96;font-size:10px;border-top:1px solid #d7dde4;padding-top:6px}@media print{.tools{display:none}body{padding:0}}";
+
+  async function siteList(opts, w) {
+    if (!isSuper()) throw new Error("This list is for the Super Admin only.");
+    const o = Object.assign({ status: "for srv", site: "", pageEach: true }, opts || {});
+    const statusIds = o.status === "all" ? KEEP.map((k) => k.id) : [norm(o.status)];
+    const kp = KEEP.find((k) => k.id === statusIds[0]);
+    if (!kp) throw new Error("Unknown status: " + o.status);
+    o.statusLabel = o.status === "all" ? "Open items" : kp.label;
+    const win = w || window.open("", "_blank");
+    if (!win) throw new Error("Please allow pop-ups for IBA, then run it again.");
+    let done = false;
+    const note = (t) => { if (!done) { try { win.document.body.textContent = t; } catch (_) {} } };
+    try { win.document.write('<!doctype html><title>Building list…</title><body style="font:15px Arial;padding:40px;color:#141b24">Building the ' + esc(o.statusLabel) + ' list…</body>'); } catch (_) {}
+    try {
+      try { if (typeof ensureApproverDataCached === "function") await ensureApproverDataCached(false); } catch (_) {}
+      try { if (typeof ensureInvoicePOBaseDataFetched === "function") await ensureInvoicePOBaseDataFetched(false); } catch (_) {}
+      const inv = await loadInvoices(!!o.full, note);
+      const jobs = await loadJobs(note);
+      const m = buildModel(inv.data, jobs, [], { label: "" }, null, inv.info);
+      const siteId = o.site ? siteCode(o.site) : "";
+      m.sites = m.sites.map((s) => Object.assign({}, s, { items: s.items.filter((r) => statusIds.indexOf(r.sk) !== -1).map((r) => Object.assign({}, r, { statusShown: o.status === "all" || !!kp.match })) }))
+        .filter((s) => s.items.length && (!siteId || s.id === siteId))
+        .map((s) => { s.items.sort((a, b) => ((b.days || 0) - (a.days || 0)) || String(a.po).localeCompare(String(b.po), undefined, { numeric: true })); s.oldest = s.items.reduce((a, r) => Math.max(a, r.days || 0), 0); return s; })
+        .sort((a, b) => b.items.length - a.items.length);
+      if (siteId && !m.sites.length) { const lbl = (siteChoices().find((x) => x[0] === siteId) || [])[1]; o.site = lbl || siteId; }
+      win.document.open(); win.document.write(listHtml(m, o)); win.document.close();
+      done = true;
+      const n = m.sites.reduce((a, s) => a + s.items.length, 0);
+      return { count: n, sites: m.sites.length, bytes: inv.info.bytes, mode: inv.info.mode, by_site: m.sites.map((s) => ({ site: s.label, count: s.items.length, oldest_days: s.oldest })) };
+    } catch (err) {
+      if (!w) { try { win.close(); } catch (_) {} }
+      throw err;
+    }
+  }
+
+  // 15.0.0 patch 23: the low-cost invoice loader (saved copy + changed POs) is
+  // shared with the assistant's "Download invoice list".
+  window.ibaWeeklyReport = { VERSION: VERSION, open: () => { if (isSuper()) launcher(); }, loadInvoices: (full, note) => loadInvoices(!!full, typeof note === "function" ? note : () => {}),
+    siteList: siteList, siteChoices: siteChoices, statusChoices: statusChoices, _weekStart: weekStart, _build: buildModel, _next: nextMove };
 })();

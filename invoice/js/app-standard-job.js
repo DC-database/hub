@@ -503,7 +503,7 @@ function proceedToPrintMulti(stickerList) {
     }
 
     var content = '<html><head><title>Approval Print</title>';
-    content += '<style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: "Arial", sans-serif; } ';
+    content += '<style>@page { margin: 0; } body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: "Arial", sans-serif; } ';
     content += '.sticker-box { position: absolute; width: max-content; min-width: 48mm; padding: 2mm 3mm; display: flex; flex-direction: column; align-items: center; justify-content: center; background: white; z-index: 100; box-sizing: border-box; } ';
     content += '.main { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; } ';
     content += '.status { font-weight: 900; font-size: 8pt; text-transform: uppercase; margin: 0; color: #000; text-align: center; white-space: nowrap; font-family: "Courier New", monospace; } ';
@@ -565,7 +565,7 @@ function proceedToPrint(positionClass, roleLabel, esnDisplay, pdfLink, entry) {
         <head>
             <title>Approval Print - ${String(esnDisplay || '').replace(/[<>&"]/g, '')}</title>
             <style>
-                @page { size: A4; margin: 0; }
+                @page { margin: 0; }
                 body { margin: 0; padding: 0; width: 210mm; height: 297mm; position: relative; font-family: Arial, sans-serif; }
                 #sticker {
                     position: absolute;
