@@ -24,7 +24,7 @@
                 <div class="brand-mark"><i class="fa-solid fa-layer-group"></i></div>
                 <div>
                     <h1>Procurement Hub</h1>
-                    <p>Material requisition workspace <span class="version-badge">v7.9 patch 3</span></p>
+                    <p>Material requisition workspace <span class="version-badge">v8.1 patch 4</span></p>
                 </div>
             </div>
             <div class="topbar-status">
@@ -316,23 +316,10 @@
                 </div>
                 <div class="section">
                     <h3>Item photo folder (OneDrive)</h3>
-                    <p class="hint">OneDrive folder is the image host. Put an Excel/CSV of all file names on GitHub. Staff pick a file name; the hub reads <strong>folder + file name</strong>.</p>
+                    <p class="hint">Item photos come straight from this OneDrive folder. Upload a photo there, then use the photo button on an item and type the file name. No photo list file is needed.</p>
                     <div class="form-group">
-                        <label>OneDrive folder URL</label>
+                        <label for="photoFolderUrl">OneDrive folder URL</label>
                         <input type="url" id="photoFolderUrl" placeholder="https://.../Documents/DC Files/Photo/">
-                    </div>
-                    <div class="form-group">
-                        <label>GitHub photo list CSV</label>
-                        <input type="url" id="photoListUrl" placeholder="https://raw.githubusercontent.com/DC-database/hub/main/PhotoIndex.csv">
-                    </div>
-                    <div class="form-group">
-                        <label>Default file extension</label>
-                        <select id="photoExt">
-                            <option value="jpeg" selected>jpeg</option>
-                            <option value="jpg">jpg</option>
-                            <option value="png">png</option>
-                            <option value="webp">webp</option>
-                        </select>
                     </div>
                 </div>
             </div>
@@ -355,22 +342,27 @@
         </div>
     </div>
     <div id="photoPickerModal" class="modal-overlay no-print">
-        <div class="modal-content" style="max-width: 560px;">
+        <div class="modal-content" style="max-width: 560px;" role="dialog" aria-modal="true" aria-labelledby="photoPickerTitle">
             <div class="modal-header">
-                <h2 id="photoPickerTitle">Choose photo</h2>
-                <button id="closePhotoPickerBtn" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+                <h2 id="photoPickerTitle">Item photo</h2>
+                <button id="closePhotoPickerBtn" class="close-btn" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
-                <p class="hint">Search the OneDrive file-name list from GitHub. The saved photo is folder URL + selected file name.</p>
+                <p class="hint">Upload the photo to the OneDrive Photo folder, then type its file name here. The app checks OneDrive directly.</p>
                 <div class="form-group">
-                    <label>Search photo name</label>
-                    <input type="text" id="photoPickerSearch" placeholder="Type photo name from PhotoIndex, e.g. CHIPPING HAMMER" autocomplete="off">
+                    <label for="photoPickerSearch">Photo file name in OneDrive</label>
+                    <div class="photo-name-row">
+                        <input type="text" id="photoPickerSearch" placeholder="e.g. contact-cleaner" autocomplete="off" spellcheck="false">
+                        <button type="button" id="photoPickerCheckBtn" class="ghost-btn"><i class="fa-solid fa-magnifying-glass"></i> Check</button>
+                    </div>
+                    <small class="hint">You can leave out .jpg, .jpeg or .png. Dashes and spaces both work.</small>
                 </div>
-                <div id="photoPickerList" class="photo-match-list"></div>
-                <p class="hint" id="photoPickerChosen">No photo selected yet.</p>
-                <div class="submit-section" style="gap:10px; margin-top:12px;">
-                    <button type="button" id="photoPickerSaveBtn" class="save-btn">Save photo tag</button>
-                    <button type="button" id="photoPickerClearBtn" class="ghost-btn">Clear photo tag</button>
+                <div id="photoPickerSuggest" class="photo-suggest"></div>
+                <div id="photoPickerResult" class="photo-result"></div>
+                <div class="submit-section photo-picker-actions">
+                    <a id="photoPickerOpenFolder" class="ghost-btn" href="#" target="_blank" rel="noopener"><i class="fa-solid fa-folder-open"></i> Open OneDrive folder</a>
+                    <button type="button" id="photoPickerClearBtn" class="ghost-btn">Remove photo</button>
+                    <button type="button" id="photoPickerSaveBtn" class="save-btn" disabled>Save photo</button>
                 </div>
             </div>
         </div>

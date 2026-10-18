@@ -2287,11 +2287,13 @@ document.getElementById('importFileItemsBtn')?.addEventListener('click', async (
 // ==========================================
 
 const DEFAULT_PHOTO_FOLDER = "https://ibaqatar-my.sharepoint.com/personal/dc_iba_com_qa/Documents/DC%20Files/Photo/";
-const DEFAULT_PHOTO_LIST_URL = "https://raw.githubusercontent.com/DC-database/hub/main/PhotoIndex.csv";
-const PHOTO_LIST_CACHE_KEY = 'pr_photo_list_v1';
-let photoFileList = [];
-let photoPickerContext = { key: null, partNo: '' };
-let photoPickerSelected = '';
+// Item photos are checked straight in the OneDrive folder; the old PhotoIndex.csv list is no longer used.
+const PHOTO_EXTS = ['jpg', 'jpeg', 'png'];
+try { localStorage.removeItem('pr_photo_list_v1'); } catch (err) {}
+let photoPickerContext = { key: null, partNo: '', itemName: '' };
+let photoPickerFound = null;   // { fileName, url } of the photo confirmed in OneDrive
+let photoCheckSeq = 0;
+let photoCheckTimer = null;
 
 function photoFolderBase() {
     const s = loadUiSettings();
@@ -2300,22 +2302,137 @@ function photoFolderBase() {
     return base;
 }
 
-function photoUrlCandidates(fileName) {
+// Link that opens the photo folder in OneDrive (for uploading or checking names).
+function photoFolderViewUrl() {
     const base = photoFolderBase();
-    if (!base || !fileName) return [];
-    const stem = String(fileName).trim().replace(/\.(jpg|jpeg|png|webp)$/i, '');
+    const m = base.match(/^(https:\/\/[^/]+\.sharepoint\.com)(\/personal\/[^/]+)(\/.*?)\/?$/i);
+    if (!m) return base;
+    const path = decodeURIComponent(m[2] + m[3]);
+    return `${m[1]}${m[2]}/_layouts/15/onedrive.aspx?id=${encodeURIComponent(path)}`;
+}
+
+function photoStem(name) {
+    return String(name || '').trim().replace(/\.(jpe?g|png|webp)$/i, '');
+}
+
+// "Contact Cleaner" / "contact_cleaner" / "contact-cleaner" are all tried.
+function photoNameVariants(name) {
+    const stem = photoStem(name);
     if (!stem) return [];
-    const names = [stem, stem.replace(/[\s_]+/g, '-'), stem.replace(/[\s_-]+/g, '')].filter((name, idx, arr) => name && arr.indexOf(name) === idx);
-    const urls = [];
-    names.forEach((name) => {
-        urls.push(base + encodeURIComponent(name + '.jpg'));
-        urls.push(base + encodeURIComponent(name + '.jpeg'));
-    });
-    return urls;
+    return [stem, stem.replace(/[\s_]+/g, '-'), stem.replace(/[-_]+/g, ' '), stem.replace(/[\s_-]+/g, '')]
+        .filter((n, i, arr) => n && arr.indexOf(n) === i);
+}
+
+// File names to try, best first. A saved name with its extension is tried exactly first.
+function photoCandidatePairs(name, quick) {
+    const raw = String(name || '').trim();
+    const base = photoFolderBase();
+    if (!raw || !base) return [];
+    const files = [];
+    if (/\.(jpe?g|png|webp)$/i.test(raw)) files.push(raw);
+    const variants = quick ? [photoStem(raw).replace(/[\s_]+/g, '-')] : photoNameVariants(raw);
+    variants.forEach(n => PHOTO_EXTS.forEach(ext => files.push(n + '.' + ext)));
+    return files.filter((f, i, arr) => arr.indexOf(f) === i).map(f => ({ fileName: f, url: base + encodeURIComponent(f) }));
+}
+
+function photoUrlCandidates(fileName) {
+    return photoCandidatePairs(fileName, false).map(p => p.url);
 }
 
 function composePhotoUrl(fileName) {
     return photoUrlCandidates(fileName)[0] || '';
+}
+
+// Loads the image the same way the app shows photos, so it works whenever this browser can see OneDrive.
+function probeImage(url, timeoutMs) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.referrerPolicy = 'no-referrer';
+        const timer = setTimeout(() => { img.onload = img.onerror = null; img.src = ''; resolve(false); }, timeoutMs || 10000);
+        img.onload = () => { clearTimeout(timer); resolve(img.naturalWidth > 0); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
+        img.src = url;
+    });
+}
+
+async function findPhotoInOneDrive(name, quick) {
+    const pairs = photoCandidatePairs(name, quick);
+    if (!pairs.length) return null;
+    const ok = await Promise.all(pairs.map(p => probeImage(p.url)));
+    const i = ok.indexOf(true);
+    return i >= 0 ? pairs[i] : null;
+}
+
+// Name guesses from the item description, e.g. "WOOD NAIL (2 INCH)" -> wood-nail, wood-nail-2-inch.
+const PHOTO_SIZE_WORDS = new Set('inch inches mm cm m mtr meter meters kg g gm ltr l lit litre liter pcs pc pkt pkts nos no set sets ft x w v'.split(' '));
+function photoNameSuggestions(desc, existing) {
+    const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const base = String(desc || '').toLowerCase();
+    const noBrackets = base.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ');
+    const words = slug(noBrackets).split('-').filter(w => w && !/^\d/.test(w) && !PHOTO_SIZE_WORDS.has(w));
+    const list = [
+        existing ? photoStem(existing) : '',
+        words.join('-'),
+        words.slice(0, 2).join('-'),
+        slug(noBrackets),
+        slug(base),
+        words.length > 2 ? words.slice(-2).join('-') : '',
+        words.length > 1 ? words[words.length - 1] : ''
+    ];
+    return list.filter((n, i, arr) => n && n.length > 1 && arr.indexOf(n) === i).slice(0, 5);
+}
+
+function renderPhotoPickerResult(state, data) {
+    const box = document.getElementById('photoPickerResult');
+    const saveBtn = document.getElementById('photoPickerSaveBtn');
+    if (saveBtn) saveBtn.disabled = state !== 'found';
+    if (!box) return;
+    box.className = 'photo-result is-' + state;
+    if (state === 'checking') {
+        box.innerHTML = `<p><i class="fa-solid fa-spinner fa-spin"></i> Checking OneDrive for <strong>${escapeHtml(data)}</strong>…</p>`;
+    } else if (state === 'found') {
+        box.innerHTML = `<img src="${escapeHtml(data.url)}" alt="" referrerpolicy="no-referrer">
+            <p><i class="fa-solid fa-circle-check"></i> Found <strong>${escapeHtml(data.fileName)}</strong> in OneDrive. Click Save photo.</p>`;
+    } else if (state === 'missing') {
+        box.innerHTML = `<p><i class="fa-solid fa-circle-xmark"></i> No photo named <strong>${escapeHtml(photoStem(data))}</strong> (.jpg, .jpeg or .png) in the OneDrive Photo folder.</p>
+            <p class="hint">Check the spelling and that the photo is uploaded. Also make sure this browser is signed in to OneDrive, because the app can only see photos you can open.</p>`;
+    } else {
+        box.innerHTML = '<p class="hint">Type the photo’s file name to check it in OneDrive.</p>';
+    }
+}
+
+async function checkPhotoName(name, quick) {
+    const seq = ++photoCheckSeq;
+    photoPickerFound = null;
+    const q = String(name || '').trim();
+    if (!q) { renderPhotoPickerResult('empty'); return null; }
+    renderPhotoPickerResult('checking', q);
+    const found = await findPhotoInOneDrive(q, quick);
+    if (seq !== photoCheckSeq) return null;
+    photoPickerFound = found;
+    renderPhotoPickerResult(found ? 'found' : 'missing', found || q);
+    return found;
+}
+
+// On open: try the saved name and the guesses from the description, stop at the first photo found.
+async function autoFindPhoto(suggestions) {
+    const seq = ++photoCheckSeq;
+    const input = document.getElementById('photoPickerSearch');
+    if (!suggestions.length) { renderPhotoPickerResult('empty'); return; }
+    renderPhotoPickerResult('checking', suggestions[0]);
+    for (let i = 0; i < suggestions.length; i++) {
+        // The best guess is tried with every spelling; the others only as dash-names.
+        const found = await findPhotoInOneDrive(suggestions[i], i > 0);
+        if (seq !== photoCheckSeq) return;
+        if (found) {
+            photoPickerFound = found;
+            if (input) input.value = photoStem(found.fileName);
+            renderPhotoPickerResult('found', found);
+            return;
+        }
+    }
+    if (input) input.value = suggestions[0];
+    renderPhotoPickerResult('missing', suggestions[0]);
 }
 
 let photoShowList = [];
@@ -2381,136 +2498,104 @@ function itemPhotoUrl(partNo, item) {
     return composePhotoUrl(fileName);
 }
 
-function extractPhotoFileName(row) {
-    return String(
-        row.photoName || row.PhotoName || row.File || row.file || row.Filename || row.filename ||
-        row.Name || row.name || row.Photo || row.photo || row['File Name'] || row['file name'] || ''
-    ).trim();
-}
-
-async function loadPhotoFileList(force) {
-    if (!force && photoFileList.length) return photoFileList;
-    try {
-        const cached = JSON.parse(localStorage.getItem(PHOTO_LIST_CACHE_KEY) || 'null');
-        if (!force && cached && Array.isArray(cached.files) && Date.now() - cached.savedAt < 12 * 60 * 60 * 1000) {
-            photoFileList = cached.files;
-            return photoFileList;
-        }
-    } catch (err) {}
-    const s = loadUiSettings();
-    const url = (s.photoListUrl || DEFAULT_PHOTO_LIST_URL).trim();
-    const text = await fetchText(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now());
-    const rows = await parseCsv(text);
-    const files = [];
-    rows.forEach((row) => {
-        const name = extractPhotoFileName(row);
-        if (name) files.push(name);
-    });
-    photoFileList = Array.from(new Set(files));
-    try { localStorage.setItem(PHOTO_LIST_CACHE_KEY, JSON.stringify({ files: photoFileList, savedAt: Date.now() })); } catch (err) {}
-    return photoFileList;
-}
-
-function renderPhotoPickerList(query) {
-    const box = document.getElementById('photoPickerList');
-    if (!box) return;
-    let q = String(query || '').toLowerCase().trim();
-    if (/^\d+(\.\d+)?$/.test(q)) q = '';
-    const qKey = q.replace(/[\s_-]+/g, '');
-    const matches = photoFileList.filter((name) => {
-        if (!q) return true;
-        const lower = name.toLowerCase();
-        return lower.includes(q) || lower.replace(/[\s_-]+/g, '').includes(qKey);
-    }).slice(0, 120);
-    if (!photoFileList.length) {
-        box.innerHTML = '<div class="suggestion-item photo-empty">No photo list loaded. Check GitHub PhotoIndex.csv.</div>';
-        return;
-    }
-    if (!matches.length) {
-        box.innerHTML = '<div class="suggestion-item photo-empty">No matching photo names</div>';
-        return;
-    }
-    box.innerHTML = matches.map((name) => `<div class="suggestion-item" data-photo-file="${String(name).replace(/"/g, '&quot;')}">${name}</div>`).join('');
-    box.querySelectorAll('[data-photo-file]').forEach((el) => {
-        el.onclick = () => {
-            photoPickerSelected = el.getAttribute('data-photo-file') || '';
-            const label = document.getElementById('photoPickerChosen');
-            if (label) label.textContent = 'Selected: ' + photoPickerSelected + '  →  click Save photo tag';
-            box.querySelectorAll('.suggestion-item').forEach((row) => row.style.background = '');
-            el.style.background = '#dbeafe';
-        };
-    });
-}
-
 async function savePickedPhoto(fileName) {
     const partNo = photoPickerContext.partNo;
     const current = allSearchableItems.find(i => (photoPickerContext.key && i.firebaseKey === photoPickerContext.key) || itemPartCode(i) === String(partNo));
     const itemKey = photoPickerContext.key || (current && current.firebaseKey) || firebaseItemKeyFromPartCode(partNo);
-    const photoURL = composePhotoUrl(fileName, partNo);
-    await dbReq.ref('items').child(itemKey).update({
-        "Part Code": partNo,
-        PhotoFile: fileName || '',
-        PhotoURL: photoURL,
-        firebaseKey: itemKey,
-        PhotoUpdatedAt: new Date().toISOString()
-    });
-    if (current) {
-        current.PhotoFile = fileName || '';
-        current.PhotoURL = photoURL;
-        current.firebaseKey = itemKey;
-    } else {
-        allSearchableItems.push({ "Part Code": partNo, PhotoFile: fileName || '', PhotoURL: photoURL, firebaseKey: itemKey });
-    }
-    document.getElementById('photoPickerModal')?.classList.remove('active');
-    if (document.getElementById('searchInput').value.trim().length >= 2) {
-        renderSearchResults(document.getElementById('searchInput').value);
+    const photoURL = fileName ? ((photoPickerFound && photoPickerFound.fileName === fileName && photoPickerFound.url) || composePhotoUrl(fileName)) : '';
+    const saveBtn = document.getElementById('photoPickerSaveBtn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+    try {
+        await dbReq.ref('items').child(itemKey).update({
+            "Part Code": partNo,
+            PhotoFile: fileName || '',
+            PhotoURL: photoURL,
+            firebaseKey: itemKey,
+            PhotoUpdatedAt: new Date().toISOString()
+        });
+        if (current) {
+            current.PhotoFile = fileName || '';
+            current.PhotoURL = photoURL;
+            current.firebaseKey = itemKey;
+        } else {
+            allSearchableItems.push({ "Part Code": partNo, PhotoFile: fileName || '', PhotoURL: photoURL, firebaseKey: itemKey });
+        }
+        // Keep this browser's cache and let other browsers pick up the new photo on their next load.
+        await commitCatalogChange().catch(err => console.warn(err));
+        document.getElementById('photoPickerModal')?.classList.remove('active');
+        if (searchInput.value.trim().length >= 2) renderSearchResults(searchInput.value);
+        showToast(fileName ? `Photo saved: ${fileName}` : 'Photo removed.', 'ok');
+    } catch (err) {
+        console.error(err);
+        alert('Could not save the photo. Check your connection and try again.');
+    } finally {
+        if (saveBtn) saveBtn.textContent = 'Save photo';
+        renderPhotoPickerResult(photoPickerFound ? 'found' : 'empty', photoPickerFound);
     }
 }
 
-window.updateItemPhoto = async function(key, partNo, itemName) {
+window.updateItemPhoto = function(key, partNo, itemName) {
     if (!canUpdatePhotos()) { denyAccess('update photos'); return; }
     const label = String(itemName || '').trim();
     photoPickerContext = { key, partNo, itemName: label };
+    photoPickerFound = null;
+    const item = allSearchableItems.find(i => (key && i.firebaseKey === key) || itemPartCode(i) === String(partNo));
+    const existing = item ? String(item.PhotoFile || item.photoFile || item.photoName || '').trim() : '';
     const title = document.getElementById('photoPickerTitle');
     if (title) title.textContent = partNo + (label ? ' | ' + label : '');
-    const search = document.getElementById('photoPickerSearch');
-    if (search) search.value = label;
-    document.getElementById('photoPickerModal')?.classList.add('active');
-    const box = document.getElementById('photoPickerList');
-    if (box) box.innerHTML = '<div class="suggestion-item">Loading photo list…</div>';
-    try {
-        await loadPhotoFileList(true);
-        renderPhotoPickerList(label);
-    } catch (err) {
-        if (box) box.innerHTML = '<div class="suggestion-item">Could not load GitHub PhotoIndex.csv.</div>';
+    const folderLink = document.getElementById('photoPickerOpenFolder');
+    if (folderLink) folderLink.href = photoFolderViewUrl();
+    const clearBtn = document.getElementById('photoPickerClearBtn');
+    if (clearBtn) clearBtn.style.display = existing ? '' : 'none';
+    const suggestions = photoNameSuggestions(label, existing);
+    const chips = document.getElementById('photoPickerSuggest');
+    if (chips) {
+        chips.innerHTML = suggestions.length
+            ? '<span class="hint">Try:</span>' + suggestions.map(s => `<button type="button" class="name-chip" data-photo-name="${escapeHtml(s)}">${escapeHtml(s)}</button>`).join('')
+            : '';
     }
+    const input = document.getElementById('photoPickerSearch');
+    if (input) input.value = suggestions[0] || '';
+    document.getElementById('photoPickerModal')?.classList.add('active');
+    setTimeout(() => input && input.focus(), 50);
+    autoFindPhoto(suggestions);
 };
 
 document.getElementById('closePhotoPickerBtn')?.addEventListener('click', () => {
+    photoCheckSeq++;
     document.getElementById('photoPickerModal')?.classList.remove('active');
 });
 document.getElementById('photoPickerSearch')?.addEventListener('input', (e) => {
-    renderPhotoPickerList(e.target.value);
+    clearTimeout(photoCheckTimer);
+    photoPickerFound = null;
+    renderPhotoPickerResult('checking', e.target.value.trim());
+    photoCheckTimer = setTimeout(() => checkPhotoName(e.target.value, false), 600);
 });
-document.getElementById('photoPickerSearch')?.addEventListener('keydown', (e) => {
+document.getElementById('photoPickerSearch')?.addEventListener('keydown', async (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    if (!photoPickerSelected) {
-        const first = document.querySelector('#photoPickerList [data-photo-file]');
-        if (first) {
-            photoPickerSelected = first.getAttribute('data-photo-file') || '';
-            const label = document.getElementById('photoPickerChosen');
-            if (label) label.textContent = 'Selected: ' + photoPickerSelected;
-        }
-    }
-    if (photoPickerSelected) savePickedPhoto(photoPickerSelected);
+    clearTimeout(photoCheckTimer);
+    if (photoPickerFound) { savePickedPhoto(photoPickerFound.fileName); return; }
+    await checkPhotoName(e.target.value, false);
+});
+document.getElementById('photoPickerCheckBtn')?.addEventListener('click', () => {
+    clearTimeout(photoCheckTimer);
+    checkPhotoName(document.getElementById('photoPickerSearch').value, false);
+});
+document.getElementById('photoPickerSuggest')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('[data-photo-name]');
+    if (!chip) return;
+    clearTimeout(photoCheckTimer);
+    document.getElementById('photoPickerSearch').value = chip.dataset.photoName;
+    checkPhotoName(chip.dataset.photoName, false);
 });
 document.getElementById('photoPickerSaveBtn')?.addEventListener('click', () => {
-    if (!photoPickerSelected) { alert('Click a photo name first, then Save photo tag.'); return; }
-    savePickedPhoto(photoPickerSelected);
+    if (!photoPickerFound) { alert('Check a photo name first. Save works once the photo is found in OneDrive.'); return; }
+    savePickedPhoto(photoPickerFound.fileName);
 });
 document.getElementById('photoPickerClearBtn')?.addEventListener('click', () => {
-    photoPickerSelected = '';
+    if (!confirm('Remove the photo from this item? The file stays in OneDrive.')) return;
+    photoPickerFound = null;
     savePickedPhoto('');
 });
 
@@ -2526,7 +2611,7 @@ function bindEnterToClick(inputIds, buttonId) {
 bindEnterToClick(['accessLoginMobile', 'accessLoginPassword'], 'accessLoginBtn');
 bindEnterToClick(['accessOwnPassword'], 'accessChangeOwnPasswordBtn');
 bindEnterToClick(['accessNewName', 'accessNewMobile', 'accessNewPassword'], 'saveAccessUserBtn');
-bindEnterToClick(['bgImageUrl', 'photoFolderUrl', 'photoListUrl'], 'saveBgBtn');
+bindEnterToClick(['bgImageUrl', 'photoFolderUrl'], 'saveBgBtn');
 
 const UI_SETTINGS_KEY = 'pr_ui_settings_v1';
 
@@ -2722,8 +2807,6 @@ if (openSettingsBtn && settingsModal) {
         document.getElementById('bgBlur').value = s.bgBlur ?? 2;
         document.getElementById('bgDim').value = s.bgDim ?? 12;
         document.getElementById('photoFolderUrl').value = s.photoFolder || DEFAULT_PHOTO_FOLDER;
-        document.getElementById('photoListUrl').value = s.photoListUrl || DEFAULT_PHOTO_LIST_URL;
-        document.getElementById('photoExt').value = s.photoExt || 'jpeg';
         const groqEl = document.getElementById('groqApiKey');
         if (groqEl) groqEl.value = s.groqKey || '';
         const groqModelEl = document.getElementById('groqModel');
@@ -2755,8 +2838,6 @@ document.getElementById('saveBgBtn')?.addEventListener('click', () => {
         bgBlur: Number(document.getElementById('bgBlur').value),
         bgDim: Number(document.getElementById('bgDim').value),
         photoFolder: document.getElementById('photoFolderUrl').value.trim() || DEFAULT_PHOTO_FOLDER,
-        photoListUrl: document.getElementById('photoListUrl').value.trim() || DEFAULT_PHOTO_LIST_URL,
-        photoExt: document.getElementById('photoExt').value,
         groqKey: (document.getElementById('groqApiKey')?.value ?? prev.groqKey ?? '').trim(),
         groqModel: (document.getElementById('groqModel')?.value || prev.groqModel || DEFAULT_GROQ_MODEL).trim()
     };

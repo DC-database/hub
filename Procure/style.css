@@ -319,6 +319,25 @@ input[type=checkbox] { accent-color: var(--teal); width: auto !important; margin
 .photo-match-list .suggestion-item:hover { background: rgba(255, 255, 255, 0.1); }
 .photo-match-list .photo-empty { cursor: default; opacity: .75; }
 
+/* Item photo picker (checks the OneDrive folder directly) */
+a.ghost-btn { text-decoration: none; }
+.photo-name-row { display: flex; gap: 8px; }
+.photo-name-row input { flex: 1; min-width: 0; }
+.photo-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
+.photo-suggest .hint { margin: 0 2px 0 0; }
+.name-chip { border: 1px solid var(--glass-line); background: rgba(255, 255, 255, 0.06); color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-family: var(--mono); }
+.name-chip:hover { border-color: var(--hivis); color: var(--hivis); }
+.photo-result { border-radius: 12px; padding: 12px; margin-bottom: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-line-2); min-height: 48px; }
+.photo-result p { margin: 0; color: var(--text-2); }
+.photo-result p + p { margin-top: 6px; }
+.photo-result img { display: block; max-width: 100%; max-height: 240px; margin: 0 auto 10px; border-radius: 10px; object-fit: contain; background: rgba(0, 0, 0, 0.25); }
+.photo-result.is-found { border-color: rgba(54, 195, 178, 0.5); background: rgba(54, 195, 178, 0.08); }
+.photo-result.is-found p i { color: var(--teal); }
+.photo-result.is-missing { border-color: rgba(243, 146, 55, 0.45); background: rgba(243, 146, 55, 0.08); }
+.photo-result.is-missing p i { color: var(--orange); }
+.photo-picker-actions { justify-content: space-between; }
+.photo-picker-actions .save-btn { margin-left: auto; }
+
 /* ---------- Assistant ---------- */
 /* Robot helper in the corner (signed-in users only) */
 .robot-dock { position: fixed; right: 16px; bottom: 10px; z-index: 900; display: none; transition: opacity .25s, transform .25s; }
