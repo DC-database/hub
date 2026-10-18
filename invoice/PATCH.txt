@@ -1,17 +1,28 @@
-IBA SYSTEM 15.0.0 patch 40  (small patch - copy over 15.0.0 patch 39)
+IBA SYSTEM 15.0.0 patch 42  (small patch - copy over 15.0.0 patch 41)
 
 HOW TO INSTALL
-  Copy these 2 files over your 15.0.0 patch 39 (keeping folders):
+  Copy these 2 files over your 15.0.0 patch 41 (keeping folders):
     index.html
-    js/iba-assistant.js
-  Everything else stays as patch 39. (preview_patch40.png is only a picture.)
+    js/materialStock.js
+  Everything else stays as patch 41. (preview_patch42.png is only a picture.)
 
-WHAT CHANGED
-  Invoice tracking (PO or vendor), phone and computer:
-  - Every open invoice now has its own "Remind" button, next to INV and
-    Mark urgent. It opens the reminder box right under that invoice,
-    addressed to the person who has it, about that invoice only.
-  - The button at the bottom of the PO is now "Remind all (N)" when the PO
-    has several open invoices (one reminder listing all of them).
-  (Before, there was only one Remind at the very bottom of the PO card, so
-  on the phone it looked missing behind the invoices.)
+WHAT CHANGED - Inventory item photos, no PhotoIndex.csv any more
+  - The GitHub PhotoIndex.csv is not read any more. You do not need to keep
+    it up to date.
+  - Browse Photo now looks straight in the OneDrive Photo folder:
+      * when it opens, it already looks for the item's own name
+        (e.g. "Breaker 32A" -> breaker-32a.jpg, Breaker 32A.jpg, breaker_32a...)
+      * type a word (e.g. nail) and it checks nail.jpg / nail.jpeg / nail.png /
+        nail.webp and the usual spellings (spaces, -, _, capitals)
+      * the photos it finds show as small pictures: tap one, then
+        "Use This Photo" (or double-tap)
+  - .jpeg / .png / .webp photos now work too (before, only .jpg showed);
+    they are saved as their full OneDrive link, so every screen (stock,
+    transfers, phone finder) shows them.
+  - Photos already used on other items still show in the dropdown.
+
+  Limit: the system can only check names it can guess. A file named
+  "wood-nail.jpeg" is found when you type "wood nail" or "wood-nail", but
+  not when you type just "nail" - then type the exact name.
+  If nothing is found, open OneDrive once in that browser (the photos need
+  your OneDrive sign-in to load).

@@ -3127,13 +3127,13 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <label for="ms-photo-browser-manual">Search / Type Photo Name</label>
 <input autocomplete="off" id="ms-photo-browser-manual" list="ms-photo-browser-options" placeholder="Start typing e.g. IBA-Truck" type="text"/>
 <datalist id="ms-photo-browser-options"></datalist>
-<small>Suggestions come from GitHub PhotoIndex.csv. Do not include .jpg; the folder path and extension are automatic.</small>
+<small>Type a word (e.g. nail). The system looks in the OneDrive Photo folder for nail.jpg / .jpeg / .png and names made from the item name, and shows what it finds.</small>
 </div>
 </div>
 <div class="ms-photo-browser-preview clean-preview" id="ms-photo-browser-preview"></div>
 <div class="ms-photo-browser-note">
 <i class="fa-solid fa-circle-info"></i>
-                Direct browsing of a private OneDrive/SharePoint folder needs Microsoft Graph/API login. This safe version lets users search a text photo library, preview the generated OneDrive photo, and attach the selected name.
+                No list file needed: the photos are checked straight in the OneDrive Photo folder. Names it cannot guess (e.g. "wood-nail" when you type "nail") can be typed exactly.
             </div>
 <div class="ms-photo-browser-status" id="ms-photo-browser-status"></div>
 <div class="ms-photo-browser-grid compact-dropdown-status" id="ms-photo-browser-grid"></div>
@@ -3679,7 +3679,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
       }
     </script>
 <script src="js/inventory-pocket.js?v=15.0.0"></script>
-<script src="js/materialStock.js?v=15.0.0-p25"></script>
+<script src="js/materialStock.js?v=15.0.0-p42"></script>
 <script src="js/transferLogic.js?v=15.0.0-p25"></script>
 <script src="js/app-audio.js?v=15.0.0-p13"></script>
 <script src="js/app-core.js?v=8.2.3"></script>
@@ -3687,7 +3687,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-invoice.js?v=15.0.0-p32"></script>
 <script src="js/app-mobile.js?v=15.0.0-p1"></script>
 <script src="js/app-finance.js?v=15.0.0-p12"></script>
-<script src="js/app-chat.js?v=15.0.0-p39"></script>
+<script src="js/app-chat.js?v=15.0.0-p41"></script>
 <script src="js/app-celebration.js?v=8.2.3"></script>
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
@@ -3724,7 +3724,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '16.0.0';
+      window.IBA_SYSTEM_VERSION = '15.4.2';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
@@ -3734,7 +3734,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-task-check.js?v=15.0.0-p23"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=15.0.0-p40"></script>
+<script src="js/iba-assistant.js?v=15.0.0-p41"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
 <script src="js/iba-vacation-handover.js?v=15.0.0-p39"></script>
 <script src="js/iba-session-lock.js?v=15.0.0-p25"></script>
