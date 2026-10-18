@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '15.2.1';
+const APP_VERSION = '15.3.3';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -595,25 +595,83 @@ function updateIMDateTime() {}
 // ==========================================================================
 // NEW FUNCTION: Handle SRV Done (Routes back to Sender)
 // ==========================================================================
+// 15.0.0 patch 23: what a finished Active Task action does next. The row
+// goes away at once, a short message shows (no OK pop-up to wait for), and
+// the list refreshes quietly in the background.
+function ibaToast(message, tone) {
+    try {
+        let el = document.getElementById('iba-action-toast');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'iba-action-toast';
+            el.setAttribute('role', 'status');
+            el.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:13000;max-width:min(92vw,520px);padding:11px 18px;border-radius:12px;font:600 14px/1.35 inherit;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:opacity .25s;opacity:0;pointer-events:none;';
+            document.body.appendChild(el);
+        }
+        el.style.background = tone === 'error' ? '#b42318' : '#14532d';
+        el.textContent = String(message || '');
+        el.style.opacity = '1';
+        clearTimeout(el._t);
+        el._t = setTimeout(() => { el.style.opacity = '0'; }, tone === 'error' ? 5000 : 2600);
+    } catch (_) { try { alert(message); } catch (__) {} }
+}
+window.ibaToast = ibaToast;
+
+function ibaFinishTaskAction(key, message) {
+    const k = String(key || '').trim();
+    try {
+        if (k) {
+            document.querySelectorAll('[data-key]').forEach((el) => {
+                if (el.getAttribute('data-key') !== k) return;
+                const row = el.closest('tr[data-key], .mobile-task-card, .wd-mobile-card, [data-task-row]') || (el.tagName === 'TR' ? el : null);
+                if (row && row.getAttribute('data-key') === k) row.remove();
+            });
+            if (Array.isArray(userActiveTasks)) {
+                const i = userActiveTasks.findIndex(t => t && String(t.key || '').trim() === k);
+                if (i > -1) userActiveTasks.splice(i, 1);
+            }
+            if (typeof activeTaskCountDisplay !== 'undefined' && activeTaskCountDisplay && Array.isArray(userActiveTasks)) {
+                activeTaskCountDisplay.textContent = '(Total Tasks: ' + userActiveTasks.length + ')';
+            }
+        }
+    } catch (_) { /* the background refresh below repairs the list */ }
+    if (message) ibaToast(message);
+    setTimeout(() => {
+        try {
+            if (typeof populateActiveTasks === 'function') {
+                Promise.resolve(populateActiveTasks()).catch((e) => console.warn('Active Task refresh after action failed', e));
+            }
+        } catch (e) { console.warn('Active Task refresh after action failed', e); }
+    }, 30);
+}
+window.ibaFinishTaskAction = ibaFinishTaskAction;
+
+// 15.0.0 patch 23: SRV Done is faster and lighter.
+//  - only the PO list (POVALUE2) is needed; POdetails / ECommit are no longer
+//    downloaded just to open the confirmation
+//  - this PO's invoices are read once (small) and used for the close-out
+//    figures and for the save (before: the same invoice was read twice)
+//  - the saves go out together and are awaited once
 async function handleSRVDone(btn, key) {
     if (btn) {
         btn.disabled = true;
         btn.textContent = 'Processing...';
     }
+    let finished = false;
+    const keyStr = String(key || '').trim();
 
     try {
-        if (typeof ensureInvoiceDataFetched === 'function') {
+        const hasPOList = (typeof allPOData !== 'undefined' && allPOData && Object.keys(allPOData).length > 0);
+        if (!hasPOList && typeof ensureInvoiceDataFetched === 'function') {
             await ensureInvoiceDataFetched(false, { includeInvoiceEntries: false });
         }
 
-        const keyStr = String(key || '').trim();
         const taskFromList = (Array.isArray(userActiveTasks)
             ? (userActiveTasks.find(t => t && String(t.key || '').trim() === keyStr) || {})
             : {});
 
         const isInvoiceDB = keyStr.includes('_') || (taskFromList && taskFromList.source === 'invoice');
 
-        let sender = 'Accounting';
         let oldAttention = '';
         let poNumber = '';
         let invoiceKey = '';
@@ -630,129 +688,91 @@ async function handleSRVDone(btn, key) {
 
             poNumber = String(poNumber || '').trim().toUpperCase();
             const candidateInvoiceKey = String(invoiceKey || '').trim();
-            const cachedInv = (typeof allInvoiceData !== 'undefined' && allInvoiceData
-                && poNumber && candidateInvoiceKey
-                && allInvoiceData[poNumber]
-                && allInvoiceData[poNumber][candidateInvoiceKey])
-                ? allInvoiceData[poNumber][candidateInvoiceKey]
-                : null;
-            // 14.0.0 patch 1 (from 13.0.1): remember that the SRV Done confirmation was already answered.
-            let srvConfirmDone = false;
-            if (cachedInv && typeof window.poCloseoutBeforeSrvDone === 'function') {
-                const closeoutGateFast = await window.poCloseoutBeforeSrvDone(poNumber, candidateInvoiceKey, cachedInv);
-                if (!closeoutGateFast || closeoutGateFast.proceed === false) {
-                    return;
-                }
-                srvConfirmDone = true;
-            }
+            if (!poNumber) throw new Error('Invoice entry not found (no PO).');
 
-            const resolveInvoiceEntry = async () => {
-                if (!poNumber) return { resolvedKey: null, invData: null };
-                if (candidateInvoiceKey) {
-                    const directSnap = await invoiceDb.ref(`invoice_entries/${poNumber}/${candidateInvoiceKey}`).once('value');
-                    if (directSnap.exists()) {
-                        return { resolvedKey: candidateInvoiceKey, invData: directSnap.val() || {} };
-                    }
-                }
+            // one small read: this PO's invoices only
+            let bucket = await imReadPOInvoicesFresh(poNumber);
+            if (!bucket) bucket = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : {};
+
+            let resolvedKey = (candidateInvoiceKey && bucket[candidateInvoiceKey]) ? candidateInvoiceKey : '';
+            if (!resolvedKey) {
                 const targetInvEntryID = String(taskFromList.invEntryID || '').trim();
                 const targetInvNumber = String(taskFromList.ref || taskFromList.invNumber || '').trim();
-                const pickBestMatch = (bucket) => {
-                    const matches = [];
-                    if (!bucket) return null;
-                    for (const [k, v] of Object.entries(bucket)) {
-                        if (!v) continue;
-                        const vEntry = String(v.invEntryID || '').trim();
-                        const vNo = String(v.invNumber || '').trim();
-                        const entryMatch = targetInvEntryID && vEntry && vEntry === targetInvEntryID;
-                        const numberMatch = !entryMatch && targetInvNumber && vNo && vNo === targetInvNumber;
-                        if (entryMatch || numberMatch) {
-                            const score = Number(v.lastUpdated || v.updatedAt || v.enteredAt || 0);
-                            matches.push({ k, v, score });
-                        }
-                    }
-                    if (matches.length === 0) return null;
-                    matches.sort((a, b) => (b.score || 0) - (a.score || 0));
-                    return matches[0];
-                };
-                const cacheBucket = (allInvoiceData && allInvoiceData[poNumber]) ? allInvoiceData[poNumber] : null;
-                let best = pickBestMatch(cacheBucket);
-                if (!best) {
-                    const poSnap = await invoiceDb.ref(`invoice_entries/${poNumber}`).once('value');
-                    const poBucket = poSnap.val() || {};
-                    best = pickBestMatch(poBucket);
-                    if (best) return { resolvedKey: best.k, invData: best.v || {} };
-                }
-                if (best) return { resolvedKey: best.k, invData: best.v || {} };
-                return { resolvedKey: null, invData: null };
-            };
-
-            const { resolvedKey, invData } = await resolveInvoiceEntry();
+                let bestScore = -1;
+                Object.entries(bucket || {}).forEach(([k, v]) => {
+                    if (!v) return;
+                    const vEntry = String(v.invEntryID || '').trim();
+                    const vNo = String(v.invNumber || '').trim();
+                    const entryMatch = targetInvEntryID && vEntry && vEntry === targetInvEntryID;
+                    const numberMatch = !entryMatch && targetInvNumber && vNo && vNo === targetInvNumber;
+                    if (!entryMatch && !numberMatch) return;
+                    const score = Number(v.lastUpdated || v.updatedAt || v.enteredAt || 0);
+                    if (score > bestScore) { bestScore = score; resolvedKey = k; }
+                });
+            }
             if (!resolvedKey) throw new Error(`Invoice entry not found for PO ${poNumber}. (Prevented duplicate creation)`);
             invoiceKey = resolvedKey;
-            sender = (invData && (invData.enteredBy || invData.originEnteredBy)) || 'Accounting';
-            oldAttention = (taskFromList.attention || (invData ? invData.attention : '') || '');
+            const invData = bucket[invoiceKey] || {};
+            oldAttention = (taskFromList.attention || invData.attention || '');
 
-            if (!srvConfirmDone && typeof window.poCloseoutBeforeSrvDone === 'function') {
-                const closeoutGate = await window.poCloseoutBeforeSrvDone(poNumber, invoiceKey, invData || {});
+            // 14.0.0 patch 1: the SRV Done confirmation / PO close-out decision
+            if (typeof window.poCloseoutBeforeSrvDone === 'function') {
+                const closeoutGate = await window.poCloseoutBeforeSrvDone(poNumber, invoiceKey, invData);
                 if (!closeoutGate || closeoutGate.proceed === false) {
                     return;
                 }
             }
 
             const updates = { status: 'SRV Done', attention: '', lastUpdated: firebase.database.ServerValue.TIMESTAMP };
-            await invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates);
-
-            // === SYNC LINKED JOB ENTRY ===
-            await updateLinkedJobEntry(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task');
-
-            try {
+            const latest = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey]) || invData;
+            const updatedInvoiceData = { ...latest, ...updates };
+            const saves = [];
+            saves.push(invoiceDb.ref(`invoice_entries/${poNumber}/${invoiceKey}`).update(updates));
+            // === SYNC LINKED JOB ENTRY === (uses the invoice just read, no extra read)
+            saves.push(updateLinkedJobEntry(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task'));
+            if (typeof updateInvoiceTaskLookup === 'function') {
+                // also removes the row from every inbox (All, Irwin, the old Attention, ...)
+                saves.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, oldAttention));
+            } else {
                 const sanitizeFirebaseKey = (k) => String(k || '').replace(/[.#$[\]]/g, '_');
                 const safeMe = sanitizeFirebaseKey(currentApprover?.Name || '');
-                const removals = [];
-                const keysToRemove = new Set([invoiceKey, candidateInvoiceKey].filter(Boolean));
-                for (const k of keysToRemove) {
-                    if (safeMe) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safeMe}/${k}`).remove());
-                    removals.push(invoiceDb.ref(`invoice_tasks_by_user/All/${k}`).remove());
-                }
-                await Promise.allSettled(removals);
-            } catch (_) { }
-
-            const originalInvoice = (allInvoiceData && allInvoiceData[poNumber] && allInvoiceData[poNumber][invoiceKey])
-                ? allInvoiceData[poNumber][invoiceKey]
-                : (invData || {});
-            const updatedInvoiceData = { ...originalInvoice, ...updates };
-            if (typeof updateInvoiceTaskLookup === 'function') {
-                await updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, oldAttention);
+                const multi = {};
+                [invoiceKey, candidateInvoiceKey].filter(Boolean).forEach((k) => {
+                    if (safeMe) multi[`${safeMe}/${k}`] = null;
+                    multi[`All/${k}`] = null;
+                });
+                saves.push(invoiceDb.ref('invoice_tasks_by_user').update(multi).catch(() => {}));
+            }
+            if (window.logInvoiceHistory) {
+                saves.push(window.logInvoiceHistory(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task'));
             }
             updateLocalInvoiceCache(poNumber, invoiceKey, updates);
-            if (window.logInvoiceHistory) {
-                await window.logInvoiceHistory(poNumber, invoiceKey, 'SRV Done', 'Marked SRV Done via Active Task');
-            }
+            await Promise.all(saves);
         } else {
-            if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(false);
-            const jobEntry = (allSystemEntries || []).find(e => e.key === keyStr);
-            if (jobEntry) {
-                sender = jobEntry.enteredBy || 'Accounting';
-                oldAttention = jobEntry.attention || '';
-            }
+            const jobEntry = (Array.isArray(allSystemEntries) ? allSystemEntries : []).find(e => e && e.key === keyStr);
+            if (jobEntry) oldAttention = jobEntry.attention || '';
             await db.ref(`job_entries/${keyStr}`).update({
                 remarks: 'SRV Done',
                 attention: '',
                 dateResponded: formatDate(new Date())
             });
+            try {
+                if (jobEntry) Object.assign(jobEntry, { remarks: 'SRV Done', attention: '', dateResponded: formatDate(new Date()) });
+            } catch (_) {}
         }
 
-        alert('SRV Completed. Task removed from Active Tasks.');
-        if (typeof populateActiveTasks === 'function') await populateActiveTasks();
+        finished = true;
+        ibaFinishTaskAction(keyStr, 'SRV Done saved. Task removed from Active Tasks.');
     } catch (error) {
         console.error("Error marking SRV Done:", error);
-        alert("Error updating status. Please try again.");
+        ibaToast(error && error.message && /not found/i.test(error.message) ? error.message : 'Error updating status. Please try again.', 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
             btn.textContent = 'SRV Done';
         }
     }
+    return finished;
 }
 
 // ==========================================================================
@@ -1919,8 +1939,8 @@ async function handleDesktopApproval(task, action) {
     try {
         // 3. Update Database
         if (task.source === 'job_entry') {
-            await db.ref('job_entries/' + task.key).update(updates);
-            await db.ref('job_entries/' + task.key + '/history').push(historyEntry);
+            // 15.0.0 patch 23: both writes go out together
+            await Promise.all([db.ref('job_entries/' + task.key).update(updates), db.ref('job_entries/' + task.key + '/history').push(historyEntry)]);
         } 
         else if (task.source === 'invoice') {
             await invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey).update(updates);
@@ -2123,6 +2143,19 @@ function getJobDataFromForm() {
 // HANDLER: ADD NEW JOB ENTRY (Fully Updated)
 // Includes: Smart Vendor Search & Smart Accounting Assign
 // =========================================================
+// 15.0.0 patch 25: the people list (for vacation delegation) is re-read at
+// most every 10 minutes when saving, instead of on every save.
+async function ibaEnsureApproversFresh(maxAgeMs) {
+    try {
+        const haveApprovers = (typeof allApproverDataCache !== 'undefined' && allApproverDataCache && Object.keys(allApproverDataCache).length > 0)
+            || (typeof allApproverData !== 'undefined' && allApproverData && Object.keys(allApproverData).length > 0);
+        if (haveApprovers && !window.__ibaApproverSeenAt) window.__ibaApproverSeenAt = Date.now();
+        const at = Number((typeof cacheTimestamps !== 'undefined' && cacheTimestamps && cacheTimestamps.approverData) || window.__ibaLastApproverDataFetchAt || window.__ibaApproverSeenAt || 0);
+        if (!haveApprovers || Date.now() - at > (maxAgeMs || 10 * 60 * 1000)) await ensureApproverDataCached(true);
+    } catch (_) { /* never blocks a save */ }
+}
+window.ibaEnsureApproversFresh = ibaEnsureApproversFresh;
+
 async function handleAddJobEntry(e) {
     e.preventDefault();
     
@@ -2150,7 +2183,7 @@ async function handleAddJobEntry(e) {
 
     try {
         // 2.a Ensure Approver/Vacation data is fresh (so new entries route to the correct replacement)
-        await ensureApproverDataCached(true);
+        await ibaEnsureApproversFresh();
 
         // 2. Ensure we have reference data (PO & Vendors)
         await ensureAllEntriesFetched(); 
@@ -2264,19 +2297,20 @@ async function handleAddJobEntry(e) {
 // =========================================================
         // SAVE TO FIREBASE
         // =========================================================
-        const newRef = await db.ref('job_entries').push(jobData);
+        // 15.0.0 patch 25: the job and its "recently changed" marker are saved
+        // together, and the local list is updated in place (before, the whole
+        // job list was downloaded again after every new job).
+        const newRef = db.ref('job_entries').push();
         const localCreatedJob = { ...jobData, key: newRef.key, source: 'job_entry', updatedAt: Date.now(), timestamp: Date.now() };
+        await Promise.all([newRef.set(jobData), wdWriteWorkdeskJobRecentMarker(newRef.key, localCreatedJob, 'created')]);
         wdUpsertLocalWorkdeskJobEntryCache(newRef.key, localCreatedJob);
-        await wdWriteWorkdeskJobRecentMarker(newRef.key, localCreatedJob, 'created');
         try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
-
-        // Update Local Cache immediately so we don't need a hard refresh
-        await ensureAllEntriesFetched(true); 
+        try { if (typeof wdRebuildAllSystemEntriesFromFamilyCaches === 'function') wdRebuildAllSystemEntriesFromFamilyCaches(); } catch (_) {}
 
         // =========================================================
         // CLEANUP & UI RESET
         // =========================================================
-        alert("New Job Added Successfully!");
+        if (typeof window.ibaToast === 'function') window.ibaToast('New job added.'); else alert("New Job Added Successfully!");
         
         const modal = document.getElementById('standard-job-modal');
         if (modal) modal.classList.add('hidden');
@@ -2772,7 +2806,7 @@ async function handleUpdateJobEntry(e) {
         return (typeof resolveVacationAssignee === 'function') ? resolveVacationAssignee(handler) : handler;
     };
 
-    try { await ensureApproverDataCached(true); } catch (err) { /* non-blocking */ }
+    await ibaEnsureApproversFresh();
 
     const newJobType = normalizeJobType(jobData.for);
 
@@ -2799,8 +2833,12 @@ async function handleUpdateJobEntry(e) {
     }
 
     try {
-        await ensureAllEntriesFetched(true);
-        const originalEntry = allSystemEntries.find(entry => entry.key === currentlyEditingKey);
+        // 15.0.0 patch 25: read only this job, fresh (before: the whole job list)
+        let originalEntry = (Array.isArray(allSystemEntries) ? allSystemEntries : []).find(entry => entry && entry.key === currentlyEditingKey);
+        try {
+            const jobSnap = await db.ref(`job_entries/${currentlyEditingKey}`).once('value');
+            if (jobSnap.exists()) originalEntry = { ...(originalEntry || {}), ...(jobSnap.val() || {}), key: currentlyEditingKey, source: 'job_entry' };
+        } catch (jobReadErr) { console.warn('Could not re-read the job; using the loaded copy.', jobReadErr); }
         const originalJobType = normalizeJobType(originalEntry?.for || originalEntry?.jobType || '');
         const convertedToInvoice = !!originalEntry && originalJobType !== 'Invoice' && jobData.for === 'Invoice';
 
@@ -2898,10 +2936,10 @@ async function handleUpdateJobEntry(e) {
         jobData.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         jobData.updatedBy = updaterName;
 
-        await db.ref(`job_entries/${currentlyEditingKey}`).update(jobData);
+        const jobSaves = [db.ref(`job_entries/${currentlyEditingKey}`).update(jobData)];
         const localUpdatedJob = { ...(originalEntry || {}), ...jobData, key: currentlyEditingKey, source: 'job_entry', updatedAt: Date.now() };
         wdUpsertLocalWorkdeskJobEntryCache(currentlyEditingKey, localUpdatedJob);
-        await wdWriteWorkdeskJobRecentMarker(currentlyEditingKey, localUpdatedJob, 'updated');
+        jobSaves.push(wdWriteWorkdeskJobRecentMarker(currentlyEditingKey, localUpdatedJob, 'updated'));
         const cleanCurrentNote = String(jobData.note || jobData.details || '').trim();
         const historyNote = convertedToInvoice
             ? `Converted from ${originalJobType || 'Job Record'} to Invoice and routed to: ${jobData.attention}${cleanCurrentNote ? ' | Note: ' + cleanCurrentNote : ''}`
@@ -2915,7 +2953,8 @@ async function handleUpdateJobEntry(e) {
             status: jobData.remarks || "Updated",
             note: historyNote
         };
-        await db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry);
+        jobSaves.push(db.ref(`job_entries/${currentlyEditingKey}/history`).push(historyEntry));
+        await Promise.all(jobSaves);
 
         // 10.1.1: The Firebase update/history save is complete at this point.
         // Reset the button immediately before the heavier UI refresh so users do not
@@ -2926,31 +2965,27 @@ async function handleUpdateJobEntry(e) {
             btn.removeAttribute('disabled');
         }
 
-        alert(convertedToInvoice ? 'Job converted to Invoice successfully!' : 'Job Updated Successfully!');
+        if (typeof window.ibaToast === 'function') window.ibaToast(convertedToInvoice ? 'Job converted to Invoice.' : 'Job updated.');
+        else alert(convertedToInvoice ? 'Job converted to Invoice successfully!' : 'Job Updated Successfully!');
 
         if (typeof closeStandardJobModal === 'function') closeStandardJobModal();
 
-        // Force all affected WorkDesk lists/cards to refresh after bucket changes.
-        // This is intentionally separated from the actual save confirmation.
+        // 15.0.0 patch 25: the lists refresh from the copy already updated in
+        // place, in the background (before: the whole job list was downloaded
+        // again and Active Task + Dashboard were rebuilt before the screen settled).
         try {
-            allSystemEntries = [];
-            if (typeof cacheTimestamps !== 'undefined') {
-                cacheTimestamps.systemEntries = 0;
-                cacheTimestamps.invoiceData = 0;
-            }
-
             try {
                 sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V1');
                 localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V1');
                 if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
             } catch (_) {}
-
-            await ensureAllEntriesFetched(true);
-
+            try { if (typeof wdRebuildAllSystemEntriesFromFamilyCaches === 'function') wdRebuildAllSystemEntriesFromFamilyCaches(); } catch (_) {}
             const currentSearch = sessionStorage.getItem('jobEntrySearch') || '';
             if (typeof handleJobEntrySearch === 'function') handleJobEntrySearch(currentSearch);
-            if (typeof populateActiveTasks === 'function') await populateActiveTasks(true);
-            if (typeof populateWorkdeskDashboard === 'function') await populateWorkdeskDashboard(true);
+            setTimeout(() => {
+                try { if (typeof populateActiveTasks === 'function') Promise.resolve(populateActiveTasks()).catch(() => {}); } catch (_) {}
+                try { if (typeof populateWorkdeskDashboard === 'function') Promise.resolve(populateWorkdeskDashboard(false)).catch(() => {}); } catch (_) {}
+            }, 30);
         } catch (refreshError) {
             console.warn('Job saved, but screen refresh was delayed or failed:', refreshError);
         }
@@ -3759,7 +3794,11 @@ async function handleSaveModifiedTask() {
         note: modifyTaskNote.value.trim()
     };
 
-    try { await ensureApproverDataCached(true); } catch (e) { /* ignore */ }
+    // 15.0.0 patch 23: say "Saving..." straight away; the people list (for
+    // vacation delegation) is re-read only when the copy is over 10 minutes old.
+    modifyTaskSaveBtn.disabled = true;
+    modifyTaskSaveBtn.textContent = 'Saving...';
+    await ibaEnsureApproversFresh();
 
     if (updates.attention && updates.attention !== 'All' && updates.attention !== 'None') {
         try {
@@ -3798,19 +3837,28 @@ async function handleSaveModifiedTask() {
                 }
             }
 
-            if (typeof updateReportWorkflow === 'function') {
-                await updateReportWorkflow(originalPO, originalKey, updates.status, currentApprover, updates.attention);
-            } else {
+            // 15.0.0 patch 23: the report record is only touched for Report
+            // Approval or by Finance, so it is only read then.
+            const isFinanceUser = String((currentApprover && currentApprover.Position) || '').toLowerCase().includes('finance');
+            if (typeof updateReportWorkflow !== 'function') {
                 throw new Error("Helper function 'updateReportWorkflow' is missing from app.js!");
             }
-
-            // === SYNC LINKED JOB ENTRY ===
-            await updateLinkedJobEntry(originalPO, originalKey, selectedStatus, modifyTaskNote.value);
+            if (updates.status === 'Report Approval' || isFinanceUser) {
+                await updateReportWorkflow(originalPO, originalKey, updates.status, currentApprover, updates.attention);
+            }
+            // this PO's invoices only (small), fresh - no full invoice download
+            if (typeof imReadPOInvoicesFresh === 'function') await imReadPOInvoicesFresh(originalPO);
         }
 
         if (source === 'job_entry') {
-            await ensureAllEntriesFetched(true);
-            const originalEntry = allSystemEntries.find(entry => entry.key === key) || {};
+            // 15.0.0 patch 23: read only this job (before: all job_entries)
+            let originalEntry = (Array.isArray(allSystemEntries) ? allSystemEntries : []).find(entry => entry && entry.key === key) || {};
+            try {
+                const jobSnap = await db.ref(`job_entries/${key}`).once('value');
+                if (jobSnap.exists()) originalEntry = { ...originalEntry, ...(jobSnap.val() || {}), key, source: 'job_entry' };
+            } catch (jobReadErr) {
+                console.warn('Could not re-read the job; using the loaded copy.', jobReadErr);
+            }
             const originalFor = String(originalEntry.for || '').trim();
             const selectedStatusNorm = String(selectedStatus || '').trim();
             const todayStr = formatDate(new Date());
@@ -3898,21 +3946,25 @@ async function handleSaveModifiedTask() {
 
             updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
             updates.updatedBy = currentApprover?.Name || 'System';
-            await db.ref(`job_entries/${key}`).update(updates);
+            const jobSaves = [db.ref(`job_entries/${key}`).update(updates)];
             const localJobUpdate = { ...(originalEntry || {}), ...updates, key, source: 'job_entry', updatedAt: Date.now() };
             wdUpsertLocalWorkdeskJobEntryCache(key, localJobUpdate);
-            await wdWriteWorkdeskJobRecentMarker(key, localJobUpdate, 'updated');
-            await db.ref(`job_entries/${key}/history`).push({
+            jobSaves.push(wdWriteWorkdeskJobRecentMarker(key, localJobUpdate, 'updated'));
+            jobSaves.push(db.ref(`job_entries/${key}/history`).push({
                 action: historyAction,
                 by: currentApprover?.Name || 'System',
                 timestamp: Date.now(),
                 status: updates.remarks || updates.status || selectedStatusNorm,
                 note: historyNote || `Updated Status to: ${updates.remarks || updates.status || selectedStatusNorm}`
-            });
-            try { if (typeof cacheTimestamps !== 'undefined') cacheTimestamps.systemEntries = 0; } catch (_) {}
+            }));
+            await Promise.all(jobSaves);
+            try {
+                // keep the loaded job list in step (no full re-download needed)
+                const live = (Array.isArray(allSystemEntries) ? allSystemEntries : []).find(entry => entry && entry.key === key);
+                if (live) Object.assign(live, updates, { updatedAt: Date.now() });
+            } catch (_) {}
         } else if (source === 'invoice' && originalPO && originalKey) {
-            if (!allInvoiceData) await ensureInvoiceDataFetched();
-            const originalInvoice = (allInvoiceData && allInvoiceData[originalPO]) ? allInvoiceData[originalPO][originalKey] : {};
+            const originalInvoice = (allInvoiceData && allInvoiceData[originalPO] && allInvoiceData[originalPO][originalKey]) ? allInvoiceData[originalPO][originalKey] : {};
             const oldInvoiceStatus = String((originalInvoice && originalInvoice.status) || '').trim();
             const newInvoiceStatus = String(updates.status || '').trim();
             if (newInvoiceStatus && oldInvoiceStatus !== newInvoiceStatus) {
@@ -3937,18 +3989,21 @@ async function handleSaveModifiedTask() {
                 const approvalGate = await window.ibaApprovals.prepareStatusSave(originalPO, originalKey, gateOriginal, updates, newInvoiceStatus);
                 if (!approvalGate.ok) throw new Error(approvalGate.message);
             }
-            await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
+            // 15.0.0 patch 23: the saves go out together, awaited once
+            const invSaves = [invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates)];
             const updatedInvoiceData = { ...originalInvoice, ...updates };
-            await updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention);
-            updateLocalInvoiceCache(originalPO, originalKey, updates);
+            // === SYNC LINKED JOB ENTRY === (uses the invoice just read)
+            invSaves.push(updateLinkedJobEntry(originalPO, originalKey, selectedStatus, modifyTaskNote.value));
+            invSaves.push(updateInvoiceTaskLookup(originalPO, originalKey, updatedInvoiceData, originalAttention));
             if (window.logInvoiceHistory) {
-                await window.logInvoiceHistory(originalPO, originalKey, updates.status, updates.note);
+                invSaves.push(window.logInvoiceHistory(originalPO, originalKey, updates.status, updates.note));
             }
+            updateLocalInvoiceCache(originalPO, originalKey, updates);
+            await Promise.all(invSaves);
         }
 
-        alert("Task updated successfully!");
         modifyTaskModal.classList.add('hidden');
-        await populateActiveTasks();
+        ibaFinishTaskAction(key, 'Task updated successfully!');
     } catch (error) {
         console.error("Detailed Error:", error);
         alert("Update Failed: " + error.message);
@@ -3999,9 +4054,14 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
     // With Accounts records are added; every other status removes the index row.
     // The master invoice remains authoritative and invoice saving must not fail
     // if this lightweight search index is temporarily unavailable.
+    // 15.0.0 patch 23: the index writes below go out together (Firebase keeps
+    // the order of writes from one browser) and are awaited once at the end,
+    // instead of one round trip each.
+    const lookupPending = [];
     try {
         if (!options.skipPaymentReadySync && typeof window.syncInvoicePaymentReadyIndex === 'function') {
-            await window.syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData || {});
+            lookupPending.push(Promise.resolve(window.syncInvoicePaymentReadyIndex(poNumber, invoiceKey, invoiceData || {}))
+                .catch((paymentIndexError) => console.warn('Payment-ready index synchronization skipped:', paymentIndexError)));
         }
     } catch (paymentIndexError) {
         console.warn('Payment-ready index synchronization skipped:', paymentIndexError);
@@ -4031,12 +4091,22 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             arr.forEach(u => addName(u && (u.Name || u.name)));
         } catch (_) { /* ignore */ }
 
-        const removals = [];
+        // 15.0.0 patch 23: one multi-path request removes the row from every
+        // inbox (before: one request per user). Same result; falls back to
+        // the old one-by-one removal if the combined write is refused.
+        const multi = {};
         names.forEach(name => {
             const safe = sanitizeFirebaseKey(name);
-            if (safe) removals.push(invoiceDb.ref(`invoice_tasks_by_user/${safe}/${invoiceKey}`).remove());
+            if (safe) multi[`${safe}/${invoiceKey}`] = null;
         });
-        if (removals.length) await Promise.allSettled(removals);
+        if (!Object.keys(multi).length) return;
+        try {
+            await invoiceDb.ref('invoice_tasks_by_user').update(multi);
+        } catch (multiErr) {
+            console.warn('Combined inbox cleanup refused, removing one by one:', multiErr);
+            const removals = Object.keys(multi).map(path => invoiceDb.ref(`invoice_tasks_by_user/${path}`).remove());
+            await Promise.allSettled(removals);
+        }
     };
     const markWorkdeskDashboardRecent = async (activeFlag, extra = {}) => {
         try {
@@ -4107,8 +4177,9 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
     // task-index row first and stop; do not let old invoice_tasks_by_user rows
     // recreate cards in WorkDesk Dashboard/Active Task.
     if (!isTaskNowActive) {
-        await removeInvoiceTaskLookupEverywhere();
-        await markWorkdeskDashboardRecent(false);
+        lookupPending.push(removeInvoiceTaskLookupEverywhere());
+        lookupPending.push(markWorkdeskDashboardRecent(false));
+        await Promise.all(lookupPending);
         return;
     }
 
@@ -4270,17 +4341,20 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         // Personal tasks remain strictly Attention-based. The broad All index is
         // independent so blank-Attention active queues cannot disappear.
         if (safeNewAttentionKey) {
-            await invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData);
+            lookupPending.push(invoiceDb.ref(`invoice_tasks_by_user/${safeNewAttentionKey}/${invoiceKey}`).set(taskData));
         }
-        await invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).set(taskData);
-        await markWorkdeskDashboardRecent(true, taskData);
+        lookupPending.push(invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}`).set(taskData));
+        lookupPending.push(markWorkdeskDashboardRecent(true, taskData));
     }
 
     // 2. Remove from old user's inbox
     if (oldAttention && (oldAttention !== newAttention || !isTaskNowActive)) {
         const safeOldAttentionKey = sanitizeFirebaseKey(oldAttention);
-        await invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove();
+        if (safeOldAttentionKey !== sanitizeFirebaseKey(newAttention)) {
+            lookupPending.push(invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove());
+        }
     }
+    await Promise.all(lookupPending);
 }
 
 async function removeInvoiceTaskFromUser(invoiceKey, oldData) {
@@ -4491,8 +4565,21 @@ function imUsedInvEntryNumbers(invoices) {
     return { used, max };
 }
 
+// 15.0.0 patch 25: Add / Update lock their button while saving (a second
+// click could save the same invoice twice) and say "Saving..." at once.
+async function ibaRunWithButton(btn, label, fn) {
+    if (btn && btn.__ibaBusy) return;
+    const old = btn ? btn.innerHTML : '';
+    if (btn) { btn.__ibaBusy = true; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ' + label; }
+    try { return await fn(); }
+    finally { if (btn) { btn.__ibaBusy = false; btn.disabled = false; btn.innerHTML = old; } }
+}
 async function handleAddInvoice(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    const btn = (typeof imAddInvoiceButton !== 'undefined' && imAddInvoiceButton) ? imAddInvoiceButton : null;
+    return ibaRunWithButton(btn, 'Saving...', () => handleAddInvoiceRun(e));
+}
+async function handleAddInvoiceRun(e) {
     if (!currentPO) {
         alert('No PO is loaded. Please search for a PO first.');
         return;
@@ -4668,31 +4755,34 @@ async function handleAddInvoice(e) {
     }
 
     try {
-        const newRef = await invoiceDb.ref(`invoice_entries/${currentPO}`).push(invoiceData);
+        // 15.0.0 patch 25: the invoice, its task-list rows and its first history
+        // line go out together (Firebase keeps their order) and are waited for once.
+        const newRef = invoiceDb.ref(`invoice_entries/${currentPO}`).push();
         const newKey = newRef.key;
-
-	if (jobEntryToUpdateAfterInvoice) {
-    await invoiceDb.ref(`invoice_entries/${currentPO}/${newKey}`).update({
-        linkedJobEntryKey: jobEntryToUpdateAfterInvoice,
-        originDateEntered: invoiceData.originDateEntered || '',
-        jobRecordDateEntered: invoiceData.jobRecordDateEntered || '',
-        dateEntered: invoiceData.dateEntered || '',
-        jobRecordTimestamp: invoiceData.jobRecordTimestamp || invoiceData.originTimestamp || ''
-    });
-}
+        const addSaves = [newRef.set(invoiceData)];
+        if (jobEntryToUpdateAfterInvoice) {
+            addSaves.push(invoiceDb.ref(`invoice_entries/${currentPO}/${newKey}`).update({
+                linkedJobEntryKey: jobEntryToUpdateAfterInvoice,
+                originDateEntered: invoiceData.originDateEntered || '',
+                jobRecordDateEntered: invoiceData.jobRecordDateEntered || '',
+                dateEntered: invoiceData.dateEntered || '',
+                jobRecordTimestamp: invoiceData.jobRecordTimestamp || invoiceData.originTimestamp || ''
+            }));
+        }
 
         // [SMART REFRESH] 2. Log this update so "Smart Refresh" can find it
         if (typeof logRecentUpdate === 'function') {
             logRecentUpdate(currentPO);
         }
 
-        await updateInvoiceTaskLookup(currentPO, newKey, invoiceData, null);
+        addSaves.push(updateInvoiceTaskLookup(currentPO, newKey, invoiceData, null));
 
         if (window.logInvoiceHistory) {
-            await window.logInvoiceHistory(currentPO, newKey, invoiceData.status, "Initial Entry");
+            addSaves.push(window.logInvoiceHistory(currentPO, newKey, invoiceData.status, "Initial Entry"));
         }
+        await Promise.all(addSaves);
 
-        alert('Invoice added successfully!');
+        if (typeof window.ibaToast === 'function') window.ibaToast('Invoice added.'); else alert('Invoice added successfully!');
 
         // Update Local Cache
         if (allInvoiceData && newKey) {
@@ -4746,14 +4836,14 @@ async function handleAddInvoice(e) {
                 const completedKey = jobEntryToUpdateAfterInvoice;
                 updates.updatedAt = firebase.database.ServerValue.TIMESTAMP;
                 updates.updatedBy = currentApprover?.Name || 'System';
-                await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates);
+                const convSaves = [db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}`).update(updates)];
                 try {
-                    await db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}/history`).push({
+                    convSaves.push(db.ref(`job_entries/${jobEntryToUpdateAfterInvoice}/history`).push({
                         action: 'Converted to Invoice',
                         by: currentApprover?.Name || 'System',
                         timestamp: firebase.database.ServerValue.TIMESTAMP,
                         note: `Converted ${updates.invoiceConvertedFrom} to Invoice Entry ${invoiceData.invEntryID || newKey} / PO ${currentPO}. Job Entry type changed to Invoice.`
-                    });
+                    }).then(null, (historyError) => console.warn('The IPC conversion audit note could not be added, but the Job Entry was converted successfully.', historyError)));
                 } catch (historyError) {
                     console.warn('The IPC conversion audit note could not be added, but the Job Entry was converted successfully.', historyError);
                 }
@@ -4763,12 +4853,14 @@ async function handleAddInvoice(e) {
                         : null);
                     const localJobUpdate = { ...(local || {}), ...updates, key: completedKey, source: 'job_entry', updatedAt: Date.now() };
                     wdUpsertLocalWorkdeskJobEntryCache(completedKey, localJobUpdate);
-                    await wdWriteWorkdeskJobRecentMarker(completedKey, localJobUpdate, 'updated');
+                    convSaves.push(Promise.resolve(wdWriteWorkdeskJobRecentMarker(completedKey, localJobUpdate, 'updated')).catch(() => {}));
                 } catch (_) {}
+                await Promise.all(convSaves);
 
                 jobEntryToUpdateAfterInvoice = null;
                 if (typeof imInvalidateActiveJobsSidebarCache === 'function') imInvalidateActiveJobsSidebarCache();
-                await populateActiveJobsSidebar(true);
+                // the sidebar refreshes in the background
+                Promise.resolve(populateActiveJobsSidebar(true)).catch(() => {});
 
             } catch (updateError) {
                 console.error("Error updating the original job entry:", updateError);
@@ -4792,7 +4884,11 @@ async function handleAddInvoice(e) {
 
 
 async function handleUpdateInvoice(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    const btn = (typeof imUpdateInvoiceButton !== 'undefined' && imUpdateInvoiceButton) ? imUpdateInvoiceButton : null;
+    return ibaRunWithButton(btn, 'Saving...', () => handleUpdateInvoiceRun(e));
+}
+async function handleUpdateInvoiceRun(e) {
     if (!canCurrentUserEditInvoiceEntry()) {
         alert('Access Denied: Only Irwin/Super Admin or the active vacation replacement can edit an existing invoice.');
         return;
@@ -4928,16 +5024,20 @@ async function handleUpdateInvoice(e) {
     }
 
     try {
-        await invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData);
+        // 15.0.0 patch 25: the invoice, the linked job, the task-list rows and the
+        // history line go out together and are waited for once.
+        const updSaves = [invoiceDb.ref(`invoice_entries/${currentPO}/${currentlyEditingInvoiceKey}`).update(invoiceData)];
+        updateLocalInvoiceCache(currentPO, currentlyEditingInvoiceKey, invoiceData);
 
         // === SYNC LINKED JOB ENTRY ===
-        await updateLinkedJobEntry(currentPO, currentlyEditingInvoiceKey, invoiceData.status, invoiceData.note);
+        updSaves.push(updateLinkedJobEntry(currentPO, currentlyEditingInvoiceKey, invoiceData.status, invoiceData.note));
 
         if (typeof logRecentUpdate === 'function') {
             logRecentUpdate(currentPO);
         }
 
-        if (newStatus === "With Accounts" || newStatus === "Paid") {
+        // older invoices without a linked job: close the matching job in the background
+        if (newStatus === "With Accounts" || newStatus === "Paid") (async () => {
             console.log("🔄 Syncing: Checking for linked Job Entries...");
             let jobsToSearch = (typeof allSystemEntries !== 'undefined') ? allSystemEntries : [];
             if (!jobsToSearch || jobsToSearch.length === 0) {
@@ -4966,22 +5066,22 @@ async function handleUpdateInvoice(e) {
                     note: `Status synced from Invoice Entry: ${newStatus}`
                 });
             }
-        }
+        })().catch((syncErr) => console.warn('Job sync after the invoice update failed:', syncErr));
 
         const oldAttn = originalInvoiceData ? originalInvoiceData.attention : null;
-        await updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn);
+        updSaves.push(updateInvoiceTaskLookup(currentPO, currentlyEditingInvoiceKey, invoiceData, oldAttn));
 
         if (newStatus !== oldStatus && window.logInvoiceHistory) {
-            await window.logInvoiceHistory(
+            updSaves.push(window.logInvoiceHistory(
                 currentPO,
                 currentlyEditingInvoiceKey,
                 newStatus || invoiceData.status || oldStatus || 'Updated',
                 invoiceData.note || ''
-            );
+            ));
         }
+        await Promise.all(updSaves);
 
-        alert('Invoice updated successfully!');
-        updateLocalInvoiceCache(currentPO, currentlyEditingInvoiceKey, invoiceData);
+        if (typeof window.ibaToast === 'function') window.ibaToast('Invoice updated.'); else alert('Invoice updated successfully!');
 
         if (invoiceData.note && invoiceData.note.trim() !== '') {
             allUniqueNotes.add(invoiceData.note.trim());
@@ -5382,19 +5482,23 @@ async function imBatchSaveRun() {
     // 14.0.0 patch 5: an invoice can have at most 3 approvals. Check every row
     // that is being sent "For Approval" before anything is saved.
     if (window.ibaApprovals) {
+        // 15.0.0 patch 25: all rows are checked at the same time
         const blocked = [];
+        const checks = [];
         for (const row of rows) {
             const key = row.dataset.key;
             if (!key) continue;
             const statusEl = row.querySelector('[name="status"]');
             const finalStatus = batchGlobalStatus || (statusEl ? String(statusEl.value || '').trim() : '');
             if (window.ibaApprovals.statusNorm(finalStatus) !== 'for approval') continue;
-            const used = await window.ibaApprovals.countApprovals(row.dataset.po, key);
-            if (used >= window.ibaApprovals.MAX_APPROVALS) {
-                const invInput = row.querySelector('input[name="invNumber"]');
-                blocked.push(`PO ${row.dataset.po}${invInput && invInput.value ? ' / invoice ' + invInput.value : ''}`);
-            }
+            checks.push(window.ibaApprovals.countApprovals(row.dataset.po, key).then((used) => {
+                if (used >= window.ibaApprovals.MAX_APPROVALS) {
+                    const invInput = row.querySelector('input[name="invNumber"]');
+                    blocked.push(`PO ${row.dataset.po}${invInput && invInput.value ? ' / invoice ' + invInput.value : ''}`);
+                }
+            }));
         }
+        await Promise.all(checks);
         if (blocked.length) {
             alert(`Nothing was saved.\n\nThese invoices already have ${window.ibaApprovals.MAX_APPROVALS} approvals and cannot be sent for another approval:\n- ${blocked.join('\n- ')}\n\nChange their status, then save again.`);
             return;
@@ -6913,7 +7017,7 @@ try {
     function ibaEnterTestPreviewLogin() {
         try {
             if (window.IBA_TAB_GUARD && typeof window.IBA_TAB_GUARD.isUnsupportedBrowser === 'function' && window.IBA_TAB_GUARD.isUnsupportedBrowser()) {
-                alert('IBA System is allowed only in Google Chrome. Please open this system using Google Chrome.');
+                alert('IBA System works in Google Chrome, Microsoft Edge or Safari. Please open it in one of them.');
                 return;
             }
         } catch (_) {}
