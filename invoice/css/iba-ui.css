@@ -6053,3 +6053,16 @@
     background-color: rgba(8, 12, 22, 0.55) !important;
   }
 }
+
+/* 15.0.0 patch 36: Dashboard opened on a card - the search row sits in the
+   small space next to the date chips. Check all, Weekly report and Refresh
+   belong to the main Dashboard only; the search and Clear get proper room. */
+@layer iba-ui {
+  html body #wd-dashboard .wd-dash-search-slot :is(#iba-task-check-btn, #iba-wr-btn, #wd-active-dashboard-refresh) { display: none !important; }
+  html body #wd-dashboard .wd-dash-search-slot .wd-active-dashboard-search-row { display: flex !important; flex-wrap: nowrap !important; justify-content: flex-end !important; align-items: center !important; gap: 8px !important; width: auto !important; max-width: 100% !important; }
+  html body #wd-dashboard .wd-dash-search-slot .wd-active-dashboard-search-wrap { flex: 0 1 290px !important; width: 290px !important; max-width: 290px !important; min-width: 200px !important; }
+  html body #wd-dashboard .wd-dash-search-slot #wd-active-dashboard-clear { flex: 0 0 auto !important; width: auto !important; min-width: 96px !important; white-space: nowrap !important; overflow: visible !important; }
+}
+@layer iba-ui {
+  html body.iba-shell-on #wd-dashboard :is(#iba-task-check-btn, #iba-wr-btn) { height: 38px !important; min-height: 0 !important; padding: 0 14px !important; border-radius: var(--ui-radius-m, 10px) !important; box-shadow: none !important; }
+}

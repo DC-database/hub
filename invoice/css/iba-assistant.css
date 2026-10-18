@@ -924,3 +924,43 @@
   #iba-ai-panel .iba-ai-skill-ask input:not([type="checkbox"]):not([type="radio"]) { padding-right: 11px !important; }
   #iba-ai-panel .iba-ai-skill-ask select option { color: #122033 !important; -webkit-text-fill-color: #122033 !important; background: #ffffff !important; }
 }
+
+/* 15.0.0 patch 36: Cancel easy to see on every question form, x in the corner */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-mini.iba-ai-cancel { background: transparent !important; border: 1px solid rgba(226, 232, 240, 0.38) !important; color: #E2E8F0 !important; -webkit-text-fill-color: #E2E8F0 !important; }
+  #iba-ai-panel .iba-ai-mini.iba-ai-cancel:hover { background: rgba(239, 68, 68, 0.16) !important; border-color: rgba(248, 113, 113, 0.7) !important; color: #FECACA !important; -webkit-text-fill-color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-skill-ask .iba-ai-card-head { position: relative !important; padding-right: 34px !important; }
+  #iba-ai-panel .iba-ai-ask-x { position: absolute !important; top: -4px !important; right: -4px !important; width: 28px !important; height: 28px !important; padding: 0 !important; border-radius: 50% !important; border: 0 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; background: rgba(255, 255, 255, 0.08) !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; cursor: pointer !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-ai-ask-x:hover { background: rgba(239, 68, 68, 0.25) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-skill-ask:has(:disabled[type="submit"]) .iba-ai-ask-x { display: none !important; }
+}
+
+/* 15.0.0 patch 37: Mark urgent (For Approval / CEO Approval) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-list { list-style: none !important; margin: 8px 0 0 !important; padding: 0 !important; display: grid !important; gap: 6px !important; max-height: 420px !important; overflow: auto !important; }
+  #iba-ai-panel .iba-ai-urg-list li { display: flex !important; align-items: center !important; gap: 10px !important; padding: 8px 10px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; background: rgba(255, 255, 255, 0.04) !important; }
+  #iba-ai-panel .iba-ai-urg-list li.is-urgent { border-color: rgba(248, 113, 113, 0.45) !important; background: rgba(220, 38, 38, 0.10) !important; }
+  #iba-ai-panel .iba-ai-urg-list input[type="checkbox"] { width: 18px !important; height: 18px !important; flex: 0 0 auto !important; accent-color: #dc2626 !important; }
+  #iba-ai-panel .iba-ai-urg-list small { display: block !important; white-space: normal !important; }
+  #iba-ai-panel .iba-ai-urg-note { color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; font-style: italic !important; }
+  #iba-ai-panel .iba-ai-urg-badge { display: inline-flex !important; align-items: center !important; gap: 4px !important; flex: 0 0 auto !important; padding: 2px 8px !important; border-radius: 999px !important; font-size: 10.5px !important; font-weight: 800 !important; letter-spacing: .03em !important;
+    background: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; vertical-align: 1px !important; }
+  #iba-ai-panel .iba-ai-urg-acts { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 8px 14px !important; margin-top: 10px !important; padding-top: 10px !important; border-top: 1px solid rgba(255, 255, 255, 0.08) !important; }
+  #iba-ai-panel .iba-ai-urg-all { display: inline-flex !important; align-items: center !important; gap: 6px !important; font-size: 12px !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-all input { width: 16px !important; height: 16px !important; accent-color: #dc2626 !important; }
+  #iba-ai-panel .iba-ai-urg-msg { font-size: 12px !important; color: #FCD34D !important; -webkit-text-fill-color: #FCD34D !important; }
+  #iba-ai-panel .iba-ai-mini.is-danger { background: #dc2626 !important; border-color: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-mini.is-danger:hover { background: #b91c1c !important; }
+}
+
+/* 15.0.0 patch 38: reason box, "Already urgent" fold, small reason form on tracking */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-reason { flex: 1 1 100% !important; display: grid !important; gap: 4px !important; font-size: 12px !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; }
+  #iba-ai-panel .iba-ai-urg-reason input, #iba-ai-panel .iba-ai-urg-mini input { height: 36px !important; padding: 0 10px !important; border-radius: 9px !important; border: 1px solid rgba(255, 255, 255, 0.18) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-ai-urg-done { margin-top: 12px !important; border: 1px solid rgba(248, 113, 113, 0.35) !important; border-radius: 12px !important; padding: 0 10px 8px !important; }
+  #iba-ai-panel .iba-ai-urg-done > summary { cursor: pointer !important; list-style: none !important; padding: 10px 0 4px !important; display: flex !important; align-items: center !important; gap: 8px !important; font-size: 13px !important; font-weight: 700 !important; color: #FECACA !important; -webkit-text-fill-color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-urg-done > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-ai-urg-mini { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 8px !important; }
+  #iba-ai-panel .iba-ai-urg-mini input { flex: 1 1 220px !important; }
+}
