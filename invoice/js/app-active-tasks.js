@@ -1215,8 +1215,9 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
 
         let sharedApprovalInbox = {};
         try {
-            const allSnap = await invoiceDb.ref('invoice_tasks_by_user/All').once('value');
-            sharedApprovalInbox = allSnap.val() || {};
+            // 15.0.0 patch 43: only the approval rows of the shared list (the only
+            // ones used below) when Firebase has the status index; else as before
+            sharedApprovalInbox = await wdReadApprovalRowsFromAll();
         } catch (e) {
             console.warn('Active Task could not load shared For Approval fallback:', e);
         }
@@ -1921,3 +1922,55 @@ window.wdFocusActiveTask = async function (m) {
     setTimeout(() => row.classList.remove('wd-row-focus'), 7000);
     return true;
 };
+
+
+// ==========================================================================
+// 15.0.0 patch 43: approval rows of invoice_tasks_by_user/All without
+// downloading the whole shared list. Used by Active Task (desktop) and the
+// phone Approve screen, which only ever use these statuses from it:
+// For Approval, CEO Approval, Approved, Rejected.
+// The status-filtered read is used only when Firebase has an index on
+// "status" for that list (checked once, remembered 7 days). Without the
+// index Firebase would download the whole list for each filtered read, so
+// then the old single full read is kept. Any error -> the old full read.
+// ==========================================================================
+const WD_APPROVAL_ROW_STATUSES = ['For Approval', 'CEO Approval', 'Approved', 'Rejected'];
+const WD_ALL_STATUS_INDEX_KEY = 'IBA_ALL_STATUS_INDEX_V1';
+async function wdAllStatusIndexed() {
+    let memo = null;
+    try { memo = JSON.parse(localStorage.getItem(WD_ALL_STATUS_INDEX_KEY) || 'null'); } catch (_) { memo = null; }
+    if (memo && Date.now() - Number(memo.at || 0) < (memo.ok ? 7 : 1) * 864e5) return !!memo.ok;
+    let base = '';
+    try { base = String((invoiceDb && invoiceDb.app && invoiceDb.app.options && invoiceDb.app.options.databaseURL) || '').replace(/\/$/, ''); } catch (_) {}
+    if (!base || typeof fetch !== 'function') return false;
+    let ok = null;
+    try {
+        const ctl = (typeof AbortController === 'function') ? new AbortController() : null;
+        const timer = setTimeout(() => { try { ctl && ctl.abort(); } catch (_) {} }, 6000);
+        const res = await fetch(base + '/invoice_tasks_by_user/All.json?orderBy=' + encodeURIComponent('"status"') + '&equalTo=' + encodeURIComponent('"Rejected"') + '&limitToFirst=1', { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+        clearTimeout(timer);
+        if (res.ok) ok = true;
+        else if (res.status === 400) { let t = ''; try { t = await res.text(); } catch (_) {} if (/index/i.test(t)) ok = false; }
+    } catch (_) {}
+    if (ok === null) return false; // unknown (offline / rules need sign-in): keep the safe full read, ask again next time
+    try { localStorage.setItem(WD_ALL_STATUS_INDEX_KEY, JSON.stringify({ ok: ok, at: Date.now() })); } catch (_) {}
+    return ok;
+}
+async function wdReadApprovalRowsFromAll() {
+    const ref = invoiceDb.ref('invoice_tasks_by_user/All');
+    if (await wdAllStatusIndexed()) {
+        try {
+            const parts = await Promise.all(WD_APPROVAL_ROW_STATUSES.map(st => ref.orderByChild('status').equalTo(st).once('value')));
+            const out = {};
+            parts.forEach(snap => { const v = (snap && snap.val()) || {}; Object.keys(v).forEach(k => { out[k] = v[k]; }); });
+            window.__wdAllReadMode = 'approval-rows';
+            return out;
+        } catch (e) {
+            console.warn('Filtered approval rows not available, full read:', e);
+        }
+    }
+    const snap = await ref.once('value');
+    window.__wdAllReadMode = 'full';
+    return (snap && snap.val()) || {};
+}
+try { window.wdReadApprovalRowsFromAll = wdReadApprovalRowsFromAll; } catch (_) {}

@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p41';
+    const VERSION = '15.0.0-p43';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -2686,6 +2686,9 @@
         // 15.0.0 patch 39: see and undo vacation hand-overs
         handover: { name: 'Vacation hand-overs', icon: 'fa-people-arrows', superOnly: true, desc: 'Who the system treats as on vacation now, and the recent automatic hand-overs. Undo puts the tasks back to the person (only those still with the receiver).',
             ask: () => [], run: async () => { await handoverCard(); return null; } },
+        // 15.0.0 patch 43: which Firebase indexes exist (missing ones make filtered reads download whole lists)
+        dbcheck: { name: 'Database check', icon: 'fa-database', superOnly: true, desc: 'Checks the Firebase indexes the system relies on to keep downloads small, and shows the rule to add for any that are missing. Each check reads about 1 KB.',
+            ask: () => [], run: async () => { await dbCheckCard(); return null; } },
         export: { name: 'Download invoice list', icon: 'fa-file-csv', superOnly: true, desc: 'Asks for a status (Under Review, With Accounts, Paid, ...) and a period, then gives a CSV file for Excel. Uses the saved copy: little or no download.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
                 { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
@@ -2791,6 +2794,41 @@
             }));
         }
         return { done: done, skipped: skipped };
+    }
+    const DB_INDEX_CHECKS = [
+        { db: 'main', path: 'workdesk_job_recent', field: 'updatedAt', why: 'Job Records changes (every open WorkDesk checks every 30 s)' },
+        { db: 'main', path: 'job_entries', field: 'for', why: 'Invoice / IPC jobs (Invoice Entry, Dashboard)' },
+        { db: 'main', path: 'job_entries', field: 'po', why: 'jobs of a PO (assistant)' },
+        { db: 'main', path: 'job_entries', field: 'timestamp', why: 'jobs of a period (assistant)' },
+        { db: 'inv', path: 'workdesk_dashboard_recent', field: 'updatedAt', why: 'invoice changes (Dashboard every 30 s, saved invoice copy)' },
+        { db: 'inv', path: 'invoice_tasks_by_user/All', field: 'status', why: 'approval rows (Active Task, phone Approve, PO Close Out)' }
+    ];
+    async function dbIndexState(c) {
+        const d = c.db === 'main' ? mainDb() : ((typeof invoiceDb !== 'undefined' && invoiceDb) ? invoiceDb : null);
+        let base = '';
+        try { base = String((d && d.app && d.app.options && d.app.options.databaseURL) || '').replace(/\/$/, ''); } catch (_) {}
+        if (!base) return 'unknown';
+        try {
+            const res = await withTimeout(fetch(base + '/' + c.path + '.json?orderBy=' + encodeURIComponent('"' + c.field + '"') + '&limitToFirst=1', { cache: 'no-store' }), 8000, 'check');
+            if (res.ok) return 'ok';
+            let t = ''; try { t = await res.text(); } catch (_) {}
+            if (res.status === 400 && /index/i.test(t)) return 'missing';
+            return 'unknown';
+        } catch (_) { return 'unknown'; }
+    }
+    async function dbCheckCard() {
+        addUser('▶ Database check', true);
+        const card = document.createElement('div');
+        card.className = 'iba-ai-card';
+        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-database"></i> Database check</div><div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        put(card);
+        const states = await Promise.all(DB_INDEX_CHECKS.map(dbIndexState));
+        const missing = DB_INDEX_CHECKS.filter((c, i) => states[i] === 'missing');
+        const dbName = (c) => c.db === 'main' ? 'ibainvoice-3ea51' : 'invoiceentry-b15a8';
+        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-database"></i> Database check · ' + (missing.length ? missing.length + ' index' + (missing.length === 1 ? '' : 'es') + ' missing' : 'all good') + '</div>' +
+            '<ul class="iba-ai-rows">' + DB_INDEX_CHECKS.map((c, i) => '<li><span class="iba-ai-grow"><strong>' + (states[i] === 'ok' ? '✅' : states[i] === 'missing' ? '❌' : '❔') + ' ' + esc(dbName(c)) + ' · ' + esc(c.path) + ' by ' + esc(c.field) + '</strong><small>' + esc(c.why) + (states[i] === 'unknown' ? ' - could not check (offline or rules need sign-in)' : '') + '</small></span></li>').join('') + '</ul>' +
+            (missing.length ? '<p class="iba-ai-foot">Missing indexes make Firebase send the whole list for every filtered read. In the Firebase console open each database > Realtime Database > Rules and add inside "rules":</p><pre class="iba-ai-pre" style="white-space:pre-wrap;font-size:11.5px;background:rgba(0,0,0,.25);padding:8px;border-radius:8px">' +
+                esc(['ibainvoice-3ea51', 'invoiceentry-b15a8'].map((n) => { const m = missing.filter((c) => dbName(c) === n); if (!m.length) return ''; const by = {}; m.forEach((c) => { (by[c.path] = by[c.path] || []).push(c.field); }); return '// ' + n + '\n' + Object.keys(by).map((pth) => { const parts = pth.split('/'); let txt = '".indexOn": ' + JSON.stringify(by[pth]); for (let k = parts.length - 1; k >= 0; k--) txt = '"' + parts[k] + '": { ' + txt + ' }'; return txt; }).join(',\n'); }).filter(Boolean).join('\n\n')) + '</pre>' : '<p class="iba-ai-foot">Every filtered read downloads only what it needs.</p>');
     }
     async function handoverCard() {
         addUser('▶ Vacation hand-overs', true);
@@ -4139,7 +4177,7 @@
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
-        site_list: ['For SRV by site, to print', '#2563eb'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
+        site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490']
     };
     function skillTile(attr, icon, name, sub, color, title, extra) {

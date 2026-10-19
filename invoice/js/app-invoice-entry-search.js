@@ -1405,8 +1405,13 @@ async function fetchInvoiceEntrySidePanelJobs(forceRefresh = false) {
 
     for (const path of sourcePaths) {
         try {
-            const snap = await db.ref(path).orderByChild('for').equalTo('Invoice').once('value');
-            const raw = snap.val() || {};
+            // 15.0.0 patch 43: from the saved Job Records copy when there is one (same exact
+            // for = "Invoice" match as the query), else the targeted query as before
+            let raw = (typeof window.ibaJobsFromPocketWhere === 'function') ? await window.ibaJobsFromPocketWhere(v => v.for === 'Invoice') : null;
+            if (!raw) {
+                const snap = await db.ref(path).orderByChild('for').equalTo('Invoice').once('value');
+                raw = snap.val() || {};
+            }
 
             Object.entries(raw).forEach(([key, value]) => {
                 const job = { key, ...(value || {}), source: 'job_entry' };

@@ -405,7 +405,11 @@
         if (!idb) return [];
         const names = myNames();
         const buckets = await Promise.all(names.concat(['All']).map(async n => {
-            try { const s = await idb.ref(`invoice_tasks_by_user/${safeKey(n)}`).once('value'); return s.val() || {}; }
+            try {
+                // 15.0.0 patch 43: from the shared list only the approval rows (same rows used below)
+                if (n === 'All' && typeof window.wdReadApprovalRowsFromAll === 'function') return await window.wdReadApprovalRowsFromAll();
+                const s = await idb.ref(`invoice_tasks_by_user/${safeKey(n)}`).once('value'); return s.val() || {};
+            }
             catch (_) { return {}; }
         }));
         const seen = new Set();

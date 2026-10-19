@@ -2068,6 +2068,130 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
 }
 
 // ==========================================================================
+// 15.0.0 patch 43: Job Records saved copy ("pocket") on this computer.
+// Before: every page load / F5 / new tab downloaded the whole job_entries list.
+// Now: the list is kept in the browser (IndexedDB) and each load downloads only
+// the Job Records changed since the last visit, found through the small
+// workdesk_job_recent change markers that every Job Record save writes.
+// Accuracy guards - the full list is downloaded again when:
+//   - the saved copy is older than 24 hours (at least one full refresh a day)
+//   - there is no saved copy, the browser cannot store it, or reading the
+//     markers / a changed record fails (rules, offline, ...)
+//   - more than 800 records changed (a full read is then cheaper)
+//   - the change markers are switched off by the Firebase rules
+// The result is returned in the same shape as db.ref('job_entries').once().
+// ==========================================================================
+const IBA_JOBS_POCKET_DB = 'iba_jobs_pocket';
+const IBA_JOBS_POCKET_MAX_AGE = 24 * 60 * 60 * 1000;
+const IBA_JOBS_POCKET_OVERLAP = 10 * 60 * 1000;
+function ibaJobsPocketOpen() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) { reject(new Error('no IndexedDB')); return; }
+        const req = indexedDB.open(IBA_JOBS_POCKET_DB, 1);
+        req.onupgradeneeded = () => { try { req.result.createObjectStore('p'); } catch (_) {} };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+function ibaJobsPocketKey() {
+    try { return 'job_entries@' + String((db && db.app && db.app.options && db.app.options.databaseURL) || 'main'); } catch (_) { return 'job_entries@main'; }
+}
+async function ibaJobsPocketGet() {
+    const d = await ibaJobsPocketOpen();
+    return new Promise((resolve) => {
+        try { const r = d.transaction('p', 'readonly').objectStore('p').get(ibaJobsPocketKey()); r.onsuccess = () => resolve(r.result || null); r.onerror = () => resolve(null); }
+        catch (_) { resolve(null); }
+    });
+}
+async function ibaJobsPocketPut(v) {
+    try {
+        const d = await ibaJobsPocketOpen();
+        await new Promise((resolve) => {
+            try { const tx = d.transaction('p', 'readwrite'); tx.objectStore('p').put(v, ibaJobsPocketKey()); tx.oncomplete = () => resolve(true); tx.onerror = () => resolve(false); tx.onabort = () => resolve(false); }
+            catch (_) { resolve(false); }
+        });
+    } catch (_) {}
+}
+async function ibaJobsServerNow() {
+    let off = 0;
+    try { const s = await db.ref('.info/serverTimeOffset').once('value'); off = Number(s.val()) || 0; } catch (_) {}
+    return Date.now() + off;
+}
+function ibaJobsAsSnapshot(data) {
+    const v = data || {};
+    return { val: () => v, exists: () => Object.keys(v).length > 0, __ibaPocket: true };
+}
+async function ibaJobsPocketLoad(forceFull) {
+    const t0 = await ibaJobsServerNow();
+    const full = async (why) => {
+        const snap = await db.ref('job_entries').once('value');
+        const data = (snap && typeof snap.val === 'function' ? snap.val() : null) || {};
+        window.__ibaJobsPocketLast = { mode: 'full', why: why, changed: 0, at: Date.now() };
+        ibaJobsPocketPut({ fullAt: t0, syncAt: t0, data: data });
+        try { if (typeof wdJobRecentLastSyncAt !== 'undefined') wdJobRecentLastSyncAt = Math.max(Number(wdJobRecentLastSyncAt) || 0, t0); } catch (_) {}
+        return snap && typeof snap.val === 'function' ? snap : ibaJobsAsSnapshot(data);
+    };
+    try {
+        if (forceFull) return await full('forced');
+        if (typeof wdJobRecentSyncDisabled !== 'undefined' && wdJobRecentSyncDisabled) return await full('markers off');
+        let pocket = null;
+        try { pocket = await ibaJobsPocketGet(); } catch (_) { pocket = null; }
+        if (!pocket || !pocket.data || typeof pocket.data !== 'object') return await full('no saved copy');
+        if (!(t0 - Number(pocket.fullAt || 0) < IBA_JOBS_POCKET_MAX_AGE)) return await full('saved copy older than 24 h');
+        const since = Math.max(0, Number(pocket.syncAt || pocket.fullAt || 0) - IBA_JOBS_POCKET_OVERLAP);
+        let rows;
+        try {
+            const ms = await db.ref(WD_JOB_RECENT_PATH).orderByChild('updatedAt').startAt(since).once('value');
+            rows = (ms && ms.val()) || {};
+        } catch (err) {
+            if (typeof wdIsPermissionDeniedError === 'function' && wdIsPermissionDeniedError(err) && typeof wdDisableRecentJobRecordSync === 'function') wdDisableRecentJobRecordSync('pocket-read-permission-denied');
+            return await full('markers not readable');
+        }
+        const keys = Object.keys(rows);
+        if (keys.length > 800) return await full('many changes');
+        const data = pocket.data;
+        for (let i = 0; i < keys.length; i += 25) {
+            const part = keys.slice(i, i + 25);
+            const got = await Promise.all(part.map((k) => {
+                const m = rows[k] || {};
+                if (String(m.action || '').toLowerCase() === 'deleted' || m.deleted === true) return Promise.resolve({ k: k, del: true });
+                return db.ref('job_entries/' + k).once('value').then((s) => ({ k: k, v: s.val() }));
+            }));
+            got.forEach((g) => { if (g.del || g.v === null || g.v === undefined) delete data[g.k]; else data[g.k] = g.v; });
+        }
+        // remember which change markers are already in this copy, so the 30-second
+        // recent-change check does not apply (and redraw for) them a second time
+        try { const seen = window.__ibaJobsMarkerSeen = window.__ibaJobsMarkerSeen || {}; keys.forEach((k) => { if (rows[k] && rows[k].updatedAt) seen[k] = rows[k].updatedAt; }); } catch (_) {}
+        window.__ibaJobsPocketLast = { mode: 'saved', why: '', changed: keys.length, at: Date.now() };
+        ibaJobsPocketPut({ fullAt: pocket.fullAt, syncAt: t0, data: data });
+        try { if (typeof wdJobRecentLastSyncAt !== 'undefined') wdJobRecentLastSyncAt = Math.max(Number(wdJobRecentLastSyncAt) || 0, t0); } catch (_) {}
+        return ibaJobsAsSnapshot(data);
+    } catch (err) {
+        console.warn('Job Records saved copy not usable, full download:', err);
+        return await full('error');
+    }
+}
+try { window.ibaJobsPocketLoad = ibaJobsPocketLoad; } catch (_) {}
+// Some Job Records (e.g. for = "Invoice") from the saved copy, brought up to date,
+// but only when a saved copy under 24 h old already exists - otherwise null and
+// the caller keeps its own small targeted query (no full download for it).
+async function ibaJobsFromPocketWhere(test) {
+    try {
+        if (typeof wdJobRecentSyncDisabled !== 'undefined' && wdJobRecentSyncDisabled) return null;
+        const p = await ibaJobsPocketGet();
+        if (!p || !p.data || typeof p.data !== 'object') return null;
+        const now = await ibaJobsServerNow();
+        if (!(now - Number(p.fullAt || 0) < IBA_JOBS_POCKET_MAX_AGE)) return null;
+        const snap = await ibaJobsPocketLoad(false);
+        const all = (snap && snap.val()) || {};
+        const out = {};
+        Object.keys(all).forEach((k) => { const v = all[k]; if (v && test(v)) out[k] = v; });
+        return out;
+    } catch (_) { return null; }
+}
+try { window.ibaJobsFromPocketWhere = ibaJobsFromPocketWhere; } catch (_) {}
+
+// ==========================================================================
 // DATA FETCHER (Reverted to 4.7.2 Logic + Force Refresh Support)
 // ==========================================================================
 function wdRebuildAllSystemEntriesFromFamilyCaches() {
@@ -2100,7 +2224,9 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     const shouldLoadJobEntries = loadMode !== 'inventory' || options.includeJobEntries === true;
     const shouldLoadTransferEntries = loadMode === 'inventory' || loadMode === 'all' || options.includeTransfers === true;
     const cacheFresh = (now - cacheTimestamps.systemEntries < CACHE_DURATION);
-    const hasWorkdeskCache = Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0;
+    // 15.0.0 patch 43: the list counts as loaded only after a real (full or saved-copy) load,
+    // not because a recent-change sync put a few records into an empty list
+    const hasWorkdeskCache = window.__wdJobsLoaded === true && Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0;
     const hasInventoryCache = Array.isArray(inventorySystemEntries) && inventorySystemEntries.length > 0;
     const modeHasCache = (loadMode === 'workdesk' && hasWorkdeskCache) || (loadMode === 'inventory' && hasInventoryCache) || (loadMode === 'all' && (hasWorkdeskCache || hasInventoryCache || (Array.isArray(allSystemEntries) && allSystemEntries.length > 0)));
     const inFlightKey = loadMode;
@@ -2128,7 +2254,7 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     // tree, and do not make Inventory pages redownload Job Entries just because the
     // other family is already cached. Keep a separate freshness check per family.
     if (!forceRefresh && cacheFresh) {
-        if (loadMode === 'workdesk' && Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0) {
+        if (loadMode === 'workdesk' && hasWorkdeskCache) {
             wdRebuildAllSystemEntriesFromFamilyCaches();
             return;
         }
@@ -2159,7 +2285,9 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     }
 
     const [jobEntriesSnapshot, transferSnapshot] = await Promise.all([
-        shouldLoadJobEntries ? db.ref('job_entries').once('value') : Promise.resolve(null),
+        // 15.0.0 patch 43: saved copy on disk + only the Job Records changed since
+        // (falls back to the full download whenever anything is uncertain)
+        shouldLoadJobEntries ? ibaJobsPocketLoad(options.allowImmediateForce === true) : Promise.resolve(null),
         shouldLoadTransferEntries ? ((typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase()).ref('transfer_entries').once('value') : Promise.resolve(null)
     ]);
 
@@ -2233,10 +2361,14 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
     }
 
     if (Object.keys(updatesToFirebase).length > 0) {
-        try { await db.ref('job_entries').update(updatesToFirebase); } catch (e) {}
+        try {
+            await db.ref('job_entries').update(updatesToFirebase);
+            // 15.0.0 patch 43: markers so other browsers' saved copies pick up the PR -> PO Ready updates
+            if (typeof wdWriteWorkdeskJobRecentMarker === 'function') Object.keys(updatesToFirebase).forEach((k) => { try { wdWriteWorkdeskJobRecentMarker(k, updatesToFirebase[k], 'updated'); } catch (_) {} });
+        } catch (e) {}
     }
 
-    if (jobEntriesData) workdeskSystemEntries = processedWorkdeskEntries;
+    if (jobEntriesData) { workdeskSystemEntries = processedWorkdeskEntries; window.__wdJobsLoaded = true; }
     if (transferData) inventorySystemEntries = processedInventoryEntries;
 
     allSystemEntries = [

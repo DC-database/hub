@@ -1079,9 +1079,14 @@ async function wdEnsureDashboardJobEntriesFetched(forceRefresh = false) {
         // `IPC Application` values. Because Firebase Realtime Database queries are
         // case-sensitive, use the exact Invoice value plus one prefix-range query
         // that captures IPC, IPC Application and IPC Processed in one read.
-        const invoiceQuery = db.ref('job_entries').orderByChild('for').equalTo('Invoice').once('value');
-        const ipcQuery = db.ref('job_entries').orderByChild('for').startAt('IPC').endAt('IPC\uf8ff').once('value');
-        const snapshots = await Promise.all([invoiceQuery, ipcQuery]);
+        // 15.0.0 patch 43: same two selections from the saved Job Records copy when there is one
+        const fromPocket = (typeof window.ibaJobsFromPocketWhere === 'function')
+            ? await window.ibaJobsFromPocketWhere(v => v.for === 'Invoice' || (typeof v.for === 'string' && v.for.indexOf('IPC') === 0))
+            : null;
+        const snapshots = fromPocket ? [{ val: () => fromPocket }] : await Promise.all([
+            db.ref('job_entries').orderByChild('for').equalTo('Invoice').once('value'),
+            db.ref('job_entries').orderByChild('for').startAt('IPC').endAt('IPC\uf8ff').once('value')
+        ]);
         const merged = new Map();
         snapshots.forEach(snap => {
             const raw = snap.val() || {};
