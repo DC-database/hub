@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '15.4.2';
+const APP_VERSION = '16.0.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -756,6 +756,8 @@ async function handleSRVDone(btn, key) {
                 attention: '',
                 dateResponded: formatDate(new Date())
             });
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(keyStr, Object.assign({}, jobEntry || {}, { remarks: 'SRV Done' }), 'updated'); } catch (_) {}
             try {
                 if (jobEntry) Object.assign(jobEntry, { remarks: 'SRV Done', attention: '', dateResponded: formatDate(new Date()) });
             } catch (_) {}
@@ -1243,6 +1245,8 @@ async function processMobileCEOAction(taskData, status, amount, note, cardElemen
             await db.ref(`job_entries/${taskData.key}`).update(updates);
             // Save History for Job
             await db.ref(`job_entries/${taskData.key}/history`).push(historyEntry);
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(taskData.key, Object.assign({}, taskData, updates), 'updated'); } catch (_) {}
 
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
@@ -1318,6 +1322,8 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
             // Preserve existing Job/Material approval behavior.
             await db.ref(`job_entries/${taskData.key}`).update(updates);
             await db.ref(`job_entries/${taskData.key}/history`).push(historyEntry);
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(taskData.key, Object.assign({}, taskData, updates), 'updated'); } catch (_) {}
         } else if (taskData.source === 'invoice') {
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}`).update(updates);
             await invoiceDb.ref(`invoice_entries/${taskData.originalPO}/${taskData.originalKey}/history`).push(historyEntry);
@@ -1941,6 +1947,8 @@ async function handleDesktopApproval(task, action) {
         if (task.source === 'job_entry') {
             // 15.0.0 patch 23: both writes go out together
             await Promise.all([db.ref('job_entries/' + task.key).update(updates), db.ref('job_entries/' + task.key + '/history').push(historyEntry)]);
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(task.key, Object.assign({}, task, updates), 'updated'); } catch (_) {}
         } 
         else if (task.source === 'invoice') {
             await invoiceDb.ref('invoice_entries/' + task.originalPO + '/' + task.originalKey).update(updates);
@@ -2574,6 +2582,11 @@ async function wdApplyRecentJobRecordMarker(key, marker = {}) {
             return true;
         }
         const latest = wdNormalizeLocalJobEntry(key, snap.val() || {});
+        // 15.0.0 patch 43: the same record as already shown -> nothing changed
+        try {
+            const cur = (Array.isArray(workdeskSystemEntries) ? workdeskSystemEntries : []).find(item => String(item?.key || '') === String(key));
+            if (cur && JSON.stringify(cur) === JSON.stringify(latest)) return false;
+        } catch (_) {}
         wdUpsertLocalWorkdeskJobEntryCache(key, latest);
         return true;
     } catch (err) {
@@ -2588,6 +2601,10 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
     if (wdJobRecentSyncRunning) return;
     if (!wdIsWorkdeskOpenForRecentSync()) return;
     if (typeof db === 'undefined' || !db || !db.ref) return;
+    // 15.0.0 patch 43: before the Job Records list is loaded there is nothing to update;
+    // the load itself brings these changes (applying them first made a 1-record list
+    // look like the whole list)
+    if (window.__wdJobsLoaded !== true) return;
 
     const now = Date.now();
     const lastSync = Number(wdJobRecentLastSyncAt || 0) || (now - WD_JOB_RECENT_SYNC_INTERVAL);
@@ -2601,9 +2618,14 @@ async function wdSyncRecentJobRecordUpdates(reason = 'job-recent-sync') {
             .once('value');
         const rows = snap.val() || {};
         let changed = false;
+        const seenMarkers = window.__ibaJobsMarkerSeen = window.__ibaJobsMarkerSeen || {};
         for (const key of Object.keys(rows || {})) {
             const row = rows[key] || {};
+            // 15.0.0 patch 43: a marker already applied (by the saved-copy load or an
+            // earlier check) is skipped - no extra read, no needless redraw
+            if (row.updatedAt && seenMarkers[key] === row.updatedAt) continue;
             const applied = await wdApplyRecentJobRecordMarker(key, row);
+            if (row.updatedAt) seenMarkers[key] = row.updatedAt;
             changed = changed || applied;
         }
         wdJobRecentLastSyncAt = now;
@@ -5041,7 +5063,8 @@ async function handleUpdateInvoiceRun(e) {
             console.log("🔄 Syncing: Checking for linked Job Entries...");
             let jobsToSearch = (typeof allSystemEntries !== 'undefined') ? allSystemEntries : [];
             if (!jobsToSearch || jobsToSearch.length === 0) {
-                const jobSnap = await firebase.database().ref('job_entries').once('value');
+                // 15.0.0 patch 43: the saved Job Records copy (+ changes) instead of a full download
+                const jobSnap = (typeof window.ibaJobsPocketLoad === 'function') ? await window.ibaJobsPocketLoad(false) : await firebase.database().ref('job_entries').once('value');
                 const jobObj = jobSnap.val() || {};
                 jobsToSearch = Object.entries(jobObj).map(([k, v]) => ({ ...v, key: k, source: 'job_entry' }));
             }
@@ -5059,6 +5082,8 @@ async function handleUpdateInvoiceRun(e) {
                     dateResponded: new Date().toISOString().split('T')[0],
                     amount: invoiceData.invValue
                 });
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(matchedJob.key, Object.assign({}, matchedJob, { status: 'Completed', remarks: newStatus }), 'updated'); } catch (_) {}
                 await db.ref(`job_entries/${matchedJob.key}/history`).push({
                     action: "Auto-Sync",
                     by: "System",
@@ -6575,6 +6600,8 @@ async function handleCEOAction(status) {
 
         if (source === 'job_entry') {
             await db.ref(`job_entries/${key}`).update(updates);
+            // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
+            try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') wdWriteWorkdeskJobRecentMarker(key, updates, 'updated'); } catch (_) {}
         } else if (source === 'invoice' && originalPO && originalKey) {
             await invoiceDb.ref(`invoice_entries/${originalPO}/${originalKey}`).update(updates);
 

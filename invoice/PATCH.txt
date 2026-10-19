@@ -1,28 +1,71 @@
-IBA SYSTEM 15.0.0 patch 42  (small patch - copy over 15.0.0 patch 41)
+IBA SYSTEM 15.0.0 patch 43  (small patch - copy over 15.0.0 patch 42)
+Firebase download saving - same results, much less downloaded
 
 HOW TO INSTALL
-  Copy these 2 files over your 15.0.0 patch 41 (keeping folders):
+  Copy these 8 files over your 15.0.0 patch 42 (keeping folders):
+    app.js
     index.html
-    js/materialStock.js
-  Everything else stays as patch 41. (preview_patch42.png is only a picture.)
+    js/app-active-tasks.js
+    js/app-data-cache.js
+    js/app-invoice-entry-search.js
+    js/app-workdesk-dashboard.js
+    js/iba-approvals.js
+    js/iba-assistant.js
+  Then (Super Admin): Assistant > Skills > "Database check" - see the end.
 
-WHAT CHANGED - Inventory item photos, no PhotoIndex.csv any more
-  - The GitHub PhotoIndex.csv is not read any more. You do not need to keep
-    it up to date.
-  - Browse Photo now looks straight in the OneDrive Photo folder:
-      * when it opens, it already looks for the item's own name
-        (e.g. "Breaker 32A" -> breaker-32a.jpg, Breaker 32A.jpg, breaker_32a...)
-      * type a word (e.g. nail) and it checks nail.jpg / nail.jpeg / nail.png /
-        nail.webp and the usual spellings (spaces, -, _, capitals)
-      * the photos it finds show as small pictures: tap one, then
-        "Use This Photo" (or double-tap)
-  - .jpeg / .png / .webp photos now work too (before, only .jpg showed);
-    they are saved as their full OneDrive link, so every screen (stock,
-    transfers, phone finder) shows them.
-  - Photos already used on other items still show in the dropdown.
+WHAT CHANGED
+  1. Job Records saved copy on each computer (biggest saving, ibainvoice)
+     Before: every page load / F5 / new tab downloaded the WHOLE Job Records
+     list when WorkDesk opened. Now the list is kept in the browser and each
+     load downloads only the Job Records changed since the last visit.
+     Accuracy guards - the full list is downloaded again when:
+       - the saved copy is older than 24 hours (at least one full refresh a day)
+       - there is no saved copy / the browser cannot keep one
+       - the change list cannot be read, or a changed record cannot be read
+       - more than 800 records changed
+     Invoice Entry's Active Jobs panel and the Dashboard's Invoice / IPC jobs
+     also come from this copy when it exists (same records, same matching).
 
-  Limit: the system can only check names it can guess. A file named
-  "wood-nail.jpeg" is found when you type "wood nail" or "wood-nail", but
-  not when you type just "nail" - then type the exact name.
-  If nothing is found, open OneDrive once in that browser (the photos need
-  your OneDrive sign-in to load).
+  2. Every Job Record save now leaves a change marker
+     7 places did not (SRV Done, CEO / Manager approval on phone and desktop,
+     invoice auto-sync, PR -> PO Ready). Other open computers now also see
+     those changes within 30 seconds (before: only after a reload).
+
+  3. Fixed: after a reload WorkDesk could show only 1 job
+     If someone changed a job in the 2 minutes before your reload, the
+     30-second check put that single job into the empty list and the system
+     treated the list as loaded (Active Task / counts nearly empty until the
+     next full load). Now the check waits until the list is really loaded.
+
+  4. Open-task list: approval rows only (invoiceentry)
+     Active Task (every open) and the phone Approve screen downloaded the
+     whole shared open-task list but use only For Approval / CEO Approval /
+     Approved / Rejected rows. Now only those rows are read - when Firebase
+     has the "status" index (checked automatically; without it the old full
+     read is kept, so never more than before).
+
+  5. The 30-second Job Records check skips changes it already has and does not
+     redraw the Dashboard when a re-read record is identical.
+
+MEASURED (test database sized like yours, same data in old and new):
+     Open Active Task (Super Admin)        3,396 KB  ->   462 KB  (-86%)
+     Open Active Task (user, after F5)     3,437 KB  ->   503 KB  (-85%)
+     Phone open / reload                   1,092 KB  ->   307 KB  (-72%)
+     Invoice Entry Active Jobs panel         319 KB  ->     0 KB
+     First visit on a new computer         7,560 KB  -> 5,989 KB  (-21%)
+  Accuracy (old vs new on the same data): identical Active Task tabs and
+  counts after 60 changes by other users (updated / deleted / new),
+  identical approval lists (desktop + phone), identical Invoice Entry
+  panel and Dashboard jobs, live changes arrive while the page is open.
+
+  Not changed on purpose: the saved invoice copy (Weekly report, Site list,
+  Mark urgent, CSV) still refreshes fully every 24 hours - not every invoice
+  save is proven to leave a change marker, so a longer life could hide a
+  change.
+
+6. New Super Admin skill "Database check"
+   Checks the Firebase indexes the system relies on. A missing index makes
+   Firebase send the WHOLE list for every filtered read (e.g. every open
+   WorkDesk every 30 s). If something is missing it shows the exact lines to
+   add in Firebase console > Realtime Database > Rules (if the path already
+   has an ".indexOn", add the field into that same list).
