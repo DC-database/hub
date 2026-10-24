@@ -1,23 +1,31 @@
-IBA 17.0.0 patch 21 — glass pop-ups, Dashboard task buttons, new clock
+IBA 17.0.1 — everything since 17.0.0 patch 21
 =====================================================================
-What changed
-- Glass (see-through, no blur behind): Add New Job Entry, inventory New
-  Transaction (Transfer / Restock / Return / Usage), Dashboard "Forward task
-  details".
-- Dashboard task cards: when the task is yours, a "Do it here" row with the
-  same buttons as the Now brief (SRV Done, Process, Approve / Reject, Close
-  out, Print) and "Active Task" to open it there.
-- Assistant: "In the company" is one table with a header (PO, With, Vendor ·
-  invoice · status, Age, Files). New skill chips: PO report, Approvals
-  waiting, Find colleague, Find transfer, Add new job, Print basket (each
-  shown only to users who may use it).
-- Clock (top left): rounded-square watch face by default; click it to pick
-  Square, Digital or Round (kept per browser). Time shown above the date.
-- Flip cover screen (Z Flip 7 / 8): its own background photo (default
-  office2.jpg; Settings > Backgrounds > "Phone · Flip cover screen").
-  Fold / Duo keep the normal phone photos.
+Version: app.js (APP_VERSION), index.html (IBA_SYSTEM_VERSION) and
+version.json all say 17.0.1, so the version check tells each browser to
+load the new files.
 
-Files (6): index.html, css/iba-17.css, js/iba-assistant.js, js/iba-shell.js,
-js/iba-phone.js, js/iba-17-p21.js (new)
-Backup: backup-before-17.0.0-p21\
-After copying: Ctrl+F5 once.
+What changed (patches 22 - 34)
+- Print basket: Super Admin only.
+- Clock face: only the Super Admin can pick it; the choice is saved for
+  everyone.
+- Access check window (Super Admin): who can open which page / button.
+- White row highlight on mouse-over in tables fixed (dark theme).
+- IM Financial Report (Epicore) link: Super Admin + Finance / Accounts /
+  Accounting / QS only (CEO / COO removed).
+- Summary Note print redesigned: bigger text, full bill description, full
+  A4 portrait width, navy column header, clear borders, "Managing
+  Director" signature, Previous / Current note names in the page footer.
+- Add to Batch: leave the PO numbers empty and pick a status (e.g. CEO
+  Approval) to take every invoice in that status (up to 100 at a time).
+
+Files to copy (over 17.0.0 patch 21)
+  index.html
+  app.js
+  version.json
+  css/iba-17.css
+  css/iba-17-p27.css            (new)
+  js/iba-17-p21.js
+  js/iba-17-p24.js              (new)
+  js/iba-17-p27.js              (new)
+  js/iba-assistant.js
+  js/iba-print-basket.js
