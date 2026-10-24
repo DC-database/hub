@@ -10,6 +10,7 @@
    to its new invoice, the same way Invoice Entry does it (app.js
    imBatchSaveRun calls prepare() and convert()).
    POs not in POVALUE2.csv yet are left out and listed.
+   Patch 7: several entries on one PO are all added (INV-02, INV-03 ...).
    ========================================================================== */
 (function () {
     'use strict';
@@ -97,19 +98,31 @@
         const po = String(job.po || '').trim().toUpperCase();
         if (!po) return { ok: false, reason: 'No PO on the reception entry' };
         if (cards().some((c) => c.dataset.jobKey === job.key)) return { ok: false, already: true, reason: 'Already in Batch Entry' };
-        if (cards().some((c) => c.getAttribute('data-po') === po && !c.getAttribute('data-key')))
-            return { ok: false, reason: 'A new invoice for this PO is already in Batch Entry. Save it, then run this again' };
         if (!poData(po)) return { ok: false, missing: true, reason: 'Not in POVALUE2.csv yet' };
         const input = document.getElementById('im-batch-po-input');
         if (!input || typeof handleAddPOToBatch !== 'function') return { ok: false, reason: 'Batch Entry is not available on this page' };
 
+        // 17.0.2 patch 7: several reception entries on one PO each get their own
+        // new card. Batch Entry allows one new card per PO, so the ones already
+        // there are hidden from that check for a moment; Save gives each its
+        // own next free Inv Entry ID.
+        const sameNew = cards().filter((c) => c.getAttribute('data-po') === po && !c.getAttribute('data-key'));
+        sameNew.forEach((c) => c.setAttribute('data-key', '__iba_rb_tmp'));
         input.value = po;
         const said = [];
         const realAlert = window.alert;
         window.alert = (m) => { said.push(String(m || '')); };
-        try { await handleAddPOToBatch(); } finally { window.alert = realAlert; }
+        try { await handleAddPOToBatch(); } finally {
+            window.alert = realAlert;
+            sameNew.forEach((c) => { if (c.getAttribute('data-key') === '__iba_rb_tmp') c.removeAttribute('data-key'); });
+        }
         const card = cards().filter((c) => c.getAttribute('data-po') === po && !c.getAttribute('data-key') && !c.dataset.jobKey).pop();
         if (!card) return { ok: false, reason: said[0] || 'Could not be added' };
+        if (sameNew.length) {
+            const num = (c) => parseInt(String(c.getAttribute('data-next-invid') || '').replace(/\D+/g, ''), 10) || 0;
+            const next = Math.max(num(card), ...sameNew.map(num)) + (sameNew.some((c) => num(c) >= num(card)) ? 1 : 0);
+            card.setAttribute('data-next-invid', 'INV-' + String(next).padStart(2, '0'));
+        }
 
         const g = group(job.group || job.category);
         card.dataset.jobKey = job.key;
