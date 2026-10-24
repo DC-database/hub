@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '17.0.0-p24';
+    const VERSION = '17.0.0-p34';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -418,13 +418,13 @@
                   details: { type: 'string' } }, required: ['po'] } },
             { name: 'add_to_batch', description: 'Put the existing invoices of one or more POs into Batch Entry so the user can update them together (status, attention, note) and save once. Optional status filter, e.g. "CEO Approval" = only invoices now in that status. Can also fill the Batch Entry "Set All" status / attention / note when the user says what to change. Never saves: the user checks the rows and presses Save.',
               parameters: { type: 'object', properties: {
-                  pos: { type: 'array', items: { type: 'string' }, description: 'PO numbers' },
+                  pos: { type: 'array', items: { type: 'string' }, description: 'PO numbers. Leave out (with a status) to take every invoice now in that status, e.g. "all the CEO Approval ones".' },
                   status: { type: 'string', description: 'Only invoices whose current status is this (leave out for all open invoices of the POs; With Accounts and Paid are then left out)' },
                   latest_only: { type: 'boolean', description: 'true = only the last invoice entered on each PO ("the recent / last invoice")' },
                   include_finished: { type: 'boolean', description: 'true only if the user wants With Accounts / Paid invoices too' },
                   set_status: { type: 'string', description: 'New status for all rows (Set All Statuses To), only if the user asked' },
                   set_attention: { type: 'string', description: 'Person for all rows (Set All Attention To), only if the user asked' },
-                  set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } }, required: ['pos'] } },
+                  set_note: { type: 'string', description: 'Note for all rows, only if the user asked' } } } },
             { name: 'recent_status_changes', description: 'Invoices whose status was changed to a given status within a time window (last N hours, this morning, this afternoon, today, yesterday), optionally only changes the user made. By default they are put into Batch Entry so the user can move them on together. Use for "take the Under Review ones from the last 2 hours", "the CEO Approval I did this morning".',
               parameters: { type: 'object', properties: {
                   status: statusProp,
@@ -1976,7 +1976,9 @@
         const a = args || {};
         if (a._found) return batchAdd(a._found, a, [], { asked: a._asked || [], status_filter: a._label || undefined });
         const pos = parsePOs(a.pos || a.po);
-        if (!pos.length) return { result: { error: 'Give the PO numbers to put into Batch Entry, e.g. 123, 234.' } };
+        // 17.0.0 patch 34: no POs but a status = every invoice now in that status
+        if (!pos.length && String(a.status || '').trim()) return batchByStatus(a);
+        if (!pos.length) return { result: { error: 'Give the PO numbers to put into Batch Entry, or pick a status to take every invoice in it.' } };
         if (pos.length > 30) return { result: { error: 'Up to 30 POs at a time, please.' } };
         if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
         const want = String(a.status || '').trim();
@@ -2014,6 +2016,43 @@
             match.forEach((k) => found.push({ key: k, po: x.po, site: pi.siteLabel || 'N/A', vendor: pi.vendor || 'N/A', inv: inv[k] || {} }));
         });
         return batchAdd(found, a, notAdded, { asked: pos, status_filter: want || undefined });
+    }
+    // Every invoice whose status is exactly a.status, from the saved invoice
+    // copy + changes (window.ibaInvoiceEntriesLoad), never a new full read
+    // when the copy is fresh. Up to BY_STATUS_MAX rows.
+    const BY_STATUS_MAX = 100;
+    async function batchByStatus(a) {
+        if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
+        if (typeof window.ibaInvoiceEntriesLoad !== 'function') return { result: { error: 'The invoice list is not available on this page.' } };
+        const want = norm(a.status);
+        await ensureBase();
+        const map = poMap();
+        const all = ((await window.ibaInvoiceEntriesLoad()) || {}).data || {};
+        let found = [];
+        Object.keys(all).forEach((po) => {
+            const inv = all[po];
+            if (!inv || typeof inv !== 'object') return;
+            Object.keys(inv).forEach((k) => {
+                const e = inv[k];
+                if (!e || typeof e !== 'object' || norm(e.status) !== want) return;
+                found.push({ key: k, po: po, inv: e });
+            });
+        });
+        found.sort((p, q) => String(p.po).localeCompare(String(q.po), undefined, { numeric: true }) ||
+            String(p.inv.invEntryID || '').localeCompare(String(q.inv.invEntryID || ''), undefined, { numeric: true }));
+        const total = found.length;
+        const notAdded = [];
+        if (!total) notAdded.push({ po: '—', reason: 'No invoice is in ' + a.status + ' right now' });
+        if (total > BY_STATUS_MAX) {
+            notAdded.push({ po: '—', reason: (total - BY_STATUS_MAX) + ' more in ' + a.status + ' were left out (up to ' + BY_STATUS_MAX + ' at a time); save these, then run it again' });
+            found = found.slice(0, BY_STATUS_MAX);
+        }
+        found.forEach((f) => {
+            const pi = poInfo({ po: f.po, rec: map[f.po] || null });
+            f.site = pi.siteLabel || 'N/A';
+            f.vendor = pi.vendor || 'N/A';
+        });
+        return batchAdd(found, a, notAdded, { asked: ['every PO'], status_filter: a.status });
     }
     async function batchAdd(found, a, notAdded, head) {
         if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
@@ -2858,11 +2897,14 @@
                 { key: 'pos', label: 'Who', type: 'select', options: [['site dc, storekeeper, camp boss', 'SRV team: Site DC, Storekeeper, Camp Boss'], ['site dc', 'Site DC'], ['storekeeper', 'Storekeeper'], ['camp boss', 'Camp Boss'], ['logistic', 'Logistic'], ['engineer', 'Engineer'], ['', 'Everyone at the site']] }],
             build: (v) => [{ tool: 'find_person', args: { site: v.site, position: v.pos } }] },
         brief: { name: 'My brief', icon: 'fa-sun', desc: 'Today\'s tasks, inventory jobs and reminders.', ask: () => [], build: () => [{ tool: 'get_brief', args: {} }] },
-        batch: { name: 'Add to Batch', icon: 'fa-layer-group', superOnly: true, desc: 'Asks for the POs, which status and which invoices, then puts them into Batch Entry. With Accounts and Paid are left out unless you pick them.',
-            ask: () => [{ key: 'pos', label: 'PO numbers (a comma is added after each 5 digits)', placeholder: 'e.g. 66176, 66180, 66201', poList: true },
+        batch: { name: 'Add to Batch', icon: 'fa-layer-group', superOnly: true, desc: 'Asks for the POs, which status and which invoices, then puts them into Batch Entry. Leave the POs empty and pick a status to take every invoice in that status (e.g. all CEO Approval). With Accounts and Paid are left out unless you pick them.',
+            ask: () => [{ key: 'pos', label: 'PO numbers (empty = every invoice in the status below)', placeholder: 'e.g. 66176, 66180, 66201', poList: true, optional: true },
                 { key: 'status', label: 'Only invoices now in', type: 'select', options: statusOptsWith('Any open status (not With Accounts / Paid)') },
                 { key: 'which', label: 'Which invoices', type: 'select', options: [['all', 'All of them'], ['latest', 'Only the last invoice entered on each PO']] }],
-            build: (v) => [{ tool: 'add_to_batch', args: { pos: v.pos.split(/[\s,;]+/).filter(Boolean), status: v.status || undefined, latest_only: v.which === 'latest' } }] },
+            build: (v) => {
+                const pos = String(v.pos || '').split(/[\s,;]+/).filter(Boolean);
+                return [{ tool: 'add_to_batch', args: { pos: pos, status: v.status || undefined, latest_only: v.which === 'latest' } }];
+            } },
         weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed, Report, sites to sort out and PO Close Out. Print or PDF.',
             ask: () => [], action: () => { if (window.ibaWeeklyReport) window.ibaWeeklyReport.open(); } },
         // 15.0.0 patch 28: For SRV (or another status) by site, as a printable
