@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '16.0.0';
+const APP_VERSION = '17.0.0';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -4072,6 +4072,19 @@ async function handleSaveModifiedTask() {
 async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAttention, options = {}) {
     const sanitizeFirebaseKey = (key) => String(key || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
 
+    // 17.0.0 patch 6: the person who had this task before is read from the
+    // shared task list (a few bytes), not only from the copy in this browser.
+    // A copy loaded earlier could still name the person before that, so the
+    // previous person's row stayed and the invoice kept showing in their tasks
+    // after Attention was changed (e.g. Santosh -> Asif).
+    let savedAttention = '';
+    try {
+        if (invoiceKey && typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) {
+            const prevSnap = await invoiceDb.ref(`invoice_tasks_by_user/All/${invoiceKey}/attention`).once('value');
+            savedAttention = String((prevSnap && prevSnap.val()) || '').trim();
+        }
+    } catch (_) { savedAttention = ''; }
+
     // 11.5.8: Keep the compact Payments index aligned with the master invoice.
     // With Accounts records are added; every other status removes the index row.
     // The master invoice remains authoritative and invoice saving must not fail
@@ -4102,6 +4115,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         };
         ['All', 'Accounting', 'Accounts', 'Finance', 'Irwin'].forEach(addName);
         addName(oldAttention);
+        addName(savedAttention);
         addName(invoiceData && invoiceData.attention);
         addName(invoiceData && invoiceData.assignedTo);
         addName(invoiceData && invoiceData.enteredBy);
@@ -4369,13 +4383,19 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
         lookupPending.push(markWorkdeskDashboardRecent(true, taskData));
     }
 
-    // 2. Remove from old user's inbox
-    if (oldAttention && (oldAttention !== newAttention || !isTaskNowActive)) {
-        const safeOldAttentionKey = sanitizeFirebaseKey(oldAttention);
+    // 2. Remove from old user's inbox (the one this browser knew and the one
+    // saved in the shared list, when they differ)
+    const removedOld = new Set();
+    [oldAttention, savedAttention].forEach((prev) => {
+        prev = String(prev || '').trim();
+        if (!prev || (prev === newAttention && isTaskNowActive)) return;
+        const safeOldAttentionKey = sanitizeFirebaseKey(prev);
+        if (!safeOldAttentionKey || removedOld.has(safeOldAttentionKey)) return;
         if (safeOldAttentionKey !== sanitizeFirebaseKey(newAttention)) {
+            removedOld.add(safeOldAttentionKey);
             lookupPending.push(invoiceDb.ref(`invoice_tasks_by_user/${safeOldAttentionKey}/${invoiceKey}`).remove());
         }
-    }
+    });
     await Promise.all(lookupPending);
 }
 
@@ -6296,11 +6316,13 @@ async function handleGenerateSummary() {
                 }
             }
 
+            // 17.0.0 patch 27: the print shows the full description (data-print-full);
+            // the box keeps the short text, so Update saves the same as before.
             row.innerHTML = `
                 <td>${invCountDisplay}</td>
                 <td>${inv.po}</td>
                 <td>${inv.site}</td>
-                <td><input type="text" class="summary-edit-input" name="details" value="${truncatedDescription}"></td>
+                <td><input type="text" class="summary-edit-input" name="details" value="${truncatedDescription}" data-print-full="${escapeHtml(rawDescription)}"></td>
                 <td><input type="date" class="summary-edit-input" name="invoiceDate" value="${normalizeDateForInput(inv.invoiceDate) || ''}"></td>
                 <td>${formatCurrency(getSummaryPaymentAmount(inv))}</td>
             `;
@@ -8322,7 +8344,8 @@ try {
         }
         const financeTokens = String(userPos || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         // 11.0.3: Allow QS and Senior QS positions to access Invoice Management → Financial Report.
-        const hasFinancePosition = financeTokens.some(t => ['finance', 'accounts', 'accounting', 'ceo', 'coo', 'qs', 'seniorqs'].includes(t));
+        // 17.0.0 patch 26: CEO / COO no longer (martin: Super Admin, Finance / Accounts and QS only).
+        const hasFinancePosition = financeTokens.some(t => ['finance', 'accounts', 'accounting', 'qs', 'seniorqs'].includes(t));
         const canAccessEpicoreFinance = isSuperAdmin || isVacationDelegate || (isAdmin && hasFinancePosition);
 
         const imNavItems = imNav.querySelectorAll('li');

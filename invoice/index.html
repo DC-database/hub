@@ -391,10 +391,13 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-14-patch.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-ui.css?v=15.0.0-p36" rel="stylesheet"/>
 <link href="css/iba-ui-popups.css?v=15.0.0-p2" rel="stylesheet"/>
-<link href="css/iba-assistant.css?v=15.0.0-p38" rel="stylesheet"/>
+<link href="css/iba-assistant.css?v=17.0.0-p18" rel="stylesheet"/>
 <link href="css/iba-ui-tables.css?v=15.0.0-p18" rel="stylesheet"/>
 <link href="css/iba-approvals.css?v=15.0.0" rel="stylesheet"/>
 <link href="css/iba-phone.css?v=15.0.0-p13" rel="stylesheet"/>
+<link href="css/iba-p45.css?v=15.0.0-p49" rel="stylesheet"/>
+<link href="css/iba-17.css?v=17.0.0-p25" rel="stylesheet"/>
+<link href="css/iba-17-p27.css?v=17.0.0-p28" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -1510,6 +1513,14 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
   <button class="secondary-btn iba-bg-browse" type="button">Browse</button>
   <button class="primary-btn iba-bg-save" type="button">Save</button>
 </div>
+<!-- 17.0.0 patch 21: small cover screens (Z Flip 7 / 8); Fold and Duo use the phone photos above -->
+<div class="iba-bg-row" data-iba-bg-group="phone-cover">
+  <img class="iba-bg-preview" alt="Flip cover screen background"/>
+  <div class="iba-bg-meta"><h3>Phone &middot; Flip cover screen</h3><p class="iba-bg-filename">office2.jpg</p><p class="iba-bg-note">Z Flip cover screen only</p></div>
+  <select class="iba-bg-select hidden" aria-label="Flip cover screen photo"></select>
+  <button class="secondary-btn iba-bg-browse" type="button">Browse</button>
+  <button class="primary-btn iba-bg-save" type="button">Save</button>
+</div>
 </div>
 <div class="settings-card iba-bg-picker" id="iba-login-opening-settings">
 <div class="settings-card-header">
@@ -1861,6 +1872,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <button class="im-quick-status-btn" data-im-quick-status="For SRV" type="button">For SRV</button>
 <button class="im-quick-status-btn" data-im-quick-status="In Process" type="button">In Process</button>
 <button class="im-quick-status-btn" data-im-quick-status="For Summary" type="button">For Summary</button>
+<button class="im-quick-status-btn" data-im-quick-status="For Approval" type="button">For Approval</button>
 <button class="im-quick-status-btn" data-im-quick-status="CEO Approval" type="button">CEO Approval</button>
 <button class="im-quick-status-btn" data-im-quick-status="Report" type="button">Report</button>
 <button class="im-quick-status-btn" data-im-quick-status="Report Approved" type="button">Report Approved</button>
@@ -1959,7 +1971,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <select id="im-batch-global-attention" style="background: white;"></select>
 </div>
 <div class="form-group" style="flex: 1; min-width: 150px; margin: 0;">
-<label for="im-batch-global-status" style="font-size: 0.8rem; color: #475569; margin-bottom: 4px;">Set All Statuses To</label>
+<label for="im-batch-global-status" style="font-size: 0.8rem; color: #475569; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; gap: 8px;"><span>Set All Statuses To</span><button id="iba-batch-sum-all" type="button" title="Press SUM on every row: For Summary + note (vendor and today's date)">SUM ALL</button></label>
 <select class="batch-input" id="im-batch-global-status" style="width: 100%; padding: 10px; background: white; border: 1px solid #cbd5e1;">
 <option value="">(No Change)</option>
 <option value="For SRV">For SRV</option>
@@ -2125,7 +2137,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 </div>
 <div class="sn-signatures">
 <div>Prepared By</div>
-<div>CEO</div>
+<div>Managing Director</div>
 </div>
 </div>
 <div id="summary-placeholder-msg" style="color: #777; text-align: center; margin-top: 100px; font-family: sans-serif;">
@@ -3686,25 +3698,25 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-inventory.js?v=15.0.0-p32"></script>
 <script src="js/app-invoice.js?v=15.0.0-p32"></script>
 <script src="js/app-mobile.js?v=15.0.0-p1"></script>
-<script src="js/app-finance.js?v=15.0.0-p12"></script>
+<script src="js/app-finance.js?v=17.0.0-p7"></script>
 <script src="js/app-chat.js?v=15.0.0-p41"></script>
 <script src="js/app-celebration.js?v=8.2.3"></script>
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=12.9.1"></script>
-<script src="app.js?v=15.0.0-p43"></script>
+<script src="app.js?v=17.0.0-p27"></script>
 <script src="js/iba-approvals.js?v=15.0.0-p43"></script>
 <script src="js/app-time-clock.js?v=11.7.2"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/iba-page-surfaces.js?v=15.0.0"></script>
 <script src="js/app-navigation-settings.js?v=15.0.0"></script>
-<script src="js/app-data-cache.js?v=15.0.0-p43"></script>
+<script src="js/app-data-cache.js?v=17.0.0-p7"></script>
 <script src="js/app-job-vendor.js?v=8.2.3"></script>
 <script src="js/app-workdesk-job-entry.js?v=12.9.9a"></script>
-<script src="js/app-standard-job.js?v=15.0.0-p32"></script>
+<script src="js/app-standard-job.js?v=17.0.0-p4"></script>
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
 <script src="js/app-payments.js?v=12.8.2"></script>
-<script src="js/app-invoice-records.js?v=15.0.0"></script>
+<script src="js/app-invoice-records.js?v=17.0.0-p7"></script>
 <script src="js/app-po-closeout.js?v=15.0.0-p23"></script>
 <script src="js/app-active-tasks.js?v=15.0.0-p43"></script>
 <script src="js/app-workdesk-dashboard.js?v=15.0.0-p43"></script>
@@ -3715,28 +3727,40 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
 <script src="js/app-modal-navigation-clear.js?v=15.0.0"></script>
 <script src="js/app-invoice-entry-search.js?v=15.0.0-p43"></script>
-<script src="js/app-attention-validation.js?v=15.0.0-p29"></script>
-<script src="js/iba-attention-picker.js?v=15.0.0-p9"></script>
-<script src="js/app-batch-entry-ui.js?v=15.0.0-p9"></script>
+<script src="js/app-attention-validation.js?v=15.0.0-p44"></script>
+<script src="js/iba-attention-picker.js?v=17.0.0-p15"></script>
+<script src="js/app-batch-entry-ui.js?v=17.0.0-p18"></script>
 <script src="js/iba-ui-skin.js?v=15.0.0"></script>
-<script src="js/app-im-event-wiring.js?v=15.0.0-p29"></script>
+<script src="js/app-im-event-wiring.js?v=17.0.0-p7"></script>
 <script src="js/app-history-transfer.js?v=15.0.0-p32"></script>
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '16.0.0';
+      window.IBA_SYSTEM_VERSION = '17.0.0';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
-<script src="js/iba-shell.js?v=15.0.0-p17"></script>
-<script src="js/iba-phone.js?v=15.0.0-p23"></script>
+<script src="js/iba-shell.js?v=17.0.0-p21"></script>
+<script src="js/iba-phone.js?v=17.0.0-p21"></script>
 <script src="js/iba-live-counts.js?v=15.0.0"></script>
-<script src="js/iba-task-check.js?v=15.0.0-p23"></script>
+<script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=15.0.0-p43"></script>
+<script src="js/iba-assistant.js?v=17.0.0-p24"></script>
+<script src="js/iba-status-options.js?v=15.0.0-p45"></script>
+<script src="js/iba-job-po-fill.js?v=15.0.0-p45"></script>
+<script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
+<script src="js/iba-17-p2.js?v=17.0.0-p2"></script>
+<script src="js/iba-print-basket.js?v=17.0.0-p22"></script>
+<script src="js/iba-task-tidy.js?v=17.0.0-p6"></script>
+<script src="js/iba-17-p7.js?v=17.0.0-p7"></script>
+<script src="js/iba-17-p13.js?v=17.0.0-p13"></script>
+<script src="js/iba-17-p16.js?v=17.0.0-p17"></script>
+<script src="js/iba-17-p21.js?v=17.0.0-p23"></script>
+<script src="js/iba-17-p24.js?v=17.0.0-p26"></script>
+<script src="js/iba-17-p27.js?v=17.0.0-p33"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
-<script src="js/iba-vacation-handover.js?v=15.0.0-p39"></script>
+<script src="js/iba-vacation-handover.js?v=17.0.0-p18"></script>
 <script src="js/iba-session-lock.js?v=15.0.0-p25"></script>
 <script src="js/app-version-checker.js?v=11.9.4"></script>
 </div>    <script src="js/app-approval-print.js?v=15.0.0-p9"></script>
