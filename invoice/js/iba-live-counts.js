@@ -113,9 +113,47 @@
     // ------------------------------------------------------------------
     // WorkDesk: Active Task count (same filter as Active Task)
     // ------------------------------------------------------------------
+    // 17.0.2 patch 4: right after sign-in (and on the phone) the WorkDesk job
+    // list is not loaded until WorkDesk is opened, so New Entries and other
+    // jobs were missing from the count and the Now brief. Until it is loaded,
+    // the user's own jobs come from the saved Job Records copy (only changes
+    // are read) or, without one, the indexed for = Invoice / IPC queries.
+    function wdListLoaded() {
+        try { return typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries) && workdeskSystemEntries.length > 0; } catch (_) { return false; }
+    }
+    const OWN_JOBS_EVERY = 10 * 60 * 1000;
+    async function loadOwnJobs(force) {
+        if (!st.running || wdListLoaded()) return;
+        if (st.ownJobsBusy || (!force && st.ownJobsAt && Date.now() - st.ownJobsAt < OWN_JOBS_EVERY)) return;
+        const runId = st.runId;
+        st.ownJobsBusy = true;
+        try {
+            let raw = null;
+            try { if (typeof window.ibaJobsFromPocketWhere === 'function') raw = await window.ibaJobsFromPocketWhere((v) => !!v && forMeOrDelegated(v.attention || '')); } catch (_) { raw = null; }
+            if (!raw) {
+                let d = null;
+                try { if (typeof db !== 'undefined' && db && db.ref) d = db; } catch (_) {}
+                if (!d) return;
+                const [a, b] = await Promise.all([
+                    d.ref('job_entries').orderByChild('for').equalTo('Invoice').once('value'),
+                    d.ref('job_entries').orderByChild('for').startAt('IPC').endAt('IPC\uf8ff').once('value')
+                ]);
+                raw = Object.assign({}, (a && a.val()) || {}, (b && b.val()) || {});
+            }
+            if (runId !== st.runId || !st.running) return;
+            st.ownJobs = Object.keys(raw).filter((k) => raw[k] && forMeOrDelegated(raw[k].attention || ''))
+                .map((k) => Object.assign({}, raw[k], { key: k, source: 'job_entry' }));
+            st.ownJobsAt = Date.now();
+            recountWorkdesk('own-jobs');
+        } catch (err) {
+            console.warn('[IBA live counts] own jobs not read', err && (err.code || err.message));
+        } finally { st.ownJobsBusy = false; }
+    }
+
     function wdJobKeys(out, items) {
         let list = [];
-        try { if (typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries)) list = workdeskSystemEntries; } catch (_) {}
+        if (wdListLoaded()) list = workdeskSystemEntries;
+        else if (Array.isArray(st.ownJobs)) list = st.ownJobs;
         let invData = null;
         try { if (typeof allInvoiceData !== 'undefined') invData = allInvoiceData; } catch (_) {}
         for (let i = 0; i < list.length; i++) {
@@ -356,7 +394,9 @@
             counts: { task: st.running ? (Number(pick(st.wd)) || 0) : 0, job: st.running ? (Number(pick(st.inv)) || 0) : 0 },
             tasks: tasks,
             jobs: inv.items,
-            jobsNotLoaded: inv.unknown
+            jobsNotLoaded: inv.unknown,
+            // 17.0.2 patch 4: the user's WorkDesk jobs are still being read
+            wdJobsPending: st.running && !wdListLoaded() && !st.ownJobsAt
         };
     }
 
@@ -512,6 +552,7 @@
         startInventory();
         recountWorkdesk('start');
         recountInventory('start');
+        loadOwnJobs(true);
         // memory-only checks (no downloads): the WorkDesk job list and the full
         // inventory list are refreshed by the existing routines
         st.timer = setInterval(() => {
@@ -520,6 +561,7 @@
             if (d.join('|') !== st.delegators.join('|')) { stop(); start(); return; }
             recountWorkdesk('tick');
             recountInventory('tick');
+            loadOwnJobs(false);
         }, 15000);
     }
 
@@ -528,6 +570,8 @@
         if (st.timer) { clearInterval(st.timer); st.timer = 0; }
         st.running = false;
         st.user = '';
+        st.ownJobs = null;
+        st.ownJobsAt = 0;
         st.inbox = {};
         st.inboxPrimed = {};
         st.inboxBuckets = [];

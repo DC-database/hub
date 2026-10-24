@@ -782,6 +782,9 @@
         let w = waiting();
         const t0 = Date.now();
         while ((!w || !w.running) && Date.now() - t0 < (ms || 12000)) { await wait(400); w = waiting(); }
+        // 17.0.2 patch 4: give the WorkDesk jobs (New Entries ...) up to 10 s more
+        const t1 = Date.now();
+        while (w && w.running && w.wdJobsPending && Date.now() - t1 < 10000) { await wait(400); w = waiting(); }
         return (w && w.running) ? w : null;
     }
     const NOT_READY = 'Your task list is still loading after sign-in. Please try again in a moment.';
