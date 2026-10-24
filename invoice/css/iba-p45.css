@@ -19,7 +19,8 @@
 }
 
 /* ---------- Z Flip 7 cover screen ---------- */
-@media (max-width: 480px) and (max-height: 560px) {
+/* 17.0.2: also any small, roughly square screen (same rule as js/iba-phone.js COVER_MQ) */
+@media (max-width: 480px) and (max-height: 560px), (max-width: 600px) and (max-height: 700px) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) {
   @layer iba-ui {
     body.iba-phone #iba-phone#iba-phone { font-size: 13.5px !important; }
     body.iba-phone #iba-phone .iba-ph-head { padding: calc(4px + env(safe-area-inset-top, 0px)) 10px 4px !important; gap: 8px !important; }
