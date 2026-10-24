@@ -655,8 +655,11 @@
     // ------------------------------------------------------------------
     function watchSession() {
         // 17.0.2: also on the phone, so the phone Now brief has the task list
-        // (the header pills sit under the phone screen there)
-        const signedIn = document.body && document.body.classList.contains('iba-shell-on') && !!me();
+        // (the header pills sit under the phone screen there).
+        // 17.0.2 patch 3: the phone sign-in skips the desktop shell, so
+        // iba-shell-on is often not set there: the phone workspace counts too.
+        const b = document.body;
+        const signedIn = !!b && (b.classList.contains('iba-shell-on') || b.classList.contains('iba-phone')) && !!me();
         if (signedIn && st.running && norm(st.user) !== norm(me())) stop();
         if (signedIn && !st.running) start();
         else if (!signedIn && st.running) stop();
