@@ -31,6 +31,21 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<!-- 17.0.2 patch 5: install as an app (full screen, no address bar) -->
+<link rel="manifest" href="manifest.json?v=17.0.2-p5"/>
+<meta name="theme-color" content="#0b1724"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="IBA"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('[IBA app] install helper not registered', e); });
+    });
+  }
+</script>
 <title>System Login</title>
 <script>
 if (/preview=shell/.test(location.search||'')) document.documentElement.classList.add('iba-preview-shell');
@@ -398,6 +413,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-p45.css?v=17.0.2" rel="stylesheet"/>
 <link href="css/iba-17.css?v=17.0.0-p25" rel="stylesheet"/>
 <link href="css/iba-17-p27.css?v=17.0.0-p28" rel="stylesheet"/>
+<link href="css/iba-1702-glass.css?v=17.0.2-p6" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -3760,7 +3776,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-17-p24.js?v=17.0.0-p26"></script>
 <script src="js/iba-17-p27.js?v=17.0.0-p33"></script>
 <script src="js/iba-1702-urgent.js?v=17.0.2"></script>
-<script src="js/iba-1702-reception-batch.js?v=17.0.2"></script>
+<script src="js/iba-1702-reception-batch.js?v=17.0.2-p7"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
 <script src="js/iba-vacation-handover.js?v=17.0.0-p18"></script>
 <script src="js/iba-session-lock.js?v=15.0.0-p25"></script>

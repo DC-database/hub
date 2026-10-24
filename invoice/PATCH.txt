@@ -18,8 +18,7 @@ What changed
   Review, a "Reception" tag and +Del when the original PO is in the file.
   Every box can still be changed. On Save each reception entry is closed
   as "Converted to Invoice" and linked to its new invoice (like Invoice
-  Entry). POs not in POVALUE2.csv yet are left out and listed; a second
-  reception entry on the same PO waits until the first one is saved.
+  Entry). POs not in POVALUE2.csv yet are left out and listed.
 - Phone: the Now brief works on the phone (the task counter now also runs
   in the phone view).
 - 17.0.2 patch 1: WorkDesk Active Task "Process" window has a short
@@ -28,6 +27,26 @@ What changed
   (IPC tasks and Report / Report Approval steps keep their own choices.)
 - 17.0.2 patch 2: the "Same-name users" window pops up by itself only when
   two users have exactly the same name (not for Asif / Asif.2).
+- 17.0.2 patch 3: phone Now brief fix: the task counter also starts when
+  you sign in straight into the phone view (it waited for the desktop
+  screen, which the phone sign-in skips).
+- 17.0.2 patch 4: right after sign-in (and on the phone) the header Active
+  Task count and the Now brief now include your WorkDesk jobs (reception
+  New Entries, IPC ...) without opening Active Task first. They come from
+  the saved Job Records copy (only changes are read) or the indexed
+  Invoice / IPC job lists. Other job types (PR, Payment ...) still appear
+  after WorkDesk is opened.
+- 17.0.2 patch 5: install as an app. Android (Chrome): menu > Install app.
+  iPhone (Safari / Chrome): Share > Add to Home Screen. Opens full screen
+  with its own icon and no address bar. New files: manifest.json, sw.js,
+  icons/ (4 images). sw.js stores nothing, so updates work as before.
+- 17.0.2 patch 6: Batch Entry cards, the Set All panel and the Invoice
+  Records list in the same clear glass as the pop-ups; the Reception tag
+  and +Del button on Batch Entry cards now look like the card's own small
+  buttons. New file: css/iba-1702-glass.css.
+- 17.0.2 patch 7: "New entries to Batch" adds every reception entry of a PO
+  (e.g. 3 on one PO -> 3 new rows, INV-02 / INV-03 / INV-04), not only the
+  first. Save gives each its own next free Inv Entry ID.
 - Z Flip cover screen: found by its shape too (up to 600 x 700 and roughly
   square), so the folded square screen gets the cover layout. Fold inner
   screens keep the normal phone view.
@@ -41,6 +60,8 @@ Files to copy (over 17.0.1)
   js/iba-live-counts.js
   js/iba-phone.js
   js/iba-17-p16.js
+  css/iba-1702-glass.css           (new)
+  manifest.json, sw.js, icons/     (new)
   js/iba-1702-urgent.js            (new)
   js/iba-1702-reception-batch.js   (new)
 
