@@ -2943,7 +2943,7 @@
                 return 'Opened the list in a new tab: ' + r.count + ' item' + (r.count === 1 ? '' : 's') + (v.site ? '' : ' on ' + r.sites + ' site' + (r.sites === 1 ? '' : 's')) + '. Press "Print / Save as PDF" there. No AI used' + (r.mode === 'saved' ? ', only the changed POs were read.' : '.');
             } },
         // 15.0.0 patch 37: mark For Approval / CEO Approval invoices URGENT
-        urgent: { name: 'Mark urgent', icon: 'fa-bolt', adminOnly: true, desc: 'Lists every invoice now in For Approval or CEO Approval. Tick the ones to rush and press Mark urgent: they move to the approver\'s Urgent tab right away. No AI used.',
+        urgent: { name: 'Mark urgent', icon: 'fa-bolt', adminOnly: true, desc: 'Lists every invoice now in For Approval as a table. Tick the ones to rush and press Mark urgent: they move to the approver\'s Urgent tab right away. (CEO Approval is signed on paper, so it is not listed.) No AI used.',
             ask: () => [], run: async () => { await urgentCard(); return null; } },
         // 15.0.0 patch 39: see and undo vacation hand-overs
         handover: { name: 'Vacation hand-overs', icon: 'fa-people-arrows', superOnly: true, desc: 'Who the system treats as on vacation now, and the recent automatic hand-overs. Undo puts the tasks back to the person (only those still with the receiver).',
@@ -3148,7 +3148,7 @@
         addUser('▶ Mark urgent', true);
         const card = document.createElement('div');
         card.className = 'iba-ai-card iba-ai-urgent';
-        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · For Approval / CEO Approval</div><div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · For Approval</div><div class="iba-ai-typing"><span></span><span></span><span></span></div>';
         put(card);
         let data;
         try {
@@ -3169,35 +3169,43 @@
                     status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentNote(inv.note), pdf: invPdfUrl(inv), srv: srvPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
             });
         });
+        // 17.0.2 patch 9: one table (For Approval only - the CEO signs on paper,
+        // so CEO Approval invoices are not marked urgent here; invoices already
+        // urgent in any approval step still show so the Super Admin can remove it)
         const order = () => rows.sort((a, b) => (b.days || 0) - (a.days || 0));
         order();
-        let filter = 'all';
         const sup = isSuper();
-        const pdf = (r) => (r.pdf ? '<a class="iba-ai-mini" href="' + esc(r.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(r.srv);
-        const line = (r) => '<span class="iba-ai-grow"><strong>PO ' + esc(r.po) + ' · ' + esc(r.no) + '</strong><small>' + esc([r.vendor, r.status, r.with ? 'with ' + r.with : '', r.days != null ? r.days + ' day' + (r.days === 1 ? '' : 's') : ''].filter(Boolean).join(' · ')) + '</small>' +
-            (r.note ? '<small class="iba-ai-urg-note">' + esc(r.note.slice(0, 140)) + '</small>' : '') + '</span>' + (r.value ? '<span class="iba-ai-trk-val">' + esc(money(r.value)) + '</span>' : '');
+        const markable = (r) => !r.urgent && norm(r.status) === 'for approval';
+        const files = (r) => (r.pdf ? '<a class="iba-ai-mini" href="' + esc(r.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(r.srv);
+        const cells = (r) => '<td class="is-po">' + esc(r.po) + '</td><td>' + esc(r.no) + '</td><td class="is-vendor" title="' + esc(r.vendor) + '">' + esc(r.vendor) + '</td>' +
+            '<td>' + esc(r.with || '—') + '</td><td class="is-num">' + (r.days != null ? r.days + 'd' : '—') + '</td><td class="is-num">' + (r.value ? esc(money(r.value)) : '—') + '</td>' +
+            '<td class="is-note" title="' + esc(r.note) + '">' + esc(r.note.slice(0, 80)) + '</td><td class="is-files">' + files(r) + '</td>';
+        const head = (first, last) => '<thead><tr><th>' + first + '</th><th>PO</th><th>Invoice</th><th>Vendor</th><th>With</th><th class="is-num">Days</th><th class="is-num">Value</th><th>Note</th><th>Files</th>' + (last ? '<th></th>' : '') + '</tr></thead>';
         const paint = () => {
-            const inF = (r) => filter === 'all' || norm(r.status) === filter;
-            const normal = rows.filter((r) => !r.urgent && inF(r)), urg = rows.filter((r) => r.urgent && inF(r));
-            const cnt = (st) => rows.filter((r) => !r.urgent && norm(r.status) === st).length;
+            const normal = rows.filter(markable), urg = rows.filter((r) => r.urgent);
             const openNow = card.querySelector('details.iba-ai-urg-done') && card.querySelector('details.iba-ai-urg-done').open;
-            card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · ' + rows.filter((r) => !r.urgent).length + ' waiting for approval</div>' +
-                '<div class="iba-ai-chiprow">' + [['all', 'All', rows.filter((r) => !r.urgent).length], ['for approval', 'For Approval (COO)', cnt('for approval')], ['ceo approval', 'CEO Approval', cnt('ceo approval')]].map((c) =>
-                    '<button type="button" class="iba-ai-chip' + (filter === c[0] ? ' is-on' : '') + '" data-urg-filter="' + c[0] + '">' + esc(c[1]) + ' <b>' + c[2] + '</b></button>').join('') + '</div>' +
-                (normal.length ? '<ul class="iba-ai-urg-list">' + normal.map((r) => '<li><input type="checkbox" data-urg-i="' + rows.indexOf(r) + '" aria-label="Select">' + line(r) + pdf(r) + '</li>').join('') + '</ul>'
-                    : '<p class="iba-ai-empty">Nothing else is waiting in ' + (filter === 'all' ? 'For Approval or CEO Approval' : esc(filter)) + '.</p>') +
-                (normal.length ? '<div class="iba-ai-urg-acts"><label class="iba-ai-urg-all"><input type="checkbox" data-urg-all> Select all shown</label>' +
+            card.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> Mark urgent · ' + normal.length + ' in For Approval</div>' +
+                (normal.length ? '<div class="iba-ai-urg-tablewrap"><table class="iba-ai-urg-table">' + head('<input type="checkbox" data-urg-all aria-label="Select all">', false) + '<tbody>' +
+                    normal.map((r) => '<tr><td class="is-check"><input type="checkbox" data-urg-i="' + rows.indexOf(r) + '" aria-label="Select"></td>' + cells(r) + '</tr>').join('') + '</tbody></table></div>'
+                    : '<p class="iba-ai-empty">Nothing else is waiting in For Approval.</p>') +
+                (normal.length ? '<div class="iba-ai-urg-acts">' +
                     '<label class="iba-ai-urg-reason"><span>Reason (optional) - the approver sees it in the note</span><input type="text" maxlength="200" data-urg-reason placeholder="e.g. Supplier needs this payment to pay another supplier"></label>' +
                     '<label class="iba-ai-urg-all"><input type="checkbox" data-urg-remind> Also send the approver a reminder</label>' +
                     '<button type="button" class="iba-ai-mini is-main is-danger" data-urg-go><i class="fa-solid fa-bolt"></i> Mark urgent</button><span class="iba-ai-urg-msg"></span></div>' : '') +
-                (urg.length ? '<details class="iba-ai-urg-done"' + (openNow ? ' open' : '') + '><summary><span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span> Already urgent <b>' + urg.length + '</b></summary><ul class="iba-ai-urg-list">' +
-                    urg.map((r) => '<li class="is-urgent">' + line(r) + pdf(r) + (sup ? '<button type="button" class="iba-ai-mini" data-urg-off="' + rows.indexOf(r) + '" title="Back to normal (Super Admin)">Remove</button>' : '') + '</li>').join('') + '</ul></details>' : '');
+                (urg.length ? '<details class="iba-ai-urg-done"' + (openNow ? ' open' : '') + '><summary><span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span> Already urgent <b>' + urg.length + '</b></summary>' +
+                    '<div class="iba-ai-urg-tablewrap"><table class="iba-ai-urg-table is-urgent">' + head('Status', sup) + '<tbody>' +
+                    urg.map((r) => '<tr><td class="is-status">' + esc(r.status) + '</td>' + cells(r) + (sup ? '<td><button type="button" class="iba-ai-mini" data-urg-off="' + rows.indexOf(r) + '" title="Back to normal (Super Admin)">Remove</button></td>' : '') + '</tr>').join('') +
+                    '</tbody></table></div></details>' : '');
         };
         paint();
         card.addEventListener('click', async (e) => {
             const b = e.target.closest('button, input[data-urg-all]');
-            if (!b) return;
-            if (b.dataset.urgFilter) { filter = b.dataset.urgFilter; paint(); return; }
+            if (!b) {
+                // a click anywhere on a row ticks it (not on its links)
+                const tr = e.target.closest('.iba-ai-urg-table:not(.is-urgent) tbody tr');
+                if (tr && !e.target.closest('a, input')) { const cb = tr.querySelector('input[data-urg-i]'); if (cb) cb.checked = !cb.checked; }
+                return;
+            }
             if (b.hasAttribute('data-urg-all')) { card.querySelectorAll('input[data-urg-i]').forEach((x) => { x.checked = b.checked; }); return; }
             const msg = () => card.querySelector('.iba-ai-urg-msg');
             if (b.dataset.urgOff !== undefined) {
@@ -4765,7 +4773,7 @@
                     srvLink(it.srv) +
                     // 15.0.0 patch 40: Remind on each open invoice, to the person who has it
                     (it.stage_index < 5 && it.with ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
-                    (it.kind === 'invoice' && it.key && APPROVAL_RX.test(String(it.status || '')) && (it.urgent ? isSuper() : isAdminUser()) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
+                    (it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser())) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
@@ -5165,7 +5173,7 @@
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
-        site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
+        site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
