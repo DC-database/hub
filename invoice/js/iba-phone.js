@@ -259,7 +259,10 @@
     // 14.0.0 patch 7: each side has its own background photo, chosen in
     // Settings (Shell Backgrounds > Phone). "none" = plain dark.
     // 17.0.0 patch 21: small cover screens (Z Flip 7 / 8) get their own photo
-    const COVER_MQ = '(max-width: 480px) and (max-height: 560px)';
+    // 17.0.2: the cover screen is found by its shape too: small and roughly
+    // square (the Z Flip cover browser can be wider than 480 px). Fold inner
+    // screens are wider than 600 px, so they keep the normal phone view.
+    const COVER_MQ = '(max-width: 480px) and (max-height: 560px), (max-width: 600px) and (max-height: 700px) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3)';
     function onCoverScreen() { try { return !!(window.matchMedia && window.matchMedia(COVER_MQ).matches); } catch (_) { return false; } }
     function paintPhoneBg() {
         const root = $('iba-phone');

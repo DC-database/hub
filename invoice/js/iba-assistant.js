@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '17.0.0-p34';
+    const VERSION = '17.0.2';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -2905,6 +2905,23 @@
                 const pos = String(v.pos || '').split(/[\s,;]+/).filter(Boolean);
                 return [{ tool: 'add_to_batch', args: { pos: pos, status: v.status || undefined, latest_only: v.which === 'latest' } }];
             } },
+        // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
+        reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv yet are left out and listed. No AI used.',
+            ask: () => [], run: async () => {
+                if (!window.ibaReceptionBatch) throw new Error('This skill is not loaded on this page.');
+                const r = await window.ibaReceptionBatch.run(openBatchEntry);
+                if (!r.total) return 'No reception New Entry is waiting for you right now.';
+                const line = (x) => '- PO ' + x.po + (x.inv ? ' (' + x.inv + ')' : '') + (x.invoice_no ? ', inv. ' + x.invoice_no : '') + (x.amount ? ', ' + x.amount : '') + (x.reason ? ': ' + x.reason : '');
+                let msg = '**' + r.added.length + ' of ' + r.total + '** reception entr' + (r.total === 1 ? 'y' : 'ies') + ' added to Batch Entry as Under Review.';
+                if (r.added.length) msg += '\n\n' + r.added.map(line).join('\n');
+                if (r.skipped.length) msg += '\n\n**Left out (' + r.skipped.length + ')**\n' + r.skipped.map(line).join('\n');
+                if (r.added.length) {
+                    msg += '\n\nNothing is saved yet. Check or change the rows, then press Save: each reception entry is then closed as Converted to Invoice.';
+                    const btn = $('im-batch-save-button');
+                    if (btn) { btn.classList.remove('iba-ai-pulse'); void btn.offsetWidth; btn.classList.add('iba-ai-pulse'); setTimeout(() => btn.classList.remove('iba-ai-pulse'), 6000); }
+                }
+                return msg;
+            } },
         weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed, Report, sites to sort out and PO Close Out. Print or PDF.',
             ask: () => [], action: () => { if (window.ibaWeeklyReport) window.ibaWeeklyReport.open(); } },
         // 15.0.0 patch 28: For SRV (or another status) by site, as a printable
@@ -5138,7 +5155,7 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -5146,7 +5163,7 @@
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_job', 'new_delivery', 'brief']],
+        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'recent', 'batch']],

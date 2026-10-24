@@ -654,8 +654,9 @@
     // Start after sign-in, stop on sign-out (checked every 2 s, no downloads)
     // ------------------------------------------------------------------
     function watchSession() {
-        // desktop only: the phone workspace shows its own counts
-        const signedIn = document.body && document.body.classList.contains('iba-shell-on') && !document.body.classList.contains('iba-phone') && !!me();
+        // 17.0.2: also on the phone, so the phone Now brief has the task list
+        // (the header pills sit under the phone screen there)
+        const signedIn = document.body && document.body.classList.contains('iba-shell-on') && !!me();
         if (signedIn && st.running && norm(st.user) !== norm(me())) stop();
         if (signedIn && !st.running) start();
         else if (!signedIn && st.running) stop();

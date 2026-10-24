@@ -18,6 +18,9 @@
    17.0.0 patch 17: also "Asif" + "Asif.2" (renamed by hand): open tasks that
    still say "Asif", and tasks the vacation hand-over moved away from "Asif",
    are listed so each goes to the right one (by site).
+   17.0.2 patch 2: the window pops up by itself only for exactly the same
+   names (near-same names kept asking on every sign-in, even for tasks
+   rightly handed over).
    ========================================================================== */
 (function () {
     'use strict';
@@ -292,7 +295,11 @@
         if (asked || !me() || !isSuper()) return;
         asked = true;
         setTimeout(() => {
-            findGroups().then((g) => {
+            // 17.0.2 patch 2: pop up by itself only when two users have exactly
+            // the same name. Near-same names (Asif / Asif.2) are already apart;
+            // their window is still there from window.ibaSplitNames().
+            findGroups().then((all) => {
+                const g = all.filter((x) => x.same);
                 if (!g.length) return;
                 let k = 'iba-split-names-asked:' + g.map((x) => x.name).join('|');
                 try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, '1'); } catch (_) {}
