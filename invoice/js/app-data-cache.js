@@ -190,8 +190,43 @@ function imRememberInvoiceNoteUsage(note, lastUsedAt = 0) {
     }
 }
 
+// 15.0.0 patch 44: a note gets the time of its newest invoice too (when the
+// invoices are already in memory), so notes the note index has no time for
+// are still listed newest first instead of A-Z at the end.
+let __imNoteInvoiceTimes = null;
+let __imNoteInvoiceTimesSrc = null;
+function imNoteTimeValue(value) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+    const t = Date.parse(value || '');
+    return Number.isFinite(t) && t > 0 ? t : 0;
+}
+function imNoteTimesFromInvoices() {
+    let src = null;
+    try { src = (typeof allInvoiceData !== 'undefined') ? allInvoiceData : null; } catch (_) { src = null; }
+    if (!src || typeof src !== 'object') return null;
+    if (src === __imNoteInvoiceTimesSrc && __imNoteInvoiceTimes) return __imNoteInvoiceTimes;
+    const out = new Map();
+    Object.keys(src).forEach(po => {
+        const invoices = src[po];
+        if (!invoices || typeof invoices !== 'object') return;
+        Object.keys(invoices).forEach(k => {
+            const inv = invoices[k];
+            if (!inv || !inv.note) return;
+            const key = imInvoiceNoteUsageKey(inv.note);
+            if (!key) return;
+            const t = Math.max(0, ...[inv.lastUpdated, inv.updatedAt, inv.statusChangedAt, inv.enteredAt, inv.createdAt].map(imNoteTimeValue));
+            if (t > (out.get(key) || 0)) out.set(key, t);
+        });
+    });
+    __imNoteInvoiceTimesSrc = src;
+    __imNoteInvoiceTimes = out;
+    return out;
+}
+
 function getInvoiceNotesLatestFirst() {
     const uniqueNotes = new Map();
+    const invoiceTimes = imNoteTimesFromInvoices();
 
     try {
         Array.from(allUniqueNotes || []).forEach(note => {
@@ -202,7 +237,7 @@ function getInvoiceNotesLatestFirst() {
             const usage = __imInvoiceNoteUsageMeta.get(key);
             const candidate = {
                 text: (usage && usage.text) || text,
-                lastUsedAt: (usage && usage.lastUsedAt) || 0
+                lastUsedAt: Math.max((usage && usage.lastUsedAt) || 0, (invoiceTimes && invoiceTimes.get(key)) || 0)
             };
             const existing = uniqueNotes.get(key);
             if (!existing || candidate.lastUsedAt >= existing.lastUsedAt) {
@@ -1974,8 +2009,14 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
         const shouldFetchFullInvoiceEntries = includeInvoiceEntries && (!allInvoiceData || forceRefresh || window.__invoiceEntriesFullLoaded !== true);
         if (promisesToRun.length > 0) window.__imLastInvoiceBaseRefreshAt = Date.now();
         if (shouldFetchFullInvoiceEntries) {
-            try { console.warn('[IBA Firebase Download] Full invoice_entries read requested by ensureInvoiceDataFetched(). This should be limited to Invoice Records/Financial Reports/export/report actions only.'); } catch (_) {}
-            promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
+            // 17.0.0 patch 7: saved copy + only the POs changed since (js/iba-17-p7.js);
+            // the whole list is read only when that copy is missing or over 12 hours old.
+            if (typeof window.ibaInvoiceEntriesLoad === 'function') {
+                promisesToRun.push(window.ibaInvoiceEntriesLoad().then((r) => ({ val: () => r.data })));
+            } else {
+                try { console.warn('[IBA Firebase Download] Full invoice_entries read requested by ensureInvoiceDataFetched(). This should be limited to Invoice Records/Financial Reports/export/report actions only.'); } catch (_) {}
+                promisesToRun.push(invoiceDb.ref('invoice_entries').once('value'));
+            }
         }
 
         const results = await Promise.all(promisesToRun);

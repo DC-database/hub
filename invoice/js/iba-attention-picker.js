@@ -34,7 +34,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '15.0.0-p9';
+    const VERSION = '17.0.0-p15';
     const $ = (id) => document.getElementById(id);
     // Status the loaded invoice was saved with; while the form still shows that
     // status, its own Attention is kept (no automatic suggestion over it).
@@ -254,6 +254,45 @@
         return html;
     }
 
+    // 17.0.0 patch 14: every name shows its position and site (from the
+    // approver list), and a name used by more than one user says so.
+    function peopleIndex() {
+        const idx = {};
+        let map = {};
+        try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) { map = {}; }
+        Object.keys(map).forEach((k) => {
+            const a = map[k];
+            if (!a) return;
+            const name = String(a.Name || a.Username || a.FullName || '').trim();
+            if (!name) return;
+            (idx[norm(name)] = idx[norm(name)] || []).push({ position: String(a.Position || '').trim(), site: String(a.Site || '').trim() });
+        });
+        return idx;
+    }
+    function uniq(list) { return list.filter((v, i) => v && list.indexOf(v) === i); }
+    function enrich(list) {
+        const idx = peopleIndex();
+        const away = awayMap();
+        return list.map((item) => {
+            if (!item || item.value === 'None') return item;
+            if (away[norm(item.value)]) item = Object.assign({}, item, { away: away[norm(item.value)].target });
+            const info = idx[norm(item.value)] || [];
+            if (!info.length) return item;
+            const pos = uniq(info.map((x) => x.position)).join(' / ');
+            const site = uniq(info.map((x) => x.site)).join(' / ');
+            const fallback = /\(Fallback\)/.test(item.label || '') ? ' (Fallback)' : '';
+            return Object.assign({}, item, {
+                position: pos, site: site, dup: info.length,
+                label: item.value + (pos ? ' - ' + pos : '') + (site ? ' - Site ' + site : '') + fallback
+            });
+        });
+    }
+    function siteNumbers(v) { return String(v || '').match(/\d+/g) || []; }
+    // "173" or "site 173": the site number typed in the search line
+    function siteQuery(q) {
+        const m = String(q || '').trim().match(/^(?:site\s*)?(\d{2,5})$/i);
+        return m ? m[1] : '';
+    }
     function renderList(query) {
         const menu = $('iba-attention-menu');
         if (!menu) return;
@@ -261,11 +300,15 @@
         const empty = menu.querySelector('.iba-attn-empty');
         const words = norm(query).split(' ').filter(Boolean);
         const current = currentValue();
-        let rows = menuNames.filter((item) => {
-            const hay = norm(item.label + ' ' + item.value);
-            return words.every((w) => hay.indexOf(w) !== -1);
-        });
-        if (words.length) {
+        const siteQ = siteQuery(query);
+        let rows = siteQ
+            ? menuNames.filter((item) => item.value !== 'None' && siteNumbers(item.site).indexOf(siteQ) !== -1)
+                .sort((a, b) => String(a.position || '').localeCompare(String(b.position || '')) || String(a.value).localeCompare(String(b.value)))
+            : menuNames.filter((item) => {
+                const hay = norm(item.label + ' ' + item.value);
+                return words.every((w) => hay.indexOf(w) !== -1);
+            });
+        if (words.length && !siteQ) {
             const first = words[0];
             rows = rows.slice().sort((a, b) => {
                 const ag = a.other ? 1 : 0, bg = b.other ? 1 : 0;
@@ -275,23 +318,46 @@
                 return as - bs;
             });
         }
-        const grouped = menuGroups.suggested > 0 && menuGroups.others > 0;
+        // 17.0.0 patch 1: "None" is always on offer, and a name that is not
+        // in the list can be typed and used as it is.
+        const typed = String(query || '').replace(/\s+/g, ' ').trim();
+        const extras = [];
+        if (!menuNames.some((n) => n.value === 'None') && (!words.length || 'none'.indexOf(norm(typed)) === 0)) {
+            extras.push({ value: 'None', label: 'None', extra: 'none' });
+        }
+        if (typed && !siteQ && norm(typed) !== 'none' && !rows.some((r) => norm(r.value) === norm(typed))) {
+            extras.push({ value: typed, label: typed, extra: 'typed' });
+        }
+        rows = rows.concat(extras);
+        const grouped = !siteQ && menuGroups.suggested > 0 && menuGroups.others > 0;
         list.innerHTML = rows.map((item, i) => {
+            if (item.extra) {
+                const sel = item.value === current;
+                const head = (i === 0 || !rows[i - 1].extra) ? '<div class="iba-attn-group" role="presentation">Or</div>' : '';
+                const name = item.extra === 'none' ? 'None' : 'Use \u201c' + esc(item.value) + '\u201d';
+                const meta = item.extra === 'none' ? 'nobody handles it' : 'typed by hand';
+                return head + '<button type="button" class="iba-attn-opt iba-attn-extra' + (sel ? ' is-selected' : '') + '" role="option" data-index="' + i + '" data-value="' + esc(item.value) + '" aria-selected="' + (sel ? 'true' : 'false') + '">' +
+                    '<span class="iba-attn-name">' + name + '</span><span class="iba-attn-meta">' + meta + '</span>' +
+                    (sel ? '<i class="fa-solid fa-check" aria-hidden="true"></i>' : '') + '</button>';
+            }
             const parts = splitLabel(item);
             const sel = item.value === current;
             let head = '';
+            if (siteQ && i === 0) head = '<div class="iba-attn-group" role="presentation">Everyone at site ' + esc(siteQ) + ' (' + rows.filter((r) => !r.extra).length + ')</div>';
             if (grouped && i === 0 && !item.other) head = '<div class="iba-attn-group" role="presentation">Suggested' + (menuGroups.status ? ' for ' + esc(menuGroups.status) : '') + '</div>';
             if (grouped && item.other && (i === 0 || !rows[i - 1].other)) head = '<div class="iba-attn-group" role="presentation">Everyone else (manual choice)</div>';
             return head + '<button type="button" class="iba-attn-opt' + (sel ? ' is-selected' : '') + '" role="option" data-index="' + i + '" data-value="' + esc(item.value) + '" aria-selected="' + (sel ? 'true' : 'false') + '">' +
                 '<span class="iba-attn-name">' + highlight(parts.name, words) + '</span>' +
                 (parts.meta ? '<span class="iba-attn-meta">' + highlight(parts.meta, words) + '</span>' : '') +
+                (item.away ? '<span class="iba-attn-dup is-away" title="On vacation: tasks should go to ' + esc(item.away) + '"><i class="fa-solid fa-umbrella-beach"></i> on vacation → ' + esc(item.away) + '</span>' : '') +
+                (item.dup > 1 ? '<span class="iba-attn-dup" title="Tasks are sent by name, so all users with this name get them. Give each user a different name in the user list to tell them apart."><i class="fa-solid fa-triangle-exclamation"></i> ' + item.dup + ' users have this name</span>' : '') +
                 (sel ? '<i class="fa-solid fa-check" aria-hidden="true"></i>' : '') +
                 '</button>';
         }).join('');
         list._rows = rows;
         if (empty) {
             empty.hidden = rows.length > 0;
-            empty.textContent = menuNames.length ? ('No name matches "' + String(query || '').trim() + '"') : 'No names for this status';
+            empty.textContent = siteQ ? ('Nobody is listed at site ' + siteQ) : menuNames.length ? ('No name matches "' + String(query || '').trim() + '"') : 'No names for this status';
         }
         const selIdx = rows.findIndex((r) => r.value === current);
         setActive(words.length ? 0 : (selIdx >= 0 ? selIdx : 0), true);
@@ -310,7 +376,75 @@
         if (scroll) opts[activeIndex].scrollIntoView({ block: 'nearest' });
     }
 
+    // 17.0.0 patch 1: remember a None picked on purpose, for the save check.
+    function noteNone(value) {
+        const none = value === 'None';
+        if (ctx) {
+            const card = ctx.anchor && ctx.anchor.closest ? ctx.anchor.closest('.batch-invoice-card') : null;
+            if (!card) return;
+            const st = card.querySelector('select[name="status"]');
+            if (none) card.dataset.ibaNone = st ? st.value : '';
+            else delete card.dataset.ibaNone;
+            return;
+        }
+        window.ibaAttnExplicitNone = none ? { status: currentStatus() } : null;
+    }
+
+    // 17.0.0 patch 15: people on vacation (same rule as the automatic
+    // hand-over, js/iba-vacation-handover.js). Picking one is stopped: the
+    // replacement is offered instead, so a new task never goes to someone away.
+    function awayMap() {
+        const m = {};
+        try {
+            const h = window.ibaVacationHandover;
+            const list = (h && typeof h.away === 'function') ? (h.away() || []) : [];
+            list.forEach((x) => { if (x && x.name) m[norm(x.name)] = x; });
+        } catch (_) {}
+        return m;
+    }
+    function returnDate(name) {
+        let map = {};
+        try { if (typeof ibaApproverMap === 'function') map = ibaApproverMap() || {}; } catch (_) {}
+        const a = Object.values(map).find((x) => x && norm(x.Name) === norm(name) && String(x.DateReturn || '').trim());
+        return a ? String(a.DateReturn).trim() : '';
+    }
+    function vacationStop(value, onUse) {
+        const away = awayMap()[norm(value)];
+        if (!away) return false;
+        const old = document.getElementById('iba-attn-away');
+        if (old) old.remove();
+        const back = returnDate(away.name);
+        const same = (peopleIndex()[norm(away.name)] || []).length;
+        const w = document.createElement('div');
+        w.id = 'iba-attn-away';
+        w.className = 'iba-pb-layer';
+        w.innerHTML = '<div class="iba-pb-box" role="alertdialog" aria-modal="true" style="width:min(460px,100%)">' +
+            '<div class="iba-pb-head"><b><i class="fa-solid fa-umbrella-beach"></i> ' + esc(away.name) + ' is on vacation</b><span>' + (back ? 'Back on ' + esc(back) : 'No return date set') + '</span></div>' +
+            '<p class="iba-pb-sub">' + (away.noReplacement
+                ? 'No replacement is set in ' + esc(away.name) + '\'s profile, so tasks for ' + esc(away.name) + ' go to <b>' + esc(away.target) + '</b>.'
+                : 'Please give this task to the replacement, <b>' + esc(away.target) + '</b>.') + '</p>' +
+            (same > 1 ? '<p class="iba-pb-sub" style="color:#FCD34D">' + same + ' users are named "' + esc(away.name) + '". Tasks are sent by name, so the system cannot tell them apart. Give one of them a different name in the user list (e.g. "' + esc(away.name) + ' K"), then pick the right one.</p>' : '') +
+            '<div class="iba-pb-foot"><span></span><button type="button" data-x>Cancel</button><button type="button" data-use class="is-main">Use ' + esc(away.target) + '</button></div></div>';
+        document.body.appendChild(w);
+        const close = () => w.remove();
+        w.addEventListener('click', (e) => {
+            const b = e.target.closest('button');
+            if (e.target === w) return close();
+            if (!b) return;
+            close();
+            if (b.hasAttribute('data-use')) onUse(away.target);
+        });
+        w.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+        const use = w.querySelector('[data-use]');
+        if (use) setTimeout(() => use.focus(), 0);
+        return true;
+    }
     function pick(value) {
+        if (value && value !== 'None') {
+            const keep = ctx;
+            if (vacationStop(value, (to) => { if (keep) ctx = keep; pick(to); })) { closeMenu(false); return; }
+        }
+        noteNone(value);
         if (ctx) {
             const c = ctx;
             closeMenu(true);
@@ -368,7 +502,7 @@
                     .map((n) => Object.assign({}, n, { other: true }));
             } catch (_) { others = []; }
         }
-        menuNames = suggested.concat(others);
+        menuNames = enrich(suggested.concat(others));
         menuGroups = { suggested: suggested.length, others: others.length, status: status };
         const menu = document.createElement('div');
         menu.id = 'iba-attention-menu';
@@ -377,7 +511,7 @@
         menu.setAttribute('aria-label', 'Choose attention');
         menu.innerHTML =
             '<div class="iba-attn-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>' +
-            '<input type="text" autocomplete="off" spellcheck="false" placeholder="Type a name, position or site" aria-label="Search names" role="combobox" aria-expanded="true" aria-controls="iba-attn-list"></div>' +
+            '<input type="text" autocomplete="off" spellcheck="false" placeholder="Type a name, position, or a site number (e.g. 173)" aria-label="Search names" role="combobox" aria-expanded="true" aria-controls="iba-attn-list"></div>' +
             '<div class="iba-attn-list" id="iba-attn-list" role="listbox"></div>' +
             '<div class="iba-attn-empty" hidden></div>';
         document.body.appendChild(menu);

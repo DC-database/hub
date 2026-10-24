@@ -177,6 +177,8 @@
     if (mem) return mem;
     const d = idb();
     if (!d) throw new Error("Firebase is not ready.");
+    // 17.0.0 patch 7: saved copy + changes (also fills the app's memory)
+    if (typeof window.ibaInvoiceEntriesLoad === "function") return (await window.ibaInvoiceEntriesLoad()).data;
     const snap = await d.ref("invoice_entries").once("value");
     const data = snap.val() || {};
     // keep it, exactly as Invoice Records would, so it is not downloaded again

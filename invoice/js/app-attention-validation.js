@@ -23,7 +23,15 @@ function refreshNotePickers(latestNote) {
     try {
         if (typeof noteSuggestionsDatalist !== 'undefined' && noteSuggestionsDatalist) {
             noteSuggestionsDatalist.innerHTML = '';
-            const sorted = Array.from(allUniqueNotes || []).sort((a, b) => String(a).localeCompare(String(b)));
+            // 15.0.0 patch 44: newest first, the same order the page opened with.
+            // Before, every save re-sorted the list A-Z here.
+            try {
+                const saved = (latestNote == null) ? '' : String(latestNote).replace(/\u00A0/g, ' ').trim();
+                if (saved && typeof imRememberInvoiceNoteUsage === 'function') imRememberInvoiceNoteUsage(saved, Date.now());
+            } catch (_) { /* ignore */ }
+            const sorted = (typeof imGetLatestFirstNoteSuggestions === 'function')
+                ? imGetLatestFirstNoteSuggestions(allUniqueNotes || new Set())
+                : Array.from(allUniqueNotes || []).sort((a, b) => String(a).localeCompare(String(b)));
             for (const n of sorted) {
                 const opt = document.createElement('option');
                 opt.value = n;

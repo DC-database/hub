@@ -280,7 +280,10 @@
 // =========================================================
 // 3. SMART STICKER POSITIONING (SAFE STRINGS FIX)
 // =========================================================
-window.handlePrintSticker = async function(key, type, poNumber) {
+window.handlePrintSticker = async function(key, type, poNumber, opts) {
+    // 17.0.0 patch 4: opts.position skips the question; opts.collect returns
+    // the stickers instead of printing (print basket: many pages in one go).
+    opts = opts || {};
     if (!key || !poNumber) {
         alert("Missing data for print.");
         return;
@@ -289,7 +292,7 @@ window.handlePrintSticker = async function(key, type, poNumber) {
     var recordKey = safePO + "_" + key;
 
     // 12.6.0 — Explicit sticker placement.
-    var printPosition = prompt(
+    var printPosition = opts.position ? String(opts.position) : prompt(
         "PRINT APPROVAL STICKER\n\n" +
         "1 = LEFT\n" +
         "2 = MIDDLE\n" +
@@ -342,6 +345,7 @@ window.handlePrintSticker = async function(key, type, poNumber) {
         }
 
         if (rawStickers.length === 0) {
+            if (opts.collect) return [];
             alert("No approval stickers found.");
             return;
         }
@@ -480,9 +484,11 @@ window.handlePrintSticker = async function(key, type, poNumber) {
             finalStickers.push(s);
         });
 
+        if (opts.collect) return finalStickers;
         proceedToPrintMulti(finalStickers);
 
     } catch (e) {
+        if (opts.collect) throw e;
         console.error("Print Error:", e);
         alert("Error loading print data.");
     }

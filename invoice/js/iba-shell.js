@@ -13,7 +13,10 @@
   const PHOTO_NONE = "none";
   const GROUPS = ["workdesk", "inventory", "invoice", "login"];
   // phone workspace backgrounds (patch 7): one per side, shared like the rest
-  const PHONE_GROUPS = ["phone-invoice", "phone-inventory"];
+  // 17.0.0 patch 21: "phone-cover" = small cover screens (Z Flip 7 / 8),
+  // its own photo so that view is easy to tell apart (Fold / Duo keep the
+  // normal phone photos)
+  const PHONE_GROUPS = ["phone-invoice", "phone-inventory", "phone-cover"];
   const ALL_BG_GROUPS = GROUPS.concat(PHONE_GROUPS);
   const PHONE_FOLLOWS = { "phone-invoice": "invoice", "phone-inventory": "inventory" };
   const BG_SETTINGS_PATH = "system_settings/shell_backgrounds";
@@ -21,7 +24,8 @@
     workdesk: PHOTO_BASE + "a.jpg",
     inventory: PHOTO_BASE + "e.jpg",
     invoice: PHOTO_BASE + "g.jpg",
-    login: PHOTO_BASE + "d.jpg"
+    login: PHOTO_BASE + "d.jpg",
+    "phone-cover": PHOTO_BASE + "office2.jpg"
   };
   let photoFiles = PHOTO_FILES.slice();
 

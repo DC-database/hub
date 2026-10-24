@@ -35,7 +35,7 @@
     'use strict';
     if (window.ibaAssistant) return;
 
-    const VERSION = '15.0.0-p43';
+    const VERSION = '17.0.0-p24';
     const CFG_KEY = 'iba-ai-brain-v1';
     const SKILLS_KEY = 'iba-ai-skills-v1';
     const BRIEF_KEY = 'iba-ai-brief-day-v1';
@@ -292,7 +292,7 @@
     const PHONE_ALLOW = ['track_invoices', 'invoice_activity', 'find_po', 'track_transfer', 'find_transfers', 'find_person'];
     const PHONE_TPL = ['inv_status', 'transfer', 'person'];
     function phoneOk(name) { return !onPhone() || PHONE_ALLOW.indexOf(name) !== -1; }
-    const PHONE_NO = 'On the phone the assistant searches, tracks, reminds and messages. The brief, Batch Entry, new invoices, reports and downloads are on the computer.';
+    const PHONE_NO = 'On the phone the assistant searches, tracks, reminds and messages (and shows Now brief). Batch Entry, new invoices, reports and downloads are on the computer.';
     function allowed() {
         const b = document.body;
         if (!b || !(b.classList.contains('iba-shell-on') || b.classList.contains('iba-phone'))) return false;
@@ -595,6 +595,7 @@
         tasks.concat(jobs).forEach((t) => { ages[ageBucket(daysSince(t.at))]++; });
         const ageRows = [{ label: '0-2 days', n: ages[0] }, { label: '3-7 days', n: ages[1] }, { label: '8-30 days', n: ages[2], cls: 'warn' }, { label: 'Over 30 days', n: ages[3], cls: 'late' }];
         const rems = remList.filter((m) => !m.seenAt);
+        const apv = ((x.approvals && x.approvals.items) || []).slice().sort((p, q) => apvWho(p).localeCompare(apvWho(q)) || ((q.days || 0) - (p.days || 0)));
         const box = '<span class="box"></span>';
         const kpi = (n, l) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
         const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>IBA brief - ' + esc(firstName()) + ' - ' + esc(fmtDate(now.getTime())) + '</title><style>' +
@@ -608,6 +609,7 @@
             'td{border-bottom:1px solid #e3e8ed;padding:5px;vertical-align:top}tr{page-break-inside:avoid}td.c{width:22px}td.n{text-align:right;white-space:nowrap}td.next{color:#3d4854;font-style:italic}.late{color:#B42318;font-weight:700}' +
             '.box{display:inline-block;width:12px;height:12px;border:1.5px solid #1b2430;border-radius:2px}.notes{margin-top:16px}.notes div{border-bottom:1px solid #b8c2cc;height:24px}' +
             '.foot{margin-top:14px;color:#8a95a1;font-size:10px;text-align:center}.tools{position:fixed;top:10px;right:10px;display:flex;gap:6px}.tools button{font:600 12px Arial;padding:7px 12px;border-radius:6px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button+button{background:#fff;color:#1E7F74}' +
+            '.newpage{page-break-before:always;break-before:page}' +
             '@media print{.tools{display:none}}' +
             '</style></head><body>' +
             '<div class="tools"><button onclick="window.print()">Print / Save as PDF</button><button onclick="window.close()">Close</button></div>' +
@@ -622,11 +624,137 @@
                 tasks.map((t, i) => { const dd = daysSince(t.at); return '<tr><td class="c">' + box + '</td><td>' + (i + 1) + '</td><td><b>' + esc(t.po || '—') + '</b></td><td>' + esc(t.vendor || t.type || '') + (t.ref ? '<br><small>' + esc(t.ref) + '</small>' : '') + '</td><td>' + esc(t.status || '') + '</td><td class="next">' + esc(nextStep(t.status)) + '</td><td class="n">' + (t.amount ? esc(money(t.amount)) : '') + '</td><td class="n' + (dd > 30 ? ' late' : '') + '">' + (dd === null ? '' : dd + ' d') + '</td></tr>'; }).join('') + '</tbody></table>' : '<p>Nothing waiting.</p>') +
             (jobs.length ? '<h2>Active Job - inventory (' + jobs.length + ')</h2><table><thead><tr><th></th><th>Control</th><th>Item</th><th>Step</th><th>Route</th><th>Next step</th><th>Waiting</th></tr></thead><tbody>' +
                 jobs.map((j) => { const dd = daysSince(j.at); return '<tr><td class="c">' + box + '</td><td><b>' + esc(j.control) + '</b></td><td>' + esc(j.product || '') + '</td><td>' + esc(j.step || '') + '</td><td>' + esc([j.from, j.to].filter(Boolean).join(' → ')) + '</td><td class="next">' + esc(nextStep(j.step)) + '</td><td class="n' + (dd > 30 ? ' late' : '') + '">' + (dd === null ? '' : dd + ' d') + '</td></tr>'; }).join('') + '</tbody></table>' : '') +
+            // 15.0.0 patch 44: invoices sent for approval, on a page of their own
+            (apv.length ? '<div class="newpage"></div><h2>In the company: waiting for approval (' + apv.length + ')</h2><table><thead><tr><th></th><th>PO</th><th>Vendor / Inv. No.</th><th>Status</th><th>With</th><th>Amount</th><th>Waiting</th></tr></thead><tbody>' +
+                apv.map((a) => '<tr><td class="c">' + box + '</td><td><b>' + esc(a.po) + '</b>' + (a.urgent ? '<br><small class="late">URGENT</small>' : '') + '</td><td>' + esc(a.vendor || '') + (a.no ? '<br><small>' + esc(a.no) + '</small>' : '') + '</td><td>' + esc(a.status) + '</td><td>' + esc(a.with || '') + '</td><td class="n">' + (a.value ? esc(money(a.value)) : '') + '</td><td class="n' + (a.days > 7 ? ' late' : '') + '">' + (a.days === null ? '' : a.days + ' d') + '</td></tr>').join('') + '</tbody></table>' : '') +
             '<div class="notes"><h2>Notes</h2><div></div><div></div><div></div></div>' +
             '<div class="foot">Printed from IBA ' + esc(VERSION) + ' · ' + esc(when) + '</div>' +
             '<script>window.addEventListener("load",function(){setTimeout(function(){window.print();},300);});<\/script></body></html>';
         const w = window.open('', '_blank');
         if (!w) { alert('Please allow pop-ups for IBA to print the brief.'); return; }
+        w.document.open(); w.document.write(html); w.document.close();
+    }
+
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 44: invoices sent for approval (For Approval / CEO
+    // Approval), waiting on the CEO, the COO or another approver. Rows come
+    // from the small approval list Active Task already uses (status index);
+    // each invoice is then read once for its INV / SRV files and who sent it.
+    // ------------------------------------------------------------------
+    const APV_LIMIT = 80;
+    function attNames(att) { return String(att || '').split(/\s*(?:,|;|\/|&|\band\b)\s*/i).map(norm).filter(Boolean); }
+    async function sentForApproval() {
+        if (typeof window.wdReadApprovalRowsFromAll !== 'function') return { items: [], error: 'the approval list is not available on this page' };
+        const rows = (await window.wdReadApprovalRowsFromAll()) || {};
+        const idb = (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) ? invoiceDb : null;
+        const mine = norm(myName());
+        const acc = access();
+        const seen = new Set();
+        const list = [];
+        Object.keys(rows).forEach((k) => {
+            const r = rows[k];
+            if (!r || typeof r !== 'object' || !APPROVAL_RX.test(String(r.status || '').trim())) return;
+            const po = String(r.po || r.originalPO || '').trim();
+            const key = String(r.originalKey || r.invoiceKey || k).trim();
+            if (!po || !key || seen.has(po + '|' + key)) return;
+            seen.add(po + '|' + key);
+            if (mine && attNames(r.attention).indexOf(mine) !== -1) return; // already in your own Active Task
+            if (!acc.allSites && acc.sites.indexOf(siteNo(r.site)) === -1) return;
+            list.push({ po: po, key: key, row: r });
+        });
+        list.sort((a, b) => (Number(a.row.statusChangedAt) || Number(a.row.invoiceLastUpdated) || 9e15) - (Number(b.row.statusChangedAt) || Number(b.row.invoiceLastUpdated) || 9e15));
+        const pm = poMap();
+        const items = [];
+        await Promise.all(list.slice(0, APV_LIMIT).map(async (c) => {
+            let inv = null;
+            try { if (idb) inv = (await idb.ref('invoice_entries/' + c.po + '/' + c.key).once('value')).val(); } catch (_) { inv = null; }
+            const r = c.row;
+            const src = inv || r;
+            const status = String(src.status || '').trim();
+            if (!APPROVAL_RX.test(status)) return; // moved on since the list was written
+            const rec = pm[String(c.po).toUpperCase()] || {};
+            const hist = inv ? historyList(inv) : [];
+            let sentAt = 0, sentBy = '';
+            for (let i = hist.length - 1; i >= 0; i--) {
+                if (norm(hist[i].status) === norm(status)) { sentAt = hist[i].at; sentBy = hist[i].by; } else if (sentAt) break;
+            }
+            const at = sentAt || Number(src.approvalRequestedAt) || Number(src.statusChangedAt) || Number(src.lastUpdated || src.invoiceLastUpdated) || 0;
+            const value = num(src.invValue || r.amount);
+            items.push({
+                po: c.po, key: c.key, no: src.invNumber || r.ref || src.invEntryID || '', entry: src.invEntryID || '',
+                vendor: src.vendorName || r.vendorName || rec['Supplier Name'] || '', site: src.site || r.site || rec['Project ID'] || '',
+                value: acc.amounts && value ? value : 0, status: status, with: String(src.attention || r.attention || '').trim(),
+                at: at, days: at ? daysSince(at) : null, sent_by: sentBy || String(src.enteredBy || r.enteredBy || ''),
+                note: String(src.note || ''), urgent: isUrgentNote(src.note), invoice_date: src.invoiceDate || r.invoiceDate || '',
+                details: String((inv && inv.details) || ''),
+                pdf: invPdfUrl(src), srv: inv ? srvPdfUrl(inv) : '', approvals: Number((inv && inv.approvalCount) || 0)
+            });
+        }));
+        items.sort((a, b) => ((b.urgent ? 1 : 0) - (a.urgent ? 1 : 0)) || ((b.days || 0) - (a.days || 0)) || String(a.po).localeCompare(String(b.po)));
+        return { items: items, more: Math.max(0, list.length - APV_LIMIT) };
+    }
+    // 15.0.0 patch 45: counts by who is approving (the CEO marked as such)
+    function apvWho(a) { return (a.with || 'Nobody named') + (/ceo/i.test(a.status) ? ' (CEO)' : ''); }
+    function apvCounts(items) {
+        const by = {};
+        items.forEach((a) => { const k = apvWho(a); by[k] = (by[k] || 0) + 1; });
+        return by;
+    }
+    // 15.0.0 patch 45: the approvals print is ONE list, grouped by who is
+    // approving (or by status / site - switch in the print window), each
+    // group with its count and value. Replaces the one-page-per-invoice print.
+    const APV_GROUPS = [['with', 'Who is approving'], ['status', 'Status'], ['site', 'Site']];
+    function printApprovalList(items, groupBy) {
+        if (!items || !items.length) { alert('No invoice is waiting for approval.'); return; }
+        const now = new Date();
+        const when = fmtDate(now.getTime()) + ' ' + fmtClock(now.getTime());
+        const keyOf = { with: apvWho, status: (a) => a.status || '—', site: (a) => a.site || '—' };
+        const anyValue = items.some((a) => a.value);
+        const files = (a) => [a.pdf ? '<a href="' + esc(a.pdf) + '">INV</a>' : '', a.srv ? '<a href="' + esc(a.srv) + '">SRV</a>' : ''].filter(Boolean).join(' · ');
+        const section = (g) => {
+            const groups = new Map();
+            items.forEach((a) => { const k = keyOf[g](a); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(a); });
+            const keys = Array.from(groups.keys()).sort((x, y) => groups.get(y).length - groups.get(x).length || x.localeCompare(y));
+            const cols = [['#', ''], ['', 'c'], ['PO', ''], ['Vendor / Invoice no.', '']].concat(g === 'with' ? [] : [['With', '']]).concat(g === 'status' ? [] : [['Status', '']]).concat(g === 'site' ? [] : [['Site', '']])
+                .concat(anyValue ? [['Value (QAR)', 'n']] : []).concat([['Waiting', 'n'], ['Note', ''], ['Files', '']]);
+            return '<div class="g g-' + g + '">' + keys.map((k) => {
+                const list = groups.get(k);
+                const total = list.reduce((t, a) => t + (a.value || 0), 0);
+                const urg = list.filter((a) => a.urgent).length;
+                return '<section class="grp"><h2>' + esc(k) + ' <span>' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + (anyValue ? ' · QAR ' + esc(money(total)) : '') + (urg ? ' · <b class="late">' + urg + ' urgent</b>' : '') + '</span></h2>' +
+                    '<table><thead><tr>' + cols.map((c) => '<th class="' + c[1] + '">' + esc(c[0]) + '</th>').join('') + '</tr></thead><tbody>' +
+                    list.map((a, i) => '<tr' + (a.urgent ? ' class="urg"' : '') + '><td>' + (i + 1) + '</td><td class="c"><span class="box"></span></td><td><b>' + esc(a.po) + '</b>' + (a.urgent ? '<br><small class="late">URGENT</small>' : '') + '</td>' +
+                        '<td>' + esc(a.vendor || '') + (a.no ? '<br><small>' + esc(a.no) + '</small>' : '') + '</td>' +
+                        (g === 'with' ? '' : '<td>' + esc(a.with || '') + '</td>') + (g === 'status' ? '' : '<td>' + esc(a.status) + '</td>') + (g === 'site' ? '' : '<td>' + esc(a.site || '') + '</td>') +
+                        (anyValue ? '<td class="n">' + (a.value ? esc(money(a.value)) : '') + '</td>' : '') +
+                        '<td class="n' + (a.days > 7 ? ' late' : '') + '">' + (a.days === null || a.days === undefined ? '' : a.days + ' d') + '</td>' +
+                        '<td class="note">' + esc(String(a.note || '').slice(0, 120)) + '</td><td class="files">' + files(a) + '</td></tr>').join('') + '</tbody></table></section>';
+            }).join('') + '</div>';
+        };
+        const g0 = APV_GROUPS.some((x) => x[0] === groupBy) ? groupBy : 'with';
+        const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>IBA approvals - ' + esc(fmtDate(now.getTime())) + ' (' + items.length + ')</title><style>' +
+            '@page{size:A4 landscape;margin:12mm 10mm}*{box-sizing:border-box}body{margin:0;padding:16px 18px;font:11.5px/1.4 Arial,Helvetica,sans-serif;color:#1b2430;background:#fff}' +
+            '.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1E7F74;padding-bottom:8px;margin-bottom:10px}h1{margin:0;font-size:19px}h1 small{display:block;font-size:11.5px;font-weight:400;color:#5b6775;margin-top:2px}.meta{text-align:right;color:#5b6775;font-size:11px}' +
+            '.sum{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.sum span{border:1px solid #d5dce3;border-radius:999px;padding:3px 9px}.sum b{margin-left:3px}' +
+            '.g{display:none}body[data-g=with] .g-with,body[data-g=status] .g-status,body[data-g=site] .g-site{display:block}' +
+            'body.newpage .grp+.grp{page-break-before:always;break-before:page}.grp{margin-bottom:14px}' +
+            'h2{font-size:13px;margin:12px 0 5px;padding:5px 8px;background:#eef6f5;border-left:3px solid #1E7F74}h2 span{font-weight:400;color:#3d4854;font-size:11.5px;margin-left:6px}' +
+            'table{width:100%;border-collapse:collapse}th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:#5b6775;border-bottom:1px solid #b8c2cc;padding:4px 5px}' +
+            'td{border-bottom:1px solid #e3e8ed;padding:4px 5px;vertical-align:top}tr{page-break-inside:avoid}tr.urg td{background:#fdf1f0}td.c,th.c{width:20px}td.n,th.n{text-align:right;white-space:nowrap}td.note{max-width:220px;color:#3d4854}td.files a{color:#1E7F74}.late{color:#B42318;font-weight:700}' +
+            '.box{display:inline-block;width:11px;height:11px;border:1.5px solid #1b2430;border-radius:2px}.foot{margin-top:12px;color:#8a95a1;font-size:10px;text-align:center}' +
+            '.tools{position:fixed;top:10px;right:10px;display:flex;gap:6px;align-items:center;background:#fff;padding:6px;border:1px solid #d5dce3;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12)}.tools label{font:600 12px Arial;color:#3d4854;display:flex;gap:5px;align-items:center}' +
+            '.tools select{font:12px Arial;padding:5px}.tools button{font:600 12px Arial;padding:7px 12px;border-radius:6px;border:1px solid #1E7F74;background:#1E7F74;color:#fff;cursor:pointer}.tools button.alt{background:#fff;color:#1E7F74}' +
+            '@media print{.tools{display:none}body{padding:0}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}' +
+            '</style></head><body data-g="' + g0 + '">' +
+            '<div class="tools"><label>Group by <select onchange="document.body.setAttribute(\'data-g\',this.value)">' + APV_GROUPS.map((x) => '<option value="' + x[0] + '"' + (x[0] === g0 ? ' selected' : '') + '>' + esc(x[1]) + '</option>').join('') + '</select></label>' +
+                '<label><input type="checkbox" onchange="document.body.classList.toggle(\'newpage\',this.checked)"> Each group on a new page</label>' +
+                '<button onclick="window.print()">Print / Save as PDF</button><button class="alt" onclick="window.close()">Close</button></div>' +
+            '<div class="top"><h1>Invoices waiting for approval<small>' + items.length + ' invoice' + (items.length === 1 ? '' : 's') + (anyValue ? ' · QAR ' + esc(money(items.reduce((t, a) => t + (a.value || 0), 0))) : '') + ' · ' + items.filter((a) => a.urgent).length + ' urgent</small></h1><div class="meta">' + esc(when) + '<br>' + esc(myName()) + '</div></div>' +
+            '<div class="sum">' + Object.entries(apvCounts(items)).sort((x, y) => y[1] - x[1]).map((e) => '<span>' + esc(e[0]) + '<b>' + e[1] + '</b></span>').join('') + '</div>' +
+            APV_GROUPS.map((x) => section(x[0])).join('') +
+            '<div class="foot">Printed from IBA ' + esc(VERSION) + ' · ' + esc(when) + '</div></body></html>';
+        const w = window.open('', '_blank');
+        if (!w) { alert('Please allow pop-ups for IBA to print the list.'); return; }
         w.document.open(); w.document.write(html); w.document.close();
     }
 
@@ -643,7 +771,7 @@
     function paintCloseout(v) {
         document.querySelectorAll('.iba-ai-card.is-brief [data-co-ready]').forEach((el) => { el.textContent = v ? String(v.ready_to_close) : '—'; });
         document.querySelectorAll('.iba-ai-card.is-brief [data-co-foot]').forEach((el) => {
-            el.textContent = v ? 'PO Close Out: ' + v.waiting_site + ' waiting at Site, ' + v.ready_to_close + ' ready to close.' : 'PO Close Out could not be loaded.';
+            el.textContent = v ? v.ready_to_close + ' ready to close · ' + v.waiting_site + ' waiting at site' : 'could not be loaded';
         });
         briefStore.forEach((d) => { if (v && d.result && d.result.po_closeout_loading) { d.result.po_closeout = v; delete d.result.po_closeout_loading; } });
     }
@@ -673,6 +801,11 @@
             if (coCache && Date.now() - coCache.at < 5 * 60000) closeout = coCache.val;
             else { closeoutPending = true; refreshCloseout(); }
         }
+        // 15.0.0 patch 44: invoices sent for approval (CEO / COO / any approver), for Admins
+        let approvals = null;
+        if (isAdminUser() && !onPhone()) {
+            try { approvals = await withTimeout(sentForApproval(), 15000, 'Approval list'); } catch (e) { approvals = { items: [], error: (e && e.message) || 'could not be read' }; }
+        }
         const result = {
             active_task: Math.max(Number(w.counts.task) || 0, tasks.length),
             active_job: Math.max(Number(w.counts.job) || 0, jobs.length),
@@ -683,9 +816,11 @@
             reminders_for_you: remList.filter((r) => !r.seenAt).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
             inventory_not_loaded: Math.max(0, (Number(w.counts.job) || 0) - jobs.length),
             po_closeout: closeout || undefined,
-            po_closeout_loading: closeoutPending || undefined
+            po_closeout_loading: closeoutPending || undefined,
+            sent_for_approval: approvals ? approvals.items.length : undefined,
+            sent_for_approval_oldest: approvals && approvals.items.length ? approvals.items.slice(0, 8).map((a) => ({ po: a.po, invoice_no: a.no, vendor: a.vendor || undefined, status: a.status, with: a.with || undefined, waiting_days: a.days, urgent: a.urgent || undefined })) : undefined
         };
-        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs } } };
+        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs, approvals: approvals } } };
     }
 
     async function toolList(args) {
@@ -1362,7 +1497,10 @@
         if (jobStore.all && Date.now() - jobStore.at < JOB_TTL) return jobStore.all;
         const d = mainDb();
         if (!d) return [];
-        const snap = await withTimeout(d.ref('job_entries').once('value'), 25000, 'job records');
+        // 17.0.0 patch 7: the app's saved Job Records copy (only changed jobs are downloaded)
+        const snap = (typeof window.ibaJobsPocketLoad === 'function')
+            ? await withTimeout(window.ibaJobsPocketLoad(false), 25000, 'job records')
+            : await withTimeout(d.ref('job_entries').once('value'), 25000, 'job records');
         jobStore.all = snapList(snap); jobStore.at = Date.now();
         return jobStore.all;
     }
@@ -1426,7 +1564,7 @@
         // 15.0.0 patch 11: a step the invoice went past is counted as done
         // (it already moved on), so nothing is marked as skipped any more.
         return {
-            kind: 'invoice', key: inv.__key || undefined, pdf: invPdfUrl(inv) || undefined, urgent: (APPROVAL_RX.test(status) && isUrgentNote(inv.note)) || undefined, invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
+            kind: 'invoice', key: inv.__key || undefined, pdf: invPdfUrl(inv) || undefined, srv: srvPdfUrl(inv) || undefined, urgent: (APPROVAL_RX.test(status) && isUrgentNote(inv.note)) || undefined, invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
@@ -2205,6 +2343,7 @@
                 return { data: allInvoiceData, info: { mode: 'memory', bytes: 0 } };
             }
         } catch (_) {}
+        if (typeof window.ibaInvoiceEntriesLoad === 'function') return await window.ibaInvoiceEntriesLoad();
         if (window.ibaWeeklyReport && typeof window.ibaWeeklyReport.loadInvoices === 'function') {
             return await window.ibaWeeklyReport.loadInvoices(false, () => {});
         }
@@ -2335,6 +2474,8 @@
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
             'Be warm, brief and practical. Reply in the language the user writes in.',
+            // 15.0.0 patch 46: short replies, the cards already show the details
+            'The tool results are already shown to the user as cards right above your reply. Do NOT repeat them: no tables, no lists of invoices or jobs, no headings, no PO summary. Reply in 1 or 2 short sentences with only the key point or the next step, e.g. "PO 62921: 1 invoice, paid in full; QAR 6,494,543.00 is still open on the PO." Never end with offers such as "Let me know if you need...".',
             'Use the tools for any fact about POs, invoices, tasks, inventory or people. Never guess numbers, names or statuses.',
             'Money is QAR with 2 decimals. Dates look like 08-Oct-2026.',
             'PAYMENT RULE: an invoice is paid ONLY when its status is "Paid". Status "With Accounts" means payment is in process (Accounts will pay). Every other status (SRV Done, For SRV, approvals, On Hold, ...) means NOT paid yet. "Invoiced" means invoices received, not paid. Always use the payment field; never say paid otherwise.',
@@ -2441,14 +2582,18 @@
             finally { state.busy = false; setBusy(false); }
             return;
         }
+        // 15.0.0 patch 47: answered without the AI (key or no key): a PO
+        // number, a report / skill word; with no key also a name or vendor
+        if (!(opts && opts.silentUser) && await localAnswer(text)) return;
         if (!ready() && /\b(brief|waiting|today|remind(?:er)?s?|my tasks?|pending)\b/i.test(text)) {
             addUser(text);
             return openBrief();
         }
         if (!ready()) {
+            showView('chat');
             addUser(text);
-            addNote(isSuper() ? 'Let\'s set me up first: it takes 2 minutes and is free.' : 'To ask in plain words, add your own free key in Setup (2 minutes). Today\'s brief (sun button), tracking and reminders work without it.', 'setup');
-            showView('setup');
+            addNote('I need an AI key to answer this properly. Add a free one in Setup (2 minutes). Without it I can still look up a PO number, a vendor, a transfer number or a colleague, and run these:', 'setup');
+            quickPicks(QUICK_ALL, true);
             return;
         }
         state.busy = true;
@@ -2456,6 +2601,7 @@
         if (!(opts && opts.silentUser)) addUser(text);
         const steps = [];
         let minimize = false;
+        let cardShown = false;
         const msgs = [{ role: 'system', content: systemPrompt() }].concat(state.history.slice(-HISTORY_KEEP), [{ role: 'user', content: text }]);
         try {
             for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -2468,13 +2614,13 @@
                         try { args = JSON.parse(tc.function.arguments || '{}') || {}; } catch (_) { args = {}; }
                         const out = await runTool(tc.function.name, args);
                         steps.push({ tool: tc.function.name, args: args });
-                        if (out.card) addCard(out.card);
+                        if (out.card) { addCard(out.card); cardShown = true; }
                         if (out.minimize) minimize = true;
                         msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(out.result || {}).slice(0, 6000) });
                     }
                     continue;
                 }
-                const answer = String(m.content || '').trim() || (steps.length ? 'Done.' : '…');
+                const answer = tidyAnswer(String(m.content || '').trim(), cardShown) || (steps.length ? 'Done. The details are on the card above.' : '…');
                 state.lastTurn = { prompt: text, steps: steps.slice(), answer: answer };
                 addBot(answer, { canSave: steps.length > 0, prompt: text, steps: steps.slice() });
                 if (look().voice) speak(answer);
@@ -2642,7 +2788,61 @@
         try { (window.ibaWeeklyReport && window.ibaWeeklyReport.siteChoices ? window.ibaWeeklyReport.siteChoices() : []).forEach((x) => { labels[x[0]] = x[1]; }); } catch (_) {}
         return Object.keys(codes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map((c) => [c, labels[c] || c]);
     }
+    // 15.0.0 patch 45: quick work - open the real forms, already started
+    const JOB_TYPES = ['Invoice', 'PR', 'IPC Application', 'IPC Processed', 'Payment', 'Trip', 'Report', 'Other'];
+    async function openNewJob(type, po) {
+        if (typeof window.ibaOpenShellPage !== 'function' || typeof window.openStandardJobModal !== 'function') throw new Error('Add New Job is not available on this page.');
+        toggle(false);
+        await window.ibaOpenShellPage('wd-add-job');
+        await waitFor(() => { const m = $('standard-job-modal'); return m && !m.classList.contains('hidden'); }, 6000);
+        await wait(300);
+        const sel = $('job-for');
+        if (sel && type) {
+            const has = Array.from(sel.options).some((o) => o.value === type);
+            sel.value = has ? type : 'Other';
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            if (!has) { const other = $('job-other-specify'); if (other) other.value = type; }
+            await wait(250);
+        }
+        const poEl = $('job-po');
+        if (poEl && po) {
+            poEl.value = String(po).trim();
+            poEl.dispatchEvent(new Event('input', { bubbles: true }));
+            poEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        const next = ['job-ref', 'job-amount'].map($).find((el) => el && !el.value && el.offsetParent);
+        if (next) next.focus();
+    }
+    async function openNewDelivery(type) {
+        if (typeof window.ibaOpenShellPage !== 'function' || typeof openTransferModal !== 'function') throw new Error('The Inventory form is not available on this page.');
+        toggle(false);
+        await window.ibaOpenShellPage('inv-active-job');
+        try { if (typeof ensureAllEntriesFetched === 'function') await withTimeout(ensureAllEntriesFetched(false), 15000, 'Inventory'); } catch (_) {}
+        await openTransferModal(type || 'Transfer');
+    }
     const SKILL_TPL = {
+        // 17.0.0 patch 24: who can open what (js/iba-17-p24.js)
+        access_check: { name: 'Access check', icon: 'fa-user-shield', superOnly: true, desc: 'Every user with the pages and buttons the system gives them (Invoice Management, Entry, Records, Payments, Dashboard, Financial Report, Stock, skills), and anything a non-Super-Admin should not have. Nothing is saved.',
+            ask: () => [], action: () => { if (typeof window.ibaAccessCheck === 'function') window.ibaAccessCheck(); } },
+        new_job: { name: 'Add new job', icon: 'fa-file-circle-plus', desc: 'Pick what the job is for and type the PO: the Add New Job form opens with vendor, vendor ID and site filled from the PO list. Check it and press Add. No AI used.',
+            ask: () => [{ key: 'for', label: 'What is it for?', type: 'select', options: JOB_TYPES.map((t) => [t, t]) },
+                { key: 'po', label: 'PO number (leave empty if none)', placeholder: 'e.g. 66176', optional: true }],
+            run: async (v) => { await openNewJob(v.for, v.po); return null; } },
+        // 15.0.0 patch 47: reports picked from a list, no AI needed
+        po_report: { name: 'PO report', icon: 'fa-file-invoice-dollar', desc: 'Asks for a PO number, then shows the PO value, invoiced, paid and remaining, every invoice and where it is now. Print or Excel from the card. No AI used.',
+            ask: () => [{ key: 'po', label: 'PO number', placeholder: 'e.g. 62921' }],
+            build: (v) => [{ tool: 'find_po', args: { po: v.po } }, { tool: 'track_invoices', args: { po: v.po } }] },
+        approvals_list: { name: 'Approvals waiting', icon: 'fa-stamp', adminOnly: true, desc: 'Every invoice now in For Approval or CEO Approval, as one printable list grouped by who is approving (or by status / site). No AI used.',
+            ask: () => [], run: async () => {
+                const r = await sentForApproval();
+                if (r.error) throw new Error('The approval list could not be read: ' + r.error);
+                if (!r.items.length) return 'Nothing is waiting for approval right now.';
+                printApprovalList(r.items, 'with');
+                return 'Opened the list of ' + r.items.length + ' invoice' + (r.items.length === 1 ? '' : 's') + ' waiting for approval in a new tab. Press "Print / Save as PDF" there.';
+            } },
+        new_delivery: { name: 'New delivery', icon: 'fa-truck-fast', desc: 'Opens the Inventory form for a Transfer (delivery to a site), Restock, Return or Usage, numbered and ready to fill in. No AI used.',
+            ask: () => [{ key: 'type', label: 'What kind?', type: 'select', options: [['Transfer', 'Transfer - delivery to a site'], ['Restock', 'Restock - stock received'], ['Return', 'Return'], ['Usage', 'Usage']] }],
+            run: async (v) => { await openNewDelivery(v.type); return null; } },
         inv_status: { name: 'Check invoice status', icon: 'fa-file-invoice', desc: 'Asks for a PO or vendor, then shows where each invoice is and who has it.',
             ask: () => [{ key: 'q', label: 'PO number or vendor', placeholder: 'e.g. 66176 or Al Noor' }],
             build: (v) => /^\s*(po)?[\s#:-]*\d+\s*$/i.test(v.q) ? [{ tool: 'track_invoices', args: { po: v.q.replace(/\D+/g, '') } }] : [{ tool: 'track_invoices', args: { vendor: v.q } }] },
@@ -2659,7 +2859,7 @@
             build: (v) => [{ tool: 'find_person', args: { site: v.site, position: v.pos } }] },
         brief: { name: 'My brief', icon: 'fa-sun', desc: 'Today\'s tasks, inventory jobs and reminders.', ask: () => [], build: () => [{ tool: 'get_brief', args: {} }] },
         batch: { name: 'Add to Batch', icon: 'fa-layer-group', superOnly: true, desc: 'Asks for the POs, which status and which invoices, then puts them into Batch Entry. With Accounts and Paid are left out unless you pick them.',
-            ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 66176, 66180 66201' },
+            ask: () => [{ key: 'pos', label: 'PO numbers (a comma is added after each 5 digits)', placeholder: 'e.g. 66176, 66180, 66201', poList: true },
                 { key: 'status', label: 'Only invoices now in', type: 'select', options: statusOptsWith('Any open status (not With Accounts / Paid)') },
                 { key: 'which', label: 'Which invoices', type: 'select', options: [['all', 'All of them'], ['latest', 'Only the last invoice entered on each PO']] }],
             build: (v) => [{ tool: 'add_to_batch', args: { pos: v.pos.split(/[\s,;]+/).filter(Boolean), status: v.status || undefined, latest_only: v.which === 'latest' } }] },
@@ -2711,7 +2911,7 @@
             f.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> ' + esc(title) + '</div>' +
                 fields.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span>' + (p.type === 'select'
                     ? '<select data-i="' + i + '">' + p.options.map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>').join('') + '</select>'
-                    : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '" required>') + '</label>').join('') +
+                    : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '"' + (p.optional ? '' : ' required') + (p.poList ? ' data-po-list inputmode="numeric" autocomplete="off"' : '') + '>') + '</label>').join('') +
                 '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini iba-ai-cancel" data-cancel><i class="fa-solid fa-xmark"></i> Cancel</button></div>';
             put(f);
             wireAskCancel(f, resolve);
@@ -2721,7 +2921,7 @@
                 e.preventDefault();
                 const vals = {};
                 fields.forEach((p, i) => { vals[p.key] = String((f.querySelector('[data-i="' + i + '"]') || {}).value || '').trim(); });
-                if (fields.some((p) => p.type !== 'select' && !vals[p.key])) return;
+                if (fields.some((p) => p.type !== 'select' && !p.optional && !vals[p.key])) return;
                 f.querySelectorAll('input, select, button').forEach((x) => { x.disabled = true; });
                 resolve(vals);
             });
@@ -2743,6 +2943,17 @@
             if (!name || /^nil$/i.test(String(name).trim()) || typeof buildSharePointPdfUrl !== 'function' || typeof PDF_BASE_PATH === 'undefined') return '';
             return buildSharePointPdfUrl(PDF_BASE_PATH, name) || '';
         } catch (_) { return ''; }
+    }
+    // 15.0.0 patch 44: the SRV attachment (SharePoint SRV folder, same as Invoice Records / Summary Note)
+    function srvPdfUrl(inv) {
+        try {
+            const name = inv && inv.srvName;
+            if (!name || /^nil$/i.test(String(name).trim()) || typeof buildSharePointPdfUrl !== 'function' || typeof SRV_BASE_PATH === 'undefined') return '';
+            return buildSharePointPdfUrl(SRV_BASE_PATH, name) || '';
+        } catch (_) { return ''; }
+    }
+    function srvLink(u) {
+        return u ? '<a class="iba-ai-mini" href="' + esc(u) + '" target="_blank" rel="noopener" title="Open the SRV attachment"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '';
     }
     function invPdfBtn(inv) {
         const u = invPdfUrl(inv);
@@ -2893,14 +3104,14 @@
                 const at = Number(inv.statusChangedAt) || Number(inv.lastUpdated) || Number(inv.createdAt) || 0;
                 const rec = pm[String(po).toUpperCase()] || {};
                 rows.push({ po: po, key: k, no: inv.invNumber || inv.invEntryID || '', vendor: inv.vendorName || rec['Supplier Name'] || '', value: Number(String(inv.invValue || 0).replace(/,/g, '')) || 0,
-                    status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentNote(inv.note), pdf: invPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
+                    status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentNote(inv.note), pdf: invPdfUrl(inv), srv: srvPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
             });
         });
         const order = () => rows.sort((a, b) => (b.days || 0) - (a.days || 0));
         order();
         let filter = 'all';
         const sup = isSuper();
-        const pdf = (r) => r.pdf ? '<a class="iba-ai-mini" href="' + esc(r.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '';
+        const pdf = (r) => (r.pdf ? '<a class="iba-ai-mini" href="' + esc(r.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(r.srv);
         const line = (r) => '<span class="iba-ai-grow"><strong>PO ' + esc(r.po) + ' · ' + esc(r.no) + '</strong><small>' + esc([r.vendor, r.status, r.with ? 'with ' + r.with : '', r.days != null ? r.days + ' day' + (r.days === 1 ? '' : 's') : ''].filter(Boolean).join(' · ')) + '</small>' +
             (r.note ? '<small class="iba-ai-urg-note">' + esc(r.note.slice(0, 140)) + '</small>' : '') + '</span>' + (r.value ? '<span class="iba-ai-trk-val">' + esc(money(r.value)) + '</span>' : '');
         const paint = () => {
@@ -2949,10 +3160,26 @@
                 } catch (err) { b.disabled = false; if (msg()) msg().textContent = 'Could not mark: ' + ((err && err.message) || err); }
             }
         });
+        // 15.0.0 patch 44: a working list - it opens in the big window
+        if (!onPhone()) openWide(card);
     }
+    function skillUseKey() { return 'iba-ai-skill-use-v1:' + userSlug(); }
+    function bumpSkillUse(id) { const u = lsGet(skillUseKey(), {}) || {}; u[id] = (Number(u[id]) || 0) + 1; lsSet(skillUseKey(), u); }
+    // 15.0.0 patch 50: PO list boxes - a ", " is added after each 5-digit PO
+    // so POs can be typed one after another; a pasted list is tidied too
+    function tidyPOList(v) { return String(v || '').split(/[\s,;]+/).filter(Boolean).join(', '); }
+    document.addEventListener('input', (e) => {
+        const el = e.target;
+        if (!el || !el.matches || !el.matches('input[data-po-list]')) return;
+        if (e.inputType === 'insertFromPaste') { el.value = tidyPOList(el.value) + (el.value.trim() ? ', ' : ''); return; }
+        if (e.inputType && e.inputType.indexOf('delete') === 0) return;
+        if (el.selectionStart !== el.value.length) return; // typing in the middle: leave it
+        if (/(^|[\s,;])\d{5}$/.test(el.value)) el.value = el.value + ', ';
+    }, true);
     async function runTemplate(id, title) {
         if (!tplAllowed(id)) { showView('chat'); addNote('This skill is for the Super Admin only.'); return; }
         if (state.busy) return;
+        bumpSkillUse(id);
         const t = SKILL_TPL[id];
         const name = title || t.name;
         if (t.action) { toggle(false); t.action(); return; }
@@ -3065,12 +3292,20 @@
               '<button type="button" class="iba-ai-icon" data-ai="brief" title="Today\'s brief: tasks and reminders (no key needed)"><i class="fa-solid fa-sun"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="track" title="Track an invoice"><i class="fa-solid fa-route"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="skills" title="Skills"><i class="fa-solid fa-bolt"></i></button>' +
+              '<button type="button" class="iba-ai-icon iba-ai-head-expand" data-ai="expand" title="Expand: open the latest card in the big window (again to go back)"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="setup" title="Setup"><i class="fa-solid fa-gear"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="new" title="New chat"><i class="fa-solid fa-rotate-left"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="close" title="Close (Esc)"><i class="fa-solid fa-xmark"></i></button>' +
             '</header>' +
             '<div class="iba-ai-view" data-view="chat"><div class="iba-ai-log" id="iba-ai-log" aria-live="polite"></div></div>' +
             '<div class="iba-ai-view" data-view="skills" hidden><div class="iba-ai-pane" id="iba-ai-skills"></div></div>' +
+            // 15.0.0 patch 44: the big window - one result moved here to read and work on
+            '<div class="iba-ai-view iba-ai-wide-view" data-view="wide" hidden>' +
+              '<div class="iba-ai-wide-bar" title="Drag to move · double-click to put it back in place"><i class="fa-solid fa-grip-vertical iba-ai-wide-handle" aria-hidden="true"></i><span class="iba-ai-wide-title" id="iba-ai-wide-title"></span>' +
+                '<button type="button" class="iba-ai-mini" data-wide-close title="Back to the side panel (Esc)"><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Back to side panel</button></div>' +
+              '<div class="iba-ai-pane iba-ai-wide-body" id="iba-ai-wide-body"></div>' +
+              '<span class="iba-ai-wide-grip" data-wide-grip title="Drag to resize" aria-hidden="true"></span>' +
+            '</div>' +
             '<div class="iba-ai-view" data-view="setup" hidden><div class="iba-ai-pane" id="iba-ai-setup"></div></div>' +
             '<div class="iba-ai-view" data-view="track" hidden><div class="iba-ai-pane" id="iba-ai-track">' +
               '<h3><i class="fa-solid fa-route"></i> Track</h3>' +
@@ -3106,6 +3341,8 @@
             // 15.0.0 patch 25: the phone home - search, track, remind, message
             '<div class="iba-ai-view iba-ai-phone" data-view="phone" hidden><div class="iba-ai-pane">' +
               '<div class="iba-aph-hero"><span class="iba-aph-bot">' + BOT_SVG + '</span><div class="iba-aph-hi"><strong id="iba-aph-hello">Hello</strong><small>Search · Track · Remind · Message</small></div></div>' +
+              // 17.0.0 patch 5: Now brief on the phone
+              '<button type="button" class="iba-aph-brief" data-aph-brief><i class="fa-solid fa-sun"></i><span><b>Now brief</b><small id="iba-aph-brief-n">Your tasks, urgent first</small></span><i class="fa-solid fa-chevron-right"></i></button>' +
               '<form class="iba-aph-search" id="iba-aph-form" autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
                 '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +
                 '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
@@ -3125,6 +3362,14 @@
               '<button type="button" data-chip-fill="Show PO " data-super-only><i class="fa-solid fa-magnifying-glass"></i> Find PO</button>' +
               '<button type="button" data-chip-fill="New invoice for PO " data-super-only><i class="fa-solid fa-file-circle-plus"></i> New invoice</button>' +
               '<button type="button" data-chip-fill="Draft a reminder to " data-needs-ai><i class="fa-solid fa-pen-nib"></i> Draft a message</button>' +
+              // 17.0.0 patch 21: more skills one click away (hidden when the user may not run them)
+              '<button type="button" data-run-tpl="po_report" data-tpl-chip><i class="fa-solid fa-file-invoice-dollar"></i> PO report</button>' +
+              '<button type="button" data-run-tpl="approvals_list" data-tpl-chip><i class="fa-solid fa-stamp"></i> Approvals waiting</button>' +
+              '<button type="button" data-run-tpl="person" data-tpl-chip><i class="fa-solid fa-id-badge"></i> Find colleague</button>' +
+              '<button type="button" data-run-tpl="transfer" data-tpl-chip><i class="fa-solid fa-truck-ramp-box"></i> Find transfer</button>' +
+              '<button type="button" data-run-tpl="new_job" data-tpl-chip><i class="fa-solid fa-file-circle-plus"></i> Add new job</button>' +
+              '<button type="button" data-chip-basket><i class="fa-solid fa-cart-shopping"></i> Print basket</button>' +
+              '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
@@ -3135,6 +3380,10 @@
 
         fab.addEventListener('click', () => toggle(true));
         panel.addEventListener('click', onPanelClick);
+        bindWideMove(panel);
+        // 15.0.0 patch 44: every result card gets a "big window" button
+        let decoFrame = 0;
+        new MutationObserver(() => { if (!decoFrame) decoFrame = requestAnimationFrame(() => { decoFrame = 0; decorateCards(); }); }).observe(panel, { childList: true, subtree: true });
         $('iba-ai-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const t = $('iba-ai-text');
@@ -3166,7 +3415,7 @@
         });
         ta.addEventListener('input', () => autoSize(ta));
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !panel.hidden && !document.querySelector('.modal-overlay:not(.hidden) .modal-container:focus-within')) toggle(false);
+            if (e.key === 'Escape' && !panel.hidden && !document.querySelector('.modal-overlay:not(.hidden) .modal-container:focus-within')) { if (wide) closeWide(); else toggle(false); }
         });
         bubble.addEventListener('click', (e) => {
             const b = e.target.closest('button');
@@ -3188,6 +3437,7 @@
     function toggle(open) {
         const p = $('iba-ai-panel');
         if (!p) return;
+        if (!open && wide) closeWide();
         p.hidden = !open;
         $('iba-ai-fab').classList.toggle('is-open', !!open);
         if (open) {
@@ -3197,6 +3447,8 @@
             syncSkillsDown();
             document.querySelectorAll('#iba-ai-panel [data-super-only]').forEach((el) => { el.hidden = !isSuper(); });
             document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
+            document.querySelectorAll('#iba-ai-panel [data-tpl-chip]').forEach((el) => { el.hidden = !tplAllowed(el.dataset.runTpl); });
+            document.querySelectorAll('#iba-ai-panel [data-chip-basket]').forEach((el) => { el.hidden = !(window.ibaPrintBasket && window.ibaPrintBasket.allowed()); });
             // 15.0.0 patch 10: without a key the panel opens on today's brief
             // (tasks + reminders), which needs no AI. Super Admin still gets Setup.
             if (onPhone()) {
@@ -3212,6 +3464,7 @@
     }
 
     function showView(v) {
+        if (v !== 'wide' && wide) restoreWide();
         state.view = v;
         document.querySelectorAll('#iba-ai-panel .iba-ai-view').forEach((el) => { el.hidden = el.dataset.view !== v; });
         document.querySelectorAll('#iba-ai-panel .iba-ai-icon[data-ai]').forEach((b) => b.classList.toggle('is-on', b.dataset.ai === v));
@@ -3226,10 +3479,30 @@
         const b = e.target.closest('button, a[data-ai-po]');
         if (!b) return;
         const act = b.dataset.ai;
+        if (b.hasAttribute('data-wide-open')) { e.preventDefault(); return openWide(b.closest('.iba-ai-card')); }
+        if (b.hasAttribute('data-wide-close')) { e.preventDefault(); return closeWide(); }
+        if (b.hasAttribute('data-brief-apv-print')) {
+            const card = b.closest('.iba-ai-card');
+            const data = card && briefStore.get(card.getAttribute('data-brief-id'));
+            if (data && data.approvals) printApprovalList(data.approvals.items, 'with');
+            return;
+        }
+        if (b.hasAttribute('data-co-toggle')) {
+            const tile = b.closest('.iba-ai-co-tile');
+            const list = tile && tile.querySelector('[data-co-list]');
+            if (list) {
+                list.hidden = !list.hidden;
+                b.setAttribute('aria-expanded', list.hidden ? 'false' : 'true');
+                b.innerHTML = list.hidden ? '<i class="fa-solid fa-chevron-down"></i> Show list' : '<i class="fa-solid fa-chevron-up"></i> Hide list';
+            }
+            return;
+        }
+        const inWide = !!b.closest('#iba-ai-wide-body');
         if (act === 'close') return toggle(false);
-        if (act === 'new') { state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
+        if (act === 'new') { if (wide) closeWide(); state.history = []; state.lastTurn = null; $('iba-ai-log').innerHTML = ''; greetIfEmpty(true); return showView('chat'); }
         if (act === 'brief') return openBrief();
-        if (b.dataset.runTpl) return runTemplate(b.dataset.runTpl);
+        if (b.hasAttribute('data-chip-basket')) { if (window.ibaPrintBasket) window.ibaPrintBasket.open(); return; }
+        if (b.dataset.runTpl) { if (b.hasAttribute('data-tpl-chip')) showView('chat'); return runTemplate(b.dataset.runTpl); }
         if (b.dataset.urgConfirm !== undefined) {
             // 15.0.0 patch 38: the small reason box under "Mark urgent" on a tracking result
             e.preventDefault();
@@ -3305,6 +3578,9 @@
             return;
         }
         if (b.id === 'iba-ai-mic') return listen(b);
+        if (b.dataset.taskAct) return taskAct(b);
+        if (b.hasAttribute('data-aph-brief')) return phoneBrief();
+        if (b.dataset.aphPo) { const q = $('iba-aph-q'); if (q) q.value = b.dataset.aphPo; return phoneSearch(b.dataset.aphPo); }
         if (b.dataset.openTask) { let q = {}; try { q = JSON.parse(b.dataset.openTask); } catch (_) {} return openTaskPage(q); }
         if (b.dataset.openJob) return openJobPage(b.dataset.openJob);
         if (b.hasAttribute('data-brief-print')) {
@@ -3323,15 +3599,24 @@
         if (act === 'phone') { state.phoneChat = false; showView('phone'); return paintPhone(); }
         if (b.dataset.aphMode) return setPhoneMode(b.dataset.aphMode, true);
         if (b.hasAttribute('data-aph-chat')) { state.phoneChat = true; return showView('chat'); }
+        // 17.0.0 patch 18: Expand in the header: the newest card in the big window, or back
+        if (act === 'expand') {
+            if (wide) return restoreWide();
+            const cards = Array.from(document.querySelectorAll('#iba-ai-log .iba-ai-card')).filter((c) => !c.classList.contains('is-action') && !c.closest('.iba-ai-skill-ask'));
+            if (!cards.length) { addNote('Nothing to expand yet. Open Today\'s brief (the sun) or ask something first.'); return; }
+            if (state.view !== 'chat') showView('chat');
+            return openWide(cards[cards.length - 1]);
+        }
         if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? (onPhone() ? 'phone' : 'chat') : act);
         if (b.dataset.viewGo) return showView(b.dataset.viewGo);
         if (b.dataset.track) {
             let q = {};
             try { q = JSON.parse(b.dataset.track); } catch (_) {}
-            const out = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : null;
+            const out = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
             return runTrack(q, out);
         }
         if (b.dataset.rep) return onReport(b);
+        if (b.dataset.trf && inWide) return runTransferTrack(b.dataset.trf, wideMore());
         if (b.dataset.trf) {
             const host = b.closest('#iba-ai-track-out');
             if (host) {
@@ -3346,7 +3631,7 @@
         if (b.dataset.trfFind) {
             let q = {};
             try { q = JSON.parse(b.dataset.trfFind); } catch (_) {}
-            const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : null;
+            const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
             return runTransferFind(q, host);
         }
         if (b.dataset.trkHist !== undefined) {
@@ -3365,8 +3650,18 @@
         }
         // 15.0.0 patch 9: a PO in a list shows where its invoices are (with
         // "Open in Invoice Records"); before it tried to open Invoice Entry.
+        if (b.dataset.aiPo && inWide) { e.preventDefault(); return runTrack({ po: b.dataset.aiPo }, wideMore()); }
         if (b.dataset.aiPo) { e.preventDefault(); showView('chat'); return runTrack({ po: b.dataset.aiPo }); }
-        if (b.dataset.aiRecords) { e.preventDefault(); return openInRecords(b.dataset.aiRecords); }
+        if (b.dataset.aiRecords) { e.preventDefault(); if (wide) closeWide(); return openInRecords(b.dataset.aiRecords); }
+        if (b.hasAttribute('data-rem-all')) {
+            e.preventDefault();
+            const card = b.closest('.iba-ai-card');
+            const ids = remList.filter((x) => !x.seenAt).map((x) => x.id);
+            if (card) card.querySelectorAll('.iba-ai-remlist li:not(.iba-ai-ttab-head)').forEach((li) => li.remove());
+            b.remove();
+            ids.forEach((id) => { remMarkSeen(id); });
+            return;
+        }
         if (b.dataset.remSeen) { e.preventDefault(); const li = b.closest('li'); if (li) li.remove(); return remMarkSeen(b.dataset.remSeen); }
         if (b.dataset.aiRemind) { e.preventDefault(); let q = {}; try { q = JSON.parse(b.dataset.aiRemind); } catch (_) {} return openRemind(q, b); }
         if (b.dataset.aiNewInv) { showView('chat'); const t = $('iba-ai-text'); t.value = 'New invoice for PO ' + b.dataset.aiNewInv + ': '; t.focus(); return; }
@@ -3386,6 +3681,136 @@
         }
         if (b.dataset.showForm !== undefined) { peek('Check the form, then press Add.'); return; }
         if (b.dataset.showBatch !== undefined) { peek('Check the rows in Batch Entry, then press Save.'); return; }
+    }
+
+    // ------------------------------------------------------------------
+    // 15.0.0 patch 44: the big window. The side panel grows into a large
+    // window in the middle of the screen and shows one result card (the
+    // brief, a tracking result, Mark urgent, ...). The card itself is moved,
+    // so its buttons keep working; "Back to side panel" (or Esc) puts it back
+    // where it was. A PO or transfer opened from inside shows below it.
+    // ------------------------------------------------------------------
+    let wide = null;
+    function decorateCards() {
+        if (onPhone()) return;
+        document.querySelectorAll('#iba-ai-panel .iba-ai-card').forEach((card) => {
+            if (card.closest('#iba-ai-wide-body') || card.classList.contains('is-action') || card.closest('.iba-ai-skill-ask')) return;
+            const head = card.querySelector(':scope > .iba-ai-card-head');
+            if (!head || head.querySelector('[data-wide-open]')) return;
+            const btn = '<button type="button" class="iba-ai-mini iba-ai-expand" data-wide-open title="Open in a big window to read and work on it"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Expand</button>';
+            let acts = head.querySelector(':scope > .iba-ai-head-actions');
+            if (acts) acts.insertAdjacentHTML('afterbegin', btn);
+            else head.insertAdjacentHTML('beforeend', '<span class="iba-ai-head-actions">' + btn + '</span>');
+            // 17.0.0 patch 18: also at the bottom of a long card, so it is not missed
+            if (card.querySelectorAll('li').length > 4 && !card.querySelector(':scope > .iba-ai-expand-foot')) {
+                card.insertAdjacentHTML('beforeend', '<button type="button" class="iba-ai-mini iba-ai-expand iba-ai-expand-foot" data-wide-open title="Open in a big window"><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Open in big window</button>');
+            }
+            // 17.0.0 patch 18: the Now brief opens in the big window by itself (once)
+            if (card.classList.contains('is-brief') && !card.dataset.autoWide && !wide) {
+                card.dataset.autoWide = '1';
+                setTimeout(() => { if (!wide && card.isConnected && !card.closest('#iba-ai-wide-body')) openWide(card); }, 60);
+            }
+        });
+    }
+    function openWide(card) {
+        const p = $('iba-ai-panel');
+        const body = $('iba-ai-wide-body');
+        if (!card || !p || !body || onPhone()) return;
+        if (wide) restoreWide();
+        const ph = document.createElement('div');
+        ph.className = 'iba-ai-note iba-ai-wide-ph';
+        ph.innerHTML = '<i class="fa-solid fa-up-right-and-down-left-from-center"></i> <span>Shown in the big window.</span>';
+        card.parentNode.insertBefore(ph, card);
+        const head = card.querySelector(':scope > .iba-ai-card-head');
+        let title = 'IBA Assistant';
+        if (head) { const h = head.cloneNode(true); h.querySelectorAll('.iba-ai-head-actions, button').forEach((x) => x.remove()); title = h.textContent.trim().replace(/\s+/g, ' ').slice(0, 90) || title; }
+        $('iba-ai-wide-title').textContent = title;
+        body.innerHTML = '';
+        body.appendChild(card);
+        const more = document.createElement('div');
+        more.id = 'iba-ai-wide-more';
+        body.appendChild(more);
+        wide = { card: card, ph: ph, prev: state.view === 'wide' ? 'chat' : state.view };
+        p.classList.add('is-wide');
+        applyWidePos(lsGet(WIDE_POS_KEY, null));
+        showView('wide');
+        body.scrollTop = 0;
+    }
+    function restoreWide() {
+        const w = wide;
+        wide = null;
+        const p = $('iba-ai-panel');
+        if (p) p.classList.remove('is-wide');
+        applyWidePos(null);
+        if (!w) return;
+        if (w.ph && w.ph.isConnected) w.ph.replaceWith(w.card);
+        else if (w.card && w.card.parentNode) w.card.parentNode.removeChild(w.card);
+        const body = $('iba-ai-wide-body');
+        if (body) body.innerHTML = '';
+        return w.prev;
+    }
+    function closeWide() {
+        const prev = restoreWide();
+        showView(prev || 'chat');
+        scrollEnd();
+    }
+    // 15.0.0 patch 45: move (drag the bar) and resize (drag the corner); the
+    // place is kept in this browser. Double-click the bar to put it back.
+    const WIDE_POS_KEY = 'iba-ai-wide-pos-v1';
+    function applyWidePos(pos) {
+        const p = $('iba-ai-panel');
+        if (!p) return;
+        if (!pos || !p.classList.contains('is-wide')) {
+            p.classList.remove('is-moved');
+            ['--wx', '--wy', '--ww', '--wh'].forEach((v) => p.style.removeProperty(v));
+            return;
+        }
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const w = Math.max(420, Math.min(vw - 8, Number(pos.w) || 900));
+        const hgt = Math.max(300, Math.min(vh - 8, Number(pos.h) || 600));
+        const x = Math.max(4, Math.min(vw - 120, Number(pos.x) || 0));
+        const y = Math.max(4, Math.min(vh - 60, Number(pos.y) || 0));
+        p.style.setProperty('--wx', x + 'px'); p.style.setProperty('--wy', y + 'px');
+        p.style.setProperty('--ww', w + 'px'); p.style.setProperty('--wh', hgt + 'px');
+        p.classList.add('is-moved');
+    }
+    function bindWideMove(panel) {
+        const start = (e, mode) => {
+            if (!panel.classList.contains('is-wide') || e.button !== 0) return;
+            e.preventDefault();
+            const r = panel.getBoundingClientRect();
+            const o = { x: e.clientX, y: e.clientY, r: r };
+            const move = (ev) => {
+                const dx = ev.clientX - o.x, dy = ev.clientY - o.y;
+                applyWidePos(mode === 'move' ? { x: o.r.left + dx, y: o.r.top + dy, w: o.r.width, h: o.r.height } : { x: o.r.left, y: o.r.top, w: o.r.width + dx, h: o.r.height + dy });
+            };
+            const up = () => {
+                document.removeEventListener('pointermove', move);
+                document.removeEventListener('pointerup', up);
+                panel.classList.remove('is-dragging');
+                const q = panel.getBoundingClientRect();
+                if (panel.classList.contains('is-moved')) lsSet(WIDE_POS_KEY, { x: Math.round(q.left), y: Math.round(q.top), w: Math.round(q.width), h: Math.round(q.height) });
+            };
+            panel.classList.add('is-dragging');
+            document.addEventListener('pointermove', move);
+            document.addEventListener('pointerup', up);
+        };
+        panel.addEventListener('pointerdown', (e) => {
+            if (e.target.closest('[data-wide-grip]')) return start(e, 'size');
+            if (e.target.closest('.iba-ai-wide-bar, .iba-ai-head') && !e.target.closest('button, a, input, select, textarea')) return start(e, 'move');
+        });
+        panel.addEventListener('dblclick', (e) => {
+            if (!panel.classList.contains('is-wide') || !e.target.closest('.iba-ai-wide-bar, .iba-ai-head') || e.target.closest('button')) return;
+            try { localStorage.removeItem(WIDE_POS_KEY); } catch (_) {}
+            applyWidePos(null);
+        });
+    }
+    function wideMore() {
+        let box = $('iba-ai-wide-more');
+        const body = $('iba-ai-wide-body');
+        if (!box && body) { box = document.createElement('div'); box.id = 'iba-ai-wide-more'; body.appendChild(box); }
+        setTimeout(() => { try { box.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {} }, 60);
+        return box;
     }
 
     // ------------------------------------------------------------------
@@ -3445,6 +3870,87 @@
         return runTrack({ po: '', vendor: q }, out);
     }
 
+    // 15.0.0 patch 47: what can be answered without the AI
+    const QUICK_ALL = ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent', 'new_job', 'new_delivery', 'transfer', 'person', 'brief'];
+    const INTENTS = [
+        [/\b(reports?|list|lists|summary|print|statement)\b/i, ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent']],
+        [/\b(download|csv|excel|export)\b/i, ['export', 'po_report', 'inv_status']],
+        [/\b(urgent|rush)\b/i, ['urgent', 'approvals_list']],
+        [/\b(approvals?|approve|ceo|coo)\b/i, ['approvals_list', 'urgent', 'inv_status']],
+        [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
+        [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
+        [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']]
+    ];
+    function quickPicks(ids, all) {
+        const ok = ids.filter((id) => SKILL_TPL[id] && tplAllowed(id));
+        if (!ok.length) return false;
+        const d = document.createElement('div');
+        d.className = 'iba-ai-card is-action iba-ai-quick';
+        d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-hand-pointer"></i> ' + (all ? 'Pick one' : 'Pick the one you need') + '</div>' +
+            '<div class="iba-ai-quick-btns">' + ok.map((id) => {
+                const t = SKILL_TPL[id];
+                const l = SKILL_LOOK[id] || ['', '#138A97'];
+                return '<button type="button" class="iba-ai-quick-btn" data-run-tpl="' + id + '" style="--c:' + l[1] + '" title="' + esc(t.desc || '') + '"><i class="fa-solid ' + t.icon + '"></i><b>' + esc(t.name) + '</b>' + (l[0] ? '<small>' + esc(l[0]) + '</small>' : '') + '</button>';
+            }).join('') + '</div>';
+        put(d);
+        return true;
+    }
+    async function localDo(text, fn) {
+        showView('chat');
+        addUser(text);
+        state.busy = true;
+        setBusy(true);
+        try { await fn(); } catch (err) { addError(err); } finally { state.busy = false; setBusy(false); }
+        return true;
+    }
+    async function localAnswer(text) {
+        const t = text.replace(/[?!.]+$/, '').trim();
+        const words = t.split(/\s+/).filter(Boolean).length;
+        // a PO number, alone or as "po 62921" / "status of po 62921"
+        const po = (t.match(/^(?:(?:status|track|check|where is|show)(?:\s+(?:of|the|for))?\s+)?(?:po|p\.o\.?)?[\s#:-]*(\d{4,7})$/i) || [])[1];
+        if (po && words <= 6 && !onPhone()) {
+            return localDo(text, async () => {
+                for (const n of ['find_po', 'track_invoices']) {
+                    const out = await runTool(n, { po: po });
+                    if (out.card) addCard(out.card);
+                    else if (out.result && out.result.error && n === 'find_po') addNote(out.result.error);
+                }
+            });
+        }
+        // a report / skill word in a short message: the buttons to pick from
+        if (words <= 5 || !ready()) {
+            const hit = INTENTS.find((x) => x[0].test(t));
+            if (hit && !(ready() && /\b(why|how many|how much|compare|which|when did)\b/i.test(t))) {
+                showView('chat');
+                addUser(text);
+                if (!quickPicks(hit[1])) addNote('That is not available for your account.');
+                return true;
+            }
+        }
+        // 17.0.0 patch 2: a short name that is a vendor in the PO list is
+        // looked up straight away, key or no key (e.g. "dot")
+        if (words <= 3 && /[a-z]/i.test(t) && !/\b(hi|hello|hey|thanks?|thank you|good (morning|afternoon|evening)|help|brief|today|waiting|remind(er)?s?|my tasks?|pending|why|how|what|who|when|which)\b/i.test(t)) {
+            const pr = resolvePerson(t);
+            if (!pr.name) {
+                try { await ensureBase(); } catch (_) {}
+                if (vendorPOs(t, poMap()).list.length) {
+                    return localDo(text, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
+                }
+            }
+        }
+        if (ready()) return false;
+        // no key: a colleague, a mobile number, else a vendor (short text only)
+        if (/^\+?[\d\s\-()]{8,}$/.test(t) && t.replace(/\D+/g, '').length >= 8) return localDo(text, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
+        if (words <= 4 && /[a-z]/i.test(t) && !/\b(hi|hello|hey|thanks?|thank you|good (morning|afternoon|evening)|help|brief|today|waiting|remind(er)?s?|my tasks?|pending)\b/i.test(t)) {
+            const pr = resolvePerson(t);
+            if (pr.name || (pr.matches.length && pr.matches.length <= 3 && pr.matches.every((x) => norm(x.value).includes(norm(t))))) {
+                return localDo(text, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
+            }
+            return localDo(text, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
+        }
+        return false;
+    }
+
     async function runTrack(q, out) {
         if (state.busy) return;
         state.busy = true;
@@ -3460,6 +3966,306 @@
         } finally {
             state.busy = false;
             if (!out) setBusy(false);
+        }
+    }
+
+    // 17.0.0 patch 3: the brief's tasks are done right there. Each row gets
+    // the same buttons as in WorkDesk Active Task (Approve / Reject, SRV Done,
+    // Process, Close out, Make approval, Print) and runs the same routines,
+    // so ESN, Attention hand-over and the task lists work exactly as there.
+    // Their windows open above the assistant.
+    const SRV_STEPS = ['for srv', 'waiting signature', 'waiting approval'];
+    function isManagerUser() {
+        const a = me() || {};
+        const pos = String(a.Position || '').toLowerCase();
+        return pos.indexOf('manager') !== -1 || pos.indexOf('director') !== -1 || pos.indexOf('ceo') !== -1 || String(a.Role || '').toLowerCase() === 'admin';
+    }
+    function taskActs(t) {
+        const st = norm(t.status);
+        const apv = window.ibaApprovals;
+        const inv = t.kind === 'invoice';
+        if (inv && (st === 'approved' || st === 'rejected')) return (st === 'approved' && apv ? [['print', 'Print', 'fa-print']].concat(window.ibaPrintBasket && window.ibaPrintBasket.allowed() ? [['basket', 'Add to print', 'fa-cart-plus']] : []) : []).concat([['process', 'Process', 'fa-pen-to-square']]);
+        if (inv && apv && (st === 'for approval' || st === 'ceo approval')) {
+            let ok = false;
+            try { ok = apv.canDecide({ status: t.status, attention: t.attention }) || (st === 'for approval' && isManagerUser()); } catch (_) {}
+            if (ok) return [['approve', 'Approve', 'fa-check'], ['reject', 'Reject', 'fa-xmark']];
+        }
+        if (document.body.classList.contains('is-ceo') && typeof openCEOApprovalModal === 'function') return [['ceo', 'Make approval', 'fa-stamp']];
+        if (st === 'po close out' && typeof window.handlePOCloseOutDone === 'function') return [['closeout', 'Close out', 'fa-flag-checkered']];
+        const out = [];
+        if (SRV_STEPS.indexOf(st) !== -1 && typeof handleSRVDone === 'function') out.push(['srv', 'SRV Done', 'fa-circle-check']);
+        if (typeof openModifyTaskModal === 'function') out.push(['process', 'Process', 'fa-pen-to-square']);
+        return out;
+    }
+    // 17.0.0 patch 9 / 12: Now Brief tasks as a table, one block per status
+    // (martin: keep New Entry, Approved, ... apart); the site is a column.
+    function taskSite(t) {
+        let v = String(t.site || '').trim();
+        if (!v && t.po) { try { const r = poMap()[String(t.po).toUpperCase()] || poMap()[t.po]; if (r) v = String(r['Project ID'] || r.Project || '').trim(); } catch (_) {} }
+        return v;
+    }
+    const STATUS_ORDER = ['for approval', 'approved', 'for srv', 'srv done', 'new entry', 'under review', 'for summary', 'report', 'with accounts'];
+    function taskSiteTable(tasks, MORE) {
+        const groups = new Map();
+        tasks.forEach((t) => { const s = String(t.status || '').trim() || 'No status'; const k = norm(s); if (!groups.has(k)) groups.set(k, { name: s, list: [] }); groups.get(k).list.push(t); });
+        const rank = (k) => { const i = STATUS_ORDER.indexOf(k); return i === -1 ? 99 : i; };
+        const order = Array.from(groups.keys()).sort((a, b) => rank(a) - rank(b) || groups.get(b).list.length - groups.get(a).list.length || a.localeCompare(b));
+        return '<div class="iba-ai-ttab-wrap">' + order.map((k, g) => {
+            const grp = groups.get(k), list = grp.list;
+            const urg = list.filter((t) => isUrgentNote(t.note)).length;
+            const total = list.reduce((n, t) => n + num(t.amount), 0);
+            return '<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-layer-group"></i> <b>' + esc(grp.name) + '</b>' +
+                '<span class="iba-ai-ttab-count">' + list.length + ' task' + (list.length === 1 ? '' : 's') + '</span>' +
+                (urg ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> ' + urg + ' urgent</span>' : '') +
+                '<span class="iba-ai-ttab-step"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(grp.name)) + '</span>' +
+                (total ? '<span class="iba-ai-ttab-total">QAR ' + esc(money(total)) + '</span>' : '') + '</div>' +
+                '<ul class="iba-ai-rows iba-ai-ttab" data-brief-list="tasks-' + g + '">' +
+                '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">Site</span><span class="c-main">Vendor · invoice</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
+                list.map((t, i) => {
+                    const u = isUrgentNote(t.note);
+                    const site = taskSite(t);
+                    return '<li' + (i >= MORE ? ' hidden' : '') + (u ? ' class="is-urgent"' : '') + '>' +
+                        '<span class="c-po">' + poLink(t.po) + '</span>' +
+                        '<span class="c-site">' + esc(site || '—') + '</span>' +
+                        '<span class="iba-ai-grow c-main">' + esc(t.vendor || t.type || '—') + (u ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
+                            '<small>' + esc([t.ref, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small></span>' +
+                        '<span class="c-age">' + ageChip(daysSince(t.at)) + '</span>' +
+                        '<span class="c-act">' + taskActionsHtml(t) +
+                        '<button type="button" class="iba-ai-mini iba-ai-go is-open" data-open-task="' + esc(JSON.stringify({ key: t.key || '', po: t.po || '', ref: t.ref || '' })) + '" title="Open it in Active Task"><i class="fa-solid fa-arrow-up-right-from-square"></i></button></span></li>';
+                }).join('') + '</ul>' +
+                (list.length > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="tasks-' + g + '"><i class="fa-solid fa-chevron-down"></i> Show all ' + list.length + '</button>' : '') + '</div>';
+        }).join('') + '</div>';
+    }
+    function taskActionsHtml(t, phone) {
+        const q = esc(JSON.stringify({ key: t.key || '', po: t.po || '', ref: t.ref || '', kind: t.kind || '', status: t.status || '', vendor: t.vendor || '', at: t.at || 0 }));
+        const acts = phone ? phoneActs(t) : taskActs(t);
+        if (!acts.length) return '';
+        return '<span class="iba-ai-acts">' + acts.map((a) =>
+            '<button type="button" class="iba-ai-mini iba-ai-act is-' + a[0] + '" data-task-act="' + a[0] + '" data-task="' + q + '" title="' + esc(a[1]) + '"><i class="fa-solid ' + a[2] + '"></i> ' + esc(a[1]) + '</button>').join('') + '</span>';
+    }
+
+    // 17.0.0 patch 5: on the phone a task can be approved / rejected, a
+    // colleague reminded, or the task pinned as a reminder to do it on the PC.
+    function phoneActs(t) {
+        const out = [];
+        const st = norm(t.status);
+        const apv = window.ibaApprovals;
+        if (t.kind === 'invoice' && apv && (st === 'for approval' || st === 'ceo approval')) {
+            let ok = false;
+            try { ok = apv.canDecide({ status: t.status, attention: t.attention }); } catch (_) {}
+            if (ok) out.push(['approve', 'Approve', 'fa-check'], ['reject', 'Reject', 'fa-xmark']);
+        }
+        out.push(['pc', 'Do on PC', 'fa-desktop'], ['remind', 'Remind', 'fa-bell']);
+        return out;
+    }
+    async function pinForPC(q, btn) {
+        const d = mainDb();
+        const me = myName();
+        if (!d || !me) return;
+        const li = btn.closest('li');
+        const text = 'Do on PC: PO ' + (q.po || '') + (q.ref ? ' · ' + q.ref : '') + (q.vendor ? ' · ' + q.vendor : '') + (q.status ? ' · ' + q.status : '');
+        btn.disabled = true;
+        try {
+            await d.ref('iba_assistant/reminders/' + remSafe(me)).push({ from: me, to: me, text: text, po: q.po || '', control: '', at: firebase.database.ServerValue.TIMESTAMP });
+            if (li) rowNote(li, '<i class="fa-solid fa-check"></i> Pinned: it waits in your reminders on the PC.', 'done');
+        } catch (err) {
+            btn.disabled = false;
+            if (li) rowNote(li, 'Could not pin: ' + esc((err && err.message) || err), 'error');
+        }
+    }
+    async function phoneBrief() {
+        const out = $('iba-aph-out');
+        if (!out || state.busy) return;
+        state.busy = true;
+        out.innerHTML = '<div class="iba-ai-typing"><span></span><span></span><span></span></div>';
+        try {
+            for (let i = 0; i < 8; i++) { const w = waiting(); if (w && w.running) break; await wait(1250); }
+            const o = await toolBrief(); // read-only: on the phone too
+            if (!o || !o.card) { out.innerHTML = '<div class="iba-ai-note is-error">' + esc((o && o.result && o.result.error) || 'The brief is not ready yet. Try again in a moment.') + '</div>'; return; }
+            out.innerHTML = phoneBriefHtml(o.card.data);
+            try { out.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
+            const n = $('iba-aph-brief-n');
+            const x = o.card.data;
+            if (n) n.textContent = (x.tasks || []).length + ' task' + ((x.tasks || []).length === 1 ? '' : 's') + ' · ' + (x.tasks || []).filter((t) => isUrgentNote(t.note)).length + ' urgent';
+        } catch (err) {
+            out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
+        } finally { state.busy = false; }
+    }
+    function phoneBriefHtml(x) {
+        const r = x.result || {};
+        const tasks = (x.tasks || []).map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
+        const jobs = x.jobs || [];
+        const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
+        const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
+        const MORE = 8;
+        let h = '<div class="iba-ai-card is-brief is-aph-brief">' +
+            '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> ' + esc(greetingWord() + (firstName() ? ', ' + firstName() : '')) + '</div>' +
+            '<div class="iba-aph-kpis"><div><b>' + tasks.length + '</b><span>Tasks</span></div><div class="is-urg"><b>' + nUrg + '</b><span>Urgent</span></div>' +
+            '<div class="is-late"><b>' + nLate + '</b><span>Over 7 days</span></div><div><b>' + (r.active_job || 0) + '</b><span>Inventory</span></div></div>';
+        h += remindersHtml();
+        if (tasks.length) {
+            h += '<div class="iba-ai-sub">Your tasks' + (nUrg ? ' · urgent first' : ' · oldest first') + '</div><ul class="iba-ai-rows iba-aph-tasks" data-brief-list="aph">' + tasks.map((t, i) => {
+                const dd = daysSince(t.at);
+                return '<li' + (i >= MORE ? ' hidden' : '') + (isUrgentNote(t.note) ? ' class="is-urgent"' : '') + '>' +
+                    '<div class="iba-aph-trow"><button type="button" class="iba-ai-po" data-aph-po="' + esc(t.po || '') + '">' + esc(t.po || '—') + '</button>' +
+                    '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type || '') + (isUrgentNote(t.note) ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
+                    '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small></span>' +
+                    (dd === null ? '' : '<span class="iba-aph-age' + (dd > 7 ? ' is-late' : '') + '">' + dd + 'd</span>') + '</div>' +
+                    taskActionsHtml(t, true) + '</li>';
+            }).join('') + '</ul>' + (tasks.length > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="aph"><i class="fa-solid fa-chevron-down"></i> Show all ' + tasks.length + '</button>' : '');
+        }
+        if (jobs.length) {
+            h += '<div class="iba-ai-sub">Inventory waiting for you (' + jobs.length + ')</div><ul class="iba-ai-rows">' + jobs.slice(0, MORE).map((j) =>
+                '<li><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product || '') + '<small>' + esc(j.step || '') + '</small></span>' +
+                (daysSince(j.at) === null ? '' : '<span class="iba-aph-age">' + daysSince(j.at) + 'd</span>') + '</li>').join('') + '</ul>';
+        }
+        if (!tasks.length && !jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
+        h += '<p class="iba-aph-foot">Process, SRV Done and printing are on the PC. <b>Do on PC</b> pins a task to your reminders there.</p></div>';
+        return h;
+    }
+
+    async function fullTask(q) {
+        const key = String(q.key || '');
+        const find = (list) => (Array.isArray(list) ? list.find((x) => x && String(x.key || '') === key) : null) || null;
+        let t = null;
+        try { if (typeof userActiveTasks !== 'undefined') t = find(userActiveTasks); } catch (_) {}
+        if (t) return t;
+        if (q.kind === 'job') {
+            let list = [];
+            try { if (typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries)) list = workdeskSystemEntries; } catch (_) {}
+            const e = find(list);
+            if (!e) return null;
+            let display = e.remarks || e.status || 'Pending';
+            if (e.for === 'Invoice' && display === 'Pending') display = 'New Entry';
+            t = Object.assign({}, e, {
+                source: ['Transfer', 'Restock', 'Return', 'Usage'].indexOf(e.for) !== -1 ? 'transfer_entry' : 'job_entry',
+                note: e.note || e.details || e.currentNote || '', remarks: display, dateEntered: e.date || '', jobRecordDateEntered: e.date || ''
+            });
+        } else {
+            if (typeof wdLoadPersonalInvoiceLookupTasksForActiveTask !== 'function') return null;
+            const names = [myName()];
+            try { if (typeof getDelegatorsForReplacement === 'function') names.push.apply(names, getDelegatorsForReplacement(myName()) || []); } catch (_) {}
+            for (const force of [false, true]) {
+                try { t = find(await withTimeout(wdLoadPersonalInvoiceLookupTasksForActiveTask(names, force), 15000, 'task')); } catch (_) { t = null; }
+                if (t) break;
+            }
+            if (!t) return null;
+        }
+        try { if (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) userActiveTasks.push(t); } catch (_) {}
+        return t;
+    }
+
+    // a window from the page (Process, approval, SRV close-out) is open
+    function pageWindowOpen() {
+        return Array.from(document.querySelectorAll('.modal-overlay:not(.hidden), #iba-apd:not(.hidden)'))
+            .some((el) => { const cs = getComputedStyle(el); return cs.display !== 'none' && cs.visibility !== 'hidden'; });
+    }
+    async function withPageWindows(run) {
+        document.body.classList.add('iba-ai-acting');
+        try {
+            const p = Promise.resolve(run());
+            await wait(400);
+            const t0 = Date.now();
+            // wait until the work is finished and its windows are closed
+            let done = false;
+            p.then(() => { done = true; }, () => { done = true; });
+            while ((!done || pageWindowOpen()) && Date.now() - t0 < 30 * 60000) await wait(400);
+            return await p;
+        } finally {
+            document.body.classList.remove('iba-ai-acting');
+        }
+    }
+
+    function rowNote(li, html, kind) {
+        let n = li.querySelector('.iba-ai-act-note');
+        if (!n) { n = document.createElement('small'); n.className = 'iba-ai-act-note'; (li.querySelector('.iba-ai-grow') || li).appendChild(n); }
+        n.className = 'iba-ai-act-note' + (kind ? ' is-' + kind : '');
+        n.innerHTML = html;
+    }
+    async function readTaskNow(q) {
+        if (q.kind === 'job') {
+            let list = [];
+            try { if (typeof workdeskSystemEntries !== 'undefined' && Array.isArray(workdeskSystemEntries)) list = workdeskSystemEntries; } catch (_) {}
+            const e = list.find((x) => x && String(x.key || '') === String(q.key));
+            return e ? { status: e.remarks || e.status || '', attention: e.attention || '' } : null;
+        }
+        const k = String(q.key || '');
+        const po = String(q.po || '').trim();
+        const invKey = po && k.indexOf(po + '_') === 0 ? k.slice(po.length + 1) : (k.indexOf('_') !== -1 ? k.split('_').slice(1).join('_') : k);
+        let idb = null;
+        try { if (typeof invoiceDb !== 'undefined') idb = invoiceDb; } catch (_) {}
+        if (!idb || !po || !invKey) return undefined;
+        const snap = await withTimeout(idb.ref('invoice_entries/' + po + '/' + invKey).once('value'), 9000, 'invoice');
+        const v = snap && snap.val();
+        return v ? { status: v.status || v.remarks || '', attention: v.attention || '' } : null;
+    }
+    async function markIfMoved(li, q) {
+        await wait(900);
+        let now;
+        try { now = await readTaskNow(q); } catch (_) { return; }
+        if (now === undefined) return;
+        if (now === null) { li.classList.add('is-done'); rowNote(li, '<i class="fa-solid fa-check"></i> Done', 'done'); return; }
+        const apv = window.ibaApprovals;
+        let stillMine = true;
+        try { stillMine = apv ? apv.namedForMe(now.attention) : norm(now.attention).indexOf(norm(myName())) !== -1; } catch (_) {}
+        if (norm(now.status) === norm(q.status) && stillMine) return; // nothing changed (closed without saving)
+        li.classList.add('is-done');
+        const acts = li.querySelector('.iba-ai-acts');
+        if (acts) acts.remove();
+        rowNote(li, '<i class="fa-solid fa-check"></i> Done: now ' + esc(now.status || 'closed') + (now.attention && !stillMine ? ' with ' + esc(now.attention) : ''), 'done');
+    }
+
+    async function taskAct(btn) {
+        const li = btn.closest('li, .wd-cork-note');
+        if (!li || li.classList.contains('is-busy')) return;
+        let q = {};
+        try { q = JSON.parse(btn.dataset.task || '{}'); } catch (_) {}
+        const act = btn.dataset.taskAct;
+        if (act === 'pc') return pinForPC(q, btn);
+        if (act === 'remind') {
+            const days = q.at ? daysSince(Number(q.at)) : null;
+            return openRemind({ po: q.po, items: [{ no: q.ref, status: q.status, days: days }] }, btn);
+        }
+        if (act === 'basket') {
+            // 17.0.0 patch 4: the print basket (one combined print)
+            const k = String(q.key || ''), po = String(q.po || '');
+            const invKey = po && k.indexOf(po + '_') === 0 ? k.slice(po.length + 1) : k;
+            if (window.ibaPrintBasket) await window.ibaPrintBasket.add({ po: po, key: invKey, ref: q.ref || '', vendor: q.vendor || '' });
+            return;
+        }
+        li.classList.add('is-busy');
+        rowNote(li, '<i class="fa-solid fa-spinner fa-spin"></i> Opening...');
+        try {
+            const task = await fullTask(q);
+            if (!task) { li.classList.add('is-done'); rowNote(li, 'Not in your Active Task any more: it may be done already.', 'done'); return; }
+            rowNote(li, '');
+            const apv = window.ibaApprovals;
+            if (act === 'print') {
+                const ids = apv.taskIds(task);
+                await apv.printStamp(ids.po, ids.key);
+                return;
+            }
+            if (act === 'approve' || act === 'reject') {
+                const action = act === 'approve' ? 'Approved' : 'Rejected';
+                await withPageWindows(() => (typeof handleDesktopApproval === 'function' ? handleDesktopApproval(task, action) : apv.openDialog(task)));
+            } else if (act === 'ceo') {
+                await withPageWindows(() => openCEOApprovalModal(task));
+            } else if (act === 'process') {
+                await withPageWindows(() => openModifyTaskModal(task));
+            } else if (act === 'srv') {
+                if (!confirm('Mark SRV Done for PO ' + (q.po || '') + (q.ref ? ' (' + q.ref + ')' : '') + '?')) return;
+                rowNote(li, '<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+                await withPageWindows(() => handleSRVDone(null, task.key));
+            } else if (act === 'closeout') {
+                rowNote(li, '<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
+                await withPageWindows(() => window.handlePOCloseOutDone(null, task.key));
+            }
+            rowNote(li, '');
+            await markIfMoved(li, q);
+        } catch (err) {
+            rowNote(li, esc((err && err.message) || String(err)), 'error');
+        } finally {
+            li.classList.remove('is-busy');
         }
     }
 
@@ -3581,17 +4387,81 @@
         scrollEnd();
         return el;
     }
+    // 15.0.0 patch 46: the AI's reply without what the cards already show
+    // (tables and their titles) and without the "Let me know if..." offers
+    function tidyAnswer(text, cardShown) {
+        let lines = String(text || '').split(/\r?\n/);
+        const isTable = (ln) => /^\s*\|.*\|\s*$/.test(ln);
+        const isBullet = (ln) => /^\s*(?:[-*•]|\d+[.)])\s+/.test(ln);
+        // offers at the end: from "Let me know..." (and its bullets) to the end
+        const offer = /(^|[.!?)]\s+)(?:\*\*)?(?:let me know|if you (?:need|want|would like)|feel free|would you like|do you want|anything else|need anything|is there anything)/i;
+        for (let i = 0; i < lines.length; i++) {
+            const m = lines[i].match(offer);
+            if (m && lines.slice(i + 1).every((ln) => !ln.trim() || isBullet(ln))) {
+                lines = lines.slice(0, i).concat([lines[i].slice(0, m.index + m[1].length).trim()]);
+                break;
+            }
+        }
+        // a message drafted to copy (Dear / Hi ... Regards) is left whole
+        const draft = /^(?:dear|hi|hello|good (?:morning|afternoon|day))\b|\b(?:regards|thank you|thanks),?\s*$/im.test(text);
+        if (cardShown && !draft) {
+            const out = [];
+            for (let i = 0; i < lines.length; i++) {
+                if (isTable(lines[i])) {
+                    // drop a short title line right before the table too
+                    while (out.length && (!out[out.length - 1].trim() || (out[out.length - 1].trim().length < 70 && !/[.!?:]$/.test(out[out.length - 1].trim()) && !isBullet(out[out.length - 1])))) {
+                        const t = out.pop();
+                        if (t.trim()) break;
+                    }
+                    while (i + 1 < lines.length && isTable(lines[i + 1])) i++;
+                    continue;
+                }
+                out.push(lines[i]);
+            }
+            lines = out;
+            // "Type: Invoice" style field lists repeat the card too (with their title)
+            const kept = [];
+            for (let i = 0; i < lines.length; i++) {
+                if (isBullet(lines[i]) && /^\s*(?:[-*•]|\d+[.)])\s+\**[A-Za-z][\w ./()'-]{0,30}\**\s*:\s*\S/.test(lines[i])) {
+                    while (kept.length && !kept[kept.length - 1].trim()) kept.pop();
+                    const t = kept.length ? kept[kept.length - 1].trim() : '';
+                    if (t && t.length < 70 && !/[.!?]$/.test(t) && !isBullet(t)) kept.pop();
+                    continue;
+                }
+                kept.push(lines[i]);
+            }
+            lines = kept;
+        }
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
     function md(text) {
         // tiny, safe formatting: **bold**, `code`, bullet lines, line breaks
         const lines = esc(text).split(/\r?\n/);
         let html = '';
         let inList = false;
+        let table = null;
+        const cells = (ln) => ln.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+        const endTable = () => {
+            if (!table) return;
+            html += '<div class="iba-ai-mdtable"><table>' + table.map((r, i) => '<tr>' + r.map((c) => i === 0 ? '<th>' + c + '</th>' : '<td>' + c + '</td>').join('') + '</tr>').join('') + '</table></div>';
+            table = null;
+        };
         lines.forEach((ln) => {
+            if (/^\s*\|.*\|\s*$/.test(ln)) {
+                if (inList) { html += '</ul>'; inList = false; }
+                if (/^\s*\|[\s:|-]+\|\s*$/.test(ln)) return; // the |---|---| line
+                (table = table || []).push(cells(ln));
+                return;
+            }
+            endTable();
+            const hd = ln.match(/^\s*#{1,6}\s+(.*)$/);
+            if (hd) { if (inList) { html += '</ul>'; inList = false; } html += '<p><strong>' + hd[1] + '</strong></p>'; return; }
             const li = ln.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)$/);
             if (li) { if (!inList) { html += '<ul>'; inList = true; } html += '<li>' + li[1] + '</li>'; return; }
             if (inList) { html += '</ul>'; inList = false; }
             html += ln.trim() ? '<p>' + ln + '</p>' : '';
         });
+        endTable();
         if (inList) html += '</ul>';
         return html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
     }
@@ -3729,10 +4599,15 @@
     function remindersHtml() {
         const open = remList.filter((r) => !r.seenAt);
         if (!open.length) return '';
-        return '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Reminders for you</div><ul class="iba-ai-rows iba-ai-remlist">' + open.map((r) =>
-            '<li><span class="iba-ai-grow"><b>' + esc(r.from || 'Someone') + '</b> · ' + esc(fmtDate(Number(r.at) || 0)) + '<small class="iba-ai-rem-body">' + esc(r.text) + '</small></span>' +
-            (r.po ? poLink(r.po) : '') + (r.control ? '<button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '">' + esc(r.control) + '</button>' : '') +
-            '<button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></li>').join('') + '</ul>';
+        // 17.0.0 patch 18: one table; "All seen" clears the list at once
+        return '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Reminders for you (' + open.length + ')' + (open.length > 1 ? ' <button type="button" class="iba-ai-mini" data-rem-all title="Mark every reminder as seen"><i class="fa-solid fa-check-double"></i> All seen</button>' : '') + '</div>' +
+            '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-remlist iba-ai-ttab is-rem">' +
+            '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO / TRF</span><span class="c-site">From · date</span><span class="c-main">Message</span><span class="c-age"></span><span class="c-act"></span></li>' +
+            open.map((r) =>
+            '<li><span class="c-po">' + (r.po ? poLink(r.po) : '') + (r.control && r.control !== r.po ? '<button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '">' + esc(r.control) + '</button>' : '') + '</span>' +
+            '<span class="c-site"><b>' + esc(r.from || 'Someone') + '</b><small>' + esc(fmtDate(Number(r.at) || 0)) + '</small></span>' +
+            '<span class="iba-ai-grow c-main"><small class="iba-ai-rem-body">' + esc(r.text) + '</small></span><span class="c-age"></span>' +
+            '<span class="c-act"><button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></span></li>').join('') + '</ul></div></div>';
     }
     async function remMarkSeen(id) {
         const d = mainDb();
@@ -3824,6 +4699,8 @@
                     (it.invoice_date || it.paid_on || it.with_accounts_on ? '<div class="iba-ai-trk-dates">' + [it.invoice_date ? 'Invoice ' + esc(it.invoice_date) : '', it.with_accounts_on ? 'With Accounts ' + esc(it.with_accounts_on) : '', it.paid_on ? 'Paid ' + esc(it.paid_on) : ''].filter(Boolean).join(' · ') + '</div>' : '') +
                     '<ol class="iba-ai-pipe">' + STAGE_SHORT.map((lbl, i) => '<li class="' + ((it.skipped_index || []).indexOf(i) !== -1 ? 'is-skipped' : i < it.stage_index ? 'is-done' : i === it.stage_index ? ('is-now' + (side ? ' is-side' : '') + (i === 5 ? ' is-final' : '')) : '') + '"' + ((it.skipped_index || []).indexOf(i) !== -1 ? ' title="Skipped"' : '') + '><span></span>' + lbl + '</li>').join('') + '</ol>' +
                     (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
+                    // 15.0.0 patch 44: the SRV file too (same link as Invoice Records)
+                    srvLink(it.srv) +
                     // 15.0.0 patch 40: Remind on each open invoice, to the person who has it
                     (it.stage_index < 5 && it.with ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && APPROVAL_RX.test(String(it.status || '')) && (it.urgent ? isSuper() : isAdminUser()) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
@@ -3971,41 +4848,84 @@
         d.className = 'iba-ai-card is-' + card.kind;
         const x = card.data || {};
         if (card.kind === 'brief') {
+            // 15.0.0 patch 45: your own work first and in full; what happens in
+            // the company (approvals, PO Close Out) as a short line you can open.
             const r = x.result;
             const bid = 'b' + (++briefSeq);
             briefStore.set(bid, x);
             if (briefStore.size > 6) briefStore.delete(briefStore.keys().next().value);
             d.setAttribute('data-brief-id', bid);
-            let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> Your brief' +
+            const MORE = 5;
+            const moreBtn = (n, what) => n > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="' + what + '"><i class="fa-solid fa-chevron-down"></i> Show all ' + n + '</button>' : '';
+            const urgentFirst = (list) => list.map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
+            const tasks = urgentFirst(x.tasks || []);
+            const jobs = x.jobs || [];
+            const rems = remList.filter((m) => !m.seenAt);
+            const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
+            const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
+            let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> ' + esc(greetingWord() + (firstName() ? ', ' + firstName() : '')) +
                 '<span class="iba-ai-head-actions">' + (canSpeak() ? '<button type="button" class="iba-ai-mini" data-brief-say title="Read the brief aloud"><i class="fa-solid fa-volume-high"></i></button>' : '') + '<button type="button" class="iba-ai-mini" data-brief-print title="Print or save as PDF: a checklist with charts"><i class="fa-solid fa-print"></i> Print</button></span></div>' +
                 '<div class="iba-ai-stats">' +
-                  '<div><b>' + esc(r.active_task) + '</b><span>Active Task</span></div>' +
-                  '<div><b>' + esc(r.active_job) + '</b><span>Active Job</span></div>' +
+                  '<div><b>' + esc(r.active_task) + '</b><span>Your tasks</span></div>' +
+                  '<div><b>' + esc(r.active_job) + '</b><span>Inventory</span></div>' +
+                  '<div><b>' + esc(rems.length) + '</b><span>Reminders</span></div>' +
                   '<div><b>' + esc(r.new_today || 0) + '</b><span>New today</span></div>' +
-                  (r.po_closeout || r.po_closeout_loading ? '<div><b data-co-ready>' + (r.po_closeout ? esc(r.po_closeout.ready_to_close) : '…') + '</b><span>Ready to close</span></div>' : '') +
                 '</div>';
+            if (nUrg || nLate) h += '<div class="iba-ai-brief-alert">' + (nUrg ? '<span class="is-urgent"><i class="fa-solid fa-bolt"></i> ' + nUrg + ' urgent</span>' : '') + (nLate ? '<span class="is-late"><i class="fa-solid fa-hourglass-half"></i> ' + nLate + ' waiting over 7 days</span>' : '') + '</div>';
             h += remindersHtml();
-            const MORE = 8;
-            const moreBtn = (n, what) => n > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="' + what + '"><i class="fa-solid fa-chevron-down"></i> Show all ' + n + '</button>' : '';
-            const byStatus = r.tasks_by_status || {};
-            const stKeys = Object.keys(byStatus).sort((a, b) => byStatus[b] - byStatus[a]);
-            if (stKeys.length > 1) h += '<div class="iba-ai-brief-status">' + stKeys.map((k) => '<span>' + esc(k) + ' <b>' + esc(byStatus[k]) + '</b></span>').join('') + '</div>';
-            if (x.tasks.length) {
-                h += '<div class="iba-ai-sub">Waiting for you - and what to do next (' + x.tasks.length + ', oldest first)</div><ul class="iba-ai-rows" data-brief-list="tasks">' + x.tasks.map((t, i) =>
-                    '<li' + (i >= MORE ? ' hidden' : '') + '>' + poLink(t.po) + '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type) + '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(t.status)) + '</small></span>' + ageChip(daysSince(t.at)) +
-                    '<button type="button" class="iba-ai-mini iba-ai-go" data-open-task="' + esc(JSON.stringify({ key: t.key || '', po: t.po || '', ref: t.ref || '' })) + '" title="Open it in Active Task to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></li>').join('') + '</ul>' + moreBtn(x.tasks.length, 'tasks');
+            if (tasks.length) {
+                // 17.0.0 patch 9: a table grouped by site (most tasks first);
+                // inside each site urgent first, then oldest.
+                h += '<div class="iba-ai-sub">Your tasks by status' + (nUrg ? ' (urgent first, then oldest)' : ' (oldest first)') + '</div>' + taskSiteTable(tasks, MORE);
             }
-            if (x.jobs.length) {
-                h += '<div class="iba-ai-sub">Inventory waiting for your step (' + x.jobs.length + ')</div><ul class="iba-ai-rows" data-brief-list="jobs">' + x.jobs.map((j, i) =>
-                    '<li' + (i >= MORE ? ' hidden' : '') + '><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button><span class="iba-ai-grow">' + esc(j.product) + '<small>' + esc(j.step) + (j.from || j.to ? ' · ' + esc(j.from) + ' → ' + esc(j.to) : '') + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' + ageChip(daysSince(j.at)) +
-                    '<button type="button" class="iba-ai-mini iba-ai-go" data-open-job="' + esc(j.control) + '" title="Open it in Active Job to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></li>').join('') + '</ul>' + moreBtn(x.jobs.length, 'jobs');
+            if (jobs.length) {
+                // 17.0.0 patch 18: one table, like the tasks
+                h += '<div class="iba-ai-sub">Inventory waiting for your step (' + jobs.length + ')</div><div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site">' +
+                    '<ul class="iba-ai-rows iba-ai-ttab is-jobs" data-brief-list="jobs">' +
+                    '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">Transfer</span><span class="c-site">From → to</span><span class="c-main">Item · step</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
+                    jobs.map((j, i) =>
+                    '<li' + (i >= MORE ? ' hidden' : '') + '><span class="c-po"><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button></span>' +
+                    '<span class="c-site">' + esc(j.from || j.to ? (j.from || '—') + ' → ' + (j.to || '—') : '—') + '</span>' +
+                    '<span class="iba-ai-grow c-main">' + esc(j.product || j.type || '—') + '<small>' + esc(j.step) + '</small>' +
+                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' +
+                    '<span class="c-age">' + ageChip(daysSince(j.at)) + '</span>' +
+                    '<span class="c-act"><button type="button" class="iba-ai-mini iba-ai-go" data-open-job="' + esc(j.control) + '" title="Open it in Active Job to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></span></li>').join('') + '</ul>' + moreBtn(jobs.length, 'jobs') + '</div></div>';
             }
             if (r.inventory_not_loaded) h += '<p class="iba-ai-foot">' + esc(r.inventory_not_loaded) + ' more Active Job item' + (r.inventory_not_loaded === 1 ? '' : 's') + ' not loaded yet: open Active Job to see them.</p>';
-            if (!x.tasks.length && !x.jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
-            if (r.po_closeout) h += '<p class="iba-ai-foot" data-co-foot>PO Close Out: ' + esc(r.po_closeout.waiting_site) + ' waiting at Site, ' + esc(r.po_closeout.ready_to_close) + ' ready to close.</p>';
-            else if (r.po_closeout_loading) h += '<p class="iba-ai-foot" data-co-foot>PO Close Out: counting…</p>';
+            if (!tasks.length && !jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
+            // the company, in short
+            // 17.0.0 patch 21: one table with a header, like the status tables
+            // (was tiles with a two-column list in the big window)
+            const co = [];
+            if (x.approvals) {
+                const apv = x.approvals.items || [];
+                const cnt = apvCounts(apv);
+                const urg = apv.filter((a) => a.urgent).length;
+                const total = apv.reduce((n, a) => n + num(a.value), 0);
+                if (x.approvals.error) co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-stamp"></i> <b>Approvals</b><span>could not be read (' + esc(x.approvals.error) + ')</span></div></div>');
+                else co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-stamp"></i> <b>Waiting for approval</b>' +
+                    '<span class="iba-ai-ttab-count">' + apv.length + '</span>' +
+                    (urg ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> ' + urg + ' urgent</span>' : '') +
+                    '<span class="iba-ai-ttab-step">' + esc(Object.keys(cnt).sort((p, q) => cnt[q] - cnt[p]).slice(0, 4).map((k) => k + ' ' + cnt[k]).join(' · ') + (Object.keys(cnt).length > 4 ? ' · …' : '')) + '</span>' +
+                    (total ? '<span class="iba-ai-ttab-total">QAR ' + esc(money(total)) + '</span>' : '') +
+                    (apv.length ? '<span class="iba-ai-co-acts"><button type="button" class="iba-ai-mini" data-brief-apv-print title="One list, grouped by who is approving (or status / site)"><i class="fa-solid fa-print"></i> Print list</button>' +
+                        (tplAllowed('urgent') ? '<button type="button" class="iba-ai-mini" data-run-tpl="urgent" title="Pick invoices to rush"><i class="fa-solid fa-bolt"></i> Mark urgent</button>' : '') + '</span>' : '') + '</div>' +
+                    (apv.length ? '<ul class="iba-ai-rows iba-ai-ttab is-co" data-brief-list="co">' +
+                        '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">With</span><span class="c-main">Vendor · invoice · status</span><span class="c-age">Age</span><span class="c-act">Files</span></li>' +
+                        apv.map((a, i) =>
+                        '<li' + (i >= MORE ? ' hidden' : '') + (a.urgent ? ' class="is-urgent"' : '') + '><span class="c-po">' + poLink(a.po) + '</span>' +
+                        '<span class="c-site">' + esc(a.with || '—') + '</span>' +
+                        '<span class="iba-ai-grow c-main">' + esc(a.vendor || a.no || '—') + (a.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
+                        '<small>' + esc([a.no, a.status, a.value ? 'QAR ' + money(a.value) : ''].filter(Boolean).join(' · ')) + '</small>' +
+                        (a.note ? '<small class="iba-ai-urg-note">' + esc(a.note.slice(0, 140)) + '</small>' : '') + '</span>' +
+                        '<span class="c-age">' + ageChip(a.days) + '</span>' +
+                        '<span class="c-act iba-ai-apv-files">' + (a.pdf ? '<a class="iba-ai-mini" href="' + esc(a.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(a.srv) + '</span></li>').join('') + '</ul>' +
+                        moreBtn(apv.length, 'co') +
+                        (x.approvals.more ? '<p class="iba-ai-foot">' + esc(x.approvals.more) + ' more not shown (the oldest ' + APV_LIMIT + ' are listed).</p>' : '') : '') + '</div>');
+            }
+            if (r.po_closeout || r.po_closeout_loading) co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-box-archive"></i> <b>PO Close Out</b><span class="iba-ai-ttab-step" data-co-foot>' +
+                (r.po_closeout ? esc(r.po_closeout.ready_to_close) + ' ready to close · ' + esc(r.po_closeout.waiting_site) + ' waiting at site' : 'counting…') + '</span></div></div>');
+            if (co.length) h += '<div class="iba-ai-co"><div class="iba-ai-sub"><i class="fa-solid fa-building"></i> In the company</div><div class="iba-ai-ttab-wrap">' + co.join('') + '</div></div>';
             d.innerHTML = h;
         } else if (card.kind === 'list') {
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-list-check"></i> ' + esc(x.total) + ' found' + (x.total > x.rows.length ? ' · first ' + x.rows.length : '') + '</div>' +
@@ -4178,8 +5098,18 @@
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush approvals (COO / CEO)', '#dc2626'],
-        export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490']
+        export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
+        new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
+        po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
     };
+    // 15.0.0 patch 45: skills in groups, most used on top, with a search box
+    const SKILL_GROUPS = [
+        ['Quick work', ['new_job', 'new_delivery', 'brief']],
+        ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
+        ['Approvals', ['approvals_list', 'urgent']],
+        ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'recent', 'batch']],
+        ['Admin tools', ['handover', 'dbcheck']]
+    ];
     function skillTile(attr, icon, name, sub, color, title, extra) {
         return '<div class="iba-ai-tile-wrap"><button type="button" class="iba-ai-tile" ' + attr + ' style="--c:' + color + '" title="' + esc(title || '') + '">' +
             '<i class="fa-solid ' + icon + '"></i><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></button>' + (extra || '') + '</div>';
@@ -4189,11 +5119,20 @@
         const list = skills();
         const tpls = Object.keys(SKILL_TPL).filter(tplAllowed);
         const asks = (s) => s.tpl ? (SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].ask().map((p) => p.label) : []) : skillParams(s).map((p) => p.label);
+        const tplTile = (id) => { const t = SKILL_TPL[id], l = SKILL_LOOK[id] || [t.desc, '#2a78d6'];
+            return skillTile('data-run-tpl="' + id + '" data-find="' + esc(norm(t.name + ' ' + l[0] + ' ' + t.desc)) + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly || t.adminOnly ? '<span class="iba-ai-tile-admin" title="' + (t.superOnly ? 'Super Admin only' : 'Admins only') + '"><i class="fa-solid fa-shield-halved"></i></span>' : ''); };
+        const use = lsGet(skillUseKey(), {}) || {};
+        const top = tpls.filter((id) => (Number(use[id]) || 0) >= 2).sort((a, b) => use[b] - use[a]).slice(0, 4);
+        const grouped = new Set();
+        const groups = SKILL_GROUPS.map((g) => { const ids = g[1].filter((id) => tpls.indexOf(id) !== -1); ids.forEach((id) => grouped.add(id)); return [g[0], ids]; });
+        const rest = tpls.filter((id) => !grouped.has(id));
+        if (rest.length) groups.push(['More', rest]);
         box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> Skills</h3>' +
-            '<p class="iba-ai-help">A skill does a job in one click, without the AI (no key, no quota). It asks for what it needs each time it runs.</p>' +
-            '<div class="iba-ai-sub">Ready-made · tap to run</div>' +
-            '<div class="iba-ai-tiles">' + tpls.map((id) => { const t = SKILL_TPL[id], l = SKILL_LOOK[id] || [t.desc, '#2a78d6'];
-                return skillTile('data-run-tpl="' + id + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly || t.adminOnly ? '<span class="iba-ai-tile-admin" title="' + (t.superOnly ? 'Super Admin only' : 'Admins only') + '"><i class="fa-solid fa-shield-halved"></i></span>' : ''); }).join('') + '</div>' +
+            '<p class="iba-ai-help">One click does the job, without the AI (no key, no quota). A skill asks for what it needs each time.</p>' +
+            '<label class="iba-ai-skill-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="iba-ai-skill-find" placeholder="Find a skill, e.g. delivery, approval, report" autocomplete="off"></label>' +
+            (top.length ? '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub"><i class="fa-solid fa-star"></i> Most used</div><div class="iba-ai-tiles">' + top.map(tplTile).join('') + '</div></div>' : '') +
+            groups.filter((g) => g[1].length).map((g) => '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub">' + esc(g[0]) + '</div><div class="iba-ai-tiles">' + g[1].map(tplTile).join('') + '</div></div>').join('') +
+            '<p class="iba-ai-empty" id="iba-ai-skill-none" hidden>No skill matches that.</p>' +
             '<div class="iba-ai-sub">My skills</div>' +
             (list.length ? '<div class="iba-ai-tiles">' + list.map((s) => {
                 const t = s.tpl && SKILL_TPL[s.tpl], l = (s.tpl && SKILL_LOOK[s.tpl]) || ['', '#475569'];
@@ -4209,6 +5148,18 @@
               '<button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-plus"></i> Add</button>' +
             '</form>' +
             '<p class="iba-ai-help small">Or ask me something, then press "Save as skill" under my answer to keep exactly those steps.</p></details>';
+        const find = $('iba-ai-skill-find');
+        if (find) find.addEventListener('input', () => {
+            const q = norm(find.value);
+            let shown = 0;
+            box.querySelectorAll('[data-group]').forEach((g) => {
+                let n = 0;
+                g.querySelectorAll('[data-find]').forEach((t) => { const ok = !q || t.dataset.find.indexOf(q) !== -1; t.closest('.iba-ai-tile-wrap').hidden = !ok; if (ok) n++; });
+                g.hidden = !n; shown += n;
+            });
+            const none = $('iba-ai-skill-none');
+            if (none) none.hidden = !!shown || !q;
+        });
         const form = $('iba-ai-skill-new');
         if (form) form.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -4736,6 +5687,7 @@
         if (tasks[0] && tasks[0].po) { const d = daysSince(tasks[0].at); parts.push('The oldest is PO ' + tasks[0].po + (d !== null ? ', waiting ' + d + ' days' : '') + '. Next step: ' + nextStep(tasks[0].status) + '.'); }
         if (rems.length) parts.push('You have ' + rems.length + ' reminder' + (rems.length === 1 ? '' : 's') + '. ' + rems.slice(0, 2).map((m) => 'From ' + (m.from || 'someone') + ': ' + String(m.text || '').split('\n')[0]).join('. ') + '.');
         if (r.po_closeout && r.po_closeout.ready_to_close) parts.push(r.po_closeout.ready_to_close + ' P O are ready to close.');
+        if (r.sent_for_approval) parts.push(r.sent_for_approval + ' invoice' + (r.sent_for_approval === 1 ? ' is' : 's are') + ' waiting for approval.');
         return parts.join(' ');
     }
     // asking by voice (Chrome / Edge speech recognition)
@@ -4814,6 +5766,33 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
     else boot();
 
+    // 17.0.0 patch 19: put given invoices ({po, key}) into Batch Entry (used by
+    // the print basket's "Move to Batch Entry"). Each invoice is read fresh.
+    // 17.0.0 patch 21: the same task buttons on the Dashboard cards
+    // (js/iba-17-p21.js), running the same routines as the brief
+    window.ibaAssistantSkillList = () => Object.keys(SKILL_TPL).map((id) => ({ id: id, name: SKILL_TPL[id].name, superOnly: !!SKILL_TPL[id].superOnly, adminOnly: !!SKILL_TPL[id].adminOnly }));
+    window.ibaTaskActions = {
+        html: (t) => taskActionsHtml(t),
+        run: (btn) => taskAct(btn),
+        open: (q) => openTaskPage(q)
+    };
+
+    window.ibaAddToBatch = async function (items) {
+        let idb = null;
+        try { if (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) idb = invoiceDb; } catch (_) {}
+        if (!idb) throw new Error('The invoice database is not available.');
+        const found = [], notAdded = [];
+        for (const it of (items || [])) {
+            if (!it || !it.po || !it.key) continue;
+            let inv = null;
+            try { const s = await idb.ref('invoice_entries/' + it.po + '/' + it.key).once('value'); inv = s && s.val(); } catch (_) {}
+            if (!inv) { notAdded.push({ po: it.po, reason: 'Invoice not found' }); continue; }
+            const rec = poMap()[String(it.po).toUpperCase()] || poMap()[it.po] || {};
+            found.push({ key: it.key, po: it.po, site: inv.site || rec['Project ID'] || 'N/A', vendor: inv.vendorName || rec['Supplier Name'] || 'N/A', inv: inv });
+        }
+        const r = await batchAdd(found, {}, notAdded, {});
+        return (r && r.result) || {};
+    };
     window.ibaAssistant = {
         VERSION: VERSION,
         open: () => { if (allowed()) { build(); toggle(true); } },

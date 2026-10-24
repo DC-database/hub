@@ -575,7 +575,10 @@ window.downloadReportingTableToExcel = async function() {
         let targetDb = (typeof invoiceDb !== 'undefined') ? invoiceDb : firebase.database();
 
         // 3. Fetch Data
-        const snapshot = await targetDb.ref('invoice_entries').once('value');
+        // 17.0.0 patch 7: saved copy + changes instead of the whole list each time
+        const snapshot = (typeof window.ibaInvoiceEntriesLoad === 'function')
+            ? await window.ibaInvoiceEntriesLoad().then((r) => ({ val: () => r.data, exists: () => Object.keys(r.data || {}).length > 0 }))
+            : await targetDb.ref('invoice_entries').once('value');
         
         if (!snapshot.exists()) {
             alert("No records found.");

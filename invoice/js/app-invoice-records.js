@@ -1072,6 +1072,8 @@ async function imRecGetSnapshot() {
 function imRecSaveSnapshotFromMemory() {
     try {
         if (window.__invoiceEntriesFullLoaded !== true || !allInvoiceData) return;
+        // 17.0.0 patch 7: js/iba-17-p7.js already keeps this copy (with its full-read time)
+        if (window.__ibaInvFullAt) return;
         if (imRecSnapshot && (Date.now() - Number(imRecSnapshot.savedAt || 0)) < 5 * 60 * 1000) return;
         const value = { savedAt: Date.now(), data: allInvoiceData };
         imRecSnapshot = value;

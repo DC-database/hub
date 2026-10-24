@@ -1332,7 +1332,8 @@ if (imBatchGlobalAttention) {
     if (refreshEntryBtn) {
         const run = async () => {
             alert("Refreshing all data from sources...");
-            await ensureInvoiceDataFetched(true);
+            // 17.0.0 patch 7: PO lists + the open PO; the invoice list only as changes
+            await ensureInvoiceDataFetched(true, { includeInvoiceEntries: window.__invoiceEntriesFullLoaded === true });
             await populateActiveTasks();
             alert("Data refreshed.");
             if (currentPO) handlePOSearch(currentPO);
@@ -1348,7 +1349,7 @@ if (imBatchGlobalAttention) {
     if (refreshBatchBtn) {
         const run = async () => {
             alert("Refreshing all data... Your current batch list will be cleared.");
-            await ensureInvoiceDataFetched(true);
+            await ensureInvoiceDataFetched(true, { includeInvoiceEntries: window.__invoiceEntriesFullLoaded === true });
             document.getElementById('im-batch-table-body').innerHTML = '';
             updateBatchCount();
             alert("Data refreshed. Please add POs again.");
@@ -1364,7 +1365,7 @@ if (imBatchGlobalAttention) {
     if (refreshSummaryBtn) {
         const run = async () => {
             alert("Refreshing all data...");
-            await ensureInvoiceDataFetched(true);
+            await ensureInvoiceDataFetched(true, { includeInvoiceEntries: window.__invoiceEntriesFullLoaded === true });
             initializeNoteSuggestions();
             alert("Data refreshed.");
         };

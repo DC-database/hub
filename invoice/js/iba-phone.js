@@ -258,13 +258,18 @@
 
     // 14.0.0 patch 7: each side has its own background photo, chosen in
     // Settings (Shell Backgrounds > Phone). "none" = plain dark.
+    // 17.0.0 patch 21: small cover screens (Z Flip 7 / 8) get their own photo
+    const COVER_MQ = '(max-width: 480px) and (max-height: 560px)';
+    function onCoverScreen() { try { return !!(window.matchMedia && window.matchMedia(COVER_MQ).matches); } catch (_) { return false; } }
     function paintPhoneBg() {
         const root = $('iba-phone');
         if (!root) return;
+        const cover = onCoverScreen();
+        root.classList.toggle('is-cover', cover);
         let url = '';
         try {
             if (typeof window.ibaShellBackgroundFor === 'function') {
-                url = String(window.ibaShellBackgroundFor(state.side === 'inventory' ? 'phone-inventory' : 'phone-invoice') || '');
+                url = String(window.ibaShellBackgroundFor(cover ? 'phone-cover' : (state.side === 'inventory' ? 'phone-inventory' : 'phone-invoice')) || '');
             }
         } catch (_) {}
         const has = !!url && url !== 'none' && /^https?:\/\//i.test(url);
@@ -996,6 +1001,12 @@
             }, 300);
         });
         window.addEventListener('iba:backgrounds-changed', () => { if (state.on) paintPhoneBg(); });
+        // folding / unfolding switches between the cover and the main screen
+        try {
+            const mq = window.matchMedia(COVER_MQ);
+            const repaint = () => { if (state.on) paintPhoneBg(); };
+            if (mq.addEventListener) mq.addEventListener('change', repaint); else if (mq.addListener) mq.addListener(repaint);
+        } catch (_) {}
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState !== 'visible' || !state.on) return;
             if (state.side === 'invoice' && state.tab === 'approve') loadInvoice(false);

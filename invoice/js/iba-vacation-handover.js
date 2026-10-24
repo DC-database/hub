@@ -17,7 +17,7 @@
 // only the invoices in it. One browser at a time does the work (a lock).
 (function () {
   "use strict";
-  const VERSION = "15.0.0-p39";
+  const VERSION = "17.0.0-p18";
   const EVERY = 30 * 60000;
   const ACTIVE_MS = 12 * 3600000;
   const CLOSED = /(with accounts|paid|srv done|closed|cancel|deleted|archived|complete)/i;
@@ -131,6 +131,11 @@
   }
   function jobOpen(e) {
     if (!e || !e.key || e.source === "invoice" || e.originalPO) return false;
+    // 17.0.0 patch 18: inventory transfers (TRF-...) live in another database
+    // and have their own steps; moving them here wrote a stray job record and
+    // repeated the same "handed over" reminder every 30 minutes.
+    if (e.source && e.source !== "job_entry") return false;
+    if (/^trf-/i.test(String(e.ref || e.controlNumber || ""))) return false;
     try { if (typeof isTaskComplete === "function" && isTaskComplete(e)) return false; } catch (_) {}
     return !CLOSED.test(String(e.remarks || e.status || ""));
   }
@@ -257,6 +262,31 @@
     try { await d.ref("iba_assistant/handover_pending/" + safe(x.from)).remove(); } catch (_) {}
     return { back: back, left: left, from: x.from, to: x.to };
   }
-  window.ibaVacationHandover = { VERSION: VERSION, run: run, away: awayList, log: log, undo: undo };
+  // 17.0.0 patch 18: remove the stray job records that the old hand-over wrote
+  // for transfers (only attention + hand-over fields, no job, ref, PO or date).
+  async function cleanStray() {
+    const d = mainDb();
+    if (!d || !document.body || !document.body.classList.contains("iba-is-super-admin")) return 0;
+    let list = [];
+    try { if (typeof workdeskSystemEntries !== "undefined" && Array.isArray(workdeskSystemEntries)) list = workdeskSystemEntries; } catch (_) {}
+    const stray = list.filter((e) => e && e.key && e.handedOverFrom && !e.for && !e.ref && !e.po && !e.date && !e.vendorName && !e.amount);
+    let n = 0;
+    for (const e of stray) {
+      try {
+        const s = await d.ref("job_entries/" + e.key).once("value");
+        const v = s && s.val();
+        if (!v || v.for || v.ref || v.po || v.date || v.vendorName || v.amount) continue;
+        await d.ref("job_entries/" + e.key).remove();
+        try { if (typeof wdWriteWorkdeskJobRecentMarker === "function") await wdWriteWorkdeskJobRecentMarker(e.key, {}, "deleted"); } catch (_) {}
+        try { if (typeof wdRemoveLocalWorkdeskJobEntryCache === "function") wdRemoveLocalWorkdeskJobEntryCache(e.key); } catch (_) {}
+        n++;
+      } catch (_) {}
+    }
+    if (n) console.info("[IBA hand-over] removed " + n + " stray job record(s) left by the old transfer hand-over.");
+    return n;
+  }
+  setTimeout(() => { cleanStray().catch(() => {}); }, 60000);
+
+  window.ibaVacationHandover = { VERSION: VERSION, run: run, away: awayList, log: log, undo: undo, cleanStray: cleanStray };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
 })();
