@@ -1359,3 +1359,36 @@
     #iba-ai-panel .iba-ai-ttab.is-jobs li { grid-template-columns: 96px minmax(90px, 0.7fr) minmax(0, 2fr) 44px 120px !important; }
   }
 }
+
+/* 17.0.2 patch 9: Mark urgent as one table (For Approval) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-tablewrap { margin: 8px 0 0 !important; max-height: 440px !important; overflow: auto !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; border-radius: 12px !important; background: rgba(6, 14, 24, 0.28) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-urg-tablewrap { max-height: none !important; }
+  #iba-ai-panel .iba-ai-urg-table { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; }
+  #iba-ai-panel .iba-ai-urg-table thead th {
+    position: sticky !important; top: 0 !important; z-index: 1 !important;
+    padding: 8px 10px !important; text-align: left !important; white-space: nowrap !important;
+    background: rgba(16, 36, 56, 0.92) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important;
+    font-size: 11px !important; font-weight: 700 !important; letter-spacing: 0.03em !important; text-transform: uppercase !important;
+    border-bottom: 1px solid rgba(227, 201, 138, 0.25) !important;
+  }
+  #iba-ai-panel .iba-ai-urg-table tbody td {
+    padding: 7px 10px !important; vertical-align: middle !important; white-space: nowrap !important;
+    color: #DCE4EC !important; -webkit-text-fill-color: #DCE4EC !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025) !important; }
+  #iba-ai-panel .iba-ai-urg-table:not(.is-urgent) tbody tr { cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:hover td { background: rgba(255, 255, 255, 0.07) !important; }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:has(input:checked) td { background: rgba(220, 38, 38, 0.14) !important; }
+  #iba-ai-panel .iba-ai-urg-table :is(th, td).is-num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-po { font-weight: 700 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-vendor { max-width: 220px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-note { max-width: 260px !important; overflow: hidden !important; text-overflow: ellipsis !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-files { display: table-cell !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-files a.iba-ai-mini { margin-right: 4px !important; text-decoration: none !important; }
+  #iba-ai-panel .iba-ai-urg-table :is(th, td):first-child { width: 28px !important; }
+  #iba-ai-panel .iba-ai-urg-table.is-urgent :is(th, td):first-child { width: auto !important; }
+  #iba-ai-panel .iba-ai-urg-table input[type="checkbox"] { width: 16px !important; height: 16px !important; accent-color: #dc2626 !important; cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-table.is-urgent td.is-status { color: #F8A39A !important; -webkit-text-fill-color: #F8A39A !important; font-weight: 700 !important; }
+}
