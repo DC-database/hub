@@ -1,0 +1,400 @@
+/* ==========================================================================
+   css/iba-17.css — 17.0.0 patch 4
+   Pop-up windows (Process, approvals, payments, history, ...) in the same
+   see-through glass as the assistant: the page shows softly behind them,
+   text and fields stay clear.
+   ========================================================================== */
+@layer iba-ui {
+  html body .modal-overlay:not(#standard-job-modal):not(.hidden) {
+    background: rgba(4, 12, 22, 0.38) !important;
+    backdrop-filter: none !important; /* 17.0.0 patch 20: the page behind stays sharp */
+    -webkit-backdrop-filter: none !important;
+  }
+  html body .modal-overlay:not(#standard-job-modal) > .modal-container.modal-container {
+    background: linear-gradient(180deg, rgba(23, 50, 76, 0.5) 0%, rgba(15, 34, 53, 0.6) 100%) !important;
+    background-color: transparent !important;
+    backdrop-filter: blur(22px) saturate(1.35) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+    border: 1px solid rgba(227, 201, 138, 0.28) !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  }
+  /* approval window */
+  html body .iba-apd:not(.hidden) {
+    background: rgba(4, 12, 22, 0.38) !important;
+    backdrop-filter: none !important; /* 17.0.0 patch 20: the page behind stays sharp */
+    -webkit-backdrop-filter: none !important;
+  }
+  html body .iba-apd .iba-apd-box {
+    background: linear-gradient(180deg, rgba(23, 50, 76, 0.5), rgba(15, 34, 53, 0.6)) !important;
+    backdrop-filter: blur(22px) saturate(1.35) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(1.35) !important;
+    border: 1px solid rgba(227, 201, 138, 0.28) !important;
+  }
+}
+
+/* print basket */
+#iba-pb-btn {
+  /* 17.0.0 patch 8: top centre, above the page and sidebars, so it is easy to find */
+  position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 2147482000;
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px;
+  border-radius: 999px; border: 1px solid rgba(227, 201, 138, 0.55);
+  background: rgba(15, 34, 53, 0.72); color: #F3DFA8; font: 600 13px/1 inherit; cursor: pointer;
+  backdrop-filter: blur(16px) saturate(1.3); -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+#iba-pb-btn b { min-width: 20px; padding: 3px 7px; border-radius: 999px; background: #E3C98A; color: #14293f; text-align: center; }
+#iba-pb-btn.is-flash::after {
+  content: attr(data-flash); position: absolute; left: 50%; transform: translateX(-50%); top: calc(100% + 8px); white-space: nowrap;
+  padding: 7px 11px; border-radius: 10px; background: rgba(15, 34, 53, 0.92); color: #7FE3D6; font-weight: 600;
+  border: 1px solid rgba(127, 227, 214, 0.4);
+}
+.iba-pb-layer {
+  position: fixed; inset: 0; z-index: 2147482600; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(4, 12, 22, 0.38);
+}
+.iba-pb-box {
+  width: min(640px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 18px; border: 1px solid rgba(227, 201, 138, 0.3); color: #EEF3F8;
+  background: linear-gradient(180deg, rgba(23, 50, 76, 0.52), rgba(15, 34, 53, 0.62));
+  backdrop-filter: blur(22px) saturate(1.35); -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-size: 13.5px;
+}
+#iba-pb-ask .iba-pb-box { width: min(440px, 100%); }
+.iba-pb-head { padding: 16px 18px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.iba-pb-head b { display: block; font-size: 16px; color: #fff; }
+.iba-pb-head span { display: block; margin-top: 3px; color: #EBD8A8; font-size: 12.5px; }
+.iba-pb-sub { margin: 12px 18px 4px; color: #EBD8A8; }
+.iba-pb-pos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 18px 4px; }
+.iba-pb-pos button {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer; text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); color: #EEF3F8; font: inherit; font-weight: 600;
+}
+.iba-pb-pos button small { color: #EBD8A8; font-weight: 500; }
+.iba-pb-pos button:hover, .iba-pb-pos button:focus-visible { border-color: rgba(127, 227, 214, 0.6); background: rgba(19, 138, 151, 0.25); outline: none; }
+.iba-pb-pos button.is-on { border-color: rgba(227, 201, 138, 0.7); }
+.iba-pb-mini { position: relative; flex: 0 0 auto; width: 22px; height: 30px; border-radius: 3px; background: rgba(255, 255, 255, 0.85); }
+.iba-pb-mini i { position: absolute; bottom: 4px; width: 7px; height: 3px; border-radius: 1px; background: #16803c; }
+.iba-pb-mini.is-left i { left: 2px; } .iba-pb-mini.is-middle i { left: 7.5px; } .iba-pb-mini.is-right i { right: 2px; }
+.iba-pb-mini.is-auto i { left: 2px; width: 18px; background: repeating-linear-gradient(90deg, #16803c 0 5px, transparent 5px 7px); }
+.iba-pb-scroll { overflow: auto; scrollbar-width: none; padding: 6px 12px; }
+.iba-pb-scroll::-webkit-scrollbar { display: none; }
+.iba-pb-table { width: 100%; border-collapse: collapse; }
+.iba-pb-table th { text-align: left; padding: 6px 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #E3C98A; font-weight: 700; }
+.iba-pb-table td { padding: 7px 6px; border-top: 1px solid rgba(255, 255, 255, 0.07); vertical-align: middle; }
+.iba-pb-table td.n { color: #EBD8A8; width: 22px; }
+.iba-pb-table td small { display: block; color: #EBD8A8; font-size: 11.5px; }
+.iba-pb-table td.v { color: #EBD8A8; }
+.iba-pb-table select { padding: 5px 8px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(14, 27, 42, 0.82); color: #EEF3F8; font: inherit; }
+.iba-pb-table td.a { white-space: nowrap; text-align: right; }
+.iba-pb-table td.a button { width: 28px; height: 28px; margin-left: 3px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); color: #EEF3F8; cursor: pointer; }
+.iba-pb-table td.a button[disabled] { opacity: .3; cursor: default; }
+.iba-pb-table td.a button[data-del]:hover { background: rgba(239, 68, 68, 0.3); }
+.iba-pb-msg { margin: 6px 18px 0; color: #7FE3D6; }
+.iba-pb-msg.is-bad { color: #FCA5A5; }
+.iba-pb-foot { display: flex; align-items: center; gap: 8px; padding: 12px 18px 16px; }
+.iba-pb-foot span { flex: 1; }
+.iba-pb-foot button { padding: 9px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.06); color: #EEF3F8; font: inherit; font-weight: 600; cursor: pointer; }
+.iba-pb-foot button.is-main { background: #138A97; border-color: #138A97; color: #fff; }
+.iba-pb-foot button.is-quiet { color: #FCA5A5; }
+#iba-ai-panel .iba-ai-act.is-basket { background: rgba(227, 201, 138, 0.16) !important; border-color: rgba(227, 201, 138, 0.5) !important; color: #F3DFA8 !important; }
+
+#iba-pb-btn .iba-pb-hint { font-weight: 500; opacity: 0.75; font-size: 12px; }
+
+/* 17.0.0 patch 13: Job Records delete button (Super Admin) */
+#job-records-table .iba-jr-del { margin-left: 6px; padding: 5px 8px; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.55); background: rgba(127, 29, 29, 0.35); color: #FCA5A5; cursor: pointer; }
+#job-records-table .iba-jr-del:hover { background: rgba(185, 28, 28, 0.6); color: #fff; }
+#job-records-table .iba-jr-del:disabled { opacity: 0.5; cursor: wait; }
+
+/* 17.0.0 patch 14: Attention list, same name used by more than one user */
+#iba-attention-menu .iba-attn-dup { flex: 0 0 auto !important; margin-left: 6px !important; padding: 2px 7px !important; border-radius: 999px !important; font-size: 11px !important; font-weight: 600 !important; color: #FCD34D !important; -webkit-text-fill-color: #FCD34D !important; background: rgba(252, 211, 77, 0.14) !important; border: 1px solid rgba(252, 211, 77, 0.4) !important; white-space: nowrap !important; }
+#iba-attention-menu .iba-attn-dup.is-away { color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; background: rgba(127, 227, 214, 0.12) !important; border-color: rgba(127, 227, 214, 0.45) !important; }
+#iba-attn-away { z-index: 2147483000; }
+
+/* 17.0.0 patch 16: split same-name users */
+#iba-split-names { z-index: 2147483000; }
+#iba-split-names .iba-split-box { width: min(860px, 100%); max-height: 90vh; display: flex; flex-direction: column; }
+#iba-split-names .iba-split-body { overflow: auto; padding: 4px 18px 8px; }
+#iba-split-names h4 { margin: 14px 0 6px; color: #F3DFA8; font-size: 14px; }
+#iba-split-names table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; color: #EEF3F8; }
+#iba-split-names th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #E3C98A; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.12); }
+#iba-split-names td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.06); }
+#iba-split-names tr.is-check td { background: rgba(252, 211, 77, 0.10); }
+#iba-split-names input, #iba-split-names select { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); background: rgba(6,14,24,.6); color: #fff; font: inherit; }
+#iba-split-names .iba-split-tag { padding: 2px 8px; border-radius: 999px; font-size: 11px; background: rgba(127,227,214,.14); color: #7FE3D6; white-space: nowrap; }
+#iba-split-names .iba-split-msg { font-size: 12.5px; }
+
+/* 17.0.0 patch 18: APP and SUM ALL look like the other small chips in Batch Entry */
+@layer iba-ui {
+  body.iba-shell-on #im-batch-entry #im-batch-table-body .batch-invoice-card .btn-quick-status-app,
+  body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin] .btn-quick-status-app,
+  body.iba-shell-on #im-batch-entry label #iba-batch-sum-all,
+  body #im-batch-entry #iba-batch-sum-all {
+    height: 20px !important; min-height: 0 !important; max-height: 20px !important; min-width: 0 !important; width: auto !important;
+    margin: 0 !important; padding: 0 7px !important; border-radius: 6px !important;
+    font-size: 10px !important; font-weight: 700 !important; line-height: 18px !important; letter-spacing: 0.02em !important;
+    box-shadow: none !important; transform: none !important; cursor: pointer !important;
+  }
+  body.iba-shell-on #im-batch-entry #im-batch-table-body .batch-invoice-card .btn-quick-status-app,
+  body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin] .btn-quick-status-app {
+    background: rgba(250, 204, 21, 0.16) !important; border: 1px solid rgba(250, 204, 21, 0.6) !important; color: #FDE68A !important; -webkit-text-fill-color: #FDE68A !important;
+  }
+  body.iba-shell-on #im-batch-entry label #iba-batch-sum-all,
+  body #im-batch-entry #iba-batch-sum-all {
+    background: rgba(185, 164, 245, 0.16) !important; border: 1px solid rgba(185, 164, 245, 0.55) !important; color: #D8CCFB !important; -webkit-text-fill-color: #D8CCFB !important;
+  }
+  :is(#im-batch-table-body .btn-quick-status-app, #iba-batch-sum-all):hover { filter: brightness(1.15) !important; }
+}
+
+/* 17.0.0 patch 20: no blur on the page behind any pop-up (only the dim) */
+@layer iba-ui {
+  html body :is(.modal-overlay, .iba-apd, .iba-pb-layer, #ms-stock-check-modal, #iba-srv-confirm-modal, #wd-paid-history-modal):not(.hidden) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* 17.0.0 patch 21: Add job entry, inventory New Transaction and the Dashboard
+   "Forward task details" pop-up in the same clear glass as the assistant's
+   big window. Only the box is glass; the page behind is dimmed, never blurred. */
+@layer iba-ui {
+  html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal > .modal-container,
+  html body #transfer-job-modal#transfer-job-modal#transfer-job-modal > .modal-container.modal-container,
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-card {
+    background: linear-gradient(160deg, rgba(20, 44, 68, 0.38) 0%, rgba(8, 18, 30, 0.48) 100%) !important;
+    background-color: transparent !important;
+    backdrop-filter: blur(16px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+    border: 1px solid rgba(227, 201, 138, 0.3) !important;
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  }
+  html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal > .modal-container :is(.modal-header, .modal-footer, .modal-content),
+  html body #transfer-job-modal#transfer-job-modal#transfer-job-modal > .modal-container :is(.modal-header, .modal-footer, .modal-content) {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+  html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal > .modal-container > .modal-header,
+  html body #transfer-job-modal#transfer-job-modal#transfer-job-modal > .modal-container > .modal-header {
+    background: rgba(8, 18, 30, 0.22) !important;
+  }
+  html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea, .choices__inner),
+  html body #transfer-job-modal#transfer-job-modal#transfer-job-modal :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea, .choices__inner) {
+    background-color: rgba(6, 14, 24, 0.42) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+  html body #transfer-job-modal#transfer-job-modal#transfer-job-modal .transfer-col {
+    background: rgba(255, 255, 255, 0.04) !important;
+    background-color: rgba(255, 255, 255, 0.04) !important;
+  }
+
+  /* Forward task details */
+  html body #wd-forward-task-modal .wd-forward-modal-backdrop {
+    background: rgba(4, 12, 22, 0.38) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-card { color: #F3EAD3 !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-head {
+    background: rgba(8, 18, 30, 0.22) !important;
+    border-bottom: 1px solid rgba(227, 201, 138, 0.22) !important;
+    color: #fff !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-head::before,
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-head::after { display: none !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-kicker { color: #E3C98A !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-head h3 { color: #fff !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-x {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    color: #fff !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal :is(.wd-forward-modal-body, .wd-forward-modal-actions) {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-field > span { color: #E3C98A !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal :is(select, textarea) {
+    background-color: rgba(6, 14, 24, 0.42) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    color: #F3EAD3 !important;
+    -webkit-text-fill-color: #F3EAD3 !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal select option { background: #12283D !important; color: #F3EAD3 !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-recipient-note {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EBD8A8 !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-recipient-note:empty { display: none !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal #wd-forward-transfer-row {
+    background: rgba(242, 196, 109, 0.12) !important;
+    border-color: rgba(242, 196, 109, 0.45) !important;
+    color: #F3EAD3 !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal #wd-forward-transfer-row small { color: #E3C98A !important; }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-cancel {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #fff !important;
+    box-shadow: none !important;
+  }
+  html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-send {
+    background: var(--ui-teal, #1F9AA8) !important;
+    border: 1px solid transparent !important;
+    color: #fff !important;
+  }
+}
+
+/* 17.0.0 patch 21: Dashboard task cards, "Do it here" buttons */
+@layer iba-ui {
+  html body .wd-cork-note .iba-note-do {
+    display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px !important;
+    margin-top: 8px !important; padding-top: 8px !important;
+    border-top: 1px dashed rgba(227, 201, 138, 0.35) !important;
+  }
+  html body .wd-cork-note .iba-note-do-label { font-size: 11px !important; font-weight: 700 !important; letter-spacing: 0.04em !important; text-transform: uppercase !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; margin-right: 2px !important; }
+  html body .wd-cork-note .iba-note-do .iba-ai-acts { display: inline-flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  html body .wd-cork-note .iba-note-do .iba-ai-mini {
+    display: inline-flex !important; align-items: center !important; gap: 5px !important;
+    padding: 5px 10px !important; border-radius: 999px !important; font-size: 12px !important; font-weight: 700 !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important; background: rgba(255, 255, 255, 0.08) !important;
+    color: #fff !important; -webkit-text-fill-color: #fff !important; cursor: pointer !important; line-height: 1.2 !important;
+  }
+  html body .wd-cork-note .iba-note-do .iba-ai-mini i { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  html body .wd-cork-note .iba-note-do .iba-ai-mini:hover { filter: brightness(1.15) !important; border-color: rgba(227, 201, 138, 0.6) !important; }
+  html body .wd-cork-note .iba-note-do .is-srv,
+  html body .wd-cork-note .iba-note-do .is-approve,
+  html body .wd-cork-note .iba-note-do .is-closeout { background: #1F9AA8 !important; border-color: transparent !important; }
+  html body .wd-cork-note .iba-note-do .is-reject { background: rgba(220, 38, 38, 0.85) !important; border-color: transparent !important; }
+  html body .wd-cork-note .iba-note-do .is-open { margin-left: auto !important; }
+  html body .wd-cork-note .iba-ai-act-note { display: block !important; width: 100% !important; margin-top: 6px !important; font-size: 12px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  html body .wd-cork-note .iba-ai-act-note.is-error { color: #FCA5A5 !important; -webkit-text-fill-color: #FCA5A5 !important; }
+  html body .wd-cork-note .iba-ai-act-note.is-done { color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body .wd-cork-note.is-done { opacity: 0.6 !important; }
+  html body .wd-cork-note.is-busy .iba-note-do { pointer-events: none !important; opacity: 0.6 !important; }
+  /* the brief's buttons open their windows above the page while acting */
+}
+
+/* 17.0.0 patch 21: Assistant "In the company" as one table */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-co .iba-ai-ttab-sitehead .iba-ai-co-acts { margin: 0 0 0 auto !important; display: inline-flex !important; gap: 6px !important; }
+  #iba-ai-panel .iba-ai-co .iba-ai-ttab-total + .iba-ai-co-acts { margin-left: 8px !important; }
+  #iba-ai-panel .iba-ai-co .iba-ai-ttab-site:not(:has(ul)) .iba-ai-ttab-sitehead { border-bottom: 0 !important; padding-bottom: 2px !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co li .c-act { justify-content: flex-start !important; }
+  @container (min-width: 640px) {
+    #iba-ai-panel .iba-ai-ttab.is-co li { grid-template-columns: 78px minmax(90px, 0.7fr) minmax(0, 2.4fr) 44px 120px !important; }
+  }
+}
+
+/* 17.0.0 patch 21: clock faces (square = default, digital, round) */
+.iba-shell-left .iba-analog-clock[data-face] { transition: transform .15s ease, box-shadow .15s ease; }
+.iba-shell-left .iba-analog-clock[data-face].is-pickable { cursor: pointer; }
+.iba-shell-left .iba-analog-clock[data-face].is-pickable:hover { transform: scale(1.05); box-shadow: inset 0 0 0 3px rgba(8,12,22,0.35), 0 0 16px rgba(227,201,138,0.35); }
+.iba-shell-left .iba-analog-clock[data-face]:focus-visible { outline: 2px solid #E3C98A; outline-offset: 2px; }
+.iba-analog-clock .iba-clock-ticks, .iba-analog-clock .iba-clock-digital { display: none; }
+.iba-shell-left .iba-analog-clock[data-face="square"],
+.iba-shell-left .iba-analog-clock[data-face="digital"] {
+  width: 44px; height: 44px; flex: 0 0 44px;
+  border-radius: 13px;
+  border: 1px solid rgba(227, 201, 138, 0.75);
+  background: linear-gradient(155deg, rgba(255,255,255,0.16) 0%, rgba(20,30,48,0.55) 45%, rgba(6,10,20,0.75) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), inset 0 0 0 3px rgba(8,12,22,0.35), 0 4px 14px rgba(0,0,0,0.35);
+}
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-num { display: none; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-ticks { display: block; position: absolute; inset: 0; }
+.iba-analog-clock .iba-clock-ticks i {
+  position: absolute; left: 50%; top: 50%; width: 1px; height: 3px; margin: -1.5px 0 0 -0.5px;
+  background: rgba(235, 216, 168, 0.55); border-radius: 1px;
+  transform: rotate(var(--a)) translateY(-17px);
+}
+.iba-analog-clock .iba-clock-ticks i.is-major { width: 2px; height: 5px; margin: -2.5px 0 0 -1px; background: #E3C98A; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-face { inset: 6px; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-hour { width: 3px; margin-left: -1.5px; background: #F3EAD3; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-minute { width: 2px; background: #F3EAD3; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-second { background: #F59E0B; }
+.iba-shell-left .iba-analog-clock[data-face="square"] .iba-clock-dot { width: 4px; height: 4px; margin: -2px 0 0 -2px; background: #F59E0B; box-shadow: 0 0 0 1.5px #0b1220; }
+.iba-shell-left .iba-analog-clock[data-face="digital"] :is(.iba-clock-num, .iba-clock-face) { display: none; }
+.iba-shell-left .iba-analog-clock[data-face="digital"] .iba-clock-digital {
+  display: flex; position: absolute; inset: 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.iba-analog-clock .iba-clock-dig-hm { font: 700 13px/1 Inter, Arial, sans-serif; letter-spacing: 0.02em; color: #F3EAD3; font-variant-numeric: tabular-nums; }
+.iba-analog-clock .iba-clock-dig-sec { width: 26px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.14); overflow: hidden; }
+.iba-analog-clock .iba-clock-dig-sec i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #E3C98A, #F59E0B); border-radius: 3px; transition: width .3s linear; }
+.iba-shell-left .iba-shell-when { display: flex; flex-direction: column; justify-content: center; gap: 2px; line-height: 1.1; }
+.iba-shell-left .iba-shell-time { font: 700 17px/1 Inter, Arial, sans-serif; letter-spacing: 0.04em; color: #F3EAD3; font-variant-numeric: tabular-nums; }
+.iba-shell-left .iba-shell-when .iba-shell-date { font-size: 11.5px; letter-spacing: 0.08em; }
+.iba-clock-picker {
+  position: fixed; z-index: 1000050; width: 250px; padding: 8px;
+  border-radius: 16px; border: 1px solid rgba(227, 201, 138, 0.3);
+  background: linear-gradient(160deg, rgba(20, 44, 68, 0.55), rgba(8, 18, 30, 0.7));
+  backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.45); color: #F3EAD3; font-family: Inter, Arial, sans-serif;
+}
+.iba-clock-picker-title { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #E3C98A; padding: 4px 6px 8px; }
+.iba-clock-picker button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; margin: 0; border: 1px solid transparent; border-radius: 12px;
+  background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit;
+}
+.iba-clock-picker button:hover { background: rgba(255,255,255,0.07); }
+.iba-clock-picker button.is-on { border-color: rgba(227, 201, 138, 0.45); background: rgba(227, 201, 138, 0.1); }
+.iba-clock-picker button > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.iba-clock-picker button b { font-size: 13px; }
+.iba-clock-picker button small { font-size: 11px; color: #EBD8A8; }
+.iba-clock-picker button > .fa-check { color: #E3C98A; }
+.iba-clock-swatch { position: relative; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid rgba(227,201,138,0.75); background: linear-gradient(155deg, rgba(255,255,255,0.16), rgba(6,10,20,0.75)); display: flex; align-items: center; justify-content: center; }
+.iba-clock-swatch.is-square, .iba-clock-swatch.is-digital { border-radius: 9px; }
+.iba-clock-swatch.is-round { border-radius: 50%; }
+.iba-clock-swatch b { font-size: 9px; color: #F3EAD3; }
+.iba-clock-swatch i { position: absolute; left: 50%; bottom: 50%; width: 2px; margin-left: -1px; background: #F3EAD3; border-radius: 2px; transform-origin: 50% 100%; }
+.iba-clock-swatch i:first-child { height: 7px; transform: rotate(-60deg); }
+.iba-clock-swatch i:last-child { height: 10px; transform: rotate(40deg); }
+
+/* 17.0.0 patch 24: Access check (Super Admin) */
+#iba-ac { position: fixed; inset: 0; z-index: 1000060; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(4, 12, 22, 0.38); font-family: Inter, Arial, sans-serif; }
+#iba-ac .iba-ac-box { width: min(1180px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; border-radius: 18px; border: 1px solid rgba(227, 201, 138, 0.3); background: linear-gradient(160deg, rgba(20, 44, 68, 0.62), rgba(8, 18, 30, 0.74)); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 28px 70px rgba(0,0,0,0.45); color: #F3EAD3; overflow: hidden; }
+#iba-ac .iba-ac-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid rgba(227, 201, 138, 0.22); }
+#iba-ac .iba-ac-head b { font-size: 16px; white-space: nowrap; }
+#iba-ac .iba-ac-head b i { color: #E3C98A; margin-right: 6px; }
+#iba-ac .iba-ac-q { flex: 1; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(6,14,24,0.45); color: #F3EAD3; font: inherit; font-size: 13px; }
+#iba-ac .iba-ac-x { width: 34px; height: 34px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; }
+#iba-ac .iba-ac-sub { margin: 10px 18px 0; font-size: 12.5px; color: #EBD8A8; line-height: 1.45; }
+#iba-ac .iba-ac-body { padding: 10px 18px 16px; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+#iba-ac .iba-ac-scroll { overflow: auto; min-height: 0; border: 1px solid rgba(227,201,138,0.18); border-radius: 12px; }
+#iba-ac .iba-ac-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#iba-ac .iba-ac-table th { position: sticky; top: 0; z-index: 1; background: rgba(12, 28, 44, 0.96); color: #E3C98A; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; text-align: left; padding: 8px 10px; white-space: nowrap; border-bottom: 1px solid rgba(227,201,138,0.25); }
+#iba-ac .iba-ac-table td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); vertical-align: middle; }
+#iba-ac .iba-ac-table td.c, #iba-ac .iba-ac-table th:nth-child(n+3) { text-align: center; }
+#iba-ac .iba-ac-table tr:not(.iba-ac-grp):hover td { background: rgba(255,255,255,0.04); }
+#iba-ac .iba-ac-grp td { background: rgba(227,201,138,0.1); color: #F3DFA8; font-weight: 700; font-size: 12px; }
+#iba-ac .iba-ac-grp span { margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: #E3C98A; color: #14293f; font-size: 11px; }
+#iba-ac .iba-ac-name { border: 0; background: none; padding: 0; color: #fff; font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+#iba-ac .iba-ac-name:hover { color: #E3C98A; text-decoration: underline; }
+#iba-ac .iba-ac-meta { color: #EBD8A8; font-size: 12px; }
+#iba-ac .iba-ac-y { color: #34D399; font-weight: 800; }
+#iba-ac .iba-ac-n { color: rgba(248, 113, 113, 0.75); font-weight: 800; }
+#iba-ac .iba-ac-flag { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #F59E0B; color: #14293f; font-size: 11px; font-weight: 900; vertical-align: middle; }
+#iba-ac .iba-ac-alert, #iba-ac .iba-ac-ok { padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+#iba-ac .iba-ac-alert { background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.45); }
+#iba-ac .iba-ac-ok { background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.4); }
+#iba-ac .iba-ac-back { align-self: flex-start; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700; }
+#iba-ac .iba-ac-who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+#iba-ac .iba-ac-who b { font-size: 18px; color: #fff; }
+#iba-ac .iba-ac-who span { color: #EBD8A8; font-size: 13px; }
+#iba-ac .iba-ac-who em { font-style: normal; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(227,201,138,0.18); color: #F3DFA8; }
+#iba-ac .iba-ac-warns { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+#iba-ac .iba-ac-warns li { padding: 6px 10px; border-radius: 8px; font-size: 12.5px; }
+#iba-ac .iba-ac-warns li.is-bad { background: rgba(220, 38, 38, 0.2); border: 1px solid rgba(248,113,113,0.5); }
+#iba-ac .iba-ac-warns li.is-warn { background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245,158,11,0.45); }
+#iba-ac .iba-ac-area { padding: 8px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #E3C98A; }
+#iba-ac .iba-ac-table.is-detail { table-layout: fixed; }
+#iba-ac .iba-ac-table.is-detail td:first-child { width: 36px; }
+#iba-ac .iba-ac-table.is-detail td:nth-child(2) { width: 46%; }
+#iba-ac .iba-ac-table.is-detail tr.is-no td:nth-child(2) { color: rgba(243, 234, 211, 0.6); }
+@media (max-width: 700px) { #iba-ac { padding: 8px; } #iba-ac .iba-ac-head { flex-wrap: wrap; } }
+
+/* 17.0.0 patch 25: the old light row hover (style.css "tbody tr:hover
+   { background-color: #f1f1f1 }") showed as a white bar on the dark theme
+   while the text turns light on hover, so the row could not be read.
+   On the dark theme the row itself stays see-through; tables that have their
+   own hover keep it (their rules are more specific). */
+html body.iba-shell-on tbody tr:hover { background-color: transparent; }
+html body.iba-shell-on .modern-inner-table tbody tr:hover td { background-color: rgba(255, 255, 255, 0.05); }

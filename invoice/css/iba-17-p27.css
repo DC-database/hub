@@ -1,0 +1,27 @@
+/* ==========================================================================
+   css/iba-17-p27.css — 17.0.0 patch 27 (patch 28: full A4 width, no side bar)
+   Summary Note print, design C. js/iba-17-p27.js fills #sn-c (a child of
+   <body>, its look lives in its own shadow root) right before printing and
+   sets body.iba-sn-print-c; then only #sn-c is printed, from the top left of
+   the A4 page at full width. Without the class the old print is used.
+   ========================================================================== */
+#sn-c { display: none; }
+
+@media print {
+    /* own page box, so other prints keep their own size and margins */
+    @page sn-c { size: A4 portrait; margin: 6mm 7mm; }
+    html:has(body.iba-sn-print-c),
+    html body.iba-sn-print-c {
+        background: #fff !important; background-image: none !important;
+        margin: 0 !important; padding: 0 !important;
+        width: auto !important; min-width: 0 !important; max-width: none !important; height: auto !important;
+    }
+    html body.iba-sn-print-c::before,
+    html body.iba-sn-print-c::after { display: none !important; }
+    html body.iba-sn-print-c > *:not(#sn-c) { display: none !important; }
+    html body.iba-sn-print-c > #sn-c {
+        display: block !important; visibility: visible !important; page: sn-c;
+        position: static !important; width: auto !important; height: auto !important; overflow: visible !important;
+        margin: 0 !important; padding: 0 !important; transform: none !important; zoom: 1 !important;
+    }
+}
