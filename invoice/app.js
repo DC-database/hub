@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '17.0.1';
+const APP_VERSION = '17.0.2';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -3523,6 +3523,20 @@ function wdSetModifyTaskStatusOptions(optionValues, selectedValue = '') {
     }
 }
 
+// 17.0.2 patch 1: the Process window offers a short status list; anything
+// else goes through "Other (Specify)". extras = statuses this task needs too
+// (its current status, or the Report steps), shown first.
+const WD_PROCESS_STATUSES = ['For SRV', 'For Approval', 'Waiting Invoice', 'Waiting Signature'];
+function wdSetModifyTaskShortStatusList(extras) {
+    const list = WD_PROCESS_STATUSES.slice();
+    (extras || []).slice().reverse().forEach(v => {
+        const s = String(v || '').trim();
+        if (s && s !== 'Other' && !list.some(x => x.toLowerCase() === s.toLowerCase())) list.unshift(s);
+    });
+    wdSetModifyTaskStatusOptions(list.map(v => ({ value: v, label: v }))
+        .concat([{ value: 'Other', label: 'Other (Specify)' }]), list[0]);
+}
+
 function wdSetModifyTaskAttentionValue(value) {
     const finalValue = String(value || '').trim();
     if (!modifyTaskAttentionChoices || !finalValue) return;
@@ -3635,6 +3649,7 @@ function openModifyTaskModal(taskData) {
     // SCENARIO A: FINANCE USER (Status is "Report Approval" -> Send back to Creator)
     else if (isFinance && (taskData.remarks === 'Report Approval')) {
         // Auto-set Status
+        wdSetModifyTaskShortStatusList(['Report Approved', 'Report Approval']);
         modifyTaskStatus.value = 'Report Approved';
         modifyTaskStatusOtherContainer.classList.add('hidden');
 
@@ -3647,6 +3662,7 @@ function openModifyTaskModal(taskData) {
     // SCENARIO B: MANAGER / SITE (Status is "Report" OR "Report Approval" -> Send to Finance)
     else if (taskData.remarks === 'Report' || taskData.remarks === 'Report Approval') {
         // Auto-set Status
+        wdSetModifyTaskShortStatusList(['Report Approval', taskData.remarks]);
         modifyTaskStatus.value = 'Report Approval';
         modifyTaskStatusOtherContainer.classList.add('hidden'); 
 
@@ -3671,7 +3687,8 @@ function openModifyTaskModal(taskData) {
         }
 
         const currentStatus = taskData.remarks || 'Pending';
-        const statusOption = modifyTaskStatus.querySelector(`option[value="${currentStatus}"]`);
+        wdSetModifyTaskShortStatusList([currentStatus]);
+        const statusOption = Array.from(modifyTaskStatus.options).find(o => o.value === currentStatus);
         
         if (statusOption) {
             modifyTaskStatus.value = currentStatus;
@@ -5832,6 +5849,9 @@ async function imBatchSaveRun() {
             invoiceData.site_name = siteForName;
             invoiceData.enteredAt = firebase.database.ServerValue.TIMESTAMP;
             invoiceData.enteredBy = currentUserName;
+            // 17.0.2: a reception New Entry put here by "New entries to Batch" is linked
+            // to the invoice and closed as Converted to Invoice (js/iba-1702-reception-batch.js)
+            const receptionJobKey = window.ibaReceptionBatch ? window.ibaReceptionBatch.prepare(row, invoiceData) : null;
             if (window.ibaApprovals) {
                 await window.ibaApprovals.prepareStatusSave(poNumber, '', {}, invoiceData, invoiceData.status);
             }
@@ -5840,6 +5860,7 @@ async function imBatchSaveRun() {
             const newKey = newRef.key;
             const p = newRef.set(invoiceData);
             savePromises.push(p);
+            if (receptionJobKey) savePromises.push(p.then(() => window.ibaReceptionBatch.convert(receptionJobKey, poNumber, newKey, invoiceData)));
             savePromises.push(p.then(() => updateInvoiceTaskLookup(poNumber, newKey, invoiceData, null)));
             if (window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, newKey, invoiceData.status, 'Initial Entry via Batch Entry')));

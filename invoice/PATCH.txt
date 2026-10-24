@@ -1,3 +1,50 @@
+IBA 17.0.2 — over 17.0.1
+=====================================================================
+Version: app.js (APP_VERSION), index.html (IBA_SYSTEM_VERSION) and
+version.json all say 17.0.2, so the version check tells each browser to
+load the new files.
+
+What changed
+- Urgent (the word "urgent" in an invoice Note):
+  * when someone puts "urgent" into a Note, the invoice history gets a
+    line "Marked URGENT" with who and when (any screen).
+  * only the Super Admin can remove it: if anyone else saves the Note
+    without "urgent", "URGENT · " is kept in front of their text and they
+    are told.
+- Assistant skill "New entries to Batch" (Super Admin, Quick work): every
+  reception New Entry waiting for you goes into Batch Entry as a new
+  invoice with PO, invoice no., amount, invoice date and group filled in,
+  the next invoice number on the PO (INV-02, INV-03 ...), status Under
+  Review, a "Reception" tag and +Del when the original PO is in the file.
+  Every box can still be changed. On Save each reception entry is closed
+  as "Converted to Invoice" and linked to its new invoice (like Invoice
+  Entry). POs not in POVALUE2.csv yet are left out and listed; a second
+  reception entry on the same PO waits until the first one is saved.
+- Phone: the Now brief works on the phone (the task counter now also runs
+  in the phone view).
+- 17.0.2 patch 1: WorkDesk Active Task "Process" window has a short
+  status list: the task's current status, For SRV, For Approval, Waiting
+  Invoice, Waiting Signature, and "Other (Specify)" to type anything else.
+  (IPC tasks and Report / Report Approval steps keep their own choices.)
+- 17.0.2 patch 2: the "Same-name users" window pops up by itself only when
+  two users have exactly the same name (not for Asif / Asif.2).
+- Z Flip cover screen: found by its shape too (up to 600 x 700 and roughly
+  square), so the folded square screen gets the cover layout. Fold inner
+  screens keep the normal phone view.
+
+Files to copy (over 17.0.1)
+  index.html
+  app.js
+  version.json
+  css/iba-p45.css
+  js/iba-assistant.js
+  js/iba-live-counts.js
+  js/iba-phone.js
+  js/iba-17-p16.js
+  js/iba-1702-urgent.js            (new)
+  js/iba-1702-reception-batch.js   (new)
+
+---------------------------------------------------------------------
 IBA 17.0.1 — everything since 17.0.0 patch 21
 =====================================================================
 Version: app.js (APP_VERSION), index.html (IBA_SYSTEM_VERSION) and
