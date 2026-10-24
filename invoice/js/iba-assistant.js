@@ -4985,8 +4985,14 @@
                         moreBtn(apv.length, 'co') +
                         (x.approvals.more ? '<p class="iba-ai-foot">' + esc(x.approvals.more) + ' more not shown (the oldest ' + APV_LIMIT + ' are listed).</p>' : '') : '') + '</div>');
             }
+            // 17.0.2 patch 8: the count can finish before this card is on screen
+            // (while the approval list loads); then it stayed "counting…" for
+            // good. Take the finished numbers, or say it failed, instead.
+            if (r.po_closeout_loading && !r.po_closeout) {
+                if (coCache && Date.now() - coCache.at < 5 * 60000) { r.po_closeout = coCache.val; delete r.po_closeout_loading; }
+            }
             if (r.po_closeout || r.po_closeout_loading) co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-box-archive"></i> <b>PO Close Out</b><span class="iba-ai-ttab-step" data-co-foot>' +
-                (r.po_closeout ? esc(r.po_closeout.ready_to_close) + ' ready to close · ' + esc(r.po_closeout.waiting_site) + ' waiting at site' : 'counting…') + '</span></div></div>');
+                (r.po_closeout ? esc(r.po_closeout.ready_to_close) + ' ready to close · ' + esc(r.po_closeout.waiting_site) + ' waiting at site' : (coBusy ? 'counting…' : 'could not be loaded')) + '</span></div></div>');
             if (co.length) h += '<div class="iba-ai-co"><div class="iba-ai-sub"><i class="fa-solid fa-building"></i> In the company</div><div class="iba-ai-ttab-wrap">' + co.join('') + '</div></div>';
             d.innerHTML = h;
         } else if (card.kind === 'list') {
