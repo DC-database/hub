@@ -2864,6 +2864,9 @@
     }
     const SKILL_TPL = {
         // 17.0.0 patch 24: who can open what (js/iba-17-p24.js)
+        // 17.0.2 patch 14: who may print ESN from their own Active Task (js/iba-1702-esn.js)
+        esn_printers: { name: 'Who can print ESN', icon: 'fa-stamp', superOnly: true, desc: 'Pick the people who print the ESN of invoices their engineer approved (site Approval button) and then press Ready. Kept by user record + name + mobile; a change switches printing off until re-added.',
+            ask: () => [], action: () => { if (typeof window.ibaEsnPrinters === 'function') window.ibaEsnPrinters(); } },
         access_check: { name: 'Access check', icon: 'fa-user-shield', superOnly: true, desc: 'Every user with the pages and buttons the system gives them (Invoice Management, Entry, Records, Payments, Dashboard, Financial Report, Stock, skills), and anything a non-Super-Admin should not have. Nothing is saved.',
             ask: () => [], action: () => { if (typeof window.ibaAccessCheck === 'function') window.ibaAccessCheck(); } },
         new_job: { name: 'Add new job', icon: 'fa-file-circle-plus', desc: 'Pick what the job is for and type the PO: the Add New Job form opens with vendor, vendor ID and site filled from the PO list. Check it and press Add. No AI used.',
@@ -3440,6 +3443,7 @@
               '<button type="button" data-run-tpl="new_job" data-tpl-chip><i class="fa-solid fa-file-circle-plus"></i> Add new job</button>' +
               '<button type="button" data-chip-basket><i class="fa-solid fa-cart-shopping"></i> Print basket</button>' +
               '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
+              '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
@@ -4054,6 +4058,8 @@
         const st = norm(t.status);
         const apv = window.ibaApprovals;
         const inv = t.kind === 'invoice';
+        // 17.0.2 patch 14: site approval buttons (Approval / Print ESN / Ready / Extra)
+        if (inv && window.ibaEsnFlow) { const x = window.ibaEsnFlow.briefActs(t); if (x) return x; }
         if (inv && (st === 'approved' || st === 'rejected')) return (st === 'approved' && apv ? [['print', 'Print', 'fa-print']].concat(window.ibaPrintBasket && window.ibaPrintBasket.allowed() ? [['basket', 'Add to print', 'fa-cart-plus']] : []) : []).concat([['process', 'Process', 'fa-pen-to-square']]);
         if (inv && apv && (st === 'for approval' || st === 'ceo approval')) {
             let ok = false;
@@ -4310,6 +4316,12 @@
             if (!task) { li.classList.add('is-done'); rowNote(li, 'Not in your Active Task any more: it may be done already.', 'done'); return; }
             rowNote(li, '');
             const apv = window.ibaApprovals;
+            if (window.ibaEsnFlow && window.ibaEsnFlow.briefHandles(act)) {
+                await withPageWindows(() => window.ibaEsnFlow.briefAct(act, task));
+                rowNote(li, '');
+                await markIfMoved(li, q);
+                return;
+            }
             if (act === 'print') {
                 const ids = apv.taskIds(task);
                 await apv.printStamp(ids.po, ids.key);

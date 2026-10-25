@@ -312,7 +312,13 @@
         };
         if (esn) { decision.esn = esn; decision.code = esn; decision.slot = String(slot); }
 
-        const sender = senderName();
+        // 17.0.2 patch 14: a site approval goes back to the site sender when
+        // they may print ESN (rejections always); otherwise to Irwin as before.
+        let back = null;
+        if (inv.approvalFlow === 'site' && window.ibaEsnFlow) {
+            try { back = await window.ibaEsnFlow.returnTo(inv, action); } catch (e) { console.warn('[approvals] site return', e); }
+        }
+        const sender = back ? back.name : senderName();
         const updates = {
             status: action,
             remarks: action,
@@ -331,6 +337,11 @@
         if (esn) {
             updates.esn = esn;
             updates.approvalCount = count;
+        }
+        if (inv.approvalFlow === 'site') {
+            updates.esnState = (back && action === 'Approved') ? 'approved' : null;
+            updates.esnPrintedAt = null;
+            updates.esnPrintedBy = null;
         }
 
         const hist = { action, by: approver, timestamp: ts(), note: note || (action === 'Approved' ? 'Approved' : 'Rejected') };
@@ -692,7 +703,7 @@
             ['Site', task.site || ''],
             ['Amount', amount !== '' ? 'QAR ' + money(amount) : ''],
             ['Attention', task.attention || ''],
-            ['Sent by', senderName()]
+            ['Sent by', (task.approvalFlow === 'site' && task.approvalRequestedBy) ? task.approvalRequestedBy : senderName()]
         ].map(([k, v]) => `<div><small>${esc(k)}</small><strong>${esc(v || '—')}</strong></div>`).join('');
         const note = d.querySelector('#iba-apd-note');
         note.value = '';

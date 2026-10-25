@@ -379,7 +379,9 @@ const WD_ACTIVE_EXACT_INVOICE_STATUS_MAP = {
     'for approval': 'For Approval',
     // 14.0.0 patch 5: CEO Approval is the CEO's personal approval queue.
     'ceo approval': 'CEO Approval',
-    'po close out': 'PO Close Out'
+    'po close out': 'PO Close Out',
+    // 17.0.2 patch 14: site approval handed to Irwin (js/iba-1702-esn.js)
+    'ready': 'Ready'
 };
 const WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES = new Set([
     'with accounts',
@@ -906,7 +908,11 @@ function renderWorkdeskActiveTaskTable(tasks) {
         // decision gets Print (approved) + Process for the sender.
         const apv = window.ibaApprovals || null;
         const namedApprover = !!(apv && apv.namedForMe(task.attention));
-        if (apv && apv.isOpenReturn(task)) {
+        // 17.0.2 patch 14: site approval steps (Print ESN / Ready / Extra)
+        const esnActions = window.ibaEsnFlow ? window.ibaEsnFlow.rowActionsHtml(task) : '';
+        if (esnActions) {
+            actionsCell.innerHTML = esnActions;
+        } else if (apv && apv.isOpenReturn(task)) {
             actionsCell.innerHTML = apv.rowActionsHtml(task);
         } else if (task.remarks === 'For Approval' && (isManager || namedApprover)) {
             const approveBtn = document.createElement('button');
@@ -936,6 +942,7 @@ function renderWorkdeskActiveTaskTable(tasks) {
                 actionsHTML += `<button class="po-closeout-btn wd-row-action wd-action-srv" data-key="${wdUiEscape(task.key)}">PO Close Out</button>`;
             } else if (task.remarks === 'For SRV' || task.remarks === 'Waiting Signature' || task.remarks === 'Waiting Approval') {
                 actionsHTML += `<button class="srv-done-btn wd-row-action wd-action-srv" data-key="${wdUiEscape(task.key)}">SRV Done</button>`;
+                if (window.ibaEsnFlow) actionsHTML += window.ibaEsnFlow.approvalBtnHtml(task);
                 actionsHTML += `<button class="modify-btn wd-row-action wd-action-process" data-key="${wdUiEscape(task.key)}">Process</button>`;
             } else {
                 actionsHTML = `<button class="modify-btn wd-row-action wd-action-process" data-key="${wdUiEscape(task.key)}">Process</button>`;
@@ -1350,6 +1357,12 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
                     approvalNote: validatedTask.approvalNote || '',
                     last_approver: validatedTask.last_approver || '',
                     esn: validatedTask.esn || '',
+                    // 17.0.2 patch 14: site approval (js/iba-1702-esn.js)
+                    approvalFlow: validatedTask.approvalFlow || '',
+                    approvalRequestedBy: validatedTask.approvalRequestedBy || '',
+                    esnState: validatedTask.esnState || '',
+                    esnPrintedAt: validatedTask.esnPrintedAt || 0,
+                    readyBy: validatedTask.readyBy || '',
                     isUrgent: !String(invoiceStatus || '').toLowerCase().includes('on hold')
                 });
             }

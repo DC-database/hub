@@ -10,6 +10,10 @@
    The basket is kept in this browser until it is emptied.
    17.0.0 patch 22: Super Admin only (approved SRV printing is the Super
    Admin's job); other users never see the button or "Add to print".
+   17.0.3: when js/iba-1702-esn.js is loaded, "Add to print" opens the Print
+   ESN window (tick signatures, Left / Middle / Right bottom / middle / top)
+   and the basket prints the new sticker (design A with the time). Items
+   saved before keep working (newest signature, Right bottom).
    ========================================================================== */
 (function () {
     'use strict';
@@ -31,6 +35,11 @@
         try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (_) {}
         paintButton();
         if (document.getElementById('iba-pb-panel')) openPanel();
+    }
+    function esn() { return (window.ibaEsnFlow && typeof window.ibaEsnFlow.choose === 'function') ? window.ibaEsnFlow : null; }
+    function placesText(picks) {
+        const E = esn();
+        return (picks || []).map((p) => String(p.name || '').split(/\s+/)[0] + ' ' + (E ? E.placeName(p.place) : p.place)).join(', ');
     }
     function same(a, b) { return String(a.po) === String(b.po) && String(a.key) === String(b.key); }
 
@@ -80,15 +89,23 @@
         const list = load();
         const had = list.find((x) => same(x, item));
         const label = 'PO ' + item.po + (item.ref ? ' · ' + item.ref : '') + (item.vendor ? ' · ' + item.vendor : '');
-        const pos = await askPosition(label, had ? had.pos : '4');
-        if (!pos) return false;
-        if (had) had.pos = pos;
-        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', pos: pos, at: Date.now() });
+        const E = esn();
+        let pos = had ? had.pos : '4', picks = null;
+        if (E) {
+            picks = await E.choose(String(item.po), String(item.key), had && had.picks, had ? 'Save' : 'Add to basket');
+            if (!picks) return false;
+        } else {
+            pos = await askPosition(label, had ? had.pos : '4');
+            if (!pos) return false;
+        }
+        if (had) { had.pos = pos; if (picks) had.picks = picks; }
+        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', pos: pos, picks: picks || undefined, at: Date.now() });
         save(list);
-        flash(had ? 'Position changed: ' + POS[pos] : 'Added (' + list.length + '). Click Print basket above to print.');
+        const where = picks ? placesText(picks) : POS[pos];
+        flash(had ? 'Changed: ' + where : 'Added (' + list.length + '). Click Print basket above to print.');
         // 17.0.0 patch 10: say what to do next right away
         const w = layer('iba-pb-next',
-            '<div class="iba-pb-head"><b>' + (had ? 'Position changed' : 'Added to the print basket') + '</b><span>' + esc(label) + ' · ' + POS[pos] + '</span></div>' +
+            '<div class="iba-pb-head"><b>' + (had ? 'Changed' : 'Added to the print basket') + '</b><span>' + esc(label) + ' · ' + esc(where) + '</span></div>' +
             '<p class="iba-pb-sub">There ' + (list.length === 1 ? 'is <b>1 invoice</b>' : 'are <b>' + list.length + ' invoices</b>') + ' in the basket. Add more, or print them all now as one document (one A4 page each).</p>' +
             '<div class="iba-pb-foot"><span></span><button type="button" data-x>Add more</button><button type="button" data-go class="is-main"><i class="fa-solid fa-print"></i> Print all (' + list.length + ')</button></div>');
         w.addEventListener('click', (e) => {
@@ -141,7 +158,8 @@
             '<tr data-i="' + i + '"><td class="n">' + (i + 1) + '</td>' +
             '<td><b>' + esc(x.po) + '</b>' + (x.ref ? '<small>' + esc(x.ref) + '</small>' : '') + '</td>' +
             '<td class="v">' + esc(x.vendor || '') + '</td>' +
-            '<td><select data-pos>' + Object.keys(POS).map((k) => '<option value="' + k + '"' + (x.pos === k ? ' selected' : '') + '>' + POS[k] + '</option>').join('') + '</select></td>' +
+            (esn() ? '<td class="iba-pb-picks">' + esc(x.picks && x.picks.length ? placesText(x.picks) : 'Newest · Right bottom') + ' <button type="button" data-change title="Change signatures / places"><i class="fa-solid fa-pen"></i></button></td>'
+                : '<td><select data-pos>' + Object.keys(POS).map((k) => '<option value="' + k + '"' + (x.pos === k ? ' selected' : '') + '>' + POS[k] + '</option>').join('') + '</select></td>') +
             '<td class="a"><button type="button" data-up title="Move up"' + (i ? '' : ' disabled') + '><i class="fa-solid fa-arrow-up"></i></button>' +
             '<button type="button" data-down title="Move down"' + (i < list.length - 1 ? '' : ' disabled') + '><i class="fa-solid fa-arrow-down"></i></button>' +
             '<button type="button" data-del title="Remove"><i class="fa-solid fa-xmark"></i></button></td></tr>').join('');
@@ -172,6 +190,11 @@
             if (!tr) return;
             const l = load();
             const i = Number(tr.dataset.i);
+            if (b.hasAttribute('data-change') && esn() && l[i]) {
+                const p = await esn().choose(l[i].po, l[i].key, l[i].picks, 'Save');
+                if (p) { const l2 = load(); const j = l2.findIndex((y) => same(y, l[i])); if (j > -1) { l2[j].picks = p; save(l2); } }
+                return;
+            }
             if (b.hasAttribute('data-del')) l.splice(i, 1);
             else if (b.hasAttribute('data-up') && i > 0) l.splice(i - 1, 0, l.splice(i, 1)[0]);
             else if (b.hasAttribute('data-down') && i < l.length - 1) l.splice(i + 1, 0, l.splice(i, 1)[0]);
@@ -204,6 +227,17 @@
         }
         const msg = w.querySelector('.iba-pb-msg');
         const say = (t, bad) => { msg.hidden = !t; msg.textContent = t || ''; msg.classList.toggle('is-bad', !!bad); };
+        if (esn()) {
+            btn.disabled = true;
+            let r;
+            try { r = await esn().basketPages(list, (i, x) => say('Preparing ' + (i + 1) + ' of ' + list.length + ' (PO ' + x.po + ')...')); }
+            finally { btn.disabled = false; }
+            if (!r.pages.length) { say('None of these invoices has an approval sticker yet.', true); return; }
+            say(r.missing.length ? 'No approval found for ' + r.missing.join(', ') + ': left out. Printing ' + r.pages.length + ' page(s).' : 'Printing ' + r.pages.length + ' page(s)...', !!r.missing.length);
+            esn().printPages(r.pages);
+            setTimeout(() => { if (load().length) afterPrint(); }, 1500);
+            return;
+        }
         btn.disabled = true;
         const pages = [];
         const missing = [];

@@ -46,6 +46,7 @@
         { area: 'WorkDesk', label: 'Invoice Management link', short: 'Invoice Mgmt', who: (u) => u.sup || u.admin || u.pos === 'Accounting' || u.pos === 'Accounts', note: 'Admin role, or position exactly "Accounting" / "Accounts" (also anyone covering a vacation)' },
         { area: 'WorkDesk', label: 'Delete Job Records (red trash)', who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'WorkDesk', label: 'Approve / Reject "For Approval" when not named', who: (u) => u.sup || u.admin || /manager|director|ceo/.test(u.posLow), note: 'Admin role, or position with Manager / Director / CEO' },
+        { area: 'WorkDesk', label: 'Print ESN from own Active Task (site Approval)', who: (u) => u.sup || !!(window.ibaEsnFlow && window.ibaEsnFlow.allowedSync(u.key)), note: 'Super Admin, or on the "Who can print ESN" list with the same name and mobile as when added' },
         { area: 'WorkDesk', label: 'CEO approval window', who: (u) => /ceo/.test(u.posLow), byPos: true, note: 'Position contains "CEO"' },
 
         { area: 'Invoice Management', label: 'Invoice Entry and Batch Entry (add / change invoices)', short: 'Entry', who: (u) => u.sup, note: 'Super Admin only' },
@@ -69,6 +70,7 @@
         { area: 'System settings (for everyone)', label: 'Celebration banner', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'General announcement', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Same-name users (rename / move tasks)', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
+        { area: 'System settings (for everyone)', label: 'Who can print ESN', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Task check', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Print basket (approved SRV stickers)', who: (u) => u.sup, note: 'Super Admin only' }
     ];
