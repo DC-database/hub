@@ -145,6 +145,104 @@
   .iba-desk-svg .vh-puff circle:nth-child(2) { animation: ibaVhPuff 1.6s ease-out -.8s infinite; }
   .iba-desk-svg .vh-driver, .iba-desk-svg.is-loader .sc-mini { animation: ibaVhBounce .5s ease-in-out infinite alternate; }
 
+  /* 17.0.3 patch 12: the robot's day */
+  .iba-desk-svg :is(.dy-head, .dy-eyes, .dy-stretch, .dy-wash, .dy-foam, .dy-bubbles circle, .dy-drop, .dy-walker, .dy-swing, .dy-arm-l, .dy-leg-l, .dy-leg-r, .dy-road, .dy-eat, .dy-flip, .dy-egg, .dy-brush, .dy-clock, .dy-z, .dy-blanket, .dy-tv-screen, .dy-popcorn, .dy-sit, .dy-flame) { transform-box: view-box; }
+  .iba-desk-svg .dy-shut { fill: none; stroke: #5ED6C4; stroke-width: 1.4; stroke-linecap: round; }
+  .iba-desk-svg .dy-mouth { fill: none; stroke: #5ED6C4; stroke-width: 1.4; stroke-linecap: round; }
+  .iba-desk-svg .dy-eyes.is-right { transform: translateX(2px); }
+  .iba-desk-svg .dy-chef { fill: #FFFFFF; stroke: #CBD5E1; stroke-width: .8; }
+  .iba-desk-svg .dy-chef-band { fill: #F1F5F9; stroke: #CBD5E1; stroke-width: .6; }
+  .iba-desk-svg .dy-arm { fill: none; stroke: #2B6F84; stroke-width: 4; stroke-linecap: round; }
+  .iba-desk-svg .dy-torso { fill: #2B6F84; stroke: #0B1724; stroke-width: .8; }
+  .iba-desk-svg :is(.dy-head-board, .dy-leg) { fill: #6B4423; }
+  .iba-desk-svg .dy-bed { fill: #8B5E34; }
+  .iba-desk-svg .dy-pillow { fill: #F8FAFC; stroke: #CBD5E1; stroke-width: .6; }
+  .iba-desk-svg .dy-blanket { fill: #3B82F6; stroke: #1E3A8A; stroke-width: .8; }
+  .iba-desk-svg .dy-blanket-line { stroke: #FFFFFF; stroke-width: 1.4; opacity: .7; }
+  .iba-desk-svg .dy-moon { fill: #FDE68A; }
+  .iba-desk-svg .dy-moon-cut { fill: #173246; }
+  .iba-desk-svg .dy-star { fill: #FDE68A; }
+  .iba-desk-svg .dy-z { fill: #E3C98A; font: 800 8px/1 system-ui, sans-serif; opacity: 0; }
+  .iba-desk-svg .dy-window { fill: #7DD3FC; stroke: #E2E8F0; stroke-width: 1.4; }
+  .iba-desk-svg .dy-window-bar { stroke: #E2E8F0; stroke-width: 1.2; }
+  .iba-desk-svg .dy-sun { fill: #FACC15; }
+  .iba-desk-svg .dy-clock-body { fill: #EF4444; }
+  .iba-desk-svg .dy-clock-face { fill: #FFFFFF; }
+  .iba-desk-svg .dy-ring { stroke: #FDE68A; stroke-width: 1.2; stroke-linecap: round; }
+  .iba-desk-svg .dy-tile { fill: rgba(125, 211, 252, .10); stroke: rgba(226, 232, 240, .25); stroke-width: .8; }
+  .iba-desk-svg :is(.dy-pipe, .dy-tap) { fill: none; stroke: #94A3B8; stroke-width: 2.2; }
+  .iba-desk-svg .dy-shower-head { fill: #CBD5E1; }
+  .iba-desk-svg .dy-drop { stroke: #7DD3FC; stroke-width: 1.4; stroke-linecap: round; }
+  .iba-desk-svg :is(.dy-foam circle, .dy-bubbles circle) { fill: #FFFFFF; stroke: #BAE6FD; stroke-width: .5; opacity: .95; }
+  .iba-desk-svg .dy-curtain { fill: #2563EB; opacity: .85; }
+  .iba-desk-svg .dy-floor { fill: #CBD5E1; opacity: .6; }
+  .iba-desk-svg .dy-city rect { fill: #1E3A4C; }
+  .iba-desk-svg .dy-road path { stroke: #CBD5E1; stroke-width: 1.2; }
+  .iba-desk-svg .dy-bag { fill: #78350F; }
+  .iba-desk-svg .dy-bag-handle { fill: none; stroke: #78350F; stroke-width: 1.2; }
+  .iba-desk-svg :is(.dy-table) { fill: #A16207; }
+  .iba-desk-svg .dy-plate { fill: #FFFFFF; }
+  .iba-desk-svg .dy-rice { fill: #FEF3C7; }
+  .iba-desk-svg .dy-food { fill: #DC2626; }
+  .iba-desk-svg .dy-fork { stroke: #CBD5E1; stroke-width: 1.4; stroke-linecap: round; }
+  .iba-desk-svg .dy-cup { fill: #FFFFFF; stroke: #0F2537; stroke-width: .8; }
+  .iba-desk-svg :is(.dy-wall-clock) { fill: #F8FAFC; stroke: #94A3B8; }
+  .iba-desk-svg .dy-clock-hands { stroke: #0F2537; stroke-width: 1.2; stroke-linecap: round; }
+  .iba-desk-svg .dy-hood { fill: #64748B; }
+  .iba-desk-svg .dy-apron { fill: #FFFFFF; opacity: .9; }
+  .iba-desk-svg .dy-pan { fill: #334155; }
+  .iba-desk-svg .dy-pan-handle { stroke: #1F2937; stroke-width: 2.4; stroke-linecap: round; }
+  .iba-desk-svg .dy-egg-w { fill: #FFFFFF; }
+  .iba-desk-svg .dy-egg-y { fill: #FACC15; }
+  .iba-desk-svg .dy-stove { fill: #E2E8F0; stroke: #94A3B8; stroke-width: .8; }
+  .iba-desk-svg .dy-stove-top { fill: #475569; }
+  .iba-desk-svg .dy-flame path { fill: none; stroke: #F97316; stroke-width: 1.6; stroke-linecap: round; }
+  .iba-desk-svg .dy-knob { fill: #475569; }
+  .iba-desk-svg .dy-tv-frame { fill: #111827; }
+  .iba-desk-svg .dy-tv-screen { fill: #38BDF8; }
+  .iba-desk-svg .dy-tv-stand { stroke: #111827; stroke-width: 1.6; }
+  .iba-desk-svg :is(.dy-sofa-back, .dy-sofa-seat, .dy-sofa-arm) { fill: #7C3AED; stroke: #4C1D95; stroke-width: .8; }
+  .iba-desk-svg .dy-sofa-seat { fill: #8B5CF6; }
+  .iba-desk-svg .dy-rug { fill: #A16207; opacity: .6; }
+  .iba-desk-svg .dy-bowl { fill: #EF4444; }
+  .iba-desk-svg .dy-popcorn circle { fill: #FEF9C3; }
+  .iba-desk-svg .dy-mirror { fill: #BAE6FD; stroke: #E2E8F0; stroke-width: 1.4; opacity: .85; }
+  .iba-desk-svg .dy-shine { stroke: #FFFFFF; stroke-width: 1.4; stroke-linecap: round; opacity: .8; }
+  .iba-desk-svg .dy-toothbrush { fill: #22C55E; }
+  .iba-desk-svg .dy-bristle { fill: #FFFFFF; }
+  .iba-desk-svg .dy-sink { fill: #F1F5F9; stroke: #94A3B8; stroke-width: .8; }
+
+  .iba-desk-svg.is-sleep .dy-blanket { transform-origin: 70px 62px; animation: ibaDyBreath 3.6s ease-in-out infinite; }
+  .iba-desk-svg.is-sleep .dy-z.z1 { animation: ibaDyZ 3s ease-out infinite; }
+  .iba-desk-svg.is-sleep .dy-z.z2 { animation: ibaDyZ 3s ease-out 1s infinite; }
+  .iba-desk-svg.is-sleep .dy-z.z3 { animation: ibaDyZ 3s ease-out 2s infinite; }
+  .iba-desk-svg.is-sleep .dy-star { animation: ibaBotHeart 2.4s ease-in-out infinite; }
+  .iba-desk-svg.is-wake .dy-stretch { transform-origin: 32px 38px; animation: ibaDyStretch 4s ease-in-out infinite; }
+  .iba-desk-svg.is-wake .dy-clock { transform-origin: 106px 50px; animation: ibaDyShake .25s linear infinite alternate; }
+  .iba-desk-svg.is-wake .dy-sun { animation: ibaDyRise 8s ease-out infinite; }
+  .iba-desk-svg.is-shower .dy-drop { animation: ibaDyDrop .7s linear infinite; }
+  .iba-desk-svg.is-shower .dy-drop.d2, .iba-desk-svg.is-shower .dy-drop.d5 { animation-delay: -.35s; }
+  .iba-desk-svg.is-shower .dy-drop.d3, .iba-desk-svg.is-shower .dy-drop.d6 { animation-delay: -.2s; }
+  .iba-desk-svg.is-shower .dy-wash { transform-origin: 58px 70px; animation: ibaDyScrub 1.2s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-shower .dy-bubbles circle { animation: ibaDyBubble 3s ease-out infinite; }
+  .iba-desk-svg.is-shower .dy-bubbles .b2 { animation-delay: -1s; } .iba-desk-svg.is-shower .dy-bubbles .b3 { animation-delay: -2s; } .iba-desk-svg.is-shower .dy-bubbles .b4 { animation-delay: -1.5s; }
+  .iba-desk-svg.is-walk .dy-walker { animation: ibaDyBob .5s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-walk .dy-leg-l { transform-origin: 56px 58px; animation: ibaDyStep .5s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-walk .dy-leg-r { transform-origin: 64px 58px; animation: ibaDyStep .5s ease-in-out -.5s infinite alternate; }
+  .iba-desk-svg.is-walk .dy-swing { transform-origin: 71px 44px; animation: ibaDySwing .5s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-walk .dy-arm-l { transform-origin: 49px 44px; animation: ibaDySwing .5s ease-in-out -.5s infinite alternate; }
+  .iba-desk-svg.is-walk .dy-road { animation: ibaDyRoad 1s linear infinite; }
+  .iba-desk-svg.is-lunch .dy-eat { transform-origin: 70px 42px; animation: ibaDyEat 2s ease-in-out infinite; }
+  .iba-desk-svg.is-lunch .dy-mouth.is-chew { transform-box: fill-box; transform-origin: center; animation: ibaBotTalk .3s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-cook .dy-flip { transform-origin: 53px 46px; animation: ibaDyFlip 2.4s ease-in-out infinite; }
+  .iba-desk-svg.is-cook .dy-egg { animation: ibaDyEgg 2.4s ease-in-out infinite; }
+  .iba-desk-svg.is-cook .dy-flame { transform-origin: 77px 55px; animation: ibaDyFlame .3s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-tv .dy-tv-screen { animation: ibaDyTv 2.4s steps(1) infinite; }
+  .iba-desk-svg.is-tv .dy-head { animation: ibaDyLaugh 3s ease-in-out infinite; }
+  .iba-desk-svg.is-tv .dy-mouth.is-laugh { transform-box: fill-box; transform-origin: center; animation: ibaBotTalk .25s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-brush .dy-brush { animation: ibaDyBrush .35s ease-in-out infinite alternate; }
+  .iba-desk-svg.is-brush .dy-foam.s { animation: ibaBotHeart 1s ease-in-out infinite; }
+
   @media (prefers-reduced-motion: reduce) {
     .iba-desk-svg * { animation: none !important; }
   }
@@ -182,3 +280,23 @@
     body.iba-phone .iba-aph-bot.is-scene .iba-desk-scene.is-hero svg { width: 69px !important; height: 48px !important; }
   }
 }
+/* 17.0.3 patch 12: robot's day */
+@keyframes ibaDyBreath { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.08); } }
+@keyframes ibaDyZ { 0% { opacity: 0; transform: translate(0, 4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -6px); } }
+@keyframes ibaDyStretch { 0%, 20%, 80%, 100% { transform: scaleY(.55) translateY(14px); } 40%, 60% { transform: scaleY(1) translateY(0); } }
+@keyframes ibaDyShake { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
+@keyframes ibaDyRise { 0% { transform: translateY(8px); } 60%, 100% { transform: translateY(-8px); } }
+@keyframes ibaDyDrop { from { transform: translateY(0); opacity: 1; } to { transform: translateY(26px); opacity: 0; } }
+@keyframes ibaDyScrub { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+@keyframes ibaDyBubble { 0% { transform: translateY(0) scale(.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-30px) scale(1.2); opacity: 0; } }
+@keyframes ibaDyBob { from { transform: translateY(0); } to { transform: translateY(-1.5px); } }
+@keyframes ibaDyStep { from { transform: rotate(-18deg); } to { transform: rotate(18deg); } }
+@keyframes ibaDySwing { from { transform: rotate(-14deg); } to { transform: rotate(14deg); } }
+@keyframes ibaDyRoad { from { transform: translateX(0); } to { transform: translateX(-22px); } }
+@keyframes ibaDyEat { 0%, 30%, 100% { transform: rotate(0); } 50%, 70% { transform: rotate(-12deg) translate(-6px, -3px); } }
+@keyframes ibaDyFlip { 0%, 30%, 60%, 100% { transform: rotate(0); } 40% { transform: rotate(-14deg); } }
+@keyframes ibaDyEgg { 0%, 34% { transform: translateY(0); } 50% { transform: translateY(-14px); } 66%, 100% { transform: translateY(0); } }
+@keyframes ibaDyFlame { from { transform: scaleY(.8); } to { transform: scaleY(1.2); } }
+@keyframes ibaDyTv { 0% { fill: #38BDF8; } 25% { fill: #A78BFA; } 50% { fill: #34D399; } 75% { fill: #FBBF24; } }
+@keyframes ibaDyLaugh { 0%, 60%, 100% { transform: rotate(0); } 70%, 90% { transform: rotate(-6deg); } 80% { transform: rotate(4deg); } }
+@keyframes ibaDyBrush { from { transform: translateX(-2px); } to { transform: translateX(2px); } }

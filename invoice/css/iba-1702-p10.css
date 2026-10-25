@@ -541,3 +541,18 @@
   /* tick box in the PO cell */
   html body #job-records-table td input.iba-jr-tick { margin: 0 8px 0 0 !important; }
 }
+
+/* 17.0.3 patch 11: Material Stock unit next to Total Stock */
+@layer iba-ui {
+  html body #wd-material-stock #ms-table td.ms-cell-stock .ms-unit { display: inline-block !important; margin-left: 4px !important; font-size: 12px !important; font-weight: 700 !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; white-space: nowrap !important; }
+  html body #wd-material-stock #ms-table td.ms-cell-stock .ms-unit.is-missing { opacity: .55 !important; font-weight: 400 !important; }
+  html body #wd-material-stock #ms-table td.ms-cell-stock { white-space: nowrap !important; }
+}
+
+/* 17.0.3 patch 13: Irwin "Set" exact qty button in the site breakdown */
+@layer iba-ui {
+  html body #wd-material-stock .ms-bd-qty { white-space: nowrap !important; }
+  html body #wd-material-stock .ms-bd-qty .ms-unit { margin-left: 3px !important; font-size: 11.5px !important; font-weight: 700 !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  html body #wd-material-stock .ms-bd-qty .ms-unit.is-missing { display: none !important; }
+  html body #wd-material-stock .ms-set-qty-btn { margin-left: 8px !important; padding: 2px 8px !important; min-height: 0 !important; height: 24px !important; font-size: 11.5px !important; border-radius: 7px !important; vertical-align: middle !important; }
+}
