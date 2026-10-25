@@ -414,9 +414,9 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-17.css?v=17.0.0-p25" rel="stylesheet"/>
 <link href="css/iba-17-p27.css?v=17.0.0-p28" rel="stylesheet"/>
 <link href="css/iba-1702-glass.css?v=17.0.2-p6" rel="stylesheet"/>
-<link href="css/iba-1702-p10.css?v=17.0.2-p15" rel="stylesheet"/>
+<link href="css/iba-1702-p10.css?v=17.0.3-p13" rel="stylesheet"/>
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
-<link href="css/iba-1703-desk.css?v=17.0.3-p8" rel="stylesheet"/>
+<link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -3106,6 +3106,12 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <input id="ms-new-name" placeholder="e.g. Marble Black Carrara 75 x 13 cm" required="" type="text"/>
 </div>
 <div class="form-group">
+<label for="ms-new-unit">Unit</label>
+<input autocomplete="off" id="ms-new-unit" list="ms-unit-list" maxlength="20" placeholder="Pick or type, e.g. pcs, kg, m" type="text"/>
+<datalist id="ms-unit-list"><option value="pcs"></option><option value="kg"></option><option value="ton"></option><option value="g"></option><option value="m"></option><option value="m²"></option><option value="m³"></option><option value="cm"></option><option value="mm"></option><option value="ltr"></option><option value="gal"></option><option value="box"></option><option value="carton"></option><option value="bag"></option><option value="roll"></option><option value="set"></option><option value="pair"></option><option value="sheet"></option><option value="length"></option><option value="bundle"></option><option value="pack"></option><option value="drum"></option><option value="can"></option><option value="bottle"></option><option value="trip"></option><option value="lot"></option></datalist>
+<small>How this item is counted. Pick from the list or type your own.</small>
+</div>
+<div class="form-group">
 <label for="ms-new-id-display">Product ID (Auto)</label>
 <input id="ms-new-id-display" readonly="" type="text"/>
 </div>
@@ -3709,8 +3715,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
-<script src="js/inventory-pocket.js?v=15.0.0"></script>
-<script src="js/materialStock.js?v=15.0.0-p42"></script>
+<script src="js/inventory-pocket.js?v=17.0.3-p11"></script>
+<script src="js/materialStock.js?v=17.0.3-p13"></script>
 <script src="js/transferLogic.js?v=15.0.0-p25"></script>
 <script src="js/app-audio.js?v=15.0.0-p13"></script>
 <script src="js/app-core.js?v=8.2.3"></script>
@@ -3765,7 +3771,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=17.0.2-p14"></script>
+<script src="js/iba-assistant.js?v=17.0.3-p10"></script>
 <script src="js/iba-status-options.js?v=15.0.0-p45"></script>
 <script src="js/iba-job-po-fill.js?v=15.0.0-p45"></script>
 <script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
@@ -3783,7 +3789,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1702-clear.js?v=17.0.2-p11"></script>
 <script src="js/iba-1702-opo.js?v=17.0.2-p13"></script>
 <script src="js/iba-1702-esn.js?v=17.0.3-p9"></script>
-<script src="js/iba-1703-desk.js?v=17.0.3-p8"></script>
+<script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
 <script src="js/iba-vacation-handover.js?v=17.0.0-p18"></script>

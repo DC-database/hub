@@ -1,3 +1,41 @@
+17.0.3 patch 13 (2026-10-25) - Irwin sets the exact material qty
+  - Material Stock: open a row (+); in the stock per site, Irwin has a "Set"
+    button next to each site's qty. Type the correct number (it REPLACES the
+    qty, it does not add), optional reason. Total Stock is recalculated, and the
+    change is logged in stock_adjustments (before, after, reason, who, when).
+    Safe: if someone changed that site meanwhile, nothing is saved.
+  - The unit also shows next to each site's qty.
+  - Files: index.html, js/materialStock.js, css/iba-1702-p10.css
+
+17.0.3 patch 12 (2026-10-25) - the robot's day
+  - The robot now follows a day by Doha time (corner robot, expanded window
+    and phone): 22:00-5:00 sleeping (zzz), 5-6 waking up and stretching,
+    6-7 shower with bubbles, 7-7:30 walking to work with a bag, 7:30-12 office
+    (desk/coffee, forklift, loader), 12-13 lunch, 13-17 office, 17-17:30
+    walking home, 17:30-20 cooking or watching TV, 20-22 brushing teeth.
+    Prayer time still comes first (click the praying robot to skip).
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 11 (2026-10-25) - Unit for Material Stock
+  - New "Unit" box in the material form (Add and Edit): pick from the list
+    (pcs, kg, ton, m, m², m³, ltr, box, bag, roll, set, sheet ...) or type your
+    own. Needed for new items; can be changed any time with Edit.
+  - The Material Stock list shows the unit next to Total Stock ("-" when an
+    older item has no unit yet - set it with Edit).
+  - Bulk upload CSV: optional 7th column "Unit" (template updated). Stock CSV
+    export has a Unit column. Inventory Pocket copies carry the unit too.
+  - Files: index.html, js/materialStock.js, js/inventory-pocket.js,
+    css/iba-1702-p10.css
+
+17.0.3 patch 10 (2026-10-25) - "Today to Batch" skill
+  - New assistant skill (Super Admin, under Quick work): pick Under Review,
+    With Accounts, For Approval, CEO Approval, For Approval + CEO Approval, or
+    all four. Every invoice now in that status that got there TODAY (Qatar time:
+    status change, approval request, a history line with that status, or
+    entered today) goes into Batch Entry. Up to 100 at a time; nothing is saved
+    until you press Save.
+  - Files: index.html, js/iba-assistant.js
+
 17.0.3 patch 9 (2026-10-25) - every ESN print uses the new QR sticker
   - The "Print" button in an invoice's Status History (Invoice Entry and Invoice
     Records history) used an old plain sticker. It now opens the same Print ESN
