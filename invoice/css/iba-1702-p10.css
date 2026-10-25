@@ -1,0 +1,543 @@
+/* ==========================================================================
+   css/iba-1702-p10.css — 17.0.2 patch 10
+   1) Main-action buttons (Search, Add / Edit Invoice, Save Transaction,
+      Register New Material, Save All Invoices, Add Selected to Batch, ...)
+      drawn as clear teal glass instead of solid teal blocks.
+   2) Lists that were still solid panels (Invoice Entry existing invoices,
+      Work History / Job Records, Active Task, Active Job, Material Stock,
+      Payments, Dashboard lists, PO Close Out cards and tabs) in the same
+      glass as the Invoice Records sheet.
+   3) Batch Entry "Search and Add Existing Invoices": no extra card around
+      the PO field and Search button; table header see-through.
+   4) New Transaction (Transfer / Restock / Usage) and the Invoice Entry
+      pop-up: inner cards and fields in lighter glass.
+   5) The assistant side panel in the same glass as its big window.
+   6) Phone and Z Flip cover screen: the Now brief list in bigger type,
+      every task its own glass row with large buttons.
+   Only panels are glass; the page behind is never blurred.
+   ========================================================================== */
+@layer iba-ui {
+
+  /* ---------------------------------------------------------------------
+     1) Glass buttons. ":not(#iba-p10a):not(#iba-p10b)" only adds weight so
+     the older solid-teal rules lose; it matches every page.
+     --------------------------------------------------------------------- */
+  html body:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c) :is(
+      #wd-material-stock #ms-add-new-btn,
+      #wd-material-stock .ms-glass-panel button.ms-align-site-btn,
+      #im-reporting #im-reporting-search-btn,
+      #im-po-closeout #im-po-closeout-search-btn,
+      #im-po-closeout #im-po-closeout-list button.primary-btn,
+      #im-batch-entry #im-batch-save-button,
+      #im-summary-note #summary-note-generate-btn,
+      #im-invoice-entry #im-po-search-button,
+      #im-invoice-entry #im-open-invoice-form-btn,
+      #im-invoice-entry-modal #im-add-invoice-button,
+      #im-invoice-entry-modal #im-update-invoice-button,
+      #im-payments #im-save-payments-button,
+      #wd-settings #update-settings-button, #wd-settings #celebration-save-btn, #wd-settings #general-announcement-save-btn, #wd-settings #iba-open-save, #wd-settings .iba-bg-save,
+      #standard-job-modal #add-job-button, #standard-job-modal #update-job-button,
+      #wd-dashboard button.wd-forward-task-btn,
+      #wd-dashboard .wd-payment-pocket-mark-paid, #wd-dashboard .wd-paid-po-view-btn,
+      #wd-paid-history-modal .wd-paid-history-primary,
+      .modal-overlay > .modal-container :is(.download-btn, .primary-btn, .print-btn, button[type="submit"], #ceo-modal-approve-btn, #transfer-modal-approve-btn, #im-batch-modal-search-btn, #im-payment-modal-search-btn, #im-ipc-recovery-convert, #ms-photo-browser-use, #im-attention-picker-apply, #ms-sc-approve-all, .ms-sc-approve-one, #process-report-submit-btn, #im-save-manual-po-btn, #ms-save-stock-btn, #ms-save-new-btn, #calendar-modal-view-tasks-btn, #modify-task-save-btn, #tf-save-btn),
+      .iba-pb-foot button.is-main,
+      .iba-ai-mini.is-main, .iba-ai-btn.is-main
+    ):not(:disabled):not(.delete-btn):not(.reject-btn) {
+    border: 1px solid rgba(127, 227, 214, 0.55) !important;
+    background: linear-gradient(180deg, rgba(64, 196, 206, 0.30) 0%, rgba(19, 138, 151, 0.16) 100%) !important;
+    background-color: transparent !important;
+    color: #EAFBF9 !important;
+    -webkit-text-fill-color: #EAFBF9 !important;
+    text-shadow: none !important;
+    backdrop-filter: blur(10px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(1.4) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.16), 0 6px 16px rgba(0, 0, 0, 0.22) !important;
+    transition: background .15s ease, border-color .15s ease, box-shadow .15s ease !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c) :is(
+      #wd-material-stock #ms-add-new-btn,
+      #wd-material-stock .ms-glass-panel button.ms-align-site-btn,
+      #im-reporting #im-reporting-search-btn,
+      #im-po-closeout #im-po-closeout-search-btn,
+      #im-po-closeout #im-po-closeout-list button.primary-btn,
+      #im-batch-entry #im-batch-save-button,
+      #im-summary-note #summary-note-generate-btn,
+      #im-invoice-entry #im-po-search-button,
+      #im-invoice-entry #im-open-invoice-form-btn,
+      #im-invoice-entry-modal #im-add-invoice-button,
+      #im-invoice-entry-modal #im-update-invoice-button,
+      #im-payments #im-save-payments-button,
+      #wd-settings #update-settings-button, #wd-settings #celebration-save-btn, #wd-settings #general-announcement-save-btn, #wd-settings #iba-open-save, #wd-settings .iba-bg-save,
+      #standard-job-modal #add-job-button, #standard-job-modal #update-job-button,
+      #wd-dashboard button.wd-forward-task-btn,
+      #wd-dashboard .wd-payment-pocket-mark-paid, #wd-dashboard .wd-paid-po-view-btn,
+      #wd-paid-history-modal .wd-paid-history-primary,
+      .modal-overlay > .modal-container :is(.download-btn, .primary-btn, .print-btn, button[type="submit"], #ceo-modal-approve-btn, #transfer-modal-approve-btn, #im-batch-modal-search-btn, #im-payment-modal-search-btn, #im-ipc-recovery-convert, #ms-photo-browser-use, #im-attention-picker-apply, #ms-sc-approve-all, .ms-sc-approve-one, #process-report-submit-btn, #im-save-manual-po-btn, #ms-save-stock-btn, #ms-save-new-btn, #calendar-modal-view-tasks-btn, #modify-task-save-btn, #tf-save-btn),
+      .iba-pb-foot button.is-main,
+      .iba-ai-mini.is-main, .iba-ai-btn.is-main
+    ):not(:disabled):not(.delete-btn):not(.reject-btn):hover {
+    border-color: rgba(127, 227, 214, 0.85) !important;
+    background: linear-gradient(180deg, rgba(64, 196, 206, 0.44) 0%, rgba(19, 138, 151, 0.28) 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 3px rgba(127, 227, 214, 0.14), 0 8px 20px rgba(0, 0, 0, 0.26) !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c) :is(
+      #wd-material-stock #ms-add-new-btn,
+      #im-reporting #im-reporting-search-btn,
+      #im-po-closeout #im-po-closeout-search-btn,
+      #im-batch-entry #im-batch-save-button,
+      #im-invoice-entry #im-po-search-button,
+      #im-invoice-entry #im-open-invoice-form-btn,
+      #im-invoice-entry-modal #im-add-invoice-button,
+      #im-invoice-entry-modal #im-update-invoice-button,
+      #im-payments #im-save-payments-button,
+      .modal-overlay > .modal-container :is(.download-btn, .primary-btn, #im-batch-modal-search-btn, #tf-save-btn)
+    ) i {
+    color: #7FE3D6 !important;
+    -webkit-text-fill-color: #7FE3D6 !important;
+  }
+  /* Save All Invoices keeps its size, loses the green glow */
+  html body:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c) #im-batch-entry #im-batch-save-button:not(:disabled) { font-weight: 700 !important; }
+
+  /* ---------------------------------------------------------------------
+     2) Lists and their tab bars: glass like the Invoice Records sheet
+     --------------------------------------------------------------------- */
+  html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) :is(
+      #wd-reporting #reporting-printable-area > .table-wrapper,
+      #wd-activetask > .table-wrapper,
+      #inv-active-job > .table-wrapper,
+      #wd-material-stock .ms-premium-tablewrap,
+      #im-existing-invoices-container > .table-wrapper,
+      #im-payments .im-payment-cart-table-wrap,
+      #wd-dashboard .wd-payment-pocket-table-wrap,
+      #wd-dashboard .wd-paid-po-history-table-wrap,
+      #inv-active-job #iba-aj-folder,
+      #im-po-closeout #im-po-closeout-tabs,
+      #im-invoice-entry #im-modal-po-details) {
+    background: linear-gradient(170deg, rgba(24, 52, 80, 0.46) 0%, rgba(9, 20, 33, 0.60) 100%) !important;
+    background-color: transparent !important;
+    backdrop-filter: blur(18px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 18px 42px rgba(0, 0, 0, 0.30) !important;
+  }
+  /* PO Close Out cards */
+  html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) #im-po-closeout #im-po-closeout-list > div {
+    background: linear-gradient(160deg, rgba(24, 52, 80, 0.44) 0%, rgba(9, 20, 33, 0.56) 100%) !important;
+    background-color: transparent !important;
+    backdrop-filter: blur(18px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+  /* column headers: see-through but still readable when they stick */
+  html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c):not(#iba-p10d) :is(#workdesk-view, #invoice-management-view, #inventory-view, .modal-overlay, #ms-stock-check-modal) table:not(td table) > thead > tr > th {
+    background: rgba(16, 36, 56, 0.80) !important;
+    background-color: rgba(16, 36, 56, 0.80) !important;
+    backdrop-filter: blur(14px) saturate(1.3) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.3) !important;
+  }
+  html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c):not(#iba-p10d) :is(#workdesk-view, #invoice-management-view, #inventory-view, .modal-overlay, #ms-stock-check-modal) table:not(td table) > :is(thead, thead > tr) {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+  html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) #im-existing-invoices-container tfoot td {
+    background: rgba(16, 36, 56, 0.55) !important;
+    background-color: rgba(16, 36, 56, 0.55) !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     3) Batch Entry "Search and Add Existing Invoices"
+     --------------------------------------------------------------------- */
+  html body:not(#iba-p10a):not(#iba-p10b) #im-batch-search-modal .search-and-filter-group {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* 17.0.2 patch 13: results fit the window (no sideways scroll), no card */
+  html body:not(#iba-p10a):not(#iba-p10b) #im-batch-search-modal #im-batch-modal-results {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    overflow-x: hidden !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) #im-batch-search-modal #im-batch-modal-results .batch-modal-result-summary {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 0 10px !important;
+    padding: 0 2px !important;
+    border: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) #im-batch-search-modal #im-batch-modal-results table.batch-existing-invoices-table {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    border-radius: var(--ui-radius-m) !important;
+    overflow: hidden !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     4) New Transaction and Invoice Entry pop-ups: lighter inner glass
+     --------------------------------------------------------------------- */
+  html body:not(#iba-p10a):not(#iba-p10b) #transfer-job-modal :is(.tf-card, .tf-mode, #tf-multi-list-container) {
+    background: rgba(255, 255, 255, 0.045) !important;
+    background-color: rgba(255, 255, 255, 0.045) !important;
+    border: 1px solid rgba(255, 255, 255, 0.13) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) :is(#transfer-job-modal, #im-invoice-entry-modal, #im-batch-search-modal) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea, .choices__inner) {
+    background-color: rgba(6, 14, 24, 0.40) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) :is(#transfer-job-modal, #im-invoice-entry-modal) .choices__list--dropdown {
+    background: rgba(14, 30, 47, 0.96) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) #transfer-job-modal #tf-add-to-list-btn:not(.hidden) {
+    border: 1px solid rgba(227, 201, 138, 0.45) !important;
+    background: rgba(227, 201, 138, 0.10) !important;
+    color: #F3E2B6 !important;
+    -webkit-text-fill-color: #F3E2B6 !important;
+  }
+  html body:not(#iba-p10a):not(#iba-p10b) #im-invoice-entry-modal .im-entry-quick-panel {
+    background: rgba(255, 255, 255, 0.045) !important;
+    background-color: rgba(255, 255, 255, 0.045) !important;
+    border-color: rgba(255, 255, 255, 0.13) !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     5) Assistant side panel: glass like its big window
+     --------------------------------------------------------------------- */
+  #iba-ai-panel.iba-ai-panel:not(.is-wide) {
+    background:
+      radial-gradient(120% 60% at 0% 0%, rgba(94, 214, 196, 0.10) 0%, rgba(94, 214, 196, 0) 55%),
+      linear-gradient(170deg, rgba(23, 50, 76, 0.62) 0%, rgba(9, 20, 33, 0.74) 100%) !important;
+    background-color: transparent !important;
+    -webkit-backdrop-filter: blur(24px) saturate(1.35) !important;
+    backdrop-filter: blur(24px) saturate(1.35) !important;
+    border: 1px solid rgba(232, 217, 182, 0.28) !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+  }
+  #iba-ai-panel.iba-ai-panel:not(.is-wide) .iba-ai-head {
+    background: rgba(10, 22, 36, 0.30) !important;
+    border-bottom: 1px solid rgba(232, 217, 182, 0.16) !important;
+  }
+  #iba-ai-panel.iba-ai-panel:not(.is-wide) .iba-ai-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%) !important;
+    border-color: rgba(232, 217, 182, 0.16) !important;
+  }
+  #iba-ai-panel .iba-ai-input button:not(:disabled) {
+    border: 1px solid rgba(127, 227, 214, 0.6) !important;
+    background: linear-gradient(180deg, rgba(64, 196, 206, 0.34) 0%, rgba(19, 138, 151, 0.18) 100%) !important;
+    color: #EAFBF9 !important;
+    -webkit-text-fill-color: #EAFBF9 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+  }
+  /* phone: full screen, same glass over the photo */
+  body.iba-phone #iba-ai-panel.iba-ai-panel {
+    background:
+      radial-gradient(120% 50% at 0% 0%, rgba(94, 214, 196, 0.10) 0%, rgba(94, 214, 196, 0) 55%),
+      linear-gradient(175deg, rgba(20, 44, 68, 0.70) 0%, rgba(8, 18, 30, 0.82) 100%) !important;
+    border: 0 !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-go {
+    border: 1px solid rgba(127, 227, 214, 0.6) !important;
+    background: linear-gradient(180deg, rgba(64, 196, 206, 0.38) 0%, rgba(19, 138, 151, 0.2) 100%) !important;
+  }
+
+  /* ---------------------------------------------------------------------
+     6) Phone Now brief: bigger, one glass row per task
+     --------------------------------------------------------------------- */
+  body.iba-phone #iba-ai-panel .is-aph-brief {
+    padding: 16px 14px !important;
+    border: 1px solid rgba(232, 217, 182, 0.22) !important;
+    border-left: 3px solid #E3C98A !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.035) 100%) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    backdrop-filter: blur(14px) !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-card-head { font-size: 19px !important; line-height: 1.25 !important; margin-bottom: 10px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-sub { font-size: 13.5px !important; letter-spacing: .06em !important; margin: 16px 0 8px !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-kpis { gap: 8px !important; margin: 10px 0 6px !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-kpis div { padding: 12px 4px !important; border-radius: 14px !important; background: rgba(255, 255, 255, 0.07) !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-kpis b { font-size: 26px !important; line-height: 1.1 !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-kpis span { display: block !important; margin-top: 3px !important; font-size: 12.5px !important; line-height: 1.2 !important; }
+
+  /* every task is its own row */
+  body.iba-phone #iba-ai-panel .is-aph-brief ul.iba-ai-rows { display: flex !important; flex-direction: column !important; gap: 10px !important; margin: 0 !important; padding: 0 !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief ul.iba-ai-rows > li[hidden] { display: none !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief ul.iba-ai-rows:not(.iba-ai-ttab) > li {
+    display: block !important;
+    padding: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 14px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief ul.iba-ai-rows:not(.iba-ai-ttab) > li:not(:has(.iba-aph-trow)) { display: flex !important; align-items: flex-start !important; gap: 10px !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tasks li.is-urgent {
+    border-color: rgba(239, 68, 68, 0.45) !important;
+    border-left: 4px solid #ef4444 !important;
+    padding-left: 10px !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-trow { align-items: flex-start !important; gap: 10px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief :is(.iba-ai-po, .iba-ai-trf-no) {
+    flex: 0 0 auto !important;
+    min-height: 34px !important;
+    padding: 6px 10px !important;
+    border-radius: 10px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-grow {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    overflow-wrap: anywhere !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-grow > small {
+    display: block !important;
+    margin-top: 5px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+    color: #E6D6AE !important;
+    -webkit-text-fill-color: #E6D6AE !important;
+    white-space: normal !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-urg-badge { font-size: 11.5px !important; padding: 2px 8px !important; vertical-align: 2px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-aph-age { padding: 5px 10px !important; font-size: 13.5px !important; font-weight: 700 !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tasks .iba-ai-acts { margin: 10px 0 0 !important; gap: 8px !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tasks .iba-ai-act {
+    min-height: 44px !important;
+    padding: 8px 6px !important;
+    border-radius: 12px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-tasks .iba-ai-act.is-approve {
+    border: 1px solid rgba(95, 211, 160, 0.6) !important;
+    background: rgba(95, 211, 160, 0.18) !important;
+    color: #CFF7E4 !important;
+    -webkit-text-fill-color: #CFF7E4 !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-tasks .iba-ai-act.is-reject {
+    border: 1px solid rgba(239, 138, 122, 0.6) !important;
+    background: rgba(239, 138, 122, 0.14) !important;
+    color: #FFD9D2 !important;
+    -webkit-text-fill-color: #FFD9D2 !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-brief-more { width: 100% !important; min-height: 44px !important; margin-top: 10px !important; justify-content: center !important; font-size: 15px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-aph-foot { font-size: 13.5px !important; line-height: 1.45 !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-empty { font-size: 16px !important; }
+
+  /* reminders inside the phone brief: stacked rows, no column header */
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab-wrap,
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab-site { overflow: visible !important; border: 0 !important; background: transparent !important; padding: 0 !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab .iba-ai-ttab-head { display: none !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li:not(.iba-ai-ttab-head) {
+    display: grid !important;
+    grid-template-columns: auto 1fr !important;
+    grid-template-areas: "po site" "main main" "act act" !important;
+    gap: 6px 10px !important;
+    padding: 12px !important;
+    border: 1px solid rgba(227, 201, 138, 0.25) !important;
+    border-radius: 14px !important;
+    background: rgba(227, 201, 138, 0.07) !important;
+  }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-po { grid-area: po !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-site { grid-area: site !important; font-size: 15px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-site small { display: block !important; font-size: 13px !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-main { grid-area: main !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-main small { font-size: 15px !important; font-weight: 500 !important; line-height: 1.4 !important; color: #F3EAD3 !important; -webkit-text-fill-color: #F3EAD3 !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-age { display: none !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-act { grid-area: act !important; }
+  body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-ttab > li > .c-act button { width: 100% !important; min-height: 42px !important; justify-content: center !important; font-size: 15px !important; }
+}
+
+/* Z Flip cover screen (same test as js/iba-phone.js COVER_MQ): less padding
+   so the bigger rows still fit the small square screen */
+@media (max-width: 480px) and (max-height: 560px), (max-width: 600px) and (max-height: 700px) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) {
+  @layer iba-ui {
+    body.iba-phone #iba-ai-panel .is-aph-brief { padding: 12px 10px !important; border-radius: 14px !important; }
+    body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-card-head { font-size: 17px !important; }
+    body.iba-phone #iba-ai-panel .iba-aph-kpis { gap: 6px !important; }
+    body.iba-phone #iba-ai-panel .iba-aph-kpis div { padding: 9px 2px !important; }
+    body.iba-phone #iba-ai-panel .iba-aph-kpis b { font-size: 22px !important; }
+    body.iba-phone #iba-ai-panel .iba-aph-kpis span { font-size: 11.5px !important; }
+    body.iba-phone #iba-ai-panel .is-aph-brief ul.iba-ai-rows:not(.iba-ai-ttab) > li { padding: 10px !important; }
+    body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-grow { font-size: 15.5px !important; }
+    body.iba-phone #iba-ai-panel .is-aph-brief .iba-ai-grow > small { font-size: 13.5px !important; }
+    body.iba-phone #iba-ai-panel .is-aph-brief .iba-aph-foot { display: none !important; }
+  }
+}
+
+/* 17.0.2 patch 11: clear (×) button in the assistant search boxes
+   (js/iba-1702-clear.js places it over the right end of the box) */
+@layer iba-ui {
+  html body button.iba-clear-x.iba-clear-x {
+    position: absolute !important;
+    z-index: 3 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #E8EEF5 !important;
+    -webkit-text-fill-color: #E8EEF5 !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    grid-column: auto !important;
+    flex: none !important;
+  }
+  html body button.iba-clear-x.iba-clear-x[hidden] { display: none !important; }
+  html body button.iba-clear-x.iba-clear-x:hover { background: rgba(239, 138, 122, 0.22) !important; border-color: rgba(239, 138, 122, 0.6) !important; color: #FFE1DB !important; -webkit-text-fill-color: #FFE1DB !important; }
+  html body button.iba-clear-x.iba-clear-x i { color: inherit !important; -webkit-text-fill-color: inherit !important; margin: 0 !important; }
+  html body :is(input, textarea).iba-has-clear.iba-has-clear { padding-right: 34px !important; }
+  /* the phone search hides the browser's own clear mark: ours replaces it */
+  html body #iba-aph-q::-webkit-search-cancel-button { -webkit-appearance: none !important; display: none !important; }
+}
+
+/* 17.0.2 patch 12: Original PO and the PO archive (js/iba-1702-opo.js) */
+@layer iba-ui {
+  /* PO file check: Under revision */
+  html body:not(#iba-p12a):not(#iba-p12b):not(#iba-p12c):not(#iba-p12d):not(#iba-p12e) .im-po-record.im-po-record-status-revision {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 2px 10px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(245, 190, 90, 0.6) !important;
+    background: rgba(245, 190, 90, 0.16) !important;
+    color: #FCD58A !important;
+    -webkit-text-fill-color: #FCD58A !important;
+    font-weight: 700 !important;
+  }
+  html body:not(#iba-p12a):not(#iba-p12b):not(#iba-p12c):not(#iba-p12d):not(#iba-p12e) .im-po-record.im-po-record-status-revision :is(i, span) { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+
+  /* Job Records: back in file */
+  html body #job-records-table .iba-opo-back {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin: 0 0 0 6px !important;
+    padding: 2px 8px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(95, 211, 160, 0.6) !important;
+    background: rgba(95, 211, 160, 0.16) !important;
+    color: #8CF0C2 !important;
+    -webkit-text-fill-color: #8CF0C2 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    vertical-align: middle !important;
+  }
+  html body #job-records-table .iba-opo-back i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body.iba-shell-on:not(#iba-p12a):not(#iba-p12b) #job-records-table > tbody > tr.iba-opo-row-back > td:first-child { box-shadow: inset 3px 0 0 #5FD3A0 !important; }
+
+  /* tick boxes and the bulk bar */
+  html body #job-records-table input.iba-jr-tick {
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 8px 0 0 !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+    accent-color: #EF8A7A !important;
+  }
+  html body.iba-shell-on:not(#iba-p12a):not(#iba-p12b) #job-records-table > tbody > tr.iba-jr-picked > td { background: rgba(239, 138, 122, 0.12) !important; background-color: rgba(239, 138, 122, 0.12) !important; }
+  html body #iba-jr-bulk {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 0 0 10px !important;
+    padding: 8px 12px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    background: linear-gradient(170deg, rgba(24, 52, 80, 0.46) 0%, rgba(9, 20, 33, 0.60) 100%) !important;
+    backdrop-filter: blur(18px) saturate(1.4) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.4) !important;
+  }
+  html body #iba-jr-bulk[hidden] { display: none !important; }
+  html body #iba-jr-bulk .iba-jr-bulk-n { margin-right: auto !important; font-size: 13px !important; font-weight: 700 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body #iba-jr-bulk button {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    height: 32px !important;
+    padding: 0 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+  }
+  html body #iba-jr-bulk button[hidden] { display: none !important; }
+  html body #iba-jr-bulk button:disabled { opacity: .45 !important; cursor: not-allowed !important; }
+  html body #iba-jr-bulk button[data-sel="back"] { border-color: rgba(95, 211, 160, 0.55) !important; background: rgba(95, 211, 160, 0.12) !important; color: #BFF5DA !important; -webkit-text-fill-color: #BFF5DA !important; }
+  html body #iba-jr-bulk button.is-danger { border-color: rgba(239, 138, 122, 0.6) !important; background: rgba(239, 138, 122, 0.14) !important; color: #FFD9D2 !important; -webkit-text-fill-color: #FFD9D2 !important; }
+  html body #iba-jr-bulk button i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+}
+
+/* 17.0.2 patch 13: the bulk bar sits on the tab line, right side, compact */
+@layer iba-ui {
+  html body.iba-shell-on:not(#iba-p13a):not(#iba-p13b) #wd-reporting > #iba-jr-bulk.is-on-tabs {
+    grid-area: tabs !important;
+    grid-column: 1 / -1 !important; /* p15: auto made an extra column and squeezed the table */
+    justify-self: end !important;
+    align-self: start !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 6px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    position: relative !important;
+    z-index: 4 !important;
+  }
+  html body.iba-shell-on:not(#iba-p13a):not(#iba-p13b) #wd-reporting > #iba-jr-bulk.is-on-tabs .iba-jr-bulk-n { margin: 0 4px 0 0 !important; font-size: 12px !important; }
+  html body.iba-shell-on:not(#iba-p13a):not(#iba-p13b) #wd-reporting > #iba-jr-bulk.is-on-tabs button { height: 28px !important; padding: 0 10px !important; font-size: 12px !important; border-radius: 8px !important; }
+  /* tick box in the PO cell */
+  html body #job-records-table td input.iba-jr-tick { margin: 0 8px 0 0 !important; }
+}

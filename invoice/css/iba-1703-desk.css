@@ -1,0 +1,94 @@
+/* 17.0.3 patch 1-3: robot at a laptop (js/iba-1703-desk.js): corner robot idle
+   moments and the big-window Now brief head. Inside @layer iba-ui so the theme layer cannot
+   override it. */
+@layer iba-ui {
+  /* 17.0.3 patch 3: corner robot sits at the laptop now and then (js adds
+     .iba-desk-scene.is-fab inside #iba-ai-fab and the class is-desk) */
+  #iba-ai-fab .iba-desk-scene.is-fab {
+    position: absolute !important; right: -8px !important; bottom: 0 !important; left: auto !important; top: auto !important;
+    width: 128px !important; height: 90px !important; display: block !important;
+    pointer-events: none !important; background: none !important; border: 0 !important;
+    opacity: 0 !important; transition: opacity .35s ease !important;
+  }
+  #iba-ai-fab .iba-desk-scene.is-fab svg { width: 128px !important; height: 90px !important; display: block !important; overflow: visible !important; }
+  #iba-ai-fab svg.iba-ai-bot { transition: opacity .35s ease !important; }
+  #iba-ai-fab.is-desk .iba-desk-scene.is-fab { opacity: 1 !important; }
+  #iba-ai-fab.is-desk svg.iba-ai-bot { opacity: 0 !important; }
+  body.iba-phone #iba-ai-fab .iba-desk-scene.is-fab { display: none !important; }
+  body.iba-phone #iba-ai-fab svg.iba-ai-bot { opacity: 1 !important; }
+
+  /* 17.0.3 patch 2/3: big window - robot + greeting in the fixed top bar
+     (.iba-desk-bar, before the hidden title); the brief head keeps only its buttons */
+  #iba-ai-panel #iba-ai-wide-body .iba-ai-card-head.has-desk > :is(i, .iba-desk-hello) { display: none !important; }
+  #iba-ai-panel #iba-ai-wide-body .iba-ai-card-head.has-desk { margin: 0 0 8px !important; padding: 0 !important; border-bottom: 0 !important; min-height: 0 !important; }
+  #iba-ai-panel #iba-ai-wide-body .iba-ai-card-head.has-desk .iba-ai-head-actions { margin-left: auto !important; }
+  #iba-ai-panel .iba-ai-wide-bar .iba-desk-bar {
+    display: inline-flex !important; align-items: center !important; gap: 10px !important;
+    flex: 0 1 auto !important; min-width: 0 !important; pointer-events: none !important;
+  }
+  #iba-ai-panel .iba-ai-wide-bar .iba-desk-scene.is-brief { display: block !important; flex: 0 0 auto !important; width: 100px !important; height: 70px !important; margin: -4px 0 -6px !important; }
+  #iba-ai-panel .iba-ai-wide-bar .iba-desk-scene.is-brief svg { width: 100px !important; height: 70px !important; display: block !important; overflow: visible !important; }
+  #iba-ai-panel .iba-ai-wide-bar .iba-desk-bar-hi {
+    white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
+    color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-size: 19px !important; font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important; letter-spacing: .01em !important;
+  }
+  #iba-ai-panel:not(.is-wide) .iba-desk-bar, body.iba-phone .iba-desk-bar { display: none !important; }
+
+  .iba-desk-svg .dk-chair { fill: #1E3A4C; stroke: #0B1724; stroke-width: 1; }
+  .iba-desk-svg .dk-torso { fill: #14364F; }
+  .iba-desk-svg .dk-vest { fill: url(#ibaDeskVest); stroke: #9A3412; stroke-width: .7; }
+  .iba-desk-svg .dk-stripe { fill: #E5E7EB; opacity: .9; }
+  .iba-desk-svg .dk-ear { fill: #94A3B8; }
+  .iba-desk-svg .dk-skull { fill: url(#ibaDeskHead); stroke: #0B1724; stroke-width: 1.2; }
+  .iba-desk-svg .dk-visor { fill: #0B1724; }
+  .iba-desk-svg .dk-eye { fill: #5ED6C4; }
+  .iba-desk-svg .dk-mouth { fill: none; stroke: #5ED6C4; stroke-width: 2; stroke-linecap: round; }
+  .iba-desk-svg .dk-hat { fill: url(#ibaDeskHat); stroke: #A16207; stroke-width: 1.2; }
+  .iba-desk-svg .dk-ridge { fill: #FDE68A; opacity: .85; }
+  .iba-desk-svg .dk-brim { fill: #EAB308; stroke: #A16207; stroke-width: 1; }
+  .iba-desk-svg .dk-bulb { fill: #FFFBEB; stroke: #A16207; stroke-width: .8; }
+  .iba-desk-svg :is(.dk-arm path, .dk-limb) { fill: none; stroke: #2B6F84; stroke-width: 4.2; stroke-linecap: round; }
+  .iba-desk-svg .dk-hand { fill: #94A3B8; stroke: #0B1724; stroke-width: .8; }
+  .iba-desk-svg .dk-lid { fill: #CBD5E1; stroke: #64748B; stroke-width: 1; }
+  .iba-desk-svg .dk-logo { fill: #5ED6C4; }
+  .iba-desk-svg .dk-base { fill: #94A3B8; }
+  .iba-desk-svg .dk-bit { fill: #0E7C6B; font: 800 6px/1 system-ui, sans-serif; opacity: 0; }
+  .iba-desk-svg .dk-cup { fill: #FFFFFF; stroke: #0F2537; stroke-width: 1; }
+  .iba-desk-svg .dk-handle { fill: none; stroke: #0F2537; stroke-width: 1.4; }
+  .iba-desk-svg .dk-steam { fill: none; stroke: #94A3B8; stroke-width: 1.2; stroke-linecap: round; opacity: 0; }
+  .iba-desk-svg .dk-desk { fill: #8B5E34; stroke: #5C3A1C; stroke-width: .8; }
+
+  .iba-desk-svg :is(.dk-head, .dk-eyes, .dk-arm, .dk-hand, .dk-sip, .dk-wave, .dk-bit, .dk-steam, .dk-mug, .dk-logo) { transform-box: view-box; }
+  .iba-desk-svg .dk-head { transform-origin: 60px 50px; animation: ibaDkHead 10s ease-in-out infinite; }
+  .iba-desk-svg .dk-eyes { transform-origin: 60px 34px; animation: ibaDkEyes 10s ease-in-out infinite; }
+  .iba-desk-svg .dk-eye { transform-box: fill-box; transform-origin: center; animation: ibaBotBlink 4.2s infinite; }
+  .iba-desk-svg .dk-arm-l { animation: ibaDkTypeL 10s step-end infinite; }
+  .iba-desk-svg .dk-arm-r { animation: ibaDkTypeR 10s step-end infinite; }
+  .iba-desk-svg .dk-sip { opacity: 0; animation: ibaDkSip 10s step-end infinite; }
+  .iba-desk-svg .dk-wave { opacity: 0; transform-origin: 76px 54px; animation: ibaDkWave 10s linear infinite; }
+  .iba-desk-svg .dk-arm-l .dk-hand { animation: ibaDkTap .32s ease-in-out infinite alternate; }
+  .iba-desk-svg .dk-arm-r .dk-hand { animation: ibaDkTap .32s ease-in-out -.16s infinite alternate; }
+  .iba-desk-svg .dk-mug { animation: ibaDkMug 10s step-end infinite; }
+  .iba-desk-svg .dk-steam-1 { animation: ibaDkSteam 2.4s ease-in-out infinite; }
+  .iba-desk-svg .dk-steam-2 { animation: ibaDkSteam 2.4s ease-in-out -1.2s infinite; }
+  .iba-desk-svg .dk-logo { transform-origin: 60px 60.5px; animation: ibaBotHeart 2s ease-in-out infinite; }
+  .iba-desk-svg .dk-bit-1 { animation: ibaDkBit 1.8s ease-out infinite; }
+  .iba-desk-svg .dk-bit-2 { animation: ibaDkBit 1.8s ease-out -.6s infinite; }
+  .iba-desk-svg .dk-bit-3 { animation: ibaDkBit 1.8s ease-out -1.2s infinite; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .iba-desk-svg * { animation: none !important; }
+  }
+}
+/* 10 s loop: type (0-38%), sip coffee (40-58%), type, look up and wave (78-94%) */
+@keyframes ibaDkTap { from { transform: translateY(0); } to { transform: translateY(-2.2px); } }
+@keyframes ibaDkHead { 0%, 38%, 60%, 76%, 96%, 100% { transform: rotate(0) translateY(1px); } 44%, 54% { transform: rotate(-6deg) translateY(0); } 80%, 92% { transform: rotate(5deg) translateY(-1px); } }
+@keyframes ibaDkEyes { 0%, 38%, 60%, 76%, 96%, 100% { transform: translateY(2px); } 44%, 54% { transform: translate(-3px, 0); } 80%, 92% { transform: translateY(-1px); } }
+@keyframes ibaDkSteam { 0% { opacity: 0; transform: translateY(2px); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-7px); } }
+@keyframes ibaDkBit { 0% { opacity: 0; transform: translateY(0); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+@keyframes ibaDkTypeL { 0% { opacity: 1; } 40% { opacity: 0; } 58% { opacity: 1; } }
+@keyframes ibaDkTypeR { 0% { opacity: 1; } 78% { opacity: 0; } 94% { opacity: 1; } }
+@keyframes ibaDkSip { 0% { opacity: 0; } 40% { opacity: 1; } 58% { opacity: 0; } }
+@keyframes ibaDkMug { 0% { opacity: 1; } 40% { opacity: 0; } 58% { opacity: 1; } }
+@keyframes ibaDkWave { 0%, 77.9% { opacity: 0; transform: rotate(0); } 78% { opacity: 1; transform: rotate(0); } 81% { transform: rotate(-14deg); } 84% { transform: rotate(6deg); } 87% { transform: rotate(-14deg); } 90% { transform: rotate(6deg); } 93.9% { opacity: 1; transform: rotate(0); } 94%, 100% { opacity: 0; } }
