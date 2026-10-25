@@ -1,3 +1,55 @@
+17.0.3 patch 9 (2026-10-25) - every ESN print uses the new QR sticker
+  - The "Print" button in an invoice's Status History (Invoice Entry and Invoice
+    Records history) used an old plain sticker. It now opens the same Print ESN
+    window as everywhere else: QR sticker, that ESN already ticked, place picker
+    (Left / Middle / Right bottom / Right middle / Right top), A4 preview.
+  - Checked the other ESN prints: Invoice Records QR button, approvals print,
+    Active Task Print ESN and the print basket already use the new sticker
+    and the place picker.
+  - Files: index.html, js/iba-1702-esn.js
+
+17.0.3 patch 8 (2026-10-25) - skip the prayer scene with a click
+  - Click the praying robot (corner robot, expanded-window bar or phone robot)
+    and prayer is skipped until the next prayer time; the robot goes straight
+    to another scene and the desk / forklift / loader keep playing at random.
+    Without a click it follows the schedule as before. (Saved per browser.)
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 7 (2026-10-25) - scenes in the expanded window and on the phone
+  - Expanded assistant window: the robot in the top bar now changes scene by
+    itself (desk, forklift, wheel loader; prayer only in prayer time).
+  - Phone assistant: the robot at the top stands for a while, then plays a scene
+    (same rules), then stands again. Z Flip cover screen uses a smaller size.
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 6 (2026-10-25) - more robot scenes, blue vest
+  - Corner robot idle scenes now pick at random: desk (typing / coffee / wave),
+    forklift lifting a pallet of boxes, wheel loader scooping sand.
+  - Prayer scene: the robot on a prayer mat, calmly standing, bowing,
+    prostrating and sitting. Shows ONLY in Doha prayer times (30 min from each
+    adhan: Fajr 18 deg, Asr standard, Isha = Maghrib + 90 min, computed in the
+    browser, no internet needed); in that time it is the only scene.
+  - Vest is blue and white (IBA colours) on every robot: corner robot, phone
+    robot, and all scenes.
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 5 (2026-10-25) - Outlook email taken out again
+  - martin only asked whether Outlook email was possible; the email part of
+    patch 4 (email links -> Outlook web, Remind "Email" button) is removed.
+    Only WhatsApp Business first on Android stays.
+  - Files: index.html, js/iba-1703-p4.js
+
+17.0.3 patch 4 (2026-10-25) - WhatsApp Business first, email through Outlook web
+  - Android phones: every WhatsApp button (Remind, people cards, approvals,
+    receipts, invoice inquiry) opens WhatsApp Business first. If Business is not
+    installed, it falls back to normal WhatsApp. iPhone / PC unchanged (iOS does
+    not let a web page choose which WhatsApp app opens).
+  - Every email link now opens a new Outlook 365 web message (outlook.office.com)
+    with To / Subject / Body filled in; press Send in Outlook.
+  - Remind box: new "Email" button next to WhatsApp (to the person's saved Email,
+    same text, subject "Reminder: PO ...").
+  - Files: index.html, js/iba-1703-p4.js (new)
+
 17.0.3 patch 3 (2026-10-25) - corner robot sits at the laptop when idle
   - The speech bubble is plain again (no robot inside it).
   - Instead the corner robot itself, while idle, now and then (first after
