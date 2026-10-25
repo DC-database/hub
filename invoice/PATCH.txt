@@ -1,3 +1,66 @@
+17.0.3 patch 3 (2026-10-25) - corner robot sits at the laptop when idle
+  - The speech bubble is plain again (no robot inside it).
+  - Instead the corner robot itself, while idle, now and then (first after
+    30-60 s, then every 1-2.5 min) sits down at a laptop for about 20 s: typing,
+    a coffee sip, a wave, then stands up again. It stops at once when you hover it,
+    open the assistant, or it talks. PC only; off with "Animated assistant" or
+    reduced motion.
+  - Expanded assistant window: the robot and "Good morning, Irwin" now sit in the
+    fixed top bar next to "Back to side panel", so they stay put when the brief
+    scrolls (the brief card keeps only its Print / read-aloud buttons).
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 2 (2026-10-25) - robot in the big Now brief
+  - The same robot-at-a-laptop now sits in the "Good morning, Irwin" line of the
+    Now brief when the assistant window is expanded (it replaces the sun icon there).
+  - Files: index.html, js/iba-1703-desk.js, css/iba-1703-desk.css
+
+17.0.3 patch 1 (2026-10-25) - desktop greeting robot
+  - The desktop greeting / tip bubble ("Good morning, Irwin! I'm here if you need me.")
+    now has the little engineer robot sitting on top of it at a laptop: typing,
+    a coffee sip, then looking up to wave (10 s loop). Phone unchanged.
+  - Respects the "Animated assistant" setting (no bubble when off) and reduced motion.
+  - Files: index.html, js/iba-1703-desk.js (new), css/iba-1703-desk.css (new)
+
+IBA 17.0.3 — over 17.0.2 (patches 1-16)
+=====================================================================
+Version: app.js (APP_VERSION), index.html (IBA_SYSTEM_VERSION) and
+version.json all say 17.0.3, so every browser loads the new files after
+the upload to GitHub.
+
+What changed
+- The ESN sticker is 70% of its first size (about 46 x 15 mm); the Right
+  top / middle / bottom places sit closer together to match.
+- The sticker's last line is the date only, left-aligned like the other
+  lines (the name is already at the end of the ESN).
+- The sticker date shows the approval time too: 22/OCT/2026 THU 12:46AM
+  (from the ESN register; older ESNs without a time show date and day).
+- Print basket uses the new window and sticker: "Add to print" opens the
+  Print ESN window (tick signatures and places), the basket list shows
+  them with a pen button to change, and Print all makes one A4 page each
+  with the new sticker. Items already in the basket print the newest
+  signature on Right bottom.
+- Everything in 17.0.2 patches 10-16 below (glass look, clear buttons,
+  Original PO, Job Records fixes, site Approval / Print ESN / Ready,
+  Who can print ESN in Settings).
+
+Files to copy (over 17.0.2 live)
+  index.html
+  app.js
+  version.json
+  PATCH.txt
+  css/iba-1702-p10.css
+  css/iba-1702-esn.css
+  js/iba-1702-esn.js
+  js/iba-1702-opo.js
+  js/iba-1702-clear.js
+  js/iba-approvals.js
+  js/app-active-tasks.js
+  js/iba-assistant.js
+  js/iba-17-p24.js
+  js/iba-print-basket.js
+
+---------------------------------------------------------------------
 IBA 17.0.2 — over 17.0.1
 =====================================================================
 Version: app.js (APP_VERSION), index.html (IBA_SYSTEM_VERSION) and
@@ -47,9 +110,82 @@ What changed
 - 17.0.2 patch 7: "New entries to Batch" adds every reception entry of a PO
   (e.g. 3 on one PO -> 3 new rows, INV-02 / INV-03 / INV-04), not only the
   first. Save gives each its own next free Inv Entry ID.
+- 17.0.2 patch 8: Now brief "PO Close Out · counting…" no longer gets stuck;
+  it shows the numbers (or "could not be loaded").
+- 17.0.2 patch 9: "Mark urgent" skill is one table (PO, invoice, vendor,
+  with, days, value, note, files), oldest first, For Approval only. CEO
+  Approval can no longer be marked urgent (the CEO signs on paper); the
+  system can still approve CEO Approval when needed.
 - Z Flip cover screen: found by its shape too (up to 600 x 700 and roughly
   square), so the folded square screen gets the cover layout. Fold inner
   screens keep the normal phone view.
+
+- 17.0.2 patch 10 (css/iba-1702-p10.css, new): crystal-glass look pass.
+  * main buttons (Search, Add / Edit Invoice, Save Transaction, Register
+    New Material, Save All Invoices, Add Selected to Batch, Add / Update
+    and the other pop-up Save buttons) are clear teal glass, not solid.
+  * glass lists: Invoice Entry existing invoices, Work History / Job
+    Records, Active Task, Active Job, Material Stock, Payments, Dashboard
+    lists, PO Close Out cards and tab bar; column headers see-through.
+  * Batch "Search and Add Existing Invoices": no extra card around the PO
+    field and Search button.
+  * New Transaction (Transfer / Restock / Usage) and Invoice Entry pop-up:
+    lighter inner cards and fields.
+  * assistant side panel (and phone panel) in glass like its big window.
+  * phone + Z Flip cover: Now brief in bigger type, each task its own
+    glass row, big Approve / Reject / Do on PC / Remind buttons;
+    reminders stacked.
+
+- 17.0.2 patch 11 (js/iba-1702-clear.js, new): a clear (x) button in the
+  assistant's search boxes (chat box, Invoice / Inventory tracking with
+  Site and Year, phone search, skill search); shows only when there is text.
+
+- 17.0.2 patch 12 (js/iba-1702-opo.js, new): Original PO and the PO archive.
+  * Invoice Entry PO file check: if the PO is not in the archive but has an
+    open "Original PO" job record, it shows "Under revision · <attention>".
+  * Job Records > Original PO tab: a green "Back in file" mark on POs that
+    are back in the archive.
+  * Job Records (Super Admin): tick boxes + "Select back in file", "Select
+    all", "Clear" and "Delete selected" (same delete as the row trash).
+
+- 17.0.2 patch 13 (fixes from martin's test):
+  * Job Records tick boxes now sit in the PO column, so they show when the
+    side panel is pinned too (the Job column is hidden then).
+  * The select / delete bar is small and sits on the tab line, right side.
+  * Batch Entry "Search and add existing invoice": results fit the window
+    (no sideways scroll) and have no extra card around them.
+
+- 17.0.2 patch 14 (js/iba-1702-esn.js + css/iba-1702-esn.css, new):
+  site approval, Print ESN and Ready.
+  * For SRV task: new "Approval" button. The site user picks their engineer
+    (name · position · site · mobile, same names marked); it counts as SRV
+    done and goes to the engineer as For Approval.
+  * The engineer approves / rejects as before. An approval goes back to the
+    sender only if the sender is on "Who can print ESN"; otherwise to Irwin.
+    A rejection always goes back to the sender (SRV Done / Approval /
+    Process).
+  * The sender gets "Print ESN" and, after printing, "Ready". Ready hands it
+    to Irwin (status Ready); after that only Irwin can print it.
+  * Irwin's Ready task: Process + "Extra" (send back to sender, Print ESN,
+    history).
+  * "Who can print ESN" (Super Admin, assistant chip): kept by user record +
+    name + mobile. If the name or mobile changes, printing stops (red) until
+    removed and added again.
+  * Print ESN window for every print (QR icon in Invoice Records, approval
+    Print, Extra): tick which signatures, place Left / Middle / Right
+    bottom / Right middle / Right top; only the newest is ticked; small A4
+    preview. New sticker A (QR stamp) with a big bold APPROVED.
+    The print basket keeps its own 1-4 positions and the old sticker.
+  * Also changed: js/iba-approvals.js (where the decision goes),
+    js/app-active-tasks.js (buttons, status Ready), js/iba-assistant.js
+    (Now brief buttons, chip), js/iba-17-p24.js (Access check rules).
+
+- 17.0.2 patch 15 (css/iba-1702-p10.css): Job Records table is full width
+  again (the select / delete bar on the tab line had made an extra column).
+
+- 17.0.2 patch 16: "Who can print ESN" is also in Settings (Super Admin
+  card above Shell Backgrounds): who is on the list, red count if details
+  changed, and "Open the list". The assistant chip still works too.
 
 Files to copy (over 17.0.1)
   index.html
@@ -57,10 +193,19 @@ Files to copy (over 17.0.1)
   version.json
   css/iba-p45.css
   js/iba-assistant.js
+  css/iba-assistant.css
   js/iba-live-counts.js
   js/iba-phone.js
   js/iba-17-p16.js
   css/iba-1702-glass.css           (new)
+  css/iba-1702-p10.css             (new)
+  js/iba-1702-clear.js             (new)
+  js/iba-1702-opo.js               (new)
+  js/iba-1702-esn.js               (new)
+  css/iba-1702-esn.css             (new)
+  js/iba-approvals.js
+  js/app-active-tasks.js
+  js/iba-17-p24.js
   manifest.json, sw.js, icons/     (new)
   js/iba-1702-urgent.js            (new)
   js/iba-1702-reception-batch.js   (new)
