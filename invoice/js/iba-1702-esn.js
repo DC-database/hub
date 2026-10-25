@@ -389,9 +389,15 @@
         const order = ['RB', 'M', 'L', 'RM', 'RT'];
         stickers.forEach((s, i) => { s._place = order[(newest - i) % order.length]; s._on = i === newest; });
         // basket: what was picked before
-        if (Array.isArray(opts.current) && opts.current.length) {
+        // 17.0.3 patch 9: ESN compared loosely (history rows may carry the ESN a
+        // bit differently); when nothing matches the defaults stay
+        const sameEsn = (a, b) => {
+            const x = String(a || '').trim().toUpperCase(), y = String(b || '').trim().toUpperCase();
+            return !!x && !!y && (x === y || x.endsWith(y) || y.endsWith(x));
+        };
+        if (Array.isArray(opts.current) && opts.current.length && stickers.some((s) => opts.current.some((x) => x && sameEsn(x.esn, s.esn)))) {
             stickers.forEach((s) => {
-                const c = opts.current.find((x) => x && x.esn === s.esn);
+                const c = opts.current.find((x) => x && sameEsn(x.esn, s.esn));
                 s._on = !!c;
                 if (c && PLACE_CSS[c.place]) s._place = c.place;
             });
@@ -562,7 +568,35 @@
                 if (inv.esnState === 'ready') { alert('This invoice was handed to ' + superName() + ' as Ready. Only ' + superName() + ' can print its ESN now.'); return; }
             } catch (_) {}
         }
-        return printWindow(po, key);
+        // 17.0.3 patch 9: opts.esn = open with that ESN ticked (history Print)
+        return printWindow(po, key, opts.esn ? { current: [{ esn: opts.esn, place: 'RB' }] } : undefined);
+    }
+
+    // 17.0.3 patch 9: the Print button in an invoice's Status History used its
+    // own plain sticker (printHistorySticker). It now opens the same Print ESN
+    // window (QR sticker A, places) for that invoice with that ESN ticked.
+    let histPo = '', histKey = '';
+    function wrapHistory() {
+        if (typeof window.showInvoiceHistory !== 'function' || typeof window.printHistorySticker !== 'function') return false;
+        if (window.showInvoiceHistory.__ibaEsn) return true;
+        const origShow = window.showInvoiceHistory;
+        const origHist = window.printHistorySticker;
+        const show = function (po, key) { histPo = String(po || ''); histKey = String(key || ''); return origShow.apply(this, arguments); };
+        show.__ibaEsn = true;
+        window.showInvoiceHistory = show;
+        window.printHistorySticker = function (esn) {
+            const modal = document.getElementById('history-modal');
+            const open = modal && !modal.classList.contains('hidden');
+            if (open && histPo && histKey && typeof window.handlePrintSticker === 'function' && window.handlePrintSticker.__ibaEsn) {
+                return window.handlePrintSticker(histKey, 'Invoice', histPo, { esn: esn });
+            }
+            return origHist.apply(this, arguments);
+        };
+        return true;
+    }
+    if (!wrapHistory()) {
+        let hn = 0;
+        const ht = setInterval(() => { if (wrapHistory() || ++hn > 60) clearInterval(ht); }, 500);
     }
 
     async function printForTask(task) {
