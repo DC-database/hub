@@ -1,4 +1,8 @@
-/* 17.0.3 patch 8: click the praying robot (corner, expanded bar or phone) to
+/* 17.0.3 patch 12: the robot's day by Doha time - 22-5 sleep, 5-6 wake up,
+   6-7 shower, 7-7:30 walk to work, 7:30-12 office (desk/forklift/loader),
+   12-13 lunch, 13-17 office, 17-17:30 walk home, 17:30-20 cook / TV,
+   20-22 brush teeth. Prayer time still comes first (click to skip).
+   17.0.3 patch 8: click the praying robot (corner, expanded bar or phone) to
    skip prayer until the next prayer time; the other scenes go on as usual.
    17.0.3 patch 7: the expanded-window bar now changes scene by itself (desk,
    forklift, loader; prayer in prayer time), and the phone assistant's robot
@@ -164,6 +168,113 @@
           '</g>' +
         '</svg>';
 
+    // ---- 17.0.3 patch 12: the robot's day (Doha time) ----
+    const DEFS_ALL = '<defs><linearGradient id="ibaDeskHead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2B6F84"/><stop offset="1" stop-color="#14364F"/></linearGradient>' +
+        '<linearGradient id="ibaDeskHat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDE68A"/><stop offset=".55" stop-color="#FACC15"/><stop offset="1" stop-color="#D99A06"/></linearGradient>' +
+        '<linearGradient id="ibaDeskVest" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FB923C"/><stop offset="1" stop-color="#EA580C"/></linearGradient>' +
+        '<linearGradient id="ibaDeskYel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FDE047"/><stop offset="1" stop-color="#EAB308"/></linearGradient></defs>';
+    // front head centred on 0,0 (24 wide); hat: 'hard' | 'chef' | 'none'; eyes: 'open' | 'shut'
+    function head(x, y, s, o) {
+        o = o || {};
+        let h = '<g transform="translate(' + x + ' ' + y + ') scale(' + (s || 1) + ')"><g class="dy-head">' +
+            '<circle class="dk-ear" cx="-12.5" cy="2" r="2.6"/><circle class="dk-ear" cx="12.5" cy="2" r="2.6"/>' +
+            '<rect class="dk-skull" x="-12" y="-7" width="24" height="17" rx="7"/>' +
+            '<rect class="dk-visor" x="-9" y="-4" width="18" height="10" rx="5"/>';
+        h += o.eyes === 'shut'
+            ? '<path class="dy-shut" d="M-6 1.5 q2 1.6 4 0 M2 1.5 q2 1.6 4 0"/>'
+            : '<g class="dy-eyes' + (o.look ? ' is-' + o.look : '') + '"><rect class="dk-eye" x="-5.5" y="-1.5" width="3" height="4.5" rx="1.5"/><rect class="dk-eye" x="2.5" y="-1.5" width="3" height="4.5" rx="1.5"/></g>';
+        if (o.mouth) h += '<path class="dy-mouth ' + o.mouth + '" d="M-2.5 4.2 q2.5 2 5 0"/>';
+        if (o.hat === 'chef') h += '<path class="dy-chef" d="M-10 -6 h20 v-5 q5 -2 3 -7 q-3 -4 -7 -1 q-3 -5 -6 0 q-4 -3 -7 1 q-2 5 3 7 z"/><rect class="dy-chef-band" x="-10" y="-7.5" width="20" height="3" rx="1"/>';
+        else if (o.hat !== 'none') h += '<path class="dk-hat" d="M-13 -5 Q-13 -17 0 -17 Q13 -17 13 -5 Z"/><rect class="dk-brim" x="-15.5" y="-6.5" width="31" height="3" rx="1.5"/>';
+        return h + '</g></g>';
+    }
+    function torso(x, top, o) {
+        o = o || {};
+        const w = o.w || 24, hh = o.h || 18;
+        let t = '<rect class="dk-torso dy-torso" x="' + (x - w / 2) + '" y="' + top + '" width="' + w + '" height="' + hh + '" rx="7"/>';
+        if (o.vest !== false) t += '<rect class="dk-vest" x="' + (x - w / 2) + '" y="' + (top + 4) + '" width="' + w + '" height="' + (hh - 6) + '" rx="5"/><rect class="dk-stripe" x="' + (x - w / 2) + '" y="' + (top + hh / 2) + '" width="' + w + '" height="2"/>';
+        return t;
+    }
+    const svgOpen = (cls) => '<svg class="iba-desk-svg ' + cls + '" viewBox="0 0 120 84" aria-hidden="true" focusable="false">' + DEFS_ALL;
+    const BED = '<rect class="dy-head-board" x="8" y="34" width="7" height="38" rx="2"/><rect class="dy-bed" x="8" y="58" width="104" height="12" rx="3"/>' +
+        '<rect class="dy-leg" x="10" y="70" width="4" height="7"/><rect class="dy-leg" x="106" y="70" width="4" height="7"/><ellipse class="dy-pillow" cx="27" cy="53" rx="11" ry="5.5"/>';
+
+    const SLEEP_SVG = svgOpen('is-sleep') +
+        '<circle class="dy-moon" cx="104" cy="14" r="7"/><circle class="dy-moon-cut" cx="107" cy="12" r="6"/>' +
+        '<circle class="dy-star" cx="84" cy="10" r="1"/><circle class="dy-star s2" cx="94" cy="26" r=".9"/>' + BED +
+        '<g transform="translate(28 46) rotate(-90)">' + head(0, 0, 1, { hat: 'none', eyes: 'shut' }) + '</g>' +
+        '<rect class="dy-blanket" x="34" y="46" width="76" height="16" rx="7"/><path class="dy-blanket-line" d="M40 52 h64"/>' +
+        '<rect class="dy-cap" x="112" y="64" width="0" height="0"/>' +
+        '<g class="dy-zzz"><text class="dy-z z1" x="40" y="34">z</text><text class="dy-z z2" x="46" y="26">z</text><text class="dy-z z3" x="53" y="17">Z</text></g>' +
+        '</svg>';
+    const WAKE_SVG = svgOpen('is-wake') +
+        '<rect class="dy-window" x="78" y="8" width="26" height="22" rx="2"/><circle class="dy-sun" cx="91" cy="26" r="6"/><path class="dy-window-bar" d="M91 8 v22 M78 19 h26"/>' + BED +
+        '<g class="dy-sit">' + torso(32, 34, { vest: false }) +
+          '<g class="dy-stretch"><path class="dy-arm" d="M21 38 L13 22"/><path class="dy-arm" d="M43 38 L51 22"/><circle class="dk-hand" cx="13" cy="21" r="2.6"/><circle class="dk-hand" cx="51" cy="21" r="2.6"/></g>' +
+          head(32, 24, 1.05, { hat: 'none', mouth: 'is-yawn' }) + '</g>' +
+        '<rect class="dy-blanket" x="20" y="48" width="90" height="14" rx="7"/>' +
+        '<g class="dy-clock"><rect class="dy-clock-body" x="100" y="44" width="12" height="11" rx="5"/><circle class="dy-clock-face" cx="106" cy="49.5" r="3.6"/><path class="dy-ring" d="M98 42 l-2 -2 M114 42 l2 -2 M106 40 v-3"/></g>' +
+        '</svg>';
+    const SHOWER_SVG = svgOpen('is-shower') +
+        '<rect class="dy-tile" x="22" y="10" width="76" height="68" rx="3"/>' +
+        '<path class="dy-pipe" d="M70 4 V12 H58"/><path class="dy-shower-head" d="M50 10 h16 l-3 6 h-10 z"/>' +
+        '<g class="dy-wash">' + torso(58, 48, { vest: false, w: 22, h: 22 }) +
+          '<path class="dy-arm" d="M48 52 Q40 40 50 34"/><path class="dy-arm" d="M68 52 Q76 40 66 34"/>' +
+          head(58, 38, 1.05, { hat: 'none', eyes: 'shut', mouth: 'is-smile' }) +
+          '<g class="dy-foam"><circle cx="50" cy="28" r="3.2"/><circle cx="56" cy="25.5" r="3.6"/><circle cx="63" cy="27" r="3.2"/><circle cx="67" cy="31" r="2.4"/></g></g>' +
+        '<g class="dy-water"><path class="dy-drop d1" d="M52 20 v5"/><path class="dy-drop d2" d="M56 22 v5"/><path class="dy-drop d3" d="M60 19 v5"/><path class="dy-drop d4" d="M64 22 v5"/><path class="dy-drop d5" d="M54 30 v5"/><path class="dy-drop d6" d="M62 30 v5"/></g>' +
+        '<g class="dy-bubbles"><circle class="b1" cx="40" cy="62" r="2.4"/><circle class="b2" cx="78" cy="58" r="3"/><circle class="b3" cx="84" cy="70" r="2"/><circle class="b4" cx="34" cy="70" r="1.8"/></g>' +
+        '<path class="dy-curtain" d="M22 8 h10 q-3 10 0 20 q3 10 0 20 q-3 10 0 30 h-10 z"/><rect class="dy-floor" x="18" y="76" width="84" height="3" rx="1.5"/>' +
+        '</svg>';
+    const WALK_SVG = svgOpen('is-walk') +
+        '<circle class="dy-sun" cx="100" cy="14" r="7"/>' +
+        '<g class="dy-city"><rect x="4" y="38" width="12" height="34"/><rect x="18" y="46" width="10" height="26"/><rect x="88" y="42" width="14" height="30"/><rect x="104" y="50" width="10" height="22"/></g>' +
+        '<rect class="vh-ground" x="0" y="74" width="120" height="3"/><g class="dy-road"><path d="M0 79 h10 M22 79 h10 M44 79 h10 M66 79 h10 M88 79 h10 M110 79 h10 M132 79 h10"/></g>' +
+        '<g class="dy-walker">' +
+          '<path class="pr-leg dy-leg-l" d="M56 58 v14"/><path class="pr-leg dy-leg-r" d="M64 58 v14"/>' +
+          torso(60, 40) +
+          '<g class="dy-swing"><path class="dy-arm" d="M71 44 L74 56"/><rect class="dy-bag" x="70" y="56" width="11" height="8" rx="1.5"/><path class="dy-bag-handle" d="M73 56 q2.5 -3 5 0"/></g>' +
+          '<path class="dy-arm dy-arm-l" d="M49 44 L46 55"/>' +
+          head(60, 29, 1.05, { look: 'right', mouth: 'is-smile' }) +
+        '</g></svg>';
+    const LUNCH_SVG = svgOpen('is-lunch') +
+        '<rect class="dy-wall-clock" x="92" y="8" width="16" height="16" rx="8"/><path class="dy-clock-hands" d="M100 16 v-5 M100 16 h4"/>' +
+        torso(60, 38) + head(60, 27, 1.1, { mouth: 'is-chew' }) +
+        '<g class="dy-eat"><path class="dy-arm" d="M70 42 Q76 44 70 38"/><path class="dy-fork" d="M69 37 l-4 -6"/><circle class="dk-hand" cx="70" cy="38" r="2.4"/></g>' +
+        '<path class="dy-arm" d="M50 42 Q44 48 48 54"/><circle class="dk-hand" cx="48" cy="54" r="2.4"/>' +
+        '<rect class="dy-table" x="16" y="56" width="88" height="5" rx="2"/><rect class="dy-leg" x="22" y="61" width="4" height="16"/><rect class="dy-leg" x="94" y="61" width="4" height="16"/>' +
+        '<ellipse class="dy-plate" cx="60" cy="55" rx="13" ry="3"/><ellipse class="dy-rice" cx="57" cy="52.5" rx="6" ry="2.5"/><circle class="dy-food" cx="65" cy="52.5" r="2.6"/>' +
+        '<rect class="dy-cup" x="82" y="47" width="7" height="9" rx="1.5"/><path class="dk-steam dk-steam-1" d="M85 45 q-2 -3 0 -6"/>' +
+        '</svg>';
+    const COOK_SVG = svgOpen('is-cook') +
+        '<rect class="dy-hood" x="50" y="4" width="40" height="8" rx="2"/>' +
+        torso(42, 40, { vest: false }) + head(42, 29, 1.1, { hat: 'chef', look: 'right', mouth: 'is-smile' }) +
+        '<rect class="dy-apron" x="34" y="44" width="16" height="14" rx="3"/>' +
+        '<g class="dy-flip"><path class="dy-arm" d="M53 46 L62 50"/><path class="dy-pan-handle" d="M60 50 h10"/><path class="dy-pan" d="M68 48 h18 q0 6 -9 6 q-9 0 -9 -6 z"/></g>' +
+        '<g class="dy-egg"><ellipse class="dy-egg-w" cx="77" cy="45" rx="5" ry="2"/><circle class="dy-egg-y" cx="77" cy="44.5" r="1.6"/></g>' +
+        '<g class="dy-cook-steam"><path class="dk-steam dk-steam-1" d="M73 40 q-2 -3 0 -6 q2 -3 0 -6"/><path class="dk-steam dk-steam-2" d="M81 40 q-2 -3 0 -6 q2 -3 0 -6"/></g>' +
+        '<rect class="dy-stove" x="58" y="56" width="50" height="22" rx="2"/><rect class="dy-stove-top" x="58" y="54" width="50" height="3" rx="1"/>' +
+        '<g class="dy-flame"><path d="M72 55 q2 -4 4 0 M78 55 q2 -5 4 0"/></g><circle class="dy-knob" cx="66" cy="66" r="2"/><circle class="dy-knob" cx="74" cy="66" r="2"/>' +
+        '</svg>';
+    const TV_SVG = svgOpen('is-tv') +
+        '<g class="dy-tv"><rect class="dy-tv-frame" x="84" y="16" width="30" height="22" rx="2"/><rect class="dy-tv-screen" x="86" y="18" width="26" height="18" rx="1"/><path class="dy-tv-stand" d="M99 38 v4 M93 42 h12"/></g>' +
+        '<rect class="dy-sofa-back" x="12" y="34" width="62" height="24" rx="8"/>' +
+        torso(42, 40) + head(42, 29, 1.1, { look: 'right', mouth: 'is-laugh' }) +
+        '<path class="dy-arm" d="M31 44 Q26 52 34 55"/><path class="dy-arm" d="M53 44 Q58 52 50 55"/>' +
+        '<g class="dy-popcorn"><path class="dy-bowl" d="M34 52 h16 l-2 6 h-12 z"/><circle cx="38" cy="51" r="1.8"/><circle cx="42" cy="50" r="2"/><circle cx="46" cy="51" r="1.8"/></g>' +
+        '<rect class="dy-sofa-seat" x="8" y="56" width="70" height="12" rx="5"/><rect class="dy-sofa-arm" x="6" y="46" width="9" height="22" rx="4"/><rect class="dy-sofa-arm" x="71" y="46" width="9" height="22" rx="4"/>' +
+        '<rect class="dy-leg" x="12" y="68" width="4" height="6"/><rect class="dy-leg" x="70" y="68" width="4" height="6"/><rect class="dy-rug" x="4" y="74" width="112" height="3" rx="1.5"/>' +
+        '</svg>';
+    const BRUSH_SVG = svgOpen('is-brush') +
+        '<rect class="dy-tile" x="10" y="6" width="100" height="72" rx="3"/>' +
+        '<rect class="dy-mirror" x="40" y="10" width="40" height="30" rx="8"/><path class="dy-shine" d="M46 16 l6 -4 M47 22 l10 -8"/>' +
+        torso(60, 46, { vest: false }) + head(60, 35, 1.1, { hat: 'none' }) +
+        '<g class="dy-brush"><path class="dy-arm" d="M71 50 Q76 44 66 41"/><rect class="dy-toothbrush" x="56" y="39" width="12" height="2.2" rx="1"/><rect class="dy-bristle" x="56" y="37.6" width="3" height="1.6"/></g>' +
+        '<g class="dy-foam s"><circle cx="58" cy="41.5" r="1.4"/><circle cx="61" cy="42.5" r="1.1"/><circle cx="55" cy="42.2" r="1"/></g>' +
+        '<path class="dy-sink" d="M34 64 h52 q-2 10 -26 10 q-24 0 -26 -10 z"/><path class="dy-tap" d="M60 64 v-5 h6"/>' +
+        '<rect class="dy-cup" x="80" y="56" width="7" height="8" rx="1.5"/>' +
+        '</svg>';
+
     // Doha prayer times (Qatar: Fajr 18°, Asr shadow 1, Isha = Maghrib + 90 min).
     const LAT = 25.2854, LON = 51.531, TZ = 3;
     function prayerTimes(when) {
@@ -211,13 +322,38 @@
         desk: { svg: SVG, ms: 20000 },
         forklift: { svg: FORK_SVG, ms: 18000 },
         loader: { svg: LOADER_SVG, ms: 18000 },
-        pray: { svg: PRAY_SVG, ms: 32000 }
+        pray: { svg: PRAY_SVG, ms: 32000 },
+        sleep: { svg: SLEEP_SVG, ms: 16000 },
+        wake: { svg: WAKE_SVG, ms: 16000 },
+        shower: { svg: SHOWER_SVG, ms: 16000 },
+        walk: { svg: WALK_SVG, ms: 16000 },
+        lunch: { svg: LUNCH_SVG, ms: 16000 },
+        cook: { svg: COOK_SVG, ms: 16000 },
+        tv: { svg: TV_SVG, ms: 16000 },
+        brush: { svg: BRUSH_SVG, ms: 16000 }
     };
+    // 17.0.3 patch 12: what the robot does at this time of day (Doha time)
+    function dayScenes(now) {
+        const t = new Date((now || Date.now()) + TZ * 3600000);
+        const m = t.getUTCHours() * 60 + t.getUTCMinutes();
+        const at = (h, mi) => h * 60 + (mi || 0);
+        if (m >= at(22) || m < at(5)) return ['sleep'];
+        if (m < at(6)) return ['wake'];
+        if (m < at(7)) return ['shower'];
+        if (m < at(7, 30)) return ['walk'];
+        if (m < at(12)) return ['desk', 'forklift', 'loader'];
+        if (m < at(13)) return ['lunch'];
+        if (m < at(17)) return ['desk', 'forklift', 'loader'];
+        if (m < at(17, 30)) return ['walk'];
+        if (m < at(20)) return ['cook', 'tv'];
+        return ['brush'];
+    }
     let lastScene = '';
     function pickScene(last) {
         if (inPrayerTime()) return 'pray';
         const not = last === undefined ? lastScene : last;
-        const list = ['desk', 'forklift', 'loader'].filter((k) => k !== not);
+        const now = dayScenes();
+        const list = now.length > 1 ? now.filter((k) => k !== not) : now;
         return list[Math.floor(Math.random() * list.length)];
     }
 
@@ -388,7 +524,7 @@
             box.innerHTML = '<span class="iba-desk-scene is-brief" aria-hidden="true"></span><strong class="iba-desk-bar-hi"></strong>';
             const title = bar.querySelector('.iba-ai-wide-title');
             bar.insertBefore(box, title || bar.firstChild);
-            rotate(box.querySelector('.iba-desk-scene'), inPrayerTime() ? 'pray' : 'desk');
+            rotate(box.querySelector('.iba-desk-scene'));
         }
         const hi = box.querySelector('.iba-desk-bar-hi');
         if (hi.textContent !== hello.textContent) hi.textContent = hello.textContent;
@@ -417,6 +553,6 @@
         }
     }
 
-    window.ibaDeskBot = { VERSION: '17.0.3-p8', addBrief, startDesk, stopDesk, prayerTimes, inPrayerTime, skipPrayer, SCENES, SVG };
+    window.ibaDeskBot = { VERSION: '17.0.3-p12', dayScenes, addBrief, startDesk, stopDesk, prayerTimes, inPrayerTime, skipPrayer, SCENES, SVG };
     if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();

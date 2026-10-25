@@ -49,6 +49,7 @@
         const payload = {
             productID,
             productName: item.productName || '',
+            unit: item.unit || '',                 // 17.0.3 patch 11: material unit
             familyCode: item.familyCode || '',
             family: item.family || '',
             relationCode: item.relationCode || '',

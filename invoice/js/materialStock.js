@@ -1909,7 +1909,7 @@ function renderMaterialStockTable(data) {
             <td class="ms-cell-detail"><div class="ms-product-title"><strong>${item.productName}</strong>${hasPhotoIcon}</div></td>
             <td class="ms-cell-family"><span class="ms-family-badge">${familyDisplay}</span></td>
             <td class="ms-cell-relation"><span class="ms-relation-text">${relationshipDisplay || '-'}</span></td>
-            <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span>${gapIcon}</td>
+            <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span> ${msUnitHtml(item)}${gapIcon}</td>
             <td class="ms-cell-actions">${actionButtons}</td>
         `;
 
@@ -2163,6 +2163,9 @@ window.openSuperAdminEdit = function(key) {
 
     document.getElementById('ms-new-name').value = item.productName;
     document.getElementById('ms-new-id-display').value = item.productID;
+    // 17.0.3 patch 11: Unit (pcs, kg, m ...) can be changed any time
+    const unitInputEdit = document.getElementById('ms-new-unit');
+    if (unitInputEdit) unitInputEdit.value = item.unit || '';
 
     const photoInput = document.getElementById('ms-new-photo-url');
     if (photoInput) photoInput.value = msGetMaterialPhotoInputValue(item);
@@ -2267,6 +2270,15 @@ window.msCloseNewMaterialModal = function() {
 // ==========================================================================
 // 6. SAVE LOGIC
 // ==========================================================================
+// 17.0.3 patch 11: Unit of a material (pcs, kg, m, m² ...)
+function msCleanUnit(v) {
+    return String(v == null ? '' : v).replace(/[\u0000-\u001f<>"]/g, '').replace(/\s+/g, ' ').trim().slice(0, 20);
+}
+function msUnitHtml(item) {
+    const u = msCleanUnit(item && item.unit);
+    return u ? `<span class="ms-unit">${msEscapeHtml(u)}</span>` : '<span class="ms-unit is-missing" title="No unit yet - set it with Edit">-</span>';
+}
+
 async function handleSaveNewMaterial() {
     // Permission guard (same as modal): Admins OR Super Admin Vacation Delegate.
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
@@ -2291,6 +2303,14 @@ async function handleSaveNewMaterial() {
     }
     if (!productDetail) {
         alert('Please enter Item Name.');
+        btn.disabled = false;
+        return;
+    }
+
+    // 17.0.3 patch 11: Unit - needed for new items, can be changed on edit
+    const unitVal = msCleanUnit(document.getElementById('ms-new-unit')?.value);
+    if (!editingItemKey && !unitVal) {
+        alert('Please enter the Unit (e.g. pcs, kg, m).');
         btn.disabled = false;
         return;
     }
@@ -2322,6 +2342,7 @@ async function handleSaveNewMaterial() {
             updates['details'] = STOCK_LEGENDS[familyCode].relations[relationCode];
             updates['photoName'] = photoData.photoName || null;
             updates['photoUrl'] = photoData.photoUrl || null;
+            updates['unit'] = unitVal || null;
 
             updates['updatedBy'] = (typeof currentApprover !== 'undefined' ? currentApprover.Name : 'Irwin');
             updates['lastUpdated'] = firebase.database.ServerValue.TIMESTAMP;
@@ -2372,6 +2393,7 @@ async function handleSaveNewMaterial() {
             const newMaterial = {
                 productID: productID,
                 productName: productDetail,
+                unit: unitVal,
                 familyCode: familyCode,
                 family: familyName,
                 relationCode: relationCode,
@@ -2455,9 +2477,9 @@ function handleDownloadTitles() {
 }
 
 function handleGetTemplate() {
-    const headers = ["Product ID", "Item Name", "F", "RRR", "Stock", "Site"];
-    const row1 = "1.104.00150,Concrete Blocks 200mm,1,104,500,Site 175";
-    const row2 = ",Marble Black Carrara 75x13,2,201,100,Main Store";
+    const headers = ["Product ID", "Item Name", "F", "RRR", "Stock", "Site", "Unit"];
+    const row1 = "1.104.00150,Concrete Blocks 200mm,1,104,500,Site 175,pcs";
+    const row2 = ",Marble Black Carrara 75x13,2,201,100,Main Store,m²";
 
     const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + row1 + "\n" + row2;
     const encodedUri = (typeof ibaCsvHref === 'function' ? ibaCsvHref(csvContent) : encodeURI(csvContent));
@@ -2519,6 +2541,7 @@ function handleUploadCSV(event) {
                 const rrr = cols[3].trim();
                 const pQty = parseFloat(cols[4]) || 0;
                 const pSite = (cols[5] && cols[5] !== "") ? cols[5].trim() : "Main Store";
+                const pUnit = msCleanUnit(cols[6]);   // 17.0.3 patch 11: optional Unit column
 
                 if (pName) {
                     let existingItem = null;
@@ -2530,6 +2553,7 @@ function handleUploadCSV(event) {
 
                     if (existingItem) {
                         if (pName && pName !== "") existingItem.productName = pName;
+                        if (pUnit) existingItem.unit = pUnit;
                         if (!existingItem.sites) existingItem.sites = {};
 
                         let currentSiteQty = parseFloat(existingItem.sites[pSite] || 0);
@@ -2566,6 +2590,7 @@ function handleUploadCSV(event) {
                                 key: newKey,
                                 productID: finalID,
                                 productName: pName,
+                                unit: pUnit,
                                 familyCode: ff,
                                 family: familyName,
                                 relationCode: rrr,
@@ -2771,7 +2796,11 @@ window.msFillStockDetail = function (row) {
         const deleteSite = (isIrwin && !r.qty && !r.gap)
             ? `<span onclick="deleteSiteStock('${msEscapeHtml(item.key)}', '${msEscapeHtml(r.site)}')" class="ms-site-delete" title="Delete empty site">&times;</span>`
             : '';
-        const mainRow = `<tr><td class="ms-bd-site" style="width:70%;">${siteLabel} ${deleteSite}</td><td class="ms-bd-qty" style="width:30%;">${r.qty}</td></tr>`;
+        // 17.0.3 patch 11b: Irwin can set the exact qty at a site (fix a wrong add)
+        const setQty = isIrwin
+            ? ` <button type="button" class="secondary-btn ms-set-qty-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" title="Set the exact quantity at this site (Irwin)"><i class="fa-solid fa-pen"></i> Set</button>`
+            : '';
+        const mainRow = `<tr><td class="ms-bd-site" style="width:70%;">${siteLabel} ${deleteSite}</td><td class="ms-bd-qty" style="width:30%;">${r.qty} ${msUnitHtml(item)}${setQty}</td></tr>`;
         if (!r.gap) return mainRow;
         const alignBtn = canAlign
             ? ` <button type="button" class="secondary-btn ms-align-site-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" title="Set the card qty at this site to the qty from completed movement history">Align</button>`
@@ -2839,6 +2868,13 @@ window.msFillStockDetail = function (row) {
     row.dataset.ready = '1';
 
     // Buttons inside a row filled on demand must be bound here (the list binds only what exists at render time).
+    row.querySelectorAll('.ms-set-qty-btn').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            msSetSiteQty(btn.getAttribute('data-key'), btn.getAttribute('data-site'), btn);
+        });
+    });
     row.querySelectorAll('.ms-align-site-btn').forEach((btn) => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2973,6 +3009,81 @@ async function msAlignSiteToHistory(key, site, btn) {
     if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
 }
 window.msAlignSiteToHistory = msAlignSiteToHistory;
+
+// 17.0.3 patch 11b: Irwin sets the exact qty of a material at one site, e.g.
+// 31 -> 30 after 30 was added to 1 by mistake. Logged in stock_adjustments.
+async function msSetSiteQty(key, site, btn) {
+    const who = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : null;
+    const isSuper = (typeof imIsCurrentUserSuperAdmin === 'function' && imIsCurrentUserSuperAdmin()) || (!!who && who.Name === 'Irwin');
+    if (!isSuper) { alert('Only Irwin can set the exact stock quantity.'); return; }
+    const item = (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).find((x) => x.key === key);
+    if (!item) { alert('Item not loaded. Refresh Material Stock and try again.'); return; }
+    const productID = String(item.productID || item.productId || '').trim();
+    const siteKey = msCanonSiteKey(site);
+    if (!siteKey) return;
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    let live;
+    try { live = (await database.ref(`material_stock/${key}`).once('value')).val(); }
+    catch (e) { alert('Could not read the card. Check connection. Nothing was changed.'); return; }
+    if (!live) { alert('This item was not found. Refresh Material Stock.'); return; }
+    let before = 0;
+    Object.keys(live.sites || {}).forEach((k) => { if (msCanonSiteKey(k) === siteKey) before += parseFloat(live.sites[k]) || 0; });
+    const unit = msCleanUnit(live.unit);
+    const typed = prompt(`SET EXACT QUANTITY (Irwin)\n\n${productID} - ${live.productName || ''}\nSite: ${siteKey}\nNow: ${before}${unit ? ' ' + unit : ''}\n\nType the correct quantity at this site (this replaces the number, it does not add):`, String(before));
+    if (typed === null) return;
+    const after = parseFloat(String(typed).replace(/,/g, '').trim());
+    if (!Number.isFinite(after) || after < 0) { alert('Please type a number of 0 or more. Nothing was changed.'); return; }
+    if (Math.abs(after - before) < 1e-9) { alert('Same quantity. Nothing was changed.'); return; }
+    const reason = prompt(`Reason (optional), e.g. "added 30 by mistake":`, '') || '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    let changed = false;
+    try {
+        const result = await database.ref(`material_stock/${key}`).transaction((current) => {
+            if (!current) return current;
+            if (!current.sites) current.sites = {};
+            let siteVal = 0;
+            Object.keys(current.sites).forEach((k) => {
+                if (msCanonSiteKey(k) !== siteKey) return;
+                siteVal += parseFloat(current.sites[k]) || 0;
+                if (k !== siteKey) delete current.sites[k];
+            });
+            // only if nobody changed this site since the box was shown
+            if (Math.abs(siteVal - before) > 1e-9) return;
+            current.sites[siteKey] = after;
+            let total = 0;
+            Object.values(current.sites).forEach((v) => { total += parseFloat(v) || 0; });
+            current.stockQty = total;
+            current.balanceQty = total;
+            current.lastUpdated = firebase.database.ServerValue.TIMESTAMP;
+            current.updatedBy = who ? who.Name : 'Irwin';
+            return current;
+        });
+        changed = !!(result && result.committed && result.snapshot && result.snapshot.exists());
+    } catch (e) {
+        console.error('Set qty failed:', e);
+        alert('Saving failed: ' + (e && e.message ? e.message : e));
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-pen"></i> Set'; }
+    if (!changed) {
+        alert('Nothing was changed: this card changed meanwhile. The list will refresh, please try again.');
+        localStorage.removeItem(STOCK_CACHE_KEY);
+        if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+        return;
+    }
+    try {
+        await database.ref('stock_adjustments').push({
+            productID, key, site: siteKey, before, after,
+            reason: 'Set exact qty' + (reason ? ': ' + String(reason).slice(0, 200) : ''),
+            by: who ? who.Name : 'Irwin',
+            at: firebase.database.ServerValue.TIMESTAMP
+        });
+    } catch (logError) { console.warn('Stock adjustment log failed:', logError); }
+    try { await window.inventoryPocket?.publishMaterialByKey(key); } catch (pocketError) { console.warn('Inventory Pocket publish after set failed:', pocketError); }
+    if (typeof window.ibaToast === 'function') window.ibaToast(`${productID} at ${siteKey}: ${before} -> ${after}${unit ? ' ' + unit : ''}`); else alert(`Saved. ${productID} at ${siteKey} is now ${after}.`);
+    localStorage.removeItem(STOCK_CACHE_KEY);
+    if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
+}
+window.msSetSiteQty = msSetSiteQty;
 
 window.toggleStockDetail = function(rowId, btn) {
     // 1. Auto-Minimize Others (Close all other open rows)
@@ -3660,7 +3771,7 @@ function downloadFixedStockCSV() {
     if (data.length === 0) { alert("No data to export."); return; }
 
     let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Product ID,Product Name,Category,Total Stock,Location Breakdown\r\n";
+    csvContent += "Product ID,Product Name,Category,Total Stock,Unit,Location Breakdown\r\n";
 
     data.forEach(item => {
         let locText = "";
@@ -3679,6 +3790,7 @@ function downloadFixedStockCSV() {
             `"${(item.productName || '').replace(/"/g, '""')}"`,
             `"${item.family || item.category || ''}"`,
             item.stockQty || 0,
+            `"${msCleanUnit(item.unit)}"`,
             safeLocText
         ];
         csvContent += row.join(",") + "\r\n";

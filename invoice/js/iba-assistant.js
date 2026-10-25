@@ -1978,6 +1978,8 @@
     async function toolBatch(args) {
         const a = args || {};
         if (a._found) return batchAdd(a._found, a, [], { asked: a._asked || [], status_filter: a._label || undefined });
+        // 17.0.3 patch 10: every invoice that got one of these statuses today
+        if (Array.isArray(a.today_statuses) && a.today_statuses.length) return batchToday(a);
         const pos = parsePOs(a.pos || a.po);
         // 17.0.0 patch 34: no POs but a status = every invoice now in that status
         if (!pos.length && String(a.status || '').trim()) return batchByStatus(a);
@@ -2056,6 +2058,67 @@
             f.vendor = pi.vendor || 'N/A';
         });
         return batchAdd(found, a, notAdded, { asked: ['every PO'], status_filter: a.status });
+    }
+    // 17.0.3 patch 10: "Today to Batch" - invoices now in one of the picked
+    // statuses that got there today (Qatar time): status change, approval
+    // request, a history line with that status, or entered today.
+    function qatarDay(ms) { const p = qatarParts(new Date(ms)); return p.y + '-' + p.m + '-' + p.d; }
+    function toMs(v) {
+        if (v == null || v === '') return 0;
+        if (typeof v === 'number') return v;
+        const n = Number(v);
+        if (!isNaN(n) && n > 1e11) return n;
+        const t = Date.parse(v);
+        return isNaN(t) ? 0 : t;
+    }
+    function reachedStatusAt(e) {
+        const want = norm(e.status);
+        let at = 0, by = '';
+        const h = e.history && typeof e.history === 'object' ? Object.values(e.history) : [];
+        h.forEach((x) => {
+            if (!x || typeof x !== 'object') return;
+            const t = toMs(x.timestamp || x.at || x.date);
+            if (t > at && norm(x.status || x.newStatus || '') === want) { at = t; by = x.updatedBy || x.by || ''; }
+        });
+        [e.statusChangedAt, e.statusQueueAt, e.statusUpdatedAt, e.approvalRequestedAt].forEach((v) => { const t = toMs(v); if (t > at) at = t; });
+        const entered = toMs(e.enteredAt || e.createdAt || e.dateAdded || e.originTimestamp);
+        return { at: at || entered, entered: entered, by: by };
+    }
+    async function batchToday(a) {
+        if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
+        if (typeof window.ibaInvoiceEntriesLoad !== 'function') return { result: { error: 'The invoice list is not available on this page.' } };
+        const wants = a.today_statuses.map(norm);
+        const label = a.today_statuses.join(' / ') + ' · today';
+        await ensureBase();
+        const map = poMap();
+        const all = ((await window.ibaInvoiceEntriesLoad()) || {}).data || {};
+        const today = qatarDay(Date.now());
+        let found = [];
+        Object.keys(all).forEach((po) => {
+            const inv = all[po];
+            if (!inv || typeof inv !== 'object') return;
+            Object.keys(inv).forEach((k) => {
+                const e = inv[k];
+                if (!e || typeof e !== 'object' || wants.indexOf(norm(e.status)) === -1) return;
+                const r = reachedStatusAt(e);
+                const hit = (r.at && qatarDay(r.at) === today) || (r.entered && qatarDay(r.entered) === today);
+                if (hit) found.push({ key: k, po: po, inv: e, at: r.at, by: r.by });
+            });
+        });
+        found.sort((p, q) => (wants.indexOf(norm(p.inv.status)) - wants.indexOf(norm(q.inv.status))) || (p.at - q.at) ||
+            String(p.po).localeCompare(String(q.po), undefined, { numeric: true }));
+        const notAdded = [];
+        if (!found.length) notAdded.push({ po: '—', reason: 'No invoice got ' + a.today_statuses.join(' / ') + ' today' });
+        if (found.length > BY_STATUS_MAX) {
+            notAdded.push({ po: '—', reason: (found.length - BY_STATUS_MAX) + ' more were left out (up to ' + BY_STATUS_MAX + ' at a time); save these, then run it again' });
+            found = found.slice(0, BY_STATUS_MAX);
+        }
+        found.forEach((f) => {
+            const pi = poInfo({ po: f.po, rec: map[f.po] || null });
+            f.site = pi.siteLabel || 'N/A';
+            f.vendor = pi.vendor || 'N/A';
+        });
+        return batchAdd(found, a, notAdded, { asked: ['today'], status_filter: label });
     }
     async function batchAdd(found, a, notAdded, head) {
         if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
@@ -2910,6 +2973,17 @@
             build: (v) => {
                 const pos = String(v.pos || '').split(/[\s,;]+/).filter(Boolean);
                 return [{ tool: 'add_to_batch', args: { pos: pos, status: v.status || undefined, latest_only: v.which === 'latest' } }];
+            } },
+        // 17.0.3 patch 10: today's invoices of some statuses -> Batch Entry
+        today_batch: { name: 'Today to Batch', icon: 'fa-calendar-day', superOnly: true, desc: 'Every invoice that got the picked status today (Qatar time) goes into Batch Entry: Under Review, With Accounts, For Approval, CEO Approval, or all four. Up to 100 at a time. Nothing is saved until you press Save. No AI used.',
+            ask: () => [{ key: 'st', label: 'Status today', type: 'select', options: [
+                ['all', 'All four: Under Review, With Accounts, For Approval, CEO Approval'],
+                ['Under Review', 'Under Review'], ['With Accounts', 'With Accounts'], ['For Approval', 'For Approval'], ['CEO Approval', 'CEO Approval'],
+                ['approvals', 'For Approval + CEO Approval']] }],
+            build: (v) => {
+                const st = v.st === 'all' ? ['Under Review', 'With Accounts', 'For Approval', 'CEO Approval']
+                    : v.st === 'approvals' ? ['For Approval', 'CEO Approval'] : [v.st || 'Under Review'];
+                return [{ tool: 'add_to_batch', args: { today_statuses: st } }];
             } },
         // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
         reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv yet are left out and listed. No AI used.',
@@ -5184,7 +5258,7 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -5192,7 +5266,7 @@
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch']],
+        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'recent', 'batch']],
