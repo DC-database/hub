@@ -89,7 +89,9 @@
             return;
         }
 
-        if (readDismissed(latestVersion)) return;
+        // 17.0.4: "mandatory": true in version.json = no Later button
+        var mandatory = data.mandatory === true || data.mandatory === 'true';
+        if (!mandatory && readDismissed(latestVersion)) return;
         if (lastShownForVersion === latestVersion && document.getElementById('iba-system-update-notice')) return;
 
         removeExistingNotice();
@@ -103,11 +105,11 @@
         notice.innerHTML = [
             '<div class="iba-system-update-icon">↻</div>',
             '<div class="iba-system-update-body">',
-                '<div class="iba-system-update-title">System Update Available</div>',
+                '<div class="iba-system-update-title">' + (mandatory ? 'Mandatory System Update' : 'System Update Available') + '</div>',
                 '<div class="iba-system-update-text">' + escapeHtml(message) + '</div>',
                 '<div class="iba-system-update-version">Current: V ' + escapeHtml(currentVersion || 'Unknown') + ' &nbsp;•&nbsp; Latest: V ' + escapeHtml(latestVersion) + '</div>',
                 '<div class="iba-system-update-actions">',
-                    '<button type="button" class="iba-system-update-later">Later</button>',
+                    (mandatory ? '' : '<button type="button" class="iba-system-update-later">Later</button>'),
                     '<button type="button" class="iba-system-update-now">Update Now</button>',
                 '</div>',
             '</div>'

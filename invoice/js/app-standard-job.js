@@ -167,7 +167,8 @@
             }
 
             if (siteSelectChoices) siteSelectChoices.setChoiceByValue(entryData.site || '');
-            if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || '');
+            // 17.0.4 p8: a job record saved with no attention shows "None"
+            if (attentionSelectChoices) attentionSelectChoices.setChoiceByValue(entryData.attention || (isInvoiceJobEntry ? '' : 'None'));
         }
 
         modal.classList.remove('hidden');

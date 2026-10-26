@@ -342,6 +342,9 @@
 
   function clearBoxStyle(el) {
     if (!el || !el.style) return;
+    // 17.0.4 p7: already cleared = no write (every write wakes the page's
+    // change watchers, and this one re-ran itself every 120 ms)
+    if (el.style.getPropertyValue('box-shadow') === 'none' && el.style.getPropertyPriority('border-radius') === 'important') return;
     el.style.setProperty('background', 'none', 'important');
     el.style.setProperty('background-image', 'none', 'important');
     el.style.setProperty('background-color', 'transparent', 'important');
@@ -356,8 +359,8 @@
     if (!isDesktop()) return;
     document.querySelectorAll('.wd-user-profile').forEach(function (profile) {
       if (!profile) return;
-      profile.classList.add('iba-time-profile-source');
-      profile.classList.add('iba-time-profile'); // legacy class kept hidden for older cached styles
+      if (!profile.classList.contains('iba-time-profile-source')) profile.classList.add('iba-time-profile-source');
+      if (!profile.classList.contains('iba-time-profile')) profile.classList.add('iba-time-profile'); // legacy class kept hidden for older cached styles
       clearBoxStyle(profile);
 
       if (profile.dataset.ibaTimeClock === '1') return;
@@ -398,8 +401,13 @@
     ).replace(/^v/i, '');
 
     document.querySelectorAll('.' + CLOCK_CLASS).forEach(function (clock) {
-      clock.classList.remove('iba-time-phase-morning', 'iba-time-phase-day', 'iba-time-phase-evening');
-      clock.classList.add('iba-time-phase-' + phase.key);
+      // 17.0.4 p7: clocks in hidden views are not drawn; only write what changed
+      if (clock.closest('.hidden') || !clock.getClientRects().length) return;
+      const phaseClass = 'iba-time-phase-' + phase.key;
+      if (!clock.classList.contains(phaseClass)) {
+        clock.classList.remove('iba-time-phase-morning', 'iba-time-phase-day', 'iba-time-phase-evening');
+        clock.classList.add(phaseClass);
+      }
       const hourHand = clock.querySelector('.iba-time-hand.hour');
       const minuteHand = clock.querySelector('.iba-time-hand.minute');
       const secondHand = clock.querySelector('.iba-time-hand.second');
@@ -408,9 +416,10 @@
       if (hourHand) hourHand.style.transform = 'rotate(' + hourDeg + 'deg)';
       if (minuteHand) minuteHand.style.transform = 'rotate(' + minuteDeg + 'deg)';
       if (secondHand) secondHand.style.transform = 'rotate(' + secondDeg + 'deg)';
-      if (dateEl) dateEl.textContent = currentDate;
-      if (versionEl) versionEl.textContent = versionText;
-      clock.setAttribute('aria-label', 'Analog clock. Current date ' + currentDate);
+      if (dateEl && dateEl.textContent !== currentDate) dateEl.textContent = currentDate;
+      if (versionEl && versionEl.textContent !== versionText) versionEl.textContent = versionText;
+      const label = 'Analog clock. Current date ' + currentDate;
+      if (clock.getAttribute('aria-label') !== label) clock.setAttribute('aria-label', label);
     });
   }
 

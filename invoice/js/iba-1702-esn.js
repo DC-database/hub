@@ -28,7 +28,7 @@
 (function () {
     'use strict';
 
-    const VERSION = '17.0.2-p14';
+    const VERSION = '17.0.4-p3';
     const SET_PATH = 'system_settings/esn_printers';
     const SRV_STEPS = ['for srv', 'waiting signature', 'waiting approval'];
     const PLACES = [
@@ -416,6 +416,8 @@
             '<div class="iba-esn-a4" aria-label="Page preview"><span class="iba-esn-a4-cap">A4</span></div></div>' +
             '<div class="iba-esn-err" role="alert"></div>',
             '<span class="iba-esn-sp"></span><button type="button" class="iba-esn-btn" data-esn-x>Cancel</button>' +
+            // 17.0.4 patch 3: ESN printers can collect several and print once
+            (!opts.choose && typeof opts.onBasket === 'function' ? '<button type="button" class="iba-esn-btn" data-esn-basket title="Collect it and print several together as one PDF"><i class="fa-solid fa-cart-plus"></i> Add to basket</button>' : '') +
             '<button type="button" class="iba-esn-btn is-go" data-esn-print>' + (opts.choose ? '<i class="fa-solid fa-cart-plus"></i> ' + esc(opts.choose) : '<i class="fa-solid fa-print"></i> Print') + '</button>', true);
         const box = W.w;
         const a4 = box.querySelector('.iba-esn-a4');
@@ -438,9 +440,18 @@
             const clash = Object.keys(used).filter((k) => used[k] > 1);
             W.err(clash.length ? 'Two signatures are on the same place (' + clash.map((k) => PLACES.find((x) => x[0] === k)[1]).join(', ') + '). Pick another place for one of them.' : '');
             box.querySelector('[data-esn-print]').disabled = !p.length || clash.length > 0;
+            const bk = box.querySelector('[data-esn-basket]');
+            if (bk) bk.disabled = !p.length || clash.length > 0;
         };
         box.addEventListener('change', preview);
         preview();
+        const bkBtn = box.querySelector('[data-esn-basket]');
+        if (bkBtn) bkBtn.addEventListener('click', () => {
+            const p = picks().filter((x) => x.on);
+            if (!p.length) return;
+            W.close();
+            opts.onBasket(p.map((x) => ({ esn: x.s.esn || '', place: x.place, name: x.s.approverName || '' })));
+        });
         box.querySelector('[data-esn-print]').addEventListener('click', async () => {
             const p = picks().filter((x) => x.on);
             if (!p.length) return;
@@ -614,7 +625,9 @@
             alert('This invoice is not waiting for you to print any more (status: ' + (inv.status || 'none') + '). Please refresh.');
             return;
         }
+        const pb = window.ibaPrintBasket;
         return printWindow(ids.po, ids.key, {
+            onBasket: pb && pb.allowed && pb.allowed() ? (picks) => pb.add({ po: ids.po, key: ids.key, ref: task.ref || task.invNumber || '', vendor: task.vendorName || '', picks, esnTask: true }) : undefined,
             onPrinted: async (what) => {
                 const me = myName();
                 const ref = invDb().ref('invoice_entries/' + ids.po + '/' + ids.key);
@@ -707,6 +720,28 @@
         await Promise.all([ref.update(updates), ref.child('history').push({ action: 'Sent back to sender', status: 'Approved', by: me, to, timestamp: ts() })]);
         await afterSave(ids.po, ids.key, inv, updates, 'Approved', 'Sent back to ' + to);
         if (typeof window.ibaFinishTaskAction === 'function') window.ibaFinishTaskAction(task.key, 'Sent back to ' + to + '.');
+    }
+
+    // 17.0.4 patch 3: an ESN printed from the print basket counts as printed
+    // (Ready unlocks), only while it is still waiting for this person
+    async function markPrinted(po, key, what) {
+        if (!po || !key) return false;
+        const ref = invDb().ref('invoice_entries/' + po + '/' + key);
+        const inv = (await ref.once('value')).val() || {};
+        if (inv.esnState !== 'approved' || !namedForMe(inv.attention || '') || inv.esnPrintedAt) return false;
+        const me = myName();
+        await Promise.all([
+            ref.update({ esnPrintedAt: ts(), esnPrintedBy: me }),
+            ref.child('history').push({ action: 'ESN printed', status: inv.status || 'Approved', by: me, note: (what || 'print basket') + ' (print basket)', timestamp: ts() })
+        ]);
+        try {
+            (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks) ? userActiveTasks : []).forEach((t) => {
+                const i = taskIds(t);
+                if (i.po === String(po) && i.key === String(key)) { t.esnPrintedAt = Date.now(); t.esnPrintedBy = me; }
+            });
+        } catch (_) {}
+        repaintRows();
+        return true;
     }
 
     // ------------------------------------------------------------------
@@ -938,7 +973,7 @@
     window.ibaEsnFlow = {
         VERSION, returnTo, allowedSync, allowedFresh, loadPrinters, meAllowed,
         openApproval, sendForApproval, printWindow, printForTask, ready, extra, sendBack, openSettings,
-        approvalBtnHtml, rowActionsHtml, choose, basketPages, printPages, placeName, stampWhen, addTimes, repaintRows, paintSettingsCard, briefActs, briefHandles, briefAct, stickerA, printStickers
+        approvalBtnHtml, rowActionsHtml, choose, markPrinted, meAllowedSync, taskIds, openWin, approvers, isSuper, basketPages, printPages, placeName, stampWhen, addTimes, repaintRows, paintSettingsCard, briefActs, briefHandles, briefAct, stickerA, printStickers
     };
     console.info('%cIBA ESN flow ' + VERSION + ' loaded', 'color:#138A97;font-weight:700');
 })();

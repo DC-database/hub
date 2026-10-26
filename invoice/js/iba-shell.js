@@ -197,9 +197,10 @@
     if (secEl) secEl.style.transform = "rotate(" + (s * 6) + "deg)";
     const dateEl = $("iba-shell-date");
     if (dateEl) {
-      dateEl.textContent = now.toLocaleDateString("en-GB", {
+      const dt = now.toLocaleDateString("en-GB", {
         weekday: "short", day: "2-digit", month: "short", year: "numeric"
       });
+      if (dateEl.textContent !== dt) dateEl.textContent = dt;
     }
   }
 
@@ -376,6 +377,7 @@
     const attEl = $("job-attention");
     if (attEl) {
       let filled = false;
+      const keep = attEl.value;
       try { filled = copyChoicesToSelect(attentionSelectChoices, attEl); } catch (_) {}
       if (!filled) {
         try {
@@ -398,6 +400,14 @@
           }
         } catch (_) {}
       }
+      // 17.0.4 p8: "None" is always offered (job saved with no attention)
+      if (attEl.options.length && !Array.prototype.some.call(attEl.options, function (o) { return o.value === "None"; })) {
+        const none = document.createElement("option");
+        none.value = "None";
+        none.textContent = "None (Clear Selection)";
+        attEl.insertBefore(none, attEl.options[1] || null);
+      }
+      if (keep && attEl.value !== keep && Array.prototype.some.call(attEl.options, function (o) { return o.value === keep; })) attEl.value = keep;
     }
   }
 

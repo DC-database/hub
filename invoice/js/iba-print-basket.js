@@ -22,10 +22,15 @@
     const POS = { '1': 'Left', '2': 'Middle', '3': 'Right', '4': 'Auto' };
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    function allowed() {
-        try { if (window.ibaTestAs) return false; } catch (_) {}
+    function isSuperUser() {
         try { if (typeof imIsCurrentUserSuperAdmin === 'function' && imIsCurrentUserSuperAdmin()) return true; } catch (_) {}
         return !!(document.body && document.body.classList.contains('iba-is-super-admin'));
+    }
+    // 17.0.4 patch 3: also the people on "Who can print ESN"
+    function allowed() {
+        try { if (window.ibaTestAs) return false; } catch (_) {}
+        if (isSuperUser()) return true;
+        try { return !!(window.ibaEsnFlow && typeof window.ibaEsnFlow.meAllowedSync === 'function' && window.ibaEsnFlow.meAllowedSync() === true); } catch (_) { return false; }
     }
 
     function load() {
@@ -85,21 +90,23 @@
 
     async function add(item) {
         if (!item || !item.po || !item.key) return false;
-        if (!allowed()) { alert('The print basket is for the Super Admin only.'); return false; }
+        if (!allowed()) { alert('The print basket is only for the Super Admin and the people on "Who can print ESN".'); return false; }
         const list = load();
         const had = list.find((x) => same(x, item));
         const label = 'PO ' + item.po + (item.ref ? ' · ' + item.ref : '') + (item.vendor ? ' · ' + item.vendor : '');
         const E = esn();
         let pos = had ? had.pos : '4', picks = null;
-        if (E) {
+        if (E && Array.isArray(item.picks) && item.picks.length) {
+            picks = item.picks; // already picked in the Print ESN window
+        } else if (E) {
             picks = await E.choose(String(item.po), String(item.key), had && had.picks, had ? 'Save' : 'Add to basket');
             if (!picks) return false;
         } else {
             pos = await askPosition(label, had ? had.pos : '4');
             if (!pos) return false;
         }
-        if (had) { had.pos = pos; if (picks) had.picks = picks; }
-        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', pos: pos, picks: picks || undefined, at: Date.now() });
+        if (had) { had.pos = pos; if (picks) had.picks = picks; if (item.esnTask) had.esnTask = true; }
+        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', pos: pos, picks: picks || undefined, esnTask: item.esnTask ? true : undefined, at: Date.now() });
         save(list);
         const where = picks ? placesText(picks) : POS[pos];
         flash(had ? 'Changed: ' + where : 'Added (' + list.length + '). Click Print basket above to print.');
@@ -168,7 +175,7 @@
             '<div class="iba-pb-scroll"><table class="iba-pb-table"><thead><tr><th>#</th><th>PO</th><th>Vendor</th><th>Stickers</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
             '<p class="iba-pb-msg" hidden></p>' +
             '<div class="iba-pb-foot"><button type="button" data-empty class="is-quiet">Empty basket</button><span></span>' +
-            '<button type="button" data-x>Close</button>' + (typeof window.ibaAddToBatch === 'function' ? '<button type="button" data-tobatch title="Put these invoices in Batch Entry and empty the basket"><i class="fa-solid fa-table-list"></i> To Batch Entry</button>' : '') + '<button type="button" data-print class="is-main"><i class="fa-solid fa-print"></i> Print all / Save as PDF</button></div>');
+            '<button type="button" data-x>Close</button>' + (typeof window.ibaAddToBatch === 'function' && isSuperUser() ? '<button type="button" data-tobatch title="Put these invoices in Batch Entry and empty the basket"><i class="fa-solid fa-table-list"></i> To Batch Entry</button>' : '') + '<button type="button" data-print class="is-main"><i class="fa-solid fa-print"></i> Print all / Save as PDF</button></div>');
         w.addEventListener('change', (e) => {
             const sel = e.target.closest('select[data-pos]');
             if (!sel) return;
@@ -235,6 +242,12 @@
             if (!r.pages.length) { say('None of these invoices has an approval sticker yet.', true); return; }
             say(r.missing.length ? 'No approval found for ' + r.missing.join(', ') + ': left out. Printing ' + r.pages.length + ' page(s).' : 'Printing ' + r.pages.length + ' page(s)...', !!r.missing.length);
             esn().printPages(r.pages);
+            // 17.0.4 patch 3: ESN tasks printed from the basket count as printed (Ready unlocks)
+            if (typeof esn().markPrinted === 'function') {
+                list.filter((x) => x.esnTask && r.missing.indexOf('PO ' + x.po + (x.ref ? ' (' + x.ref + ')' : '')) === -1).forEach((x) => {
+                    Promise.resolve(esn().markPrinted(x.po, x.key, x.picks ? placesText(x.picks) : '')).catch((e) => console.warn('[basket] mark printed', e));
+                });
+            }
             setTimeout(() => { if (load().length) afterPrint(); }, 1500);
             return;
         }
@@ -267,7 +280,7 @@
     // (to update them together), which also empties the basket.
     function afterPrint() {
         const list = load();
-        const canBatch = typeof window.ibaAddToBatch === 'function';
+        const canBatch = typeof window.ibaAddToBatch === 'function' && isSuperUser();
         const w = layer('iba-pb-after',
             '<div class="iba-pb-head"><b>Printed / saved?</b><span>' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + ' in the basket</span></div>' +
             '<p class="iba-pb-sub">' + (canBatch ? '<b>Move to Batch Entry</b> puts them in the Batch Entry list (nothing is saved until you press Save there) and empties the basket.' : 'Empty the basket now, or keep the list.') + '</p>' +
@@ -303,6 +316,17 @@
     // ------------------------------------------------------------------
     function addActiveTaskButtons() {
         if (!allowed()) { document.querySelectorAll('.iba-pb-add-btn').forEach((b) => b.remove()); return; }
+        // 17.0.4 patch 3: next to Print ESN as well (ESN printers)
+        document.querySelectorAll('.iba-esn-print-btn').forEach((p) => {
+            if (p.nextElementSibling && p.nextElementSibling.classList.contains('iba-pb-add-btn')) return;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'iba-pb-add-btn wd-row-action wd-action-gold';
+            b.title = 'Add to the print basket (print several as one PDF)';
+            b.setAttribute('data-esn-task', p.getAttribute('data-key') || '');
+            b.innerHTML = '<i class="fa-solid fa-cart-plus"></i>';
+            p.insertAdjacentElement('afterend', b);
+        });
         document.querySelectorAll('.iba-apv-print-btn').forEach((p) => {
             if (p.nextElementSibling && p.nextElementSibling.classList.contains('iba-pb-add-btn')) return;
             const b = document.createElement('button');
@@ -327,6 +351,14 @@
             const t = (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) ? userActiveTasks.find((x) => x && String(x.key) === key) : null;
             if (t) { ref = t.ref || ''; vendor = t.vendorName || ''; }
         } catch (_) {}
+        const et = b.getAttribute('data-esn-task');
+        if (et) {
+            const t = (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) ? userActiveTasks.find((x) => x && String(x.key) === et) : null;
+            const ids = t && window.ibaEsnFlow && window.ibaEsnFlow.taskIds ? window.ibaEsnFlow.taskIds(t) : null;
+            if (!t || !ids || !ids.po || !ids.key) { alert('Task not found. Please refresh.'); return; }
+            add({ po: ids.po, key: ids.key, ref: t.ref || '', vendor: t.vendorName || '', esnTask: true });
+            return;
+        }
         add({ po: b.getAttribute('data-po'), key: b.getAttribute('data-invkey'), ref, vendor });
     }, true);
 

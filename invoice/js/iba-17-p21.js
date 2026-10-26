@@ -128,9 +128,13 @@
         const c = document.querySelector('.iba-shell-left .iba-analog-clock[data-face]');
         if (!c) return;
         const sup = isSuper();
-        c.classList.toggle('is-pickable', sup);
-        if (sup) { c.setAttribute('role', 'button'); c.setAttribute('tabindex', '0'); c.setAttribute('title', 'Change the clock face (for everyone)'); }
-        else { c.removeAttribute('role'); c.removeAttribute('tabindex'); c.removeAttribute('title'); }
+        // only write what changed (each write wakes every change watcher)
+        if (c.classList.contains('is-pickable') !== sup) c.classList.toggle('is-pickable', sup);
+        if (sup) {
+            if (c.getAttribute('role') !== 'button') c.setAttribute('role', 'button');
+            if (c.getAttribute('tabindex') !== '0') c.setAttribute('tabindex', '0');
+            if (c.getAttribute('title') !== 'Change the clock face (for everyone)') c.setAttribute('title', 'Change the clock face (for everyone)');
+        } else if (c.hasAttribute('role')) { c.removeAttribute('role'); c.removeAttribute('tabindex'); c.removeAttribute('title'); }
     }
     function buildClock() {
         const c = document.querySelector('.iba-shell-left .iba-analog-clock');
@@ -202,7 +206,7 @@
         const d = document.querySelector('.iba-analog-clock .iba-clock-dig-hm');
         if (d && d.textContent !== hm) d.textContent = hm;
         const s = document.querySelector('.iba-analog-clock .iba-clock-dig-sec i');
-        if (s) s.style.width = ((now.getSeconds() + 1) / 60 * 100).toFixed(1) + '%';
+        if (s && s.getClientRects().length) s.style.width = ((now.getSeconds() + 1) / 60 * 100).toFixed(1) + '%';
     }
 
     let queued = false;

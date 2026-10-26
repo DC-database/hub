@@ -6,6 +6,10 @@
   'use strict';
 
   const PATH = 'system_settings/general_announcement';
+  // 17.0.4 p7: render() runs every 1.5 s; change classes only when needed
+  // (a class write wakes every change watcher on the page, even unchanged)
+  function cAdd(el) { if (!el) return; for (let i = 1; i < arguments.length; i++) if (!el.classList.contains(arguments[i])) el.classList.add(arguments[i]); }
+  function cRem(el) { if (!el) return; for (let i = 1; i < arguments.length; i++) if (el.classList.contains(arguments[i])) el.classList.remove(arguments[i]); }
   const DEFAULT_ANNOUNCEMENT = {
     enabled: true,
     title: 'Inventory Maintenance Notice',
@@ -172,7 +176,7 @@
   function applySidebarState() {
     const box = el('general-important-announcement');
     if (!box) return;
-    box.classList.toggle('gia-collapsed', !sidebarExpanded);
+    if (box.classList.contains('gia-collapsed') !== !sidebarExpanded) box.classList.toggle('gia-collapsed', !sidebarExpanded);
     box.setAttribute('aria-expanded', sidebarExpanded ? 'true' : 'false');
   }
 
@@ -189,8 +193,8 @@
       box.style[prop] = '';
     });
     document.body.appendChild(box);
-    box.classList.add('gia-main-popup');
-    box.classList.remove('gia-welcome-card', 'gia-collapsed', 'hidden');
+    cAdd(box, 'gia-main-popup');
+    cRem(box, 'gia-welcome-card', 'gia-collapsed', 'hidden');
     box.setAttribute('aria-expanded', 'true');
   }
 
@@ -207,8 +211,8 @@
     ['position','width','minWidth','maxWidth','minHeight','maxHeight','margin','transform','top','left','right','bottom'].forEach(function (prop) {
       box.style[prop] = '';
     });
-    box.classList.remove('gia-main-popup', 'gia-welcome-card');
-    box.classList.remove('hidden');
+    cRem(box, 'gia-main-popup', 'gia-welcome-card');
+    cRem(box, 'hidden');
     applySidebarState();
   }
 
@@ -272,15 +276,15 @@
 
     // Keep the global notice off the login screen; it becomes visible after a user is authenticated.
     if (!getCurrentUserName()) {
-      document.querySelector('#dashboard-view')?.classList.remove('gia-welcome-layout');
-      box.classList.add('hidden');
+      cRem(document.querySelector('#dashboard-view'), 'gia-welcome-layout');
+      cAdd(box, 'hidden');
       return;
     }
 
     const cfg = activeConfig();
     if (!cfg) {
-      document.querySelector('#dashboard-view')?.classList.remove('gia-welcome-layout');
-      box.classList.add('hidden');
+      cRem(document.querySelector('#dashboard-view'), 'gia-welcome-layout');
+      cAdd(box, 'hidden');
       if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
       return;
     }
@@ -307,22 +311,22 @@
       maxPopupShownThisPageLoad = true;
       isMainPortalPopup = true;
       poppedOutFromSidebar = false;
-      dashboardView?.classList.add('gia-welcome-layout');
-      box.classList.remove('gia-main-popup');
-      box.classList.add('gia-welcome-card');
-      box.classList.remove('gia-collapsed', 'hidden');
+      cAdd(dashboardView, 'gia-welcome-layout');
+      cRem(box, 'gia-main-popup');
+      cAdd(box, 'gia-welcome-card');
+      cRem(box, 'gia-collapsed', 'hidden');
       if (dashboardView && box.parentElement !== dashboardView) dashboardView.appendChild(box);
       positionWelcomeAnnouncement();
       sidebarExpanded = true;
       if (sidebarCollapseTimer) { clearTimeout(sidebarCollapseTimer); sidebarCollapseTimer = null; }
     } else if (sidebar) {
-      document.querySelector('#dashboard-view')?.classList.remove('gia-welcome-layout');
+      cRem(document.querySelector('#dashboard-view'), 'gia-welcome-layout');
       if (poppedOutFromSidebar) {
         // User explicitly opened the notice from the sidebar. Keep it centered
         // until they click it again to minimize it back into the sidebar.
         isMainPortalPopup = true;
-        box.classList.add('gia-main-popup');
-        box.classList.remove('gia-collapsed', 'hidden');
+        cAdd(box, 'gia-main-popup');
+        cRem(box, 'gia-collapsed', 'hidden');
         box.setAttribute('aria-expanded', 'true');
       } else if (area && !modulePopupShownThisPageLoad[area]) {
         // First visit to this module during this page load: automatically show
@@ -333,27 +337,27 @@
       } else {
         isMainPortalPopup = false;
         moveAnnouncementToSidebar();
-        box.classList.remove('gia-main-popup');
-        box.classList.remove('hidden');
+        cRem(box, 'gia-main-popup');
+        cRem(box, 'hidden');
         scheduleSidebarCollapse(sidebar, false);
       }
     } else {
       // Authenticated non-module screens: keep the existing safe hidden state.
       isMainPortalPopup = false;
-      box.classList.remove('gia-main-popup', 'gia-welcome-card', 'gia-collapsed');
-      box.classList.add('hidden');
+      cRem(box, 'gia-main-popup', 'gia-welcome-card', 'gia-collapsed');
+      cAdd(box, 'hidden');
     }
     const cd = el('gia-countdown-wrap');
     const cdLabel = el('gia-countdown-label');
     const cdValue = el('gia-countdown');
     const target = cfg.countdown !== false ? countdownTarget(cfg) : null;
     if (target) {
-      cd.classList.remove('hidden');
+      cRem(cd, 'hidden');
       cdLabel.textContent = target.label;
       cdValue.textContent = formatCountdown(target.time - Date.now());
       if (!countdownTimer) countdownTimer = setInterval(updateCountdown, 1000);
     } else {
-      cd.classList.add('hidden');
+      cAdd(cd, 'hidden');
       if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
     }
   }
@@ -364,7 +368,7 @@
     const target = cfg.countdown !== false ? countdownTarget(cfg) : null;
     const wrap = el('gia-countdown-wrap');
     if (!target || !wrap) { render(); return; }
-    wrap.classList.remove('hidden');
+    cRem(wrap, 'hidden');
     el('gia-countdown-label').textContent = target.label;
     el('gia-countdown').textContent = formatCountdown(target.time - Date.now());
   }
@@ -498,10 +502,10 @@
     const panel = el('general-announcement-settings-container');
     if (!panel) return;
     if (isSuperAdmin()) {
-      panel.classList.remove('hidden');
+      cRem(panel, 'hidden');
       if (announcementSourceLoaded && !panel.dataset.filled) { fillManager(announcement); panel.dataset.filled = '1'; }
     } else {
-      panel.classList.add('hidden');
+      cAdd(panel, 'hidden');
     }
   }
 

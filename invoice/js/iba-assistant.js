@@ -1575,7 +1575,8 @@
             with_accounts_on: accAt ? fmtDate(accAt) : undefined, paid_on: paidAt ? fmtDate(paidAt) : undefined,
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
             steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) })),
-            _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0
+            _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0,
+            _paid_t: Number(paidAt) || undefined
         };
     }
     function receptionItems(jobs, po, acc) {
@@ -2926,6 +2927,11 @@
         await openTransferModal(type || 'Transfer');
     }
     const SKILL_TPL = {
+        // 17.0.4 patch 3: LPO emails to vendors (js/iba-lpo-mail.js)
+        lpo_mail: { name: 'LPO emails', icon: 'fa-envelope-open-text', desc: 'Type PO numbers: one Outlook email per PO to the vendor (email from Vendors.csv), subject and body filled from the PO list and Site.csv. Attach the LPO and send.',
+            check: () => !!(window.ibaLpoMail && window.ibaLpoMail.canSync()), ask: () => [], action: () => { if (window.ibaLpoMail) window.ibaLpoMail.open(); } },
+        lpo_mailers: { name: 'Who can send LPO emails', icon: 'fa-envelope-open-text', superOnly: true, desc: 'Pick the people who may use LPO emails. Kept by user record + name + mobile.',
+            ask: () => [], action: () => { if (window.ibaLpoMail) window.ibaLpoMail.openSettings(); } },
         // 17.0.0 patch 24: who can open what (js/iba-17-p24.js)
         // 17.0.2 patch 14: who may print ESN from their own Active Task (js/iba-1702-esn.js)
         esn_printers: { name: 'Who can print ESN', icon: 'fa-stamp', superOnly: true, desc: 'Pick the people who print the ESN of invoices their engineer approved (site Approval button) and then press Ready. Kept by user record + name + mobile; a change switches printing off until re-added.',
@@ -3042,7 +3048,7 @@
                 return [{ tool: 'recent_status_changes', args: a }];
             } }
     };
-    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
+    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.check || !!t.check()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
     function askTplValues(title, fields) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
@@ -3518,6 +3524,8 @@
               '<button type="button" data-chip-basket><i class="fa-solid fa-cart-shopping"></i> Print basket</button>' +
               '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
               '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
+              '<button type="button" data-run-tpl="lpo_mail" data-tpl-chip><i class="fa-solid fa-envelope-open-text"></i> LPO emails</button>' +
+              '<button type="button" data-run-tpl="lpo_mailers" data-tpl-chip><i class="fa-solid fa-user-pen"></i> Who can send LPO emails</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
@@ -3798,7 +3806,20 @@
         }
         // 15.0.0 patch 9: a PO in a list shows where its invoices are (with
         // "Open in Invoice Records"); before it tried to open Invoice Entry.
-        if (b.dataset.aiPo && inWide) { e.preventDefault(); return runTrack({ po: b.dataset.aiPo }, wideMore()); }
+        if (b.hasAttribute('data-more-close')) {
+            const box = $('iba-ai-wide-more');
+            if (box) box.innerHTML = '';
+            document.querySelectorAll('#iba-ai-panel li.is-picked').forEach((x) => x.classList.remove('is-picked'));
+            return;
+        }
+        if (b.dataset.aiPo && inWide) {
+            e.preventDefault();
+            // 17.0.3 patch 14: mark the row the open PO came from
+            document.querySelectorAll('#iba-ai-panel li.is-picked').forEach((x) => x.classList.remove('is-picked'));
+            const li = b.closest('li');
+            if (li && li.closest('.iba-ai-card.is-brief')) li.classList.add('is-picked');
+            return runTrack({ po: b.dataset.aiPo }, wideMore());
+        }
         if (b.dataset.aiPo) { e.preventDefault(); showView('chat'); return runTrack({ po: b.dataset.aiPo }); }
         if (b.dataset.aiRecords) { e.preventDefault(); if (wide) closeWide(); return openInRecords(b.dataset.aiRecords); }
         if (b.hasAttribute('data-rem-all')) {
@@ -3957,6 +3978,21 @@
         let box = $('iba-ai-wide-more');
         const body = $('iba-ai-wide-body');
         if (!box && body) { box = document.createElement('div'); box.id = 'iba-ai-wide-more'; body.appendChild(box); }
+        // 17.0.3 patch 14: the opened card stays pinned on the right as tall as
+        // the window, with a close button
+        if (body && !body.__ibaH) {
+            body.__ibaH = true;
+            const setH = () => body.style.setProperty('--iba-wide-h', body.clientHeight + 'px');
+            setH();
+            try { new ResizeObserver(setH).observe(body); } catch (_) {}
+        }
+        if (box && !box.__ibaClose) {
+            box.__ibaClose = true;
+            const addX = () => {
+                if (box.firstElementChild && !box.querySelector(':scope > .iba-ai-more-close')) box.insertAdjacentHTML('afterbegin', '<button type="button" class="iba-ai-more-close" data-more-close title="Close"><i class="fa-solid fa-xmark"></i></button>');
+            };
+            try { new MutationObserver(addX).observe(box, { childList: true }); } catch (_) {}
+        }
         setTimeout(() => { try { box.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {} }, 60);
         return box;
     }
@@ -4169,16 +4205,22 @@
                 (urg ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> ' + urg + ' urgent</span>' : '') +
                 '<span class="iba-ai-ttab-step"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(grp.name)) + '</span>' +
                 (total ? '<span class="iba-ai-ttab-total">QAR ' + esc(money(total)) + '</span>' : '') + '</div>' +
-                '<ul class="iba-ai-rows iba-ai-ttab" data-brief-list="tasks-' + g + '">' +
-                '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">Site</span><span class="c-main">Vendor · invoice</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
+                // 17.0.3 patch 14: one fact per column, like "In the company"
+                '<ul class="iba-ai-rows iba-ai-ttab is-tk2" data-brief-list="tasks-' + g + '">' +
+                '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">Site</span><span class="c-vend">Vendor</span><span class="c-urg">Urgent</span><span class="c-no">Inv no.</span><span class="c-val">Value (QAR)</span><span class="c-rem">Remarks</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
                 list.map((t, i) => {
                     const u = isUrgentNote(t.note);
                     const site = taskSite(t);
-                    return '<li' + (i >= MORE ? ' hidden' : '') + (u ? ' class="is-urgent"' : '') + '>' +
+                    const rm = String(t.note || '').replace(/\burgent\b[\s:·,\-–—!]*/i, '').trim();
+                    const dash = '<span class="iba-ai-dash">—</span>';
+                    return '<li' + (i >= MORE ? ' hidden' : '') + (u ? ' class="is-urgent"' : '') + (t.note ? ' title="' + esc(String(t.note).slice(0, 300)) + '"' : '') + '>' +
                         '<span class="c-po">' + poLink(t.po) + '</span>' +
                         '<span class="c-site">' + esc(site || '—') + '</span>' +
-                        '<span class="iba-ai-grow c-main">' + esc(t.vendor || t.type || '—') + (u ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
-                            '<small>' + esc([t.ref, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small></span>' +
+                        '<span class="c-vend" title="' + esc(t.vendor || t.type || '') + '">' + esc(t.vendor || t.type || '—') + '</span>' +
+                        '<span class="c-urg">' + (u ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : dash) + '</span>' +
+                        '<span class="c-no" title="' + esc(t.ref || '') + '">' + esc(t.ref || '—') + '</span>' +
+                        '<span class="c-val">' + (t.amount ? esc(money(t.amount)) : dash) + '</span>' +
+                        '<span class="c-rem">' + (rm ? esc(rm.slice(0, 140)) : dash) + '</span>' +
                         '<span class="c-age">' + ageChip(daysSince(t.at)) + '</span>' +
                         '<span class="c-act">' + taskActionsHtml(t) +
                         '<button type="button" class="iba-ai-mini iba-ai-go is-open" data-open-task="' + esc(JSON.stringify({ key: t.key || '', po: t.po || '', ref: t.ref || '' })) + '" title="Open it in Active Task"><i class="fa-solid fa-arrow-up-right-from-square"></i></button></span></li>';
@@ -4842,13 +4884,35 @@
         if (r.year_rule) h += '<p class="iba-ai-foot">' + esc(r.year_rule) + '.</p>';
         r.pos.forEach((p) => {
             const inRecords = p.items.some((it) => it.kind === 'invoice');
-            h += '<div class="iba-ai-trk-po"><div class="iba-ai-trk-po-head"><b>PO ' + esc(p.po) + '</b><span>' + esc([p.vendor, p.site, p.year].filter(Boolean).join(' · ')) + '</span>' +
+            // 17.0.3 patch 14: paid invoices fold into one line; the open ones
+            // are grouped (not with Accounts yet / with Accounts) and say who acts
+            const isPaid = (it) => it.stage_index === 5 && !it.side_status;
+            const isAcc = (it) => it.stage_index === 4 && !it.side_status;
+            const paid = p.items.filter(isPaid);
+            const accs = p.items.filter(isAcc);
+            const notYet = p.items.filter((it) => !isPaid(it) && !isAcc(it));
+            const allPaid = p.items.length > 0 && paid.length === p.items.length;
+            h += '<div class="iba-ai-trk-po' + (allPaid ? ' is-all-paid' : '') + '"><div class="iba-ai-trk-po-head"><b>PO ' + esc(p.po) + '</b>' + (allPaid ? '<span class="iba-ai-paid-pill"><i class="fa-solid fa-check"></i> All paid</span>' : '') + '<span>' + esc([p.vendor, p.site, p.year].filter(Boolean).join(' · ')) + '</span>' +
                 (p.po_value ? '<span class="iba-ai-trk-val">QAR ' + esc(p.po_value) + '</span>' : '') + '</div>';
             if (!p.items.length) h += '<p class="iba-ai-empty">No invoice received yet for this PO - it is not in Invoice Records.</p>';
-            p.items.forEach((it) => {
+            const sumOf = (l) => l.reduce((n, it) => n + num(it.value), 0);
+            if (p.items.length > 1 && !allPaid) {
+                const vP = sumOf(paid), vA = sumOf(accs), vN = sumOf(notYet), vAll = vP + vA + vN;
+                const byVal = vAll > 0;
+                const parts = byVal ? [vP, vA, vN] : [paid.length, accs.length, notYet.length];
+                const tot = parts[0] + parts[1] + parts[2] || 1;
+                const lbl = (n, c) => byVal ? money(n) : c + ' inv.';
+                const left = byVal && p.po_value ? num(p.po_value) - vAll : null;
+                h += '<div class="iba-ai-trk-sum">' +
+                    (byVal ? '<div class="iba-ai-trk-sumrow"><span>Invoiced <b>' + esc(money(vAll)) + '</b></span>' + (left !== null ? '<span>Left on PO <b>' + esc(money(left)) + '</b></span>' : '') + '</div>' : '') +
+                    '<div class="iba-ai-trk-prog"><i class="is-p" style="width:' + (parts[0] / tot * 100).toFixed(1) + '%"></i><i class="is-a" style="width:' + (parts[1] / tot * 100).toFixed(1) + '%"></i><i class="is-n" style="width:' + (parts[2] / tot * 100).toFixed(1) + '%"></i></div>' +
+                    '<div class="iba-ai-trk-sumrow"><span class="is-p">● Paid ' + esc(lbl(vP, paid.length)) + '</span><span class="is-a">● With Accounts ' + esc(lbl(vA, accs.length)) + '</span><span class="is-n">● Not yet ' + esc(lbl(vN, notYet.length)) + '</span></div></div>';
+            }
+            const grpHead = (txt, n) => p.items.length > 1 ? '<div class="iba-ai-trk-grp">' + txt + ' · ' + n + '</div>' : '';
+            const renderIt = (it) => {
                 const side = !!it.side_status;
                 const now = it.side_status || it.status;
-                const who = [it.stage_index === 4 && !side ? 'payment in process' : '', it.with ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? (it.stage_index === 5 && !side ? 'paid ' : 'since ') + it.since : ''].filter(Boolean).join(' · ');
+                const who = [it.stage_index === 4 && !side ? 'payment in process · needs Accounts to mark Paid' : '', it.with && !(it.stage_index === 4 && !side) ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? (it.stage_index === 5 && !side ? 'paid ' : 'since ') + it.since : ''].filter(Boolean).join(' · ');
                 h += '<div class="iba-ai-trk-item' + (side ? ' is-side' : '') + '">' +
                     '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + (it.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') + '</strong><small>' + esc(who) + '</small></span>' +
                     (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
@@ -4863,7 +4927,18 @@
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
-            });
+            };
+            if (notYet.length) { h += grpHead('Not with Accounts yet', notYet.length); notYet.forEach(renderIt); }
+            if (accs.length) { h += grpHead('With Accounts · payment in process', accs.length); accs.forEach(renderIt); }
+            if (paid.length) {
+                const last = paid.slice().sort((a, b) => (b._paid_t || 0) - (a._paid_t || 0));
+                const vP = sumOf(paid);
+                h += '<details class="iba-ai-paid"><summary><span class="iba-ai-paid-ck"><i class="fa-solid fa-check"></i> ' + paid.length + ' paid</span>' +
+                    '<span class="iba-ai-paid-txt">' + esc([vP ? 'QAR ' + money(vP) : '', last[0] && last[0].paid_on ? 'last paid ' + last[0].paid_on : ''].filter(Boolean).join(' · ')) + '</span>' +
+                    '<span class="iba-ai-paid-exp"></span></summary><div class="iba-ai-paid-list">' +
+                    last.map((it) => '<div><button type="button" class="iba-ai-paid-no" data-ai-records="' + esc(p.po) + '" title="Open this PO in Invoice Records">' + esc(it.invoice_no) + '</button><span>' + esc(it.paid_on || '') + '</span><b>' + esc(it.value || '') + '</b>' +
+                        '<span class="iba-ai-paid-files">' + (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(it.srv) + '</span></div>').join('') + '</div></details>';
+            }
             // 15.0.0 patch 27: Remind also for items still at Reception or with the QS
             const openIt = p.items.filter((it) => it.stage_index < 5);
             if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
@@ -5021,13 +5096,15 @@
             const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
             let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> ' + esc(greetingWord() + (firstName() ? ', ' + firstName() : '')) +
                 '<span class="iba-ai-head-actions">' + (canSpeak() ? '<button type="button" class="iba-ai-mini" data-brief-say title="Read the brief aloud"><i class="fa-solid fa-volume-high"></i></button>' : '') + '<button type="button" class="iba-ai-mini" data-brief-print title="Print or save as PDF: a checklist with charts"><i class="fa-solid fa-print"></i> Print</button></span></div>' +
-                '<div class="iba-ai-stats">' +
+                // 17.0.3 patch 14: urgent and over-7-days as tiles too (one look)
+                '<div class="iba-ai-stats is-six">' +
                   '<div><b>' + esc(r.active_task) + '</b><span>Your tasks</span></div>' +
+                  '<div class="is-urg' + (nUrg ? ' is-on' : '') + '"><b>' + esc(nUrg) + '</b><span>Urgent</span></div>' +
+                  '<div class="is-late' + (nLate ? ' is-on' : '') + '"><b>' + esc(nLate) + '</b><span>Over 7 days</span></div>' +
                   '<div><b>' + esc(r.active_job) + '</b><span>Inventory</span></div>' +
                   '<div><b>' + esc(rems.length) + '</b><span>Reminders</span></div>' +
                   '<div><b>' + esc(r.new_today || 0) + '</b><span>New today</span></div>' +
                 '</div>';
-            if (nUrg || nLate) h += '<div class="iba-ai-brief-alert">' + (nUrg ? '<span class="is-urgent"><i class="fa-solid fa-bolt"></i> ' + nUrg + ' urgent</span>' : '') + (nLate ? '<span class="is-late"><i class="fa-solid fa-hourglass-half"></i> ' + nLate + ' waiting over 7 days</span>' : '') + '</div>';
             h += remindersHtml();
             if (tasks.length) {
                 // 17.0.0 patch 9: a table grouped by site (most tasks first);
@@ -5037,13 +5114,16 @@
             if (jobs.length) {
                 // 17.0.0 patch 18: one table, like the tasks
                 h += '<div class="iba-ai-sub">Inventory waiting for your step (' + jobs.length + ')</div><div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site">' +
-                    '<ul class="iba-ai-rows iba-ai-ttab is-jobs" data-brief-list="jobs">' +
-                    '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">Transfer</span><span class="c-site">From → to</span><span class="c-main">Item · step</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
+                    // 17.0.3 patch 14: one fact per column
+                    '<ul class="iba-ai-rows iba-ai-ttab is-jobs is-jb2" data-brief-list="jobs">' +
+                    '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">Transfer</span><span class="c-from">From</span><span class="c-to">To</span><span class="c-item">Item</span><span class="c-step">Step</span><span class="c-next">Next to do</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
                     jobs.map((j, i) =>
                     '<li' + (i >= MORE ? ' hidden' : '') + '><span class="c-po"><button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(j.control) + '">' + esc(j.control) + '</button></span>' +
-                    '<span class="c-site">' + esc(j.from || j.to ? (j.from || '—') + ' → ' + (j.to || '—') : '—') + '</span>' +
-                    '<span class="iba-ai-grow c-main">' + esc(j.product || j.type || '—') + '<small>' + esc(j.step) + '</small>' +
-                    '<small class="iba-ai-next"><i class="fa-solid fa-arrow-right"></i> ' + esc(nextStep(j.step)) + '</small></span>' +
+                    '<span class="c-from">' + esc(j.from || '—') + '</span>' +
+                    '<span class="c-to"><i class="fa-solid fa-arrow-right"></i> ' + esc(j.to || '—') + '</span>' +
+                    '<span class="c-item" title="' + esc(j.product || j.type || '') + '">' + esc(j.product || j.type || '—') + '</span>' +
+                    '<span class="c-step"><span class="iba-ai-st-pill is-acc">' + esc(j.step || '—') + '</span></span>' +
+                    '<span class="c-next">' + esc(nextStep(j.step)) + '</span>' +
                     '<span class="c-age">' + ageChip(daysSince(j.at)) + '</span>' +
                     '<span class="c-act"><button type="button" class="iba-ai-mini iba-ai-go" data-open-job="' + esc(j.control) + '" title="Open it in Active Job to do the next step"><i class="fa-solid fa-arrow-up-right-from-square"></i> Do it</button></span></li>').join('') + '</ul>' + moreBtn(jobs.length, 'jobs') + '</div></div>';
             }
@@ -5053,6 +5133,8 @@
             // 17.0.0 patch 21: one table with a header, like the status tables
             // (was tiles with a two-column list in the big window)
             const co = [];
+            // the Urgent column already says it: Remarks without the word
+            const rem = (n) => String(n || '').replace(/\burgent\b[\s:·,\-–—!]*/i, '').trim();
             if (x.approvals) {
                 const apv = x.approvals.items || [];
                 const cnt = apvCounts(apv);
@@ -5066,14 +5148,19 @@
                     (total ? '<span class="iba-ai-ttab-total">QAR ' + esc(money(total)) + '</span>' : '') +
                     (apv.length ? '<span class="iba-ai-co-acts"><button type="button" class="iba-ai-mini" data-brief-apv-print title="One list, grouped by who is approving (or status / site)"><i class="fa-solid fa-print"></i> Print list</button>' +
                         (tplAllowed('urgent') ? '<button type="button" class="iba-ai-mini" data-run-tpl="urgent" title="Pick invoices to rush"><i class="fa-solid fa-bolt"></i> Mark urgent</button>' : '') + '</span>' : '') + '</div>' +
-                    (apv.length ? '<ul class="iba-ai-rows iba-ai-ttab is-co" data-brief-list="co">' +
-                        '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">With</span><span class="c-main">Vendor · invoice · status</span><span class="c-age">Age</span><span class="c-act">Files</span></li>' +
+                    // 17.0.3 patch 14: one fact per column (PO, With, Vendor, Urgent,
+                    // Inv no., Action for, Value, Remarks, Age, Files)
+                    (apv.length ? '<ul class="iba-ai-rows iba-ai-ttab is-co is-co2" data-brief-list="co">' +
+                        '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-with">With</span><span class="c-vend">Vendor</span><span class="c-urg">Urgent</span><span class="c-no">Inv no.</span><span class="c-st">Action for</span><span class="c-val">Value (QAR)</span><span class="c-rem">Remarks</span><span class="c-age">Age</span><span class="c-act">Files</span></li>' +
                         apv.map((a, i) =>
-                        '<li' + (i >= MORE ? ' hidden' : '') + (a.urgent ? ' class="is-urgent"' : '') + '><span class="c-po">' + poLink(a.po) + '</span>' +
-                        '<span class="c-site">' + esc(a.with || '—') + '</span>' +
-                        '<span class="iba-ai-grow c-main">' + esc(a.vendor || a.no || '—') + (a.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
-                        '<small>' + esc([a.no, a.status, a.value ? 'QAR ' + money(a.value) : ''].filter(Boolean).join(' · ')) + '</small>' +
-                        (a.note ? '<small class="iba-ai-urg-note">' + esc(a.note.slice(0, 140)) + '</small>' : '') + '</span>' +
+                        '<li' + (i >= MORE ? ' hidden' : '') + (a.urgent ? ' class="is-urgent"' : '') + (a.note ? ' title="' + esc(a.note.slice(0, 300)) + '"' : '') + ' data-apv-po="' + esc(a.po) + '"><span class="c-po">' + poLink(a.po) + '</span>' +
+                        '<span class="c-with" title="' + esc(a.with || '') + '">' + esc(a.with || '—') + '</span>' +
+                        '<span class="c-vend" title="' + esc(a.vendor || '') + '">' + esc(a.vendor || '—') + '</span>' +
+                        '<span class="c-urg">' + (a.urgent ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '<span class="iba-ai-dash">—</span>') + '</span>' +
+                        '<span class="c-no" title="' + esc(a.no || '') + '">' + esc(a.no || '—') + '</span>' +
+                        '<span class="c-st"><span class="iba-ai-st-pill is-' + (/ceo/i.test(a.status) ? 'ceo' : /accounts/i.test(a.status) ? 'acc' : 'apv') + '">' + esc(a.status || '—') + '</span></span>' +
+                        '<span class="c-val">' + (a.value ? esc(money(a.value)) : '<span class="iba-ai-dash">—</span>') + '</span>' +
+                        '<span class="c-rem">' + (rem(a.note) ? esc(rem(a.note).slice(0, 140)) : '<span class="iba-ai-dash">—</span>') + '</span>' +
                         '<span class="c-age">' + ageChip(a.days) + '</span>' +
                         '<span class="c-act iba-ai-apv-files">' + (a.pdf ? '<a class="iba-ai-mini" href="' + esc(a.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(a.srv) + '</span></li>').join('') + '</ul>' +
                         moreBtn(apv.length, 'co') +

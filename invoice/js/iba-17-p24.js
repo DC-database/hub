@@ -72,13 +72,17 @@
         { area: 'System settings (for everyone)', label: 'Same-name users (rename / move tasks)', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Who can print ESN', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Task check', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
-        { area: 'System settings (for everyone)', label: 'Print basket (approved SRV stickers)', who: (u) => u.sup, note: 'Super Admin only' }
+        { area: 'System settings (for everyone)', label: 'Who can send LPO emails', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
+        { area: 'WorkDesk', label: 'LPO emails to vendors (Outlook)', who: (u) => u.sup || !!(window.ibaLpoMail && window.ibaLpoMail.allowedSync(u.key)), note: 'Super Admin, or on the "Who can send LPO emails" list with the same name and mobile as when added' },
+        { area: 'System settings (for everyone)', label: 'Print basket (approved SRV stickers)', who: (u) => u.sup || !!(window.ibaEsnFlow && window.ibaEsnFlow.allowedSync(u.key)), note: 'Super Admin, or on the "Who can print ESN" list (17.0.4 patch 3)' }
     ];
 
     // assistant skills, read from the assistant itself
     function skillRules() {
         let list = [];
         try { if (typeof window.ibaAssistantSkillList === 'function') list = window.ibaAssistantSkillList() || []; } catch (_) { list = []; }
+        // skills with their own rule above
+        list = list.filter((s) => s.id !== 'lpo_mail');
         return list.map((s) => ({
             area: 'IBA Assistant skills', label: s.name,
             who: s.superOnly ? (u) => u.sup : (s.adminOnly ? (u) => u.sup || u.roleHasAdmin : () => true),
