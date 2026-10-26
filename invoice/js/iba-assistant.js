@@ -354,6 +354,15 @@
         try { if (typeof ibaAllAttentionNames === 'function') return ibaAllAttentionNames(); } catch (_) {}
         return [];
     }
+    // 17.0.5 patch 8: nobody reminds the CEO. No Remind for CEO Approval,
+    // nor for an invoice the CEO himself holds (Position "CEO").
+    function noRemind(it) {
+        if (!it) return true;
+        if (/\bceo approval\b/i.test(String(it.status || '') + ' ' + String(it.side_status || ''))) return true;
+        const w = norm(String(it.with || '').split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0]);
+        if (!w) return false;
+        return people().some((p) => norm(p.value) === w && /\bceo\b/i.test(String(p.position || '')));
+    }
     function resolvePerson(q) {
         const query = norm(q);
         if (!query) return { name: '', matches: [] };
@@ -2957,8 +2966,9 @@
         new_delivery: { name: 'New delivery', icon: 'fa-truck-fast', desc: 'Opens the Inventory form for a Transfer (delivery to a site), Restock, Return or Usage, numbered and ready to fill in. No AI used.',
             ask: () => [{ key: 'type', label: 'What kind?', type: 'select', options: [['Transfer', 'Transfer - delivery to a site'], ['Restock', 'Restock - stock received'], ['Return', 'Return'], ['Usage', 'Usage']] }],
             run: async (v) => { await openNewDelivery(v.type); return null; } },
-        inv_status: { name: 'Check invoice status', icon: 'fa-file-invoice', desc: 'Asks for a PO or vendor, then shows where each invoice is and who has it.',
-            ask: () => [{ key: 'q', label: 'PO number or vendor', placeholder: 'e.g. 66176 or Al Noor' }],
+        // 17.0.5 patch 6: plain words (simple view), also on the phone
+        inv_status: { name: 'Where is my invoice?', icon: 'fa-magnifying-glass-location', desc: 'Type the PO number or the vendor name. Each invoice says in plain words where it is now, who has it, for how long and what comes next, with a Remind button. No AI used.',
+            ask: () => [{ key: 'q', label: 'PO number or vendor name', placeholder: 'e.g. 66176 or Al Noor' }],
             build: (v) => /^\s*(po)?[\s#:-]*\d+\s*$/i.test(v.q) ? [{ tool: 'track_invoices', args: { po: v.q.replace(/\D+/g, '') } }] : [{ tool: 'track_invoices', args: { vendor: v.q } }] },
         transfer: { name: 'Find a transfer', icon: 'fa-truck-ramp-box', desc: 'Asks for a transfer number, vehicle or item, then shows who must act next.',
             ask: () => [{ key: 'q', label: 'Transfer no., vehicle or item', placeholder: 'e.g. TRF-0361, 36588, wheel loader' }],
@@ -3443,7 +3453,8 @@
               '<div class="iba-ai-title"><strong>IBA Assistant</strong><small id="iba-ai-brain"></small></div>' +
               '<button type="button" class="iba-ai-icon iba-aph-only" data-ai="phone" title="Search"><i class="fa-solid fa-house"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="brief" title="Today\'s brief: tasks and reminders (no key needed)"><i class="fa-solid fa-sun"></i></button>' +
-              '<button type="button" class="iba-ai-icon" data-ai="track" title="Track an invoice"><i class="fa-solid fa-route"></i></button>' +
+              // 17.0.5 patch 9: the Track button stands out (colour + word) so nobody misses it
+              '<button type="button" class="iba-ai-icon iba-ai-track-btn" data-ai="track" title="Where is my invoice? Track an invoice or a transfer"><i class="fa-solid fa-magnifying-glass-location"></i><span>Track</span></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="skills" title="Skills"><i class="fa-solid fa-bolt"></i></button>' +
               '<button type="button" class="iba-ai-icon iba-ai-head-expand" data-ai="expand" title="Expand: open the latest card in the big window (again to go back)"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button>' +
               '<button type="button" class="iba-ai-icon" data-ai="setup" title="Setup"><i class="fa-solid fa-gear"></i></button>' +
@@ -3455,6 +3466,11 @@
             // 15.0.0 patch 44: the big window - one result moved here to read and work on
             '<div class="iba-ai-view iba-ai-wide-view" data-view="wide" hidden>' +
               '<div class="iba-ai-wide-bar" title="Drag to move · double-click to put it back in place"><i class="fa-solid fa-grip-vertical iba-ai-wide-handle" aria-hidden="true"></i><span class="iba-ai-wide-title" id="iba-ai-wide-title"></span>' +
+                // 17.0.5 patch 9: the app shortcuts in the big window too
+                '<span class="iba-ai-wide-apps"><button type="button" class="iba-ai-icon iba-ai-track-btn" data-run-tpl="inv_status" title="Where is my invoice?"><i class="fa-solid fa-magnifying-glass-location"></i><span>Where is my invoice?</span></button>' +
+                '<button type="button" class="iba-ai-mini is-c1" data-ai="brief" title="Now brief"><i class="fa-solid fa-sun"></i> Brief</button>' +
+                '<button type="button" class="iba-ai-mini is-c3" data-run-tpl="transfer" title="Find a transfer"><i class="fa-solid fa-truck-ramp-box"></i> Transfer</button>' +
+                '<button type="button" class="iba-ai-mini is-c4" data-run-tpl="person" title="Find a colleague"><i class="fa-solid fa-id-badge"></i> Colleague</button></span>' +
                 '<button type="button" class="iba-ai-mini" data-wide-close title="Back to the side panel (Esc)"><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Back to side panel</button></div>' +
               '<div class="iba-ai-pane iba-ai-wide-body" id="iba-ai-wide-body"></div>' +
               '<span class="iba-ai-wide-grip" data-wide-grip title="Drag to resize" aria-hidden="true"></span>' +
@@ -3500,7 +3516,7 @@
                 '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +
                 '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
               '<div class="iba-aph-tiles" role="radiogroup" aria-label="What to look for">' +
-                '<button type="button" data-aph-mode="inv" style="--c:#2a78d6"><i class="fa-solid fa-file-invoice"></i><b>Invoice</b><small>PO or vendor: received, QS, entry, paid</small></button>' +
+                '<button type="button" data-aph-mode="inv" style="--c:#2a78d6"><i class="fa-solid fa-magnifying-glass-location"></i><b>Where is my invoice?</b><small>Type the PO or vendor</small></button>' +
                 '<button type="button" data-aph-mode="trf" style="--c:#14a37f"><i class="fa-solid fa-truck-ramp-box"></i><b>Inventory</b><small>Transfer, vehicle, item</small></button>' +
                 '<button type="button" data-aph-mode="person" style="--c:#eb6834"><i class="fa-solid fa-id-badge"></i><b>Colleague</b><small>Message, call, WhatsApp</small></button>' +
               '</div>' +
@@ -3511,6 +3527,7 @@
             '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
               '<button type="button" data-ai="brief"><i class="fa-solid fa-sun"></i> Today\'s brief</button>' +
+              '<button type="button" data-run-tpl="inv_status" data-tpl-chip><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?</button>' +
               '<button type="button" data-view-go="track"><i class="fa-solid fa-route"></i> Track invoice</button>' +
               '<button type="button" data-chip-fill="Show PO " data-super-only><i class="fa-solid fa-magnifying-glass"></i> Find PO</button>' +
               '<button type="button" data-chip-fill="New invoice for PO " data-super-only><i class="fa-solid fa-file-circle-plus"></i> New invoice</button>' +
@@ -3526,12 +3543,22 @@
               '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
               '<button type="button" data-run-tpl="lpo_mail" data-tpl-chip><i class="fa-solid fa-envelope-open-text"></i> LPO emails</button>' +
               '<button type="button" data-run-tpl="lpo_mailers" data-tpl-chip><i class="fa-solid fa-user-pen"></i> Who can send LPO emails</button>' +
+              '<button type="button" data-ai="skills" class="iba-chip-all" title="Every skill you can use"><i class="fa-solid fa-bolt"></i> All skills</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
               (SR ? '<button type="button" id="iba-ai-mic" title="Speak your question (Chrome / Edge)"><i class="fa-solid fa-microphone"></i></button>' : '') +
               '<button type="submit" id="iba-ai-send" title="Send (Enter)"><i class="fa-solid fa-paper-plane"></i></button>' +
-            '</form>';
+            '</form>' +
+            // 17.0.5 patch 9: phone bottom bar like a mobile app; Track is the
+            // big round button in the middle
+            '<nav class="iba-aph-tabs" aria-label="Assistant">' +
+              '<button type="button" data-aph-tab="home"><i class="fa-solid fa-house"></i><span>Home</span></button>' +
+              '<button type="button" data-aph-tab="brief"><i class="fa-solid fa-sun"></i><span>Brief</span></button>' +
+              '<button type="button" data-aph-tab="inv" class="is-mid"><b><i class="fa-solid fa-magnifying-glass-location"></i></b><span>Track</span></button>' +
+              '<button type="button" data-aph-tab="trf"><i class="fa-solid fa-truck-ramp-box"></i><span>Transfer</span></button>' +
+              '<button type="button" data-aph-tab="person"><i class="fa-solid fa-id-badge"></i><span>Colleague</span></button>' +
+            '</nav>';
         document.body.appendChild(panel);
 
         fab.addEventListener('click', () => toggle(true));
@@ -3605,6 +3632,7 @@
             document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
             document.querySelectorAll('#iba-ai-panel [data-tpl-chip]').forEach((el) => { el.hidden = !tplAllowed(el.dataset.runTpl); });
             document.querySelectorAll('#iba-ai-panel [data-chip-basket]').forEach((el) => { el.hidden = !(window.ibaPrintBasket && window.ibaPrintBasket.allowed()); });
+            trimChips();
             // 15.0.0 patch 10: without a key the panel opens on today's brief
             // (tasks + reminders), which needs no AI. Super Admin still gets Setup.
             if (onPhone()) {
@@ -3631,9 +3659,45 @@
         if (v === 'setup') renderSetup();
     }
 
+    // 17.0.5 patch 12: the chip row under the chat shows only the 3 skills
+    // this user uses most (recent use counts more, so it changes over time).
+    // Every skill stays in Skills ("All skills" chip). Each user still sees
+    // only the skills they are allowed to use.
+    const CHIP_MAX = 3;
+    function chipKey(b) {
+        if (!b || !b.dataset) return '';
+        if (b.dataset.runTpl) return b.dataset.runTpl;
+        if (b.dataset.ai === 'brief') return 'brief';
+        if (b.dataset.viewGo) return 'view:' + b.dataset.viewGo;
+        if (b.dataset.chipFill) return 'fill:' + b.dataset.chipFill.trim();
+        if (b.hasAttribute('data-chip-basket')) return 'basket';
+        return '';
+    }
+    function chipUseKey() { return 'iba-ai-chip-use-v1:' + userSlug(); }
+    function bumpChip(k) {
+        if (!k) return;
+        const u = lsGet(chipUseKey(), {}) || {};
+        Object.keys(u).forEach((x) => { u[x] = Math.round(u[x] * 0.92 * 1000) / 1000; if (u[x] < 0.05) delete u[x]; });
+        u[k] = (Number(u[k]) || 0) + 1;
+        lsSet(chipUseKey(), u);
+    }
+    function trimChips() {
+        const row = $('iba-ai-chips');
+        if (!row) return;
+        const all = row.querySelector('.iba-chip-all');
+        const chips = Array.prototype.filter.call(row.children, (b) => b !== all && !b.hidden);
+        const use = lsGet(chipUseKey(), {}) || {};
+        const first = isSuper() ? ['brief', 'inv_status', 'approvals_list'] : ['brief', 'inv_status', 'person'];
+        const rank = (b) => { const k = chipKey(b), f = first.indexOf(k); return (Number(use[k]) || 0) * 10 + (f === -1 ? 0 : 3 - f); };
+        const keep = chips.slice().sort((a, b) => rank(b) - rank(a)).slice(0, CHIP_MAX);
+        chips.forEach((b) => { const on = keep.indexOf(b) !== -1; if (b.classList.contains('is-chip-off') === on) b.classList.toggle('is-chip-off', !on); });
+        keep.forEach((b) => row.insertBefore(b, all));
+        if (all) all.hidden = chips.length <= CHIP_MAX;
+    }
     function onPanelClick(e) {
         const b = e.target.closest('button, a[data-ai-po]');
         if (!b) return;
+        if (b.closest('#iba-ai-chips, #iba-ai-skills, .iba-ai-apps, .iba-ai-wide-apps')) bumpChip(chipKey(b));
         const act = b.dataset.ai;
         if (b.hasAttribute('data-wide-open')) { e.preventDefault(); return openWide(b.closest('.iba-ai-card')); }
         if (b.hasAttribute('data-wide-close')) { e.preventDefault(); return closeWide(); }
@@ -3753,6 +3817,7 @@
             return;
         }
         if (act === 'phone') { state.phoneChat = false; showView('phone'); return paintPhone(); }
+        if (b.dataset.aphTab) return phoneTab(b.dataset.aphTab);
         if (b.dataset.aphMode) return setPhoneMode(b.dataset.aphMode, true);
         if (b.hasAttribute('data-aph-chat')) { state.phoneChat = true; return showView('chat'); }
         // 17.0.0 patch 18: Expand in the header: the newest card in the big window, or back
@@ -3789,6 +3854,17 @@
             try { q = JSON.parse(b.dataset.trfFind); } catch (_) {}
             const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
             return runTransferFind(q, host);
+        }
+        if (b.dataset.trkView !== undefined) {
+            const card = b.closest('.iba-ai-card');
+            const sv = card && card.querySelector('.iba-trk-simple'), fv = card && card.querySelector('.iba-trk-full');
+            if (sv && fv) {
+                const toSimple = sv.hidden;
+                sv.hidden = !toSimple; fv.hidden = toSimple;
+                lsSet(TRK_VIEW_KEY, toSimple ? 'simple' : 'full');
+                b.innerHTML = toSimple ? '<i class="fa-solid fa-list"></i> Full details' : '<i class="fa-solid fa-wand-magic-sparkles"></i> Simple view';
+            }
+            return;
         }
         if (b.dataset.trkHist !== undefined) {
             const item = b.closest('.iba-ai-trk-item');
@@ -4011,6 +4087,20 @@
         if (q) q.placeholder = APH_HINT[aphMode] || APH_HINT.auto;
         if (user && q) q.focus();
     }
+    // 17.0.5 patch 9: the phone bottom bar
+    function phoneTab(t) {
+        document.querySelectorAll('#iba-ai-panel [data-aph-tab]').forEach((x) => x.classList.toggle('is-on', x.dataset.aphTab === t));
+        if (t === 'brief') return phoneBrief();
+        if (t === 'chat') { state.phoneChat = true; return showView('chat'); }
+        state.phoneChat = false;
+        showView('phone');
+        paintPhone();
+        aphMode = '';
+        setPhoneMode(t === 'home' ? 'auto' : t, false);
+        const q = $('iba-aph-q');
+        if (t === 'home') { const pv = document.querySelector('#iba-ai-panel .iba-ai-view[data-view="phone"]'); if (pv) pv.scrollTop = 0; return; }
+        if (q) { q.focus(); try { q.scrollIntoView({ block: 'center' }); } catch (_) {} }
+    }
     function paintPhoneRem() {
         const box = $('iba-aph-rem');
         if (box) box.innerHTML = remindersHtml();
@@ -4057,6 +4147,8 @@
     // 15.0.0 patch 47: what can be answered without the AI
     const QUICK_ALL = ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent', 'new_job', 'new_delivery', 'transfer', 'person', 'brief'];
     const INTENTS = [
+        // 17.0.5 patch 6
+        [/\bwhere\b.*\b(inv|invoice|my)\b|\b(track|status)\b.*\binv|\binvoice status\b/i, ['inv_status', 'po_report']],
         [/\b(reports?|list|lists|summary|print|statement)\b/i, ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent']],
         [/\b(download|csv|excel|export)\b/i, ['export', 'po_report', 'inv_status']],
         [/\b(urgent|rush)\b/i, ['urgent', 'approvals_list']],
@@ -4922,7 +5014,7 @@
                     // 15.0.0 patch 44: the SRV file too (same link as Invoice Records)
                     srvLink(it.srv) +
                     // 15.0.0 patch 40: Remind on each open invoice, to the person who has it
-                    (it.stage_index < 5 && it.with ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
+                    (it.stage_index < 5 && it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser())) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
@@ -4940,7 +5032,7 @@
                         '<span class="iba-ai-paid-files">' + (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(it.srv) + '</span></div>').join('') + '</div></details>';
             }
             // 15.0.0 patch 27: Remind also for items still at Reception or with the QS
-            const openIt = p.items.filter((it) => it.stage_index < 5);
+            const openIt = p.items.filter((it) => it.stage_index < 5 && !noRemind(it));
             if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
                 (openIt.length ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> ' + (openIt.length > 1 ? 'Remind all (' + openIt.length + ')' : 'Remind') + '</button>' : '') + '</div>';
             h += '</div>';
@@ -4953,6 +5045,112 @@
         }
         return h;
     }
+    // ------------------------------------------------------------------
+    // 17.0.5 patch 6: "Where is my invoice?" in plain words. Each invoice
+    // says what is happening now, who has it, for how long, and what comes
+    // next; one line on top sums up the PO. Phone and non-Super users see
+    // this first; "Full details" shows the full card (Super Admin: the
+    // other way round). The choice is kept (localStorage iba-trk-view-v1).
+    // ------------------------------------------------------------------
+    const TRK_VIEW_KEY = 'iba-trk-view-v1';
+    const PLAIN_STEPS = ['Received', 'Entered', 'SRV / approval', 'Management approval', 'Accounts (payment)', 'Paid'];
+    function trkSimpleFirst() {
+        const v = lsGet(TRK_VIEW_KEY, '');
+        if (v === 'simple') return true;
+        if (v === 'full') return false;
+        return onPhone() || !isSuper();
+    }
+    function firstName2(n) { return String(n || '').split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0].trim(); }
+    function plainStatus(it) {
+        const s = norm(it.status), side = !!it.side_status, who = firstName2(it.with);
+        const late = (it.days || 0) > 7;
+        const o = { tone: late ? 'late' : 'move', icon: 'fa-hourglass-half', title: '', line: '', next: '' };
+        const nextFrom = (i) => PLAIN_STEPS.slice(i + 1).join(' → ');
+        if (it.kind === 'ipc') {
+            o.icon = 'fa-calculator';
+            o.title = /waiting for the actual invoice/i.test(it.status) ? 'IPC done - waiting for the vendor\'s invoice' : 'With the QS for the IPC';
+            o.line = who ? who + ' has it' : '';
+            o.next = /waiting for the actual invoice/i.test(it.status) ? 'The invoice comes to Reception, then it is entered' : 'IPC done → invoice to Reception → entered';
+            return o;
+        }
+        if (it.kind === 'reception') {
+            o.icon = 'fa-inbox'; o.title = 'Received at Reception, not entered yet';
+            o.line = who ? 'Sent to ' + who : ''; o.next = 'Entered in the system → ' + nextFrom(1);
+            return o;
+        }
+        if (side) {
+            const rej = /reject/.test(s), hold = /hold/.test(s);
+            o.tone = rej || hold ? 'stop' : o.tone;
+            o.icon = rej ? 'fa-rotate-left' : hold ? 'fa-circle-pause' : 'fa-circle-info';
+            o.title = rej ? 'Rejected - sent back' : hold ? 'On hold' : it.status;
+            o.line = who ? who + ' has it' : '';
+            o.next = rej || hold ? 'Needs to be sorted out before it moves on' : nextFrom(it.stage_index);
+            return o;
+        }
+        switch (it.stage_index) {
+            case 0: o.icon = 'fa-inbox'; o.title = 'Received at Reception'; break;
+            case 1: o.icon = 'fa-keyboard'; o.title = 'Being entered and checked'; break;
+            case 2:
+                if (/for srv|waiting signature/.test(s)) { o.icon = 'fa-file-signature'; o.title = 'Waiting for the SRV from site'; }
+                else if (/for approval|waiting approval/.test(s)) { o.icon = 'fa-stamp'; o.title = 'Waiting for approval'; }
+                else if (/report/.test(s)) { o.icon = 'fa-file-lines'; o.title = 'Waiting for the report'; }
+                else if (/srv done|no need srv|approved/.test(s)) { o.icon = 'fa-check'; o.title = 'SRV done - going to management'; }
+                else { o.icon = 'fa-file-signature'; o.title = it.status; }
+                break;
+            case 3: o.icon = 'fa-user-tie'; o.title = 'Waiting for management approval'; break;
+            case 4: o.icon = 'fa-money-check-dollar'; o.tone = late ? 'late' : 'acc'; o.title = 'With Accounts - payment being prepared'; o.line = 'Accounts will mark it Paid'; break;
+            case 5: o.icon = 'fa-circle-check'; o.tone = 'paid'; o.title = 'Paid' + (it.paid_on ? ' on ' + it.paid_on : ''); return o;
+            default: o.title = it.status;
+        }
+        if (!o.line && who) o.line = who + ' has it';
+        o.next = nextFrom(it.stage_index);
+        return o;
+    }
+    function simpleTrackHtml(r) {
+        let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?' + (r.vendor ? ' · ' + esc(r.vendor) : '') + '</div>';
+        if (r.more) h += '<p class="iba-ai-foot">Showing the ' + esc(r.shown || r.pos.length) + ' newest POs. Type the PO number to see an older one.</p>';
+        r.pos.forEach((p) => {
+            const items = p.items || [];
+            const paid = items.filter((it) => it.stage_index === 5 && !it.side_status);
+            const open = items.filter((it) => !(it.stage_index === 5 && !it.side_status));
+            const acc = open.filter((it) => it.stage_index === 4 && !it.side_status);
+            const wait = open.filter((it) => !(it.stage_index === 4 && !it.side_status));
+            const sum = !items.length ? 'No invoice received yet for this PO.'
+                : !open.length ? (items.length === 1 ? 'The invoice is paid.' : 'All ' + items.length + ' invoices are paid.')
+                : (items.length === 1 ? '1 invoice: ' : items.length + ' invoices: ') + [paid.length ? paid.length + ' paid' : '', acc.length ? acc.length + ' with Accounts' : '', wait.length ? wait.length + ' on the way' : ''].filter(Boolean).join(' · ');
+            h += '<div class="iba-trk-s-po"><div class="iba-trk-s-pohead"><b>PO ' + esc(p.po) + '</b><span>' + esc([p.vendor, p.site ? 'Site ' + siteNo(p.site) : '', p.year].filter(Boolean).join(' · ')) + '</span></div>' +
+                '<p class="iba-trk-s-sum' + (!open.length && items.length ? ' is-paid' : '') + '">' + esc(sum) + '</p>';
+            open.slice().sort((a, b) => (b.days || 0) - (a.days || 0)).forEach((it) => {
+                const ps = plainStatus(it);
+                const meta = [ps.line, it.days !== undefined ? (it.days === 0 ? 'since today' : it.days + ' day' + (it.days === 1 ? '' : 's') + (it.since ? ' (since ' + it.since + ')' : '')) : ''].filter(Boolean).join(' · ');
+                h += '<div class="iba-trk-s-it is-' + ps.tone + '">' +
+                    '<div class="iba-trk-s-top"><span class="iba-trk-s-no">' + esc(it.invoice_no) + '</span>' + (it.value ? '<span class="iba-trk-s-val">QAR ' + esc(it.value) + '</span>' : '') + '</div>' +
+                    '<div class="iba-trk-s-now"><i class="fa-solid ' + ps.icon + '"></i><span><b>' + esc(ps.title) + (it.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') + '</b>' +
+                        (meta ? '<small>' + esc(meta) + (ps.tone === 'late' ? ' - taking long' : '') + '</small>' : '') + '</span></div>' +
+                    (ps.next ? '<div class="iba-trk-s-next"><span>Next:</span> ' + esc(ps.next) + '</div>' : '') +
+                    '<div class="iba-trk-s-acts">' +
+                        // marking Paid is Accounts' job: never name a person for it
+                        (it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(it.stage_index === 4 && !it.side_status ? 'Accounts' : firstName2(it.with)) + '</button>' : '') +
+                        (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> Invoice</a>' : '') + srvLink(it.srv) +
+                    '</div></div>';
+            });
+            if (paid.length) {
+                const last = paid.slice().sort((a, b) => (b._paid_t || 0) - (a._paid_t || 0));
+                h += '<details class="iba-trk-s-paid"' + (open.length ? '' : ' open') + '><summary><i class="fa-solid fa-circle-check"></i> ' + paid.length + ' paid' + (last[0] && last[0].paid_on ? ' · last on ' + esc(last[0].paid_on) : '') + '</summary>' +
+                    last.map((it) => '<div><b>' + esc(it.invoice_no) + '</b><span>' + esc(it.paid_on ? 'paid ' + it.paid_on : 'paid') + '</span>' + (it.value ? '<span class="iba-trk-s-val">' + esc(it.value) + '</span>' : '') + '</div>').join('') + '</details>';
+            }
+            h += '</div>';
+        });
+        return h;
+    }
+    function trackCardHtml(x) {
+        if (!x || x.mode !== 'pos') return trackHtml(x);
+        const simple = trkSimpleFirst();
+        return '<div class="iba-trk-switch"><button type="button" class="iba-ai-mini" data-trk-view>' + (simple ? '<i class="fa-solid fa-list"></i> Full details' : '<i class="fa-solid fa-wand-magic-sparkles"></i> Simple view') + '</button></div>' +
+            '<div class="iba-trk-simple"' + (simple ? '' : ' hidden') + '>' + simpleTrackHtml(x) + '</div>' +
+            '<div class="iba-trk-full"' + (simple ? ' hidden' : '') + '>' + trackHtml(x) + '</div>';
+    }
+
     // ------------------------------------------------------------------
     // patch 17: Print and Excel for the assistant's result cards
     // ------------------------------------------------------------------
@@ -5212,7 +5410,7 @@
         } else if (card.kind === 'action') {
             d.innerHTML = '<div class="iba-ai-card-head' + (x.ok ? '' : ' is-bad') + '"><i class="fa-solid ' + esc(x.icon || 'fa-check') + '"></i> ' + esc(x.text) + '</div>';
         } else if (card.kind === 'track') {
-            d.innerHTML = trackHtml(x);
+            d.innerHTML = trackCardHtml(x);
         } else if (card.kind === 'transfer') {
             d.innerHTML = transferHtml(x);
         } else if (card.kind === 'trf_find') {
@@ -5653,16 +5851,32 @@
         if (!l || (l.children.length && !force)) return;
         if (!ready() && !isSuper()) {
             // 15.0.0 patch 10: without a key, only show what works without one.
-            addBot(greetingWord() + ', ' + firstName() + '. Here is what I can do for you, no key needed:\n- Sun button: today\'s brief, your tasks and reminders\n- Route button: where an invoice or a transfer (TRF, STK, USE, RET) is\n- Type a transfer number, e.g. "TRF-0361"\nTo ask in plain words, add a free key in Setup (gear button).', {});
+            addBot(greetingWord() + ', ' + firstName() + '. Here is what I can do for you, no key needed:\n- Sun button: today\'s brief, your tasks and reminders\n- Track button: where an invoice or a transfer (TRF, STK, USE, RET) is\n- Type a transfer number, e.g. "TRF-0361"\nTo ask in plain words, add a free key in Setup (gear button).', {});
             const l0 = l.lastElementChild;
             if (l0) { const t = l0.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
+            addApps();
             return;
         }
         addBot(greetingWord() + ', ' + firstName() + '. How can I help?\n' + (isSuper()
             ? '- "What\'s waiting for me?"\n- "Show PO 12345"\n- "Where is the Al Noor invoice for site 177, 2025?"\n- "New invoice for PO 12345: B-300, 5,000, For SRV to Bob"\n- "Draft a reminder to Bob about PO 12345"'
-            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nNo key needed: the sun button shows today\'s tasks and reminders, the route button tracks invoices and transfers.'), {});
+            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nNo key needed: the sun button shows today\'s tasks and reminders, the Track button finds invoices and transfers.'), {});
         const last = l.lastElementChild;
         if (last) { const t = last.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
+        addApps();
+    }
+    // 17.0.5 patch 9: app icons when the assistant opens; "Where is my
+    // invoice?" is the big one in front
+    function addApps() {
+        const l = log();
+        if (!l) return;
+        const d = document.createElement('div');
+        d.className = 'iba-ai-apps';
+        d.innerHTML =
+            '<button type="button" class="is-hero" data-run-tpl="inv_status"><i><span class="fa-solid fa-magnifying-glass-location"></span></i><b>Where is my invoice?</b></button>' +
+            '<button type="button" class="is-c1" data-ai="brief"><i><span class="fa-solid fa-sun"></span></i><b>Now brief</b></button>' +
+            '<button type="button" class="is-c3" data-run-tpl="transfer"><i><span class="fa-solid fa-truck-ramp-box"></span></i><b>Transfer</b></button>' +
+            '<button type="button" class="is-c4" data-run-tpl="person"><i><span class="fa-solid fa-id-badge"></span></i><b>Colleague</b></button>';
+        l.appendChild(d);
     }
     function peek(text) {
         toggle(false);

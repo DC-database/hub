@@ -255,6 +255,8 @@ const WD_DASHBOARD_CACHE_KEY = 'IBA_WD_ACTIVE_DASHBOARD_CACHE_V19';
 try { localStorage.removeItem('IBA_WD_ACTIVE_DASHBOARD_CACHE_V18'); } catch (_) { /* ignore */ }
 const WD_ACTIVE_TASK_SOURCE_CACHE_KEY = 'IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3';
 const WD_DASHBOARD_CACHE_TTL = 24 * 60 * 60 * 1000; // 10.5.8: day/session cache; recent sync repairs changes on open/interval.
+// 17.0.5 patch 13: an older saved Dashboard (up to 7 days) is still shown while it is counted again
+const WD_DASHBOARD_SHOW_OLD_MS = 7 * 24 * 60 * 60 * 1000;
 const WD_DASHBOARD_COUNT_CACHE_TTL = 24 * 60 * 60 * 1000;
 const WD_DASHBOARD_RECENT_SYNC_INTERVAL = 30 * 1000;
 const WD_DASHBOARD_RECENT_SYNC_OVERLAP = 2 * 60 * 1000;
@@ -908,7 +910,7 @@ function wdLoadDashboardCache() {
     const cached = wdReadJSONStorage(window.localStorage, WD_DASHBOARD_CACHE_KEY);
     if (!cached || !Array.isArray(cached.tasks)) return null;
     if (cached.userKey !== wdDashboardUserCacheKey()) return null;
-    if ((Date.now() - Number(cached.savedAt || 0)) > WD_DASHBOARD_CACHE_TTL) return null;
+    if ((Date.now() - Number(cached.savedAt || 0)) > WD_DASHBOARD_SHOW_OLD_MS) return null;
     return cached;
 }
 
@@ -932,13 +934,27 @@ function wdDashboardCacheHasVerifiedAllActive(cached) {
         cached &&
         cached.allActiveVerified === true &&
         Array.isArray(cached.tasks) &&
-        (Date.now() - Number(cached.savedAt || 0)) <= WD_DASHBOARD_CACHE_TTL
+        (Date.now() - Number(cached.savedAt || 0)) <= WD_DASHBOARD_SHOW_OLD_MS
     );
 }
 
 function wdClearDashboardCache() {
     try { window.localStorage.removeItem(WD_DASHBOARD_CACHE_KEY); } catch (e) { /* ignore */ }
     try { window.localStorage.removeItem('IBA_WD_ALL_ACTIVE_COUNT_CACHE_V2'); } catch (e) { /* ignore */ }
+}
+
+// 17.0.5 patch 13: keep the last cards on screen while they are counted again.
+// Before, a saved/cancelled job or Refresh threw the saved Dashboard away and
+// only the personal + Finance cards showed for about a minute. Now the saved
+// copy stays, is marked "to check", and the quiet verified refresh swaps in the
+// new numbers when it is done (no extra Firebase reads: that refresh ran anyway).
+function wdMarkDashboardCacheStale() {
+    try {
+        const cached = wdReadJSONStorage(window.localStorage, WD_DASHBOARD_CACHE_KEY);
+        if (!cached || !Array.isArray(cached.tasks)) return;
+        cached.verifiedAt = 1;
+        wdWriteJSONStorage(window.localStorage, WD_DASHBOARD_CACHE_KEY, cached);
+    } catch (e) { /* ignore */ }
 }
 
 function wdNormalizeDashboardJobEntry(key, entry = {}) {
@@ -1013,16 +1029,15 @@ window.wdHandleWorkdeskJobRecentDashboardChanged = wdHandleWorkdeskJobRecentDash
 // 8.5.2: Public safe cache clearer for save/update flows that change task buckets
 // such as converting an IPC Job Record to an Invoice Job Record.
 function wdClearWorkdeskDashboardCache() {
-    wdClearDashboardCache();
+    // 17.0.5 patch 13: mark the saved cards "to check" instead of deleting
+    // them, and keep the counts on screen until the new ones are ready.
+    wdMarkDashboardCacheStale();
     try { window.sessionStorage.removeItem(WD_ACTIVE_TASK_SOURCE_CACHE_KEY); } catch (e) { /* ignore */ }
     wdDashboardJobEntriesCache = { entries: [], savedAt: 0 };
     wdInvoiceTaskLookupLiveCache = { nodes: null, savedAt: 0, scope: '' };
     wdActiveDashboardCacheMeta = { fromCache: false, savedAt: 0 };
     wdPersonalDashboardTasks = [];
     wdAllActiveDashboardLoaded = false;
-    wdAllActiveDashboardCountsLoaded = false;
-    wdAllActiveDashboardCountMap = new Map();
-    wdAllActiveDashboardCountItemsMap = new Map();
 }
 window.wdClearWorkdeskDashboardCache = wdClearWorkdeskDashboardCache;
 window.wdUpsertDashboardJobEntryCache = wdUpsertDashboardJobEntryCache;
@@ -3167,7 +3182,8 @@ async function wdRefreshVerifiedAllActiveDashboardCache(options = {}) {
 
     if (!forceRefresh && !skipVerifiedCacheCheck) {
         const cached = wdLoadDashboardCache();
-        if (wdRestoreVerifiedAllActiveDashboardCache(cached)) {
+        const freshEnough = cached && (Date.now() - Number(cached.verifiedAt || 0)) <= WD_DASHBOARD_CACHE_TTL;
+        if (freshEnough && wdRestoreVerifiedAllActiveDashboardCache(cached)) {
             wdRenderDashboardCards();
             return true;
         }
@@ -3176,6 +3192,7 @@ async function wdRefreshVerifiedAllActiveDashboardCache(options = {}) {
     wdDashboardVerifiedRefreshRunning = true;
     wdAllActiveDashboardLoading = true;
     wdRenderDashboardCards();
+    try { document.body.classList.add('iba-dash-updating'); } catch (_) {}
 
     try {
         const verifiedTasks = await wdBuildDashboardTasks({ forceRefresh, includeAllActive: true });
@@ -3187,6 +3204,7 @@ async function wdRefreshVerifiedAllActiveDashboardCache(options = {}) {
     } finally {
         wdDashboardVerifiedRefreshRunning = false;
         wdAllActiveDashboardLoading = false;
+        try { document.body.classList.remove('iba-dash-updating'); } catch (_) {}
         wdRenderDashboardCards();
         if ((wdActiveDashboardSelectedStatus || WD_DASHBOARD_NONE) !== WD_DASHBOARD_NONE) {
             wdRenderDashboardList();
@@ -3553,13 +3571,10 @@ function wdBindDashboardControls() {
             const icon = refreshBtn.querySelector('i');
             if (icon) icon.classList.add('fa-spin');
             try {
-                wdClearDashboardCache();
+                // 17.0.5 patch 13: the cards keep their numbers while Refresh counts again
+                wdMarkDashboardCacheStale();
                 wdAllActiveDashboardLoaded = false;
-                wdAllActiveDashboardCountsLoaded = false;
-                wdAllActiveDashboardCountMap = new Map();
-                wdAllActiveDashboardCountItemsMap = new Map();
                 wdDashboardLastRecentSyncAt = 0;
-                wdActiveDashboardTasks = [];
                 wdPaidHistoryYearCache.clear();
                 wdPaidHistoryIndexPromiseByYear.clear();
                 wdPaidHistoryAvailableYears = [];

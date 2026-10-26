@@ -28,8 +28,9 @@
     var i = el.querySelector(':scope > i, :scope > svg, :scope > img, :scope > .fa-solid, :scope > .fa-regular');
     return !!i && i.getBoundingClientRect().width >= 8;
   }
-  // a card-like button (status cards, choice tiles) may wrap on purpose
-  function isCard(el) { return el.offsetHeight > 58 || el.querySelector('div, p, ul, table, h1, h2, h3, h4'); }
+  // a card-like button: a title plus a small line under it (tiles, the
+  // Track Invoices / Inventory switch) is two lines on purpose
+  function isCard(el) { return el.offsetHeight > 58 || el.querySelector('div, p, ul, table, h1, h2, h3, h4, small, br') || el.querySelectorAll(':scope > span, :scope > b, :scope > strong').length > 1; }
 
   function overflows(el) {
     if (el.scrollWidth > el.clientWidth + 2) return true;
@@ -39,8 +40,9 @@
     if (!t.width) return false;
     if (t.right > r.right + 2 || t.left < r.left - 2) return true;
     // words broke onto lines below a one-line button
+    // words broke onto a 2nd line of a one-line button (nowrap was meant)
     var fs = parseFloat(getComputedStyle(el).fontSize) || 13;
-    return t.height > r.height + 4 || t.height > fs * 2.1;
+    return t.height > r.height + 4 || (getComputedStyle(el).whiteSpace === 'nowrap' && t.height > fs * 2.1);
   }
   function setTitle(el) {
     if (el.hasAttribute('title') || el.dataset.ibaFitTitle) return;
