@@ -31,6 +31,28 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<!-- 17.0.5 patch 2: a tablet can ask for the desktop view (button on the
+     phone screen, js/iba-1705-view.js): the page is then laid out 1200 px
+     wide and scaled to the screen, like the browser's "Desktop site". -->
+<script>
+  (function () {
+    try {
+      if (localStorage.getItem('iba-view-mode-v1') !== 'desktop') return;
+      window.IBA_FORCE_DESKTOP = true;
+      var m = document.querySelector('meta[name="viewport"]');
+      // zoom out so the 1200 px page fits the screen (again after turning it)
+      var fit = function () {
+        var w = (window.screen && screen.width) || 1200;
+        try { if (screen.orientation && /landscape/.test(screen.orientation.type)) w = Math.max(screen.width, screen.height); else if (screen.orientation) w = Math.min(screen.width, screen.height); } catch (e) {}
+        var sc = Math.min(1, w / 1200).toFixed(3);
+        if (m) m.setAttribute('content', 'width=1200, initial-scale=' + sc + ', minimum-scale=' + sc);
+      };
+      fit();
+      window.addEventListener('orientationchange', function () { setTimeout(fit, 150); });
+      document.documentElement.classList.add('iba-force-desktop');
+    } catch (e) {}
+  })();
+</script>
 <!-- 17.0.4 patch 7: quiet console. Info lines (console.log / info / debug)
      are hidden unless debugging is on: add ?debug=1 to the address once
      (remembered in this browser; ?debug=0 turns it off). Warnings and
@@ -3747,7 +3769,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-core.js?v=8.2.3"></script>
 <script src="js/app-inventory.js?v=15.0.0-p32"></script>
 <script src="js/app-invoice.js?v=15.0.0-p32"></script>
-<script src="js/app-mobile.js?v=15.0.0-p1"></script>
+<script src="js/app-mobile.js?v=17.0.5-p2"></script>
 <script src="js/app-finance.js?v=17.0.0-p7"></script>
 <script src="js/app-chat.js?v=15.0.0-p41"></script>
 <script src="js/app-celebration.js?v=8.2.3"></script>
@@ -3791,7 +3813,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
 <script src="js/iba-shell.js?v=17.0.4-p8"></script>
-<script src="js/iba-phone.js?v=17.0.2"></script>
+<script src="js/iba-phone.js?v=17.0.5-p2"></script>
 <script src="js/iba-live-counts.js?v=17.0.2-p4"></script>
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
@@ -3815,6 +3837,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1702-opo.js?v=17.0.2-p13"></script>
 <script src="js/iba-1702-esn.js?v=17.0.4-p3"></script>
 <script src="js/iba-lpo-mail.js?v=17.0.5-p1"></script>
+<script src="js/iba-1705-view.js?v=17.0.5-p2"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
