@@ -1,3 +1,28 @@
+17.0.5 patch 3 (2026-10-26) - Fit to the screen
+  - NEW js/iba-1705-fit.js + css/iba-1705-fit.css: when a button's words do
+    not fit, the button keeps its size and its row wraps; if still too long
+    it gets tighter, then shows only its icon (or one line with "..."),
+    full words as tooltip. Long help notes fold to 2 lines with a "more"
+    chip. Undone when the window gets wider. Checks after a click, a resize
+    and every 4 s (about 2 ms, writes only when something changes).
+  - Assistant "Waiting for approval" table: INV / SRV in the Files column
+    were wider than the column and went outside the card when a PO was open
+    on the right. Files buttons smaller (no icon) and wrap; the full table
+    (with Remarks) only from 1080 px; 980-1079 px keeps Files, drops Remarks.
+  - Tablet desktop view laid out 980 px wide (was 1200), so words are
+    bigger; landscape 7" tablet is almost 1:1.
+  Files: index.html, NEW js/iba-1705-fit.js, NEW css/iba-1705-fit.css
+
+17.0.5 patch 2 (2026-10-26) - Desktop view on tablets
+  - A 7" tablet (about 600 px wide) got the phone screen. Now, on a tablet
+    (touch, short side 540 px or more) the phone screen header has a desktop
+    icon: it switches THAT device to the desktop pages. The page is laid
+    out 1200 px wide and zoomed out to fit (like Chrome "Desktop site"),
+    also after turning the tablet. Kept in the browser (localStorage
+    iba-view-mode-v1). In the desktop view a phone icon at the top right
+    switches back. Real phones never see the button.
+  Files: index.html, js/app-mobile.js, js/iba-phone.js, NEW js/iba-1705-view.js
+
 17.0.5 patch 1 (2026-10-26) - LPO emails: Open all
   - Outlook app: all emails start 0.15 s apart (was 0.9 s), so every one
     starts while the browser still counts the click (about 5 s).

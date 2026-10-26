@@ -32,20 +32,23 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <!-- 17.0.5 patch 2: a tablet can ask for the desktop view (button on the
-     phone screen, js/iba-1705-view.js): the page is then laid out 1200 px
-     wide and scaled to the screen, like the browser's "Desktop site". -->
+     phone screen, js/iba-1705-view.js): the page is then laid out 980 px
+     (or the screen width if wider) and scaled to the screen, like the browser's "Desktop site". -->
 <script>
   (function () {
     try {
       if (localStorage.getItem('iba-view-mode-v1') !== 'desktop') return;
       window.IBA_FORCE_DESKTOP = true;
       var m = document.querySelector('meta[name="viewport"]');
-      // zoom out so the 1200 px page fits the screen (again after turning it)
+      // zoom out so the page fits the screen (again after turning it)
       var fit = function () {
         var w = (window.screen && screen.width) || 1200;
         try { if (screen.orientation && /landscape/.test(screen.orientation.type)) w = Math.max(screen.width, screen.height); else if (screen.orientation) w = Math.min(screen.width, screen.height); } catch (e) {}
-        var sc = Math.min(1, w / 1200).toFixed(3);
-        if (m) m.setAttribute('content', 'width=1200, initial-scale=' + sc + ', minimum-scale=' + sc);
+        // 17.0.5 patch 3: 980 px wide (was 1200) so the words stay bigger;
+        // js/iba-1705-fit.js shortens what does not fit
+        var lw = Math.max(980, w);
+        var sc = Math.min(1, w / lw).toFixed(3);
+        if (m) m.setAttribute('content', 'width=' + lw + ', initial-scale=' + sc + ', minimum-scale=' + sc);
       };
       fit();
       window.addEventListener('orientationchange', function () { setTimeout(fit, 150); });
@@ -464,6 +467,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
 <link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
 <link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
+<link href="css/iba-1705-fit.css?v=17.0.5-p3" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -3838,6 +3842,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1702-esn.js?v=17.0.4-p3"></script>
 <script src="js/iba-lpo-mail.js?v=17.0.5-p1"></script>
 <script src="js/iba-1705-view.js?v=17.0.5-p2"></script>
+<script src="js/iba-1705-fit.js?v=17.0.5-p3"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
