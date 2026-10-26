@@ -129,6 +129,7 @@
             <button type="button" class="iba-ph-icon iba-ph-ai" id="iba-ph-ai" aria-label="IBA Assistant" title="IBA Assistant" hidden><i class="fa-solid fa-robot"></i></button>
             <button type="button" class="iba-ph-icon iba-ph-sound" id="iba-ph-sound" data-iba-sound-btn aria-label="Sounds"><i class="fa-solid fa-volume-high"></i></button>
             <button type="button" class="iba-ph-icon" id="iba-ph-refresh" aria-label="Refresh"><i class="fa-solid fa-rotate-right"></i></button>
+            <button type="button" class="iba-ph-icon" data-iba-view="desktop" aria-label="Desktop view" title="Desktop view (tablet)" hidden><i class="fa-solid fa-desktop"></i></button>
           </header>
           <div class="iba-ph-switch" id="iba-ph-switch" role="tablist" aria-label="Workspace"></div>
           <main class="iba-ph-main" id="iba-ph-main">

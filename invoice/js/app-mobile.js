@@ -27,6 +27,8 @@ function isDesktopSiteLayoutRequested() {
     return value;
 }
 function isDesktopSiteLayoutRequestedNow() {
+    // 17.0.5 p2: "Desktop view" picked on this tablet (js/iba-1705-view.js)
+    if (window.IBA_FORCE_DESKTOP) return true;
     try {
         const viewportWidth = Math.max(
             Number(window.innerWidth) || 0,
