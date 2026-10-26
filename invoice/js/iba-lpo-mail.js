@@ -20,6 +20,10 @@
    suggestions from Vendors.csv / Site.csv / Site_Contacts.csv: picking one
    fills To, Project + site CC group, Mobile. A PO not in POVALUE2.csv is
    also looked up in the POs added in the system (purchase_orders))
+   (+ 17.0.5 patch 1: Open all - Outlook app emails start 0.15 s apart so
+   all of them start while the click still counts (0.9 s apart let only the
+   first ~5 through); blocked web emails stay "not opened" and the button
+   turns into "Open the rest (N)"; clear steps when the browser blocks)
    "LPO emails": type one or many PO numbers and get one ready email per PO
    to send the approved LPO to the vendor:
    - Subject  LPO# {PO}-{ReqNum}-{Vendor}-{Type of work}-{Site}
@@ -418,7 +422,8 @@
             const left = mails.filter((m) => !m.opened && m.ok).length;
             allBtn.disabled = left < 2;
             const inEdge = where === 'edge' ? ' (Edge)' : (where === 'app' ? ' app' : '');
-            allBtn.innerHTML = '<i class="fa-solid fa-layer-group"></i> Open all in Outlook' + inEdge + (left > 1 ? ' (' + left + ')' : '');
+            const some = mails.some((m) => m.opened);
+            allBtn.innerHTML = '<i class="fa-solid fa-layer-group"></i> ' + (some ? 'Open the rest' : 'Open all in Outlook' + inEdge) + (left > 1 ? ' (' + left + ')' : '');
             nextBtn.innerHTML = '<i class="fa-brands fa-microsoft"></i> ' + (next ? 'Open next in Outlook' + inEdge + ' (PO ' + esc(next.po) + ')' : (mails.length ? 'All opened' : 'Open next in Outlook'));
         };
         const recompute = (m) => {
@@ -575,15 +580,20 @@
                 // one new Outlook window per email, a moment apart so Windows
                 // keeps up; the browser may ask once to open Outlook
                 const go = todo.filter((i) => mails[i].to);
-                go.forEach((i, k) => setTimeout(() => openMail(i, 'app', true), k * 900));
-                W.err('Opening ' + go.length + ' email' + (go.length === 1 ? '' : 's') + ' in the Outlook app. If only the first one opened, use "Open next" for the rest.' +
+                // the browser accepts these only while the click still counts
+                // (about 5 s), so they start close together
+                go.forEach((i, k) => { if (k === 0) openMail(i, 'app', true); else setTimeout(() => openMail(i, 'app', true), k * 150); });
+                W.err('Opening ' + go.length + ' email' + (go.length === 1 ? '' : 's') + ' in the Outlook app, each in its own window. The first time, the browser asks to open Outlook: tick "Always allow" and press Open all again for the rest.' +
                     (noTo.length ? ' Not opened (no "To" email): PO ' + noTo.map((i) => mails[i].po).join(', ') + '.' : ''));
                 return;
             }
             let done = 0, blocked = 0;
             todo.filter((i) => mails[i].to).forEach((i) => { if (openMail(i, 'web', true)) done++; else blocked++; });
             const msg = [];
-            if (blocked) msg.push('Chrome blocked ' + blocked + ' of them. Click the pop-up icon at the right end of the address bar, choose "Always allow pop-ups" for this site, then press Open all again.');
+            if (blocked) {
+                msg.push('The browser opened ' + done + ' and blocked ' + blocked + '. One time only: click the pop-up icon at the right end of the address bar, choose "Always allow pop-ups and redirects", press Done, then press "Open all" again for the rest.');
+                if (location.protocol === 'file:') msg.push('(A copy opened from the disk cannot always get this permission; use port.iba.com.qa.)');
+            }
             if (noTo.length) msg.push('Not opened (no "To" email): PO ' + noTo.map((i) => mails[i].po).join(', ') + '.');
             if (msg.length) W.err(msg.join(' '));
         }
