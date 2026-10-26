@@ -1,3 +1,11 @@
+17.0.5 patch 1 (2026-10-26) - LPO emails: Open all
+  - Outlook app: all emails start 0.15 s apart (was 0.9 s), so every one
+    starts while the browser still counts the click (about 5 s).
+  - This browser: emails the browser blocked stay "not opened"; the button
+    becomes "Open the rest (N)" and the window says exactly how to allow
+    pop-ups once. A copy opened from the disk may not get that permission.
+  Files: index.html, js/iba-lpo-mail.js
+
 17.0.5 (2026-10-26) - MANDATORY update notice
   - Version 17.0.5 (app.js APP_VERSION, index.html IBA_SYSTEM_VERSION,
     version.json). version.json mandatory=true with the message: major
