@@ -6,6 +6,7 @@
    - .iba-fit-icon   still too long: icon only (the words stay as tooltip)
    - .iba-fit-cut    no icon: one line with "…" (the words stay as tooltip)
    - .iba-fit-note   long help text folded to 2 lines, "more" opens it
+   Batch Entry search (patch 4): invoices already in the batch greyed out.
    Assistant "Waiting for approval": Files column (INV / SRV) stays inside
    the card, and the full table only shows when it really fits.
    ========================================================================== */
@@ -46,4 +47,16 @@
     #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
     #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { grid-template-columns: 74px 88px minmax(110px, 1.4fr) 84px 88px 118px 100px minmax(80px, 1fr) 46px 84px !important; }
   }
+
+  /* ---- 17.0.5 patch 4: Batch Entry search, invoices already in the batch -- */
+  #im-batch-modal-results .batch-modal-result-row.is-in-batch,
+  #im-batch-modal-results .batch-modal-result-row.is-in-batch:hover { opacity: .45 !important; cursor: not-allowed !important; background: rgba(255, 255, 255, .03) !important; }
+  #im-batch-modal-results .batch-modal-result-row.is-in-batch td { text-decoration: none !important; }
+  #im-batch-modal-results .batch-modal-result-row.is-in-batch .modal-inv-checkbox { pointer-events: none !important; }
+  #im-batch-modal-results .iba-inbatch-tag {
+    display: inline-flex !important; align-items: center !important; gap: 4px !important; margin-left: 6px !important; padding: 1px 8px !important; border-radius: 999px !important;
+    font-size: 11px !important; font-weight: 800 !important; white-space: nowrap !important;
+    border: 1px solid rgba(90, 209, 143, .6) !important; background: rgba(90, 209, 143, .16) !important; color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important;
+  }
+  #im-batch-modal-results .iba-inbatch-line { color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; font-weight: 700 !important; }
 }
