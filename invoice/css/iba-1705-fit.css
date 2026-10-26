@@ -7,6 +7,9 @@
    - .iba-fit-cut    no icon: one line with "…" (the words stay as tooltip)
    - .iba-fit-note   long help text folded to 2 lines, "more" opens it
    Batch Entry search (patch 4): invoices already in the batch greyed out.
+   Cancel job button + pop-up (patch 5, js/iba-1705-cancel.js).
+   "Where is my invoice?" simple view (patch 6, js/iba-assistant.js).
+   Assistant: Track button in colour (A), app icons (B), phone bottom bar (C) - patch 9.
    Assistant "Waiting for approval": Files column (INV / SRV) stays inside
    the card, and the full table only shows when it really fits.
    ========================================================================== */
@@ -59,4 +62,161 @@
     border: 1px solid rgba(90, 209, 143, .6) !important; background: rgba(90, 209, 143, .16) !important; color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important;
   }
   #im-batch-modal-results .iba-inbatch-line { color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; font-weight: 700 !important; }
+
+  /* ---- 17.0.5 patch 5: Cancel job (js/iba-1705-cancel.js) ----------------- */
+  html body :is(#active-task-table-body, #reporting-table-body, #wd-activetask, #wd-reporting) .iba-job-cancel-btn.iba-job-cancel-btn:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) {
+    display: inline-flex !important; align-items: center !important; gap: 5px !important; height: 30px !important; padding: 0 10px !important; margin: 0 0 0 5px !important;
+    border-radius: 8px !important; border: 1px solid rgba(255, 107, 107, .6) !important; background: rgba(220, 53, 69, .16) !important; background-image: none !important;
+    color: #FF9B9B !important; -webkit-text-fill-color: #FF9B9B !important; font-size: 12px !important; font-weight: 700 !important; white-space: nowrap !important; cursor: pointer !important; box-shadow: none !important;
+  }
+  html body :is(#active-task-table-body, #reporting-table-body, #wd-activetask, #wd-reporting) .iba-job-cancel-btn.iba-job-cancel-btn:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z):hover { background: rgba(220, 53, 69, .3) !important; }
+  html body :is(#active-task-table-body, #reporting-table-body, #wd-activetask, #wd-reporting) .iba-job-cancel-btn.iba-job-cancel-btn:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) i { color: inherit !important; -webkit-text-fill-color: currentColor !important; font-size: 12px !important; }
+  #iba-job-cancel-pop { position: fixed !important; inset: 0 !important; z-index: 2147482800 !important; display: flex !important; align-items: center !important; justify-content: center !important; padding: 16px !important; background: rgba(4, 10, 18, .35) !important; }
+  #iba-job-cancel-pop .iba-jc-box {
+    width: min(440px, 100%) !important; padding: 18px 18px 16px !important; border-radius: 16px !important;
+    border: 1px solid rgba(255, 255, 255, .22) !important; background: rgba(12, 26, 40, .72) !important; box-shadow: 0 18px 50px rgba(0, 0, 0, .45) !important;
+    color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 14px !important;
+  }
+  #iba-job-cancel-pop h3 { margin: 0 0 6px !important; font-size: 17px !important; color: #FF9B9B !important; -webkit-text-fill-color: #FF9B9B !important; }
+  #iba-job-cancel-pop .iba-jc-what { margin: 0 0 6px !important; font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-job-cancel-pop .iba-jc-sub { margin: 0 0 12px !important; font-size: 12.5px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-job-cancel-pop label { display: block !important; margin: 0 0 4px !important; font-size: 12px !important; font-weight: 700 !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-job-cancel-pop textarea {
+    width: 100% !important; box-sizing: border-box !important; padding: 8px 10px !important; border-radius: 10px !important; resize: vertical !important;
+    border: 1px solid rgba(255, 255, 255, .25) !important; background: rgba(6, 14, 24, .55) !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font: inherit !important;
+  }
+  #iba-job-cancel-pop .iba-jc-acts { display: flex !important; justify-content: flex-end !important; gap: 8px !important; margin-top: 12px !important; }
+  #iba-job-cancel-pop .iba-jc-acts button { height: 38px !important; padding: 0 16px !important; border-radius: 10px !important; font-weight: 700 !important; cursor: pointer !important; font-size: 13px !important; }
+  #iba-job-cancel-pop .iba-jc-back { border: 1px solid rgba(255, 255, 255, .3) !important; background: rgba(255, 255, 255, .08) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  #iba-job-cancel-pop .iba-jc-go { border: 1px solid rgba(255, 107, 107, .7) !important; background: rgba(220, 53, 69, .35) !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+
+  /* ---- 17.0.5 patch 6: "Where is my invoice?" simple view (iba-assistant.js) */
+  #iba-ai-panel .iba-trk-switch { display: flex !important; justify-content: flex-end !important; margin: 0 0 4px !important; }
+  #iba-ai-panel .iba-trk-simple[hidden], #iba-ai-panel .iba-trk-full[hidden] { display: none !important; }
+  #iba-ai-panel .iba-trk-s-po { margin: 8px 0 12px !important; }
+  #iba-ai-panel .iba-trk-s-pohead { display: flex !important; flex-wrap: wrap !important; align-items: baseline !important; gap: 4px 10px !important; }
+  #iba-ai-panel .iba-trk-s-pohead b { font-size: 17px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-trk-s-pohead span { font-size: 13px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-trk-s-sum { margin: 4px 0 8px !important; font-size: 14px !important; font-weight: 700 !important; color: #A9CBFF !important; -webkit-text-fill-color: #A9CBFF !important; }
+  #iba-ai-panel .iba-trk-s-sum.is-paid { color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; }
+  #iba-ai-panel .iba-trk-s-it {
+    --c: #7FB2FF; margin: 0 0 8px !important; padding: 10px 12px !important; border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, .14) !important; border-left: 4px solid var(--c) !important; background: rgba(8, 18, 30, .45) !important;
+  }
+  #iba-ai-panel .iba-trk-s-it.is-acc { --c: #F5B851; }
+  #iba-ai-panel .iba-trk-s-it.is-late { --c: #FF9B5B; }
+  #iba-ai-panel .iba-trk-s-it.is-stop { --c: #FF6B6B; }
+  #iba-ai-panel .iba-trk-s-top { display: flex !important; justify-content: space-between !important; align-items: baseline !important; gap: 8px !important; }
+  #iba-ai-panel .iba-trk-s-no { font-weight: 800 !important; font-size: 14px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-trk-s-val { font-weight: 700 !important; font-variant-numeric: tabular-nums !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; white-space: nowrap !important; }
+  #iba-ai-panel .iba-trk-s-now { display: flex !important; gap: 10px !important; align-items: flex-start !important; margin-top: 6px !important; }
+  #iba-ai-panel .iba-trk-s-now > i { flex: 0 0 auto !important; width: 30px !important; height: 30px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    font-size: 14px !important; color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; background: rgba(255, 255, 255, .07) !important; border: 1px solid var(--c) !important; }
+  #iba-ai-panel .iba-trk-s-now b { display: block !important; font-size: 16px !important; line-height: 1.3 !important; color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; }
+  #iba-ai-panel .iba-trk-s-now small { display: block !important; margin-top: 2px !important; font-size: 13px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-trk-s-next { margin: 6px 0 0 40px !important; font-size: 12.5px !important; color: #CFE0EE !important; -webkit-text-fill-color: #CFE0EE !important; }
+  #iba-ai-panel .iba-trk-s-next span { font-weight: 700 !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-trk-s-acts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin: 8px 0 0 40px !important; }
+  #iba-ai-panel .iba-trk-s-acts:empty { display: none !important; }
+  #iba-ai-panel .iba-trk-s-paid { margin: 4px 0 0 !important; padding: 8px 12px !important; border-radius: 12px !important; border: 1px solid rgba(90, 209, 143, .45) !important; background: rgba(20, 70, 45, .3) !important; }
+  #iba-ai-panel .iba-trk-s-paid summary { cursor: pointer !important; font-weight: 800 !important; color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; }
+  #iba-ai-panel .iba-trk-s-paid > div { display: flex !important; gap: 10px !important; align-items: baseline !important; padding: 5px 0 !important; border-top: 1px dashed rgba(255, 255, 255, .12) !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-trk-s-paid > div span:not(.iba-trk-s-val) { flex: 1 1 auto !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  body.iba-phone #iba-ai-panel .iba-trk-s-now b { font-size: 18px !important; }
+  body.iba-phone #iba-ai-panel .iba-trk-s-acts .iba-ai-mini { min-height: 44px !important; padding: 0 14px !important; font-size: 14px !important; }
+
+  /* ---- 17.0.5 patch 9: assistant header Track button stands out ---------- */
+  #iba-ai-panel :is(.iba-ai-head, .iba-ai-wide-bar) .iba-ai-icon.iba-ai-track-btn {
+    width: auto !important; min-width: 0 !important; padding: 0 12px 0 10px !important; gap: 6px !important; display: inline-flex !important; align-items: center !important;
+    border: 1px solid #5FB0FF !important; background: linear-gradient(135deg, rgba(42, 120, 214, .85), rgba(19, 138, 151, .85)) !important;
+    color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-weight: 800 !important; font-size: 13px !important; white-space: nowrap !important;
+    box-shadow: 0 0 0 0 rgba(95, 176, 255, .6) !important; animation: iba-trk-glow 2.4s ease-out 0.6s 4 !important; height: 32px !important;
+  }
+  #iba-ai-panel :is(.iba-ai-head, .iba-ai-wide-bar) .iba-ai-icon.iba-ai-track-btn i { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-size: 14px !important; }
+  #iba-ai-panel :is(.iba-ai-head, .iba-ai-wide-bar) .iba-ai-icon.iba-ai-track-btn:hover { filter: brightness(1.12) !important; }
+  #iba-ai-panel :is(.iba-ai-head, .iba-ai-wide-bar) .iba-ai-icon.iba-ai-track-btn.is-on { border-color: #E3C98A !important; box-shadow: 0 0 0 2px rgba(227, 201, 138, .45) !important; animation: none !important; }
+  @keyframes iba-trk-glow { 0% { box-shadow: 0 0 0 0 rgba(95, 176, 255, .65); } 70% { box-shadow: 0 0 0 9px rgba(95, 176, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(95, 176, 255, 0); } }
+  @media (prefers-reduced-motion: reduce) { #iba-ai-panel :is(.iba-ai-head, .iba-ai-wide-bar) .iba-ai-icon.iba-ai-track-btn { animation: none !important; } }
+  /* side panel head is narrow: drop the small wand mark so the name has room next to the Track pill */
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head > .iba-ai-mark { display: none !important; }
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head { gap: 4px !important; }
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head .iba-ai-icon:not(.iba-ai-track-btn) { width: 29px !important; min-width: 29px !important; }
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head .iba-ai-title { flex: 1 1 auto !important; min-width: 102px !important; }
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head .iba-ai-title > strong { white-space: nowrap !important; }
+  body:not(.iba-phone) #iba-ai-panel:not(.is-wide) .iba-ai-head .iba-ai-title > small { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; }
+
+  /* B: app icons under the greeting */
+  #iba-ai-panel .iba-ai-apps { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px !important; margin: 4px 0 12px !important; padding: 0 !important; }
+  #iba-ai-panel .iba-ai-apps > button {
+    display: grid !important; justify-items: center !important; align-content: start !important; gap: 6px !important; padding: 4px 2px !important; min-width: 0 !important; height: auto !important;
+    border: 0 !important; background: none !important; box-shadow: none !important; cursor: pointer !important;
+    color: #DFE8F0 !important; -webkit-text-fill-color: #DFE8F0 !important; font-size: 11.5px !important; font-weight: 700 !important; line-height: 1.2 !important; text-align: center !important; white-space: normal !important;
+  }
+  #iba-ai-panel .iba-ai-apps > button > i {
+    width: 50px !important; height: 50px !important; border-radius: 15px !important; display: grid !important; place-items: center !important; font-style: normal !important;
+    color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-size: 21px !important;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .35) !important; transition: transform .15s ease !important;
+  }
+  #iba-ai-panel .iba-ai-apps > button > i > span { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #iba-ai-panel .iba-ai-apps > button:hover > i, #iba-ai-panel .iba-ai-apps > button:focus-visible > i { transform: translateY(-2px) !important; }
+  #iba-ai-panel .iba-ai-apps > button > b { font-weight: 700 !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #iba-ai-panel .iba-ai-apps > .is-hero { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-weight: 800 !important; }
+  #iba-ai-panel .iba-ai-apps > .is-hero > i { width: 58px !important; height: 58px !important; font-size: 25px !important; background: linear-gradient(145deg, #4DA3FF, #1F5FB8) !important; outline: 3px solid rgba(95, 176, 255, .35) !important; outline-offset: 2px !important; }
+  #iba-ai-panel .iba-ai-apps > .is-c1 > i { background: linear-gradient(145deg, #F5B851, #C9831C) !important; }
+  #iba-ai-panel .iba-ai-apps > .is-c3 > i { background: linear-gradient(145deg, #3FD0C9, #138A97) !important; }
+  #iba-ai-panel .iba-ai-apps > .is-c4 > i { background: linear-gradient(145deg, #9B7BE0, #6040B0) !important; }
+
+  /* expanded window: the same shortcuts in its top bar */
+  #iba-ai-panel .iba-ai-wide-apps { display: inline-flex !important; align-items: center !important; gap: 6px !important; margin-left: auto !important; margin-right: 8px !important; flex-wrap: wrap !important; }
+  #iba-ai-panel .iba-ai-wide-apps .iba-ai-mini.is-c1 i { color: #F5B851 !important; -webkit-text-fill-color: #F5B851 !important; }
+  #iba-ai-panel .iba-ai-wide-apps .iba-ai-mini.is-c3 i { color: #3FD0C9 !important; -webkit-text-fill-color: #3FD0C9 !important; }
+  #iba-ai-panel .iba-ai-wide-apps .iba-ai-mini.is-c4 i { color: #B9A0F0 !important; -webkit-text-fill-color: #B9A0F0 !important; }
+
+  /* C: phone bottom bar, Track = big round button in the middle */
+  #iba-ai-panel .iba-aph-tabs { display: none !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs {
+    display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)) !important; align-items: end !important; flex: 0 0 auto !important; order: 99 !important;
+    padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px)) !important; background: rgba(6, 14, 24, .92) !important; border-top: 1px solid rgba(255, 255, 255, .12) !important; position: relative !important; z-index: 2 !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button {
+    display: grid !important; justify-items: center !important; gap: 3px !important; padding: 4px 0 !important; min-height: 50px !important; height: auto !important; border: 0 !important; background: none !important; box-shadow: none !important;
+    color: #A9B9C7 !important; -webkit-text-fill-color: #A9B9C7 !important; font-size: 11px !important; font-weight: 700 !important; cursor: pointer !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button[hidden] { display: none !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button > i { font-size: 20px !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-on { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-mid { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-weight: 800 !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-mid > b {
+    width: 60px !important; height: 60px !important; margin-top: -30px !important; border-radius: 50% !important; display: grid !important; place-items: center !important;
+    background: linear-gradient(145deg, #4DA3FF, #1F5FB8) !important; border: 4px solid #0b1724 !important; box-shadow: 0 8px 18px rgba(31, 95, 184, .55) !important;
+  }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-mid > b > i { font-size: 25px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  /* Z Flip cover screen: too small for a bar */
+  @media (max-width: 480px) and (max-height: 560px) { body.iba-phone #iba-ai-panel .iba-aph-tabs { display: none !important; } }
+
+  /* ------------------------------------------------------------------
+     17.0.5 patch 10 — no printing or Excel on the phone
+     A phone has no printer and cannot open an Excel file, so the report,
+     print and Excel buttons are hidden there. The inventory QR item
+     label keeps its buttons: that one is made for the phone.
+     ------------------------------------------------------------------ */
+  body:is(.iba-mobile-ui, .iba-phone) :is(
+    #print-report-button,
+    #summary-note-print-btn,
+    #printSummaryBtn, #printDetailedBtn,
+    #im-po-closeout-print-btn, #im-po-closeout-excel-btn, #im-po-closeout-excel-both-btn,
+    #im-reporting-download-btn, #im-download-excel-custom-btn,
+    #im-download-daily-report-button, #im-download-with-accounts-report-button,
+    #im-finance-print-report-btn,
+    #ms-download-titles-btn, #ms-open-report-modal-btn,
+    #ms-modal-print-btn, #ms-modal-excel-btn, #ms-requestlist-print-btn
+  ) { display: none !important; }
+  /* 17.0.5 patch 12: only the 3 most used skills in the chip row */
+  #iba-ai-panel #iba-ai-chips > .is-chip-off { display: none !important; }
+  #iba-ai-panel #iba-ai-chips > .iba-chip-all { border-style: dashed !important; opacity: .85 !important; }
+  /* 17.0.5 patch 13: the Dashboard Refresh icon turns while the cards are counted again */
+  body.iba-dash-updating #wd-active-dashboard-refresh i { animation: fa-spin 1.2s linear infinite !important; }
+  /* 17.0.5 patch 11: the assistant on the phone too (Print / Excel under
+     result cards, brief Print, Print list) */
+  body:is(.iba-mobile-ui, .iba-phone) #iba-ai-panel :is(.iba-ai-cardacts, [data-rep], [data-brief-print], [data-brief-apv-print]) { display: none !important; }
 }
