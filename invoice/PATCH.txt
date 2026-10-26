@@ -1,3 +1,101 @@
+17.0.5 patch 13 (2026-10-26) - Dashboard keeps its cards while counting again
+  - Before: after a job was saved / edited / deleted / cancelled, after
+    Refresh, or once a day, the saved Dashboard was thrown away and only
+    the personal + Finance cards showed for about a minute.
+  - Now the saved cards and numbers stay on screen (marked "to check")
+    and the new numbers replace them when the count is done. A saved
+    copy up to 7 days old is shown the same way. The Refresh icon turns
+    while it counts. No extra Firebase reads.
+  Files: index.html, js/app-workdesk-dashboard.js, css/iba-1705-fit.css
+
+17.0.5 patch 12 (2026-10-26) - Assistant chip row: only 3 most used skills
+  - The chips under the chat show only the 3 skills this user uses most
+    (recent use counts more, so they change over time) + "All skills"
+    (opens Skills). Start: Today's brief, Where is my invoice?, Approvals
+    waiting (Super Admin) / Find colleague (others). Only skills the user
+    may use. (trimChips() in iba-assistant.js, localStorage
+    iba-ai-chip-use-v1:<user>)
+  Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 11 (2026-10-26) - No Print / Excel in the assistant on the phone
+  - Phone assistant: the Print / Excel buttons under result cards, the
+    brief "Print" and "Print list" are hidden. PC unchanged.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 10 (2026-10-26) - No printing or Excel on the phone
+  - A phone has no printer and cannot open an Excel file, so these are
+    hidden on phones (and small tablets; "Desktop view" brings them back):
+    Job Records "Print Current Report"; Summary Note "Print"; Invoice
+    Records Summary / Detailed Report, UR, WA, Fin, XLS; PO Close-out
+    "Print this tab" / "Excel this tab" / "Excel both"; Material Stock
+    "Download Titles" / "Stock Report" (and that window's Print / Excel),
+    Required Materials "Print"; Finance print report.
+  - Kept: the inventory QR item label (Label Printer / Office-PDF). That
+    one is made for the phone.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 9 (2026-10-26) - Track button easy to spot (like a phone app)
+  - Assistant header: blue "Track" button (glows a few times on open).
+  - Under the greeting: app icons Where is my invoice? / Now brief /
+    Transfer / Colleague.
+  - Expanded window: the same shortcuts in the top bar.
+  - Phone: bottom bar Home / Brief / big round Track / Transfer /
+    Colleague (not on the Z Flip cover screen). Chat via "Ask in words".
+  Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 8 (2026-10-26) - No Remind for the CEO
+  - Invoice tracking (simple view and full card, also "Remind all"): no
+    Remind button for an invoice in CEO Approval, or held by someone whose
+    Position is CEO. Nobody reminds the CEO. (noRemind() in iba-assistant.js)
+  Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 7 (2026-10-26) - Fit-to-screen fix: labels vanished
+  - Buttons with a title and a small line under it (assistant Track:
+    Invoices / Inventory, tiles) were taken for squeezed buttons and
+    switched to icon only a moment after opening. Such two-line buttons
+    are now left alone; a 2nd text line only counts as "too long" on a
+    button meant to stay on one line (nowrap).
+  Files: index.html, js/iba-1705-fit.js
+
+17.0.5 patch 6 (2026-10-26) - "Where is my invoice?" in plain words
+  - Invoice tracking cards (assistant search, phone Invoice search, the
+    skill) have a simple view: one line per PO ("5 invoices: 3 paid · 1
+    with Accounts · 1 on the way"), then each open invoice in plain words:
+    what is happening now (e.g. "Waiting for the SRV from site"), who has
+    it, for how long ("taking long" after 7 days), what comes next, and
+    big Remind / Invoice / SRV buttons. Paid invoices fold into one green
+    line. "Full details" switches to the full card (choice kept in this
+    browser, localStorage iba-trk-view-v1). Phone and normal users see the
+    simple view first; the Super Admin sees the full card first.
+  - Skill "Check invoice status" renamed "Where is my invoice?" (chip at
+    the top of the PC assistant, in Find and track, and words like "where
+    is my invoice" / "invoice status" offer it). Phone tile "Invoice" is
+    now "Where is my invoice? - Type the PO or vendor".
+  - With Accounts: the button says "Remind Accounts" (no person named).
+  Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 5 (2026-10-26) - Cancel a job entry
+  - Red "Cancel" button on job entries (reception jobs, e.g. IPC Application
+    to the site QS): in Active Task next to Process (the person it is
+    addressed to), and in Job Records for the Super Admin, the person it is
+    addressed to and the person who entered it. Pop-up with an optional
+    reason. Saves status (remarks) Cancelled, attention none, dateResponded
+    today, cancelledBy / cancelledAt / cancelReason / cancelledFromAttention,
+    Current Note "Cancelled: reason", history line "Cancelled". The job
+    leaves Active Task and shows as Cancelled in Job Records.
+    NEW js/iba-1705-cancel.js; look in css/iba-1705-fit.css. PC only (the
+    phone Active Task cards have no Cancel yet).
+  Files: index.html, NEW js/iba-1705-cancel.js, css/iba-1705-fit.css
+
+17.0.5 patch 4 (2026-10-26) - Batch Entry: invoices already in the batch
+  - Search PO window: an invoice that already has a card in the batch is
+    greyed out with a green "In batch" tag and cannot be picked (click,
+    Space and "select all" skip it). The summary line says e.g.
+    "2 already in batch (INV 3, INV 4)". Delete the card and the invoice
+    can be picked again. NEW js/iba-1705-inbatch.js; look in
+    css/iba-1705-fit.css.
+  Files: index.html, NEW js/iba-1705-inbatch.js, css/iba-1705-fit.css
+
 17.0.5 patch 3 (2026-10-26) - Fit to the screen
   - NEW js/iba-1705-fit.js + css/iba-1705-fit.css: when a button's words do
     not fit, the button keeps its size and its row wraps; if still too long
