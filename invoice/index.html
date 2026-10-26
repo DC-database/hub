@@ -31,8 +31,31 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<!-- 17.0.2 patch 5: install as an app (full screen, no address bar) -->
-<link rel="manifest" href="manifest.json?v=17.0.2-p5"/>
+<!-- 17.0.4 patch 7: quiet console. Info lines (console.log / info / debug)
+     are hidden unless debugging is on: add ?debug=1 to the address once
+     (remembered in this browser; ?debug=0 turns it off). Warnings and
+     errors always show. -->
+<script>
+  (function () {
+    try {
+      var q = (location.search.match(/[?&]debug=([01])/) || [])[1];
+      if (q === '1') localStorage.setItem('iba-debug', '1');
+      if (q === '0') localStorage.removeItem('iba-debug');
+      if (localStorage.getItem('iba-debug') === '1') return;
+    } catch (e) {}
+    var c = window.console, keep = {};
+    ['log', 'info', 'debug'].forEach(function (k) { keep[k] = c[k]; c[k] = function () {}; });
+    window.ibaConsole = keep; // ibaConsole.log(...) still prints when needed
+  })();
+</script>
+<!-- 17.0.2 patch 5: install as an app (full screen, no address bar).
+     17.0.4 patch 7: only on the real site; a page opened from a disk
+     (file:///) cannot use it and showed red errors in the console. -->
+<script>
+  if (/^https?:$/.test(location.protocol)) {
+    document.write('<link rel="manifest" href="manifest.json?v=17.0.2-p5"/>');
+  }
+</script>
 <meta name="theme-color" content="#0b1724"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -40,7 +63,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
 <script>
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('[IBA app] install helper not registered', e); });
     });
@@ -415,7 +438,9 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-17-p27.css?v=17.0.0-p28" rel="stylesheet"/>
 <link href="css/iba-1702-glass.css?v=17.0.2-p6" rel="stylesheet"/>
 <link href="css/iba-1702-p10.css?v=17.0.3-p13" rel="stylesheet"/>
+<link href="css/iba-1703-p14.css?v=17.0.4-p2" rel="stylesheet"/>
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
+<link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
 <link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
@@ -3729,23 +3754,23 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=12.9.1"></script>
-<script src="app.js?v=17.0.3"></script>
+<script src="app.js?v=17.0.5"></script>
 <script src="js/iba-approvals.js?v=17.0.2-p14"></script>
-<script src="js/app-time-clock.js?v=11.7.2"></script>
+<script src="js/app-time-clock.js?v=17.0.4-p7"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/iba-page-surfaces.js?v=15.0.0"></script>
 <script src="js/app-navigation-settings.js?v=15.0.0"></script>
 <script src="js/app-data-cache.js?v=17.0.0-p7"></script>
 <script src="js/app-job-vendor.js?v=8.2.3"></script>
 <script src="js/app-workdesk-job-entry.js?v=12.9.9a"></script>
-<script src="js/app-standard-job.js?v=17.0.0-p4"></script>
+<script src="js/app-standard-job.js?v=17.0.4-p8"></script>
 <script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
 <script src="js/app-payments.js?v=12.8.2"></script>
 <script src="js/app-invoice-records.js?v=17.0.0-p7"></script>
 <script src="js/app-po-closeout.js?v=15.0.0-p23"></script>
 <script src="js/app-active-tasks.js?v=17.0.2-p14"></script>
 <script src="js/app-workdesk-dashboard.js?v=15.0.0-p43"></script>
-<script src="js/app-general-announcement.js?v=15.0.0"></script>
+<script src="js/app-general-announcement.js?v=17.0.4-p7"></script>
 <script src="js/app-workdesk-reporting.js?v=15.0.0-p32"></script>
 <script src="js/app-reporting-actions.js?v=9.9.0"></script>
 <script src="js/app-report-workflow.js?v=8.2.3"></script>
@@ -3761,40 +3786,42 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-help.js?v=11.8.8"></script>
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '17.0.3';
+      window.IBA_SYSTEM_VERSION = '17.0.5';
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
-<script src="js/iba-shell.js?v=17.0.0-p21"></script>
+<script src="js/iba-shell.js?v=17.0.4-p8"></script>
 <script src="js/iba-phone.js?v=17.0.2"></script>
 <script src="js/iba-live-counts.js?v=17.0.2-p4"></script>
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=17.0.3-p10"></script>
+<script src="js/iba-assistant.js?v=17.0.4-p3"></script>
 <script src="js/iba-status-options.js?v=15.0.0-p45"></script>
 <script src="js/iba-job-po-fill.js?v=15.0.0-p45"></script>
 <script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
 <script src="js/iba-17-p2.js?v=17.0.0-p2"></script>
-<script src="js/iba-print-basket.js?v=17.0.3"></script>
+<script src="js/iba-print-basket.js?v=17.0.4-p3"></script>
 <script src="js/iba-task-tidy.js?v=17.0.0-p6"></script>
 <script src="js/iba-17-p7.js?v=17.0.0-p7"></script>
 <script src="js/iba-17-p13.js?v=17.0.0-p13"></script>
 <script src="js/iba-17-p16.js?v=17.0.2-p2"></script>
-<script src="js/iba-17-p21.js?v=17.0.0-p23"></script>
-<script src="js/iba-17-p24.js?v=17.0.2-p14"></script>
+<script src="js/iba-17-p21.js?v=17.0.4-p7"></script>
+<script src="js/iba-17-p24.js?v=17.0.4-p3"></script>
 <script src="js/iba-17-p27.js?v=17.0.0-p33"></script>
 <script src="js/iba-1702-urgent.js?v=17.0.2"></script>
 <script src="js/iba-1702-reception-batch.js?v=17.0.2-p7"></script>
 <script src="js/iba-1702-clear.js?v=17.0.2-p11"></script>
 <script src="js/iba-1702-opo.js?v=17.0.2-p13"></script>
-<script src="js/iba-1702-esn.js?v=17.0.3-p9"></script>
+<script src="js/iba-1702-esn.js?v=17.0.4-p3"></script>
+<script src="js/iba-lpo-mail.js?v=17.0.4-p12"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
 <script src="js/iba-vacation-handover.js?v=17.0.0-p18"></script>
 <script src="js/iba-session-lock.js?v=15.0.0-p25"></script>
-<script src="js/app-version-checker.js?v=11.9.4"></script>
+<script src="js/app-version-checker.js?v=17.0.4"></script>
+<script src="js/iba-silent-update.js?v=17.0.4"></script>
 </div>    <script src="js/app-approval-print.js?v=15.0.0-p9"></script>
 </body>
 </html>

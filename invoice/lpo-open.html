@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!-- ==========================================================================
+     lpo-open.html — 17.0.4 patch 9
+     "LPO emails" hand-off page for Microsoft Edge. The IBA system (in Chrome)
+     saves the prepared emails for a moment under
+     system_settings/lpo_handoff/{id} and opens this page in Edge, where
+     Outlook web is signed in. This page reads them once, deletes them, and
+     opens each email in Outlook web (Edge must allow pop-ups for this site
+     once; otherwise each email has its own button).
+     Address: lpo-open.html#{id}|{database address}
+     ========================================================================== -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LPO emails</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; font: 15px/1.45 "Segoe UI", system-ui, sans-serif; color: #F3EAD3; background: radial-gradient(circle at 20% 0%, #14324a, #0b1724 60%); }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 16px 40px; }
+  h1 { margin: 0 0 4px; font-size: 22px; color: #fff; }
+  p { margin: 6px 0; color: #EBD8A8; }
+  .msg { padding: 10px 14px; border-radius: 12px; margin: 14px 0; border: 1px solid rgba(127,227,214,.35); background: rgba(6,14,24,.45); }
+  .msg.is-bad { border-color: rgba(245,184,81,.7); color: #F8CD7E; }
+  ul { list-style: none; padding: 0; margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  li { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(232,217,182,.28); background: rgba(8,18,30,.5); }
+  li b { color: #fff; }
+  li span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #EBD8A8; font-size: 13px; }
+  li.is-done { border-color: rgba(90,209,143,.55); }
+  button { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid rgba(127,227,214,.55); background: rgba(127,227,214,.14); color: #CFFAF3; font: inherit; font-weight: 700; cursor: pointer; }
+  button:hover { background: rgba(127,227,214,.24); }
+  .top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LPO emails</h1>
+  <p>Opening the emails in Outlook. Attach the LPO in each one, check it and send.</p>
+  <div class="msg" id="msg">Reading the emails…</div>
+  <div class="top" id="top" hidden><button type="button" id="all">Open all again</button></div>
+  <ul id="list"></ul>
+</main>
+<script>
+(function () {
+  'use strict';
+  var msg = document.getElementById('msg'), list = document.getElementById('list'), top = document.getElementById('top');
+  function say(t, bad) { msg.textContent = t; msg.className = 'msg' + (bad ? ' is-bad' : ''); }
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var h = decodeURIComponent(location.hash.replace(/^#/, '')).split('|');
+  var id = h[0] || '', base = (h[1] || '').replace(/\/$/, '');
+  if (!/^[A-Za-z0-9_-]{8,40}$/.test(id) || !/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebasedatabase\.app|firebaseio\.com)$/.test(base)) {
+    say('This link is not complete. Open the emails again from the IBA system.', true);
+    return;
+  }
+  var url = base + '/system_settings/lpo_handoff/' + id + '.json';
+  var mails = [];
+  // only Outlook web compose links are opened
+  function okUrl(u) { return /^https:\/\/outlook\.(office|office365|live)\.com\/mail\/deeplink\/compose\?/.test(String(u || '')); }
+  function openOne(i) {
+    var m = mails[i];
+    if (!m || !okUrl(m.url)) return false;
+    var w = window.open(m.url, '_blank');
+    if (!w) return false;
+    try { w.opener = null; } catch (e) {}
+    var li = list.children[i];
+    if (li) li.className = 'is-done';
+    return true;
+  }
+  function openAll() {
+    var blocked = 0;
+    for (var i = 0; i < mails.length; i++) if (!openOne(i)) blocked++;
+    if (blocked) say('Edge blocked ' + blocked + ' of ' + mails.length + '. Click the pop-up icon at the right end of the address bar, choose "Always allow pop-ups" for this site, then press "Open all again" (or use the buttons below).', true);
+    else say('Opened ' + mails.length + ' email' + (mails.length === 1 ? '' : 's') + ' in Outlook. You can close this tab.');
+  }
+  fetch(url, { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d || !Array.isArray(d.mails) || !d.mails.length) { say('These emails were already opened, or the link is old. Open them again from the IBA system.', true); return; }
+    // read once: remove the saved copy straight away
+    fetch(url, { method: 'DELETE' }).catch(function () {});
+    if (Date.now() - Number(d.at || 0) > 15 * 60000) { say('This link is older than 15 minutes. Open the emails again from the IBA system.', true); return; }
+    mails = d.mails.filter(function (m) { return m && okUrl(m.url); });
+    list.innerHTML = mails.map(function (m, i) {
+      return '<li><b>PO ' + esc(m.po) + '</b><span>' + esc(m.subject || '') + '</span><button type="button" data-i="' + i + '">Open</button></li>';
+    }).join('');
+    top.hidden = mails.length < 2;
+    openAll();
+  }).catch(function () { say('The emails could not be read (no connection?). Refresh this page to try again.', true); });
+  list.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (b && !openOne(Number(b.getAttribute('data-i')))) say('Edge blocked it. Allow pop-ups for this site (icon at the right end of the address bar).', true);
+  });
+  document.getElementById('all').addEventListener('click', openAll);
+})();
+</script>
+</body>
+</html>

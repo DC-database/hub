@@ -1,3 +1,200 @@
+17.0.5 (2026-10-26) - MANDATORY update notice
+  - Version 17.0.5 (app.js APP_VERSION, index.html IBA_SYSTEM_VERSION,
+    version.json). version.json mandatory=true with the message: major
+    system fixes for bugs and stability, faster (no slow/laggy screens),
+    payment process update.
+    Everyone (also people already on 17.0.4) gets the notice with only
+    "Update Now". Contains everything from 17.0.4 patches 1-12.
+  - Next normal version bump: set "mandatory": false again.
+  Files: index.html, app.js, version.json
+  Upload with all 17.0.4 patch files not uploaded yet.
+
+17.0.4 patch 12 (2026-10-26) - LPO emails: help when the PO is not in POVALUE2
+  - Every email now has Vendor, Site and IBA contact boxes with suggestions
+    (type a few letters, then pick):
+      Vendor  from Vendors.csv       -> fills To (unless To was typed)
+      Site    from Site.csv          -> fills Project + the site CC group
+      Contact from Site_Contacts.csv + users -> fills Mobile (no yellow check)
+    Subject, body and CC follow straight away.
+  - A PO not in POVALUE2.csv is also looked up in the POs added in the
+    system (purchase_orders) before asking for the details by hand.
+  - The orange "not in POVALUE2" note is readable again.
+  Files: index.html, js/iba-lpo-mail.js, css/iba-lpo-mail.css
+
+17.0.4 patch 11 (2026-10-26) - LPO emails: Scope
+  - Each email has a Scope: Delivery / Supply / Supply and Delivery /
+    Supply, Delivery and Installation (or none). The body work line becomes
+    "Supply and Delivery of Cement" (Scope of Type of work). Typing in Work
+    (body) still overrides it. The last scope picked is the next default
+    (first time: Supply and Delivery). New fill-in {scope}.
+  - "Open emails in" also has "Outlook app" (all computers): Open next and
+    Open all then open each email in the Outlook program (Open all starts
+    them ~1 s apart; if the browser lets only the first through, use Open
+    next for the rest).
+  Files: index.html, js/iba-lpo-mail.js, css/iba-lpo-mail.css
+
+17.0.4 patch 10 (2026-10-26) - LPO emails: CC fixed + signature
+  - CC now arrives in Outlook web: the email is handed over as one mailto
+    link (deeplink/compose?mailtouri=...). The old ?to=&cc= link left CC
+    empty (martin tested 3 link types in Edge; only this one fills CC).
+  - Template has a Signature box (saved in the browser) added under every
+    email; Outlook web does not add the signature to linked emails. Text
+    only (no logo). "Back to the original" keeps the signature.
+  Files: index.html, js/iba-lpo-mail.js
+
+17.0.4 patch 9 (2026-10-26) - LPO emails open in Microsoft Edge
+  - LPO window: "Open emails in: This browser / Microsoft Edge" (Windows,
+    remembered in the browser). With Edge, the system can stay in Chrome:
+      one email  -> opens straight in Edge (Chrome asks "Open Microsoft
+                    Edge?" the first time: tick "Always allow");
+      Open all   -> the emails are saved for a moment under
+                    system_settings/lpo_handoff/{id}; NEW lpo-open.html opens
+                    in Edge, reads them once, deletes them and opens each one
+                    in Outlook web (allow pop-ups for port.iba.com.qa in Edge
+                    once; each email also has its own Open button there).
+    Links older than 15 minutes are refused. Only Outlook compose links open.
+  - From a copy opened on the disk (file:///), Edge uses the live page
+    https://port.iba.com.qa/invoice/lpo-open.html, so upload it first.
+  Files: index.html, js/iba-lpo-mail.js, css/iba-lpo-mail.css, NEW lpo-open.html
+
+17.0.4 patch 8 (2026-10-26) - "None" as Attention for job records
+  - Job Entry and Job Records edit: Attention can be "None". The job is
+    saved with no attention: it stays in Job Records and is in nobody's
+    Active Task. (Before, None was refused with "Please select an Attention
+    user".) Invoice jobs still go to Accounts as before.
+  - Editing a job saved with no attention shows "None" (no re-pick needed).
+  Files: index.html, app.js, js/app-standard-job.js, js/iba-shell.js
+
+17.0.4 patch 7 (2026-10-26) - faster, quieter
+  - Speed: the clocks rewrote the page every second (and the sidebar clock
+    re-ran itself every 120 ms), which woke 7 page watchers ~80 times a
+    second. Now only changed values are written and hidden clocks are
+    skipped: idle work about 4x less (tested: 182 ms -> 41 ms per 10 s,
+    840 -> 63 watcher runs). Also the welcome screen and the notice banner
+    no longer rewrite unchanged text/classes, and the welcome screen no
+    longer saves the user name to the browser every second.
+  - Console: info lines (console.log/info/debug) are hidden. Add ?debug=1
+    to the address once to show them again (?debug=0 to hide). Warnings and
+    errors always show.
+  - No more red manifest / install-helper errors when index.html is opened
+    from the disk (file:///); the app install still works on the real site.
+  Files: index.html, app.js, js/app-time-clock.js, js/iba-17-p21.js,
+         js/app-general-announcement.js, js/iba-shell.js
+
+17.0.4 patch 6 (2026-10-26) - LPO emails: CC + Open all
+  - Every email gets CC: procure@iba.com.qa, a.ahmed@iba.com.qa and the
+    site group {site}@iba.com.qa (e.g. 173@iba.com.qa). CC is part of the
+    Template (editable, saved in the browser) and editable per email.
+  - "Open all in Outlook (N)" opens every not-yet-opened email at once.
+    Chrome/Edge must allow pop-ups for the site once; if they are blocked
+    the window says so and how to allow them.
+  Files: index.html, js/iba-lpo-mail.js
+
+17.0.4 patch 5 (2026-10-26) - LPO emails: mobile from Site_Contacts.csv
+  - Contact mobile order: POVALUE2 "Buyer Mobile" column (if ever added) ->
+    Site_Contacts.csv (Name, Mobile) same name = filled, no checking ->
+    otherwise looser match from Site_Contacts + user list, YELLOW "check".
+  Files: index.html, js/iba-lpo-mail.js
+
+17.0.4 patch 4 (2026-10-26) - LPO emails: Type of work suggestions + mobile check
+  - Type of work / Work boxes suggest from class.csv (Class Name) while typing;
+    Tab completes a half-typed word (Ceme -> Cement).
+  - Mobile: a "Buyer Mobile" column in POVALUE2.csv is used first (exact).
+    Otherwise the user list: exact same name = filled; any looser match
+    (Eng. Khamis Farhan -> user E.Khamis) is filled but YELLOW "check" until
+    you look at / change it; several possible users = pick from the list.
+  - CSV files saved as Windows-1252 by Excel read correctly (Façade).
+  Files: index.html, js/iba-lpo-mail.js, css/iba-lpo-mail.css
+
+17.0.4 patch 3 (2026-10-26) - LPO emails + print basket for ESN printers
+  - NEW "LPO emails" (assistant chip "LPO emails", or Settings card): type
+    PO numbers, one email per PO is made:
+      To      vendor email from Vendors.csv (column Email, matched by Supplier ID)
+      Subject LPO# {PO}-{ReqNum}-{Vendor}-{Type of work}-{Site}  (POVALUE2.csv)
+      Body    Dear Sir ... approved LPO for the {work} at {project} ...
+              IBA Contact: {Buyer Name (POVALUE2 col H)}: {mobile from users}
+      Project = Site.csv description of the PO's site (editable).
+    Type of work / work / project / contact / mobile / subject / body can be
+    changed per PO; "Template" changes the default text (saved in this
+    browser). "Open in Outlook 365" opens a new Outlook web email filled in
+    (attach the LPO, send; Outlook keeps it in Drafts if closed). "Outlook
+    app" opens it in the Outlook program. "Open next" goes through all POs.
+    Contact mobile: only when exactly one user matches the buyer name.
+  - Who: Super Admin, plus "Who can send LPO emails" (Settings card and
+    assistant chip; kept by name + mobile like Who can print ESN;
+    system_settings/lpo_mailers). Computer only.
+  - Print basket now also for the people on "Who can print ESN": "Add to
+    basket" in their Print ESN window and a cart button next to Print ESN in
+    Active Task. Printing the basket marks those ESNs as printed (Ready
+    unlocks, history "ESN printed (print basket)"). Move to Batch Entry stays
+    Super Admin only.
+  - Access check lists both.
+  - Files: index.html, js/iba-1702-esn.js, js/iba-print-basket.js,
+    js/iba-assistant.js, js/iba-17-p24.js, js/iba-lpo-mail.js (new),
+    css/iba-lpo-mail.css (new)
+
+17.0.4 patch 2 (2026-10-26) - paid list amount no longer overlaps INV/SRV
+  - PO card paid list: invoice no., paid date and amount on one line; the
+    INV / SRV buttons under it when the card is narrow (beside it when wide).
+    Long invoice numbers are cut with "..." instead of pushing into the amount.
+  - Files: index.html, css/iba-1703-p14.css
+
+17.0.4 patch 1 (2026-10-26) - task + inventory tables in columns, SRV in paid list
+  - Now Brief "Your tasks by status": one fact per column like "In the
+    company": PO, Site, Vendor, Urgent, Inv no., Value (QAR), Remarks, Age,
+    buttons. Narrower space drops Remarks, then the Urgent column (row stays
+    red); the side panel shows a short block per task.
+  - "Inventory waiting for your step": Transfer, From, To, Item, Step (pill),
+    Next to do, Age, Do it.
+  - PO card paid list: INV and SRV buttons for each paid invoice (phone too).
+  - Files: index.html, js/iba-assistant.js, css/iba-1703-p14.css
+
+17.0.4 (2026-10-26) - silent updates + mandatory notice + phone PO card
+  - VERSION 17.0.4 (app.js, index.html, version.json). version.json now says
+    "mandatory": true with the message "Mandatory update: this version fixes
+    bugs and payment issues. Please click Update Now. You stay signed in."
+    Tabs still on 17.0.3 show this text in the old notice (their Later button
+    stays, but it comes back every 15 min). From 17.0.4 on, "mandatory": true
+    hides Later and the title reads "Mandatory System Update". Set it back to
+    false (or remove it) for normal updates.
+  - NEW js/iba-silent-update.js: small uploads WITHOUT a version change now
+    reach everyone. Every 30 min (and when a tab comes back) the page checks
+    index.html on the server (date stamp first, the file only if it changed;
+    never Firebase). If index.html lists a file version the page did not
+    load, the page reloads once, quietly, at a safe moment: just opened, tab
+    hidden 2+ min, unused 30+ min, or 4-6 am Doha after 5 min idle. Never
+    while a pop-up is open or typed text is still in a box. One reload per
+    upload, at least 15 min between reloads, so it can never loop. Users stay
+    signed in. RULE: every upload must change at least one ?v= tag in
+    index.html (all patches do).
+  - Phone: PO card bigger and easier to tap: 44px buttons, Open in Invoice
+    Records / Remind all side by side, full "who has it" line (no cut text),
+    bigger paid line and paid list; search box taller (54px, 17px text).
+    The Z Flip cover screen is unchanged.
+  - Files: index.html, app.js, version.json, js/app-version-checker.js,
+    js/iba-silent-update.js (new), css/iba-1703-p14.css
+
+17.0.3 patch 14 (2026-10-26) - Now Brief big window easier to read
+  - "Waiting for approval" table: one fact per column: PO, With, Vendor,
+    Urgent, Inv no., Action for (coloured: blue For Approval, purple CEO
+    Approval, amber With Accounts), Value (QAR, right-aligned), Remarks, Age,
+    Files. Vendor sits right next to With (no more big gap). Hover a row to
+    read the full remark. When the space is narrower, Remarks and Files are
+    left out first, then the Urgent column (the row stays red). The small side
+    panel shows each invoice as a short block.
+  - Six number tiles on top: Your tasks, Urgent for you, Over 7 days,
+    Inventory, Reminders, New today (urgent red, over 7 days amber).
+  - Click a PO: the brief stays on the left, the PO opens on the right and
+    stays pinned at the top while you scroll the left; the row you clicked is
+    highlighted. Close (x) above the PO card.
+  - PO card (everywhere in the assistant): a paid bar (green paid / amber with
+    Accounts / blue not yet, with Invoiced and Left on PO), open invoices
+    grouped "Not with Accounts yet" and "With Accounts - payment in process"
+    ("needs Accounts to mark Paid"); all paid invoices fold into one green
+    line "N paid - QAR - last paid", Show opens invoice no. / paid date /
+    amount. A fully paid PO shows "All paid".
+  - Files: index.html, js/iba-assistant.js, css/iba-1703-p14.css (new)
+
 17.0.3 patch 13 (2026-10-25) - Irwin sets the exact material qty
   - Material Stock: open a row (+); in the stock per site, Irwin has a "Set"
     button next to each site's qty. Type the correct number (it REPLACES the

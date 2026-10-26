@@ -61,7 +61,7 @@
 // =================================================================================================
 
 // app.js - Top of file
-const APP_VERSION = '17.0.3';
+const APP_VERSION = '17.0.5';
 
 // ======================================================================
 // ULTRA-FAST AUDIO ENGINE (WITH CONFIRM SOUND & SNAP-SHUT LOCK)
@@ -2183,11 +2183,14 @@ async function handleAddJobEntry(e) {
         return;
     }
 
-    if (jobData.for !== 'Invoice' && (!jobData.attention || jobData.attention === 'None')) {
-        alert('Please select an Attention user.');
+    // 17.0.4 p8: "None" is a real choice for job records (saved with no
+    // attention: the job stays in Job Records, in nobody's Active Task)
+    if (jobData.for !== 'Invoice' && !jobData.attention) {
+        alert('Please select an Attention user, or None.');
         if (btn) btn.disabled = false;
         return;
     }
+    if (jobData.for !== 'Invoice' && jobData.attention === 'None') jobData.attention = '';
 
     try {
         // 2.a Ensure Approver/Vacation data is fresh (so new entries route to the correct replacement)
@@ -2849,10 +2852,12 @@ async function handleUpdateJobEntry(e) {
     }
 
     if (jobData.for !== 'Invoice' && !jobData.attention) {
-        alert('Please select an Attention user.');
+        alert('Please select an Attention user, or None.');
         if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
         return;
     }
+    // 17.0.4 p8: None = saved with no attention (stays in Job Records only)
+    if (jobData.for !== 'Invoice' && jobData.attention === 'None') jobData.attention = '';
 
     try {
         // 15.0.0 patch 25: read only this job, fresh (before: the whole job list)
@@ -6984,7 +6989,7 @@ document.querySelectorAll('.sidebar-version-display').forEach(el => {
                     break;
                 }
             }
-            try { if (cleanName && cleanName !== 'User') localStorage.setItem('IBA_LAST_USER_NAME', cleanName); } catch (_) {}
+            try { if (cleanName && cleanName !== 'User' && localStorage.getItem('IBA_LAST_USER_NAME') !== cleanName) localStorage.setItem('IBA_LAST_USER_NAME', cleanName); } catch (_) {}
 
             const now = new Date();
             const hour = now.getHours();
@@ -7014,15 +7019,17 @@ document.querySelectorAll('.sidebar-version-display').forEach(el => {
             const dayNo = Math.floor((now - start) / 86400000);
             const quote = quotes[Math.abs(dayNo) % quotes.length];
 
-            if (greetingEl) greetingEl.textContent = greeting;
-            if (nameEl) nameEl.textContent = cleanName;
-            if (dateEl) dateEl.textContent = '';
-            if (quoteEl) quoteEl.textContent = quote;
-            if (panelDateEl) panelDateEl.textContent = fullDate;
+            // 17.0.4 p7: runs every second; write only what changed
+            const put = (el, v) => { if (el && el.textContent !== v) el.textContent = v; };
+            put(greetingEl, greeting);
+            put(nameEl, cleanName);
+            put(dateEl, '');
+            put(quoteEl, quote);
+            put(panelDateEl, fullDate);
             if (panelSubEl) {
-                panelSubEl.textContent = timeText;
-                panelSubEl.classList.add('welcome-panel-time');
-                panelSubEl.setAttribute('aria-label', 'Current system time');
+                put(panelSubEl, timeText);
+                if (!panelSubEl.classList.contains('welcome-panel-time')) panelSubEl.classList.add('welcome-panel-time');
+                if (panelSubEl.getAttribute('aria-label') !== 'Current system time') panelSubEl.setAttribute('aria-label', 'Current system time');
             }
         } catch (e) {
             console.warn('Welcome details refresh skipped:', e);
