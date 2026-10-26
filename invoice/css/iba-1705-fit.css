@@ -1,0 +1,49 @@
+/* ==========================================================================
+   iba-1705-fit.css — 17.0.5 patch 3
+   Fit to the screen (js/iba-1705-fit.js marks what does not fit):
+   - .iba-fit-keep   button squeezed by its row keeps its size, row wraps
+   - .iba-fit-tight  button text a bit smaller, less padding
+   - .iba-fit-icon   still too long: icon only (the words stay as tooltip)
+   - .iba-fit-cut    no icon: one line with "…" (the words stay as tooltip)
+   - .iba-fit-note   long help text folded to 2 lines, "more" opens it
+   Assistant "Waiting for approval": Files column (INV / SRV) stays inside
+   the card, and the full table only shows when it really fits.
+   ========================================================================== */
+@layer iba-ui {
+  html body .iba-fit-keep:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) { flex-shrink: 0 !important; min-width: max-content !important; }
+  html body .iba-fit-wrap:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) { flex-wrap: wrap !important; row-gap: 8px !important; }
+  html body .iba-fit-tight:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) { padding-left: 8px !important; padding-right: 8px !important; gap: 4px !important; letter-spacing: 0 !important; font-size: 0.9em !important; }
+  html body .iba-fit-icon:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) { font-size: 0 !important; gap: 0 !important; padding-left: 8px !important; padding-right: 8px !important; min-width: 34px !important; justify-content: center !important; }
+  html body .iba-fit-icon:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) > :is(i, svg, img, .fa, .fa-solid, .fa-regular) { font-size: 14px !important; margin: 0 !important; }
+  html body .iba-fit-icon:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) > :is(span, b, small, em):not(:has(i, svg, img)) { display: none !important; }
+  html body .iba-fit-cut:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) { display: inline-block !important; max-width: 100% !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; vertical-align: middle !important; }
+
+  html body .iba-fit-note:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z):not(.is-fit-open) {
+    display: -webkit-box !important; -webkit-box-orient: vertical !important; -webkit-line-clamp: 2 !important; line-clamp: 2 !important;
+    overflow: hidden !important; position: relative !important; padding-right: 52px !important; cursor: pointer !important;
+  }
+  html body .iba-fit-note:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z).is-fit-open { position: relative !important; padding-right: 52px !important; }
+  html body .iba-fit-note:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) > .iba-fit-more {
+    position: absolute !important; right: 0 !important; bottom: 0 !important; display: inline-block !important;
+    padding: 0 7px !important; border-radius: 999px !important; font: 700 11px/18px system-ui, sans-serif !important; font-style: normal !important;
+    border: 1px solid rgba(127, 227, 214, .45) !important; background: rgba(8, 18, 30, .8) !important;
+    color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; cursor: pointer !important; -webkit-line-clamp: none !important;
+  }
+
+  /* ---- assistant approvals table: Files column ------------------------- */
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-act.iba-ai-apv-files { flex-wrap: wrap !important; gap: 3px !important; min-width: 0 !important; overflow: hidden !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .iba-ai-apv-files > .iba-ai-mini {
+    padding: 0 7px !important; min-width: 0 !important; height: 24px !important; line-height: 22px !important; font-size: 11.5px !important; gap: 0 !important; flex: 0 0 auto !important;
+  }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .iba-ai-apv-files > .iba-ai-mini > i { display: none !important; }
+  /* the full table needs ~1080 px; below that Remarks goes first, Files stays */
+  @container (min-width: 980px) and (max-width: 1079px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { gap: 8px !important; grid-template-columns: 74px 88px minmax(100px, 1fr) 84px 84px 118px 92px 44px 84px !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-rem { display: none !important; }
+  }
+  @container (min-width: 1080px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { grid-template-columns: 74px 88px minmax(110px, 1.4fr) 84px 88px 118px 100px minmax(80px, 1fr) 46px 84px !important; }
+  }
+}
