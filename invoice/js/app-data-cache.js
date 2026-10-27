@@ -178,14 +178,14 @@ function imInvoiceNoteUsageTimestamp(value) {
     return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : 0;
 }
 
-function imRememberInvoiceNoteUsage(note, lastUsedAt = 0) {
+function imRememberInvoiceNoteUsage(note, lastUsedAt = 0, replace = false) {
     const text = imNormalizeInvoiceNoteText(note);
     if (!text) return;
 
     const key = imInvoiceNoteUsageKey(text);
     const timestamp = imInvoiceNoteUsageTimestamp(lastUsedAt);
     const existing = __imInvoiceNoteUsageMeta.get(key);
-    if (!existing || timestamp >= existing.lastUsedAt) {
+    if (!existing || timestamp >= existing.lastUsedAt || (replace && timestamp > 0)) {
         __imInvoiceNoteUsageMeta.set(key, { text, lastUsedAt: timestamp });
     }
 }
@@ -215,13 +215,43 @@ function imNoteTimesFromInvoices() {
             if (!inv || !inv.note) return;
             const key = imInvoiceNoteUsageKey(inv.note);
             if (!key) return;
-            const t = Math.max(0, ...[inv.lastUpdated, inv.updatedAt, inv.statusChangedAt, inv.enteredAt, inv.createdAt].map(imNoteTimeValue));
+            // 17.0.5 patch 16: the invoice's own date, not its last change, so an
+            // old note does not jump to the top when an old invoice is updated
+            const t = imNoteTimeValue(inv.invoiceDate) || Math.max(0, ...[inv.createdAt, inv.enteredAt, inv.dateAdded].map(imNoteTimeValue));
             if (t > (out.get(key) || 0)) out.set(key, t);
         });
     });
     __imNoteInvoiceTimesSrc = src;
     __imNoteInvoiceTimes = out;
     return out;
+}
+
+// 17.0.5 patch 18: most notes carry their own date ("Khalifa Steel 21-July-2026",
+// "... Indust-Oct-06-2025", "... 24/12/2025"). That date decides the order
+// first; notes without a date use their invoices' dates.
+const IM_NOTE_MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
+function imNoteTextDate(text) {
+    const s = String(text || '').toLowerCase();
+    const yM = s.match(/(?:^|[^0-9])((?:19|20)\d{2})(?![0-9])/);
+    if (!yM) return 0;
+    const year = Number(yM[1]);
+    const mM = s.match(/(?:^|[^a-z])(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*/);
+    if (mM) {
+        const month = IM_NOTE_MONTHS[mM[1]];
+        // the day is the 1-2 digit number closest to the month name
+        const rest = s.replace(yM[1], ' ');
+        const at = rest.indexOf(mM[1]);
+        let day = 1, best = 1e9;
+        rest.replace(/(?:^|[^0-9])(\d{1,2})(?![0-9])/g, (m0, d, off) => {
+            const n = Number(d);
+            if (n >= 1 && n <= 31 && Math.abs(off - at) < best) { best = Math.abs(off - at); day = n; }
+            return m0;
+        });
+        return Date.UTC(year, month, day);
+    }
+    const dmy = s.match(/(?:^|[^0-9])(\d{1,2})[\/.-](\d{1,2})[\/.-]((?:19|20)\d{2})(?![0-9])/);
+    if (dmy) return Date.UTC(year, Math.min(11, Number(dmy[2]) - 1), Number(dmy[1]));
+    return Date.UTC(year, 0, 1);
 }
 
 function getInvoiceNotesLatestFirst() {
@@ -246,8 +276,9 @@ function getInvoiceNotesLatestFirst() {
         });
     } catch (_) {}
 
+    const when = (item) => imNoteTextDate(item.text) || item.lastUsedAt;
     return Array.from(uniqueNotes.values())
-        .sort((a, b) => (b.lastUsedAt - a.lastUsedAt) || a.text.localeCompare(b.text))
+        .sort((a, b) => (when(b) - when(a)) || (b.lastUsedAt - a.lastUsedAt) || a.text.localeCompare(b.text))
         .map(item => item.text);
 }
 
@@ -270,6 +301,27 @@ function imNoteIndexKey(note) {
     return `${slug}_${imNoteIndexHash(normalized)}`;
 }
 
+// 17.0.5 patch 16: notes are listed newest first by their invoices' dates.
+// lastUsedAt changes every time ANY invoice with that note is saved again
+// (status change, paid ...), which pushed old 2025 notes above 2026 ones.
+// So: the newest invoice date among the note's invoices; lastUsedAt only
+// when no invoice date is known.
+function imNoteOrderTime(item) {
+    if (!item || typeof item !== 'object') return 0;
+    let best = 0;
+    try {
+        Object.values(item.refs || {}).forEach(ref => {
+            const t = imNoteTimeValue(ref && ref.invoiceDate);
+            if (t > best) best = t;
+        });
+    } catch (_) {}
+    if (!best) best = imNoteTimeValue(item.orderAt);
+    return best || imInvoiceNoteUsageTimestamp(item.lastUsedAt);
+}
+function imNoteKnown(note) {
+    return __imInvoiceNoteUsageMeta.has(imInvoiceNoteUsageKey(note));
+}
+
 function imApplyNoteIndexToMemory(indexData) {
     try {
         if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
@@ -286,7 +338,8 @@ function imApplyNoteIndexToMemory(indexData) {
                     && Number(item.usageOrderVersion || 0) < 2;
                 imRememberInvoiceNoteUsage(
                     text,
-                    (item && typeof item === 'object' && !isLegacyLocalTimestamp) ? item.lastUsedAt : 0
+                    (item && typeof item === 'object' && !isLegacyLocalTimestamp) ? imNoteOrderTime(item) : 0,
+                    true
                 );
             }
         });
@@ -317,7 +370,7 @@ function imReadLocalNoteIndex() {
 function imWriteLocalNoteIndexFromSet(activeNote = '') {
     try {
         const activeText = imNormalizeInvoiceNoteText(activeNote);
-        if (activeText) imRememberInvoiceNoteUsage(activeText, Date.now());
+        if (activeText && !imNoteKnown(activeText)) imRememberInvoiceNoteUsage(activeText, Date.now());
 
         const existingByKey = new Map();
         const existingCache = getCache(IM_NOTE_INDEX_CACHE_KEY);

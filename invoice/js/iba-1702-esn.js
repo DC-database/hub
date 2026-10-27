@@ -492,7 +492,8 @@
             '<div class="q">' + (qr ? '<img src="' + qr + '" alt="">' : '<span class="noqr">ESN</span>') + '</div>' +
             '<div class="t"><div class="k">APPROVED</div>' +
             '<div class="big">PO ' + esc(po) + ' · INV ' + esc(inv) + '</div>' +
-            '<div class="esn">' + esc(s.esn || '') + '</div>' +
+            // 17.0.5 patch 17: a longer ESN (with the country code) gets a smaller font so it fits
+            '<div class="esn"' + (String(s.esn || '').length > 19 ? ' style="font-size:' + Math.max(5, 6.7 * 19 / String(s.esn).length).toFixed(2) + 'pt"' : '') + '>' + esc(s.esn || '') + '</div>' +
             // the ESN already ends with the name, so the last line is the date only (martin)
             '<div class="m">' + esc(s.when || s.date || '') + '</div></div></div>';
     }

@@ -976,6 +976,9 @@
         }
         if (a.attention) {
             const who = resolvePerson(a.attention);
+            // 17.0.5 patch 14: nobody on vacation as Attention: the replacement instead
+            const away1 = who.name && window.ibaAwayGuard ? window.ibaAwayGuard.awayOf(who.name) : null;
+            if (away1) { warnings.push(away1.name + ' is on vacation, so Attention is ' + away1.target + ' (' + (away1.noReplacement ? 'covering' : 'the replacement') + ').'); who.name = away1.target; }
             if (who.name) {
                 try { if (typeof window.ibaWriteAttention === 'function') window.ibaWriteAttention(who.name); } catch (_) {}
                 try { if (window.ibaAttentionPicker && typeof window.ibaAttentionPicker.paintBox === 'function') window.ibaAttentionPicker.paintBox(); } catch (_) {}
@@ -1585,6 +1588,8 @@
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
             steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) })),
             _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0,
+            // 17.0.5 patch 16: when the invoice came in (newest first in the list)
+            _r: Date.parse(inv.invoiceDate || '') || Number(enteredAt) || Number(inv.createdAt) || 0,
             _paid_t: Number(paidAt) || undefined
         };
     }
@@ -1597,7 +1602,7 @@
             return r === 'new entry' || r === 'pending' || r === '';
         }).map((e) => {
             const at = Number(e.timestamp) || Date.parse(e.date || '') || 0;
-            return { kind: 'reception', _t: at, invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'reception', _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1624,7 +1629,7 @@
             const at = Number(e.statusChangedAt) || Number(e.updatedAt) || Number(e.timestamp) || Date.parse(e.date || '') || 0;
             const processed = ft !== 'ipc application';
             const label = processed ? 'IPC done - waiting for the actual invoice' : 'With QS for IPC' + (raw && !/^(pending|new entry|ipc application)$/i.test(raw) ? ' (' + raw + ')' : '');
-            return { kind: 'ipc', _t: at, invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'ipc', _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1714,18 +1719,17 @@
                 .sort((a, b) => String(a.invEntryID || '').localeCompare(String(b.invEntryID || ''), undefined, { numeric: true }));
             let items = receptionItems(jobs, p.po, acc).concat(invs.map((inv) => trackInvoice(inv, acc)));
             if (year) items = items.filter((i) => (i._years || []).indexOf(year) !== -1);
-            // 15.0.0 patch 36: still in progress first, With Accounts / Paid last;
-            // newest first inside each group
-            const done = (i) => (i.stage_index >= 4 && !i.side_status) ? 1 : 0;
-            items.sort((a, b) => (done(a) - done(b)) || ((b._t || 0) - (a._t || 0)));
-            const open = items.some((i) => !done(i));
-            const last = items.reduce((m, i) => Math.max(m, i._t || 0), 0);
-            items.forEach((i) => { delete i._years; delete i._t; });
+            // 17.0.5 patch 16: newest invoice first (by when it came in), so
+            // Sep, Jun, Mar, Feb, then last year's
+            items.sort((a, b) => ((b._r || 0) - (a._r || 0)) || ((b._t || 0) - (a._t || 0)));
+            const last = items.reduce((m, i) => Math.max(m, i._r || 0), 0);
+            items.forEach((i) => { delete i._years; delete i._t; delete i._r; });
             return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
-                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items, _open: open, _last: last };
+                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items, _last: last || p.when || 0 };
         }));
-        pos.sort((a, b) => ((b._open ? 1 : 0) - (a._open ? 1 : 0)) || ((b._last || 0) - (a._last || 0)));
-        pos.forEach((p) => { delete p._open; delete p._last; });
+        // 17.0.5 patch 16: the PO with the newest invoice comes first
+        pos.sort((a, b) => (b._last || 0) - (a._last || 0));
+        pos.forEach((p) => { delete p._last; });
         const posOut = year ? pos.filter((p) => p.items.length || p.year === year) : pos;
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
             by_site: bySite || undefined,
@@ -2156,6 +2160,8 @@
             }
             if (a.set_attention) {
                 const r = resolvePerson(a.set_attention);
+                const away2 = r.name && window.ibaAwayGuard ? window.ibaAwayGuard.awayOf(r.name) : null;
+                if (away2) { result.filled.attention_note = away2.name + ' is on vacation, so Attention is ' + away2.target + '.'; r.name = away2.target; }
                 if (r.name) {
                     try {
                         imBatchGlobalAttentionChoices.setChoiceByValue(r.name);
@@ -3598,7 +3604,7 @@
         });
         ta.addEventListener('input', () => autoSize(ta));
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !panel.hidden && !document.querySelector('.modal-overlay:not(.hidden) .modal-container:focus-within')) { if (wide) closeWide(); else toggle(false); }
+            if (e.key === 'Escape' && !panel.hidden && !document.querySelector('.modal-overlay:not(.hidden) .modal-container:focus-within')) { if (closeReceipt()) return; if (wide) closeWide(); else toggle(false); }
         });
         bubble.addEventListener('click', (e) => {
             const b = e.target.closest('button');
@@ -3620,6 +3626,7 @@
     function toggle(open) {
         const p = $('iba-ai-panel');
         if (!p) return;
+        if (!open) closeReceipt();
         if (!open && wide) closeWide();
         p.hidden = !open;
         $('iba-ai-fab').classList.toggle('is-open', !!open);
@@ -3742,7 +3749,7 @@
             e.preventDefault();
             const on = b.dataset.urgOn === '1';
             if (on && b.dataset.urgGo !== '1') {
-                const holder = b.closest('.iba-ai-trk-item');
+                const holder = b.closest('.iba-ai-trk-item, .iba-trk-r-right');
                 if (!holder || holder.querySelector('.iba-ai-urg-mini')) return;
                 const box = document.createElement('div');
                 box.className = 'iba-ai-urg-mini';
@@ -3764,8 +3771,16 @@
                 b.dataset.urgOn = on ? '0' : '1';
                 b.classList.toggle('is-danger', !on);
                 b.innerHTML = '<i class="fa-solid fa-bolt"></i> ' + (on ? 'Remove urgent' : 'Mark urgent');
-                const strong = b.closest('.iba-ai-trk-item') && b.closest('.iba-ai-trk-item').querySelector('.iba-ai-trk-top strong');
+                const strong = (b.closest('.iba-ai-trk-item') && b.closest('.iba-ai-trk-item').querySelector('.iba-ai-trk-top strong')) || (b.closest('.iba-trk-rcpt') && b.closest('.iba-trk-rcpt').querySelector('.iba-trk-r-urg'));
                 if (strong) { const old = strong.querySelector('.iba-ai-urg-badge'); if (on && !old) strong.insertAdjacentHTML('beforeend', ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>'); if (!on && old) old.remove(); }
+                const rc = b.closest('.iba-trk-rcpt');
+                if (rc && rc.__it) {
+                    rc.__it.urgent = on || undefined;
+                    const end = rc.__from && rc.__from.querySelector('.iba-trk-end');
+                    const ob = end && end.querySelector('.iba-ai-urg-badge');
+                    if (end && on && !ob) end.insertAdjacentHTML('beforeend', trkUrgBadge());
+                    if (ob && !on) ob.remove();
+                }
                 if (on && !isSuper()) b.remove(); // only the Super Admin can take it back
             }).catch((err) => { b.disabled = false; b.title = (err && err.message) || ''; });
             return;
@@ -3855,17 +3870,8 @@
             const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
             return runTransferFind(q, host);
         }
-        if (b.dataset.trkView !== undefined) {
-            const card = b.closest('.iba-ai-card');
-            const sv = card && card.querySelector('.iba-trk-simple'), fv = card && card.querySelector('.iba-trk-full');
-            if (sv && fv) {
-                const toSimple = sv.hidden;
-                sv.hidden = !toSimple; fv.hidden = toSimple;
-                lsSet(TRK_VIEW_KEY, toSimple ? 'simple' : 'full');
-                b.innerHTML = toSimple ? '<i class="fa-solid fa-list"></i> Full details' : '<i class="fa-solid fa-wand-magic-sparkles"></i> Simple view';
-            }
-            return;
-        }
+        if (b.dataset.trkOpen) { e.preventDefault(); return openReceipt(b); }
+        if (b.hasAttribute('data-trk-close')) { e.preventDefault(); closeReceipt(); return; }
         if (b.dataset.trkHist !== undefined) {
             const item = b.closest('.iba-ai-trk-item');
             if (item) item.classList.toggle('show-steps');
@@ -4830,7 +4836,7 @@
         return it ? String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0] : '';
     }
     function openRemind(q, btn) {
-        const card = btn.closest('.iba-ai-trk-item') || btn.closest('.iba-ai-card') || btn.parentElement;
+        const card = btn.closest('.iba-ai-trk-item') || btn.closest('.iba-trk-r-right') || btn.closest('.iba-ai-card') || btn.parentElement;
         const old = card.querySelector(':scope > .iba-ai-remind');
         if (old) { old.remove(); return; }
         const box = document.createElement('div');
@@ -5049,17 +5055,9 @@
     // 17.0.5 patch 6: "Where is my invoice?" in plain words. Each invoice
     // says what is happening now, who has it, for how long, and what comes
     // next; one line on top sums up the PO. Phone and non-Super users see
-    // this first; "Full details" shows the full card (Super Admin: the
-    // other way round). The choice is kept (localStorage iba-trk-view-v1).
+    // this first. (17.0.5 patch 14: now the only view, see trackListHtml.)
     // ------------------------------------------------------------------
-    const TRK_VIEW_KEY = 'iba-trk-view-v1';
     const PLAIN_STEPS = ['Received', 'Entered', 'SRV / approval', 'Management approval', 'Accounts (payment)', 'Paid'];
-    function trkSimpleFirst() {
-        const v = lsGet(TRK_VIEW_KEY, '');
-        if (v === 'simple') return true;
-        if (v === 'full') return false;
-        return onPhone() || !isSuper();
-    }
     function firstName2(n) { return String(n || '').split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0].trim(); }
     function plainStatus(it) {
         const s = norm(it.status), side = !!it.side_status, who = firstName2(it.with);
@@ -5106,49 +5104,174 @@
         o.next = nextFrom(it.stage_index);
         return o;
     }
-    function simpleTrackHtml(r) {
+    // ------------------------------------------------------------------
+    // 17.0.5 patch 14: "Where is my invoice?" like a banking app. One list
+    // for everyone (phone, tablet, PC, big window): each PO on top in big
+    // letters with the vendor and the site, then one row per open invoice.
+    // Tapping a row opens that invoice alone, like a receipt, over the
+    // assistant; X (or Esc) goes back to the same list.
+    // ------------------------------------------------------------------
+    const RCPT_STEPS = ['Reception', 'Entry', 'SRV', 'Approval', 'Accounts', 'Paid'];
+    function trkTone(it, ps) {
+        if (ps.tone === 'stop') return 'stop';
+        if (ps.tone === 'paid') return 'paid';
+        if (it.kind === 'ipc') return 'ipc';
+        if (it.stage_index === 4) return 'acc';
+        if (it.stage_index === 3 || ps.icon === 'fa-stamp') return 'apv';
+        return 'move';
+    }
+    function trkDays(it) {
+        if (it.days === undefined) return '';
+        return it.days === 0 ? 'today' : it.days + ' day' + (it.days === 1 ? '' : 's');
+    }
+    function trkWho(it) {
+        if (it.stage_index === 4 && !it.side_status) return 'Accounts';
+        return firstName2(it.with);
+    }
+    function trkUrgBadge() { return '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>'; }
+    function trkRowHtml(it, pi, ii) {
+        const ps = plainStatus(it), tone = trkTone(it, ps), who = trkWho(it);
+        const meta = [it.invoice_date || it.entered || '', who ? 'with ' + who : '', trkDays(it)].filter(Boolean).join(' · ');
+        return '<button type="button" class="iba-trk-row is-' + tone + ((it.days || 0) > 7 ? ' is-long' : '') + '" data-trk-open="' + pi + ':' + ii + '">' +
+            '<span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
+            '<span class="iba-trk-mid"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-now">' + esc(ps.title) + '</span>' +
+                (meta ? '<small>' + esc(meta) + ((it.days || 0) > 7 ? ' · taking long' : '') + '</small>' : '') + '</span>' +
+            '<span class="iba-trk-end">' + (it.value ? '<b>' + esc(it.value) + '</b>' : '') + (it.urgent ? trkUrgBadge() : '') + '</span>' +
+            '<i class="fa-solid fa-chevron-right iba-trk-go"></i></button>';
+    }
+    function trackListHtml(r) {
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?' + (r.vendor ? ' · ' + esc(r.vendor) : '') + '</div>';
-        if (r.more) h += '<p class="iba-ai-foot">Showing the ' + esc(r.shown || r.pos.length) + ' newest POs. Type the PO number to see an older one.</p>';
-        r.pos.forEach((p) => {
+        if (r.more) h += '<p class="iba-ai-foot">' + (r.year_rule ? 'Checked the ' + esc(r.checked) + ' newest POs; ' + esc(r.more) + ' older not checked. Add a site to narrow it down.'
+            : 'Showing the ' + esc(r.shown || r.pos.length) + ' newest POs; ' + esc(r.more) + ' more. Type the PO number or add a site to see an older one.') + '</p>';
+        if (r.year_rule) h += '<p class="iba-ai-foot">' + esc(r.year_rule) + '.</p>';
+        const many = r.pos.some((p) => (p.items || []).length);
+        if (many) h += '<p class="iba-trk-hint">Tap an invoice to see it alone.</p>';
+        r.pos.forEach((p, pi) => {
             const items = p.items || [];
-            const paid = items.filter((it) => it.stage_index === 5 && !it.side_status);
-            const open = items.filter((it) => !(it.stage_index === 5 && !it.side_status));
-            const acc = open.filter((it) => it.stage_index === 4 && !it.side_status);
-            const wait = open.filter((it) => !(it.stage_index === 4 && !it.side_status));
-            const sum = !items.length ? 'No invoice received yet for this PO.'
-                : !open.length ? (items.length === 1 ? 'The invoice is paid.' : 'All ' + items.length + ' invoices are paid.')
-                : (items.length === 1 ? '1 invoice: ' : items.length + ' invoices: ') + [paid.length ? paid.length + ' paid' : '', acc.length ? acc.length + ' with Accounts' : '', wait.length ? wait.length + ' on the way' : ''].filter(Boolean).join(' · ');
-            h += '<div class="iba-trk-s-po"><div class="iba-trk-s-pohead"><b>PO ' + esc(p.po) + '</b><span>' + esc([p.vendor, p.site ? 'Site ' + siteNo(p.site) : '', p.year].filter(Boolean).join(' · ')) + '</span></div>' +
-                '<p class="iba-trk-s-sum' + (!open.length && items.length ? ' is-paid' : '') + '">' + esc(sum) + '</p>';
-            open.slice().sort((a, b) => (b.days || 0) - (a.days || 0)).forEach((it) => {
-                const ps = plainStatus(it);
-                const meta = [ps.line, it.days !== undefined ? (it.days === 0 ? 'since today' : it.days + ' day' + (it.days === 1 ? '' : 's') + (it.since ? ' (since ' + it.since + ')' : '')) : ''].filter(Boolean).join(' · ');
-                h += '<div class="iba-trk-s-it is-' + ps.tone + '">' +
-                    '<div class="iba-trk-s-top"><span class="iba-trk-s-no">' + esc(it.invoice_no) + '</span>' + (it.value ? '<span class="iba-trk-s-val">QAR ' + esc(it.value) + '</span>' : '') + '</div>' +
-                    '<div class="iba-trk-s-now"><i class="fa-solid ' + ps.icon + '"></i><span><b>' + esc(ps.title) + (it.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') + '</b>' +
-                        (meta ? '<small>' + esc(meta) + (ps.tone === 'late' ? ' - taking long' : '') + '</small>' : '') + '</span></div>' +
-                    (ps.next ? '<div class="iba-trk-s-next"><span>Next:</span> ' + esc(ps.next) + '</div>' : '') +
-                    '<div class="iba-trk-s-acts">' +
-                        // marking Paid is Accounts' job: never name a person for it
-                        (it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(it.stage_index === 4 && !it.side_status ? 'Accounts' : firstName2(it.with)) + '</button>' : '') +
-                        (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> Invoice</a>' : '') + srvLink(it.srv) +
-                    '</div></div>';
-            });
-            if (paid.length) {
-                const last = paid.slice().sort((a, b) => (b._paid_t || 0) - (a._paid_t || 0));
-                h += '<details class="iba-trk-s-paid"' + (open.length ? '' : ' open') + '><summary><i class="fa-solid fa-circle-check"></i> ' + paid.length + ' paid' + (last[0] && last[0].paid_on ? ' · last on ' + esc(last[0].paid_on) : '') + '</summary>' +
-                    last.map((it) => '<div><b>' + esc(it.invoice_no) + '</b><span>' + esc(it.paid_on ? 'paid ' + it.paid_on : 'paid') + '</span>' + (it.value ? '<span class="iba-trk-s-val">' + esc(it.value) + '</span>' : '') + '</div>').join('') + '</details>';
+            const isPaid = (it) => it.stage_index === 5 && !it.side_status;
+            const paid = items.filter(isPaid);
+            const open = items.filter((it) => !isPaid(it));
+            h += '<div class="iba-trk-po"><div class="iba-trk-pohead"><span class="iba-trk-lbl">PURCHASE ORDER</span>' +
+                '<span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
+                (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') +
+                '<span class="iba-trk-chips">' + (p.site ? '<span class="is-site">Site ' + esc(siteNo(p.site) || p.site) + '</span>' : '') + (p.year ? '<span>' + esc(p.year) + '</span>' : '') +
+                    (p.po_value ? '<span class="iba-trk-poval">PO value <b>' + esc(p.po_value) + '</b></span>' : '') + '</span></div>';
+            if (!items.length) h += '<p class="iba-trk-none">No invoice received yet for this PO.</p>';
+            // 17.0.5 patch 16: one list, newest invoice first (open and paid
+            // together, like a bank statement); older ones fold after 8
+            if (items.length) {
+                const vP = paid.reduce((n, it) => n + num(it.value), 0);
+                h += '<div class="iba-trk-grp">INVOICES · ' + items.length + (open.length ? ' · ' + open.length + ' open' : '') + (paid.length ? ' · ' + paid.length + ' paid' + (vP ? ' (' + esc(money(vP)) + ')' : '') : '') + '</div>';
+                const SHOW = 8;
+                items.slice(0, SHOW).forEach((it, i) => { h += trkRowHtml(it, pi, i); });
+                if (items.length > SHOW) {
+                    h += '<details class="iba-trk-more"><summary><i class="fa-solid fa-chevron-down"></i> Show ' + (items.length - SHOW) + ' older</summary>' +
+                        items.slice(SHOW).map((it, i) => trkRowHtml(it, pi, i + SHOW)).join('') + '</details>';
+                }
             }
+            const openIt = items.filter((it) => it.stage_index < 5 && !noRemind(it));
+            const inRecords = items.some((it) => it.kind === 'invoice');
+            if (inRecords || openIt.length > 1) h += '<div class="iba-trk-poacts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
+                (openIt.length > 1 ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind all (' + openIt.length + ')</button>' : '') + '</div>';
             h += '</div>';
         });
+        if (r.by_site && Object.keys(r.by_site).length) {
+            const base = r.query || {};
+            const sites = Object.keys(r.by_site).sort();
+            h += '<div class="iba-ai-sub">Not in the newest? Look in a site</div><div class="iba-ai-chiprow">' + sites.map((st) =>
+                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
+        }
         return h;
     }
     function trackCardHtml(x) {
         if (!x || x.mode !== 'pos') return trackHtml(x);
-        const simple = trkSimpleFirst();
-        return '<div class="iba-trk-switch"><button type="button" class="iba-ai-mini" data-trk-view>' + (simple ? '<i class="fa-solid fa-list"></i> Full details' : '<i class="fa-solid fa-wand-magic-sparkles"></i> Simple view') + '</button></div>' +
-            '<div class="iba-trk-simple"' + (simple ? '' : ' hidden') + '>' + simpleTrackHtml(x) + '</div>' +
-            '<div class="iba-trk-full"' + (simple ? ' hidden' : '') + '>' + trackHtml(x) + '</div>';
+        return trackListHtml(x);
+    }
+    function receiptHtml(p, it, nOpen) {
+        const ps = plainStatus(it), tone = trkTone(it, ps), who = trkWho(it), side = !!it.side_status;
+        const paid = it.stage_index === 5 && !side;
+        let sub = '';
+        if (paid) sub = it.paid_on ? 'Paid on ' + esc(it.paid_on) : 'Paid';
+        else if (it.stage_index === 4 && !side) sub = 'Accounts are preparing the payment' + (it.days !== undefined ? ' · ' + esc(trkDays(it)) : '') + (it.since ? ' · since ' + esc(it.since) : '');
+        else sub = [who ? 'with <b>' + esc(who) + '</b>' + (it.days !== undefined ? ' for ' + esc(trkDays(it)) : '') : (it.days !== undefined ? esc(trkDays(it)) : ''), it.since ? 'since ' + esc(it.since) : ''].filter(Boolean).join(' · ');
+        const skipped = it.skipped_index || [];
+        const nowI = paid ? 6 : it.stage_index;
+        const segs = RCPT_STEPS.map((lbl, i) => {
+            const cls = skipped.indexOf(i) !== -1 ? 'is-skip' : i < nowI || (paid && i === 5) ? 'is-done' : i === nowI ? 'is-now' : '';
+            return '<li class="' + cls + '"><i></i><span>' + lbl + (i === nowI && !paid && it.days !== undefined ? '<small>now · ' + esc(trkDays(it)) + '</small>' : '') + '</span></li>';
+        }).join('');
+        const rows = [
+            ['Invoice no.', it.invoice_no],
+            ['Invoice date', it.invoice_date],
+            ['Value', it.value],
+            ['Status in the system', it.side_status || it.status],
+            ['Received / entered', it.entered],
+            ['With Accounts since', it.with_accounts_on],
+            ['Paid on', it.paid_on]
+        ].filter((x) => x[1]);
+        const steps = (it.steps || []).slice().reverse();
+        const canRemind = !paid && it.with && !noRemind(it);
+        const canUrg = it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser()));
+        const acts = (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(who || 'them') + '</button>' : '') +
+            (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
+            (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '') +
+            (canUrg ? '<button type="button" class="iba-trk-btn' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
+            (it.kind === 'invoice' ? '<button type="button" class="iba-trk-btn" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '');
+        return '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to results"><i class="fa-solid fa-xmark"></i></button>' +
+                '<span>Back to results' + (nOpen > 1 ? ' (' + nOpen + ')' : '') + '</span></div>' +
+            '<div class="iba-trk-r-body is-' + tone + '">' +
+              '<div class="iba-trk-r-left">' +
+                '<div class="iba-trk-r-hero"><span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
+                  '<span class="iba-trk-r-title">' + esc(ps.title) + '</span>' + (sub ? '<span class="iba-trk-r-sub">' + sub + '</span>' : '') +
+                  (it.value ? '<span class="iba-trk-r-amt">QAR ' + esc(it.value) + '</span>' : '') +
+                  '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>' +
+                '<div class="iba-trk-r-po"><span class="iba-trk-lbl">PURCHASE ORDER</span><span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
+                  (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') +
+                  '<span class="iba-trk-chips">' + (p.site ? '<span class="is-site">Site ' + esc(siteNo(p.site) || p.site) + '</span>' : '') + (p.year ? '<span>' + esc(p.year) + '</span>' : '') +
+                    (p.po_value ? '<span>PO value ' + esc(p.po_value) + '</span>' : '') + '</span></div>' +
+              '</div>' +
+              '<div class="iba-trk-r-right">' +
+                '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps' + (side ? ' is-side' : '') + '">' + segs + '</ol>' +
+                  (ps.next && !paid ? '<p class="iba-trk-r-next"><b>Next:</b> ' + esc(ps.next) + '</p>' : '') + '</div>' +
+                '<div class="iba-trk-r-cols">' +
+                  (rows.length ? '<dl class="iba-trk-r-dl">' + rows.map((x) => '<div><dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd></div>').join('') + '</dl>' : '') +
+                  (steps.length ? '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHAT HAPPENED</span><ul class="iba-trk-r-hist">' +
+                    steps.map((s) => '<li><b>' + esc(s.date || '') + '</b> · ' + esc(s.status || '') + (s.by ? ' (by ' + esc(s.by) + ')' : '') + '</li>').join('') + '</ul></div>' : '') +
+                '</div>' +
+                (acts ? '<div class="iba-trk-r-acts">' + acts + '</div>' : '') +
+              '</div>' +
+            '</div>';
+    }
+    function closeReceipt() {
+        const o = document.getElementById('iba-trk-rcpt');
+        if (!o) return false;
+        const back = o.__from;
+        o.remove();
+        if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch (_) {} }
+        return true;
+    }
+    function openReceipt(btn) {
+        const card = btn.closest('.iba-ai-card');
+        const r = card && card.__trk;
+        const panel = $('iba-ai-panel');
+        if (!r || !panel) return;
+        const ix = String(btn.dataset.trkOpen).split(':');
+        const p = r.pos[Number(ix[0])];
+        const it = p && p.items[Number(ix[1])];
+        if (!it) return;
+        closeReceipt();
+        const nOpen = r.pos.reduce((n, q) => n + (q.items || []).length, 0);
+        const o = document.createElement('div');
+        o.id = 'iba-trk-rcpt';
+        o.className = 'iba-trk-rcpt';
+        o.setAttribute('role', 'dialog');
+        o.setAttribute('aria-label', 'Invoice ' + it.invoice_no);
+        o.innerHTML = receiptHtml(p, it, nOpen);
+        o.__from = btn;
+        o.__it = it;
+        panel.appendChild(o);
+        const x = o.querySelector('[data-trk-close]');
+        if (x) setTimeout(() => { try { x.focus({ preventScroll: true }); } catch (_) {} }, 0);
     }
 
     // ------------------------------------------------------------------
@@ -5411,6 +5534,7 @@
             d.innerHTML = '<div class="iba-ai-card-head' + (x.ok ? '' : ' is-bad') + '"><i class="fa-solid ' + esc(x.icon || 'fa-check') + '"></i> ' + esc(x.text) + '</div>';
         } else if (card.kind === 'track') {
             d.innerHTML = trackCardHtml(x);
+            d.__trk = x;
         } else if (card.kind === 'transfer') {
             d.innerHTML = transferHtml(x);
         } else if (card.kind === 'trf_find') {

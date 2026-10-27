@@ -27,7 +27,8 @@ function refreshNotePickers(latestNote) {
             // Before, every save re-sorted the list A-Z here.
             try {
                 const saved = (latestNote == null) ? '' : String(latestNote).replace(/\u00A0/g, ' ').trim();
-                if (saved && typeof imRememberInvoiceNoteUsage === 'function') imRememberInvoiceNoteUsage(saved, Date.now());
+                // 17.0.5 patch 16: only a NEW note goes to the top; saving an old note again keeps its place
+                if (saved && typeof imRememberInvoiceNoteUsage === 'function' && !(typeof imNoteKnown === 'function' && imNoteKnown(saved))) imRememberInvoiceNoteUsage(saved, Date.now());
             } catch (_) { /* ignore */ }
             const sorted = (typeof imGetLatestFirstNoteSuggestions === 'function')
                 ? imGetLatestFirstNoteSuggestions(allUniqueNotes || new Set())
