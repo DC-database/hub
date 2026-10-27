@@ -284,7 +284,7 @@
 
             esnBase = await newEsn(ceo);
             esn = `${esnBase}/${short}`;
-            if (window.ibaEsnWithPlace) esn = window.ibaEsnWithPlace(esn); // 17.0.5 p17: + country code
+            if (window.ibaEsnWithPlaceAsync) esn = await window.ibaEsnWithPlaceAsync(esn); // 17.0.5 p17/p19: + country / Qatar district
             const claim = await claimSlot(po, key, inv, esn, approver, ceo);
             const registry = mainDb().ref(`manager_approved/esn_registry/${esnBase}`);
             if (!claim.ok) {

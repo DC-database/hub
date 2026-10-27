@@ -1,5 +1,6 @@
 /* ==========================================================================
-   iba-1705-place.js — 17.0.5 patch 17
+   iba-1705-place.js — 17.0.5 patch 17 (patch 19: Gulf time zones = Qatar,
+   district code in Qatar from the device location)
    Where an approval was given: a 3-letter country code at the end of the
    ESN, e.g. "AB12C3D4E5/ALI/QAT" in Qatar or "AB12C3D4E5/ALI/CHN" in China.
    It comes from the device's time zone (phones and laptops change it by
@@ -20,11 +21,83 @@
     Object.keys(BY_COUNTRY).forEach(function (c) { BY_COUNTRY[c].split('|').forEach(function (z) { MAP[z] = c; }); });
     return MAP;
   }
+  // 17.0.5 patch 19: Windows in Qatar is usually set to "(UTC+03:00) Kuwait,
+  // Riyadh", which the browser reports as Asia/Riyadh (= SAU). These Gulf
+  // zones share Qatar's clock, so they count as Qatar. (A trip to Saudi,
+  // Kuwait or Bahrain therefore also shows QAT.)
+  var HOME = { 'Asia/Qatar': 1, 'Asia/Riyadh': 1, 'Asia/Kuwait': 1, 'Asia/Bahrain': 1, 'Asia/Aden': 1 };
   function place() {
     var tz = '';
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) { tz = ''; }
+    if (HOME[tz]) return 'QAT';
     return map()[tz] || '';
   }
+  // 17.0.5 patch 19: in Qatar, the district from the device location
+  // (the browser asks "Allow location?" once; No = just QAT). Nearest
+  // centre from this list; martin can rename codes or add places here.
+  var QATAR_BOX = { s: 24.45, n: 26.25, w: 50.70, e: 51.70 };
+  var DISTRICTS = [
+    ['WBY', 'West Bay', 25.3240, 51.5310], ['PRL', 'The Pearl', 25.3700, 51.5500], ['KTR', 'Katara', 25.3600, 51.5250],
+    ['LUS', 'Lusail', 25.4200, 51.4900], ['ONZ', 'Onaiza', 25.3400, 51.5150], ['MRK', 'Al Markhiya', 25.3300, 51.4950],
+    ['DHL', 'Duhail', 25.3500, 51.4800], ['GHR', 'Al Gharafa', 25.3400, 51.4500], ['MKH', 'Madinat Khalifa', 25.3150, 51.4800],
+    ['SAD', 'Al Sadd', 25.2840, 51.4980], ['BMH', 'Bin Mahmoud', 25.2870, 51.5130], ['MSH', 'Msheireb', 25.2860, 51.5270],
+    ['MNS', 'Al Mansoura', 25.2700, 51.5300], ['NJM', 'Najma', 25.2700, 51.5400], ['HLW', 'Al Hilal West', 25.2570, 51.5280],
+    ['HLE', 'Al Hilal East', 25.2550, 51.5450], ['OAP', 'Old Airport', 25.2480, 51.5560], ['NUA', 'Nuaija', 25.2450, 51.5180],
+    ['THU', 'Al Thumama', 25.2250, 51.5450], ['HIA', 'Hamad Airport', 25.2730, 51.6080], ['AHM', 'Abu Hamour', 25.2400, 51.5000],
+    ['AKH', 'Ain Khaled', 25.2250, 51.4800], ['WAB', 'Al Waab', 25.2600, 51.4700], ['MSL', 'Al Messila', 25.2900, 51.4650],
+    ['AZZ', 'Al Aziziya', 25.2550, 51.4500], ['RYN', 'Al Rayyan', 25.2900, 51.4250], ['MTR', 'Muaither', 25.2700, 51.3950],
+    ['SLY', 'Al Sailiya', 25.2100, 51.3800], ['IND', 'Industrial Area', 25.2000, 51.4400], ['WKR', 'Al Wukair', 25.1500, 51.5400],
+    ['WAK', 'Al Wakra', 25.1700, 51.6000], ['MES', 'Mesaieed', 24.9900, 51.5500], ['UMS', 'Umm Salal', 25.4100, 51.4100],
+    ['KHR', 'Al Khor', 25.6800, 51.5000], ['RLF', 'Ras Laffan', 25.9000, 51.5500], ['SHM', 'Al Shamal', 26.1200, 51.2000],
+    ['DKN', 'Dukhan', 25.4300, 50.7800]
+  ];
+  function district(lat, lng) {
+    var best = null, bd = 1e9, k = Math.cos(lat * Math.PI / 180);
+    DISTRICTS.forEach(function (d) {
+      var dy = lat - d[2], dx = (lng - d[3]) * k, dd = dx * dx + dy * dy;
+      if (dd < bd) { bd = dd; best = d; }
+    });
+    return best ? best[0] : 'QAT';
+  }
+  var fix = null; // { code, at }
+  var FIX_MS = 15 * 60 * 1000;
+  function locate(waitMs) {
+    return new Promise(function (done) {
+      var finished = false;
+      var end = function (v) { if (!finished) { finished = true; done(v); } };
+      setTimeout(function () { end(null); }, waitMs);
+      try {
+        if (!navigator.geolocation) return end(null);
+        navigator.geolocation.getCurrentPosition(function (p) { end(p && p.coords); }, function () { end(null); },
+          { enableHighAccuracy: false, timeout: Math.max(1000, waitMs - 500), maximumAge: 10 * 60 * 1000 });
+      } catch (_) { end(null); }
+    });
+  }
+  // async: country abroad (no question asked), district in Qatar
+  function placeAsync() {
+    var code = place();
+    var tz = '';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) {}
+    if (!HOME[tz]) return Promise.resolve(code);
+    if (fix && Date.now() - fix.at < FIX_MS) return Promise.resolve(fix.code);
+    // up to 12 s, so the first "Allow location?" can be answered; then plain QAT
+    return locate(12000).then(function (c) {
+      if (!c) return 'QAT';
+      var lat = c.latitude, lng = c.longitude, b = QATAR_BOX;
+      var out = (lat >= b.s && lat <= b.n && lng >= b.w && lng <= b.e) ? district(lat, lng) : (map()[tz] || 'QAT');
+      fix = { code: out, at: Date.now() };
+      return out;
+    });
+  }
+  function withPlaceAsync(esn) {
+    var s = String(esn || '');
+    if (!s || s.split('/').length >= 3) return Promise.resolve(s);
+    return placeAsync().then(function (code) { return code ? s + '/' + code : s; }, function () { return s; });
+  }
+  window.ibaEsnPlaceAsync = placeAsync;
+  window.ibaEsnWithPlaceAsync = withPlaceAsync;
+  window.ibaEsnDistricts = DISTRICTS;
+
   function withPlace(esn) {
     var s = String(esn || '');
     var code = place();

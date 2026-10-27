@@ -14,7 +14,7 @@
   var BTN = 'button, .btn, a.iba-ai-mini, a[class*="btn"], [role="button"]';
   var NOTE = 'p, small, .hint, .help, .note, [class*="-hint"], [class*="-help"], [class*="-note"], [class*="-desc"], [class*="-sub"], .iba-ai-foot';
   // never touch: print layouts, the chat answers, typed fields, tables
-  var SKIP = '#sn-c, .iba-ai-msg, .iba-ai-bubble, [contenteditable], td, th, .modal-print, .iba-esn-sheet, .iba-lpo-card';
+  var SKIP = '#sn-c, .iba-ai-msg, .iba-ai-bubble, [contenteditable], td, th, .modal-print, .iba-esn-sheet, .iba-lpo-card, #iba-recv-pop';
   var FIT = ['iba-fit-tight', 'iba-fit-icon', 'iba-fit-cut', 'iba-fit-keep'];
 
   function visible(el) {

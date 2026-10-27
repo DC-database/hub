@@ -4410,6 +4410,7 @@
                 (daysSince(j.at) === null ? '' : '<span class="iba-aph-age">' + daysSince(j.at) + 'd</span>') + '</li>').join('') + '</ul>';
         }
         if (!tasks.length && !jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
+        if (window.ibaWatch) h += window.ibaWatch.briefHtml();
         h += '<p class="iba-aph-foot">Process, SRV Done and printing are on the PC. <b>Do on PC</b> pins a task to your reminders there.</p></div>';
         return h;
     }
@@ -5212,7 +5213,10 @@
         const steps = (it.steps || []).slice().reverse();
         const canRemind = !paid && it.with && !noRemind(it);
         const canUrg = it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser()));
-        const acts = (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(who || 'them') + '</button>' : '') +
+        // 17.0.5 patch 21: Notify me (until it reaches With Accounts)
+        const canWatch = window.ibaWatch && it.kind === 'invoice' && it.key && p.po && !paid && !(it.stage_index >= 4 && !side);
+        const acts = (canWatch ? window.ibaWatch.btnHtml({ po: p.po, key: it.key, inv: it.invoice_no, vendor: p.vendor || '', site: siteNo(p.site) || p.site || '', value: it.value || '', status: it.status || '' }) : '') +
+            (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(who || 'them') + '</button>' : '') +
             (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
             (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '') +
             (canUrg ? '<button type="button" class="iba-trk-btn' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
@@ -5450,6 +5454,8 @@
             }
             if (r.inventory_not_loaded) h += '<p class="iba-ai-foot">' + esc(r.inventory_not_loaded) + ' more Active Job item' + (r.inventory_not_loaded === 1 ? '' : 's') + ' not loaded yet: open Active Job to see them.</p>';
             if (!tasks.length && !jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
+            // 17.0.5 patch 21: invoices you pressed Notify me on
+            if (window.ibaWatch) h += window.ibaWatch.briefHtml();
             // the company, in short
             // 17.0.0 patch 21: one table with a header, like the status tables
             // (was tiles with a two-column list in the big window)
