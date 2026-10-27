@@ -349,4 +349,42 @@
   body.iba-phone #iba-ai-panel .iba-trk-pono { font-size: 27px !important; }
   body.iba-phone #iba-ai-panel .iba-trk-mid > b { font-size: 16px !important; }
   body.iba-phone #iba-ai-panel .iba-trk-r-acts .iba-trk-btn { flex: 1 1 auto !important; height: 48px !important; }
+
+  /* 17.0.5 patch 21: Notify me (js/iba-1705-watch.js) */
+  #iba-ai-panel .iba-trk-btn.iba-watch-btn { border-color: rgba(127, 227, 214, .7) !important; color: #B5F0E8 !important; -webkit-text-fill-color: #B5F0E8 !important; background: rgba(127, 227, 214, .14) !important; }
+  #iba-ai-panel .iba-trk-btn.iba-watch-btn.is-on { border-color: rgba(139, 227, 181, .7) !important; color: #8BE3B5 !important; -webkit-text-fill-color: #8BE3B5 !important; background: rgba(80, 200, 140, .16) !important; }
+  body.iba-shell-on #iba-live-counts .iba-live-pill.iba-watch-pill { --live-c: #7FE3D6; --live-glow: rgba(127, 227, 214, .5); }
+  body.iba-shell-on #iba-live-counts .iba-live-pill.iba-watch-pill .iba-live-num { background: #E5484D !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-watch-pop .iba-watch-box { width: min(560px, 100%); }
+  #iba-watch-pop .iba-pb-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  #iba-watch-pop .iba-watch-x { width: 36px !important; height: 36px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .16) !important; background: transparent !important; color: #EEF3F8 !important; cursor: pointer !important; }
+  #iba-watch-pop .iba-watch-item { margin: 12px 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, .08); display: flex; flex-direction: column; gap: 8px; }
+  #iba-watch-pop .iba-watch-item:last-child { border-bottom: 0; }
+  #iba-watch-pop .iba-watch-po { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  #iba-watch-pop .iba-watch-po .is-no { font: 700 20px/1.1 ui-monospace, 'JetBrains Mono', Consolas, monospace; color: #fff; }
+  #iba-watch-pop .iba-watch-po .is-vend { color: #E3C98A; font-weight: 700; }
+  #iba-watch-pop .iba-watch-po .is-site { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: rgba(127, 227, 214, .15); color: #7FE3D6; }
+  #iba-watch-pop .iba-watch-line { color: #EBD8A8; }
+  #iba-watch-pop .iba-watch-msg { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); line-height: 1.5; color: #D6E0EA; }
+  #iba-watch-pop .iba-watch-msg span { display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #EBD8A8; }
+  #iba-watch-pop .iba-watch-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  #iba-watch-pop .iba-trk-btn { display: inline-flex !important; align-items: center !important; gap: 8px !important; min-height: 44px !important; padding: 0 16px !important; border-radius: 12px !important; border: 1px solid rgba(159, 179, 194, .4) !important; background: transparent !important; color: #EEF3F8 !important; font: inherit !important; font-weight: 700 !important; cursor: pointer !important; }
+  #iba-watch-pop .iba-trk-btn.is-main { border-color: rgba(127, 227, 214, .75) !important; background: rgba(127, 227, 214, .18) !important; color: #B5F0E8 !important; -webkit-text-fill-color: #B5F0E8 !important; }
+  #iba-watch-pop .iba-trk-btn.is-wa { border-color: rgba(139, 227, 181, .7) !important; background: rgba(80, 200, 140, .18) !important; color: #8BE3B5 !important; -webkit-text-fill-color: #8BE3B5 !important; }
+  #iba-watch-pop .iba-trk-btn:hover, #iba-watch-pop .iba-trk-btn:focus-visible { filter: brightness(1.15) !important; outline: none !important; }
+  #iba-watch-pop .iba-watch-item.is-paid .iba-watch-line { color: #8BE3B5; font-weight: 700; }
+  #iba-ai-panel .iba-watch-list li.is-acc { background: rgba(127, 227, 214, .08) !important; }
+  #iba-ai-panel .iba-watch-pono { font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace; }
+  #iba-ai-panel .iba-watch-st { display: inline-block; width: max-content !important; max-width: 100%; align-self: flex-start; margin-top: 3px; padding: 2px 9px; border-radius: 999px; font-size: 12px; background: rgba(255, 201, 112, .16); color: #FFC970; -webkit-text-fill-color: #FFC970; }
+  #iba-ai-panel .iba-watch-st.is-acc { background: rgba(127, 227, 214, .2); color: #7FE3D6; -webkit-text-fill-color: #7FE3D6; font-weight: 700; }
+  #iba-ai-panel .iba-watch-st.is-paid { background: rgba(80, 200, 140, .2); color: #8BE3B5; -webkit-text-fill-color: #8BE3B5; font-weight: 700; }
+  #iba-ai-panel .iba-watch-list .c-act { display: flex !important; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; }
+  body.iba-phone #iba-ai-panel .iba-aph-tabs > button { position: relative !important; }
+  #iba-ai-panel .iba-watch-tabn { position: absolute; top: 2px; right: 18%; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #E5484D; color: #fff; -webkit-text-fill-color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+  #iba-ai-panel .iba-watch-tabn[hidden] { display: none !important; }
+  /* phone: no top-bar bell; the number sits on the assistant button and Brief tab */
+  body:not(.iba-shell-on) #iba-watch-pill, body:is(.iba-mobile-ui, .iba-phone) #iba-watch-pill { display: none !important; }
+  .iba-ph-ai { position: relative; }
+  .iba-ph-ai .iba-watch-phn { position: absolute; top: 2px; left: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #0F8A7E; color: #fff; -webkit-text-fill-color: #fff; font: 700 10px/16px Arial, sans-serif; text-align: center; pointer-events: none; }
+  .iba-ph-ai .iba-watch-phn[hidden] { display: none !important; }
 }
