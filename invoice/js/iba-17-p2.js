@@ -69,6 +69,19 @@
             return (as - bs) || a.localeCompare(b);
         });
         vendors.forEach((v) => groups[v].sort((a, b) => b.po.localeCompare(a.po, undefined, { numeric: true })));
+        // 17.0.5 patch 22: POs with an unpaid invoice first (newest invoice
+        // on top), then the paid-up ones; no download (memory / saved copy)
+        if (typeof window.ibaPoRankNow === 'function') {
+            const rk = {};
+            let ready = true;
+            vendors.forEach((v) => groups[v].forEach((p) => {
+                const r = window.ibaPoRankNow(p.po, ready ? redo : null);
+                if (!r) ready = false;
+                rk[p.po] = r || {};
+            }));
+            if (ready) vendors.forEach((v) => groups[v].sort((a, b) =>
+                ((rk[b.po].open ? 1 : 0) - (rk[a.po].open ? 1 : 0)) || ((rk[b.po].last || 0) - (rk[a.po].last || 0))));
+        }
         return { vendors, groups };
     }
 
@@ -162,6 +175,14 @@
         active = -1;
         if (rows.length) setActive(0);
         place();
+    }
+
+    // the saved invoice copy arrived: show the list again in the new order
+    function redo() {
+        const input = box;
+        if (!input || !menu()) return;
+        const text = String(input.value || '').trim();
+        if (text.length >= 2 && poData() && isVendorText(text)) render(input, text, search(text, poData()));
     }
 
     function choose(po) {

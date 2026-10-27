@@ -4,6 +4,8 @@
    Invoice / Inventory tracking and the phone search. It shows only while
    the box has text; one tap empties the box (tracking: also Site and
    Year) and puts the cursor back in it. No data is read or written.
+   17.0.5 patch 22: on the tracking and phone search it also clears the
+   results shown under the box, and stays while results are shown.
    ========================================================================== */
 (function () {
     'use strict';
@@ -14,10 +16,14 @@
         'iba-aph-q': [],
         'iba-ai-skill-find': []
     };
+    // 17.0.5 patch 22: the results under a search box go with it (no
+    // old results left on screen after the box is cleared)
+    const RESULTS = { 'iba-ai-track-q': 'iba-ai-track-out', 'iba-aph-q': 'iba-aph-out' };
     const $ = (id) => document.getElementById(id);
 
+    function hasResults(id) { const out = RESULTS[id] && $(RESULTS[id]); return !!(out && out.children.length); }
     function hasText(id) {
-        return [id].concat(BOXES[id] || []).some((k) => { const el = $(k); return !!(el && String(el.value || '').trim()); });
+        return hasResults(id) || [id].concat(BOXES[id] || []).some((k) => { const el = $(k); return !!(el && String(el.value || '').trim()); });
     }
     function refresh(id) {
         const btn = document.querySelector('.iba-clear-x[data-clear-for="' + id + '"]');
@@ -37,8 +43,8 @@
         btn.type = 'button';
         btn.className = 'iba-clear-x';
         btn.dataset.clearFor = id;
-        btn.title = 'Clear';
-        btn.setAttribute('aria-label', 'Clear');
+        btn.title = RESULTS[id] ? 'Clear the search and the results' : 'Clear';
+        btn.setAttribute('aria-label', btn.title);
         btn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
         btn.hidden = true;
         // keep the box focused (phone keyboard stays open)
@@ -52,6 +58,12 @@
                 el.value = '';
                 el.dispatchEvent(new Event('input', { bubbles: true }));
             });
+            if (RESULTS[id]) {
+                const out = $(RESULTS[id]);
+                if (out) out.innerHTML = '';
+                const rc = $('iba-trk-rcpt');
+                if (rc) rc.remove();
+            }
             if (box.tagName === 'TEXTAREA') box.style.height = '';
             btn.hidden = true;
             try { box.focus(); } catch (_) {}

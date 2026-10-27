@@ -1201,7 +1201,7 @@
                         (i.also_with ? '<br><small>Also in the Active Job of ' + esc(i.also_with) + ' (Attention).</small>' : '') + '</p>';
                     h += '<div class="iba-ai-trf-flow">' + i.flow.map((s, n) => '<span class="' + (i.step_no && n + 1 < i.step_no ? 'is-done' : (i.step_no === n + 1 ? 'is-now' : '')) + '">' + esc(s) + '</span>').join('<i class="fa-solid fa-chevron-right"></i>') + '</div>';
                     if (i.problems) h += '<ul class="iba-ai-warn">' + i.problems.map((w) => '<li>' + esc(w) + '</li>').join('') + '</ul>';
-                    if (i.waiting_for) h += '<div class="iba-ai-trk-acts"><button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ control: i.control || t.control, type: t.type, step: i.next, with: i.waiting_for, days: i.days_at_step })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(i.waiting_for) + '</button></div>';
+                    if (i.waiting_for) h += '<div class="iba-ai-trk-acts"><button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ control: i.control || t.control, type: t.type, step: i.next, with: i.waiting_for, days: i.days_at_step })) + '"><i class="fa-solid fa-bell"></i> Remind</button></div>';
                 } else {
                     h += '<p class="iba-ai-foot">' + esc(i.step) + ':</p>';
                 }
@@ -1702,7 +1702,14 @@
         if (year) list = list.filter((p) => !p.year || p.year === year || p.year === String(Number(year) - 1));
         if (!list.length) return { mode: 'none', message: 'Nothing matches that site / year.' };
         list.sort((a, b) => (b.when || 0) - (a.when || 0));
-        const vendorLabel = poQ ? (list[0].vendor || '') : (list[0].vendor || vendor);
+        // 17.0.5 patch 22: a vendor's POs with an unpaid invoice come first
+        // (the one with the newest invoice on top), then the paid-up ones
+        if (!poQ && list.length > 1) {
+            const rk = await vendorRank(list);
+            const r = (p) => rk[p.po] || {};
+            list.sort((a, b) => ((r(b).open ? 1 : 0) - (r(a).open ? 1 : 0)) || ((r(b).last || 0) - (r(a).last || 0)) || ((b.when || 0) - (a.when || 0)));
+        }
+        const vendorLabel =poQ ? (list[0].vendor || '') : (list[0].vendor || vendor);
         // 15.0.0 patch 9: a vendor with many POs shows its newest POs first,
         // then its sites to look further (no more "unknown" year step)
         let bySite = null;
@@ -1728,7 +1735,9 @@
                 po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items, _last: last || p.when || 0 };
         }));
         // 17.0.5 patch 16: the PO with the newest invoice comes first
-        pos.sort((a, b) => (b._last || 0) - (a._last || 0));
+        // 17.0.5 patch 22: POs with an unpaid invoice before paid-up ones
+        const isOpen = (p) => (p.items || []).some((i) => !(i.stage_index === 5 && !i.side_status)) ? 1 : 0;
+        pos.sort((a, b) => (isOpen(b) - isOpen(a)) || ((b._last || 0) - (a._last || 0)));
         pos.forEach((p) => { delete p._last; });
         const posOut = year ? pos.filter((p) => p.items.length || p.year === year) : pos;
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
@@ -1736,6 +1745,69 @@
             year_rule: year ? 'Invoices with invoice date or paid date in ' + year : undefined,
             query: { po: poQ, vendor: vendor, site: site, year: year }, pos: posOut };
     }
+    // 17.0.5 patch 22: which of a vendor's POs still have an unpaid invoice,
+    // and when its newest invoice came in. Uses the invoice list this page
+    // already holds or the copy saved in this browser (no download); only
+    // without either it reads the newest 40 POs one by one (a few KB each).
+    let savedInv = null;
+    function savedInvoiceCopy() {
+        if (savedInv && Date.now() - savedInv.at < 5 * 60000) return Promise.resolve(savedInv.data);
+        return new Promise((resolve) => {
+            try {
+                if (!window.indexedDB) return resolve(null);
+                const req = indexedDB.open('iba_invoice_records', 1);
+                req.onupgradeneeded = () => { try { req.result.createObjectStore('snapshot'); } catch (_) {} };
+                req.onerror = () => resolve(null);
+                req.onsuccess = () => {
+                    const d = req.result;
+                    const done = (v) => { try { d.close(); } catch (_) {} resolve(v); };
+                    try {
+                        const g = d.transaction('snapshot', 'readonly').objectStore('snapshot').get('invoice_entries');
+                        g.onsuccess = () => { const v = g.result && g.result.data && typeof g.result.data === 'object' ? g.result.data : null; if (v) savedInv = { at: Date.now(), data: v }; done(v); };
+                        g.onerror = () => done(null);
+                    } catch (_) { done(null); }
+                };
+            } catch (_) { resolve(null); }
+        });
+    }
+    function rankOf(invs) {
+        let open = false, last = 0;
+        Object.keys(invs || {}).forEach((k) => {
+            const inv = invs[k] || {};
+            if (norm(inv.status) !== 'paid') open = true;
+            last = Math.max(last, Date.parse(inv.invoiceDate || '') || Number(inv.createdAt) || 0);
+        });
+        return { open: open, last: last };
+    }
+    async function vendorRank(list) {
+        const rk = {};
+        let all = null;
+        try { if (window.__invoiceEntriesFullLoaded === true && typeof allInvoiceData !== 'undefined' && allInvoiceData) all = allInvoiceData; } catch (_) {}
+        if (!all) { try { all = await withTimeout(savedInvoiceCopy(), 4000, 'Saved invoices'); } catch (_) { all = null; } }
+        if (all) {
+            list.forEach((p) => { rk[p.po] = rankOf(all[p.po]); });
+            // POs saved here since the copy was made: use the newer data
+            try { if (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData !== all) list.forEach((p) => { if (allInvoiceData[p.po]) rk[p.po] = rankOf(allInvoiceData[p.po]); }); } catch (_) {}
+            return rk;
+        }
+        const some = list.slice(0, 40);
+        await Promise.all(some.map((p) => poInvoices(p.po).then((m) => { rk[p.po] = rankOf(m); }, () => {})));
+        return rk;
+    }
+    // the same order for the Invoice Entry vendor search (js/iba-17-p2.js):
+    // answers at once from what is in memory; the saved copy loads in the
+    // background and onReady() runs once it is there
+    window.ibaPoRankNow = function (po, onReady) {
+        let src = null;
+        try { if (window.__invoiceEntriesFullLoaded === true && typeof allInvoiceData !== 'undefined' && allInvoiceData) src = allInvoiceData; } catch (_) {}
+        if (!src && savedInv) src = savedInv.data;
+        if (!src) {
+            if (onReady && !savedInvoiceCopy.__busy) { savedInvoiceCopy.__busy = true; savedInvoiceCopy().then((v) => { savedInvoiceCopy.__busy = false; if (v) onReady(); }, () => { savedInvoiceCopy.__busy = false; }); }
+            return null;
+        }
+        try { if (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[po]) return rankOf(allInvoiceData[po]); } catch (_) {}
+        return rankOf(src[po]);
+    };
     function trackForAI(r) {
         if (r.mode !== 'pos') return r;
         return Object.assign({}, r, { pos: r.pos.map((p) => Object.assign({}, p, { items: p.items.map((i) => Object.assign({}, i, { steps: i.steps && i.steps.length ? i.steps.slice(-3) : undefined })) })) });
@@ -3519,8 +3591,7 @@
               // 17.0.0 patch 5: Now brief on the phone
               '<button type="button" class="iba-aph-brief" data-aph-brief><i class="fa-solid fa-sun"></i><span><b>Now brief</b><small id="iba-aph-brief-n">Your tasks, urgent first</small></span><i class="fa-solid fa-chevron-right"></i></button>' +
               '<form class="iba-aph-search" id="iba-aph-form" autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
-                '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +
-                '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
+                '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +                '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
               '<div class="iba-aph-tiles" role="radiogroup" aria-label="What to look for">' +
                 '<button type="button" data-aph-mode="inv" style="--c:#2a78d6"><i class="fa-solid fa-magnifying-glass-location"></i><b>Where is my invoice?</b><small>Type the PO or vendor</small></button>' +
                 '<button type="button" data-aph-mode="trf" style="--c:#14a37f"><i class="fa-solid fa-truck-ramp-box"></i><b>Inventory</b><small>Transfer, vehicle, item</small></button>' +
@@ -3597,8 +3668,7 @@
             const looksPO = /\d/.test(q) && /^\s*(po[\s#:-]*)?[a-z0-9_-]+\s*$/i.test(q);
             runTrack({ po: looksPO ? q : '', vendor: looksPO ? '' : q, site: $('iba-ai-track-site').value, year: $('iba-ai-track-year').value }, $('iba-ai-track-out'));
         });
-        $('iba-aph-form').addEventListener('submit', (e) => { e.preventDefault(); const q = $('iba-aph-q'); phoneSearch(q.value); q.blur(); });
-        const ta = $('iba-ai-text');
+        $('iba-aph-form').addEventListener('submit', (e) => { e.preventDefault(); const q = $('iba-aph-q'); phoneSearch(q.value); q.blur(); });        const ta = $('iba-ai-text');
         ta.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('iba-ai-form').requestSubmit ? $('iba-ai-form').requestSubmit() : $('iba-ai-form').dispatchEvent(new Event('submit', { cancelable: true })); }
         });
@@ -4844,7 +4914,7 @@
         box.className = 'iba-ai-remind';
         const listId = 'iba-ai-rem-people-' + Date.now();
         box.innerHTML = '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Remind</div>' +
-            '<label class="iba-ai-rem-row"><span>To</span><input type="text" list="' + listId + '" class="iba-ai-rem-to" placeholder="Name" value="' + esc(remDefaultTo(q)) + '"></label>' +
+            '<label class="iba-ai-rem-row"><span>To</span><input type="text" list="' + listId + '" class="iba-ai-rem-to" placeholder="Who do you want to remind? Type a name" value=""></label>' +
             '<datalist id="' + listId + '">' + people().map((p) => '<option value="' + esc(p.value) + '">' + esc([p.position, p.site].filter(Boolean).join(' · ')) + '</option>').join('') + '</datalist>' +
             '<textarea class="iba-ai-rem-text" rows="4">' + esc(remText(q)) + '</textarea>' +
             '<div class="iba-ai-rem-acts"><button type="button" class="iba-ai-mini is-main" data-rem-send><i class="fa-solid fa-paper-plane"></i> Send reminder</button>' +
@@ -5021,7 +5091,7 @@
                     // 15.0.0 patch 44: the SRV file too (same link as Invoice Records)
                     srvLink(it.srv) +
                     // 15.0.0 patch 40: Remind on each open invoice, to the person who has it
-                    (it.stage_index < 5 && it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Remind ' + esc(it.with) + ' about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
+                    (it.stage_index < 5 && it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Send a reminder about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser())) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
                         '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
@@ -5216,7 +5286,7 @@
         // 17.0.5 patch 21: Notify me (until it reaches With Accounts)
         const canWatch = window.ibaWatch && it.kind === 'invoice' && it.key && p.po && !paid && !(it.stage_index >= 4 && !side);
         const acts = (canWatch ? window.ibaWatch.btnHtml({ po: p.po, key: it.key, inv: it.invoice_no, vendor: p.vendor || '', site: siteNo(p.site) || p.site || '', value: it.value || '', status: it.status || '' }) : '') +
-            (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind ' + esc(who || 'them') + '</button>' : '') +
+            (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
             (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
             (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '') +
             (canUrg ? '<button type="button" class="iba-trk-btn' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
