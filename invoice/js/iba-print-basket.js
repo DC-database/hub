@@ -14,6 +14,10 @@
    ESN window (tick signatures, Left / Middle / Right bottom / middle / top)
    and the basket prints the new sticker (design A with the time). Items
    saved before keep working (newest signature, Right bottom).
+   17.0.5 patch 24: "Add all approved to print (N)" above Active Task puts
+   every approved invoice waiting for its print in the basket at once
+   (normal sticker: newest signature, Right bottom; pen = change). The
+   basket shows each invoice's amount and the total.
    ========================================================================== */
 (function () {
     'use strict';
@@ -39,12 +43,28 @@
     function save(list) {
         try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (_) {}
         paintButton();
+        paintAllButton();
         if (document.getElementById('iba-pb-panel')) openPanel();
     }
     function esn() { return (window.ibaEsnFlow && typeof window.ibaEsnFlow.choose === 'function') ? window.ibaEsnFlow : null; }
     function placesText(picks) {
         const E = esn();
         return (picks || []).map((p) => String(p.name || '').split(/\s+/)[0] + ' ' + (E ? E.placeName(p.place) : p.place)).join(', ');
+    }
+    function num(v) { const n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return Number.isFinite(n) ? n : 0; }
+    function money(v) { return num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function tasks() { try { return (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) ? userActiveTasks : []; } catch (_) { return []; } }
+    function taskAmount(t) { return t ? (t.amountPaid || t.amount || t.invValue || '') : ''; }
+    // amount of a basket item: saved with it, else from memory (no download)
+    function amountOf(x) {
+        if (x.amount !== undefined && x.amount !== '') return x.amount;
+        try {
+            const r = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[x.po]) ? allInvoiceData[x.po][x.key] : null;
+            if (r) return r.amountPaid || r.invValue || '';
+        } catch (_) {}
+        const E = esn();
+        const t = tasks().find((y) => { try { const ids = E && E.taskIds ? E.taskIds(y) : null; return ids && String(ids.po) === String(x.po) && String(ids.key) === String(x.key); } catch (_) { return false; } });
+        return taskAmount(t);
     }
     function same(a, b) { return String(a.po) === String(b.po) && String(a.key) === String(b.key); }
 
@@ -105,8 +125,8 @@
             pos = await askPosition(label, had ? had.pos : '4');
             if (!pos) return false;
         }
-        if (had) { had.pos = pos; if (picks) had.picks = picks; if (item.esnTask) had.esnTask = true; }
-        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', pos: pos, picks: picks || undefined, esnTask: item.esnTask ? true : undefined, at: Date.now() });
+        if (had) { had.pos = pos; if (item.amount) had.amount = item.amount; if (picks) had.picks = picks; if (item.esnTask) had.esnTask = true; }
+        else list.push({ po: String(item.po), key: String(item.key), ref: item.ref || '', vendor: item.vendor || '', amount: item.amount || undefined, pos: pos, picks: picks || undefined, esnTask: item.esnTask ? true : undefined, at: Date.now() });
         save(list);
         const where = picks ? placesText(picks) : POS[pos];
         flash(had ? 'Changed: ' + where : 'Added (' + list.length + '). Click Print basket above to print.');
@@ -165,14 +185,17 @@
             '<tr data-i="' + i + '"><td class="n">' + (i + 1) + '</td>' +
             '<td><b>' + esc(x.po) + '</b>' + (x.ref ? '<small>' + esc(x.ref) + '</small>' : '') + '</td>' +
             '<td class="v">' + esc(x.vendor || '') + '</td>' +
+            '<td class="m">' + (amountOf(x) !== '' ? esc(money(amountOf(x))) : '-') + '</td>' +
             (esn() ? '<td class="iba-pb-picks">' + esc(x.picks && x.picks.length ? placesText(x.picks) : 'Newest · Right bottom') + ' <button type="button" data-change title="Change signatures / places"><i class="fa-solid fa-pen"></i></button></td>'
                 : '<td><select data-pos>' + Object.keys(POS).map((k) => '<option value="' + k + '"' + (x.pos === k ? ' selected' : '') + '>' + POS[k] + '</option>').join('') + '</select></td>') +
             '<td class="a"><button type="button" data-up title="Move up"' + (i ? '' : ' disabled') + '><i class="fa-solid fa-arrow-up"></i></button>' +
             '<button type="button" data-down title="Move down"' + (i < list.length - 1 ? '' : ' disabled') + '><i class="fa-solid fa-arrow-down"></i></button>' +
             '<button type="button" data-del title="Remove"><i class="fa-solid fa-xmark"></i></button></td></tr>').join('');
+        const total = list.reduce((s2, x) => s2 + num(amountOf(x)), 0);
         const w = layer('iba-pb-panel',
             '<div class="iba-pb-head"><b>Print basket</b><span>' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + ' · one A4 page each, in this order</span></div>' +
-            '<div class="iba-pb-scroll"><table class="iba-pb-table"><thead><tr><th>#</th><th>PO</th><th>Vendor</th><th>Stickers</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+            '<div class="iba-pb-scroll"><table class="iba-pb-table"><thead><tr><th>#</th><th>PO</th><th>Vendor</th><th class="m">Amount (QAR)</th><th>Stickers</th><th></th></tr></thead><tbody>' + rows + '</tbody>' +
+            '<tfoot><tr><td></td><td colspan="2">Total · ' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + '</td><td class="m"><b>' + esc(money(total)) + '</b></td><td colspan="2"></td></tr></tfoot></table></div>' +
             '<p class="iba-pb-msg" hidden></p>' +
             '<div class="iba-pb-foot"><button type="button" data-empty class="is-quiet">Empty basket</button><span></span>' +
             '<button type="button" data-x>Close</button>' + (typeof window.ibaAddToBatch === 'function' && isSuperUser() ? '<button type="button" data-tobatch title="Put these invoices in Batch Entry and empty the basket"><i class="fa-solid fa-table-list"></i> To Batch Entry</button>' : '') + '<button type="button" data-print class="is-main"><i class="fa-solid fa-print"></i> Print all / Save as PDF</button></div>');
@@ -345,25 +368,78 @@
         e.preventDefault();
         e.stopImmediatePropagation();
         const tr = b.closest('tr');
-        let ref = '', vendor = '';
+        let ref = '', vendor = '', amount = '';
         try {
             const key = (tr && tr.getAttribute('data-key')) || '';
             const t = (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) ? userActiveTasks.find((x) => x && String(x.key) === key) : null;
-            if (t) { ref = t.ref || ''; vendor = t.vendorName || ''; }
+            if (t) { ref = t.ref || ''; vendor = t.vendorName || ''; amount = taskAmount(t); }
         } catch (_) {}
         const et = b.getAttribute('data-esn-task');
         if (et) {
             const t = (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) ? userActiveTasks.find((x) => x && String(x.key) === et) : null;
             const ids = t && window.ibaEsnFlow && window.ibaEsnFlow.taskIds ? window.ibaEsnFlow.taskIds(t) : null;
             if (!t || !ids || !ids.po || !ids.key) { alert('Task not found. Please refresh.'); return; }
-            add({ po: ids.po, key: ids.key, ref: t.ref || '', vendor: t.vendorName || '', esnTask: true });
+            add({ po: ids.po, key: ids.key, ref: t.ref || '', vendor: t.vendorName || '', amount: taskAmount(t), esnTask: true });
             return;
         }
-        add({ po: b.getAttribute('data-po'), key: b.getAttribute('data-invkey'), ref, vendor });
+        add({ po: b.getAttribute('data-po'), key: b.getAttribute('data-invkey'), ref, vendor, amount });
     }, true);
 
+    // ------------------------------------------------------------------
+    // 17.0.5 patch 24: "Add all approved to print" (Active Task)
+    // ------------------------------------------------------------------
+    // every approved invoice in my Active Task that has a Print button
+    // (all of them, whatever tab / search is shown), not yet in the basket
+    function approvedToPrint() {
+        const E = window.ibaEsnFlow, A = window.ibaApprovals;
+        const list = load(), out = [], seen = {};
+        tasks().forEach((t) => {
+            let ids = null, esnTask = false;
+            try {
+                const h = E && E.rowActionsHtml ? E.rowActionsHtml(t) : '';
+                // ESN rows: not the ones already printed (they wait for Ready)
+                if (h) { if (h.indexOf('iba-esn-print-btn') !== -1 && !t.esnPrintedAt) { ids = E.taskIds(t); esnTask = true; } }
+                else if (A && A.isOpenReturn(t) && A.rowActionsHtml(t).indexOf('iba-apv-print-btn') !== -1) ids = A.taskIds(t);
+            } catch (_) { ids = null; }
+            if (!ids || !ids.po || !ids.key) return;
+            const it = { po: String(ids.po), key: String(ids.key), ref: t.ref || '', vendor: t.vendorName || '', amount: taskAmount(t), esnTask: esnTask || undefined };
+            const k = it.po + '|' + it.key;
+            if (seen[k] || list.some((x) => same(x, it))) return;
+            seen[k] = 1;
+            out.push(it);
+        });
+        return out;
+    }
+    function addAll() {
+        const items = approvedToPrint();
+        if (!items.length) { flash('All approved invoices are already in the basket'); openPanel(); return; }
+        const list = load();
+        items.forEach((it) => list.push(Object.assign({ pos: '4', at: Date.now() }, it)));
+        save(list);
+        flash('Added ' + items.length + '. Check them in the basket.');
+        openPanel();
+    }
+    function paintAllButton() {
+        const sec = document.getElementById('wd-activetask');
+        const bar = sec && sec.querySelector('.form-buttons-container');
+        let b = document.getElementById('iba-pb-all');
+        const n = (allowed() && bar) ? approvedToPrint().length : 0;
+        if (!n) { if (b) b.remove(); return; }
+        if (!b) {
+            b = document.createElement('button');
+            b.type = 'button';
+            b.id = 'iba-pb-all';
+            b.className = 'download-btn';
+            b.title = 'Put every approved invoice in the print basket. You can still remove or change them there.';
+            b.addEventListener('click', addAll);
+            bar.insertBefore(b, bar.firstChild);
+        }
+        const html = '<i class="fa-solid fa-cart-plus"></i> Add all approved to print (' + n + ')';
+        if (b.__ibaHtml !== html) { b.innerHTML = html; b.__ibaHtml = html; }
+    }
+
     let queued = false;
-    function queue() { if (queued) return; queued = true; setTimeout(() => { queued = false; addActiveTaskButtons(); paintButton(); }, 200); }
+    function queue() { if (queued) return; queued = true; setTimeout(() => { queued = false; addActiveTaskButtons(); paintButton(); paintAllButton(); }, 200); }
 
     function start() {
         paintButton();
@@ -374,5 +450,5 @@
     else start();
     window.addEventListener('storage', (e) => { if (e.key === KEY) paintButton(); });
 
-    window.ibaPrintBasket = { add, list: load, open: openPanel, clear: () => save([]), allowed };
+    window.ibaPrintBasket = { add, addAll, approvedToPrint, list: load, open: openPanel, clear: () => save([]), allowed };
 })();

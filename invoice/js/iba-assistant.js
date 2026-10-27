@@ -137,7 +137,7 @@
     function paymentState(status) {
         const k = norm(status);
         if (k === 'paid') return 'Paid (vendor has been paid)';
-        if (k === 'with accounts') return 'Payment in process (with Accounts)';
+        if (k === 'with accounts') return 'With Accounts (waiting for a payment day: Saturday or Tuesday)';
         return 'Not paid yet (not with Accounts)';
     }
     const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -2657,7 +2657,7 @@
             'You are the IBA Assistant inside the IBA invoice, WorkDesk and inventory system, a helpful personal assistant for ' + (a.Name || 'the user') +
                 (a.Position ? ' (' + a.Position + ')' : '') + '.',
             'Today is ' + WEEKDAYS[qDay().getUTCDay()].replace(/^./, (c) => c.toUpperCase()) + ' ' + fmtDate(todayISO()) + ' in Qatar' + (Number.isFinite(q.h) ? ', about ' + q.h + ':00.' : '.'),
-            'How an invoice moves: 1) Reception receives the vendor invoice and records a WorkDesk job entry (New Entry). 2) Accounting registers it in Invoice Entry (Under Review / In Process). 3) The Site DC (Head Office DC for head-office items) confirms delivery: For SRV, then SRV Done. 4) Approvals when needed (For Approval, CEO Approval, Report...). 5) With Accounts = payment in process. 6) Paid. Each invoice keeps a history of who changed its status and when.',
+            'How an invoice moves: 1) Reception receives the vendor invoice and records a WorkDesk job entry (New Entry). 2) Accounting registers it in Invoice Entry (Under Review / In Process). 3) The Site DC (Head Office DC for head-office items) confirms delivery: For SRV, then SRV Done. 4) Approvals when needed (For Approval, CEO Approval, Report...). 5) With Accounts = handed to Accounts, waiting for a payment day (Accounts pay only on Saturday and Tuesday; never say the payment is being prepared today). 6) Paid. Each invoice keeps a history of who changed its status and when.',
             roleLine(),
             'WorkDesk Job Records are the intake register: Reception encodes the jobs (Invoice, IPC Application, IPC Processed, PR, PO revision and others); QS works the IPC jobs (IPC Application: Pending, For IPC, IPC Done, IPC Issue; IPC Processed: IPC is done and Reception waits for the actual invoice). An invoice job moves to Invoice Entry when Accounting registers it.',
             isSuper() && !onPhone() ? 'Status changes in a time window ("last 2 hours", "this morning", "this afternoon", "today", "yesterday", "I did / I made") -> recent_status_changes (it also puts them into Batch Entry).' : '',
@@ -5081,7 +5081,7 @@
             const renderIt = (it) => {
                 const side = !!it.side_status;
                 const now = it.side_status || it.status;
-                const who = [it.stage_index === 4 && !side ? 'payment in process · needs Accounts to mark Paid' : '', it.with && !(it.stage_index === 4 && !side) ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? (it.stage_index === 5 && !side ? 'paid ' : 'since ') + it.since : ''].filter(Boolean).join(' · ');
+                const who = [it.stage_index === 4 && !side ? 'waiting for a payment day (Sat / Tue) · Accounts mark it Paid' : '', it.with && !(it.stage_index === 4 && !side) ? 'with ' + it.with : '', it.days !== undefined ? it.days + ' day' + (it.days === 1 ? '' : 's') : '', it.since ? (it.stage_index === 5 && !side ? 'paid ' : 'since ') + it.since : ''].filter(Boolean).join(' · ');
                 h += '<div class="iba-ai-trk-item' + (side ? ' is-side' : '') + '">' +
                     '<div class="iba-ai-trk-top"><span class="iba-ai-tag">' + esc(it.invoice_no) + '</span><span class="iba-ai-grow"><strong>' + esc(now) + (it.urgent ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') + '</strong><small>' + esc(who) + '</small></span>' +
                     (it.value ? '<span class="iba-ai-trk-val">' + esc(it.value) + '</span>' : '') + '</div>' +
@@ -5098,7 +5098,7 @@
                     '</div>';
             };
             if (notYet.length) { h += grpHead('Not with Accounts yet', notYet.length); notYet.forEach(renderIt); }
-            if (accs.length) { h += grpHead('With Accounts · payment in process', accs.length); accs.forEach(renderIt); }
+            if (accs.length) { h += grpHead('With Accounts · waiting for a payment day', accs.length); accs.forEach(renderIt); }
             if (paid.length) {
                 const last = paid.slice().sort((a, b) => (b._paid_t || 0) - (a._paid_t || 0));
                 const vP = sumOf(paid);
@@ -5167,7 +5167,7 @@
                 else { o.icon = 'fa-file-signature'; o.title = it.status; }
                 break;
             case 3: o.icon = 'fa-user-tie'; o.title = 'Waiting for management approval'; break;
-            case 4: o.icon = 'fa-money-check-dollar'; o.tone = late ? 'late' : 'acc'; o.title = 'With Accounts - payment being prepared'; o.line = 'Accounts will mark it Paid'; break;
+            case 4: o.icon = 'fa-money-check-dollar'; o.tone = late ? 'late' : 'acc'; o.title = 'With Accounts - waiting for a payment day'; o.line = 'Accounts pay on Saturday and Tuesday'; break;
             case 5: o.icon = 'fa-circle-check'; o.tone = 'paid'; o.title = 'Paid' + (it.paid_on ? ' on ' + it.paid_on : ''); return o;
             default: o.title = it.status;
         }
@@ -5193,6 +5193,9 @@
     }
     function trkDays(it) {
         if (it.days === undefined) return '';
+        // 17.0.5 patch 23: With Accounts = handed over, not "being paid":
+        // Accounts pay only on Saturday and Tuesday
+        if (it.stage_index === 4 && !it.side_status) return it.days === 0 ? 'given today' : 'given ' + it.days + ' day' + (it.days === 1 ? '' : 's') + ' ago';
         return it.days === 0 ? 'today' : it.days + ' day' + (it.days === 1 ? '' : 's');
     }
     function trkWho(it) {
@@ -5263,7 +5266,7 @@
         const paid = it.stage_index === 5 && !side;
         let sub = '';
         if (paid) sub = it.paid_on ? 'Paid on ' + esc(it.paid_on) : 'Paid';
-        else if (it.stage_index === 4 && !side) sub = 'Accounts are preparing the payment' + (it.days !== undefined ? ' · ' + esc(trkDays(it)) : '') + (it.since ? ' · since ' + esc(it.since) : '');
+        else if (it.stage_index === 4 && !side) sub = 'Given to Accounts' + (it.since ? ' on ' + esc(it.since) : '') + ' · waiting for a payment day (Saturday or Tuesday)';
         else sub = [who ? 'with <b>' + esc(who) + '</b>' + (it.days !== undefined ? ' for ' + esc(trkDays(it)) : '') : (it.days !== undefined ? esc(trkDays(it)) : ''), it.since ? 'since ' + esc(it.since) : ''].filter(Boolean).join(' · ');
         const skipped = it.skipped_index || [];
         const nowI = paid ? 6 : it.stage_index;
