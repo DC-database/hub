@@ -10,6 +10,7 @@
    Cancel job button + pop-up (patch 5, js/iba-1705-cancel.js).
    "Where is my invoice?" simple view (patch 6, js/iba-assistant.js).
    Assistant: Track button in colour (A), app icons (B), phone bottom bar (C) - patch 9.
+   "Where is my invoice?" list + one-invoice receipt - patch 14.
    Assistant "Waiting for approval": Files column (INV / SRV) stays inside
    the card, and the full table only shows when it really fits.
    ========================================================================== */
@@ -219,4 +220,133 @@
   /* 17.0.5 patch 11: the assistant on the phone too (Print / Excel under
      result cards, brief Print, Print list) */
   body:is(.iba-mobile-ui, .iba-phone) #iba-ai-panel :is(.iba-ai-cardacts, [data-rep], [data-brief-print], [data-brief-apv-print]) { display: none !important; }
+  /* 17.0.5 patch 15: no "Open in Invoice Records" on the phone (a desktop page) */
+  body:is(.iba-mobile-ui, .iba-phone) #iba-ai-panel [data-ai-records] { display: none !important; }
+  /* ---- 17.0.5 patch 14: "Where is my invoice?" list + one-invoice receipt (iba-assistant.js) */
+  #iba-ai-panel :is(.iba-trk-po, .iba-trk-rcpt) {
+    --t-card: #13263A; --t-row: #0F2033; --t-line: #22384D; --t-text: #E8EEF4; --t-muted: #A9B9C7; --t-gold: #E3C98A;
+    --t-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body) { --c: #4DA3FF; --cb: rgba(77, 163, 255, .16); }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body).is-apv { --c: #F2B84B; --cb: rgba(242, 184, 75, .16); }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body).is-acc { --c: #4FD1C5; --cb: rgba(79, 209, 197, .15); }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body).is-ipc { --c: #C9B8FF; --cb: rgba(180, 156, 255, .16); }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body).is-paid { --c: #5BD38A; --cb: rgba(91, 211, 138, .15); }
+  #iba-ai-panel :is(.iba-trk-row, .iba-trk-r-body).is-stop { --c: #FF8A8A; --cb: rgba(255, 107, 107, .16); }
+  #iba-ai-panel .iba-trk-hint { margin: 2px 0 8px !important; font-size: 13px !important; color: #A9B9C7 !important; -webkit-text-fill-color: #A9B9C7 !important; }
+  #iba-ai-panel .iba-trk-po { display: flex !important; flex-direction: column !important; gap: 8px !important; margin: 0 0 14px !important; }
+  #iba-ai-panel :is(.iba-trk-pohead, .iba-trk-r-po) {
+    display: flex !important; flex-direction: column !important; gap: 4px !important; padding: 14px !important; border-radius: 16px !important;
+    background: var(--t-card) !important; border: 1px solid var(--t-line) !important;
+  }
+  #iba-ai-panel .iba-trk-lbl { font-size: 11px !important; font-weight: 700 !important; letter-spacing: .08em !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-pono { font-family: var(--t-mono) !important; font-size: 24px !important; font-weight: 700 !important; line-height: 1.2 !important; letter-spacing: .02em !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-vendor { font-size: 15px !important; font-weight: 700 !important; color: var(--t-gold) !important; -webkit-text-fill-color: var(--t-gold) !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-chips { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px 8px !important; margin-top: 4px !important; }
+  #iba-ai-panel .iba-trk-chips > span { padding: 3px 10px !important; border-radius: 99px !important; background: #1A2D40 !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; font-size: 12.5px !important; font-weight: 600 !important; white-space: nowrap !important; }
+  #iba-ai-panel .iba-trk-chips > span.is-site { background: #1C3A57 !important; color: #CFE6FF !important; -webkit-text-fill-color: #CFE6FF !important; font-weight: 700 !important; }
+  #iba-ai-panel .iba-trk-chips > span.iba-trk-poval { margin-left: auto !important; background: transparent !important; padding: 3px 0 !important; }
+  #iba-ai-panel .iba-trk-chips b { color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; }
+  #iba-ai-panel .iba-trk-grp { padding: 6px 4px 0 !important; font-size: 11.5px !important; font-weight: 700 !important; letter-spacing: .08em !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-none { margin: 0 !important; padding: 10px 12px !important; border-radius: 12px !important; background: var(--t-row) !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-trk-row, #iba-ai-panel .iba-trk-paid > summary {
+    display: flex !important; align-items: center !important; gap: 12px !important; width: 100% !important; min-height: 64px !important; box-sizing: border-box !important;
+    padding: 10px 12px !important; border-radius: 14px !important; border: 1px solid var(--t-line) !important; background: var(--t-card) !important;
+    color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; font: inherit !important; text-align: left !important; cursor: pointer !important;
+    box-shadow: none !important; transform: none !important; height: auto !important; margin: 0 !important;
+  }
+  #iba-ai-panel .iba-trk-row:hover { border-color: var(--c) !important; background: #16304A !important; }
+  #iba-ai-panel .iba-trk-row:focus-visible { outline: 2px solid var(--c) !important; outline-offset: 2px !important; }
+  #iba-ai-panel .iba-trk-ic { flex: 0 0 auto !important; width: 40px !important; height: 40px !important; border-radius: 50% !important; display: grid !important; place-items: center !important; background: var(--cb) !important; }
+  #iba-ai-panel .iba-trk-ic i { font-size: 17px !important; color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; }
+  #iba-ai-panel .iba-trk-mid { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; gap: 2px !important; }
+  #iba-ai-panel .iba-trk-mid > b { font-size: 15px !important; font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-now { font-size: 14px !important; font-weight: 600 !important; line-height: 1.3 !important; color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; }
+  #iba-ai-panel .iba-trk-mid small { font-size: 12.5px !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-row.is-long .iba-trk-mid small { color: #FFB27A !important; -webkit-text-fill-color: #FFB27A !important; }
+  #iba-ai-panel .iba-trk-end { flex: 0 0 auto !important; display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 4px !important; }
+  #iba-ai-panel .iba-trk-end b { font-size: 14.5px !important; font-weight: 700 !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-trk-go { flex: 0 0 auto !important; font-size: 13px !important; color: #6F859A !important; -webkit-text-fill-color: #6F859A !important; }
+  #iba-ai-panel .iba-trk-paid { display: flex !important; flex-direction: column !important; gap: 8px !important; }
+  #iba-ai-panel .iba-trk-paid > summary { list-style: none !important; min-height: 56px !important; background: #10261E !important; border-color: #1E4A36 !important; --c: #5BD38A; --cb: #154030; }
+  #iba-ai-panel .iba-trk-paid > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-trk-paid > summary .iba-trk-mid > b { color: #5BD38A !important; -webkit-text-fill-color: #5BD38A !important; }
+  #iba-ai-panel .iba-trk-paid[open] > summary small { visibility: hidden !important; }
+  /* 17.0.5 patch 16: paid rows sit in the same newest-first list */
+  #iba-ai-panel .iba-trk-row.is-paid { background: #10261E !important; border-color: #1E4A36 !important; }
+  #iba-ai-panel .iba-trk-more { display: flex !important; flex-direction: column !important; gap: 8px !important; }
+  #iba-ai-panel .iba-trk-more > summary { list-style: none !important; cursor: pointer !important; padding: 8px 12px !important; border-radius: 12px !important; border: 1px dashed #2E4A63 !important;
+    font-size: 13px !important; font-weight: 700 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; text-align: center !important; }
+  #iba-ai-panel .iba-trk-more > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-trk-more[open] > summary { display: none !important; }
+  #iba-ai-panel .iba-trk-poacts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  #iba-ai-panel .iba-ai-urg-badge { white-space: nowrap !important; }
+
+  /* the receipt: one invoice over the whole assistant */
+  #iba-ai-panel .iba-trk-rcpt {
+    position: absolute !important; inset: 0 !important; z-index: 60 !important; display: flex !important; flex-direction: column !important;
+    background: #0B1724 !important; color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; border-radius: inherit !important; overflow: hidden !important;
+  }
+  #iba-ai-panel .iba-trk-r-top { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 12px !important; padding: 12px 14px !important; border-bottom: 1px solid #1B2D40 !important; }
+  #iba-ai-panel .iba-trk-r-top > span { font-size: 15px !important; font-weight: 600 !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-r-x {
+    width: 44px !important; height: 44px !important; min-width: 44px !important; padding: 0 !important; border-radius: 12px !important; border: 1px solid var(--t-line) !important;
+    background: var(--t-card) !important; display: grid !important; place-items: center !important; cursor: pointer !important; box-shadow: none !important;
+  }
+  #iba-ai-panel .iba-trk-r-x i { font-size: 18px !important; color: var(--t-gold) !important; -webkit-text-fill-color: var(--t-gold) !important; }
+  #iba-ai-panel .iba-trk-r-body { flex: 1 1 auto !important; min-height: 0 !important; overflow-y: auto !important; padding: 14px 16px 18px !important; display: flex !important; flex-direction: column !important; gap: 16px !important; }
+  #iba-ai-panel :is(.iba-trk-r-left, .iba-trk-r-right) { display: flex !important; flex-direction: column !important; gap: 16px !important; min-width: 0 !important; }
+  #iba-ai-panel .iba-trk-r-hero { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 6px !important; text-align: center !important; padding: 6px 0 2px !important; }
+  #iba-ai-panel .iba-trk-r-hero .iba-trk-ic { width: 58px !important; height: 58px !important; }
+  #iba-ai-panel .iba-trk-r-hero .iba-trk-ic i { font-size: 26px !important; }
+  #iba-ai-panel .iba-trk-r-title { font-size: 21px !important; font-weight: 800 !important; line-height: 1.25 !important; color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; text-wrap: balance !important; }
+  #iba-ai-panel .iba-trk-r-sub { font-size: 13.5px !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-r-sub b { color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; }
+  #iba-ai-panel .iba-trk-r-amt { margin-top: 4px !important; font-size: 30px !important; font-weight: 800 !important; letter-spacing: -.01em !important; font-variant-numeric: tabular-nums !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-r-inv { display: flex !important; gap: 8px !important; align-items: center !important; flex-wrap: wrap !important; justify-content: center !important; }
+  #iba-ai-panel .iba-trk-r-inv > b { font-size: 15px !important; font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-trk-r-sec { display: flex !important; flex-direction: column !important; gap: 8px !important; min-width: 0 !important; }
+  #iba-ai-panel .iba-trk-r-steps { list-style: none !important; margin: 0 !important; padding: 0 !important; display: grid !important; grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 4px !important; }
+  #iba-ai-panel .iba-trk-r-steps li { display: flex !important; flex-direction: column !important; gap: 6px !important; margin: 0 !important; padding: 0 !important; min-width: 0 !important; }
+  #iba-ai-panel .iba-trk-r-steps li > i { display: block !important; height: 6px !important; border-radius: 3px !important; background: #24394E !important; }
+  #iba-ai-panel .iba-trk-r-steps li.is-done > i { background: #5BD38A !important; }
+  #iba-ai-panel .iba-trk-r-steps li.is-now > i { background: var(--c) !important; }
+  #iba-ai-panel .iba-trk-r-steps li.is-skip > i { background: repeating-linear-gradient(90deg, #3A5068 0 4px, transparent 4px 7px) !important; }
+  #iba-ai-panel .iba-trk-r-steps li > span { font-size: 10.5px !important; font-weight: 700 !important; text-align: center !important; line-height: 1.25 !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-r-steps li.is-now > span { color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; }
+  #iba-ai-panel .iba-trk-r-steps li > span small { display: block !important; font-weight: 500 !important; }
+  #iba-ai-panel .iba-trk-r-next { margin: 0 !important; font-size: 13.5px !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-r-next b { color: #4FD1C5 !important; -webkit-text-fill-color: #4FD1C5 !important; }
+  #iba-ai-panel .iba-trk-r-cols { display: flex !important; flex-direction: column !important; gap: 16px !important; }
+  #iba-ai-panel .iba-trk-r-dl { margin: 0 !important; padding: 2px 14px !important; border-radius: 16px !important; background: var(--t-card) !important; border: 1px solid var(--t-line) !important; }
+  #iba-ai-panel .iba-trk-r-dl > div { display: flex !important; justify-content: space-between !important; gap: 12px !important; padding: 10px 0 !important; border-bottom: 1px dashed #2A4058 !important; font-size: 14px !important; }
+  #iba-ai-panel .iba-trk-r-dl > div:last-child { border-bottom: 0 !important; }
+  #iba-ai-panel .iba-trk-r-dl dt { color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; font-weight: 400 !important; margin: 0 !important; }
+  #iba-ai-panel .iba-trk-r-dl dd { margin: 0 !important; font-weight: 700 !important; text-align: right !important; color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-r-hist { list-style: none !important; margin: 0 !important; padding: 0 !important; display: flex !important; flex-direction: column !important; gap: 8px !important; }
+  #iba-ai-panel .iba-trk-r-hist li { margin: 0 !important; padding: 0 !important; font-size: 13.5px !important; line-height: 1.4 !important; color: var(--t-text) !important; -webkit-text-fill-color: var(--t-text) !important; }
+  #iba-ai-panel .iba-trk-r-hist li b { font-weight: 600 !important; color: var(--t-muted) !important; -webkit-text-fill-color: var(--t-muted) !important; }
+  #iba-ai-panel .iba-trk-r-acts { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
+  #iba-ai-panel .iba-trk-btn {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; height: 44px !important; padding: 0 16px !important;
+    border-radius: 12px !important; border: 1px solid #2E4A63 !important; background: var(--t-card) !important; color: var(--t-gold) !important; -webkit-text-fill-color: var(--t-gold) !important;
+    font: inherit !important; font-size: 14px !important; font-weight: 700 !important; text-decoration: none !important; cursor: pointer !important; box-shadow: none !important; white-space: nowrap !important;
+  }
+  #iba-ai-panel .iba-trk-btn i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  #iba-ai-panel .iba-trk-btn.is-main { border-color: #2F7FE0 !important; background: #2F7FE0 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-trk-btn.is-danger { border-color: rgba(255, 107, 107, .6) !important; color: #FFB4B4 !important; -webkit-text-fill-color: #FFB4B4 !important; }
+  #iba-ai-panel .iba-trk-btn:hover { filter: brightness(1.12) !important; }
+  #iba-ai-panel .iba-trk-rcpt .iba-ai-remind, #iba-ai-panel .iba-trk-rcpt .iba-ai-urg-mini { margin: 0 !important; }
+  /* big window: two columns, like a receipt beside its details */
+  #iba-ai-panel.is-wide .iba-trk-r-body { display: grid !important; grid-template-columns: minmax(300px, 380px) minmax(0, 1fr) !important; align-items: start !important; gap: 24px !important; padding: 22px 24px !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-hero { padding: 22px 16px !important; border-radius: 20px !important; background: var(--t-card) !important; border: 1px solid var(--t-line) !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-title { font-size: 23px !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-amt { font-size: 34px !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-steps li > i { height: 8px !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-steps li > span { font-size: 12.5px !important; text-align: left !important; }
+  #iba-ai-panel.is-wide .iba-trk-r-cols { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important; gap: 20px !important; align-items: start !important; }
+  /* phone: bigger touch rows */
+  body.iba-phone #iba-ai-panel .iba-trk-pono { font-size: 27px !important; }
+  body.iba-phone #iba-ai-panel .iba-trk-mid > b { font-size: 16px !important; }
+  body.iba-phone #iba-ai-panel .iba-trk-r-acts .iba-trk-btn { flex: 1 1 auto !important; height: 48px !important; }
 }
