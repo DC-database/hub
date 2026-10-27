@@ -1,3 +1,18 @@
+17.0.5 patch 22 (2026-10-27) - Vendor search: unpaid POs first; Remind without a name
+  - Where is my invoice? (vendor name) and the Invoice Entry vendor PO list:
+    POs that still have an unpaid invoice (anything not Paid) come first,
+    the one with the newest invoice on top; then the paid-up POs (newest
+    invoice first), then POs with no invoices. Inside a PO: newest first.
+  - Which POs are "open" is read from the invoice list already in memory or
+    the copy saved in this browser (no download). Only when neither exists,
+    the tracking search reads the vendor's newest 40 POs one by one.
+  - Remind buttons just say "Remind" (no name). The box opens with an empty
+    "To": the person types who they want to remind (pick from the list).
+  - Search boxes (tracking + phone): the small × now also clears the
+    results under the box (and stays while results are shown).
+  - Files: index.html, js/iba-assistant.js, js/iba-17-p2.js,
+    js/iba-1702-clear.js.
+
 17.0.5 patch 21 (2026-10-27) - Notify me: follow an invoice to Accounts
   - Invoice receipt (Where is my invoice?, PC + phone): "Notify me" button
     (hidden once the invoice is already With Accounts / Paid). Pressed =
