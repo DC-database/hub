@@ -1,3 +1,25 @@
+17.0.5 patch 24 (2026-10-27) - ESN print: "Add all approved to print" + amounts
+  - Active Task (PC): new button "Add all approved to print (N)" above the
+    table. One click puts every approved invoice that is waiting for its
+    print in the print basket (all of them, whatever tab or search is
+    shown). Ones already in the basket, and ESNs already printed (waiting
+    for Ready), are skipped. Each goes in with the normal sticker (newest
+    signature, Right bottom); the pen in the basket still changes it.
+  - Print basket: new Amount (QAR) column and a total line, so you can
+    check you have the right invoices; x removes one.
+  - Not on phone (no printing on phone).
+  - Files: index.html, js/iba-print-basket.js, css/iba-17.css.
+
+17.0.5 patch 23 (2026-10-27) - With Accounts wording: no more "preparing the payment · today"
+  - Accounts pay only on Saturday and Tuesday, so an invoice that just went
+    to Accounts is not "being paid today". Tracking now says:
+    "With Accounts - waiting for a payment day" and
+    "Given to Accounts on <date> · waiting for a payment day (Saturday or Tuesday)".
+  - Days count for With Accounts reads "given today" / "given 2 days ago".
+  - Brief / approvals group: "With Accounts · waiting for a payment day".
+  - The assistant's answers use the same wording.
+  - Files: index.html, js/iba-assistant.js.
+
 17.0.5 patch 22 (2026-10-27) - Vendor search: unpaid POs first; Remind without a name
   - Where is my invoice? (vendor name) and the Invoice Entry vendor PO list:
     POs that still have an unpaid invoice (anything not Paid) come first,
