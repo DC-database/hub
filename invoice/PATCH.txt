@@ -1,3 +1,52 @@
+17.0.5 patch 21 (2026-10-27) - Notify me: follow an invoice to Accounts
+  - Invoice receipt (Where is my invoice?, PC + phone): "Notify me" button
+    (hidden once the invoice is already With Accounts / Paid). Pressed =
+    "Watching · stop". Saved per person by approver key (same names never
+    share): iba_assistant/watch/<key>/<po>~<invoice key>.
+  - Now brief (PC + phone): "Watching" table, each invoice and where it is
+    now; With Accounts rows have "Ask Accounts"; Stop on every row.
+  - When a watched invoice reaches With Accounts: a bell with a red number
+    in the top bar (next to Active Task). On the phone the number is on the
+    assistant button and the Brief tab. The box shows the ready message and
+    Email (accounts@iba.com.qa) / WhatsApp (Gio's mobile from the approver
+    list) buttons; the person presses Send. "Got it" clears the number.
+    When Accounts marks it Paid the bell shows "Paid" once; a day after
+    that the invoice leaves the list.
+  - Downloads: only the status of each watched invoice (a few bytes) at
+    sign-in and every 15 minutes while the app is open. Max 40 per person.
+  - Files: index.html, js/iba-1705-watch.js (new), js/iba-assistant.js,
+    css/iba-1705-fit.css.
+
+17.0.5 patch 20 (2026-10-27) - Reception entries: remove safely, no duplicate invoices
+  - Invoice pop-up opened from a Reception entry (New Entries): the Delete
+    button now reads "Remove reception entry" (Super Admin only; hidden for
+    others). It asks "Are you sure?" (Cancel is focused, so Enter never
+    confirms). Yes = the entry leaves New Entries and stays in Job Records
+    as "Removed" with your name and time. No invoice is made or deleted.
+  - Same pop-up, Add with an invoice number that is already on the PO:
+    instead of only "Duplicate", it offers "Close the Reception entry" and
+    links it to the existing invoice (no second invoice is made).
+    The duplicate check now uses the fresh read of that PO.
+  - Reception Job Entry (For: Invoice): before saving, checks only that PO
+    (a few KB, never the whole invoice list) and the open Reception list for
+    the same invoice number; if found it asks "Save anyway / Don't save".
+  - Editing a saved invoice: Delete is unchanged (still Irwin only, with its
+    own "ARE YOU SURE?").
+  - Files: index.html, app.js, js/iba-1705-recv.js (new), js/iba-1705-fit.js
+    (pop-up text no longer folds behind "more").
+
+17.0.5 patch 19 (2026-10-27) - ESN place: Qatar district, no more SAU in Qatar
+  - Windows in Qatar is often set to "(UTC+03:00) Kuwait, Riyadh", so the
+    ESN showed SAU. Gulf time zones (Qatar, Riyadh, Kuwait, Bahrain, Aden)
+    now count as Qatar.
+  - In Qatar the ESN shows the district from the device location, e.g.
+    .../IRWIN/HLW (Al Hilal West), WBY (West Bay), LUS (Lusail). The browser
+    asks "Allow location?" once; No (or no answer in 12 s) = QAT. Real
+    location outside Qatar = that country. Abroad: country code from the
+    time zone as before (no question). District list + codes are in
+    js/iba-1705-place.js (DISTRICTS) and can be renamed / added to.
+  Files: index.html, app.js, js/iba-approvals.js, js/iba-1705-place.js
+
 17.0.5 patch 18 (2026-10-27) - Summary Note suggestions follow the date written in the note
   - A note with a date in its name ("Khalifa Steel 21-July-2026",
     "... Indust-Oct-06-2025", "... 24/12/2025") is ordered by that date,

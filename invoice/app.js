@@ -1339,7 +1339,7 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
                     ? currentApprover.Name.toUpperCase().split(' ')[0]
                     : 'ADMIN';
                 const baseESN = await getManagerSeriesNumber();
-                const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
+                const finalESN = (window.ibaEsnWithPlaceAsync ? await window.ibaEsnWithPlaceAsync(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17/p19: + country / Qatar district
 
                 await updateManagerApprovalRecord(taskData, finalESN);
                 const esnHistory = {
@@ -1692,7 +1692,7 @@ async function previewAndSendTransferReceipt() {
         const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
         let finalESN = baseSeriesNo;
         if (!finalESN.includes('/')) {
-            finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseSeriesNo}/${approverName}`) : `${baseSeriesNo}/${approverName}`); // 17.0.5 p17: + country code
+            finalESN = (window.ibaEsnWithPlaceAsync ? await window.ibaEsnWithPlaceAsync(`${baseSeriesNo}/${approverName}`) : `${baseSeriesNo}/${approverName}`); // 17.0.5 p17/p19: + country / Qatar district
         }
 
         const receiptData = {
@@ -1971,7 +1971,7 @@ async function handleDesktopApproval(task, action) {
                 ? currentApprover.Name.toUpperCase().split(' ')[0]
                 : 'ADMIN';
             const baseESN = await getManagerSeriesNumber();
-            const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
+            const finalESN = (window.ibaEsnWithPlaceAsync ? await window.ibaEsnWithPlaceAsync(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17/p19: + country / Qatar district
 
             await updateManagerApprovalRecord(task, finalESN);
 
@@ -2198,6 +2198,12 @@ async function handleAddJobEntry(e) {
 
         // 2. Ensure we have reference data (PO & Vendors)
         await ensureAllEntriesFetched(); 
+
+        // 17.0.5 patch 20: the same invoice number already in the system / at Reception?
+        if (jobData.for === 'Invoice' && window.ibaReception && !(await window.ibaReception.checkNewJob(jobData))) {
+            if (btn) btn.disabled = false;
+            return;
+        }
 
         // =========================================================
         // LOGIC A: VENDOR RESOLUTION (Invoice-only manual fields + PO match fallback)
@@ -4718,16 +4724,26 @@ async function handleAddInvoiceRun(e) {
     // DUPLICATE INVOICE NUMBER CHECK (for the same PO)
     // ==========================================================
     const newInvNumber = (invoiceData.invNumber || '').trim();
-    if (newInvNumber && allInvoiceData && allInvoiceData[currentPO]) {
+    // 17.0.5 patch 20: prefer the fresh read of this PO (made just above)
+    const imDupSource = imFreshPOInvoices || (allInvoiceData && allInvoiceData[currentPO]);
+    if (newInvNumber && imDupSource) {
         let isDuplicate = false;
-        const existingInvoices = allInvoiceData[currentPO];
+        let duplicateKey = null;
+        const existingInvoices = imDupSource;
         for (const key in existingInvoices) {
             const inv = existingInvoices[key];
             const existingInvNumber = (inv.invNumber || '').trim();
             if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
                 isDuplicate = true;
+                duplicateKey = key;
                 break;
             }
+        }
+        // 17.0.5 patch 20: opened from a Reception entry -> offer to close that
+        // entry and link it to the invoice that is already there
+        if (isDuplicate && jobEntryToUpdateAfterInvoice && window.ibaReception) {
+            await window.ibaReception.offerAlreadyEntered({ po: currentPO, invNumber: newInvNumber, key: duplicateKey, inv: existingInvoices[duplicateKey] });
+            return; // Stop saving
         }
         if (isDuplicate) {
             alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease check if this invoice was already entered, or use a different invoice number.`);
@@ -6640,7 +6656,7 @@ async function handleCEOAction(status) {
         if (status === 'Approved') {
             const baseESN = await getNextSeriesNumber();
             const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
-            updates.esn = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
+            updates.esn = (window.ibaEsnWithPlaceAsync ? await window.ibaEsnWithPlaceAsync(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17/p19: + country / Qatar district
         }
 
         const processedTask = userActiveTasks.find(t => t.key === key);
@@ -6795,7 +6811,7 @@ async function previewAndSendReceipt() {
 
         for (const task of approvedTasks) {
             const baseESN = await getNextSeriesNumber();
-            const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
+            const finalESN = (window.ibaEsnWithPlaceAsync ? await window.ibaEsnWithPlaceAsync(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17/p19: + country / Qatar district
 
             await updateManagerApprovalRecord(task, finalESN);
 
