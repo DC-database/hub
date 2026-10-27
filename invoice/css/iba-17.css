@@ -398,3 +398,15 @@
    own hover keep it (their rules are more specific). */
 html body.iba-shell-on tbody tr:hover { background-color: transparent; }
 html body.iba-shell-on .modern-inner-table tbody tr:hover td { background-color: rgba(255, 255, 255, 0.05); }
+
+/* 17.0.5 patch 24: print basket amount + total */
+.iba-pb-table .m { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.iba-pb-table td.m { color: #EEF3F8; font-weight: 600; }
+.iba-pb-table tfoot td { border-top: 1px solid rgba(227, 201, 138, 0.45); padding-top: 9px; color: #E3C98A; font-weight: 700; }
+.iba-pb-table tfoot td.m b { color: #fff; font-size: 14px; }
+#iba-pb-panel .iba-pb-table thead, #iba-pb-panel .iba-pb-table thead tr, #iba-pb-panel .iba-pb-table th { background: transparent !important; box-shadow: none !important; }
+#iba-pb-panel .iba-pb-table th { border-bottom: 1px solid rgba(227, 201, 138, 0.35); }
+#iba-pb-panel td.iba-pb-picks { white-space: nowrap; color: #EBD8A8; }
+#iba-pb-panel td.iba-pb-picks button { display: inline-flex !important; align-items: center; justify-content: center; width: 28px !important; min-width: 0 !important; height: 28px !important; padding: 0 !important; margin-left: 6px; vertical-align: middle; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14) !important; background: rgba(255, 255, 255, 0.05) !important; color: #EEF3F8 !important; }
+/* no printing on phone (17.0.5 patch 10) */
+body:is(.iba-mobile-ui, .iba-phone) #iba-pb-all { display: none !important; }
