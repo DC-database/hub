@@ -467,7 +467,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
 <link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
 <link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
-<link href="css/iba-1705-fit.css?v=17.0.5-p13" rel="stylesheet"/>
+<link href="css/iba-1705-fit.css?v=17.0.5-p16" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -2092,14 +2092,14 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <label style="font-size: 0.8rem; font-weight: bold; color: #666;" for="summary-note-previous-input">Previous note</label>
 <div style="position: relative;">
 <i class="fa-solid fa-clock-rotate-left" style="position: absolute; left: 10px; top: 10px; color: #999;"></i>
-<input id="summary-note-previous-input" list="note-suggestions" placeholder="e.g. 1st Payment" style="padding-left: 30px; background: #f9f9f9; width: 100%;" type="text"/>
+<input id="summary-note-previous-input" list="note-suggestions" autocomplete="off" placeholder="e.g. 1st Payment" style="padding-left: 30px; background: #f9f9f9; width: 100%;" type="text"/>
 </div>
 </div>
 <div class="form-group">
 <label style="font-size: 0.8rem; font-weight: bold; color: #116045;" for="summary-note-current-input">Current note <span style="color:red;">*</span></label>
 <div style="position: relative;">
 <i class="fa-solid fa-pen" style="position: absolute; left: 10px; top: 10px; color: #116045;"></i>
-<input id="summary-note-current-input" list="note-suggestions" placeholder="e.g. 2nd Payment" style="padding-left: 30px; background: #f2fff8; border: 2px solid #116045; font-weight: bold; width: 100%;" type="text"/>
+<input id="summary-note-current-input" list="note-suggestions" autocomplete="off" placeholder="e.g. 2nd Payment" style="padding-left: 30px; background: #f2fff8; border: 2px solid #116045; font-weight: bold; width: 100%;" type="text"/>
 </div>
 <small style="color: #666; font-size: 0.7rem;">(Tip: Use "Update &amp; Send to Accounts" to copy SRV Name)</small>
 </div>
@@ -3780,13 +3780,13 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-utils.js?v=8.2.3"></script>
 <script src="js/app-vacation.js?v=8.2.3"></script>
 <script src="js/app-dom-refs.js?v=12.9.1"></script>
-<script src="app.js?v=17.0.5"></script>
-<script src="js/iba-approvals.js?v=17.0.2-p14"></script>
+<script src="app.js?v=17.0.5-p17"></script>
+<script src="js/iba-approvals.js?v=17.0.5-p17"></script>
 <script src="js/app-time-clock.js?v=17.0.4-p7"></script>
 <script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
 <script src="js/iba-page-surfaces.js?v=15.0.0"></script>
 <script src="js/app-navigation-settings.js?v=15.0.0"></script>
-<script src="js/app-data-cache.js?v=17.0.0-p7"></script>
+<script src="js/app-data-cache.js?v=17.0.5-p18"></script>
 <script src="js/app-job-vendor.js?v=8.2.3"></script>
 <script src="js/app-workdesk-job-entry.js?v=12.9.9a"></script>
 <script src="js/app-standard-job.js?v=17.0.4-p8"></script>
@@ -3803,7 +3803,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
 <script src="js/app-modal-navigation-clear.js?v=15.0.0"></script>
 <script src="js/app-invoice-entry-search.js?v=15.0.0-p43"></script>
-<script src="js/app-attention-validation.js?v=15.0.0-p44"></script>
+<script src="js/app-attention-validation.js?v=17.0.5-p16"></script>
 <script src="js/iba-attention-picker.js?v=17.0.0-p15"></script>
 <script src="js/app-batch-entry-ui.js?v=17.0.0-p18"></script>
 <script src="js/iba-ui-skin.js?v=15.0.0"></script>
@@ -3822,7 +3822,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=17.0.5-p12"></script>
+<script src="js/iba-assistant.js?v=17.0.5-p16"></script>
 <script src="js/iba-status-options.js?v=15.0.0-p45"></script>
 <script src="js/iba-job-po-fill.js?v=15.0.0-p45"></script>
 <script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
@@ -3839,12 +3839,14 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1702-reception-batch.js?v=17.0.2-p7"></script>
 <script src="js/iba-1702-clear.js?v=17.0.2-p11"></script>
 <script src="js/iba-1702-opo.js?v=17.0.2-p13"></script>
-<script src="js/iba-1702-esn.js?v=17.0.4-p3"></script>
+<script src="js/iba-1702-esn.js?v=17.0.5-p17"></script>
 <script src="js/iba-lpo-mail.js?v=17.0.5-p1"></script>
 <script src="js/iba-1705-view.js?v=17.0.5-p2"></script>
 <script src="js/iba-1705-fit.js?v=17.0.5-p7"></script>
 <script src="js/iba-1705-inbatch.js?v=17.0.5-p4"></script>
 <script src="js/iba-1705-cancel.js?v=17.0.5-p5"></script>
+<script src="js/iba-1705-away.js?v=17.0.5-p14"></script>
+<script src="js/iba-1705-place.js?v=17.0.5-p17"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
 <script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>

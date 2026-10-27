@@ -1339,7 +1339,7 @@ async function processMobileManagerAction(taskData, status, amount, note, cardEl
                     ? currentApprover.Name.toUpperCase().split(' ')[0]
                     : 'ADMIN';
                 const baseESN = await getManagerSeriesNumber();
-                const finalESN = `${baseESN}/${approverName}`;
+                const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
 
                 await updateManagerApprovalRecord(taskData, finalESN);
                 const esnHistory = {
@@ -1692,7 +1692,7 @@ async function previewAndSendTransferReceipt() {
         const approverName = currentApprover ? currentApprover.Name.toUpperCase().split(' ')[0] : 'ADMIN';
         let finalESN = baseSeriesNo;
         if (!finalESN.includes('/')) {
-            finalESN = `${baseSeriesNo}/${approverName}`;
+            finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseSeriesNo}/${approverName}`) : `${baseSeriesNo}/${approverName}`); // 17.0.5 p17: + country code
         }
 
         const receiptData = {
@@ -1971,7 +1971,7 @@ async function handleDesktopApproval(task, action) {
                 ? currentApprover.Name.toUpperCase().split(' ')[0]
                 : 'ADMIN';
             const baseESN = await getManagerSeriesNumber();
-            const finalESN = `${baseESN}/${approverName}`;
+            const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
 
             await updateManagerApprovalRecord(task, finalESN);
 
@@ -6640,7 +6640,7 @@ async function handleCEOAction(status) {
         if (status === 'Approved') {
             const baseESN = await getNextSeriesNumber();
             const approverName = currentApprover.Name.split(' ')[0].toUpperCase();
-            updates.esn = `${baseESN}/${approverName}`;
+            updates.esn = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
         }
 
         const processedTask = userActiveTasks.find(t => t.key === key);
@@ -6795,7 +6795,7 @@ async function previewAndSendReceipt() {
 
         for (const task of approvedTasks) {
             const baseESN = await getNextSeriesNumber();
-            const finalESN = `${baseESN}/${approverName}`;
+            const finalESN = (window.ibaEsnWithPlace ? window.ibaEsnWithPlace(`${baseESN}/${approverName}`) : `${baseESN}/${approverName}`); // 17.0.5 p17: + country code
 
             await updateManagerApprovalRecord(task, finalESN);
 

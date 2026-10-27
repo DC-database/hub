@@ -1,3 +1,58 @@
+17.0.5 patch 18 (2026-10-27) - Summary Note suggestions follow the date written in the note
+  - A note with a date in its name ("Khalifa Steel 21-July-2026",
+    "... Indust-Oct-06-2025", "... 24/12/2025") is ordered by that date,
+    newest first. Notes without a date use their invoices' dates.
+  Files: index.html, js/app-data-cache.js
+
+17.0.5 patch 17 (2026-10-27) - Approval ESN shows the country it was given in
+  - New approvals get a 3-letter country code at the end of the ESN, e.g.
+    QK7R2M9X4T/MOSTAFA/QAT in Qatar, QK7R2M9X4T/ALI/CHN in China. It comes
+    from the device time zone (changes by itself abroad): no pop-up, no
+    outside service. Unknown time zone = no code. Old ESNs are unchanged.
+  - Shows everywhere the ESN shows (sticker, receipt, WhatsApp, history).
+    The ESN sticker shrinks the ESN line a little when it is longer, so it fits.
+  Files: index.html, app.js, js/iba-approvals.js, js/iba-1702-esn.js,
+         js/iba-1705-place.js (new)
+
+17.0.5 patch 16 (2026-10-27) - Newest first: invoice tracking + Summary Note suggestions
+  - "Where is my invoice?": the PO with the newest invoice comes first, and
+    inside a PO the invoices are newest first by when they came in
+    (invoice date), open and paid in one list like a bank statement
+    (e.g. Sep, Jun, Mar, Feb, then Dec 2025). Each row shows its invoice
+    date. More than 8: "Show N older".
+  - Summary Note Previous / Current note suggestions: newest notes first by
+    their invoices' dates. Before, saving any old invoice again (status,
+    paid) pushed its old note (e.g. 2025) back to the top. Browser history
+    suggestions turned off on these two boxes so only the list shows.
+  Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js,
+         js/app-data-cache.js, js/app-attention-validation.js
+
+17.0.5 patch 15 (2026-10-27) - Phone assistant: no "Open in Invoice Records"
+  - Invoice Records is a desktop page, so the button is hidden in the
+    assistant on the phone (tracking list and the one-invoice receipt).
+    PC and the Desktop view keep it.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 14 (2026-10-27) - Vacation people cannot be picked + new invoice tracking
+  - Vacation (new js/iba-1705-away.js): anyone on vacation (Vacation = Yes,
+    return date not passed, not signed in for 12 h - same rule as the
+    automatic hand-over) cannot be picked as Attention in WorkDesk Job Entry,
+    Active Task Modify, Batch Entry "Set Attention for all", the Attention
+    pop-up list or Dashboard Forward. A pop-up says who is away, until when,
+    and offers "Use <replacement>" (or the person covering). Invoice Entry and
+    Batch cards already blocked it. The assistant also fills the replacement
+    when asked to put an away person as Attention.
+  - "Where is my invoice?" (assistant) now looks like a banking app on phone,
+    tablet, PC and the big window: each PO on top in big letters with the
+    vendor and the site, then one row per open invoice (status in colour,
+    who has it, days, amount, URGENT). Paid invoices fold into one green row.
+    Tapping an invoice opens it alone like a receipt (status, amount, PO,
+    steps bar, details, what happened, Remind / INV / SRV / Mark urgent /
+    Open in Invoice Records); X or Esc goes back to the list. The old
+    Simple / Full details switch is gone.
+  Files: index.html, js/iba-1705-away.js (new), js/iba-assistant.js,
+         css/iba-1705-fit.css
+
 17.0.5 patch 13 (2026-10-26) - Dashboard keeps its cards while counting again
   - Before: after a job was saved / edited / deleted / cancelled, after
     Refresh, or once a day, the saved Dashboard was thrown away and only
