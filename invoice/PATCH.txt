@@ -1,3 +1,13 @@
+17.0.5 patch 34 (2026-10-28) - Brief "In the company": In Process table
+  - New "In Process" table first, then "Waiting for approval", then PO
+    Close Out. Same columns as approvals (PO, With, Vendor, Urgent, Inv no.,
+    Status, Value, Remarks, Age, INV file), urgent first then oldest;
+    header shows count, urgent, who has them, total QAR.
+  - Read by status only from the shared task list (status index); without
+    the index it uses the Dashboard list already in the browser. No
+    invoice_entries reads. Admins on PC, same site/amount rules as approvals.
+  Files: index.html, js/iba-assistant.js
+
 17.0.5 patch 33 (2026-10-28) - Phone: "Questions for you" in the Invoice tab
   - The phone Invoice tab shows "Questions for you" (typed-status invoices
     sent to you) above "Invoices to approve": status, who asked, vendor,
