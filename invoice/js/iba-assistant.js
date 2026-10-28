@@ -702,6 +702,49 @@
         items.sort((a, b) => ((b.urgent ? 1 : 0) - (a.urgent ? 1 : 0)) || ((b.days || 0) - (a.days || 0)) || String(a.po).localeCompare(String(b.po)));
         return { items: items, more: Math.max(0, list.length - APV_LIMIT) };
     }
+    // 17.0.5 patch 34: invoices In Process in the company, read from the
+    // shared task list by status only (needs the status index; never the
+    // whole list, never invoice_entries). Same site / amount rules as approvals.
+    async function inProcessList() {
+        const idb = (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) ? invoiceDb : null;
+        if (!idb) return { items: [], error: 'the task list is not available on this page' };
+        let indexed = false;
+        try { indexed = typeof wdAllStatusIndexed === 'function' && await wdAllStatusIndexed(); } catch (_) { indexed = false; }
+        let rows = {};
+        if (indexed) rows = (await idb.ref('invoice_tasks_by_user/All').orderByChild('status').equalTo('In Process').once('value')).val() || {};
+        else {
+            // no index: the Dashboard list already in this browser (no download)
+            let mem = [];
+            try { if (typeof wdActiveDashboardTasks !== 'undefined' && Array.isArray(wdActiveDashboardTasks)) mem = wdActiveDashboardTasks; } catch (_) {}
+            mem.forEach((t, i) => { if (t && norm(t.status || t.remarks) === 'in process' && !/job/i.test(String(t.source || ''))) rows['m' + i] = Object.assign({}, t, { status: 'In Process', ref: t.ref || t.invNumber, vendorName: t.vendorName || t.vendor }); });
+            if (!mem.length) return { items: [], error: 'open the Dashboard once, then refresh the brief' };
+        }
+        const acc = access();
+        const pm = poMap();
+        const seen = new Set();
+        const items = [];
+        Object.keys(rows).forEach((k) => {
+            const r = rows[k];
+            if (!r || typeof r !== 'object' || norm(r.status) !== 'in process') return;
+            const po = String(r.po || r.originalPO || '').trim();
+            const key = String(r.originalKey || r.invoiceKey || k).trim();
+            if (!po || !key || seen.has(po + '|' + key)) return;
+            seen.add(po + '|' + key);
+            const rec = pm[String(po).toUpperCase()] || {};
+            const site = r.site || rec['Project ID'] || '';
+            if (!acc.allSites && acc.sites.indexOf(siteNo(site)) === -1) return;
+            const at = Number(r.statusQueueAt) || Number(r.statusChangedAt) || Number(r.invoiceLastUpdated) || Number(r.updatedAt) || 0;
+            const value = num(r.amount);
+            items.push({
+                po: po, key: key, no: r.ref || '', vendor: r.vendorName || rec['Supplier Name'] || '', site: site,
+                value: acc.amounts && value ? value : 0, status: 'In Process', with: String(r.attention || '').trim(),
+                at: at, days: at ? daysSince(at) : null, note: String(r.note || ''), urgent: isUrgentNote(r.note),
+                pdf: invPdfUrl(r)
+            });
+        });
+        items.sort((a, b) => ((b.urgent ? 1 : 0) - (a.urgent ? 1 : 0)) || ((b.days || 0) - (a.days || 0)) || String(a.po).localeCompare(String(b.po)));
+        return { items: items };
+    }
     // 15.0.0 patch 45: counts by who is approving (the CEO marked as such)
     function apvWho(a) { return (a.with || 'Nobody named') + (/ceo/i.test(a.status) ? ' (CEO)' : ''); }
     function apvCounts(items) {
@@ -818,6 +861,10 @@
         if (isAdminUser() && !onPhone()) {
             try { approvals = await withTimeout(sentForApproval(), 15000, 'Approval list'); } catch (e) { approvals = { items: [], error: (e && e.message) || 'could not be read' }; }
         }
+        let inProcess = null;
+        if (isAdminUser() && !onPhone()) {
+            try { inProcess = await withTimeout(inProcessList(), 15000, 'In Process list'); } catch (e) { inProcess = { items: [], error: (e && e.message) || 'could not be read' }; }
+        }
         const result = {
             active_task: Math.max(Number(w.counts.task) || 0, tasks.length),
             active_job: Math.max(Number(w.counts.job) || 0, jobs.length),
@@ -830,9 +877,10 @@
             po_closeout: closeout || undefined,
             po_closeout_loading: closeoutPending || undefined,
             sent_for_approval: approvals ? approvals.items.length : undefined,
+            in_process: inProcess ? inProcess.items.length : undefined,
             sent_for_approval_oldest: approvals && approvals.items.length ? approvals.items.slice(0, 8).map((a) => ({ po: a.po, invoice_no: a.no, vendor: a.vendor || undefined, status: a.status, with: a.with || undefined, waiting_days: a.days, urgent: a.urgent || undefined })) : undefined
         };
-        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs, approvals: approvals } } };
+        return { result: result, card: { kind: 'brief', data: { result: result, tasks: tasks, jobs: jobs, approvals: approvals, inProcess: inProcess } } };
     }
 
     async function toolList(args) {
@@ -5543,6 +5591,34 @@
             const co = [];
             // the Urgent column already says it: Remarks without the word
             const rem = (n) => String(n || '').replace(/\burgent\b[\s:·,\-–—!]*/i, '').trim();
+            // 17.0.5 patch 34: In Process first, then Waiting for approval
+            if (x.inProcess) {
+                const ip = x.inProcess.items || [];
+                const urg = ip.filter((a) => a.urgent).length;
+                const total = ip.reduce((n, a) => n + num(a.value), 0);
+                const byWho = {};
+                ip.forEach((a) => { const w = a.with || 'Nobody named'; byWho[w] = (byWho[w] || 0) + 1; });
+                if (x.inProcess.error) co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-gears"></i> <b>In Process</b><span>' + esc(x.inProcess.error) + '</span></div></div>');
+                else co.push('<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-gears"></i> <b>In Process</b>' +
+                    '<span class="iba-ai-ttab-count">' + ip.length + '</span>' +
+                    (urg ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> ' + urg + ' urgent</span>' : '') +
+                    '<span class="iba-ai-ttab-step">' + esc(Object.keys(byWho).sort((p, q) => byWho[q] - byWho[p]).slice(0, 4).map((k) => k + ' ' + byWho[k]).join(' · ') + (Object.keys(byWho).length > 4 ? ' · …' : '')) + '</span>' +
+                    (total ? '<span class="iba-ai-ttab-total">QAR ' + esc(money(total)) + '</span>' : '') + '</div>' +
+                    (ip.length ? '<ul class="iba-ai-rows iba-ai-ttab is-co is-co2 is-inproc" data-brief-list="inproc">' +
+                        '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-with">With</span><span class="c-vend">Vendor</span><span class="c-urg">Urgent</span><span class="c-no">Inv no.</span><span class="c-st">Status</span><span class="c-val">Value (QAR)</span><span class="c-rem">Remarks</span><span class="c-age">Age</span><span class="c-act">Files</span></li>' +
+                        ip.map((a, i) =>
+                        '<li' + (i >= MORE ? ' hidden' : '') + (a.urgent ? ' class="is-urgent"' : '') + (a.note ? ' title="' + esc(a.note.slice(0, 300)) + '"' : '') + '><span class="c-po">' + poLink(a.po) + '</span>' +
+                        '<span class="c-with" title="' + esc(a.with || '') + '">' + esc(a.with || '—') + '</span>' +
+                        '<span class="c-vend" title="' + esc(a.vendor || '') + '">' + esc(a.vendor || '—') + '</span>' +
+                        '<span class="c-urg">' + (a.urgent ? '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '<span class="iba-ai-dash">—</span>') + '</span>' +
+                        '<span class="c-no" title="' + esc(a.no || '') + '">' + esc(a.no || '—') + '</span>' +
+                        '<span class="c-st"><span class="iba-ai-st-pill is-acc">In Process</span></span>' +
+                        '<span class="c-val">' + (a.value ? esc(money(a.value)) : '<span class="iba-ai-dash">—</span>') + '</span>' +
+                        '<span class="c-rem">' + (rem(a.note) ? esc(rem(a.note).slice(0, 140)) : '<span class="iba-ai-dash">—</span>') + '</span>' +
+                        '<span class="c-age">' + ageChip(a.days) + '</span>' +
+                        '<span class="c-act iba-ai-apv-files">' + (a.pdf ? '<a class="iba-ai-mini" href="' + esc(a.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + '</span></li>').join('') + '</ul>' +
+                        moreBtn(ip.length, 'inproc') : '<p class="iba-ai-foot">Nothing is In Process right now.</p>') + '</div>');
+            }
             if (x.approvals) {
                 const apv = x.approvals.items || [];
                 const cnt = apvCounts(apv);
