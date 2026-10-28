@@ -1,3 +1,51 @@
+17.0.5 patch 32 (2026-10-28) - Reply also on Dashboard My Tasks and the assistant
+  - Dashboard task cards and the assistant brief show "Reply" (not Process)
+    for a typed status; the phone assistant brief shows Reply + Remind.
+  - They open the same Reply window as Active Task. Any other way into the
+    old Process window for such a task opens Reply too.
+  Files: index.html, js/iba-assistant.js, js/iba-1705-reply.js
+
+17.0.5 patch 31 (2026-10-28) - "Reply" for invoices with a typed status
+  - Tasks with a status you typed yourself (e.g. "Suggestion Require") show
+    "Reply" instead of "Process" in Active Task, on PC and on the phone.
+  - The Reply window shows the question (current note), who asked it, and
+    "Open invoice" / "Open SRV" links. The status is hidden and stays as is.
+  - The reply is required. "Send to" is optional and starts with the person
+    who asked (Irwin if unknown). People on vacation cannot be picked.
+  - Send: Attention = Send to, note = "<name>: <reply>", a history line,
+    and the task leaves the sender's list.
+  - Saving a typed status anywhere remembers who asked (askedBy).
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-reply.js (new)
+
+17.0.5 patch 30 (2026-10-28) - Just-saved invoices are in the CSV without refresh
+  - An invoice added or changed in this browser (e.g. a new Under Review, or
+    one moved to With Accounts) goes into the invoice list kept in memory
+    the moment it is saved. "Download invoice list" (CSV) and the other
+    places that use the full list include it right away, no page refresh
+    and no extra Firebase download.
+  - Files: index.html, js/iba-17-p7.js.
+
+17.0.5 patch 29 (2026-10-28) - Typed statuses become personal tasks
+  - A status typed with "Other…" (e.g. "Suggestion required") now shows in
+    the Attention person's My Active Task, under its own tab, and counts in
+    their task badge. Before, Active Task only accepted its fixed status
+    list and silently dropped (and removed) anything else.
+  - Finished statuses still never show (Under Review, With Accounts, SRV
+    Done, Paid, Closed, Cancelled, Approved/Rejected after the decision,
+    Report Approved), nor For Summary / New Entry / For IPC.
+  - Dashboard cards unchanged (not in New Entry or For SRV).
+  - Files: index.html, js/app-active-tasks.js.
+
+17.0.5 patch 28 (2026-10-28) - Select Person for SRV: new look + vacation rule
+  - Invoice Entry and Batch Entry, For SRV at a site with several SRV people:
+    the "Select Person for SRV" pop-up now matches the system (dark glass),
+    one row per person with position and site.
+  - People on vacation are greyed out ("On vacation · back <date> ·
+    replacement: X") and cannot be picked; available people are listed first.
+  - The automatic pick (one person, or the Site DC first) skips people on
+    vacation. If everyone at the site is away, their replacement is used.
+  - Files: index.html, css/iba-1705-fit.css, js/iba-1705-srvpick.js (new).
+
 17.0.5 patch 27 (2026-10-28) - "Remind all" removed; Settings shows the patch
   - Tracking (PC + phone): no more "Remind all (N)". The open invoices of a
     PO sit with different people (site, management, Accounts), so one
