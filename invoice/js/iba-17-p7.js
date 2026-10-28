@@ -226,6 +226,46 @@
                     d.ref('workdesk_dashboard_recent/' + key).update(row).catch(() => {});
                 }, 1500);
             };
+            // 17.0.5 patch 30: a save made in this browser goes into the full
+            // list in memory right away (no download), so exports and searches
+            // see a just-added / just-changed invoice without a page refresh
+            const plain = (v) => { try { return JSON.parse(JSON.stringify(v)); } catch (_) { return null; } };
+            const toMem = (name, p, val) => {
+                try {
+                    if (window.__invoiceEntriesFullLoaded !== true || typeof allInvoiceData === 'undefined' || !allInvoiceData) return;
+                    const po = p[1], key = p[2];
+                    if (po && !key && p.length === 2 && name === 'update' && val && typeof val === 'object') {
+                        Object.keys(val).forEach((k) => { if (k.indexOf('/') === -1) toMem(val[k] === null ? 'remove' : 'set', [p[0], po, k], val[k]); });
+                        return;
+                    }
+                    if (!po || !key) return;
+                    if (name === 'remove' || (name === 'set' && val === null)) {
+                        if (p.length === 3) { if (allInvoiceData[po]) delete allInvoiceData[po][key]; }
+                        else if (p.length === 4 && allInvoiceData[po] && allInvoiceData[po][key]) delete allInvoiceData[po][key][p[3]];
+                        return;
+                    }
+                    if (val === undefined || typeof val === 'function') return;
+                    const v = plain(val);
+                    if (v === null && val !== null) return;
+                    const now = Date.now();
+                    const stampTs = (o) => { if (o && typeof o === 'object') Object.keys(o).forEach((k) => { const x = o[k]; if (x && typeof x === 'object' && x['.sv'] === 'timestamp') o[k] = now; else if (x && typeof x === 'object') stampTs(x); }); };
+                    stampTs(v);
+                    if (!allInvoiceData[po]) allInvoiceData[po] = {};
+                    if (p.length === 3) {
+                        if (name === 'update' && v && typeof v === 'object') {
+                            const cur = allInvoiceData[po][key] || {};
+                            Object.keys(v).forEach((k) => {
+                                if (k.indexOf('/') === -1) { if (v[k] === null) delete cur[k]; else cur[k] = v[k]; }
+                            });
+                            allInvoiceData[po][key] = cur;
+                        } else if (name === 'set' || name === 'push') allInvoiceData[po][key] = v;
+                    } else if (p.length === 4 && (name === 'set' || name === 'update')) {
+                        const cur = allInvoiceData[po][key] || (allInvoiceData[po][key] = {});
+                        if (name === 'set') cur[p[3]] = v;
+                        else if (v && typeof v === 'object') cur[p[3]] = Object.assign({}, cur[p[3]] || {}, v);
+                    }
+                } catch (_) {}
+            };
             ['set', 'update', 'remove', 'push', 'transaction'].forEach((name) => {
                 const orig = proto[name];
                 if (typeof orig !== 'function') return;
@@ -234,9 +274,11 @@
                     if (!parts || parts.length < 2) return orig.apply(this, arguments);
                     let p = parts.slice();
                     const removed = (name === 'remove' || (name === 'set' && arguments[0] === null)) && p.length === 3;
+                    const val = arguments[0];
                     const out = orig.apply(this, arguments);
                     // push() on invoice_entries/<PO> makes a new invoice: its key is the new ref's key
                     if (name === 'push' && p.length === 2 && out && out.key) p = p.concat(out.key);
+                    if (name !== 'transaction' && !(name === 'push' && val === undefined)) toMem(name, p, val);
                     try {
                         const done = (out && typeof out.then === 'function') ? out : Promise.resolve();
                         done.then(() => stamp(p, removed), () => {});

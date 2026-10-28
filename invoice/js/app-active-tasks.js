@@ -1020,7 +1020,18 @@ function wdActiveTaskStatusFromLookup(task = {}) {
         if (rawNorm === 'approved') return 'Approved';
         if (rawNorm === 'rejected') return 'Rejected';
     }
-    if (typeof wdActiveTaskInvoiceStatusLabel === 'function') return wdActiveTaskInvoiceStatusLabel(raw);
+    if (typeof wdActiveTaskInvoiceStatusLabel === 'function') {
+        const label = wdActiveTaskInvoiceStatusLabel(raw);
+        if (label) return label;
+        // 17.0.5 patch 29: a status typed by hand ("Other…", e.g. "Suggestion
+        // required") is a personal task for the person in Attention, unless it
+        // is a finished status. It shows in My Active Task under its own tab;
+        // the Dashboard cards keep their official list.
+        const norm = wdActiveTaskQueueStatusNorm(raw);
+        if (!norm || WD_ACTIVE_COMPLETED_OR_NON_QUEUE_STATUSES.has(norm) || wdActiveTaskIsInactiveInvoiceStatus(norm)) return '';
+        if (['for summary', 'new entry', 'for ipc'].includes(norm)) return '';
+        return String(raw || '').trim().replace(/\s+/g, ' ');
+    }
     return String(raw || '').trim();
 }
 

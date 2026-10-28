@@ -4336,6 +4336,8 @@
         const st = norm(t.status);
         const apv = window.ibaApprovals;
         const inv = t.kind === 'invoice';
+        // 17.0.5 patch 32: a typed status (a question) is answered with Reply
+        if (inv && window.ibaReply && window.ibaReply.isTyped(t.status)) return [['reply', 'Reply', 'fa-reply']];
         // 17.0.2 patch 14: site approval buttons (Approval / Print ESN / Ready / Extra)
         if (inv && window.ibaEsnFlow) { const x = window.ibaEsnFlow.briefActs(t); if (x) return x; }
         if (inv && (st === 'approved' || st === 'rejected')) return (st === 'approved' && apv ? [['print', 'Print', 'fa-print']].concat(window.ibaPrintBasket && window.ibaPrintBasket.allowed() ? [['basket', 'Add to print', 'fa-cart-plus']] : []) : []).concat([['process', 'Process', 'fa-pen-to-square']]);
@@ -4415,6 +4417,7 @@
             try { ok = apv.canDecide({ status: t.status, attention: t.attention }); } catch (_) {}
             if (ok) out.push(['approve', 'Approve', 'fa-check'], ['reject', 'Reject', 'fa-xmark']);
         }
+        if (t.kind === 'invoice' && window.ibaReply && window.ibaReply.isTyped(t.status)) { out.push(['reply', 'Reply', 'fa-reply'], ['remind', 'Remind', 'fa-bell']); return out; }
         out.push(['pc', 'Do on PC', 'fa-desktop'], ['remind', 'Remind', 'fa-bell']);
         return out;
     }
@@ -4617,8 +4620,10 @@
                 await withPageWindows(() => (typeof handleDesktopApproval === 'function' ? handleDesktopApproval(task, action) : apv.openDialog(task)));
             } else if (act === 'ceo') {
                 await withPageWindows(() => openCEOApprovalModal(task));
+            } else if (act === 'reply' && window.ibaReply) {
+                await withPageWindows(() => window.ibaReply.open(task));
             } else if (act === 'process') {
-                await withPageWindows(() => openModifyTaskModal(task));
+                await withPageWindows(() => (window.ibaReply && window.ibaReply.isReplyTask(task) ? window.ibaReply.open(task) : openModifyTaskModal(task)));
             } else if (act === 'srv') {
                 if (!confirm('Mark SRV Done for PO ' + (q.po || '') + (q.ref ? ' (' + q.ref + ')' : '') + '?')) return;
                 rowNote(li, '<i class="fa-solid fa-spinner fa-spin"></i> Saving...');
