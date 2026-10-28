@@ -1,3 +1,12 @@
+17.0.5 patch 33 (2026-10-28) - Phone: "Questions for you" in the Invoice tab
+  - The phone Invoice tab shows "Questions for you" (typed-status invoices
+    sent to you) above "Invoices to approve": status, who asked, vendor,
+    PO, INV, site, amount, the question, View PDF and Reply. Counted in the
+    Invoice and Approve badges. Shown only when there is one.
+  - Reads only your own small task list (no invoice download).
+  - Assistant Setup (the phone's only settings) shows version + patch.
+  Files: index.html, js/iba-phone.js, js/iba-1705-reply.js, js/iba-assistant.js
+
 17.0.5 patch 32 (2026-10-28) - Reply also on Dashboard My Tasks and the assistant
   - Dashboard task cards and the assistant brief show "Reply" (not Process)
     for a typed status; the phone assistant brief shows Reply + Remind.
