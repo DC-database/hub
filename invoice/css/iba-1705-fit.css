@@ -403,4 +403,37 @@
   #iba-ver-card .iba-ver-msg.is-ok { color: #7FE3D6; }
   #iba-ver-card .iba-ver-msg.is-new { color: #F2C46D; }
   #iba-ver-card .iba-ver-msg button { margin-left: 6px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(227, 201, 138, 0.5); background: rgba(227, 201, 138, 0.12); color: #fff; cursor: pointer; }
+
+  /* 17.0.5 patch 28: Select Person for SRV */
+  #iba-srv-picker .iba-srvp { width: min(520px, 100%); }
+  #iba-srv-picker .iba-srvp-list { display: flex; flex-direction: column; gap: 8px; padding: 12px 18px 4px; overflow: auto; }
+  #iba-srv-picker .iba-srvp-row { display: flex !important; align-items: center; gap: 12px; width: 100%; padding: 10px 12px !important; border-radius: 12px !important; text-align: left; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.14) !important; background: rgba(255, 255, 255, 0.05) !important; color: #EEF3F8 !important; font: inherit; }
+  #iba-srv-picker .iba-srvp-row > i { flex: 0 0 auto; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: rgba(127, 227, 214, 0.14); color: #7FE3D6; }
+  #iba-srv-picker .iba-srvp-row span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  #iba-srv-picker .iba-srvp-row b { color: #fff; font-size: 14px; }
+  #iba-srv-picker .iba-srvp-row small { color: #EBD8A8; font-size: 12px; }
+  #iba-srv-picker .iba-srvp-row em { font-style: normal; color: #F2C46D; font-size: 12px; }
+  #iba-srv-picker .iba-srvp-row:not([disabled]):hover, #iba-srv-picker .iba-srvp-row:not([disabled]):focus-visible { border-color: rgba(227, 201, 138, 0.7) !important; background: rgba(227, 201, 138, 0.1) !important; outline: none; }
+  #iba-srv-picker .iba-srvp-row.is-away { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.6); }
+  #iba-srv-picker .iba-srvp-row.is-away > i { background: rgba(255, 255, 255, 0.08); color: #EBD8A8; }
+
+  /* 17.0.5 patch 31: Reply window (typed-status tasks) */
+  #iba-reply-pop .iba-reply { width: min(560px, 100%); }
+  #iba-reply-pop .iba-reply-body { display: flex; flex-direction: column; gap: 8px; padding: 14px 18px 6px; overflow: auto; }
+  #iba-reply-pop .iba-reply-q { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(227, 201, 138, 0.35); background: rgba(227, 201, 138, 0.08); color: #EEF3F8; }
+  #iba-reply-pop .iba-reply-q small { display: block; color: #EBD8A8; font-size: 12px; }
+  #iba-reply-pop .iba-reply-q p { color: #FFFFFF !important; opacity: 1 !important; margin: 6px 0 0; font-size: 14px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  #iba-reply-pop .iba-reply-st { display: inline-block; padding: 1px 8px; margin-right: 4px; border-radius: 999px; background: rgba(127, 227, 214, 0.16); color: #7FE3D6; font-weight: 600; }
+  #iba-reply-pop .iba-reply-docs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  #iba-reply-pop .iba-reply-docs a { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(127, 227, 214, 0.45); color: #7FE3D6 !important; font-size: 13px; text-decoration: none; }
+  #iba-reply-pop .iba-reply-docs a:hover { background: rgba(127, 227, 214, 0.12); }
+  #iba-reply-pop label { margin-top: 4px; color: #EEF3F8 !important; opacity: 1 !important; font-size: 13px; font-weight: 600; }
+  #iba-reply-pop label em { font-style: normal; font-weight: 400; color: #EBD8A8; font-size: 11px; margin-left: 4px; }
+  #iba-reply-pop textarea, #iba-reply-pop input { width: 100%; box-sizing: border-box; padding: 9px 11px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.2) !important; background: rgba(8, 18, 30, 0.55) !important; color: #fff !important; font: inherit; font-size: 14px; }
+  #iba-reply-pop textarea { resize: vertical; min-height: 90px; }
+  #iba-reply-pop textarea:focus, #iba-reply-pop input:focus { outline: none; border-color: rgba(227, 201, 138, 0.8) !important; }
+  #iba-reply-pop .iba-reply-msg { margin: 2px 0 0; color: #F2C46D; font-size: 13px; }
+  #iba-reply-pop [data-send][disabled] { opacity: 0.5; cursor: not-allowed; }
+  #active-task-mobile-view .iba-reply-row { display: flex; margin-top: 8px; }
+  #active-task-mobile-view .iba-reply-row .iba-reply-btn { flex: 1 1 auto; display: inline-flex !important; align-items: center; justify-content: center; gap: 8px; min-height: 44px; background-color: #1f6f8b !important; }
 }
