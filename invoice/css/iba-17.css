@@ -408,5 +408,9 @@ html body.iba-shell-on .modern-inner-table tbody tr:hover td { background-color:
 #iba-pb-panel .iba-pb-table th { border-bottom: 1px solid rgba(227, 201, 138, 0.35); }
 #iba-pb-panel td.iba-pb-picks { white-space: nowrap; color: #EBD8A8; }
 #iba-pb-panel td.iba-pb-picks button { display: inline-flex !important; align-items: center; justify-content: center; width: 28px !important; min-width: 0 !important; height: 28px !important; padding: 0 !important; margin-left: 6px; vertical-align: middle; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14) !important; background: rgba(255, 255, 255, 0.05) !important; color: #EEF3F8 !important; }
-/* no printing on phone (17.0.5 patch 10) */
-body:is(.iba-mobile-ui, .iba-phone) #iba-pb-all { display: none !important; }
+/* 17.0.5 patch 26: wider basket (no squeezed vendor names) + vendor sort */
+#iba-pb-panel .iba-pb-box { width: min(1040px, 100%); }
+#iba-pb-panel .iba-pb-table td.v { min-width: 240px; }
+#iba-pb-panel .iba-pb-table td:nth-child(2) { white-space: nowrap; }
+#iba-pb-panel .iba-pb-sort { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; margin-left: -8px; border-radius: 8px; color: #E3C98A; font: inherit; letter-spacing: inherit; text-transform: inherit; }
+#iba-pb-panel .iba-pb-sort:hover, #iba-pb-panel .iba-pb-sort.is-on { background: rgba(227, 201, 138, 0.14); }

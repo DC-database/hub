@@ -387,4 +387,20 @@
   .iba-ph-ai { position: relative; }
   .iba-ph-ai .iba-watch-phn { position: absolute; top: 2px; left: 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: #0F8A7E; color: #fff; -webkit-text-fill-color: #fff; font: 700 10px/16px Arial, sans-serif; text-align: center; pointer-events: none; }
   .iba-ph-ai .iba-watch-phn[hidden] { display: none !important; }
+
+  /* 17.0.5 patch 24: "Add all approved to print" = a chip like Clear, gold touch (inside the layer: layered !important wins) */
+  html body #wd-activetask #iba-pb-all.iba-pb-all-btn { display: inline-flex !important; align-items: center; gap: 8px; flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; height: 38px !important; margin: 0 0 0 auto !important; padding: 0 14px !important; border-radius: 12px !important; background: rgba(14, 27, 42, 0.82) !important; background-image: none !important; box-shadow: none !important; border: 1px solid rgba(227, 201, 138, 0.45) !important; color: #EEF3F8 !important; font-size: 13px !important; font-weight: 800 !important; cursor: pointer; }
+  html body #wd-activetask #iba-pb-all.iba-pb-all-btn:hover { border-color: #E3C98A !important; background: rgba(227, 201, 138, 0.12) !important; }
+  #iba-pb-all.iba-pb-all-btn i { color: #E3C98A !important; }
+  #iba-pb-all.iba-pb-all-btn b { min-width: 20px; padding: 2px 7px; border-radius: 999px; background: #E3C98A !important; color: #14293f !important; -webkit-text-fill-color: #14293f; font-size: 12px; text-align: center; }
+  body:is(.iba-mobile-ui, .iba-phone) #wd-activetask #iba-pb-all.iba-pb-all-btn { display: none !important; }
+
+  /* 17.0.5 patch 27: Settings > System Version */
+  #iba-ver-card .iba-ver-body { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  #iba-ver-card .iba-ver-now { font-size: 16px; color: #E3C98A; }
+  #iba-ver-card .iba-ver-body small { color: #EBD8A8; }
+  #iba-ver-card .iba-ver-msg { margin: 2px 0 4px; min-height: 1em; color: #EBD8A8; font-size: 13px; }
+  #iba-ver-card .iba-ver-msg.is-ok { color: #7FE3D6; }
+  #iba-ver-card .iba-ver-msg.is-new { color: #F2C46D; }
+  #iba-ver-card .iba-ver-msg button { margin-left: 6px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(227, 201, 138, 0.5); background: rgba(227, 201, 138, 0.12); color: #fff; cursor: pointer; }
 }
