@@ -2811,6 +2811,7 @@ if (openSettingsBtn && settingsModal) {
         if (groqEl) groqEl.value = s.groqKey || '';
         const groqModelEl = document.getElementById('groqModel');
         if (groqModelEl) groqModelEl.value = s.groqModel || DEFAULT_GROQ_MODEL;
+        paintGroqStatus();
         const nameEl = document.getElementById('bgFileName');
         loadBgFile().then(f => { if (nameEl) nameEl.textContent = f ? ('Attached: ' + (f.name || 'photo')) : ''; });
         applyAccessUI();
@@ -3191,29 +3192,65 @@ ${evidence}
 
 Reply with JSON only:
 {"description":"","options":[{"classCode":"","groupCode":"","why":""}]}`;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 20000);
-    try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            signal: ctrl.signal,
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-            body: JSON.stringify({
-                model,
-                temperature: 0.2,
-                max_tokens: 700,
-                messages: [
-                    { role: 'system', content: 'You file construction materials into a company catalog. Reply with JSON only.' },
-                    { role: 'user', content: prompt }
-                ]
-            })
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error((body.error && body.error.message) || ('Groq error ' + res.status));
-        return parseAssistantJson(body.choices?.[0]?.message?.content || '');
-    } finally {
-        clearTimeout(timer);
+    return groqChatJson(key, model, [
+        { role: 'system', content: 'You file construction materials into a company catalog. Reply with JSON only.' },
+        { role: 'user', content: prompt }
+    ], 1500);
+}
+
+// "Thinking" models (gpt-oss, qwen3, deepseek-r1) need room and low thinking, or they send an empty reply.
+function groqRequestBody(model, messages, maxTokens, plain) {
+    const body = { model, temperature: 0.2, max_tokens: maxTokens, messages };
+    if (plain) return body;
+    body.response_format = { type: 'json_object' };   // makes Groq return valid JSON
+    if (/gpt-oss/i.test(model)) body.reasoning_effort = 'low';
+    else if (/qwen3|qwq|deepseek-r1/i.test(model)) body.reasoning_format = 'hidden';
+    return body;
+}
+
+function extractJsonFromReply(text) {
+    const raw = String(text || '').replace(/```(?:json)?/gi, '').trim();
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start < 0 || end < start) return null;
+    try { return JSON.parse(raw.slice(start, end + 1)); } catch (err) { return null; }
+}
+
+// Ask Groq for a JSON answer. Retries once without the extra options if the model does not support them.
+async function groqChatJson(key, model, messages, maxTokens) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const plain = attempt === 1;
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 25000);
+        let res; let body;
+        try {
+            res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                signal: ctrl.signal,
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+                body: JSON.stringify(groqRequestBody(model, messages, maxTokens, plain))
+            });
+            body = await res.json().catch(() => ({}));
+        } finally {
+            clearTimeout(timer);
+        }
+        if (!res.ok) {
+            const msg = (body.error && body.error.message) || ('Groq error ' + res.status);
+            if (!plain && res.status === 400) { console.warn('Groq refused the request, trying again without JSON mode:', msg); continue; }
+            throw new Error(msg);
+        }
+        const choice = (body.choices && body.choices[0]) || {};
+        const message = choice.message || {};
+        const content = String(message.content || '');
+        const parsed = extractJsonFromReply(content) || extractJsonFromReply(message.reasoning);
+        if (parsed) return parsed;
+        console.warn('Groq reply could not be read:', body);
+        if (!plain && !content.trim()) continue;   // empty reply: try once more the simple way
+        if (choice.finish_reason === 'length') throw new Error(`the reply from ${model} was cut off before it finished`);
+        if (!content.trim()) throw new Error(`${model} sent an empty reply`);
+        throw new Error(`${model} replied with text instead of a suggestion: "${shortText(content, 80)}"`);
     }
+    throw new Error(`${model} did not return a suggestion`);
 }
 
 // Put AI picks first (only valid class/group codes), then the catalog-based ones.
@@ -3258,6 +3295,73 @@ const assistantUi = { query: '', activityCode: '', options: [], description: '',
 const assistantDrawer = $id('assistantDrawer');
 const assistantThread = $id('assistantThread');
 const assistantInput = $id('assistantInput');
+
+// ---------- Groq key in Settings ----------
+function paintGroqStatus(message, kind) {
+    const el = document.getElementById('groqStatus');
+    if (!el) return;
+    const { key, model } = groqSettings();
+    el.className = 'groq-status' + (kind ? ' ' + kind : (key ? ' ok' : ''));
+    el.textContent = message || (key
+        ? `Key saved in this browser (ends in ${key.slice(-4)}). Model: ${model}.`
+        : 'No key saved in this browser. The assistant uses your catalog only.');
+}
+
+// Ask Groq for its model list: proves the key works and that the chosen model exists.
+async function testGroqKey(key, model) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+        const res = await fetch('https://api.groq.com/openai/v1/models', { headers: { Authorization: 'Bearer ' + key }, signal: ctrl.signal });
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 401 || res.status === 403) return { ok: false, text: 'Groq says this key is not valid. Copy it again from console.groq.com (it starts with gsk_).' };
+        if (!res.ok) return { ok: false, text: 'Groq answered ' + res.status + ((body.error && body.error.message) ? ': ' + body.error.message : '.') };
+        const ids = (body.data || []).map(m => m.id);
+        if (ids.length && !ids.includes(model)) {
+            const chat = ids.filter(id => /llama|gpt-oss|qwen|mixtral|gemma|kimi|deepseek/i.test(id) && !/whisper|guard|tts/i.test(id)).slice(0, 4);
+            return { ok: false, text: `The key works, but Groq has no model called ${model}. Try one of: ${chat.join(', ') || ids.slice(0, 4).join(', ')}.` };
+        }
+        try {
+            const reply = await groqChatJson(key, model, [
+                { role: 'system', content: 'Reply with JSON only.' },
+                { role: 'user', content: 'Reply with exactly this JSON: {"ok": true}' }
+            ], 300);
+            if (!reply || reply.ok !== true) throw new Error('unexpected answer');
+        } catch (err) {
+            const others = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'openai/gpt-oss-120b'].filter(m => m !== model && (!ids.length || ids.includes(m)));
+            return { ok: false, text: `The key works, but ${model} did not answer properly (${err.message || err}).${others.length ? ' Try another model, e.g. ' + others.slice(0, 2).join(' or ') + '.' : ''}` };
+        }
+        return { ok: true, text: `Key works and ${model} answers correctly. The assistant now uses AI in this browser.` };
+    } catch (err) {
+        return { ok: false, text: err.name === 'AbortError' ? 'Groq did not answer in 15 seconds. The key is saved; try the assistant later.' : 'Could not reach Groq from this browser (' + (err.message || err) + '). The key is saved; check the internet connection.' };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function saveGroqKey() {
+    const btn = document.getElementById('groqSaveBtn');
+    const key = (document.getElementById('groqApiKey')?.value || '').trim();
+    const model = (document.getElementById('groqModel')?.value || '').trim() || DEFAULT_GROQ_MODEL;
+    const s = loadUiSettings();
+    s.groqKey = key;
+    s.groqModel = model;
+    saveUiSettings(s);
+    const mode = document.getElementById('assistantMode');
+    if (mode) mode.textContent = assistantModeText();
+    if (!key) { paintGroqStatus('Key removed. The assistant uses your catalog only.'); showToast('Groq key removed.', 'ok'); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Testing…'; }
+    paintGroqStatus('Key saved. Testing it with Groq…', 'busy');
+    const result = await testGroqKey(key, model);
+    paintGroqStatus(result.text, result.ok ? 'ok' : 'warn');
+    if (result.ok) showToast('Groq key saved and working.', 'ok');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-key"></i> Save and test key'; }
+}
+
+document.getElementById('groqSaveBtn')?.addEventListener('click', saveGroqKey);
+['groqApiKey', 'groqModel'].forEach(id => document.getElementById(id)?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveGroqKey(); }
+}));
 
 function assistantModeText() {
     return groqSettings().key ? 'AI (Groq) + your catalog' : 'Suggestions from your catalog';

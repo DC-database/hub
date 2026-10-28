@@ -24,7 +24,7 @@
                 <div class="brand-mark"><i class="fa-solid fa-layer-group"></i></div>
                 <div>
                     <h1>Procurement Hub</h1>
-                    <p>Material requisition workspace <span class="version-badge">v8.1 patch 4</span></p>
+                    <p>Material requisition workspace <span class="version-badge">v7.9 patch 6</span></p>
                 </div>
             </div>
             <div class="topbar-status">
@@ -312,6 +312,10 @@
                         <label for="groqModel">Groq model</label>
                         <input type="text" id="groqModel" placeholder="llama-3.3-70b-versatile" autocomplete="off">
                         <small class="hint">Change this only if Groq retires the model.</small>
+                    </div>
+                    <div class="submit-section groq-actions">
+                        <p id="groqStatus" class="groq-status" aria-live="polite"></p>
+                        <button type="button" id="groqSaveBtn" class="save-btn"><i class="fa-solid fa-key"></i> Save and test key</button>
                     </div>
                 </div>
                 <div class="section">

@@ -319,6 +319,13 @@ input[type=checkbox] { accent-color: var(--teal); width: auto !important; margin
 .photo-match-list .suggestion-item:hover { background: rgba(255, 255, 255, 0.1); }
 .photo-match-list .photo-empty { cursor: default; opacity: .75; }
 
+/* Groq key status in Settings */
+.groq-actions { align-items: center; justify-content: space-between; }
+.groq-status { flex: 1 1 240px; margin: 0; font-size: 12.5px; color: var(--text-2) !important; }
+.groq-status.ok { color: var(--teal) !important; }
+.groq-status.warn { color: #ffd59a !important; }
+.groq-status.busy { color: var(--hivis) !important; }
+
 /* Item photo picker (checks the OneDrive folder directly) */
 a.ghost-btn { text-decoration: none; }
 .photo-name-row { display: flex; gap: 8px; }
