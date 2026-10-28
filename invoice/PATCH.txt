@@ -1,3 +1,31 @@
+17.0.5 patch 27 (2026-10-28) - "Remind all" removed; Settings shows the patch
+  - Tracking (PC + phone): no more "Remind all (N)". The open invoices of a
+    PO sit with different people (site, management, Accounts), so one
+    reminder to one person was wrong. Each invoice keeps its own Remind.
+  - Settings > System Version: "Version 17.0.5 · patch 27, Updated
+    28-Oct-2026". "Check now" reads index.html on the server and says
+    "You are on the latest upload" or shows the newer patch + Reload now.
+  - From now on every upload sets window.IBA_PATCH / IBA_PATCH_DATE in
+    index.html.
+  - Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css,
+    js/iba-1705-ver.js (new).
+
+17.0.5 patch 26 (2026-10-27) - Print basket wider + sort by vendor
+  - The print basket window is wider (up to 1040 px), so vendor names fit
+    on one line instead of being squeezed.
+  - Click "Vendor" in the basket header: A-Z (A is no. 1), click again: Z-A
+    (Z is no. 1). The numbers and the print order follow the new order.
+  - Files: index.html, js/iba-print-basket.js, css/iba-17.css.
+
+17.0.5 patch 25 (2026-10-27) - "Add all approved to print" button fixed and restyled
+  - The button now sits in the search row next to Clear and looks like the
+    page's own chips (dark, gold border, gold number) instead of a blue box.
+  - The click is handled at page level (works even if Active Task redraws),
+    and it always answers: adds and opens the basket, or says "All approved
+    invoices are already in the print basket", or shows the error.
+  - Files: index.html, js/iba-print-basket.js, css/iba-17.css,
+    css/iba-1705-fit.css.
+
 17.0.5 patch 24 (2026-10-27) - ESN print: "Add all approved to print" + amounts
   - Active Task (PC): new button "Add all approved to print (N)" above the
     table. One click puts every approved invoice that is waiting for its
