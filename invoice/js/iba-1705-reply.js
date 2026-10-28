@@ -6,6 +6,9 @@
    - Active Task (PC row, phone card): "Reply" instead of "Process".
      17.0.5 patch 32: also the Dashboard My Tasks cards and the assistant
      brief (js/iba-assistant.js taskActs / phoneActs).
+     17.0.5 patch 33: phone workspace Invoice tab gets a "Questions for you"
+     section (myQuestions / phoneCardsHtml, used by js/iba-phone.js); it
+     reads only the user's own small task list, no invoice_entries scan.
    - The Reply window shows the question (current note) and who asked it.
      The reply is mandatory; "Send to" is optional and starts with the
      person who asked. The status is not shown and stays as it is.
@@ -33,7 +36,8 @@
         return false;
     }
     function tasks() { try { return Array.isArray(userActiveTasks) ? userActiveTasks : []; } catch (_) { return []; } }
-    function taskByKey(k) { return tasks().find((t) => t && String(t.key) === String(k)) || null; }
+    const phoneMap = new Map();
+    function taskByKey(k) { return tasks().find((t) => t && String(t.key) === String(k)) || phoneMap.get(String(k)) || null; }
     function isReplyTask(t) { return !!t && t.source === 'invoice' && isTyped(t.status || t.remarks) && !!(t.originalPO || t.po); }
     function idsOf(t) {
         const po = String(t.originalPO || t.po || '').trim();
@@ -96,6 +100,57 @@
         } catch (e) { console.warn('[IBA reply] stamp hook not set:', e); }
     }
     hook();
+
+    // ------------------------------------------------------------------
+    // Phone workspace: the questions waiting for me (my own task list only)
+    // ------------------------------------------------------------------
+    function safeKey(n) { return String(n || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_'); }
+    async function myQuestions() {
+        const d = idb();
+        const who = me();
+        if (!d || !who) return [];
+        const names = [who];
+        try { if (typeof getDelegatorsForReplacement === 'function') names.push.apply(names, getDelegatorsForReplacement(who) || []); } catch (_) {}
+        const out = [], seen = new Set();
+        await Promise.all(Array.from(new Set(names.map(safeKey).filter(Boolean))).map(async (sk) => {
+            let rows = {};
+            try { rows = (await d.ref('invoice_tasks_by_user/' + sk).once('value')).val() || {}; } catch (_) { rows = {}; }
+            Object.keys(rows).forEach((k) => {
+                const r = rows[k] || {};
+                const po = String(r.originalPO || r.po || '').trim();
+                const key = String(r.originalKey || r.invoiceKey || k).trim();
+                if (!po || !key || seen.has(po + '_' + key) || !isTyped(r.status)) return;
+                seen.add(po + '_' + key);
+                out.push(Object.assign({}, r, { key: po + '_' + key, source: 'invoice', po: po, originalPO: po, originalKey: key, remarks: r.status, status: r.status }));
+            });
+        }));
+        out.sort((a, b) => (Number(b.updatedAt || b.statusChangedAt || 0) || 0) - (Number(a.updatedAt || a.statusChangedAt || 0) || 0));
+        phoneMap.clear();
+        out.forEach((t) => phoneMap.set(t.key, t));
+        return out;
+    }
+    function phoneCardsHtml(list) {
+        if (!list || !list.length) return '';
+        const money = (v) => { try { return window.ibaApprovals ? window.ibaApprovals.money(v) : String(v || ''); } catch (_) { return String(v || ''); } };
+        return '<div class="iba-ph-title iba-ph-qs-title"><h2><i class="fa-solid fa-circle-question"></i> Questions for you</h2><span>' + list.length + ' waiting</span></div>' +
+            list.map((t) => {
+                const pdf = docUrl('inv', t.invName);
+                const amt = t.amountPaid || t.amount || '';
+                return '<article class="iba-ph-card iba-ph-qcard">' +
+                    '<div class="iba-ph-card-top"><div class="iba-ph-card-main">' +
+                    '<div class="iba-ph-card-kicker"><span class="iba-ph-chip is-gold">' + esc(t.status) + '</span>' + (t.enteredBy ? '<span class="iba-ph-chip is-soft">from ' + esc(t.enteredBy) + '</span>' : '') + '</div>' +
+                    '<h3>' + esc(t.vendorName || 'Unknown vendor') + '</h3>' +
+                    '<div class="iba-ph-meta"><span>PO ' + esc(t.po) + '</span><span>INV ' + esc(t.ref || '—') + '</span></div>' +
+                    (t.site ? '<div class="iba-ph-meta"><span><i class="fa-solid fa-location-dot"></i> ' + esc(t.site) + '</span></div>' : '') +
+                    '</div>' + (amt ? '<div class="iba-ph-amount"><strong>' + esc(money(amt)) + '</strong><small>QAR</small></div>' : '') + '</div>' +
+                    (t.note ? '<p class="iba-ph-note">' + esc(t.note) + '</p>' : '') +
+                    '<div class="iba-ph-card-foot">' +
+                    (pdf ? '<a class="iba-ph-link" href="' + esc(pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> View PDF</a>' : '<span class="iba-ph-link is-off">No PDF</span>') +
+                    '<span class="iba-ph-spacer"></span>' +
+                    '<button type="button" class="iba-ph-btn is-primary iba-reply-btn" data-reply-key="' + esc(t.key) + '"><i class="fa-solid fa-reply"></i> Reply</button>' +
+                    '</div></article>';
+            }).join('');
+    }
 
     // ------------------------------------------------------------------
     // Buttons
@@ -249,6 +304,8 @@
                 if (!t) { const row = b.closest('tr, .invoice-mobile-task-card'); if (row) row.remove(); }
             });
         }
+        if (norm(to) !== norm(by)) phoneMap.delete(po + '_' + key);
+        try { window.dispatchEvent(new CustomEvent('iba-reply-sent', { detail: { po: po, key: key, to: to } })); } catch (_) {}
         try {
             sessionStorage.removeItem('IBA_ACTIVE_TASK_WORKDESK_SNAPSHOT_V3');
             if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache();
@@ -287,5 +344,5 @@
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch); else watch();
     setInterval(watch, 3000);
-    window.ibaReply = { open, isTyped, isReplyTask };
+    window.ibaReply = { open, isTyped, isReplyTask, myQuestions, phoneCardsHtml };
 })();

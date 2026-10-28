@@ -5911,7 +5911,9 @@
             (canSpeak() ? '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-voice"' + (look().voice ? ' checked' : '') + '/> Read answers and the brief aloud</label>' +
                 '<button type="button" class="iba-ai-btn" id="iba-ai-voice-test"><i class="fa-solid fa-volume-high"></i> Test voice</button>' : '<p class="iba-ai-help small">This browser cannot speak. Chrome or Edge can.</p>') +
             '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> This key is yours: it stays only in this browser, for your account. It is not saved in the system or in Firebase, and nobody else uses it. ' +
-            'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>';
+            'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>' +
+            // 17.0.5 patch 33: the phone has no Settings page, so the version is shown here too
+            (window.IBA_SYSTEM_VERSION ? '<p class="iba-ai-help small iba-ai-ver"><i class="fa-solid fa-code-branch"></i> Version ' + esc(window.IBA_SYSTEM_VERSION) + (window.IBA_PATCH ? ' · patch ' + esc(window.IBA_PATCH) : '') + (window.IBA_PATCH_DATE ? ' · updated ' + esc(window.IBA_PATCH_DATE) : '') + '</p>' : '');
         const lb = $('iba-ai-look-bot'), lv = $('iba-ai-look-voice'), vt = $('iba-ai-voice-test');
         if (lb) lb.addEventListener('change', () => { setLook({ bot: lb.checked }); paintFab($('iba-ai-fab')); });
         const lt = $('iba-ai-look-tips');

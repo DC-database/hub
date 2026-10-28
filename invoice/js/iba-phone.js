@@ -23,6 +23,7 @@
         side: '',
         tab: 'approve',
         inv: { list: [], loading: false, loadedAt: 0, error: '' },
+        qs: [], // 17.0.5 patch 33: typed-status questions waiting for me (js/iba-1705-reply.js)
         stk: { list: [], loading: false, loadedAt: 0, error: '' },
         recordsReady: false,
         invSeen: false
@@ -212,7 +213,7 @@
         }
         sw.classList.remove('hidden');
         sw.innerHTML = list.map(s => {
-            const n = s === 'invoice' ? state.inv.list.length : state.stk.list.length;
+            const n = s === 'invoice' ? state.inv.list.length + state.qs.length : state.stk.list.length;
             return `<button type="button" role="tab" data-side="${s}" class="${s === state.side ? 'is-on' : ''}" aria-selected="${s === state.side}">
                 ${s === 'invoice' ? '<i class="fa-solid fa-file-invoice"></i> Invoice' : '<i class="fa-solid fa-boxes-stacked"></i> Inventory'}
                 ${n ? `<span class="iba-ph-count">${n}</span>` : ''}
@@ -222,7 +223,7 @@
 
     function tabsFor(side) {
         if (side === 'invoice') {
-            const t = [{ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: state.inv.list.length }];
+            const t = [{ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: state.inv.list.length + state.qs.length }];
             if (canRecords()) t.push({ id: 'records', icon: 'fa-folder-open', label: 'Records' });
             return t;
         }
@@ -308,6 +309,16 @@
 
     function stale(bucket) { return !bucket.loading && (Date.now() - bucket.loadedAt > STALE_MS); }
 
+    // 17.0.5 patch 33: a question answered here leaves the list at once
+    window.addEventListener('iba-reply-sent', (e) => {
+        const d = (e && e.detail) || {};
+        state.qs = state.qs.filter((t) => !(String(t.originalPO) === String(d.po) && String(t.originalKey) === String(d.key)));
+        if (!state.on) return;
+        paintSwitch();
+        paintTabs();
+        if (state.side === 'invoice' && state.tab === 'approve') renderInvoiceApprove();
+    });
+
     function refresh(force) {
         if (force) { state.inv.loadedAt = 0; state.stk.loadedAt = 0; }
         if (state.side === 'invoice' && state.tab === 'records') { runRecordsSearch(); }
@@ -341,7 +352,7 @@
         try { if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(); } catch (_) {}
         await Promise.all([loadInvoice(true), loadInventory(true)]);
         // Land where the work is.
-        if (state.inv.list.length) { state.tab = 'approve'; setSide('invoice'); }
+        if (state.inv.list.length || state.qs.length) { state.tab = 'approve'; setSide('invoice'); }
         else if (state.stk.list.length) { state.tab = 'approve'; setSide('inventory'); }
         else if (canRecords()) { state.tab = 'approve'; setSide('invoice'); }
         else { state.tab = 'search'; setSide('inventory'); }
@@ -430,7 +441,13 @@
         state.inv.error = '';
         if (state.side === 'invoice' && state.tab === 'approve') renderInvoiceApprove();
         try {
-            state.inv.list = await A().loadMyInvoiceApprovals();
+            const R = window.ibaReply;
+            const [list, qs] = await Promise.all([
+                A().loadMyInvoiceApprovals(),
+                (R && R.myQuestions) ? R.myQuestions().catch((e) => { console.warn('[phone] questions', e); return state.qs; }) : Promise.resolve([])
+            ]);
+            state.inv.list = list;
+            state.qs = qs || [];
             state.inv.loadedAt = Date.now();
         } catch (e) {
             console.warn('[phone] invoice approvals', e);
@@ -476,7 +493,8 @@
         const pane = document.querySelector('#iba-phone [data-pane="invoice-approve"]');
         if (!pane) return;
         const list = state.inv.list;
-        let html = `<div class="iba-ph-title"><h2>Invoices to approve</h2><span>${state.inv.loading ? 'Loading…' : (list.length + ' waiting')}</span></div>`;
+        let html = (state.qs.length && window.ibaReply) ? window.ibaReply.phoneCardsHtml(state.qs) : '';
+        html += `<div class="iba-ph-title"><h2>Invoices to approve</h2><span>${state.inv.loading ? 'Loading…' : (list.length + ' waiting')}</span></div>`;
         if (state.inv.error) html += `<div class="iba-ph-empty is-error"><i class="fa-solid fa-triangle-exclamation"></i><p>${esc(state.inv.error)}</p></div>`;
         if (!list.length && !state.inv.loading && !state.inv.error) {
             html += `<div class="iba-ph-empty"><i class="fa-solid fa-circle-check"></i><p>Nothing is waiting for your approval.</p></div>`;
