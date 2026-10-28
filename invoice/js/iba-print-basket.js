@@ -177,6 +177,7 @@
         return b;
     }
 
+    let sortDir = '';
     function openPanel() {
         if (!allowed()) { closeLayer('iba-pb-panel'); return; }
         const list = load();
@@ -194,7 +195,7 @@
         const total = list.reduce((s2, x) => s2 + num(amountOf(x)), 0);
         const w = layer('iba-pb-panel',
             '<div class="iba-pb-head"><b>Print basket</b><span>' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + ' · one A4 page each, in this order</span></div>' +
-            '<div class="iba-pb-scroll"><table class="iba-pb-table"><thead><tr><th>#</th><th>PO</th><th>Vendor</th><th class="m">Amount (QAR)</th><th>Stickers</th><th></th></tr></thead><tbody>' + rows + '</tbody>' +
+            '<div class="iba-pb-scroll"><table class="iba-pb-table"><thead><tr><th>#</th><th>PO</th><th><button type="button" class="iba-pb-sort' + (sortDir ? ' is-on' : '') + '" data-sort title="Sort by vendor (A to Z, click again for Z to A). The order is the print order.">Vendor <i class="fa-solid ' + (sortDir === 'az' ? 'fa-arrow-down-a-z' : sortDir === 'za' ? 'fa-arrow-down-z-a' : 'fa-sort') + '"></i>' + (sortDir ? ' ' + (sortDir === 'az' ? 'A-Z' : 'Z-A') : '') + '</button></th><th class="m">Amount (QAR)</th><th>Stickers</th><th></th></tr></thead><tbody>' + rows + '</tbody>' +
             '<tfoot><tr><td></td><td colspan="2">Total · ' + list.length + ' invoice' + (list.length === 1 ? '' : 's') + '</td><td class="m"><b>' + esc(money(total)) + '</b></td><td colspan="2"></td></tr></tfoot></table></div>' +
             '<p class="iba-pb-msg" hidden></p>' +
             '<div class="iba-pb-foot"><button type="button" data-empty class="is-quiet">Empty basket</button><span></span>' +
@@ -216,6 +217,16 @@
             }
             if (b.hasAttribute('data-print')) return printAll(w, b);
             if (b.hasAttribute('data-tobatch')) return afterPrint();
+            // 17.0.5 patch 26: sort by vendor A-Z / Z-A (row 1 = first letter
+            // of the chosen order; the print follows this order)
+            if (b.hasAttribute('data-sort')) {
+                sortDir = sortDir === 'az' ? 'za' : 'az';
+                const l = load(), d = sortDir === 'az' ? 1 : -1;
+                const name = (x) => String(x.vendor || '').trim().toLowerCase();
+                l.sort((a, c) => d * (name(a).localeCompare(name(c)) || String(a.po).localeCompare(String(c.po), undefined, { numeric: true })));
+                save(l);
+                return;
+            }
             const tr = b.closest('tr');
             if (!tr) return;
             const l = load();
@@ -410,18 +421,31 @@
         });
         return out;
     }
+    function say(msg) { try { if (typeof window.ibaToast === 'function') return window.ibaToast(msg); } catch (_) {} alert(msg); }
     function addAll() {
-        const items = approvedToPrint();
-        if (!items.length) { flash('All approved invoices are already in the basket'); openPanel(); return; }
+        let items = [];
+        try { items = approvedToPrint(); } catch (err) { alert('Could not read the approved invoices: ' + ((err && err.message) || err)); return; }
+        console.info('[print basket] Add all approved:', items.length, 'new');
+        if (!items.length) { say('All approved invoices are already in the print basket.'); openPanel(); return; }
         const list = load();
         items.forEach((it) => list.push(Object.assign({ pos: '4', at: Date.now() }, it)));
         save(list);
         flash('Added ' + items.length + '. Check them in the basket.');
         openPanel();
     }
+    // one listener on the page (capture), so it works even if the button
+    // is drawn again or another script handles clicks in Active Task
+    document.addEventListener('click', (e) => {
+        const b = e.target && e.target.closest ? e.target.closest('#iba-pb-all') : null;
+        if (!b) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        try { addAll(); } catch (err) { alert('Add all did not work: ' + ((err && err.message) || err)); }
+    }, true);
     function paintAllButton() {
         const sec = document.getElementById('wd-activetask');
-        const bar = sec && sec.querySelector('.form-buttons-container');
+        // next to Clear in the search row, so it looks like the page's own chips
+        const bar = sec && (sec.querySelector('.wd-premium-searchbar') || sec.querySelector('.form-buttons-container'));
         let b = document.getElementById('iba-pb-all');
         const n = (allowed() && bar) ? approvedToPrint().length : 0;
         if (!n) { if (b) b.remove(); return; }
@@ -429,12 +453,11 @@
             b = document.createElement('button');
             b.type = 'button';
             b.id = 'iba-pb-all';
-            b.className = 'download-btn';
+            b.className = 'secondary-btn wd-clear-chip iba-pb-all-btn';
             b.title = 'Put every approved invoice in the print basket. You can still remove or change them there.';
-            b.addEventListener('click', addAll);
-            bar.insertBefore(b, bar.firstChild);
+            bar.appendChild(b);
         }
-        const html = '<i class="fa-solid fa-cart-plus"></i> Add all approved to print (' + n + ')';
+        const html = '<i class="fa-solid fa-cart-plus"></i> Add all approved to print <b>' + n + '</b>';
         if (b.__ibaHtml !== html) { b.innerHTML = html; b.__ibaHtml = html; }
     }
 

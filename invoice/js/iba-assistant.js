@@ -5109,9 +5109,13 @@
                         '<span class="iba-ai-paid-files">' + (it.pdf ? '<a class="iba-ai-mini" href="' + esc(it.pdf) + '" target="_blank" rel="noopener" title="Open the invoice attachment"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') + srvLink(it.srv) + '</span></div>').join('') + '</div></details>';
             }
             // 15.0.0 patch 27: Remind also for items still at Reception or with the QS
+            // 17.0.5 patch 27: no "Remind all": the open invoices of a PO sit
+            // with different people (site, management, Accounts), so a PO
+            // Remind only when there is one; otherwise each invoice's own Remind
             const openIt = p.items.filter((it) => it.stage_index < 5 && !noRemind(it));
+            if (openIt.length > 1) openIt.length = 0;
             if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
-                (openIt.length ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> ' + (openIt.length > 1 ? 'Remind all (' + openIt.length + ')' : 'Remind') + '</button>' : '') + '</div>';
+                (openIt.length === 1 ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> ' + 'Remind' + '</button>' : '') + '</div>';
             h += '</div>';
         });
         if (r.by_site && Object.keys(r.by_site).length) {
@@ -5243,10 +5247,9 @@
                         items.slice(SHOW).map((it, i) => trkRowHtml(it, pi, i + SHOW)).join('') + '</details>';
                 }
             }
-            const openIt = items.filter((it) => it.stage_index < 5 && !noRemind(it));
             const inRecords = items.some((it) => it.kind === 'invoice');
-            if (inRecords || openIt.length > 1) h += '<div class="iba-trk-poacts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
-                (openIt.length > 1 ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> Remind all (' + openIt.length + ')</button>' : '') + '</div>';
+            // 17.0.5 patch 27: "Remind all" removed (each invoice has its own Remind)
+            if (inRecords) h += '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>';
             h += '</div>';
         });
         if (r.by_site && Object.keys(r.by_site).length) {
