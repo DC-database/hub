@@ -380,3 +380,11 @@ th {
 #poTable tbody tr:hover { background-color: rgba(0,58,92,.06); }
 #poTable tbody tr.row-selected { background-color: rgba(46,134,193,.15); }
 #poTable tbody tr input[type="checkbox"], #poTable tbody tr button { cursor: pointer; }
+
+/* Active / Inactive records */
+.status-badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.status-active { background: #d5f5e3; color: #1e8449; }
+.status-inactive { background: #eaecee; color: #616a6b; }
+#poTable tbody tr.row-inactive { color: #7f8c8d; }
+.btn-hard-delete { background-color: #c0392b; border-color: #c0392b; }
+#editModal input { display: block; width: 100%; margin: 4px 0; box-sizing: border-box; }

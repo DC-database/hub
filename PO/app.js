@@ -20,9 +20,89 @@ let currentVendorFilter = null;
 let currentSearchTerm = "";
 let lastSearchPO = "";
 
-// --- GitHub Master Data Config ---
-const PO_DATA_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/POVALUE2.csv";
-let masterPOCache = {}; // Will hold the data from GitHub: { "PO_NUMBER": {data...} }
+// --- Record fields ---
+// Firebase 'records' holds every PO. Status "Active" = original is in my custody,
+// "Inactive" = released (kept in Firebase so it can be re-activated).
+const CSV_HEADER = "ReqNum,PO,Supplier ID,Supplier Name,Project ID,Amount,Status";
+
+// Normalizes a record, falling back to the old field names (Site, IDNo, Vendor, Value, DateAdded)
+function rec(d){
+  d = d || {};
+  return {
+    ReqNum: d.ReqNum ?? "",
+    PO: d.PO ?? "",
+    SupplierID: d.SupplierID ?? d.IDNo ?? "",
+    SupplierName: d.SupplierName ?? d.Vendor ?? "",
+    ProjectID: d.ProjectID ?? d.Site ?? "",
+    Amount: d.Amount ?? d.Value ?? "",
+    Status: d.Status === "Inactive" ? "Inactive" : "Active",
+    DateFiled: d.DateFiled || d.DateAdded || "",
+    DateReleased: d.DateReleased || ""
+  };
+}
+// Old field names to clear whenever a record is rewritten with the new ones
+const OLD_FIELDS = { Site: null, IDNo: null, Vendor: null, Value: null, DateAdded: null };
+
+// "" = blank, "Active" / "Inactive", or null = not understood
+function parseStatus(v){
+  const s = String(v ?? "").trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  if (!s) return "";
+  if (["active","a","yes","y","1","true"].includes(s)) return "Active";
+  if (["inactive","in active","non active","nonactive","not active","released","release","no","n","0","false"].includes(s)) return "Inactive";
+  return null;
+}
+function statusFilter(){ return document.getElementById('statusFilter')?.value || "Active"; }
+function matchesStatus(d){ const f = statusFilter(); return f === "All" || rec(d).Status === f; }
+
+// ---------- Local record cache (keeps Firebase downloads small) ----------
+// Only Active records (a few hundred) are synced when the page opens. The full list
+// (tens of thousands) is downloaded only when needed: Inactive/All view, upload, export.
+// Both stay live after that, so Firebase only sends changes. Needs ".indexOn": ["Status","PO"] on records.
+const recordCache = { active: null, all: null };
+let activeReady = null, allReady = null;
+function asSnap(map){ return { forEach(cb){ Object.keys(map || {}).forEach(k => cb({ key: k, val: () => map[k] })); } }; }
+function toMap(snap){ const m = {}; snap.forEach(c => { m[c.key] = c.val(); }); return m; }
+function syncActive(){
+  if (!activeReady) activeReady = new Promise(res => {
+    db.ref('records').orderByChild('Status').equalTo('Active').on('value', snap => {
+      recordCache.active = toMap(snap); renderTotals(); res();
+    });
+  });
+  return activeReady;
+}
+function syncAll(){
+  if (!allReady) allReady = new Promise(res => {
+    db.ref('records').on('value', snap => { recordCache.all = toMap(snap); renderTotals(); res(); });
+  });
+  return allReady;
+}
+// Resolves to a snapshot-like object for the given status filter
+function getRecords(filter){
+  if (filter === "Active" && !recordCache.all) return syncActive().then(() => asSnap(recordCache.active));
+  return syncAll().then(() => asSnap(recordCache.all));
+}
+function renderTotals(){
+  const totals = document.getElementById('statusTotals');
+  if (!totals) return;
+  const all = recordCache.all;
+  const active = all ? Object.values(all).filter(d => rec(d).Status === "Active").length : Object.keys(recordCache.active || {}).length;
+  const total = all ? Object.keys(all).length : null;
+  totals.innerHTML =
+    `<span class="status-badge status-active">Active: ${active.toLocaleString()}</span> ` +
+    (all
+      ? `<span class="status-badge status-inactive">Inactive: ${(total - active).toLocaleString()}</span> <span class="status-badge">Total: ${total.toLocaleString()}</span>`
+      : `<span class="status-badge status-inactive" title="Choose Inactive or All to load every PO">Inactive / Total: choose All</span>`);
+}
+// One-time fix for records saved before Status existed: they are the POs in my custody, so mark them Active.
+// With the Status index this only downloads records that have no Status yet (none after the first run).
+function migrateMissingStatus(){
+  return db.ref('records').orderByChild('Status').equalTo(null).once('value').then(snap => {
+    const updates = {};
+    snap.forEach(c => { updates[c.key + '/Status'] = "Active"; });
+    const n = Object.keys(updates).length;
+    if (n) return db.ref('records').update(updates).then(() => console.log(`Marked ${n} old records as Active.`));
+  }).catch(err => console.error("Status migration failed:", err));
+}
 
 // cache & collection
 const lastRenderedRows = {};
@@ -67,7 +147,12 @@ auth.onAuthStateChanged(user => {
     if (user) btn.classList.add("logout"); else btn.classList.remove("logout");
     btn.onclick = user ? logout : toggleLoginModal;
   }
-  if (user) loadGitHubMasterData(); 
+  if (user) migrateMissingStatus();
+  // Re-draw rows so the admin buttons appear/disappear
+  document.querySelectorAll('#poTable tbody tr[data-key]').forEach(tr => {
+    const key = tr.dataset.key;
+    if (lastRenderedRows[key]) tr.replaceWith(renderRow(key, lastRenderedRows[key]));
+  });
 });
 
 function login() {
@@ -78,41 +163,27 @@ function login() {
 function logout() { auth.signOut(); }
 
 // ---------- CSV helpers ----------
+// Splits CSV lines, honouring "quoted, values" (as saved by Excel)
 function parseCSV(raw) {
-  return raw.replace(/\r/g,"").split("\n").map(l=>l.trim()).filter(Boolean).map(l=>l.split(",").map(v=>v.trim()));
+  return raw.replace(/^\uFEFF/,"").replace(/\r/g,"").split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
+    const out=[]; let cur="", q=false;
+    for (let i=0;i<l.length;i++){
+      const c=l[i];
+      if (q) { if (c==='"' && l[i+1]==='"') { cur+='"'; i++; } else if (c==='"') q=false; else cur+=c; }
+      else if (c==='"') q=true;
+      else if (c===',') { out.push(cur.trim()); cur=""; }
+      else cur+=c;
+    }
+    out.push(cur.trim());
+    return out;
+  });
 }
+function csvCell(v){ v=String(v ?? ""); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
 function toNumberOrRaw(v){ const n=parseFloat(v); return isNaN(n)? v : n; }
 function downloadCSV(name, headerLine){
   const blob=new Blob([headerLine+"\n"],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob); const a=document.createElement("a");
   a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-
-// ---------- GitHub Data Fetcher ----------
-async function loadGitHubMasterData() {
-  try {
-    const response = await fetch(PO_DATA_URL);
-    if (!response.ok) throw new Error("Failed to fetch GitHub CSV");
-    const text = await response.text();
-    const rows = parseCSV(text);
-    
-    masterPOCache = {};
-    rows.slice(1).forEach(cols => {
-      const poNum = cols[1]; 
-      if (poNum) {
-        masterPOCache[poNum] = {
-          Site: cols[4] || "",       
-          PO: cols[1] || "",         
-          IDNo: cols[2] || "",       
-          Vendor: cols[3] || "",     
-          Value: toNumberOrRaw(cols[5]) 
-        };
-      }
-    });
-    console.log(`Loaded ${Object.keys(masterPOCache).length} POs from GitHub.`);
-  } catch (err) {
-    console.error("Error loading GitHub data:", err);
-  }
 }
 
 // ---------- UI helpers ----------
@@ -129,19 +200,38 @@ function generateAZFilter(){
 function renderRow(childKey, data){
   lastRenderedRows[childKey]=data;
   const checked = selectedPOs[childKey] ? 'checked' : '';
-  const dateAdded = data.DateAdded || "-"; // Fallback for old records without dates
-  
+  const r = rec(data);
+  const isAdmin = !!auth.currentUser;
+  const statusBtn = r.Status === "Active"
+    ? `<button onclick="releaseRecord('${childKey}')">Release</button>`
+    : `<button onclick="reactivateRecord('${childKey}')">Re-activate</button>`;
+
   const tr=document.createElement('tr');
+  tr.dataset.key = childKey;
+  if (r.Status === "Inactive") tr.classList.add('row-inactive');
   tr.innerHTML =
     `<td><input type="checkbox" class="rowSelect" data-key="${childKey}" ${checked}></td>
-     <td>${data.Site||""}</td>
-     <td>${data.PO||""}</td>
-     <td>${data.IDNo||""}</td>
-     <td>${data.Vendor||""}</td>
-     <td>${formatNumber(data.Value)}</td>
-     <td>${dateAdded}</td>
-     <td><button onclick="showDeleteConfirm('${childKey}')">Delete</button></td>`;
+     <td>${r.ReqNum}</td>
+     <td>${r.PO}</td>
+     <td>${r.SupplierID}</td>
+     <td>${r.SupplierName}</td>
+     <td>${r.ProjectID}</td>
+     <td>${formatNumber(r.Amount)}</td>
+     <td><span class="status-badge status-${r.Status.toLowerCase()}">${r.Status}</span></td>
+     <td>${r.DateFiled || "-"}</td>
+     <td>${r.DateReleased || "-"}</td>
+     <td>${isAdmin ? `<button onclick="openEditModal('${childKey}')">Edit</button> ` + statusBtn + ` <button class="btn-hard-delete" onclick="showDeleteConfirm('${childKey}')">Delete</button>` : ""}</td>`;
   return tr;
+}
+
+// Re-draws one row in place after its status changes
+function refreshRow(key, data){
+  const old = document.querySelector(`#poTable tbody tr[data-key="${key}"]`);
+  if (!old) return;
+  if (!matchesStatus(data)) { old.remove(); delete lastRenderedRows[key]; }
+  else old.replaceWith(renderRow(key, data));
+  if (selectedPOs[key]) { selectedPOs[key] = data; persistSelected(); }
+  updateResultCount();
 }
 
 function updateResultCount(){
@@ -188,9 +278,9 @@ function clearCollection() {
 // ---------- Search / Filter ----------
 function filterByVendorLetter(letter){
   currentVendorFilter=letter; currentSearchTerm="";
-  db.ref('records').once('value', snap=>{
+  getRecords(statusFilter()).then(snap=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
-    snap.forEach(child=>{ const d=child.val(); if((d.Vendor||"").toUpperCase().startsWith(letter)) tbody.appendChild(renderRow(child.key,d)); });
+    snap.forEach(child=>{ const d=child.val(); if(matchesStatus(d) && String(rec(d).SupplierName).toUpperCase().startsWith(letter)) tbody.appendChild(renderRow(child.key,d)); });
     updateResultCount();
   });
 }
@@ -214,21 +304,20 @@ function searchRecords(){
     targetDate = `${day}-${month}-${year}`;
   }
 
-  db.ref('records').once('value', snapshot=>{
+  getRecords(statusFilter()).then(snapshot=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
     let matchCount = 0; 
 
     snapshot.forEach(child=>{
       const d=child.val();
       
-      // If a date is selected on the calendar, ignore records from other dates
-      if (targetDate !== "" && d.DateAdded !== targetDate) return;
+      const r=rec(d);
+      if (!matchesStatus(d)) return;
+      // If a date is selected on the calendar, ignore records filed on other dates
+      if (targetDate !== "" && r.DateFiled !== targetDate) return;
 
-      if(
-        (d.PO||"").toLowerCase().includes(currentSearchTerm) ||
-        (d.Site||"").toLowerCase().includes(currentSearchTerm) ||
-        (d.Vendor||"").toLowerCase().includes(currentSearchTerm) ||
-        (d.IDNo||"").toLowerCase().includes(currentSearchTerm)
+      if([r.ReqNum, r.PO, r.SupplierID, r.SupplierName, r.ProjectID]
+          .some(v => String(v).toLowerCase().includes(currentSearchTerm))
       ){
         tbody.appendChild(renderRow(child.key,d));
         matchCount++;
@@ -271,14 +360,52 @@ function deleteRecord(key){
   }).catch(err => alert(err.message));
 }
 
-// ---------- Add PO (Uses GitHub Data Now) ----------
+// ---------- Release / Re-activate ----------
+// Release = original left my custody: mark Inactive and stamp Date Released.
+function releaseRecord(key){
+  if(!auth.currentUser){ alert("Only admin can release"); return; }
+  const changes = { Status: "Inactive", DateReleased: getFormattedDate() };
+  db.ref('records/' + key).update(changes)
+    .then(() => refreshRow(key, { ...lastRenderedRows[key], ...changes }))
+    .catch(err => alert(err.message));
+}
+// Re-activate = original is back with me: mark Active, new Date Filed, clear Date Released.
+function reactivateRecord(key){
+  if(!auth.currentUser){ alert("Only admin can re-activate"); return; }
+  const changes = { Status: "Active", DateFiled: getFormattedDate(), DateReleased: null, DateAdded: null };
+  db.ref('records/' + key).update(changes)
+    .then(() => refreshRow(key, { ...lastRenderedRows[key], ...changes }))
+    .catch(err => alert(err.message));
+}
+
+// ---------- Edit record (Admin) ----------
+const EDIT_FIELDS = ["ReqNum","PO","SupplierID","SupplierName","ProjectID","Amount"];
+let editKeyPending = null;
+function openEditModal(key){
+  if(!auth.currentUser){ alert("Only admin can edit"); return; }
+  const r = rec(lastRenderedRows[key]);
+  editKeyPending = key;
+  EDIT_FIELDS.forEach(f => { const el = document.getElementById('edit' + f); if (el) el.value = r[f] ?? ""; });
+  document.getElementById('editModal')?.classList.remove('hidden');
+}
+function closeEditModal(){ editKeyPending = null; document.getElementById('editModal')?.classList.add('hidden'); }
+function saveEdit(){
+  if(!auth.currentUser || !editKeyPending){ return; }
+  const key = editKeyPending;
+  const fields = {};
+  EDIT_FIELDS.forEach(f => { fields[f] = (document.getElementById('edit' + f)?.value || "").trim(); });
+  if (!fields.PO) { alert("PO cannot be empty."); return; }
+  fields.Amount = toNumberOrRaw(fields.Amount);
+  const cur = rec(lastRenderedRows[key]);
+  const next = { ...cur, ...fields, ...OLD_FIELDS, DateReleased: cur.DateReleased || null };
+  db.ref('records/' + key).update(next)
+    .then(() => { refreshRow(key, next); closeEditModal(); })
+    .catch(err => alert(err.message));
+}
+
+// ---------- Mark PO Active (looks up Firebase records) ----------
 function openAddPOModal(){
   if (!auth.currentUser) { alert("Only admin can add PO"); return; }
-  if (Object.keys(masterPOCache).length === 0) {
-      loadGitHubMasterData().then(() => {
-          document.getElementById('addPOStatus').textContent = "GitHub Data Ready.";
-      });
-  }
   document.getElementById('addPOModal')?.classList.remove('hidden');
   const inp = document.getElementById('addPOInput');
   if (document.getElementById('addPOStatus')) document.getElementById('addPOStatus').textContent = "";
@@ -301,29 +428,29 @@ function addPOFromModal(){
     return; 
   }
 
-  const masterData = masterPOCache[po];
-  if (!masterData) {
-    if (stat) stat.textContent = `PO ${po} not found in GitHub list.`;
-    playErrorSound(); // <-- Trigger sound
-    return;
-  }
-
-  const recRef = db.ref('records');
-  recRef.orderByChild("PO").equalTo(po).once('value').then(existsSnap => {
-    if (existsSnap.exists()) { 
-      if (stat) stat.textContent = `PO ${po} already exists in records.`; 
+  findRecordByPO(po).then(found => {
+    if (!found) {
+      if (stat) stat.textContent = `PO ${po} is not in the records. Upload it with the CSV first.`;
       playErrorSound(); // <-- Trigger sound
-      return; 
+      return;
     }
-    const newRef = recRef.push();
-    masterData.DateAdded = getFormattedDate(); // Attach date before saving
-    newRef.set(masterData).then(() => {
+    const [key, data] = found;
+    if (rec(data).Status === "Active") {
+      if (stat) stat.textContent = `PO ${po} is already Active.`;
+      playErrorSound(); // <-- Trigger sound
+      return;
+    }
+    const changes = { Status: "Active", DateFiled: getFormattedDate(), DateReleased: null, DateAdded: null };
+    return db.ref('records/' + key).update(changes).then(() => {
+      const updated = { ...data, ...changes };
       const tbody = document.querySelector('#poTable tbody');
-      if (tbody) { tbody.appendChild(renderRow(newRef.key, masterData)); updateResultCount(); }
-      if (stat) stat.textContent = `Added PO ${po} ✔`;
+      const shown = document.querySelector(`#poTable tbody tr[data-key="${key}"]`);
+      if (shown) refreshRow(key, updated);
+      else if (tbody) { tbody.appendChild(renderRow(key, updated)); updateResultCount(); }
+      if (stat) stat.textContent = `PO ${po} marked Active ✔`;
       if (inp) { inp.value = ""; inp.focus(); }
     });
-  }).catch(e => { 
+  }).catch(e => {
     if (stat) stat.textContent = "Error: " + e.message; 
     playErrorSound(); // <-- Trigger sound
   });
@@ -339,46 +466,138 @@ function normalizeWhatsAppNumber(num){
 async function sendWhatsAppRequestAuto() {
   const po = (lastSearchPO || document.getElementById('searchBox').value || "").trim();
   if (!po) { alert("Please enter a PO number first."); return; }
-  let vendor = masterPOCache[po] ? masterPOCache[po].Vendor : "";
+  const found = await findRecordByPO(po).catch(() => null);
+  const vendor = found ? rec(found[1]).SupplierName : "";
   const target = normalizeWhatsAppNumber(WHATSAPP_REQUEST_NUMBER);
   const text = `Requesting original for the following:\nPO: ${po}\nVendor: ${vendor || '-'}`;
   window.open(`https://wa.me/${target}?text=${encodeURIComponent(text)}`, '_blank');
 }
 
+// Finds a record by PO number. Resolves to [key, data] or null.
+function findRecordByPO(po){
+  // Indexed query on PO, so only matching records are downloaded. PO may be saved as text or number.
+  const q = v => db.ref('records').orderByChild('PO').equalTo(v).once('value').then(snap => {
+    let found = null;
+    snap.forEach(child => { if (!found) found = [child.key, child.val()]; });
+    return found;
+  });
+  const trimmed = String(po).trim();
+  return q(trimmed).then(f => f || (trimmed !== "" && !isNaN(trimmed) ? q(Number(trimmed)) : null));
+}
+
 // ---------- Standard Uploads (Admin) ----------
+// Columns: ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Status
+// Safety rules:
+// - Header must match the template, otherwise nothing is uploaded.
+// - Existing PO: details updated in place (no duplicate). Its status is NEVER changed by an upload;
+//   blank cells keep the current value. Unchanged POs are not written at all.
+// - New PO: saved with Date Filed = upload date. Status column (optional) applies only here; blank = Inactive.
+// - Unknown Status words stop the upload.
+// - A summary is shown for confirmation, and a backup CSV of all records is downloaded before saving.
+// True when two records hold the same values (ignores blank/empty fields and old field names)
+function sameRecord(a, b){
+  const clean = o => { const r = {}; Object.keys(o || {}).sort().forEach(k => { const v = o[k]; if (v !== null && v !== undefined && v !== "") r[k] = String(v); }); return JSON.stringify(r); };
+  return clean(a) === clean(b);
+}
+function poKey(v){ return String(v ?? "").replace(/\s+/g, "").toUpperCase(); }
+
 function uploadCSV(){
+  if(!auth.currentUser){ alert("Only admin can upload"); return; }
   const file=document.getElementById('csvUpload').files[0];
   if(!file) return alert("Select a file");
   const reader=new FileReader();
   
   reader.onload=e=>{
     const rows=parseCSV(e.target.result);
-    const body=rows.slice(1); 
-    const updates={};
-    
-    // Get the formatted date for this entire batch upload
+    if (!rows.length) { alert("The file is empty."); return; }
+
+    // Status column is optional (only used for new POs)
+    const expected = CSV_HEADER.split(",").map(h => h.toLowerCase().replace(/\s+/g, ""));
+    const got = rows[0].map(h => h.toLowerCase().replace(/\s+/g, ""));
+    if (expected.slice(0, 6).some((h, i) => h !== got[i]) || (got[6] && got[6] !== expected[6])) {
+      alert(`Upload stopped: the header row must be\n${CSV_HEADER}\n(Status is optional)\n\nYour file has\n${rows[0].join(",")}\n\nNothing was changed.`);
+      return;
+    }
+
+    const body=rows.slice(1);
+    const badStatus = [];
+    body.forEach((cols, i) => { if (parseStatus(cols[6]) === null) badStatus.push(`row ${i + 2}: "${cols[6]}"`); });
+    if (badStatus.length) {
+      alert(`Upload stopped: Status must be Active, Inactive or blank.\n${badStatus.slice(0, 10).join("\n")}${badStatus.length > 10 ? `\n...and ${badStatus.length - 10} more` : ""}\n\nNothing was changed.`);
+      return;
+    }
+
     const uploadDate = getFormattedDate(); 
-    
-    body.forEach(cols=>{
-      const [Site,PO,IDNo,Vendor,Value]=cols;
-      if(Site && PO){ 
-        const ref=db.ref('records').push(); 
-        
-        // Attach the DateAdded property to each new record
-        updates[ref.key]={
-          Site,
-          PO,
-          IDNo,
-          Vendor,
-          Value:toNumberOrRaw(Value), 
-          DateAdded: uploadDate
-        }; 
+
+    getRecords("All").then(snap => {
+      const byPO = {};
+      const backup = [CSV_HEADER + ",Date Filed,Date Released"];
+      snap.forEach(child => {
+        const po = poKey(child.val().PO);
+        if (po && !byPO[po]) byPO[po] = [child.key, child.val()];
+        const r = rec(child.val());
+        backup.push([r.ReqNum, r.PO, r.SupplierID, r.SupplierName, r.ProjectID, r.Amount, r.Status, r.DateFiled, r.DateReleased].map(csvCell).join(","));
+      });
+
+      let activeBefore = 0;
+      snap.forEach(child => { if (rec(child.val()).Status === "Active") activeBefore++; });
+
+      const updates = {};
+      let added = 0, addedActive = 0, updated = 0, unchanged = 0, skipped = 0, keptActive = 0;
+
+      body.forEach(cols=>{
+        const [ReqNum="",PO="",SupplierID="",SupplierName="",ProjectID="",Amount="",StatusRaw=""]=cols;
+        if(!PO){ skipped++; return; }
+        const status = parseStatus(StatusRaw);
+        const fields = { ReqNum, PO, SupplierID, SupplierName, ProjectID, Amount: Amount === "" ? "" : toNumberOrRaw(Amount) };
+        const k = poKey(PO);
+
+        if (byPO[k]) {
+          const [key, data] = byPO[k];
+          const cur = rec(data);
+          const next = { ...cur, ...OLD_FIELDS, PO: cur.PO || PO };
+          // Blank cells keep what is already saved
+          ["ReqNum","SupplierID","SupplierName","ProjectID","Amount"].forEach(f => { if (fields[f] !== "") next[f] = fields[f]; });
+          // Upload never changes the status of a PO that is already saved.
+          // Status only changes with Release / Re-activate / Mark Active.
+          if (cur.Status === "Active") keptActive++;
+          if (!next.DateReleased) next.DateReleased = null;
+          byPO[k] = [key, next];
+          // Only write records that actually changed (re-uploading the same file writes nothing)
+          if (sameRecord(data, next)) { unchanged++; return; }
+          updates[key] = next;
+          updated++;
+        } else {
+          const ref = db.ref('records').push();
+          // Blank Status on a new PO = Inactive (full PO lists are mostly not in my custody)
+          const next = { ...fields, Status: status || "Inactive", DateFiled: uploadDate };
+          if (next.Status === "Active") addedActive++;
+          updates[ref.key] = next;
+          byPO[k] = [ref.key, next];
+          added++;
+        }
+      });
+
+      if (!added && !updated) {
+        alert(unchanged ? `Nothing new: all ${unchanged} POs in the file are already saved with the same details. Nothing was changed.` : "No rows with a PO found. Nothing was changed.");
+        return;
       }
-    });
-    
-    db.ref('records').update(updates)
-      .then(()=>alert("Upload complete"))
-      .catch(err=>alert(err.message));
+
+      const summary =
+        `Please check before saving:\n\n` +
+        `Existing POs found: ${updated + unchanged} (${unchanged} unchanged, ${updated} to update)\n` +
+        `  - staying Active: ${keptActive}\n` +
+        `  - statuses are never changed by an upload\n` +
+        `New POs: ${added} (${added - addedActive} Inactive, ${addedActive} Active)\n` +
+        (skipped ? `Rows skipped (no PO): ${skipped}\n` : "") +
+        `\nTotal Active: ${activeBefore} now -> ${activeBefore + addedActive} after upload\n` +
+        `\nA backup of all current records will download first.\nSave these changes?`;
+      if (!confirm(summary)) { alert("Upload cancelled. Nothing was changed."); return; }
+
+      downloadCSV(`po_records_backup_before_upload_${uploadDate}.csv`, backup.join("\n"));
+      return db.ref('records').update(updates)
+        .then(()=>alert(`Upload complete: ${added} added, ${updated} updated.`));
+    }).catch(err=>alert(err.message));
   };
   
   reader.readAsText(file);
@@ -413,7 +632,6 @@ window.onload = () => {
       viewCollection(true);
     }
 
-    loadGitHubMasterData(); 
     loadAvailableDates();
 
     // Existing: Enter key for main search box
@@ -457,47 +675,40 @@ function toggleSelectAll() {
   });
 }
 
+// Releases the selected records (marks them Inactive). They stay in Firebase.
 function deleteSelectedRecords() {
-  if (!auth.currentUser) { 
-    alert("Only admin can delete records."); 
-    return; 
-  }
-
-  const checks = document.querySelectorAll('#poTable tbody input.rowSelect:checked');
-  if (!checks.length) { 
-    alert("No records selected to delete."); 
-    return; 
-  }
-
-  if (!confirm(`Are you sure you want to delete these ${checks.length} records? This cannot be undone.`)) {
+  if (!auth.currentUser) {
+    alert("Only admin can release records.");
     return;
   }
 
-  // Prepare a batch update object for Firebase
+  const checks = document.querySelectorAll('#poTable tbody input.rowSelect:checked');
+  if (!checks.length) {
+    alert("No records selected to release.");
+    return;
+  }
+
+  if (!confirm(`Release these ${checks.length} records? They will be marked Inactive and can be re-activated later.`)) {
+    return;
+  }
+
+  const today = getFormattedDate();
   const updates = {};
+  const keys = [];
   checks.forEach(chk => {
     const key = chk.getAttribute('data-key');
-    if (key) {
-      updates[key] = null; // Setting a key to null in Firebase deletes the node
+    if (key && rec(lastRenderedRows[key]).Status === "Active") {
+      updates[key + '/Status'] = "Inactive";
+      updates[key + '/DateReleased'] = today;
+      keys.push(key);
     }
   });
+  if (!keys.length) { alert("The selected records are already Inactive."); return; }
 
-  // Execute batch delete
   db.ref('records').update(updates).then(() => {
-    // Clean up UI and local arrays
-    checks.forEach(chk => {
-      const key = chk.getAttribute('data-key');
-      if (selectedPOs[key]) { delete selectedPOs[key]; }
-      if (lastRenderedRows[key]) { delete lastRenderedRows[key]; }
-      
-      const row = chk.closest('tr');
-      if (row) row.remove();
-    });
-
-    persistSelected();
-    updateResultCount();
+    keys.forEach(key => refreshRow(key, { ...lastRenderedRows[key], Status: "Inactive", DateReleased: today }));
     document.getElementById('selectAllCheckbox').checked = false;
-  }).catch(err => alert("Error deleting records: " + err.message));
+  }).catch(err => alert("Error releasing records: " + err.message));
 }
 
 // ---------- Date Generator ----------
@@ -512,28 +723,8 @@ function getFormattedDate() {
 
 // ---------- Date Dropdown Manager ----------
 function loadAvailableDates() {
-  db.ref('records').on('value', snap => {
-    const dates = new Set();
-    snap.forEach(child => {
-      const val = child.val();
-      if (val.DateAdded) dates.add(val.DateAdded);
-    });
-    
-    const dropdown = document.getElementById('dateFilter');
-    if (dropdown) {
-      const currentSelection = dropdown.value; // Remember what user has selected
-      dropdown.innerHTML = '<option value="">All Dates</option>';
-      
-      // Sort dates so newest is at the top
-      Array.from(dates).sort((a,b) => new Date(b) - new Date(a)).forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d; 
-        opt.textContent = d;
-        dropdown.appendChild(opt);
-      });
-      dropdown.value = currentSelection; 
-    }
-  });
+  // Starts the live Active sync and shows the totals (kept name for existing callers)
+  syncActive();
 }
 
 function filterByDateSelection() {
@@ -555,15 +746,15 @@ function filterBySpecificDate() {
   const targetDate = `${day}-${month}-${year}`; // e.g., "24-MAR-2026"
 
   // Pull only records that match this exact date
-  db.ref('records').once('value', snapshot => {
+  getRecords(statusFilter()).then(snapshot => {
     const tbody = document.querySelector('#poTable tbody'); 
     tbody.innerHTML = ''; // Clear the table first
     let matchCount = 0;
 
     snapshot.forEach(child => {
       const data = child.val();
-      // If the record's DateAdded matches the calendar date, add it to the table
-      if (data.DateAdded === targetDate) {
+      // If the record's Date Filed matches the calendar date, add it to the table
+      if (matchesStatus(data) && rec(data).DateFiled === targetDate) {
         tbody.appendChild(renderRow(child.key, data));
         matchCount++;
       }
@@ -660,7 +851,22 @@ window.searchRecords=searchRecords; window.clearSearch=clearSearch;
 window.showDeleteConfirm=showDeleteConfirm; window.proceedDelete=proceedDelete; window.cancelDelete=cancelDelete;
 window.openAddPOModal=openAddPOModal; window.closeAddPOModal=closeAddPOModal; window.addPOFromModal=addPOFromModal;
 window.uploadCSV=uploadCSV; 
-window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv","Site,PO,ID No,Vendor,Value");
+window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv",CSV_HEADER);
+
+// Exports every record (all statuses). The first 7 columns match the upload, so the file can be edited and re-uploaded.
+function exportRecordsCSV(){
+  getRecords("All").then(snap => {
+    const lines = [CSV_HEADER + ",Date Filed,Date Released"];
+    snap.forEach(child => {
+      const r = rec(child.val());
+      lines.push([r.ReqNum, r.PO, r.SupplierID, r.SupplierName, r.ProjectID, r.Amount, r.Status, r.DateFiled, r.DateReleased].map(csvCell).join(","));
+    });
+    downloadCSV(`po_records_${getFormattedDate()}.csv`, lines.join("\n"));
+  }).catch(err => alert(err.message));
+}
+window.exportRecordsCSV=exportRecordsCSV;
+window.releaseRecord=releaseRecord; window.reactivateRecord=reactivateRecord;
+window.openEditModal=openEditModal; window.closeEditModal=closeEditModal; window.saveEdit=saveEdit;
 window.addCheckedToCollection=addCheckedToCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
 window.toggleSelectAll = toggleSelectAll;
