@@ -17,6 +17,7 @@ function syncCollectionFromStorage() {
 window.addEventListener('load', syncCollectionFromStorage);
 
 let currentVendorFilter = null;
+let viewingCollection = false; // true while the table shows the selected list
 let currentSearchTerm = "";
 let lastSearchPO = "";
 
@@ -220,7 +221,7 @@ function renderRow(childKey, data){
      <td><span class="status-badge status-${r.Status.toLowerCase()}">${r.Status}</span></td>
      <td>${r.DateFiled || "-"}</td>
      <td>${r.DateReleased || "-"}</td>
-     <td>${isAdmin ? `<button onclick="openEditModal('${childKey}')">Edit</button> ` + statusBtn + ` <button class="btn-hard-delete" onclick="showDeleteConfirm('${childKey}')">Delete</button>` : ""}</td>`;
+     <td>${isAdmin ? `<button onclick="openEditModal('${childKey}')">Edit</button> ` + statusBtn : ""}${viewingCollection ? ` <button class="btn-remove" onclick="removeFromCollection('${childKey}')">Remove from list</button>` : ""}</td>`;
   return tr;
 }
 
@@ -247,9 +248,32 @@ function persistSelected(){ localStorage.setItem('selectedPOs', JSON.stringify(s
 function updateSelectedCount(){ const btn=document.getElementById('viewCollectionBtn'); if(btn) btn.textContent=`View (${Object.keys(selectedPOs).length})`; }
 function addCheckedToCollection(){
   const checks=document.querySelectorAll('#poTable tbody input.rowSelect:checked');
-  if(!checks.length){ alert("No rows selected."); return; }
-  checks.forEach(chk=>{ const key=chk.getAttribute('data-key'); if(key && lastRenderedRows[key]) selectedPOs[key]=lastRenderedRows[key]; });
+  if(!checks.length){ alert("No rows selected. Tick the PO first, then press +."); return; }
+  let added=0, already=0;
+  checks.forEach(chk=>{
+    const key=chk.getAttribute('data-key');
+    if(!key || !lastRenderedRows[key]) return;
+    if(selectedPOs[key]) already++; else added++;
+    selectedPOs[key]=lastRenderedRows[key];
+  });
   persistSelected();
+  showCollectionNote(`Added ${added} to your list${already ? ` (${already} already in it)` : ""}. List now has ${Object.keys(selectedPOs).length}.`);
+}
+// Short message next to the result count
+function showCollectionNote(msg){
+  const el=document.getElementById('resultCount');
+  if(!el) return;
+  el.textContent=msg;
+  clearTimeout(showCollectionNote.t);
+  showCollectionNote.t=setTimeout(updateResultCount, 4000);
+}
+// Removes one PO from the selected list only (the record itself is not touched)
+function removeFromCollection(key){
+  delete selectedPOs[key]; persistSelected();
+  const row=document.querySelector(`#poTable tbody tr[data-key="${key}"]`);
+  if(row && viewingCollection) row.remove();
+  else { const chk=row?.querySelector('input.rowSelect'); if(chk) chk.checked=false; }
+  updateResultCount();
 }
 function viewCollection(skipReload){
   // When View is clicked by the user, refresh the page first,
@@ -262,6 +286,7 @@ function viewCollection(skipReload){
 
   const tbody=document.querySelector('#poTable tbody');
   if (!tbody) return;
+  viewingCollection=true;
   tbody.innerHTML='';
   Object.keys(selectedPOs).forEach(key=>tbody.appendChild(renderRow(key, selectedPOs[key])));
   updateResultCount();
@@ -277,7 +302,7 @@ function clearCollection() {
 
 // ---------- Search / Filter ----------
 function filterByVendorLetter(letter){
-  currentVendorFilter=letter; currentSearchTerm="";
+  currentVendorFilter=letter; currentSearchTerm=""; viewingCollection=false;
   getRecords(statusFilter()).then(snap=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
     snap.forEach(child=>{ const d=child.val(); if(matchesStatus(d) && String(rec(d).SupplierName).toUpperCase().startsWith(letter)) tbody.appendChild(renderRow(child.key,d)); });
@@ -289,7 +314,7 @@ function searchRecords(){
   const searchInput = document.getElementById('searchBox');
   currentSearchTerm=(searchInput.value||"").toLowerCase();
   lastSearchPO = searchInput.value || "";
-  currentVendorFilter=null;
+  currentVendorFilter=null; viewingCollection=false;
 
   // NEW: Get the calendar date and format it to match our database (DD-MMM-YYYY)
   const dateElement = document.getElementById('datePicker');
@@ -333,7 +358,7 @@ function searchRecords(){
 }
 
 function clearSearch(){
-  currentSearchTerm=""; currentVendorFilter=null;
+  currentSearchTerm=""; currentVendorFilter=null; viewingCollection=false;
   document.getElementById('searchBox').value='';
   document.getElementById('datePicker').value=''; // <-- This clears the calendar
   document.querySelector('#poTable tbody').innerHTML='';
@@ -745,6 +770,7 @@ function filterBySpecificDate() {
   
   const targetDate = `${day}-${month}-${year}`; // e.g., "24-MAR-2026"
 
+  viewingCollection=false;
   // Pull only records that match this exact date
   getRecords(statusFilter()).then(snapshot => {
     const tbody = document.querySelector('#poTable tbody'); 
@@ -867,7 +893,7 @@ function exportRecordsCSV(){
 window.exportRecordsCSV=exportRecordsCSV;
 window.releaseRecord=releaseRecord; window.reactivateRecord=reactivateRecord;
 window.openEditModal=openEditModal; window.closeEditModal=closeEditModal; window.saveEdit=saveEdit;
-window.addCheckedToCollection=addCheckedToCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
+window.addCheckedToCollection=addCheckedToCollection; window.removeFromCollection=removeFromCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
 window.toggleSelectAll = toggleSelectAll;
 window.deleteSelectedRecords = deleteSelectedRecords;

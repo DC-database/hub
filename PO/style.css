@@ -388,3 +388,4 @@ th {
 #poTable tbody tr.row-inactive { color: #7f8c8d; }
 .btn-hard-delete { background-color: #c0392b; border-color: #c0392b; }
 #editModal input { display: block; width: 100%; margin: 4px 0; box-sizing: border-box; }
+.btn-remove { background-color: #7f8c8d; border-color: #7f8c8d; }
