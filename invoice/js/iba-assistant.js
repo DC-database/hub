@@ -3071,6 +3071,9 @@
         // 17.0.2 patch 14: who may print ESN from their own Active Task (js/iba-1702-esn.js)
         esn_printers: { name: 'Who can print ESN', icon: 'fa-stamp', superOnly: true, desc: 'Pick the people who print the ESN of invoices their engineer approved (site Approval button) and then press Ready. Kept by user record + name + mobile; a change switches printing off until re-added.',
             ask: () => [], action: () => { if (typeof window.ibaEsnPrinters === 'function') window.ibaEsnPrinters(); } },
+        // 17.0.5 patch 38: POs released today, to take out of the paper file (js/iba-1705-release.js)
+        po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Every original PO released today (+Del sets it Inactive): take them out of your paper file and tick Pulled. Undo puts a PO back to Active.',
+            ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList(); } },
         access_check: { name: 'Access check', icon: 'fa-user-shield', superOnly: true, desc: 'Every user with the pages and buttons the system gives them (Invoice Management, Entry, Records, Payments, Dashboard, Financial Report, Stock, skills), and anything a non-Super-Admin should not have. Nothing is saved.',
             ask: () => [], action: () => { if (typeof window.ibaAccessCheck === 'function') window.ibaAccessCheck(); } },
         new_job: { name: 'Add new job', icon: 'fa-file-circle-plus', desc: 'Pick what the job is for and type the PO: the Add New Job form opens with vendor, vendor ID and site filled from the PO list. Check it and press Add. No AI used.',
@@ -3664,6 +3667,7 @@
               '<button type="button" data-run-tpl="transfer" data-tpl-chip><i class="fa-solid fa-truck-ramp-box"></i> Find transfer</button>' +
               '<button type="button" data-run-tpl="new_job" data-tpl-chip><i class="fa-solid fa-file-circle-plus"></i> Add new job</button>' +
               '<button type="button" data-chip-basket><i class="fa-solid fa-cart-shopping"></i> Print basket</button>' +
+              '<button type="button" data-run-tpl="po_pull" data-tpl-chip><i class="fa-solid fa-folder-minus"></i> PO pull-out list</button>' +
               '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
               '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
               '<button type="button" data-run-tpl="lpo_mail" data-tpl-chip><i class="fa-solid fa-envelope-open-text"></i> LPO emails</button>' +
@@ -4279,7 +4283,8 @@
         [/\b(approvals?|approve|ceo|coo)\b/i, ['approvals_list', 'urgent', 'inv_status']],
         [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
         [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
-        [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']]
+        [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']],
+        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull']]
     ];
     function quickPicks(ids, all) {
         const ok = ids.filter((id) => SKILL_TPL[id] && tplAllowed(id));

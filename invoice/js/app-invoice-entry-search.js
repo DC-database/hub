@@ -732,7 +732,9 @@ function imRunPOFileCheckInBackground(poNumber) {
 
             if (!isCurrentCheck()) return;
 
-            if (snapshot.exists()) {
+            // 17.0.5 patch 38: only a record with Status "Active" means the original is in the file
+            const poFileActive = snapshot.exists() && (window.ibaPoFile ? !!window.ibaPoFile.activeOf(snapshot.val()) : true);
+            if (poFileActive) {
                 setPoRecordStatus('found', 'OPF', 'fa-solid fa-folder-open');
                 poRecordEl.title = 'Original PO in File';
                 poRecordEl.dataset.poFileFound = '1';
@@ -752,7 +754,7 @@ function imRunPOFileCheckInBackground(poNumber) {
                     imResetPOFileActionButton(modalDeletionBtn, normalizedPO, true);
                 }
             } else {
-                setPoRecordStatus('none', 'No PO file found', 'fa-regular fa-circle');
+                setPoRecordStatus('none', snapshot.exists() ? 'Original not in file' : 'No PO file found', 'fa-regular fa-circle');
                 poRecordEl.dataset.poFileFound = '0';
                 poRecordEl.dataset.poFileState = 'none';
                 if (modalDeletionBtn) {

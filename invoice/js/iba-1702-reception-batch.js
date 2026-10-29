@@ -71,7 +71,8 @@
             const ref = progressDb.ref('records');
             let s = await ref.orderByChild('PO').equalTo(n).once('value');
             if (!s.exists()) s = await ref.orderByChild('PO').equalTo(parseInt(n, 10)).once('value');
-            return s.exists();
+            // 17.0.5 patch 38: only Status "Active" = the original is in the file
+            return s.exists() && (window.ibaPoFile ? !!window.ibaPoFile.activeOf(s.val()) : true);
         } catch (_) { return false; }
     }
     function addArchiveButton(card, po) {

@@ -45,7 +45,8 @@
         const run = (async () => {
             let s = await ref.orderByChild('PO').equalTo(p).once('value');
             if (!s.exists()) s = await ref.orderByChild('PO').equalTo(parseInt(p, 10)).once('value');
-            return s.exists();
+            // 17.0.5 patch 38: only Status "Active" = the original is in the file
+            return s.exists() && (window.ibaPoFile ? !!window.ibaPoFile.activeOf(s.val()) : true);
         })().then((found) => { archive.set(p, { found: found, at: Date.now() }); return found; },
             () => { archive.delete(p); return false; });
         archive.set(p, { found: false, at: 0, p: run });
