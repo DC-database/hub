@@ -1,3 +1,9 @@
+17.0.5 patch 38 (29-Oct-2026)
+  - Original PO file (progress-po records): only Status "Active" counts as "original in file" (Invoice Entry OPF badge, +Del button, Batch +Del, Original PO "Back in file"). Inactive/blank = "Original not in file".
+  - +Del (Super Admin) now releases the PO in Firebase: Status "Inactive" + DateReleased today (29-OCT-2026). No need to change it on port.iba.com.qa/PO.
+  - New assistant skill "PO pull-out list" (Super Admin, PC): POs released today, tick Pulled (kept on this PC for today), Undo = back to Active.
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-release.js (NEW), js/iba-assistant.js, js/app-invoice-entry-search.js, js/iba-1702-reception-batch.js, js/iba-1702-opo.js
+
 17.0.5 patch 37 (29-Oct-2026)
   - The corner assistant robot (PC) is see-through while not in use; clear when the mouse is on it, when clicked, or when a message bubble shows. Phone unchanged.
   Files: index.html, css/iba-1705-fit.css
