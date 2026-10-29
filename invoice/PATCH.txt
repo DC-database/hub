@@ -1,3 +1,32 @@
+17.0.5 patch 37 (29-Oct-2026)
+  - The corner assistant robot (PC) is see-through while not in use; clear when the mouse is on it, when clicked, or when a message bubble shows. Phone unchanged.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 36 (2026-10-29) - Invoice Entry overlap in a narrow window
+  - In a window 900 px wide or less, Invoice Entry's Quick Access was drawn
+    on top of the form (the rows were squeezed to the box height). Rows now
+    follow their content and the body scrolls; Quick Access buttons are a
+    grid under the form.
+  - Pop-up fit (patch 35) now also works in narrow desktop windows
+    (601-900 px); the pop-up stays below the top bar. Only phones narrower
+    than 600 px and the phone workspace are skipped.
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-modalfit.js
+
+17.0.5 patch 35 (2026-10-29) - Pop-ups fit tablet and 17" screens
+  - New js/iba-1705-modalfit.js: each pop-up (.modal-overlay and the glass
+    .iba-pb-layer) is checked when it opens and when the window changes.
+    Only if it does not fit (under the pinned side menu, under the assistant
+    side panel, past the screen edge or under the top bar) it gets .iba-fit:
+    it sits in the free area, keeps its own width when there is room, never
+    gets wider/taller than the free area, the body scrolls inside with the
+    title and Save/Close always showing. Pop-ups that fit are untouched (big
+    PC screens unchanged). Phones not touched.
+  - Narrow pop-ups: Invoice Entry quick-access buttons move under the form
+    as a 4-across grid, toolbar wraps; inventory boards / stats 2 or 1
+    columns; form grids 1 column below 600 px.
+  - CSS at the end of css/iba-1705-fit.css (inside @layer iba-ui).
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-modalfit.js (new)
+
 17.0.5 patch 34 (2026-10-28) - Brief "In the company": In Process table
   - New "In Process" table first, then "Waiting for approval", then PO
     Close Out. Same columns as approvals (PO, With, Vendor, Urgent, Inv no.,
