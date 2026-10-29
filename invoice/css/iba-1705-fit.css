@@ -436,4 +436,84 @@
   #iba-reply-pop [data-send][disabled] { opacity: 0.5; cursor: not-allowed; }
   #active-task-mobile-view .iba-reply-row { display: flex; margin-top: 8px; }
   #active-task-mobile-view .iba-reply-row .iba-reply-btn { flex: 1 1 auto; display: inline-flex !important; align-items: center; justify-content: center; gap: 8px; min-height: 44px; background-color: #1f6f8b !important; }
+
+  /* 17.0.5 patch 35: pop-ups that do not fit (js/iba-1705-modalfit.js adds
+     .iba-fit only then): the box sits in the free area beside the pinned side
+     menu / assistant side panel, never wider or taller than it, the body
+     scrolls inside with the title and Save/Close always showing, wide grids
+     drop to 2 / 1 columns. Pop-ups that fit are not touched. */
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2):not(.hidden), .iba-pb-layer.iba-fit:not(#iba-no1):not(#iba-no2) {
+    box-sizing: border-box !important;
+    padding: var(--iba-free-t, 12px) calc(var(--iba-free-r, 0px) + 12px) 12px calc(var(--iba-free-l, 0px) + 12px) !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container:not(.im-user-positioned),
+  .iba-pb-layer.iba-fit:not(#iba-no1):not(#iba-no2) > .iba-pb-box {
+    box-sizing: border-box !important;
+    width: min(var(--iba-fit-w, 100%), 100%) !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    margin: 0 auto !important;
+    left: auto !important;
+    transform: none !important;
+  }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    container-type: inline-size;
+    container-name: iba-fit;
+  }
+  /* Invoice Entry moved by its title bar: kept where it was put, but not under the menu and not past the edge */
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container.im-user-positioned {
+    left: max(var(--im-modal-left, 24px), calc(var(--iba-free-l, 0px) + 12px)) !important;
+    max-width: calc(100vw - var(--iba-free-l, 0px) - var(--iba-free-r, 0px) - 24px) !important;
+    max-height: calc(100vh - var(--iba-free-t, 12px) - 12px) !important;
+  }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container > :is(.modal-header, .modal-footer) { flex: 0 0 auto !important; }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container > :not(.modal-header):not(.modal-footer) {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: auto !important;
+  }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container .modal-footer { flex-wrap: wrap !important; row-gap: 8px !important; }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container :is(input, select, textarea) { max-width: 100% !important; min-width: 0 !important; }
+  .modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2) > .modal-container .form-group { min-width: 0 !important; }
+  @container iba-fit (max-width: 980px) {
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-pocket-transfer-stats, #ms-report-stats) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.ms-reg-board, .tf-board) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  }
+  @container iba-fit (max-width: 820px) {
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-entry-body-shell) { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: none !important; grid-auto-rows: max-content !important; align-content: start !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-entry-body-shell > *) { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-entry-body-shell > .im-entry-quick-panel) { max-height: none !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) .im-quick-status-buttons { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 8px !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) .im-quick-status-buttons > .im-quick-status-btn { width: auto !important; min-width: 0 !important; margin: 0 !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-toolbar-row, .im-toolbar-buttons) { flex-wrap: wrap !important; row-gap: 8px !important; }
+    :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.ms-reg-board, .tf-board) { grid-template-columns: minmax(0, 1fr) !important; }
+  }
+  @container iba-fit (max-width: 600px) {
+    .form-grid-compact, .transfer-2col-grid, :is(.modal-overlay.iba-fit:not(#iba-no1):not(#iba-no2)) :is(.im-pocket-transfer-stats, #ms-report-stats) { grid-template-columns: minmax(0, 1fr) !important; }
+  }
+  /* 17.0.5 patch 36: Invoice Entry in a narrow window (<= 900 px, the app's
+     own one-column layout): the rows were squeezed to the box height, so
+     Quick Access was drawn on top of the form. Rows now follow their
+     content and the body scrolls. */
+  @media (max-width: 900px) {
+    #im-invoice-entry-modal:not(#iba-no1) .im-entry-body-shell { grid-template-rows: none !important; grid-auto-rows: max-content !important; align-content: start !important; }
+    #im-invoice-entry-modal:not(#iba-no1) .im-entry-body-shell > * { height: auto !important; min-height: 0 !important; max-height: none !important; }
+    #im-invoice-entry-modal:not(#iba-no1) .im-quick-status-buttons { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important; gap: 8px !important; }
+  }
+
+  /* 17.0.5 patch 37: the corner assistant robot (PC) is see-through while
+     nobody uses it; clear again when the mouse is on it, it has keyboard
+     focus, or a message bubble is showing. Phones / touch screens unchanged. */
+  @media (hover: hover) and (pointer: fine) {
+    body:not(.iba-phone) #iba-ai-fab.iba-ai-fab:not(.is-open) { transition: transform .15s ease, opacity .4s ease !important; }
+    body:not(.iba-phone):not(:has(#iba-ai-bubble:not([hidden]))) #iba-ai-fab.iba-ai-fab:not(.is-open):not(:hover):not(:focus-visible):not(:active) { opacity: 0.3 !important; }
+  }
 }
