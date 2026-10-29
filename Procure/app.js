@@ -1398,8 +1398,29 @@ function recentItemPayload(item) {
         "Class Code": item["Class Code"] || '',
         "Class Name": item["Class Name"] || '',
         "CreatedAt": item["CreatedAt"] || new Date().toISOString(),
+        "CreatedBy": item["CreatedBy"] || '',
+        "CreatedByMobile": item["CreatedByMobile"] || '',
         firebaseKey: item.firebaseKey || null
     };
+}
+
+// Who created an item: saved on every new item, shown only to the super admin.
+function createdByFields() {
+    const u = currentAccessUser || {};
+    return { "CreatedBy": String(u.name || '').trim(), "CreatedByMobile": normalizeMobile(u.mobile || u.key || '') };
+}
+
+function isSuperAdminUser() {
+    return !!(currentAccessUser && isSuperAdminIdentity(currentAccessUser.name, currentAccessUser.mobile || currentAccessUser.key));
+}
+
+const RECENT_DAYS = 7;
+let recentShowAll = false;
+let recentShownList = [];
+
+function recentWithinDays(list, days) {
+    const since = Date.now() - days * 24 * 3600 * 1000;
+    return list.filter(item => { const t = Date.parse(item.CreatedAt || ''); return !isNaN(t) && t >= since; });
 }
 
 async function publishRecentItem(item) {
@@ -1423,38 +1444,92 @@ async function loadSharedRecentItems() {
 function renderRecentItemsTable(list, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
-    tbody.innerHTML = '';
-    list.forEach(item => {
+    const showWho = isSuperAdminUser();
+    document.querySelectorAll('#newItemsModal .col-who').forEach(el => { el.hidden = !showWho; });
+    tbody.innerHTML = list.map((item, i) => {
         const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : (item["Activity Name"] || '');
         const groupText = item["Group Code"] ? `[${item["Group Code"]}] ${item["Group Name"]}` : (item["Group Name"] || '');
         const classText = item["Class Code"] && item["Class Code"] !== "N/A" ? `[${item["Class Code"]}] ${item["Class Name"]}` : (item["Class Name"] || "N/A");
-        tbody.innerHTML += `<tr>
-            <td><strong>${escapeHtml(item["Part Code"])}</strong></td>
-            <td>${escapeHtml(item["Description"] || '')}</td>
+        const when = item.CreatedAt ? new Date(item.CreatedAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+        return `<tr>
+            <td class="epicor-cell"><span class="copy-cell"><strong>${escapeHtml(item["Part Code"])}</strong><button type="button" class="copy-btn" data-copy-row="${i}" data-copy-field="Part Code" title="Copy part code" aria-label="Copy part code"><i class="fa-regular fa-copy"></i></button></span></td>
+            <td class="epicor-cell"><span class="copy-cell"><span>${escapeHtml(item["Description"] || '')}</span><button type="button" class="copy-btn" data-copy-row="${i}" data-copy-field="Description" title="Copy description" aria-label="Copy description"><i class="fa-regular fa-copy"></i></button></span></td>
             <td>${escapeHtml(item["UOM"] || '')}</td>
             <td class="muted-cell">${escapeHtml(actText)}</td>
-            <td class="muted-cell">${escapeHtml(groupText)}</td>
-            <td class="muted-cell">${escapeHtml(classText)}</td>
+            <td class="epicor-cell">${epicorCodeCell(item["Group Code"], item["Group Name"], i, "Group Code", 'group code')}</td>
+            <td class="epicor-cell">${epicorCodeCell(item["Class Code"], item["Class Name"], i, "Class Code", 'class code')}</td>
+            ${showWho ? `<td class="muted-cell col-who">${escapeHtml(item.CreatedBy || 'Unknown')}<br><span class="hint">${escapeHtml(when)}</span></td>` : ''}
         </tr>`;
-    });
+    }).join('');
 }
+
+// Group and class: the number is what Epicor reads, so it is bold with its own copy button.
+function epicorCodeCell(code, name, row, field, label) {
+    const c = String(code || '').trim();
+    if (!c || c === 'N/A') return `<span class="muted-cell">${escapeHtml(name || 'N/A')}</span>`;
+    return `<span class="copy-cell"><strong class="epicor-code">${escapeHtml(c)}</strong><button type="button" class="copy-btn" data-copy-row="${row}" data-copy-field="${field}" title="Copy ${label}" aria-label="Copy ${label}"><i class="fa-regular fa-copy"></i></button></span><span class="epicor-name">${escapeHtml(name || '')}</span>`;
+}
+
+function recentColumnCount() { return isSuperAdminUser() ? 7 : 6; }
+
+function paintRecentItems() {
+    const tbody = document.getElementById('newItemsTableBody');
+    const all = sharedRecentItems;
+    const week = recentWithinDays(all, RECENT_DAYS);
+    recentShownList = recentShowAll ? all : week;
+    const note = document.getElementById('recentItemsNote');
+    const toggle = document.getElementById('recentToggleBtn');
+    if (note) note.textContent = recentShowAll
+        ? `Showing the latest ${all.length} items.`
+        : `Showing ${week.length} item${week.length === 1 ? '' : 's'} added in the last ${RECENT_DAYS} days.`;
+    if (toggle) {
+        toggle.hidden = all.length === week.length && !recentShowAll;
+        toggle.textContent = recentShowAll ? 'Show last 7 days only' : `Show older too (${all.length})`;
+    }
+    const hasRows = recentShownList.length > 0;
+    document.getElementById('printNewItemsBtn').disabled = !hasRows;
+    const copyAll = document.getElementById('copyRecentItemsBtn');
+    if (copyAll) copyAll.disabled = !hasRows;
+    if (!hasRows) {
+        tbody.innerHTML = `<tr><td colspan="${recentColumnCount()}" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">${all.length ? 'Nothing added in the last 7 days.' : 'No recently created items yet.'}</td></tr>`;
+        document.querySelectorAll('#newItemsModal .col-who').forEach(el => { el.hidden = !isSuperAdminUser(); });
+        return;
+    }
+    renderRecentItemsTable(recentShownList, 'newItemsTableBody');
+}
+
+document.getElementById('newItemsTableBody')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-copy-row]');
+    if (!btn) return;
+    const item = recentShownList[Number(btn.dataset.copyRow)];
+    if (!item) return;
+    await writeClipboardText(String(item[btn.dataset.copyField] || ''));
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1200);
+});
+
+document.getElementById('recentToggleBtn')?.addEventListener('click', () => { recentShowAll = !recentShowAll; paintRecentItems(); });
+
+// Copy the shown list as Excel rows (part code, description, UOM, category, group, class).
+document.getElementById('copyRecentItemsBtn')?.addEventListener('click', async () => {
+    const head = ['Part Code', 'Description', 'UOM', 'Main Category', 'Group Code', 'Group Name', 'Class Code', 'Class Name'];
+    const rows = recentShownList.map(item => [item["Part Code"], item["Description"], item["UOM"], item["Activity Name"], item["Group Code"], item["Group Name"], item["Class Code"], item["Class Name"]].map(excelCellValue).join('\t'));
+    await writeClipboardText([head.join('\t')].concat(rows).join('\n'));
+    showToast(`Copied ${rows.length} item${rows.length === 1 ? '' : 's'}. Paste into Excel.`, 'ok');
+});
 
 if(viewNewItemsBtn && newItemsModal) {
     viewNewItemsBtn.addEventListener('click', async () => {
         const tbody = document.getElementById('newItemsTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Loading recent items…</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${recentColumnCount()}" style="text-align:center; padding: 30px;">Loading recent items…</td></tr>`;
         newItemsModal.classList.add('active');
         try {
-            const list = await loadSharedRecentItems();
-            if (!list.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #64748b; font-style: italic;">No recently created items yet.</td></tr>';
-                document.getElementById('printNewItemsBtn').disabled = true;
-            } else {
-                renderRecentItemsTable(list, 'newItemsTableBody');
-                document.getElementById('printNewItemsBtn').disabled = false;
-            }
+            await loadSharedRecentItems();
+            recentShowAll = false;
+            paintRecentItems();
         } catch (err) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px;">Could not load recent items.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${recentColumnCount()}" style="text-align:center; padding: 30px;">Could not load recent items.</td></tr>`;
         }
     });
 }
@@ -1469,7 +1544,7 @@ document.getElementById('printNewItemsBtn').addEventListener('click', () => {
     
     const tbody = document.getElementById('printNewItemsTableBody');
     tbody.innerHTML = '';
-    const printList = sharedRecentItems.length ? sharedRecentItems : sessionNewlyCreatedItems;
+    const printList = recentShownList.length ? recentShownList : sessionNewlyCreatedItems;
     printList.forEach(item => {
         // Combine Codes with Names for printing
         const actText = item["Activity Code"] && item["Activity Code"] !== "N/A" ? `[${item["Activity Code"]}] ${item["Activity Name"]}` : item["Activity Name"];
@@ -1815,7 +1890,7 @@ $id('itemForm').addEventListener('submit', async (e) => {
     if (!canAddItems()) { denyAccess('add items'); return; }
     const p = createPicker.get();
     if (!p.cls || p.cls.unknown || !p.group) { alert('Pick a main category, a class and a group first.'); return; }
-    const itemDesc = $id('description').value.trim();
+    const itemDesc = $id('description').value.trim().toUpperCase();
     const itemUOM = $id('uom').value;
     if (!itemDesc || !itemUOM) { alert('Enter a description and pick a UOM.'); return; }
     try {
@@ -1833,7 +1908,8 @@ $id('itemForm').addEventListener('submit', async (e) => {
             "Class Name": p.cls.className,
             "Activity Code": p.cls.activityCode,
             "Activity Name": p.cls.activityName,
-            "CreatedAt": new Date().toISOString()
+            "CreatedAt": new Date().toISOString(),
+            ...createdByFields()
         };
         const newRef = dbReq.ref("items").push();
         newItemRecord.firebaseKey = newRef.key;
@@ -1940,7 +2016,7 @@ $id('editItemForm').addEventListener('submit', async (e) => {
     const updateData = {
         "Part Code": newPartCode,
         "Series": editState.series,
-        "Description": $id('editDescription').value.trim(),
+        "Description": $id('editDescription').value.trim().toUpperCase(),
         "UOM": $id('editUom').value,
         "Group Code": p.group.code,
         "Group Name": p.group.name,
@@ -2109,7 +2185,7 @@ function normalizeCatalogRow(row) {
     return {
         "Part Code": partCode,
         "Series": series,
-        "Description": description,
+        "Description": String(description || '').trim().toUpperCase(),
         "UOM": uom,
         "Group Code": groupCode,
         "Group Name": groupName,
@@ -2205,7 +2281,7 @@ async function importRowsToFirebase(rawRows, sourceLabel) {
         const key = firebaseItemKeyFromPartCode(item["Part Code"]);
         writes.push({
             key,
-            record: { ...item, firebaseKey: key, CreatedAt: now, Source: sourceLabel }
+            record: { ...item, firebaseKey: key, CreatedAt: now, Source: sourceLabel, ...createdByFields() }
         });
         created += 1;
     });
@@ -2995,7 +3071,7 @@ function assistTokens(text) {
 let assistantIndex = null;
 let assistantGroupUsage = null; // activityCode -> groupCode -> Map(classCode -> count)
 
-function invalidateAssistantIndex() { assistantIndex = null; assistantGroupUsage = null; }
+function invalidateAssistantIndex() { assistantIndex = null; assistantGroupUsage = null; hatModel = null; }
 
 function getAssistantIndex() {
     if (assistantIndex) return assistantIndex;
@@ -3149,6 +3225,444 @@ function assistAnalyze(query, activityCode) {
 }
 // </assistant-engine>
 
+// <hat-engine>
+// SORTING HAT: you type an item, it decides which of the 5 main categories fits best,
+// then the class and group inside it, and says why. No category question first.
+// Two offline signals, combined:
+//   1. Your catalog: the most similar existing items (TF-IDF, typo tolerant) vote for where they are filed.
+//   2. Built-in construction knowledge: common words (nail, rebar, mcb, toilet, visa...) point to a class,
+//      so items the catalog has never seen still land in a sensible place.
+// With a Groq key, the AI gets the shortlist and the evidence and makes the final call.
+
+// Common words → the class code (class.csv) where such items usually belong.
+// A phrase only counts when all its words are in the item. Unknown class codes are skipped.
+const HAT_KNOWLEDGE = {
+    // 1 Preliminaries
+    '27': 'electrician, electrical manpower',
+    '59': 'bank charge, bank fee, transfer fee, cheque book, guarantee fee',
+    '60': 'insurance, insurance policy, workmen compensation, car insurance',
+    '61': 'lawyer, legal, court, attorney, notary',
+    '62': 'consultant, consulting, consultancy, design fee, supervision fee',
+    '64': 'soil test, soil investigation, geotechnical, borehole',
+    '65': 'water tanker, water supply',
+    '142': 'garbage, rubbish, waste removal, debris removal, skip',
+    '153': 'laboratory, lab test, cube test, core test, testing',
+    '67': 'hire, rent, rental, equipment hire, crane hire',
+    '68': 'grease, engine oil, hydraulic oil, gear oil, lubricant, coolant',
+    '69': 'diesel, petrol, gasoline, fuel',
+    '71': 'third party inspection, crane inspection, certification',
+    '73': 'spare part, oil filter, air filter, fuel filter, battery, fan belt, bearing, brake',
+    '74': 'tyre, tire, tube tyre',
+    '75': 'vehicle, truck, pickup, bus, forklift, crane, excavator, jcb, bobcat, loader, roller compactor, concrete mixer machine',
+    '77': 'manpower, salary, wages, overtime, payroll',
+    '78': 'engineer',
+    '79': 'foreman, foremen, supervisor',
+    '80': 'draftsman, draughtsman',
+    '81': 'driver',
+    '82': 'safety officer',
+    '83': 'labour, labor, labourer, helper, unskilled',
+    '84': 'mason, carpenter, steel fixer, welder, plumber, painter, skilled',
+    '85': 'nurse',
+    '86': 'office boy, office assistant, tea boy',
+    '87': 'purchaser, buyer',
+    '88': 'surveyor',
+    '89': 'watchman, security guard, guard',
+    '90': 'helmet, hard hat, safety shoe, safety boot, gloves, glove, vest, reflective, harness, goggle, ear plug, dust mask, mask, first aid, barricade, safety sign, cone, warning tape, coverall, ppe, safety',
+    '92': 'office rent, printer, laptop, computer, internet, phone bill, electricity bill, office',
+    '93': 'paper, a4, pen, pencil, toner, ink, cartridge, stapler, staple, file, folder, envelope, notebook, marker, stationery, tissue',
+    '94': 'tea, coffee, sugar, milk, drinking water, water bottle, snacks, food, lunch, juice, refreshment',
+    '95': 'loan, fine, penalty, donation, other expense',
+    '97': 'visa, iqama, residence permit, immigration, passport, qid',
+    '98': 'attestation, translation, typing, registration, renewal, administrative',
+    '99': 'medical, medical test, health card, hospital, clinic',
+    '100': 'building permit, municipality, road permit, excavation permit, noc, connection fee, kahramaa',
+    '101': 'istimara, vehicle registration, traffic fine, number plate',
+    '152': 'diesel tank, fuel tank, petrol tank',
+    // 2 Earthworks
+    '16': 'infrastructure, utility network, sewer network, storm water network',
+    '102': 'excavation, excavate, digging, trench, rock breaking, earthwork, cut and fill',
+    '103': 'backfill, backfilling, compaction, filling material, subbase, sweet soil, road base',
+    '104': 'dewatering, wellpoint, groundwater',
+    '115': 'asphalt, bitumen road, road marking, road work, tack coat, prime coat, roadwork',
+    // 3 Structure
+    '1': 'waterproofing, waterproof',
+    '2': 'membrane, bitumen membrane, waterstop, water stop, bituminous, damp proof, dpc, polythene sheet, hdpe sheet',
+    '4': 'rebar, steel bar, reinforcement bar, tmt, deformed bar, rod',
+    '5': 'binding wire, tie wire, spacer, cover block, rebar chair, coupler, brc mesh, steel mesh',
+    '7': 'concrete, ready mix, readymix, aggregate, gravel, blinding',
+    '8': 'precast, hollowcore, hollow core, kerbstone, kerb stone, interlock',
+    '9': 'nail, concrete nail, form oil, shutter oil, release agent, tie rod, wing nut, timber, wood, lumber',
+    '10': 'plywood, formwork, shuttering, prop, scaffolding, scaffold, cuplock, doka, h20 beam, plank',
+    '12': 'block, hollow block, solid block, brick, thermal block',
+    '13': 'lintel, wall tie, block mortar, polystyrene, styrofoam, expansion joint',
+    '17': 'cement, opc, src cement, white cement',
+    '18': 'sand, washed sand, dune sand',
+    '106': 'pre engineered building, peb',
+    '139': 'steel structure, steel fabrication, i beam, steel column',
+    '330': 'termite, pest control, anti termite',
+    '329': 'coring, core cutting, core drilling',
+    '147': 'screed',
+    // 4 MEP
+    '20': 'lpg, gas cylinder, gas regulator, gas pipe',
+    '22': 'conduit, junction box, cable tie, cable gland, lug, socket, switch, plug, cable tray, trunking, earth rod, insulation tape, back box, electrical',
+    '23': 'breaker, circuit breaker, mcb, mccb, rccb, elcb, distribution board, db, panel board, contactor, isolator, smdb, mdb, changeover',
+    '24': 'transformer',
+    '25': 'cable, wire, armoured cable, flexible cable, xlpe, swa, wiring',
+    '26': 'light, lamp, bulb, led, downlight, flood light, tube light, fluorescent, spotlight, emergency light, street light, luminaire, lighting',
+    '28': 'energy meter, kwh meter, electricity meter',
+    '29': 'generator, genset',
+    '31': 'elbow, tee, coupling, reducer, union, nipple, adaptor, bend, pipe clamp, pipe clip, teflon, ptfe, solvent cement, gully, floor drain, cleanout, trap, plumbing',
+    '32': 'toilet, wc, water closet, basin, wash basin, sink, mixer, tap, faucet, shower, bidet, shattaf, urinal, angle valve, flush, cistern, seat cover, soap dispenser, sanitary',
+    '33': 'water heater, geyser, heater',
+    '34': 'pump, booster pump, submersible pump, sump pump',
+    '35': 'water meter, flow meter',
+    '36': 'water tank, grp tank, storage tank',
+    '37': 'pipe, pvc pipe, upvc pipe, ppr pipe, hdpe pipe, gi pipe, cpvc, valve, gate valve, ball valve, check valve',
+    '108': 'ac, air conditioner, air conditioning, split unit, chiller, fcu, ahu, ventilation, exhaust fan, hvac, duct, grille, diffuser',
+    '148': 'copper pipe, refrigerant, r410, armaflex, ac drain',
+    '109': 'sprinkler, fire hose, hose reel, fire pump, fire hydrant, fire extinguisher, extinguisher, landing valve, fire cabinet, fire fighting',
+    '110': 'smoke detector, heat detector, fire alarm, manual call point, sounder, detector',
+    '111': 'cctv, camera, intercom, access control, data point, network, telephone, satellite, tv outlet, speaker, pa system, elv, cat6',
+    '116': 'lift, elevator, escalator',
+    '117': 'tree, grass, palm, shrub, irrigation, landscaping, landscape, turf',
+    '120': 'swimming pool, pool pump, pool filter, chlorine',
+    // 5 Finishing
+    '15': 'plaster, plaster mesh, corner bead, plaster bead, render, chicken mesh',
+    '39': 'paint, emulsion, enamel, primer, putty, varnish, texture paint, epoxy paint',
+    '40': 'roller, paint brush, sandpaper, sand paper, masking tape, thinner, scraper, paint tray',
+    '43': 'paving, paver, outdoor tile, bench',
+    '44': 'signage, sign board, name plate',
+    '46': 'welding rod, electrode',
+    '121': 'steel door, gate, railing, handrail, grill, aluminium window, aluminum window, rolling shutter, ladder, metal work',
+    '48': 'tile adhesive, grout, tile spacer, tile trim, skirting',
+    '49': 'tile, ceramic, porcelain',
+    '51': 'marble, granite, threshold, countertop',
+    '52': 'rubber flooring, rubber tile',
+    '53': 'epoxy, epoxy flooring',
+    '54': 'carpet, rug',
+    '56': 'drill bit, cutting disc, grinding disc, screw, bolt, nut, washer, anchor bolt, silicone, sealant, foam, rope, tarpaulin, plastic sheet, broom, bucket, wheelbarrow, shovel, consumable',
+    '57': 'hammer, spanner, wrench, screwdriver, plier, tool, toolbox, drill machine, grinder, saw, spirit level, trowel',
+    '118': 'gypsum, gypsum board, ceiling board, ceiling tile, false ceiling, stud',
+    '119': 'wooden door, cabinet, kitchen cabinet, wardrobe, mdf, veneer, joinery, wooden',
+    '122': 'facade, curtain wall, cladding, acp, aluminium composite',
+    '123': 'furniture, chair, table, desk, sofa, bed, cupboard, shelf, rack, locker',
+    '124': 'fridge, refrigerator, microwave, oven, washing machine, stove, cooker, dishwasher, kettle, freezer, appliance',
+    '125': 'blind, curtain, roller blind',
+    '127': 'glass, mirror, glazing, tempered glass',
+    '144': 'manhole, manhole cover, grating, chamber cover',
+    '145': 'flooring, vinyl, parquet, laminate',
+    '208': 'lock, door handle, door closer, cylinder lock, ironmongery, door stopper, hinge'
+};
+
+// Words people type that mean the same as a word in the catalog.
+const HAT_SYNONYMS = {
+    tyres: 'tyre', tires: 'tyre', tire: 'tyre', bulb: 'lamp', globe: 'lamp', faucet: 'tap', commode: 'toilet',
+    tmt: 'rebar', ply: 'plywood', aircon: 'ac', airconditioner: 'ac', fridge: 'refrigerator', alu: 'aluminium',
+    aluminum: 'aluminium', color: 'colour', colour: 'paint', labor: 'labour', genset: 'generator', cam: 'camera',
+    hardhat: 'helmet', boot: 'shoe', screws: 'screw', wc: 'toilet', lavatory: 'toilet', washbasin: 'basin'
+};
+
+let hatModel = null;
+
+function invalidateHatModel() { hatModel = null; }
+
+// Word stems only: sizes and codes (20mm, 1/2, 3x3) say little about where an item belongs.
+function hatWords(text) {
+    const out = [];
+    String(text || '').toLowerCase().replace(/&/g, ' and ').split(/[^a-z0-9]+/).forEach(raw => {
+        if (raw.length < 2 || /\d/.test(raw) || ASSIST_STOP.has(raw)) return;
+        const syn = HAT_SYNONYMS[raw];
+        out.push(assistStem(raw));
+        if (syn && syn !== raw) out.push(assistStem(syn));
+    });
+    return out;
+}
+
+// Features: words, word pairs, and 3-letter pieces of longer words (so "cabel" still finds "cable").
+function hatFeatures(text) {
+    const words = hatWords(text);
+    const f = new Map();
+    words.forEach((w, i) => {
+        f.set('w:' + w, 1);
+        if (i > 0) f.set('b:' + words[i - 1] + '_' + w, 1);
+        if (w.length >= 4) {
+            const p = '^' + w + '$';
+            for (let k = 0; k + 3 <= p.length; k++) f.set('c:' + p.slice(k, k + 3), 1);
+        }
+    });
+    return f;
+}
+
+const HAT_KIND_WEIGHT = { w: 1, b: 0.8, c: 0.22 };
+
+function buildHatModel() {
+    const docs = [];
+    const df = new Map();
+    allSearchableItems.forEach(item => {
+        const partCode = itemPartCode(item);
+        const desc = String(item["Description"] || '').trim();
+        if (!partCode || !desc) return;
+        const classCode = String(item["Class Code"] || '').trim();
+        const cls = classByCode[classCode];
+        if (!cls) return;
+        const groupCode = String(item["Group Code"] || partCode.split('.')[0] || '').trim();
+        const feats = hatFeatures(desc);
+        if (!feats.size) return;
+        docs.push({ partCode, desc, classCode, groupCode, activityCode: cls.activityCode, feats });
+        feats.forEach((v, k) => df.set(k, (df.get(k) || 0) + 1));
+    });
+    const N = docs.length || 1;
+    const idf = new Map();
+    df.forEach((n, k) => idf.set(k, Math.log(1 + N / n)));
+    const postings = new Map();
+    docs.forEach((d, i) => {
+        let norm = 0;
+        const vec = [];
+        d.feats.forEach((v, k) => {
+            const w = HAT_KIND_WEIGHT[k[0]] * idf.get(k);
+            vec.push([k, w]);
+            norm += w * w;
+        });
+        norm = Math.sqrt(norm) || 1;
+        vec.forEach(([k, w]) => {
+            let p = postings.get(k);
+            if (!p) { p = []; postings.set(k, p); }
+            p.push(i, w / norm);
+        });
+        d.feats = null;
+    });
+
+    // Class profiles: class name + default group name + built-in knowledge.
+    const profiles = [];
+    const phraseOwners = new Map();   // phrase key -> number of classes using it
+    Object.values(classByCode).forEach(cls => {
+        const phrases = [];
+        const addPhrase = (text, weight) => {
+            const words = hatWords(text);
+            if (words.length) phrases.push({ words: Array.from(new Set(words)), weight, text: String(text).trim() });
+        };
+        addPhrase(cls.className.replace(/[.]/g, ''), 0.7);
+        const g = classDefaultGroup(cls);
+        if (g && g.name && g.name.toLowerCase() !== cls.className.toLowerCase()) addPhrase(g.name.replace(/[.]/g, ''), 0.5);
+        String(HAT_KNOWLEDGE[cls.classCode] || '').split(',').forEach(p => { if (p.trim()) addPhrase(p, 1); });
+        phrases.forEach(p => { const k = p.words.slice().sort().join(' '); phraseOwners.set(k, (phraseOwners.get(k) || 0) + 1); });
+        profiles.push({ cls, phrases });
+    });
+    // Usage: how often each class + group pair is used, so a class's real home group is known.
+    const pairCount = new Map();
+    docs.forEach(d => { const k = d.classCode + '|' + d.groupCode; pairCount.set(k, (pairCount.get(k) || 0) + 1); });
+    // Known words, for fixing typos in what people type.
+    const vocab = new Map();
+    df.forEach((n, k) => { if (k.startsWith('w:')) vocab.set(k.slice(2), n); });
+    profiles.forEach(p => p.phrases.forEach(ph => ph.words.forEach(w => { if (!vocab.has(w)) vocab.set(w, 1); })));
+    return { docs, idf, postings, profiles, phraseOwners, pairCount, vocab, N };
+}
+
+// Edit distance with swapped letters counted as one edit ("cabel" -> "cable").
+function hatEditDistance(a, b, max) {
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    const d = [];
+    for (let i = 0; i <= a.length; i++) { d[i] = [i]; }
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+        let rowMin = Infinity;
+        for (let j = 1; j <= b.length; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+            if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+            rowMin = Math.min(rowMin, d[i][j]);
+        }
+        if (rowMin > max) return max + 1;
+    }
+    return d[a.length][b.length];
+}
+
+// Replace words the catalog has never seen with the closest common word. Returns the fixes made.
+function hatCorrectQuery(query) {
+    const m = getHatModel();
+    const fixes = [];
+    const text = String(query || '').replace(/[a-z]+/gi, raw => {
+        const low = raw.toLowerCase();
+        if (low.length < 4 || ASSIST_STOP.has(low) || HAT_SYNONYMS[low]) return raw;
+        const stem = assistStem(low);
+        if (m.vocab.has(stem)) return raw;
+        const max = stem.length >= 7 ? 2 : 1;
+        let best = null; let bestD = max + 1; let bestN = 0;
+        m.vocab.forEach((n, w) => {
+            if (Math.abs(w.length - stem.length) > max) return;
+            const dist = hatEditDistance(stem, w, max);
+            if (dist < bestD || (dist === bestD && n > bestN)) { best = w; bestD = dist; bestN = n; }
+        });
+        if (!best || bestD > max) return raw;
+        fixes.push({ from: low, to: best });
+        return best;
+    });
+    return { text, fixes };
+}
+
+function getHatModel() {
+    if (!hatModel) hatModel = buildHatModel();
+    return hatModel;
+}
+
+// Most similar catalog items (cosine similarity on the TF-IDF features).
+function hatNeighbours(query, limit) {
+    const m = getHatModel();
+    const qf = hatFeatures(query);
+    const qvec = [];
+    let norm = 0;
+    qf.forEach((v, k) => {
+        const idf = m.idf.get(k);
+        if (!idf) return;
+        const w = HAT_KIND_WEIGHT[k[0]] * idf;
+        qvec.push([k, w]);
+        norm += w * w;
+    });
+    // Words the catalog has never seen still count in the norm, so "xyz cable" is less sure than "cable".
+    qf.forEach((v, k) => { if (!m.idf.has(k) && k[0] === 'w') norm += Math.log(1 + m.N); });
+    norm = Math.sqrt(norm) || 1;
+    const scores = new Map();
+    qvec.forEach(([k, w]) => {
+        const p = m.postings.get(k);
+        for (let i = 0; i < p.length; i += 2) scores.set(p[i], (scores.get(p[i]) || 0) + (w / norm) * p[i + 1]);
+    });
+    const top = [];
+    scores.forEach((s, i) => { if (s >= 0.12) top.push({ doc: m.docs[i], sim: s }); });
+    top.sort((a, b) => b.sim - a.sim);
+    return top.slice(0, limit || 40);
+}
+
+// Built-in knowledge: which class profiles share words or phrases with the item.
+function hatKnowledgeHits(query) {
+    const m = getHatModel();
+    const words = new Set(hatWords(query));
+    const hits = [];
+    if (!words.size) return hits;
+    m.profiles.forEach(p => {
+        let score = 0; let best = null;
+        p.phrases.forEach(ph => {
+            if (!ph.words.every(w => words.has(w))) return;
+            const owners = m.phraseOwners.get(ph.words.slice().sort().join(' ')) || 1;
+            // Longer phrases are more specific; a phrase many classes share is weaker.
+            const s = ph.weight * (1 + 0.8 * (ph.words.length - 1)) / Math.sqrt(owners);
+            score += s;
+            if (!best || s > best.s) best = { s, text: ph.text };
+        });
+        if (score > 0) hits.push({ cls: p.cls, score, phrase: best.text });
+    });
+    hits.sort((a, b) => b.score - a.score);
+    return hits;
+}
+
+// The group a class is usually filed with: its default group, unless the catalog clearly uses another.
+function hatHomeGroup(cls) {
+    const m = getHatModel();
+    const def = classDefaultGroup(cls);
+    let best = null; let bestN = 0;
+    m.pairCount.forEach((n, k) => {
+        const [c, g] = k.split('|');
+        if (c === cls.classCode && n > bestN) { bestN = n; best = g; }
+    });
+    const defN = def ? (m.pairCount.get(cls.classCode + '|' + def.code) || 0) : 0;
+    if (best && bestN > defN * 2 && groupRecord(best)) return { code: best, name: groupRecord(best).name };
+    return def;
+}
+
+function hatSort(rawQuery) {
+    const { text: query, fixes } = hatCorrectQuery(rawQuery);
+    const neighbours = hatNeighbours(query, 40);
+    const knowledge = hatKnowledgeHits(query);
+    const cats = {};
+    activityList.forEach(a => { cats[a.code] = { activity: a, knn: 0, know: 0, share: 0 }; });
+    const placements = new Map();
+
+    function place(cls, group) {
+        const key = cls.classCode + '|' + group.code;
+        let o = placements.get(key);
+        if (!o) {
+            o = { key, cls, group: { code: group.code, name: group.name }, knn: 0, know: 0, count: 0, examples: [], phrase: '', score: 0 };
+            placements.set(key, o);
+        }
+        return o;
+    }
+
+    // 1. Catalog neighbours vote. Close matches count far more than loose ones.
+    const topSim = neighbours.length ? neighbours[0].sim : 0;
+    neighbours.forEach(({ doc, sim }) => {
+        if (sim < topSim * 0.45) return;
+        const v = Math.pow(sim, 3);
+        if (cats[doc.activityCode]) cats[doc.activityCode].knn += v;
+        const cls = classByCode[doc.classCode];
+        const g = groupRecord(doc.groupCode) || { code: doc.groupCode, name: doc.groupCode };
+        const o = place(cls, g);
+        o.knn += v;
+        o.count += 1;
+        if (o.examples.length < 3) o.examples.push({ partCode: doc.partCode, desc: doc.desc, sim });
+    });
+
+    // 2. Built-in knowledge votes for the class, at its usual group.
+    knowledge.slice(0, 8).forEach(h => {
+        if (cats[h.cls.activityCode]) cats[h.cls.activityCode].know += h.score;
+        const g = hatHomeGroup(h.cls);
+        if (!g) return;
+        const o = place(h.cls, g);
+        o.know += h.score;
+        if (!o.phrase) o.phrase = h.phrase;
+    });
+
+    // 3. Blend. The closer the best catalog match, the more the catalog decides.
+    const knnTotal = Object.values(cats).reduce((s, c) => s + c.knn, 0);
+    const knowTotal = Object.values(cats).reduce((s, c) => s + c.know, 0);
+    const wKnn = knnTotal ? Math.min(0.85, 0.35 + topSim * 0.7) : 0;
+    const wKnow = knowTotal ? 1 - wKnn : 0;
+    const wSum = wKnn + wKnow;
+    Object.values(cats).forEach(c => {
+        c.share = wSum ? ((knnTotal ? wKnn * c.knn / knnTotal : 0) + (knowTotal ? wKnow * c.know / knowTotal : 0)) / wSum : 0;
+    });
+    // Placements: the class decides (its votes are summed over all its groups). Inside a class,
+    // the group is the one the matches use and the catalog uses most with that class.
+    const m = getHatModel();
+    const classKnn = {}; const classKnow = {}; const classUse = {};
+    placements.forEach(o => {
+        classKnn[o.cls.classCode] = (classKnn[o.cls.classCode] || 0) + o.knn;
+        classKnow[o.cls.classCode] = (classKnow[o.cls.classCode] || 0) + o.know;
+    });
+    m.pairCount.forEach((n, k) => { const c = k.split('|')[0]; classUse[c] = (classUse[c] || 0) + n; });
+    const classKnnMax = Math.max(0, ...Object.values(classKnn));
+    const classKnowMax = Math.max(0, ...Object.values(classKnow));
+    placements.forEach(o => {
+        const c = o.cls.classCode;
+        const fromKnn = classKnnMax ? classKnn[c] / classKnnMax : 0;
+        const fromKnow = classKnowMax ? classKnow[c] / classKnowMax : 0;
+        const use = classUse[c] ? (m.pairCount.get(o.key) || 0) / classUse[c] : (o.know ? 1 : 0);
+        const groupFit = 0.5 * (classKnn[c] ? o.knn / classKnn[c] : 0) + 0.5 * use;
+        o.score = wKnn * fromKnn + wKnow * fromKnow + 0.15 * groupFit;
+    });
+
+    const ranking = Object.values(cats).sort((a, b) => b.share - a.share);
+    const best = ranking[0] && ranking[0].share > 0 ? ranking[0] : null;
+    const byCategory = {};
+    Array.from(placements.values()).sort((a, b) => b.score - a.score).forEach(o => {
+        (byCategory[o.cls.activityCode] || (byCategory[o.cls.activityCode] = [])).push(o);
+    });
+    // How sure: a clear winner, backed by close catalog matches or specific knowledge.
+    const margin = best ? best.share - ((ranking[1] && ranking[1].share) || 0) : 0;
+    const evidence = Math.max(Math.min(1, topSim / 0.6), knowledge.length ? Math.min(1, knowledge[0].score / 1.5) : 0);
+    const confidence = best ? Math.round(100 * Math.min(0.99, (0.5 * best.share + 0.5 * margin + 0.15) * (0.45 + 0.55 * evidence))) : 0;
+    return {
+        query: rawQuery,
+        fixes,
+        ranking,
+        best,
+        confidence,
+        byCategory,
+        neighbours: neighbours.slice(0, 8),
+        knowledge: knowledge.slice(0, 5),
+        exact: neighbours.filter(n => n.sim >= 0.92).slice(0, 5).map(n => n.doc)
+    };
+}
+// </hat-engine>
+
 const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 function groqSettings() {
@@ -3290,8 +3804,104 @@ function optionWhy(o) {
     return 'General class for this category.';
 }
 
+// ---------- Sorting hat: Groq makes the final call ----------
+const HAT_CATEGORY_HINTS = {
+    'Preliminaries': 'running the site and the company: manpower, salaries, fees, permits, visas, insurance, office supplies, refreshments, HSE and PPE, vehicles, plant hire, fuel, spare parts',
+    'Earthworks': 'excavation, backfilling, dewatering, roadworks, infrastructure networks',
+    'Structure': 'concrete, cement, sand, rebar and reinforcement, formwork and shuttering, blockwork, waterproofing, precast, steel structure',
+    'MEP': 'electrical, cables, lighting, switchgear, plumbing and drainage, pipes, sanitary ware, HVAC, fire fighting and fire alarm, ELV and CCTV, LPG, lifts, irrigation, pools',
+    'Finishing': 'plaster, paint, tiles, marble and granite, gypsum, joinery, doors, metal works, glass, furniture, appliances, site consumables and hand tools'
+};
+
+async function askGroqToSort(hat) {
+    const { key, model } = groqSettings();
+    if (!key) return null;
+    const actName = code => (activityByCode(code) || {}).name || code;
+    const categories = activityList.map(a => `${a.code} ${a.name}: ${HAT_CATEGORY_HINTS[a.name] || ''}`).join('\n');
+    const classes = activityList.map(a => `${a.code} ${a.name}\n` + (classesByActivity[a.code] || []).map(c => `  ${c.classCode} | ${c.className} | default group ${c.groupId}`).join('\n')).join('\n');
+    const groups = allGroups.map(g => `${g.code} | ${g.name}`).join('\n');
+    const similar = hat.neighbours.map(n => {
+        const c = classByCode[n.doc.classCode];
+        return `"${n.doc.desc}" → ${c.activityCode} ${actName(c.activityCode)} › class ${c.classCode} ${c.className} › group ${n.doc.groupCode}`;
+    }).join('\n') || 'none';
+    const votes = hat.ranking.map(c => `${c.activity.code} ${c.activity.name} ${Math.round(c.share * 100)}%`).join(', ');
+    const prompt = `You are the Sorting Hat of a construction company's procurement catalog. Decide where this item belongs.
+Item: "${hat.query}"
+
+First pick the best of the 5 main categories, then the class (it must belong to that category), then the group.
+Main categories:
+${categories}
+
+Rules:
+- classCode must come from the class list, under the category you chose.
+- groupCode is the class's default group or any group from the group list.
+- Prefer how similar items are already filed, unless that is clearly wrong for this item.
+- confidence is 0 to 100. reason is one or two plain sentences a site engineer would understand.
+- Give up to 2 alternatives (other class or group, any category), and a catalog description in the house style: UPPERCASE, size or spec in brackets, e.g. WOOD NAIL (2 INCH).
+
+The catalog's own vote: ${votes}
+Most similar items already in the catalog:
+${similar}
+
+Classes by category:
+${classes}
+
+Groups:
+${groups}
+
+Reply with JSON only:
+{"category":"","classCode":"","groupCode":"","confidence":0,"reason":"","alternatives":[{"classCode":"","groupCode":"","why":""}],"description":""}`;
+    return groqChatJson(key, model, [
+        { role: 'system', content: 'You file construction materials, services and expenses into a company catalog. Reply with JSON only.' },
+        { role: 'user', content: prompt }
+    ], 1500);
+}
+
+// Blend the AI's verdict with the catalog's vote, and put the AI's valid picks first.
+function hatMergeAi(hat, ai) {
+    const result = { ...hat, ai: null };
+    if (!ai) return result;
+    const pick = (classCode, groupCode, why) => {
+        const cls = classByCode[String(classCode || '').trim()];
+        const g = groupRecord(String(groupCode || '').trim()) || (cls && classDefaultGroup(cls));
+        if (!cls || !g) return null;
+        return { key: cls.classCode + '|' + g.code, cls, group: { code: g.code, name: g.name }, why: String(why || '').trim() };
+    };
+    const main = pick(ai.classCode, ai.groupCode, ai.reason);
+    if (!main) return result;
+    const aiConf = Math.max(0, Math.min(100, Number(ai.confidence) || 70)) / 100;
+    // AI vote: its confidence on its category, the rest shared like the catalog vote.
+    const ranking = hat.ranking.map(c => {
+        const rest = c.activity.code === main.cls.activityCode ? 0 : c.share;
+        const restTotal = hat.ranking.reduce((s, x) => s + (x.activity.code === main.cls.activityCode ? 0 : x.share), 0) || 1;
+        const aiShare = c.activity.code === main.cls.activityCode ? aiConf : (1 - aiConf) * rest / restTotal;
+        return { ...c, share: hat.best ? 0.5 * c.share + 0.5 * aiShare : aiShare };
+    }).sort((a, b) => b.share - a.share);
+    const byCategory = {};
+    Object.keys(hat.byCategory).forEach(k => { byCategory[k] = hat.byCategory[k].slice(); });
+    const promote = (p, isMain) => {
+        const list = byCategory[p.cls.activityCode] || (byCategory[p.cls.activityCode] = []);
+        const at = list.findIndex(o => o.key === p.key);
+        const o = at >= 0 ? { ...list.splice(at, 1)[0] } : { key: p.key, cls: p.cls, group: p.group, knn: 0, know: 0, count: 0, examples: [], phrase: '', score: 0 };
+        o.ai = true;
+        o.aiWhy = p.why;
+        if (isMain) list.unshift(o);
+        else list.splice(Math.min(1, list.length), 0, o);
+    };
+    (Array.isArray(ai.alternatives) ? ai.alternatives : []).slice(0, 2).reverse().forEach(a => { const p = pick(a.classCode, a.groupCode, a.why); if (p && p.key !== main.key) promote(p, false); });
+    promote(main, true);
+    const best = ranking[0];
+    const second = ranking[1] ? ranking[1].share : 0;
+    const agree = hat.best && hat.best.activity.code === main.cls.activityCode;
+    const confidence = Math.round(100 * Math.min(0.99, agree ? Math.max(hat.confidence / 100, aiConf) * 0.6 + 0.4 * (best.share - second + 0.5) : 0.4 + 0.5 * (best.share - second)));
+    return {
+        ...hat, ranking, best, byCategory, confidence,
+        ai: { reason: main.why, agree, category: main.cls.activityCode, description: String(ai.description || '').trim() }
+    };
+}
+
 // ---------- Assistant drawer UI ----------
-const assistantUi = { query: '', activityCode: '', options: [], description: '', busy: false, started: false };
+const assistantUi = { query: '', activityCode: '', options: [], hatOptions: [], description: '', busy: false, started: false };
 const assistantDrawer = $id('assistantDrawer');
 const assistantThread = $id('assistantThread');
 const assistantInput = $id('assistantInput');
@@ -3364,7 +3974,7 @@ document.getElementById('groqSaveBtn')?.addEventListener('click', saveGroqKey);
 }));
 
 function assistantModeText() {
-    return groqSettings().key ? 'AI (Groq) + your catalog' : 'Suggestions from your catalog';
+    return groqSettings().key ? 'Your catalog + AI (Groq)' : 'Your catalog + construction know-how';
 }
 
 function assistantPost(role, html) {
@@ -3383,7 +3993,7 @@ function categoryChipsHtml(exclude) {
 
 function assistantIntro() {
     assistantThread.innerHTML = '';
-    assistantPost('bot', `<p>Tell me the item you need, like <em>wood nail 2 inch</em> or <em>cable 4mm</em>.</p><p>I'll ask which main category it's for, then show where it fits: a class and a group, with the part code prefix.</p>${groqSettings().key ? '' : '<p class="muted">Suggestions come from how your existing items are filed. An admin can add a free Groq key in Settings to have an AI rank them too.</p>'}`);
+    assistantPost('bot', `<p>I'm the sorting hat. Tell me an item, like <em>wood nail 2 inch</em>, <em>cable 4mm</em> or <em>visa renewal</em>.</p><p>I'll pick the best of your 5 main categories, then the class and group, and tell you why. You can still choose the category yourself if you disagree.</p>${groqSettings().key ? '' : '<p class="muted">I learn from how your existing items are filed, plus built-in construction know-how. An admin can add a free Groq key in Settings so an AI double-checks my answer.</p>'}`);
     const mode = $id('assistantMode');
     if (mode) mode.textContent = assistantModeText();
 }
@@ -3422,13 +4032,142 @@ function assistantAskItem(query) {
         assistantPost('bot', '<p>Type at least one word that describes the item, like <em>nail</em> or <em>pvc pipe</em>.</p>');
         return;
     }
+    if (assistantUi.busy) return;
     assistantUi.query = q;
     assistantUi.activityCode = '';
-    const anywhere = assistAnalyze(q, '__none__').matchesAnywhere;
-    const existing = anywhere
-        ? `<p class="note-line"><i class="fa-solid fa-circle-info"></i> ${anywhere.toLocaleString()} item${anywhere === 1 ? '' : 's'} like this ${anywhere === 1 ? 'is' : 'are'} already in the catalog. <button type="button" class="link-btn" data-assist-search>Show in search</button></p>`
-        : '';
-    assistantPost('bot', `${existing}<p>Which main category is <strong>${escapeHtml(q)}</strong> for?</p>${categoryChipsHtml('')}`);
+    assistantSortItem(q);
+}
+
+// ---------- Sorting hat answer ----------
+const HAT_THINKING = ['Hmm… difficult. Very difficult.', 'Let me look inside your catalog…', 'Plenty of similar items here, I see…', 'Not a bad fit, but where to put it?'];
+
+function hatReasons(r) {
+    const out = [];
+    const code = r.best.activity.code;
+    const name = r.best.activity.name;
+    if (r.fixes && r.fixes.length) out.push(`I read ${r.fixes.map(f => `“${escapeHtml(f.from)}” as “${escapeHtml(f.to)}”`).join(', ')}.`);
+    if (r.ai && r.ai.reason) {
+        const other = r.ai.category !== code ? activityByCode(r.ai.category) : null;
+        out.push(`<span class="badge badge-ai"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</span> ${other ? `The AI leaned to ${escapeHtml(other.name)}, but your catalog disagrees: ` : ''}${escapeHtml(r.ai.reason)}`);
+    }
+    const near = r.neighbours.filter(n => n.sim >= r.neighbours[0].sim * 0.45);
+    const here = near.filter(n => n.doc.activityCode === code);
+    if (here.length) {
+        out.push(`${here.length} of the ${near.length} most similar items in your catalog ${here.length === 1 ? 'is' : 'are'} filed in ${escapeHtml(name)}, like <em>${here.slice(0, 2).map(n => escapeHtml(shortText(n.doc.desc, 40))).join('</em> and <em>')}</em>.`);
+    } else if (!near.length) {
+        out.push('Nothing like this is in your catalog yet, so I went by what the words usually mean on a construction site.');
+    }
+    const know = r.knowledge.find(k => k.cls.activityCode === code);
+    if (know) out.push(`“${escapeHtml(know.phrase)}” usually means ${escapeHtml(know.cls.className)}, which is in ${escapeHtml(name)}.`);
+    const runner = r.ranking[1];
+    if (runner && runner.share >= 0.2) out.push(`It could also be ${escapeHtml(runner.activity.name)} (${Math.round(runner.share * 100)}%), depending on what it is used for.`);
+    return out;
+}
+
+// Category and class of an existing item, under its description.
+function hatWhereHtml(doc) {
+    const cls = classByCode[doc.classCode];
+    const act = activityByCode(doc.activityCode);
+    if (!act) return '';
+    return `<span class="assist-where"><span class="cat-tag act-${escapeHtml(act.code)}"><span class="cat-num">${escapeHtml(act.code)}</span>${escapeHtml(act.name)}</span>${cls ? `<span class="assist-where-class">${escapeHtml(cls.className)}</span>` : ''}</span>`;
+}
+
+function hatOptionHtml(o, index, isBest) {
+    const def = classDefaultGroup(o.cls);
+    const isDefault = def && def.code === o.group.code;
+    let why = o.ai && o.aiWhy ? o.aiWhy : '';
+    if (!why && o.count) why = `${o.count} similar item${o.count === 1 ? ' is' : 's are'} filed here, e.g. ${shortText(o.examples[0].desc, 60)}`;
+    if (!why && o.phrase) why = `“${o.phrase}” belongs in ${o.cls.className}.`;
+    if (!why) why = 'Close match from your catalog.';
+    return `<div class="assist-option${isBest ? ' is-best' : ''}">
+        <div class="assist-option-head">
+            <span class="code-chip"><span class="code-chip-prefix">${escapeHtml(o.group.code)}</span><span class="code-chip-dot">.</span>series</span>
+            ${o.ai ? '<span class="badge badge-ai"><i class="fa-solid fa-wand-magic-sparkles"></i> AI pick</span>' : ''}
+            ${o.count ? `<span class="badge">${o.count} in catalog</span>` : ''}
+        </div>
+        <dl class="assist-kv">
+            <dt>Class</dt><dd>${escapeHtml(o.cls.classCode)} ${escapeHtml(o.cls.className)}</dd>
+            <dt>Group</dt><dd>${escapeHtml(o.group.code)} ${escapeHtml(o.group.name)}${isDefault ? ' <span class="muted">(class default)</span>' : ''}</dd>
+        </dl>
+        <p class="why">${escapeHtml(why)}</p>
+        <button type="button" class="btn btn-accent btn-sm" data-hat-create="${index}"><i class="fa-solid fa-plus"></i> ${canAddItems() ? 'Create item here' : 'Sign in to create'}</button>
+    </div>`;
+}
+
+function hatVerdictHtml(r) {
+    const a = r.best.activity;
+    const sure = r.confidence >= 75 ? 'Sure' : r.confidence >= 50 ? 'Fairly sure' : 'Not sure';
+    const bars = r.ranking.map(c => {
+        const pct = Math.round(c.share * 100);
+        return `<div class="hat-bar act-${escapeHtml(c.activity.code)}${c === r.best ? ' is-winner' : ''}">
+            <span class="hat-bar-label"><span class="cat-num">${escapeHtml(c.activity.code)}</span>${escapeHtml(c.activity.name)}</span>
+            <span class="hat-bar-track"><span class="hat-bar-fill" style="width:${Math.max(pct, 1)}%"></span></span>
+            <span class="hat-bar-pct">${pct}%</span>
+        </div>`;
+    }).join('');
+    return `<div class="hat-verdict act-${escapeHtml(a.code)}">
+        <p class="hat-kicker">Better be…</p>
+        <p class="hat-house"><span class="cat-num">${escapeHtml(a.code)}</span>${escapeHtml(a.name.toUpperCase())}!</p>
+        <p class="hat-sure"><span class="hat-meter"><span style="width:${r.confidence}%"></span></span>${sure} · ${r.confidence}%</p>
+        <div class="hat-bars" aria-label="How well it fits each category">${bars}</div>
+    </div>`;
+}
+
+async function assistantSortItem(q) {
+    assistantUi.busy = true;
+    assistantDrawer.classList.add('is-thinking');
+    const line = HAT_THINKING[Math.floor(Math.random() * HAT_THINKING.length)];
+    const wait = assistantPost('bot', `<p class="thinking hat-thinking"><i class="fa-solid fa-hat-wizard"></i> ${escapeHtml(line)}</p>`);
+    const started = Date.now();
+    let r = hatSort(q);
+    let aiNote = '';
+    if (groqSettings().key) {
+        try { r = hatMergeAi(r, await askGroqToSort(r)); }
+        catch (err) { aiNote = `AI is unavailable right now (${err.name === 'AbortError' ? 'timed out' : (err.message || err)}). This answer comes from your catalog.`; }
+    }
+    // A short pause, so the hat looks like it is thinking.
+    const pause = 900 - (Date.now() - started);
+    if (pause > 0) await new Promise(res => setTimeout(res, pause));
+    wait.remove();
+    assistantUi.busy = false;
+    assistantDrawer.classList.remove('is-thinking');
+
+    if (!r.best) {
+        assistantPost('bot', `<p>Even the hat is stumped by <strong>${escapeHtml(q)}</strong>. Try other words (what it is made of or what it is for), or pick the category yourself:</p>${categoryChipsHtml('')}`);
+        return;
+    }
+    const code = r.best.activity.code;
+    const options = (r.byCategory[code] || []).slice(0, 3);
+    const runner = r.ranking[1] && r.ranking[1].share >= 0.15 ? r.ranking[1] : null;
+    const runnerOpt = runner && (r.byCategory[runner.activity.code] || [])[0];
+    assistantUi.hatOptions = options.concat(runnerOpt ? [runnerOpt] : []);
+    assistantUi.description = (r.ai && r.ai.description ? r.ai.description : q).trim().toUpperCase();
+    assistantUi.activityCode = code;
+
+    let html = hatVerdictHtml(r);
+    html += `<ul class="hat-reasons">${hatReasons(r).map(t => `<li>${t}</li>`).join('')}</ul>`;
+    if (r.exact.length) {
+        html += `<div class="assist-existing"><p><strong>Already in the catalog.</strong> Check these before creating a new one:</p>${r.exact.map(e => `
+            <div class="assist-existing-row">${partCodeChipHtml(e.partCode)}<span class="result-desc">${escapeHtml(e.desc)}${hatWhereHtml(e)}</span><button type="button" class="add-btn" data-assist-add="${escapeHtml(e.partCode)}"><i class="fa-solid fa-plus"></i> Add</button></div>`).join('')}</div>`;
+    }
+    if (options.length) {
+        html += `<p>Best place in <strong>${escapeHtml(r.best.activity.name)}</strong>:</p>`;
+        html += options.map((o, i) => hatOptionHtml(o, i, i === 0)).join('');
+    }
+    if (runnerOpt) {
+        html += `<p class="muted">If it is for ${escapeHtml(runner.activity.name)} work instead:</p>`;
+        html += hatOptionHtml(runnerOpt, options.length, false);
+    }
+    if (aiNote) html += `<p class="note-line warn"><i class="fa-solid fa-triangle-exclamation"></i> ${escapeHtml(aiNote)}</p>`;
+    html += `<p class="muted">Want to choose the category yourself?</p>${categoryChipsHtml('')}`;
+    assistantPost('bot', html);
+}
+
+function hatCreate(index) {
+    const o = (assistantUi.hatOptions || [])[index];
+    if (!o) return;
+    assistantUi.options = [o];
+    assistantCreate(0);
 }
 
 async function assistantRunCategory(code) {
@@ -3506,6 +4245,8 @@ function assistantCreate(index) {
 assistantThread?.addEventListener('click', (e) => {
     const cat = e.target.closest('[data-assist-cat]');
     if (cat) { assistantRunCategory(cat.dataset.assistCat); return; }
+    const hatPick = e.target.closest('[data-hat-create]');
+    if (hatPick) { hatCreate(Number(hatPick.dataset.hatCreate)); return; }
     const create = e.target.closest('[data-assist-create]');
     if (create) { assistantCreate(Number(create.dataset.assistCreate)); return; }
     const add = e.target.closest('[data-assist-add]');
@@ -3562,3 +4303,116 @@ document.addEventListener('keydown', (e) => {
     else if (top) top.classList.remove('active');
 });
 
+
+
+// ==========================================
+// SILENT UPDATES
+// version.json on GitHub says which patch is live. The app compares it with APP_VERSION below:
+//  - when the app opens, and when someone comes back to the tab (at most once every 30 minutes).
+//    No timer runs in the background.
+//  - Different version: reload quietly to the new files. If the person is busy (a window open,
+//    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
+// TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
+// ==========================================
+const APP_VERSION = '8.0.1';
+const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
+let lastUpdateCheck = 0;
+let pendingUpdateVersion = '';
+
+(function showVersion() {
+    const badge = document.querySelector('.version-badge');
+    if (badge) badge.textContent = 'v' + APP_VERSION;
+})();
+
+function userIsBusy() {
+    if (document.querySelector('.modal-overlay.active')) return true;
+    if (assistantDrawer && assistantDrawer.classList.contains('open')) return true;
+    const el = document.activeElement;
+    return !!(el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) && String(el.value || '').trim());
+}
+
+async function applyUpdate(version) {
+    // Try each new version once per tab, so a slow GitHub cache can never cause a reload loop.
+    try {
+        if (sessionStorage.getItem('pr_update_tried') === version) return;
+        sessionStorage.setItem('pr_update_tried', version);
+    } catch (err) {}
+    try {
+        const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+        if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+    } catch (err) {}
+    location.reload();
+}
+
+function maybeApplyUpdate() {
+    if (pendingUpdateVersion && (document.visibilityState === 'hidden' || !userIsBusy())) applyUpdate(pendingUpdateVersion);
+}
+
+async function checkForUpdate(force) {
+    if (!/^https?:$/.test(location.protocol)) return;
+    if (!force && Date.now() - lastUpdateCheck < UPDATE_CHECK_GAP_MS) { maybeApplyUpdate(); return; }
+    lastUpdateCheck = Date.now();
+    try {
+        const res = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const live = String((await res.json()).version || '').trim();
+        if (!live || live === APP_VERSION) return;
+        pendingUpdateVersion = live;
+        maybeApplyUpdate();
+    } catch (err) { /* offline: try next time */ }
+}
+
+window.addEventListener('load', () => checkForUpdate(true));
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') maybeApplyUpdate();
+    else checkForUpdate(false);
+});
+// Busy when the update was found: apply it once the window or drawer is closed.
+document.addEventListener('click', () => { if (pendingUpdateVersion) setTimeout(maybeApplyUpdate, 300); });
+
+// ==========================================
+// INSTALL AS AN APP (PWA)
+// Chrome and Edge offer an "Install app" button. On iPhone/iPad: Share > Add to Home Screen.
+// Needs https (or localhost); opening index.html as a file cannot install.
+// ==========================================
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker not registered:', err));
+    });
+}
+
+let deferredInstallPrompt = null;
+const installAppBtn = document.getElementById('installAppBtn');
+const isStandaloneApp = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    if (installAppBtn && !isStandaloneApp()) installAppBtn.hidden = false;
+});
+
+// iPhone and iPad have no install prompt: show the button with instructions instead.
+if (installAppBtn && !isStandaloneApp() && /iphone|ipad|ipod/i.test(navigator.userAgent)) installAppBtn.hidden = false;
+
+installAppBtn?.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) {
+        showToast('To install: tap the Share button, then "Add to Home Screen".', 'ok');
+        return;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    installAppBtn.hidden = true;
+    if (choice && choice.outcome === 'accepted') showToast('Installed. Open Procurement Hub from your apps.', 'ok');
+});
+
+window.addEventListener('appinstalled', () => { if (installAppBtn) installAppBtn.hidden = true; deferredInstallPrompt = null; });
+
+// Descriptions are always saved in CAPS; the boxes show capitals while you type too.
+['description', 'editDescription'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.textTransform = 'uppercase';
+    el.addEventListener('blur', () => { el.value = el.value.toUpperCase(); });
+});
