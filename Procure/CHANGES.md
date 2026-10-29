@@ -22,3 +22,10 @@ Copy every file and folder here over your current app (index.html, app.js, style
 
 ## Descriptions in CAPS
 - Create, edit and import always save descriptions in capitals.
+
+## 8.0.1: silent updates
+- `version.json` says which patch is live. The app compares it with `APP_VERSION` at the top of the "SILENT UPDATES" section in app.js.
+- It checks when the app opens, and when someone comes back to the tab (at most every 30 minutes). Nothing runs in the background.
+- If the versions differ, it reloads quietly. If the person is busy (a window open, typing, sorting hat open), it waits until they leave the tab or finish. The cart is kept.
+- **To release a patch:** change `APP_VERSION` in app.js and `"version"` in version.json to the same new number, then upload both.
+- Uses no Firebase: version.json comes from your website.

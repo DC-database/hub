@@ -4314,7 +4314,7 @@ document.addEventListener('keydown', (e) => {
 //    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 // TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
 // ==========================================
-const APP_VERSION = '8.0.1';
+const APP_VERSION = '8.0.2';
 const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
 let lastUpdateCheck = 0;
 let pendingUpdateVersion = '';
@@ -4371,43 +4371,6 @@ document.addEventListener('visibilitychange', () => {
 // Busy when the update was found: apply it once the window or drawer is closed.
 document.addEventListener('click', () => { if (pendingUpdateVersion) setTimeout(maybeApplyUpdate, 300); });
 
-// ==========================================
-// INSTALL AS AN APP (PWA)
-// Chrome and Edge offer an "Install app" button. On iPhone/iPad: Share > Add to Home Screen.
-// Needs https (or localhost); opening index.html as a file cannot install.
-// ==========================================
-if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(err => console.warn('Service worker not registered:', err));
-    });
-}
-
-let deferredInstallPrompt = null;
-const installAppBtn = document.getElementById('installAppBtn');
-const isStandaloneApp = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    if (installAppBtn && !isStandaloneApp()) installAppBtn.hidden = false;
-});
-
-// iPhone and iPad have no install prompt: show the button with instructions instead.
-if (installAppBtn && !isStandaloneApp() && /iphone|ipad|ipod/i.test(navigator.userAgent)) installAppBtn.hidden = false;
-
-installAppBtn?.addEventListener('click', async () => {
-    if (!deferredInstallPrompt) {
-        showToast('To install: tap the Share button, then "Add to Home Screen".', 'ok');
-        return;
-    }
-    deferredInstallPrompt.prompt();
-    const choice = await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
-    installAppBtn.hidden = true;
-    if (choice && choice.outcome === 'accepted') showToast('Installed. Open Procurement Hub from your apps.', 'ok');
-});
-
-window.addEventListener('appinstalled', () => { if (installAppBtn) installAppBtn.hidden = true; deferredInstallPrompt = null; });
 
 // Descriptions are always saved in CAPS; the boxes show capitals while you type too.
 ['description', 'editDescription'].forEach(id => {
