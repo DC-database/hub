@@ -516,4 +516,10 @@
     body:not(.iba-phone) #iba-ai-fab.iba-ai-fab:not(.is-open) { transition: transform .15s ease, opacity .4s ease !important; }
     body:not(.iba-phone):not(:has(#iba-ai-bubble:not([hidden]))) #iba-ai-fab.iba-ai-fab:not(.is-open):not(:hover):not(:focus-visible):not(:active) { opacity: 0.3 !important; }
   }
+
+  /* 17.0.5 patch 38: PO pull-out list (js/iba-1705-release.js, uses the ESN window look) */
+  html body #iba-esn.iba-pull .iba-esn-box { width: min(900px, 100%); }
+  html body #iba-esn.iba-pull td.iba-pull-acts { white-space: nowrap; text-align: right; }
+  html body #iba-esn.iba-pull td.iba-pull-acts .iba-esn-btn + .iba-esn-btn { margin-left: 6px; }
+  html body #iba-esn.iba-pull tr.is-pulled td:not(.iba-pull-acts) { opacity: .5; text-decoration: line-through; }
 }
