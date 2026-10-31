@@ -522,4 +522,12 @@
   html body #iba-esn.iba-pull td.iba-pull-acts { white-space: nowrap; text-align: right; }
   html body #iba-esn.iba-pull td.iba-pull-acts .iba-esn-btn + .iba-esn-btn { margin-left: 6px; }
   html body #iba-esn.iba-pull tr.is-pulled td:not(.iba-pull-acts) { opacity: .5; text-decoration: line-through; }
+
+  /* 17.0.5 patch 40: Site stock window (js/iba-1705-sitestock.js) */
+  html body #iba-esn.iba-sitestock .iba-esn-box { width: min(900px, 100%); }
+  html body #iba-esn.iba-sitestock .iba-ss-form { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+  html body #iba-esn.iba-sitestock .iba-ss-form label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  html body #iba-esn.iba-sitestock .iba-ss-form .iba-esn-btn { height: 38px; }
+  html body #iba-esn.iba-sitestock tfoot td { border-top: 1px solid rgba(127, 227, 214, 0.35); color: #fff; }
+  html body #iba-esn.iba-sitestock .iba-esn-picked { white-space: normal; }
 }
