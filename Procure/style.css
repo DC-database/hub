@@ -386,6 +386,11 @@ body.assistant-open .robot-dock { opacity: 0; transform: translateY(24px) scale(
     transition: opacity .2s, transform .2s;
 }
 .robot-dock:hover .robot-bubble, .robot-dock.greet .robot-bubble { opacity: 1; transform: none; }
+/* The wizard stays see-through until you point at it, tap it, or it says hi. */
+.robot-fab { opacity: .35; transition: opacity .25s; }
+.robot-dock:hover .robot-fab, .robot-fab:focus-visible, .robot-fab:active, .robot-dock.greet .robot-fab { opacity: 1; }
+@media (hover: none) { .robot-fab { opacity: .6; } }
+
 /* ---------- Wizard (the sorting hat's robot in robe and hat) ---------- */
 .robot-dock { translate: var(--walk-x, 0px) 0; transition: opacity .25s, transform .25s, translate var(--walk-time, 0s) linear; }
 .robot-dock.face-left .wizard { transform: scaleX(-1); }

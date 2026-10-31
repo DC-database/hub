@@ -4407,7 +4407,7 @@ document.addEventListener('keydown', (e) => {
 //    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 // TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
 // ==========================================
-const APP_VERSION = '8.0.4';
+const APP_VERSION = '8.0.5';
 const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
 let lastUpdateCheck = 0;
 let pendingUpdateVersion = '';
