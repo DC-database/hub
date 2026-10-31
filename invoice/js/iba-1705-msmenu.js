@@ -123,12 +123,16 @@
 
     function pageOpen() { const sec = $('wd-material-stock'); return !!sec && !sec.classList.contains('hidden') && !document.hidden; }
     function tick() {
-        if (!pageOpen()) { if (panel && !panel.hidden) close(); return; }
+        // the buttons move into the menu straight away (cheap, no measuring),
+        // so the old row never flashes when the page opens
+        if (!pageOpen() && panel && !panel.hidden) close();
         try { refresh(); } catch (e) { console.warn('[IBA] More tools:', e); }
     }
     function start() {
         tick();
         setInterval(tick, 3000);
+        // and right when Material Stock opens
+        document.addEventListener('click', () => setTimeout(tick, 60), true);
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     window.ibaMsMenu = { open, close, refresh };

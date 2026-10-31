@@ -509,6 +509,15 @@ async function handlePOSearch(poNumberFromInput) {
             }
         }
 
+        // 17.0.5 p49: not in POVALUE2 -> PO file (progress-po) for this one PO;
+        // Super Admin can add it there and carry on.
+        if (!poData && window.ibaAddPo) {
+            try {
+                poData = await window.ibaAddPo.resolve(poNumber);
+                if (poData) window.playSystemSuccess();
+            } catch (addPoErr) { console.warn('PO file lookup failed:', addPoErr); }
+        }
+
         if (!poData && !canUseFirebasePO) {
             alert(`PO ${poNumber} was not found in the latest POVALUE2.csv. Please check that the GitHub CSV upload is committed to main.`);
             return;

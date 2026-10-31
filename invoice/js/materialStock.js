@@ -2839,7 +2839,7 @@ window.msFillStockDetail = function (row) {
             // 17.0.5 patch 46: transaction no. -> prints its waybill in its current state
             const trn = String(t.controlNumber || t.controlId || t.ref || '').trim();
             const trnCell = trn
-                ? `<button type="button" class="ms-hist-trn" data-trn-key="${msEscapeHtml(t.key)}" title="Print this transaction (current status)"><i class="fa-solid fa-print"></i> ${msEscapeHtml(trn)}</button>`
+                ? `<a href="#" role="button" class="ms-hist-trn" data-trn-key="${msEscapeHtml(t.key)}" title="Print this transaction (current status)"><i class="fa-solid fa-print"></i> ${msEscapeHtml(trn)}</a>`
                 : '<span class="ms-hist-trn-txt">-</span>';
             historyRows += `<tr><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${t.receivedQty || 0}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
         });

@@ -250,6 +250,12 @@ async function handleAddPOToBatch() {
             }
         }
 
+        // 17.0.5 p49: not in POVALUE2 -> PO file (progress-po) for this one PO;
+        // Super Admin can add it there and carry on.
+        if ((!poData || Object.keys(poData).length === 0) && window.ibaAddPo) {
+            try { poData = await window.ibaAddPo.resolve(poNumber); } catch (addPoErr) { console.warn('PO file lookup failed:', addPoErr); }
+        }
+
         if (!poData || Object.keys(poData).length === 0) {
             alert(`PO ${poNumber} was not found in the latest POVALUE2.csv${(typeof isInvoiceFirebasePOFallbackEnabled === 'function' && isInvoiceFirebasePOFallbackEnabled()) ? ' or Firebase manual POs' : ''}. Please check that the GitHub CSV upload is committed to main.`);
             return;

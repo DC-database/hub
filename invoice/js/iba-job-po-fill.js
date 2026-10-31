@@ -26,7 +26,11 @@
             try { if (typeof ensureInvoicePOBaseDataFetched === 'function') await ensureInvoicePOBaseDataFetched(false); } catch (_) {}
             rows = poRows();
         }
-        return rows ? (rows[po] || null) : null;
+        const hit = rows ? (rows[po] || null) : null;
+        if (hit) return hit;
+        // 17.0.5 p50: not in POVALUE2 -> that one PO from the PO file (progress-po), read only
+        try { if (window.ibaAddPo && typeof window.ibaAddPo.fill === 'function') return await window.ibaAddPo.fill(po); } catch (_) {}
+        return null;
     }
     function pick(row, keys) {
         for (const k of keys) {
@@ -100,7 +104,8 @@
         lastPO = po;
         const row = await lookup(po);
         if (cleanPO(input.value) !== po) return; // typed on meanwhile
-        if (!row) { hint('PO ' + po + ' is not in POVALUE2: please fill the details by hand.', false); return; }
+        if (!row) { hint('PO ' + po + ' is not in POVALUE2 or the PO file: please fill the details by hand.', false); return; }
+        const src = row.__fromPoFile ? 'the PO file' : 'POVALUE2';
         const filled = [];
         if (setSite(pick(row, ['Project ID', 'Site', 'site']))) filled.push('Site');
         if (isInvoiceJob()) {
@@ -108,7 +113,7 @@
             if (setIfEmpty('job-vendor-id', pick(row, ['Supplier ID', 'Vendor ID', 'vendor_id']))) filled.push('Vendor ID');
         }
         const vendor = pick(row, ['Supplier Name', 'Supplier Name:', 'Supplier', 'Vendor Name']);
-        hint('PO ' + po + (vendor ? ' · ' + vendor : '') + (filled.length ? ' · filled from POVALUE2: ' + filled.join(', ') : ' · found in POVALUE2'), true);
+        hint('PO ' + po + (vendor ? ' · ' + vendor : '') + (filled.length ? ' · filled from ' + src + ': ' + filled.join(', ') : ' · found in ' + src), true);
     }
     function soon(force) {
         clearTimeout(timer);

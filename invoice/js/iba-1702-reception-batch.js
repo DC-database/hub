@@ -100,7 +100,7 @@
         const po = String(job.po || '').trim().toUpperCase();
         if (!po) return { ok: false, reason: 'No PO on the reception entry' };
         if (cards().some((c) => c.dataset.jobKey === job.key)) return { ok: false, already: true, reason: 'Already in Batch Entry' };
-        if (!poData(po)) return { ok: false, missing: true, reason: 'Not in POVALUE2.csv yet' };
+        if (!poData(po)) return { ok: false, missing: true, reason: 'Not in POVALUE2.csv or the PO file yet' };
         const input = document.getElementById('im-batch-po-input');
         if (!input || typeof handleAddPOToBatch !== 'function') return { ok: false, reason: 'Batch Entry is not available on this page' };
 
@@ -171,6 +171,11 @@
         // one fresh POVALUE2.csv read when any PO is missing (not one per PO)
         if (list.some((j) => j.po && !poData(String(j.po).trim().toUpperCase())) && typeof refreshPOVALUE2CsvNow === 'function') {
             try { await refreshPOVALUE2CsvNow('reception-to-batch'); } catch (_) {}
+        }
+        // 17.0.5 p50: still missing -> each such PO once from the PO file (progress-po), read only
+        if (window.ibaAddPo && typeof window.ibaAddPo.fill === 'function') {
+            const miss = Array.from(new Set(list.map((j) => String(j.po || '').trim().toUpperCase()).filter((po) => po && !poData(po))));
+            for (const po of miss) { try { await window.ibaAddPo.fill(po); } catch (_) {} }
         }
         if (openBatch && !(await openBatch())) throw new Error('Batch Entry could not be opened.');
         await wait(100);

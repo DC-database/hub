@@ -381,7 +381,9 @@
     }
     async function poBase(po) {
         try { if (typeof ensureInvoicePOBaseDataFetched === 'function') await withTimeout(ensureInvoicePOBaseDataFetched(false), 9000, 'PO list'); } catch (_) {}
-        try { if (typeof allPOData !== 'undefined' && allPOData) return allPOData[po] || null; } catch (_) {}
+        try { if (typeof allPOData !== 'undefined' && allPOData && allPOData[po]) return allPOData[po]; } catch (_) {}
+        // 17.0.5 p50: not in POVALUE2 -> that one PO from the PO file (progress-po), read only
+        try { if (window.ibaAddPo && typeof window.ibaAddPo.fill === 'function') return await withTimeout(window.ibaAddPo.fill(po), 9000, 'PO file'); } catch (_) {}
         return null;
     }
     async function poInvoices(po) {
@@ -3184,7 +3186,7 @@
                 return [{ tool: 'add_to_batch', args: { today_statuses: st } }];
             } },
         // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
-        reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv yet are left out and listed. No AI used.',
+        reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv or the PO file yet are left out and listed. No AI used.',
             ask: () => [], run: async () => {
                 if (!window.ibaReceptionBatch) throw new Error('This skill is not loaded on this page.');
                 const r = await window.ibaReceptionBatch.run(openBatchEntry);
