@@ -3071,9 +3071,15 @@
         // 17.0.2 patch 14: who may print ESN from their own Active Task (js/iba-1702-esn.js)
         esn_printers: { name: 'Who can print ESN', icon: 'fa-stamp', superOnly: true, desc: 'Pick the people who print the ESN of invoices their engineer approved (site Approval button) and then press Ready. Kept by user record + name + mobile; a change switches printing off until re-added.',
             ask: () => [], action: () => { if (typeof window.ibaEsnPrinters === 'function') window.ibaEsnPrinters(); } },
-        // 17.0.5 patch 38: POs released today, to take out of the paper file (js/iba-1705-release.js)
-        po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Every original PO released today (+Del sets it Inactive): take them out of your paper file and tick Pulled. Undo puts a PO back to Active.',
+        // 17.0.5 patch 38/39: POs to take out of the paper file (js/iba-1705-release.js)
+        po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Original POs you put on the list with +Del or the folder button. Take them out of your paper file, tick Pulled, then Proceed: ticked POs become Inactive and the list is cleared.',
             ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList(); } },
+        // 17.0.5 patch 40: current stock of one site (js/iba-1705-sitestock.js), Super Admin + E.Ali
+        site_stock: { name: 'Site stock', icon: 'fa-warehouse', check: () => !!(window.ibaSiteStock && window.ibaSiteStock.allowed()),
+            desc: 'Current stock of one site: all items, or one product (e.g. site 170 + plywood). Items with 0 are left out. Print PDF or Download CSV. No AI used.',
+            ask: () => [{ key: 'site', label: 'Site', placeholder: 'e.g. 170', suggest: () => window.ibaSiteStock ? window.ibaSiteStock.siteOptions() : [] },
+                { key: 'words', label: 'Product (leave empty for all items)', placeholder: 'e.g. plywood', optional: true, suggest: (v) => window.ibaSiteStock ? window.ibaSiteStock.productOptions(v.site) : [] }],
+            run: async (v) => { if (window.ibaSiteStock) window.ibaSiteStock.open(v.site, v.words); return null; } },
         access_check: { name: 'Access check', icon: 'fa-user-shield', superOnly: true, desc: 'Every user with the pages and buttons the system gives them (Invoice Management, Entry, Records, Payments, Dashboard, Financial Report, Stock, skills), and anything a non-Super-Admin should not have. Nothing is saved.',
             ask: () => [], action: () => { if (typeof window.ibaAccessCheck === 'function') window.ibaAccessCheck(); } },
         new_job: { name: 'Add new job', icon: 'fa-file-circle-plus', desc: 'Pick what the job is for and type the PO: the Add New Job form opens with vendor, vendor ID and site filled from the PO list. Check it and press Add. No AI used.',
@@ -3188,6 +3194,7 @@
             } }
     };
     function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.check || !!t.check()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
+    let sgSeq = 0;
     function askTplValues(title, fields) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
@@ -3195,10 +3202,24 @@
             f.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bolt"></i> ' + esc(title) + '</div>' +
                 fields.map((p, i) => '<label class="iba-ai-rem-row"><span>' + esc(p.label) + '</span>' + (p.type === 'select'
                     ? '<select data-i="' + i + '">' + p.options.map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1]) + '</option>').join('') + '</select>'
-                    : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '"' + (p.optional ? '' : ' required') + (p.poList ? ' data-po-list inputmode="numeric" autocomplete="off"' : '') + '>') + '</label>').join('') +
+                    : '<input type="text" data-i="' + i + '" placeholder="' + esc(p.placeholder || '') + '"' + (p.optional ? '' : ' required') + (p.poList ? ' data-po-list inputmode="numeric" autocomplete="off"' : '') +
+                      // 17.0.5 patch 42: suggestions list (p.suggest(vals) -> [[value, label], ...])
+                      (p.suggest ? ' list="iba-ai-sg-' + sgSeq + '-' + i + '" autocomplete="off"><datalist id="iba-ai-sg-' + sgSeq + '-' + i + '"></datalist' : '') + '>') + '</label>').join('') +
                 '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini iba-ai-cancel" data-cancel><i class="fa-solid fa-xmark"></i> Cancel</button></div>';
             put(f);
             wireAskCancel(f, resolve);
+            sgSeq++;
+            if (fields.some((p) => p.suggest)) {
+                const now = () => { const v = {}; fields.forEach((p, i) => { v[p.key] = String((f.querySelector('[data-i="' + i + '"]') || {}).value || '').trim(); }); return v; };
+                const fill = (i) => {
+                    const inp = f.querySelector('[data-i="' + i + '"]'), dl = inp && inp.list;
+                    if (!dl) return;
+                    Promise.resolve(fields[i].suggest(now())).then((opts) => {
+                        dl.innerHTML = (opts || []).slice(0, 400).map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1] || '') + '</option>').join('');
+                    }).catch(() => {});
+                };
+                fields.forEach((p, i) => { if (p.suggest) { fill(i); const inp = f.querySelector('[data-i="' + i + '"]'); if (inp) inp.addEventListener('focus', () => fill(i)); } });
+            }
             const first = f.querySelector('input, select');
             if (first) first.focus();
             f.addEventListener('submit', (e) => {
@@ -3667,6 +3688,7 @@
               '<button type="button" data-run-tpl="transfer" data-tpl-chip><i class="fa-solid fa-truck-ramp-box"></i> Find transfer</button>' +
               '<button type="button" data-run-tpl="new_job" data-tpl-chip><i class="fa-solid fa-file-circle-plus"></i> Add new job</button>' +
               '<button type="button" data-chip-basket><i class="fa-solid fa-cart-shopping"></i> Print basket</button>' +
+              '<button type="button" data-run-tpl="site_stock" data-tpl-chip><i class="fa-solid fa-warehouse"></i> Site stock</button>' +
               '<button type="button" data-run-tpl="po_pull" data-tpl-chip><i class="fa-solid fa-folder-minus"></i> PO pull-out list</button>' +
               '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
               '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
@@ -4284,7 +4306,8 @@
         [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
         [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
         [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']],
-        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull']]
+        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull']],
+        [/\b(stock|inventory|balance)\b.*\bsite\b|\bsite\b.*\b(stock|inventory|balance)\b/i, ['site_stock']]
     ];
     function quickPicks(ids, all) {
         const ok = ids.filter((id) => SKILL_TPL[id] && tplAllowed(id));

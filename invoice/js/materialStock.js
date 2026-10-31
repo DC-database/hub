@@ -3834,7 +3834,12 @@ function msPrintHtmlInHiddenFrame(html, frameId = 'ms-inventory-print-frame') {
     doc.write(html);
     doc.close();
 
+    // 17.0.5 patch 42: print ONCE (iframe load and the 400 ms fallback both
+    // started a print, so the print window came back after pressing Print)
+    let printed = false;
     const doPrint = () => {
+        if (printed) return;
+        printed = true;
         try {
             const win = iframe.contentWindow;
             if (!win) return;

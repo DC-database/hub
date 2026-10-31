@@ -87,6 +87,7 @@
         else b.onclick = () => window.imAddToDeletionCollection && window.imAddToDeletionCollection(po);
         b.innerHTML = '<i class="fa-solid fa-folder-open"></i> +Del';
         b.title = 'Original PO is in the file: add it to the deletion list';
+        if (window.ibaPoFile && window.ibaPoFile.markButton) window.ibaPoFile.markButton(b);
     }
 
     function setVal(card, name, v) {
