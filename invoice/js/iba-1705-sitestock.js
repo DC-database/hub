@@ -23,7 +23,8 @@
     }
     // E.Ali: user Name "E.Ali" / "E. Ali" / "E Ali"
     function isEAli() { const u = me(); return /^e\.?\s*ali$/i.test(String((u && u.Name) || '').trim()); }
-    function allowed() { return isSuper() || isEAli(); }
+    // 17.0.5 patch 44: Settings > Inventory permissions can give / take it per person
+    function allowed() { const d = isSuper() || isEAli(); return typeof window.ibaInvCan === 'function' ? !!window.ibaInvCan('site_stock', d) : d; }
     function onPhone() { return !!(document.body && (document.body.classList.contains('iba-phone') || document.body.classList.contains('iba-mobile-ui'))); }
     function say(msg) { try { if (typeof window.ibaToast === 'function') return window.ibaToast(msg); } catch (_) {} alert(msg); }
 

@@ -445,10 +445,14 @@ function msGetCurrentMaterialUserName() {
     return '';
 }
 
+// 17.0.5 patch 44: Inventory permissions (js/iba-1705-invperm.js). def = the rule
+// below as it always was; the Super Admin's tick for this person wins over it.
+function msInvCan(id, def) { try { if (typeof window.ibaInvCan === 'function') return !!window.ibaInvCan(id, !!def); } catch (_) {} return !!def; }
+
 function msCanAttachMaterialPhoto() {
     // Photo attachment only saves a small photoName text field, not stock quantity/details.
     // Allow logged-in inventory users so site staff can attach photos without opening full stock editing.
-    return !!msGetCurrentMaterialUserName();
+    return msInvCan('photo', !!msGetCurrentMaterialUserName());
 }
 
 function msPhotoLibraryKey(photoName) {
@@ -1747,11 +1751,11 @@ function renderMaterialStockTable(data) {
     // [FIX] Use strict null check (currentApprover && ...)
     const isAdmin = (currentApprover && (currentApprover.Role || '').toLowerCase() === 'admin');
     const isIrwin = (currentApprover && currentApprover.Name === 'Irwin');
-    const canMergeStock = isIrwin || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic');
+    const canMergeStock = msInvCan('merge', isIrwin || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic'));
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
     // Super Admin replacement: allow edit actions in Inventory (no delete)
-    const isEditor = (isAdmin || isVacationDelegate);
-    const canAttachPhoto = isEditor || msCanAttachMaterialPhoto();
+    const isEditor = msInvCan('edit', isAdmin || isVacationDelegate);
+    const canAttachPhoto = msCanAttachMaterialPhoto();
 
     const bulkBtn = document.getElementById('ms-bulk-delete-btn');
     const mergeBtn = document.getElementById('ms-merge-selected-btn');
@@ -2076,7 +2080,7 @@ window.openNewMaterialModal = async function() {
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
     const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    if (!isAdminUser && !isVacationDelegate) {
+    if (!msInvCan('register', isAdminUser || isVacationDelegate)) {
         alert("View Only: You do not have permission to register new materials.");
         return;
     }
@@ -2284,7 +2288,7 @@ async function handleSaveNewMaterial() {
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
     const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    if (!isAdminUser && !isVacationDelegate) {
+    if (!msInvCan(editingItemKey ? 'edit' : 'register', isAdminUser || isVacationDelegate)) {
         alert("Access Denied: You do not have permission to save material changes.");
         return;
     }
@@ -2451,7 +2455,7 @@ function msCanUpdateTitles() {
     const role = String(user.Role || user.role || '').trim().toLowerCase();
     const position = String(user.Position || user.position || '').trim().toLowerCase();
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    return role === 'admin' || isVacationDelegate || position.includes('logistic');
+    return msInvCan('titles', role === 'admin' || isVacationDelegate || position.includes('logistic'));
 }
 
 function handleDownloadTitles() {
@@ -2495,7 +2499,7 @@ function handleUploadCSV(event) {
     const role = (typeof currentApprover !== 'undefined' && currentApprover) ? (currentApprover.Role || '') : '';
     const isAdminUser = String(role).trim().toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    if (!isAdminUser && !isVacationDelegate) {
+    if (!msInvCan('upload', isAdminUser || isVacationDelegate)) {
         alert("Access Denied: You do not have permission to upload stock CSV.");
         event.target.value = '';
         return;
@@ -2782,7 +2786,7 @@ window.msFillStockDetail = function (row) {
     const isIrwin = !!who && who.Name === 'Irwin';
     const isAdmin = !!who && String(who.Role || '').toLowerCase() === 'admin';
     const isVacationDelegate = (typeof isVacationDelegateUser === 'function') ? isVacationDelegateUser() : false;
-    const canAttachPhoto = isAdmin || isVacationDelegate || msCanAttachMaterialPhoto();
+    const canAttachPhoto = msCanAttachMaterialPhoto();
     const stockID = String(item.productID || item.productId || '').trim();
     const productTransfers = (Array.isArray(allTransferData) ? allTransferData : []).filter((t) => String(t.productID || t.productId || '').trim() === stockID);
     const displayStock = msDisplayStockFromReceipts(item, productTransfers);
@@ -2919,7 +2923,7 @@ function msCanAlignStock() {
     const who = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : null;
     if (!who) return false;
     if (who.Name === 'Irwin') return true;
-    return String(who.Position || who.position || '').toLowerCase().includes('logistic');
+    return msInvCan('stock_check', String(who.Position || who.position || '').toLowerCase().includes('logistic'));
 }
 
 async function msAlignSiteToHistory(key, site, btn) {
@@ -3262,8 +3266,8 @@ function msProductSequence(item) {
 }
 
 async function handleMergeSelected() {
-    const canMerge = (currentApprover && currentApprover.Name === 'Irwin')
-        || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic');
+    const canMerge = msInvCan('merge', (currentApprover && currentApprover.Name === 'Irwin')
+        || String((currentApprover && (currentApprover.Position || currentApprover.position)) || '').toLowerCase().includes('logistic'));
     if (!canMerge) {
         alert('Only Irwin or Logistic can merge stock items.');
         return;

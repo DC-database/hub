@@ -62,7 +62,11 @@
         { area: 'Welcome screen', label: 'PO System button', who: (u) => u.sup, note: 'Super Admin only' },
 
         { area: 'Inventory', label: 'Material Stock page', short: 'Stock', who: (u) => u.sup || u.admin || u.pos === 'Site DC', note: 'Admin role, or position exactly "Site DC"' },
-        { area: 'Inventory', label: 'Material Stock: Add new / Upload CSV / Template', who: (u) => u.sup || u.admin, note: 'Admin role' },
+        // 17.0.5 patch 44: Material Stock functions follow Settings > Inventory permissions
+        ...((window.ibaInvPerm && window.ibaInvPerm.FUNCS) || []).map((f) => ({ area: 'Inventory', label: 'Material Stock: ' + f.label,
+            who: (u) => u.sup || window.ibaInvPerm.canFor(u.key, { Name: u.name, Position: u.pos, Role: u.role }).indexOf(f.id) !== -1,
+            note: f.how + ' (or as ticked in Settings > Inventory permissions)' })),
+        { area: 'Inventory', label: 'Material Stock: Delete items', who: (u) => u.sup, note: 'Super Admin only' },
 
         { area: 'System settings (for everyone)', label: 'Backgrounds and dimming', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
         { area: 'System settings (for everyone)', label: 'Opening page after login', sys: true, who: (u) => u.sup, note: 'Super Admin only' },
