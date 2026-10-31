@@ -576,7 +576,7 @@
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .iba-msm-panel .iba-msm-items > button::after { content: attr(data-msm-hint); grid-column: 2; font-size: 11.5px; font-weight: 400; color: #EBD8A8; -webkit-text-fill-color: #EBD8A8; }
 
   html body #iba-esn.iba-sitestock td.iba-ss-from { font-size: 12px; color: #EBD8A8; line-height: 1.45; }
-  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) #wd-material-stock .ms-hist-trn { height: 22px !important; min-height: 0 !important; min-width: 0 !important; width: auto !important; line-height: 1 !important; margin: 0 !important; padding: 0 6px !important; display: inline-flex !important; align-items: center !important; gap: 4px !important; border-radius: 5px !important; border: 1px solid rgba(127, 227, 214, 0.45) !important;
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) #wd-material-stock .ms-hist-trn { box-sizing: border-box !important; text-decoration: none !important; vertical-align: middle !important; height: 22px !important; min-height: 0 !important; min-width: 0 !important; width: auto !important; line-height: 1 !important; margin: 0 !important; padding: 0 6px !important; display: inline-flex !important; align-items: center !important; gap: 4px !important; border-radius: 5px !important; border: 1px solid rgba(127, 227, 214, 0.45) !important;
     background: rgba(64, 196, 206, 0.12) !important; background-image: none !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; font-family: Consolas, Monaco, monospace !important; font-weight: 700 !important; font-size: 11.5px !important; font-weight: 600 !important; white-space: nowrap !important; cursor: pointer !important; box-shadow: none !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) #wd-material-stock .ms-hist-trn:hover { background: rgba(64, 196, 206, 0.26) !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) #wd-material-stock .ms-hist-trn i { color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; font-size: 10px !important; }
@@ -584,4 +584,13 @@
   html body:is(.iba-mobile-ui, .iba-phone) #wd-material-stock .ms-hist-trn { pointer-events: none !important; }
   html body:is(.iba-mobile-ui, .iba-phone) #wd-material-stock .ms-hist-trn i { display: none !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .iba-msm-panel .iba-msm-items > button#ms-bulk-delete-btn, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .iba-msm-panel .iba-msm-items > button#ms-bulk-delete-btn i { color: #ff9b9b !important; -webkit-text-fill-color: #ff9b9b !important; }
+  /* 17.0.5 patch 49: Add new PO (PO file) window */
+  html body #iba-esn.iba-addpo .iba-esn-box { width: min(620px, 100%); }
+  html body #iba-esn.iba-addpo .iba-ap-q { margin: 4px 0 14px; font-size: 15px; line-height: 1.5; color: #fff; }
+  html body #iba-esn.iba-addpo .iba-ap-btns { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  html body #iba-esn.iba-addpo .iba-ap-form:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; align-items: end; }
+  html body #iba-esn.iba-addpo .iba-ap-form label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  html body #iba-esn.iba-addpo .iba-ap-form .is-wide { grid-column: 1 / -1; }
+  html body #iba-esn.iba-addpo .iba-ap-form input:disabled { opacity: .7; color: #EBD8A8; }
+  @media (max-width: 560px) { html body #iba-esn.iba-addpo .iba-ap-form:not([hidden]) { grid-template-columns: 1fr; } }
 }
