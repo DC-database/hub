@@ -1,3 +1,22 @@
+17.0.5 patch 42 (31-Oct-2026)
+  - Site stock skill (assistant): Site box suggests the sites that have stock, Product box suggests the items at that site (ID + qty). Same product suggestions in the Site stock window.
+  - Material Stock printing (Stock Report, Site stock, other stock prints): the print window opened twice; now once.
+  Files: index.html, js/iba-assistant.js, js/iba-1705-sitestock.js, js/materialStock.js
+
+17.0.5 patch 41 (31-Oct-2026)
+  - Site stock: stock records with no Product ID and no name (broken records, only site numbers left) are left out, with a note saying how many. Name/ID also read from older field names.
+  Files: index.html, js/iba-1705-sitestock.js
+
+17.0.5 patch 40 (31-Oct-2026)
+  - Site stock (Super Admin + E.Ali, PC): current stock of ONE site, all items or one product (e.g. 170 + plywood). Items with 0 at that site are left out. Print PDF + Download CSV, with total.
+    Opened from the new "Site stock" button next to Stock Report (Material Stock) or the assistant skill "Site stock".
+  Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js, js/iba-1705-sitestock.js (NEW)
+
+17.0.5 patch 39 (31-Oct-2026)
+  - +Del / folder button (Invoice Entry, invoice pop-up, Batch Entry) no longer writes Inactive. It only puts the Active PO on the PO pull-out list (main db iba_assistant/po_pullout); the button shows "On pull-out list".
+  - PO pull-out list (assistant skill): tick Pulled while taking the papers out, then Proceed (or Enter, press twice to confirm): ticked POs get Status "Inactive" + DateReleased today in progress-po; the list is always emptied (unticked POs stay Active). × takes one PO off the list.
+  Files: index.html, js/iba-1705-release.js, js/iba-assistant.js, js/iba-1702-reception-batch.js
+
 17.0.5 patch 38 (29-Oct-2026)
   - Original PO file (progress-po records): only Status "Active" counts as "original in file" (Invoice Entry OPF badge, +Del button, Batch +Del, Original PO "Back in file"). Inactive/blank = "Original not in file".
   - +Del (Super Admin) now releases the PO in Firebase: Status "Inactive" + DateReleased today (29-OCT-2026). No need to change it on port.iba.com.qa/PO.
