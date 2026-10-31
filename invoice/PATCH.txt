@@ -1,3 +1,12 @@
+17.0.5 patch 44 (31-Oct-2026)
+  - Settings > Inventory permissions (Super Admin): pick a person, tick which Material Stock functions they may use (Register, Edit, Upload CSV, Upload titles, Download titles/Template, Stock Report, Site stock, Required List, Merge, Stock Check, Attach photo). Default column = the old rules; only differences are saved (main db iba_settings/inv_perm/<user key>); Back to default. Delete stays Super Admin only. Transfer/Restock/Usage/Return unchanged.
+  - Site stock now follows this list (E.Ali by default). Access check shows every Material Stock function.
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-invperm.js (NEW), js/materialStock.js, js/iba-1705-sitestock.js, js/iba-17-p24.js
+
+17.0.5 patch 43 (31-Oct-2026)
+  - Browser storage full (QuotaExceededError, could not sign in): new js/iba-1705-storage.js loads first. When a save does not fit, saved copies (cached_ lists such as the whole Material Stock copy) are removed, biggest first, and the save is retried; at start, copies are trimmed when storage is over 80%. Sign-in and settings are never removed. Works on every computer, nothing to do by hand.
+  Files: index.html, js/iba-1705-storage.js (NEW)
+
 17.0.5 patch 42 (31-Oct-2026)
   - Site stock skill (assistant): Site box suggests the sites that have stock, Product box suggests the items at that site (ID + qty). Same product suggestions in the Site stock window.
   - Material Stock printing (Stock Report, Site stock, other stock prints): the print window opened twice; now once.
