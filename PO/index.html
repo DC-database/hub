@@ -132,12 +132,41 @@
       <input type="text" id="addPOInput" placeholder="Enter PO number" />
       <div style="margin-top:8px;">
         <button onclick="addPOFromModal()">Mark Active</button>
+        <button onclick="closeAddPOModal(); openNewPOModal(document.getElementById('addPOInput').value.trim())">Add new PO</button>
         <button onclick="closeAddPOModal()">Close</button>
       </div>
 
       <div id="addPOStatus" style="margin-top:10px; font-size:13px;"></div>
     </div>
   </div>
+
+  <div id="newPOModal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close" onclick="closeNewPOModal()">&times;</span>
+      <h3 id="newPOTitle">Add new PO</h3>
+      <p style="margin-top:-6px; font-size:12px; opacity:.8;">Type a Supplier ID or start typing a Supplier Name to pick from the vendor list.</p>
+      <label>ReqNum <input type="text" id="newReqNum" /></label>
+      <label>PO <input type="text" id="newPO" /></label>
+      <label>Supplier ID <input type="text" id="newSupplierID" autocomplete="off" /></label>
+      <label>Supplier Name <input type="text" id="newSupplierName" autocomplete="off" /></label>
+      <label>Project ID <input type="text" id="newProjectID" /></label>
+      <label>Amount <input type="text" id="newAmount" inputmode="decimal" /></label>
+      <label>Status
+        <select id="newStatus">
+          <option value="Active" selected>Active (I have the original)</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+      <div style="margin-top:8px;">
+        <button onclick="saveNewPO()">Save PO</button>
+        <button onclick="closeNewPOModal()">Cancel</button>
+      </div>
+      <div id="newPOStatusMsg" style="margin-top:10px; font-size:13px;"></div>
+    </div>
+  </div>
+
+  <datalist id="vendorIdList"></datalist>
+  <datalist id="vendorNameList"></datalist>
 
   <div id="editModal" class="modal hidden">
     <div class="modal-content">

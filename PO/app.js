@@ -410,6 +410,8 @@ function openEditModal(key){
   if(!auth.currentUser){ alert("Only admin can edit"); return; }
   const r = rec(lastRenderedRows[key]);
   editKeyPending = key;
+  wireVendorPair(document.getElementById('editSupplierID'), document.getElementById('editSupplierName'));
+  loadVendors();
   EDIT_FIELDS.forEach(f => { const el = document.getElementById('edit' + f); if (el) el.value = r[f] ?? ""; });
   document.getElementById('editModal')?.classList.remove('hidden');
 }
@@ -455,8 +457,11 @@ function addPOFromModal(){
 
   findRecordByPO(po).then(found => {
     if (!found) {
-      if (stat) stat.textContent = `PO ${po} is not in the records. Upload it with the CSV first.`;
+      // Not in Firebase: offer to add it manually
+      if (stat) stat.textContent = `PO ${po} is not in the records.`;
       playErrorSound(); // <-- Trigger sound
+      closeAddPOModal();
+      openNewPOModal(po);
       return;
     }
     const [key, data] = found;
@@ -481,6 +486,84 @@ function addPOFromModal(){
   });
 }
 
+
+// ---------- Vendor list (from GitHub) ----------
+// CSV with a vendor ID column and a vendor name column (detected by header; otherwise 1st = ID, 2nd = name)
+const VENDOR_CSV_URL = "https://raw.githubusercontent.com/DC-database/Hub/main/Vendors.csv";
+let vendorList = null, vendorLoading = null;
+function loadVendors(){
+  if (vendorList) return Promise.resolve(vendorList);
+  if (!vendorLoading) vendorLoading = fetch(VENDOR_CSV_URL)
+    .then(r => { if (!r.ok) throw new Error("Vendor list not found"); return r.text(); })
+    .then(text => {
+      const rows = parseCSV(text);
+      const head = (rows[0] || []).map(h => h.toLowerCase());
+      let idCol = head.findIndex(h => /id|code|no/.test(h) && !/name/.test(h));
+      let nameCol = head.findIndex(h => /name|vendor|supplier|company/.test(h) && !/id\b|code/.test(h));
+      if (idCol < 0) idCol = 0;
+      if (nameCol < 0 || nameCol === idCol) nameCol = idCol === 0 ? 1 : 0;
+      vendorList = rows.slice(1).map(c => ({ id: c[idCol] || "", name: c[nameCol] || "" })).filter(v => v.id || v.name);
+      const ids = document.getElementById('vendorIdList'), names = document.getElementById('vendorNameList');
+      if (ids) ids.innerHTML = vendorList.map(v => `<option value="${escapeAttr(v.id)}">${escapeAttr(v.name)}</option>`).join("");
+      if (names) names.innerHTML = vendorList.map(v => `<option value="${escapeAttr(v.name)}">${escapeAttr(v.id)}</option>`).join("");
+      return vendorList;
+    })
+    .catch(err => { console.error("Vendor list:", err); vendorLoading = null; return []; });
+  return vendorLoading;
+}
+function escapeAttr(v){ return String(v).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+// Typing a known Supplier ID fills the name, picking a name fills the ID
+function wireVendorPair(idInput, nameInput){
+  if (!idInput || !nameInput || idInput.dataset.wired) return;
+  idInput.dataset.wired = "1";
+  idInput.setAttribute('list', 'vendorIdList');
+  nameInput.setAttribute('list', 'vendorNameList');
+  const norm = v => String(v || "").trim().toUpperCase();
+  idInput.addEventListener('input', () => {
+    const v = (vendorList || []).find(x => norm(x.id) === norm(idInput.value));
+    if (v) nameInput.value = v.name;
+  });
+  nameInput.addEventListener('input', () => {
+    const v = (vendorList || []).find(x => norm(x.name) === norm(nameInput.value));
+    if (v) idInput.value = v.id;
+  });
+}
+
+// ---------- Add new PO manually (Admin) ----------
+const NEW_PO_FIELDS = ["ReqNum","PO","SupplierID","SupplierName","ProjectID","Amount"];
+function openNewPOModal(po){
+  if (!auth.currentUser) { alert("Only admin can add PO"); return; }
+  NEW_PO_FIELDS.forEach(f => { const el = document.getElementById('new' + f); if (el) el.value = ""; });
+  document.getElementById('newPO').value = po || "";
+  document.getElementById('newStatus').value = "Inactive";
+  document.getElementById('newPOTitle').textContent = po ? `PO ${po} not found — add it manually` : "Add new PO";
+  document.getElementById('newPOStatusMsg').textContent = "";
+  document.getElementById('newPOModal')?.classList.remove('hidden');
+  wireVendorPair(document.getElementById('newSupplierID'), document.getElementById('newSupplierName'));
+  loadVendors().then(list => { if (!list.length) document.getElementById('newPOStatusMsg').textContent = "Vendor list could not be loaded; type the supplier manually."; });
+  setTimeout(() => document.getElementById('newReqNum')?.focus(), 50);
+}
+function closeNewPOModal(){ document.getElementById('newPOModal')?.classList.add('hidden'); }
+function saveNewPO(){
+  if (!auth.currentUser) { alert("Only admin can add PO"); return; }
+  const msg = document.getElementById('newPOStatusMsg');
+  const fields = {};
+  NEW_PO_FIELDS.forEach(f => { fields[f] = (document.getElementById('new' + f)?.value || "").trim(); });
+  if (!fields.PO) { msg.textContent = "PO is required."; playErrorSound(); return; }
+  fields.Amount = fields.Amount === "" ? "" : toNumberOrRaw(fields.Amount.replace(/,/g, ""));
+  const status = document.getElementById('newStatus').value === "Inactive" ? "Inactive" : "Active";
+  findRecordByPO(fields.PO).then(found => {
+    if (found) { msg.textContent = `PO ${fields.PO} already exists in the records.`; playErrorSound(); return; }
+    const ref = db.ref('records').push();
+    const data = { ...fields, Status: status, DateFiled: getFormattedDate() };
+    return ref.set(data).then(() => {
+      const tbody = document.querySelector('#poTable tbody');
+      if (tbody && matchesStatus(data)) { tbody.appendChild(renderRow(ref.key, data)); updateResultCount(); }
+      closeNewPOModal();
+      showCollectionNote(`PO ${fields.PO} added as ${status} ✔`);
+    });
+  }).catch(e => { msg.textContent = "Error: " + e.message; playErrorSound(); });
+}
 
 // ---------- WhatsApp request ----------
 function normalizeWhatsAppNumber(num){
@@ -892,6 +975,7 @@ function exportRecordsCSV(){
 }
 window.exportRecordsCSV=exportRecordsCSV;
 window.releaseRecord=releaseRecord; window.reactivateRecord=reactivateRecord;
+window.openNewPOModal=openNewPOModal; window.closeNewPOModal=closeNewPOModal; window.saveNewPO=saveNewPO;
 window.openEditModal=openEditModal; window.closeEditModal=closeEditModal; window.saveEdit=saveEdit;
 window.addCheckedToCollection=addCheckedToCollection; window.removeFromCollection=removeFromCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
 window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
