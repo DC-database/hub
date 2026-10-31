@@ -1,3 +1,63 @@
+==========================================================================
+17.0.5 patch 48  (31-Oct-2026)  Material Stock faster, More tools closes
+==========================================================================
+Files to upload:
+  index.html
+  css/iba-1705-fit.css
+  js/iba-1705-fit.js
+  js/iba-1705-msmenu.js
+
+- Material Stock was slow ("setInterval handler took ...ms"): the fit-to-screen
+  check measured every table button every 4 s; now it skips table buttons and
+  does nothing when the page has not changed. The More tools check no longer
+  measures the page (only when the menu opens) and runs only on Material Stock.
+- More tools closes when you click/tap anywhere else.
+- The old button row no longer flashes for a moment when Material Stock opens
+  (the buttons move into More tools as soon as the app loads).
+- Movement History Trans no. button made small (22 px high, smaller text).
+
+==========================================================================
+17.0.5 patch 47  (31-Oct-2026)  Colleague: name suggestions + close spellings
+==========================================================================
+Files to upload:
+  index.html
+  js/iba-assistant.js
+
+- Colleague (PC skill and phone Colleague tab): names are suggested while
+  typing (with position and site).
+- A name spelled differently from the record still finds the person
+  ("albaraa" -> E.Bara, "irwen" -> Irwin): the card says "Did you mean...?"
+
+==========================================================================
+17.0.5 patch 46  (31-Oct-2026)  Material Stock: More tools menu, Trans no. print, Came from
+==========================================================================
+Files to upload:
+  index.html
+  css/iba-1705-fit.css
+  js/iba-1705-msmenu.js   (NEW)
+  js/iba-1705-sitestock.js
+  js/transferLogic.js
+  js/materialStock.js
+
+- Material Stock: the extra buttons (Site stock, Stock Report, Required List,
+  Register New Material, Stock Check, Upload, Update Titles, Download Titles,
+  Template) are now in one "More tools" dropdown next to Transfer / Restock /
+  Usage, with a short hint under each. People only see the tools they are
+  allowed (Settings > Inventory permissions); no tools = no More tools button.
+- Merge Selected is in More tools too (Delete Selected stays outside).
+- Movement History (open an item): new "Trans no." column; click it to print
+  that transaction in its current state (In Transit = waybill, Completed =
+  completed delivery). Uses the record already loaded: no extra download.
+- Waybill print no longer downloads the whole transfer list for 1-item
+  transactions (uses the list in memory when there is one).
+- Site stock report: "Came from" column (source site, trans no., date, qty)
+  on screen, in the PDF and in the CSV. Narrower Product ID / Family columns;
+  print lets you pick Portrait or Landscape in the print window.
+
+17.0.5 patch 45 (31-Oct-2026)
+  - Inventory permissions could not save (PERMISSION_DENIED): now saved under system_settings/inventory_permissions (same place as Who can print ESN, which Firebase allows).
+  Files: index.html, js/iba-1705-invperm.js
+
 17.0.5 patch 44 (31-Oct-2026)
   - Settings > Inventory permissions (Super Admin): pick a person, tick which Material Stock functions they may use (Register, Edit, Upload CSV, Upload titles, Download titles/Template, Stock Report, Site stock, Required List, Merge, Stock Check, Attach photo). Default column = the old rules; only differences are saved (main db iba_settings/inv_perm/<user key>); Back to default. Delete stays Super Admin only. Transfer/Restock/Usage/Return unchanged.
   - Site stock now follows this list (E.Ali by default). Access check shows every Material Stock function.
