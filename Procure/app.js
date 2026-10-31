@@ -4293,6 +4293,99 @@ function robotGreet() {
     }, 1400);
 }
 
+// ---------- The wizard comes alive ----------
+// Every so often (only while the page is open, signed in, and nobody is busy) the wizard
+// walks a little, casts a spell, brews a potion, or flies past on a broomstick.
+const wizardDock = document.getElementById('robotDock');
+const wizardReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+let wizardBusy = false;
+
+function wizardMayAct() {
+    return wizardDock && !wizardBusy && !wizardReducedMotion.matches
+        && document.visibilityState === 'visible'
+        && document.body.classList.contains('is-signed-in')
+        && !document.body.classList.contains('assistant-open')
+        && !document.querySelector('.modal-overlay.active')
+        && !wizardDock.matches(':hover');
+}
+
+const wizardWait = ms => new Promise(res => setTimeout(res, ms));
+
+async function wizardAct(name, ms) {
+    wizardDock.classList.add(name);
+    await wizardWait(ms);
+    wizardDock.classList.remove(name);
+}
+
+async function wizardWalk() {
+    const dist = Math.round(Math.min(280, window.innerWidth * 0.3));
+    const secs = dist / 50;
+    wizardDock.style.setProperty('--walk-time', secs + 's');
+    wizardDock.classList.add('walking', 'face-left');
+    wizardDock.style.setProperty('--walk-x', -dist + 'px');
+    await wizardWait(secs * 1000);
+    wizardDock.classList.remove('walking');
+    if (Math.random() < 0.5) await wizardAct('casting', 2700);
+    else await wizardWait(700);
+    wizardDock.classList.add('walking');
+    wizardDock.classList.remove('face-left');
+    wizardDock.style.setProperty('--walk-x', '0px');
+    await wizardWait(secs * 1000);
+    wizardDock.classList.remove('walking');
+}
+
+function wizardFlyby() {
+    const el = document.createElement('div');
+    el.className = 'wizard-flyby no-print' + (Math.random() < 0.5 ? ' rtl' : '');
+    el.style.top = (10 + Math.random() * 35) + 'vh';
+    el.style.setProperty('--fly-time', (8 + Math.random() * 3) + 's');
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `<svg viewBox="0 0 150 90"><g class="fly-trail"><circle cx="18" cy="62" r="3"/><circle cx="24" cy="58" r="2.2"/><circle cx="14" cy="56" r="1.8"/><circle cx="22" cy="66" r="1.5"/></g>
+        <g class="fly-bob">
+            <path d="M22 60 L6 52 L4 66 Z" fill="#c99a4a"/><path d="M22 60 L8 56 M22 60 L7 61 M22 60 L9 65" stroke="#8a5a2b" stroke-width="1.4"/>
+            <line x1="20" y1="60" x2="136" y2="54" stroke="#8a5a2b" stroke-width="4" stroke-linecap="round"/>
+            <path d="M58 58 C56 44 62 34 74 32 C84 31 90 40 92 56 Z" fill="#3b2f86"/>
+            <path d="M60 57 L58 70 L66 70 L68 57 Z" fill="#3b2f86"/><rect x="56" y="68" width="12" height="6" rx="3" fill="#4a3324"/>
+            <rect x="64" y="34" width="16" height="5" rx="2.5" fill="#b3261e"/>
+            <path d="M86 44 L102 50" stroke="#3b2f86" stroke-width="6" stroke-linecap="round"/><circle cx="103" cy="51" r="3.4" fill="#c3ccd7"/>
+            <rect x="58" y="12" width="32" height="24" rx="10" fill="#eef2f6"/><rect x="62" y="16" width="24" height="16" rx="7" fill="#141c27"/>
+            <rect x="67" y="20" width="4" height="7" rx="2" fill="#3fe0c9"/><rect x="77" y="20" width="4" height="7" rx="2" fill="#3fe0c9"/>
+            <path d="M60 13 C64 6 66 -2 72 -8 C76 -12 84 -12 90 -10 C82 -6 80 0 80 6 C82 9 86 12 90 13 Z" fill="#3b2f86"/>
+            <ellipse cx="74" cy="13" rx="20" ry="3" fill="#2a2166"/><path d="M62 10 C70 8 80 8 88 10 L88 12 C80 10 70 10 62 12 Z" fill="#f2c230"/>
+        </g></svg>`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', (e) => { if (e.target === el) el.remove(); });
+}
+
+async function wizardTick() {
+    if (wizardMayAct()) {
+        wizardBusy = true;
+        try {
+            const r = Math.random();
+            if (r < 0.4) await wizardWalk();
+            else if (r < 0.7) await wizardAct('casting', 2700);
+            else await wizardAct('brewing', 6000);
+        } finally { wizardBusy = false; }
+    }
+    setTimeout(wizardTick, 18000 + Math.random() * 17000);
+}
+
+function wizardFlybyTick() {
+    if (wizardMayAct()) wizardFlyby();
+    setTimeout(wizardFlybyTick, 120000 + Math.random() * 120000);
+}
+
+if (wizardDock) {
+    setTimeout(wizardTick, 9000);
+    setTimeout(wizardFlybyTick, 15000);
+    // Opening the assistant mid-walk: snap the wizard home.
+    $id('assistantFab')?.addEventListener('click', () => {
+        wizardDock.style.setProperty('--walk-time', '0s');
+        wizardDock.style.setProperty('--walk-x', '0px');
+        wizardDock.classList.remove('walking', 'face-left', 'casting', 'brewing');
+    });
+}
+
 // Esc closes the assistant, or the top-most open window.
 document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -4314,7 +4407,7 @@ document.addEventListener('keydown', (e) => {
 //    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 // TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
 // ==========================================
-const APP_VERSION = '8.0.2';
+const APP_VERSION = '8.0.3';
 const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
 let lastUpdateCheck = 0;
 let pendingUpdateVersion = '';

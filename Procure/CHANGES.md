@@ -29,3 +29,9 @@ Copy every file and folder here over your current app (index.html, app.js, style
 - If the versions differ, it reloads quietly. If the person is busy (a window open, typing, sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 - **To release a patch:** change `APP_VERSION` in app.js and `"version"` in version.json to the same new number, then upload both.
 - Uses no Firebase: version.json comes from your website.
+
+## 8.0.3: the wizard
+- The robot is now a wizard: robe, pointed hat, scarf, boots and a wand.
+- Every 20-35 seconds it does something: walks a little and back, casts a spell (wand sparkles), or brews a potion in a bubbling cauldron.
+- Every 2-4 minutes a wizard flies across the screen on a broomstick (it can't be clicked and never blocks anything).
+- It only moves while the page is open, signed in, and nobody is using a window or the assistant. It stays still for people who turned on "reduce motion".

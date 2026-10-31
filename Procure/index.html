@@ -32,7 +32,7 @@
                 <div class="brand-mark"><i class="fa-solid fa-layer-group"></i></div>
                 <div>
                     <h1>Procurement Hub</h1>
-                    <p>Material requisition workspace <span class="version-badge">v8.0.2</span></p>
+                    <p>Material requisition workspace <span class="version-badge">v8.0.3</span></p>
                 </div>
             </div>
             <div class="topbar-status">
@@ -629,21 +629,63 @@
 
     <!-- ITEM ASSISTANT -->
     <div id="robotDock" class="robot-dock no-print">
-        <div class="robot-bubble" aria-hidden="true">Not sure where an item goes? Ask me, the sorting hat.</div>
+        <div class="robot-bubble" aria-hidden="true">Not sure where an item goes? Ask me, the sorting wizard.</div>
         <button type="button" id="assistantFab" class="robot-fab" aria-label="Open the sorting hat" title="Sorting hat">
-            <svg class="robot" viewBox="0 0 120 150" aria-hidden="true">
+            <svg class="robot wizard" viewBox="0 0 120 150" aria-hidden="true">
+                <defs>
+                    <radialGradient id="wizPotionGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#7dff9b" stop-opacity=".9"/><stop offset="1" stop-color="#7dff9b" stop-opacity="0"/></radialGradient>
+                </defs>
                 <ellipse class="robot-shadow" cx="60" cy="144" rx="28" ry="5"/>
+                <!-- Cauldron: shown while brewing a potion -->
+                <g class="wiz-cauldron">
+                    <ellipse cx="-26" cy="112" rx="24" ry="10" fill="url(#wizPotionGlow)"/>
+                    <g class="wiz-bubbles">
+                        <circle cx="-32" cy="112" r="3"/><circle cx="-22" cy="113" r="2.2"/><circle cx="-27" cy="111" r="2.6"/><circle cx="-17" cy="112" r="1.8"/>
+                    </g>
+                    <path class="wiz-fire" d="M-38 146 q4 -9 7 -2 q3 -10 7 -1 q4 -9 7 1 q3 -7 6 2 Z"/>
+                    <path class="wiz-pot" d="M-48 116 h44 c2 14 -4 26 -22 26 c-18 0 -24 -12 -22 -26 Z"/>
+                    <ellipse class="wiz-pot-rim" cx="-26" cy="116" rx="23" ry="5"/>
+                    <ellipse class="wiz-potion" cx="-26" cy="116" rx="19" ry="3.4"/>
+                    <rect class="wiz-pot-leg" x="-44" y="139" width="4" height="6" rx="2"/>
+                    <rect class="wiz-pot-leg" x="-12" y="139" width="4" height="6" rx="2"/>
+                </g>
                 <g class="robot-body">
-                    <line class="robot-antenna-stem" x1="60" y1="18" x2="60" y2="6"/>
-                    <circle class="robot-antenna" cx="60" cy="5" r="4.5"/>
+                    <!-- left arm: holds the stirring spoon while brewing -->
+                    <g class="wiz-arm-stir">
+                        <line class="wiz-spoon" x1="26" y1="128" x2="-20" y2="112"/>
+                        <path class="wiz-sleeve" d="M38 106 C30 110 24 120 21 131 L32 133 C34 124 37 117 42 112 Z"/>
+                        <circle class="robot-arm wiz-hand" cx="26" cy="131" r="5"/>
+                    </g>
+                    <!-- robe -->
+                    <path class="wiz-robe" d="M40 103 C32 116 26 128 23 138 Q60 145 97 138 C94 128 88 116 80 103 Z"/>
+                    <path class="wiz-robe-trim" d="M23 138 Q60 145 97 138"/>
+                    <path class="wiz-robe-trim" d="M60 106 V141"/>
+                    <!-- boots -->
+                    <g class="wiz-leg wiz-leg-l"><rect x="44" y="137" width="14" height="9" rx="4.5"/></g>
+                    <g class="wiz-leg wiz-leg-r"><rect x="62" y="137" width="14" height="9" rx="4.5"/></g>
+                    <path class="wiz-star" d="M44 124 l1.4 3 3.2 .3 -2.4 2.1 .8 3.1 -3 -1.7 -2.9 1.7 .7 -3.1 -2.4 -2.1 3.2 -.3 Z"/>
+                    <path class="wiz-star" d="M75 118 l1 2.2 2.4 .2 -1.8 1.6 .6 2.3 -2.2 -1.3 -2.1 1.3 .5 -2.3 -1.8 -1.6 2.4 -.2 Z"/>
+                    <!-- right arm with wand: waves, casts spells -->
+                    <g class="robot-arm-wave">
+                        <line class="wiz-wand" x1="95" y1="129" x2="113" y2="103"/>
+                        <circle class="wiz-wand-tip" cx="113" cy="103" r="2.6"/>
+                        <g class="wiz-sparks">
+                            <path d="M113 90 l1.6 4.4 4.4 1.6 -4.4 1.6 -1.6 4.4 -1.6 -4.4 -4.4 -1.6 4.4 -1.6 Z"/>
+                            <path d="M124 100 l1 2.6 2.6 1 -2.6 1 -1 2.6 -1 -2.6 -2.6 -1 2.6 -1 Z"/>
+                            <path d="M103 95 l.9 2.2 2.2 .9 -2.2 .9 -.9 2.2 -.9 -2.2 -2.2 -.9 2.2 -.9 Z"/>
+                            <circle cx="121" cy="91" r="1.4"/><circle cx="108" cy="86" r="1.1"/><circle cx="127" cy="109" r="1.2"/>
+                        </g>
+                        <path class="wiz-sleeve" d="M82 106 C90 110 96 120 99 131 L88 133 C86 124 83 117 78 112 Z"/>
+                        <circle class="robot-arm wiz-hand" cx="95" cy="130" r="5"/>
+                    </g>
+                    <!-- scarf -->
+                    <rect class="wiz-scarf" x="38" y="98" width="44" height="9" rx="4.5"/>
+                    <path class="wiz-scarf-stripe" d="M47 98 v9 M56 98 v9 M65 98 v9 M74 98 v9"/>
+                    <path class="wiz-scarf" d="M68 104 l8 0 l-1 20 l-7 0 Z"/>
+                    <path class="wiz-scarf-stripe" d="M68.5 111 h7 M68.5 118 h7"/>
+                    <!-- head -->
                     <rect class="robot-ear" x="11" y="62" width="10" height="22" rx="5"/>
                     <rect class="robot-ear" x="99" y="62" width="10" height="22" rx="5"/>
-                    <rect class="robot-neck" x="52" y="99" width="16" height="9" rx="2"/>
-                    <rect class="robot-arm" x="21" y="108" width="11" height="24" rx="5.5"/>
-                    <g class="robot-arm-wave"><rect class="robot-arm" x="88" y="108" width="11" height="24" rx="5.5"/></g>
-                    <rect class="robot-torso" x="33" y="105" width="54" height="33" rx="13"/>
-                    <rect class="robot-vest" x="33" y="119" width="54" height="5"/>
-                    <circle class="robot-heart" cx="60" cy="130" r="3.6"/>
                     <rect class="robot-head" x="19" y="46" width="82" height="56" rx="22"/>
                     <rect class="robot-face" x="29" y="57" width="62" height="37" rx="15"/>
                     <g class="robot-eyes">
@@ -657,10 +699,15 @@
                     <path class="robot-mouth" d="M53 87 Q60 92.5 67 87"/>
                     <circle class="robot-cheek" cx="37" cy="86" r="3.5"/>
                     <circle class="robot-cheek" cx="83" cy="86" r="3.5"/>
-                    <path class="robot-hat" d="M23 47 C23 25 40 14 60 14 C80 14 97 25 97 47 Z"/>
-                    <rect class="robot-hat-ridge" x="55" y="15" width="10" height="31" rx="4"/>
-                    <rect class="robot-hat-brim" x="15" y="42" width="90" height="9" rx="4.5"/>
+                    <!-- pointed wizard hat -->
+                    <g class="wiz-hat">
+                        <path class="robot-hat" d="M30 49 C40 38 46 22 54 10 C60 2 72 -6 86 -2 C76 2 70 10 68 20 C72 30 82 40 90 49 Z"/>
+                        <path class="wiz-hat-band" d="M33 45 C50 40 72 40 87 45 L89 49 C70 44 50 44 31 49 Z"/>
+                        <path class="wiz-star" d="M60 26 l1.6 3.4 3.7 .4 -2.8 2.5 .8 3.6 -3.3 -1.9 -3.3 1.9 .8 -3.6 -2.8 -2.5 3.7 -.4 Z"/>
+                        <ellipse class="robot-hat-brim" cx="60" cy="49" rx="48" ry="6"/>
+                    </g>
                 </g>
+            </svg>
             </svg>
         </button>
     </div>
@@ -668,18 +715,16 @@
         <header class="assistant-head">
             <div class="assistant-title">
                 <span class="assistant-mark" aria-hidden="true">
-                    <svg class="robot mini-robot" viewBox="8 0 104 104">
-                        <line class="robot-antenna-stem" x1="60" y1="18" x2="60" y2="6"/>
-                        <circle class="robot-antenna" cx="60" cy="5" r="4.5"/>
+                    <svg class="robot mini-robot" viewBox="8 -6 104 110">
                         <rect class="robot-ear" x="11" y="62" width="10" height="22" rx="5"/>
                         <rect class="robot-ear" x="99" y="62" width="10" height="22" rx="5"/>
                         <rect class="robot-head" x="19" y="46" width="82" height="56" rx="22"/>
                         <rect class="robot-face" x="29" y="57" width="62" height="37" rx="15"/>
                         <g class="robot-eyes"><rect class="robot-eye" x="43" y="67" width="10" height="15" rx="5"/><rect class="robot-eye" x="67" y="67" width="10" height="15" rx="5"/></g>
                         <path class="robot-mouth" d="M53 87 Q60 92.5 67 87"/>
-                        <path class="robot-hat" d="M23 47 C23 25 40 14 60 14 C80 14 97 25 97 47 Z"/>
-                        <rect class="robot-hat-ridge" x="55" y="15" width="10" height="31" rx="4"/>
-                        <rect class="robot-hat-brim" x="15" y="42" width="90" height="9" rx="4.5"/>
+                        <path class="robot-hat" d="M30 49 C40 38 46 22 54 10 C60 2 72 -6 86 -2 C76 2 70 10 68 20 C72 30 82 40 90 49 Z"/>
+                        <path class="wiz-hat-band" d="M33 45 C50 40 72 40 87 45 L89 49 C70 44 50 44 31 49 Z"/>
+                        <ellipse class="robot-hat-brim" cx="60" cy="49" rx="48" ry="6"/>
                     </svg>
                 </span>
                 <div>

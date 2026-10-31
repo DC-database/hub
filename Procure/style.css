@@ -386,6 +386,76 @@ body.assistant-open .robot-dock { opacity: 0; transform: translateY(24px) scale(
     transition: opacity .2s, transform .2s;
 }
 .robot-dock:hover .robot-bubble, .robot-dock.greet .robot-bubble { opacity: 1; transform: none; }
+/* ---------- Wizard (the sorting hat's robot in robe and hat) ---------- */
+.robot-dock { translate: var(--walk-x, 0px) 0; transition: opacity .25s, transform .25s, translate var(--walk-time, 0s) linear; }
+.robot-dock.face-left .wizard { transform: scaleX(-1); }
+.robot-dock.face-left .robot-bubble { opacity: 0 !important; }
+.wizard .robot-hat { fill: #3b2f86; }
+.wizard .robot-hat-brim, .mini-robot .robot-hat-brim { fill: #2a2166; }
+.mini-robot .robot-hat { fill: #3b2f86; }
+.wiz-hat-band, .wiz-star { fill: var(--hivis); }
+.wiz-robe, .wiz-sleeve { fill: #3b2f86; }
+.wiz-robe-trim { fill: none; stroke: var(--hivis); stroke-width: 2.4; stroke-linecap: round; }
+.wiz-hand { fill: #c3ccd7; }
+.wiz-leg rect { fill: #4a3324; }
+.wiz-scarf { fill: #b3261e; }
+.wiz-scarf-stripe { fill: none; stroke: var(--hivis); stroke-width: 2.4; }
+.wiz-wand, .wiz-spoon { stroke: #8a5a2b; stroke-width: 3.2; stroke-linecap: round; }
+.wiz-wand-tip { fill: #fff6c2; animation: robot-glow 1.6s ease-in-out infinite; }
+.wiz-sparks { fill: var(--hivis); opacity: 0; transform-box: view-box; transform-origin: 113px 103px; }
+.wiz-spoon { opacity: 0; transition: opacity .3s; }
+.wiz-cauldron { opacity: 0; transform: translateY(8px); transition: opacity .4s, transform .4s; }
+.wiz-pot { fill: #262a33; } .wiz-pot-rim { fill: #3b414d; } .wiz-pot-leg { fill: #262a33; }
+.wiz-potion { fill: #5cff8a; }
+.wiz-fire { fill: #ff9a3c; transform-box: fill-box; transform-origin: bottom; animation: wiz-flame .35s ease-in-out infinite alternate; }
+.wiz-bubbles circle { fill: #8dffa8; opacity: 0; }
+.wizard .robot-arm-wave { transform-origin: 82px 108px; }
+.wiz-arm-stir { transform-box: view-box; transform-origin: 40px 106px; }
+.wiz-leg { transform-box: fill-box; transform-origin: center; }
+
+/* hover / greet: wave the wand */
+.robot-fab:hover .wizard .robot-arm-wave, .robot-fab:focus-visible .wizard .robot-arm-wave, .robot-dock.greet .wizard .robot-arm-wave { animation: wiz-wave 1.4s ease-in-out infinite; }
+.robot-fab:hover .wiz-sparks, .robot-dock.greet .wiz-sparks { animation: wiz-sparkle 1.4s ease-out infinite; }
+/* casting a spell */
+.robot-dock.casting .wizard .robot-arm-wave { animation: wiz-cast .9s ease-in-out 3; }
+.robot-dock.casting .wiz-sparks { animation: wiz-sparkle .9s ease-out 3; }
+.robot-dock.casting .robot-eyes { opacity: 0; } .robot-dock.casting .robot-eyes-happy { opacity: 1; }
+/* brewing a potion */
+.robot-dock.brewing .wiz-cauldron { opacity: 1; transform: none; }
+.robot-dock.brewing .wiz-spoon { opacity: 1; }
+.robot-dock.brewing .wiz-arm-stir { animation: wiz-stir 1.2s ease-in-out infinite; }
+.robot-dock.brewing .wiz-bubbles circle { animation: wiz-bubble 1.6s ease-in infinite; }
+.robot-dock.brewing .wiz-bubbles circle:nth-child(2) { animation-delay: .4s; }
+.robot-dock.brewing .wiz-bubbles circle:nth-child(3) { animation-delay: .8s; }
+.robot-dock.brewing .wiz-bubbles circle:nth-child(4) { animation-delay: 1.2s; }
+/* walking */
+.robot-dock.walking .robot-body { animation: wiz-bob .45s ease-in-out infinite; }
+.robot-dock.walking .wiz-leg-l { animation: wiz-step .45s ease-in-out infinite; }
+.robot-dock.walking .wiz-leg-r { animation: wiz-step .45s ease-in-out infinite reverse; }
+
+/* flying past on a broomstick */
+.wizard-flyby { position: fixed; left: 0; top: 20%; z-index: 850; width: 200px; height: 120px; pointer-events: none; animation: wiz-fly var(--fly-time, 9s) linear forwards; }
+.wizard-flyby.rtl { animation-name: wiz-fly-rtl; }
+.wizard-flyby.rtl svg { transform: scaleX(-1); }
+.wizard-flyby svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.35)); }
+.wizard-flyby .fly-bob { animation: wiz-fly-bob 1.4s ease-in-out infinite; }
+.wizard-flyby .fly-trail circle { fill: var(--hivis); animation: wiz-trail 1s linear infinite; }
+.wizard-flyby .fly-trail circle:nth-child(2) { animation-delay: .25s; } .wizard-flyby .fly-trail circle:nth-child(3) { animation-delay: .5s; } .wizard-flyby .fly-trail circle:nth-child(4) { animation-delay: .75s; }
+
+@keyframes wiz-wave { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-35deg); } 60% { transform: rotate(-15deg); } }
+@keyframes wiz-cast { 0% { transform: rotate(0); } 35% { transform: rotate(-55deg); } 55% { transform: rotate(-10deg); } 100% { transform: rotate(0); } }
+@keyframes wiz-sparkle { 0%, 40% { opacity: 0; transform: scale(.3); } 60% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(1.6) rotate(25deg); } }
+@keyframes wiz-stir { 0%, 100% { transform: rotate(-6deg) translateX(0); } 50% { transform: rotate(7deg) translateX(-3px); } }
+@keyframes wiz-bubble { 0% { opacity: 0; transform: translateY(0) scale(.6); } 20% { opacity: .9; } 100% { opacity: 0; transform: translateY(-26px) scale(1.2); } }
+@keyframes wiz-flame { from { transform: scaleY(.85); } to { transform: scaleY(1.15); } }
+@keyframes wiz-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes wiz-step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px) translateX(2px); } }
+@keyframes wiz-fly { from { transform: translateX(-180px) rotate(-4deg); } to { transform: translateX(calc(100vw + 40px)) rotate(4deg); } }
+@keyframes wiz-fly-rtl { from { transform: translateX(calc(100vw + 40px)) rotate(4deg); } to { transform: translateX(-180px) rotate(-4deg); } }
+@keyframes wiz-fly-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+@keyframes wiz-trail { from { opacity: .9; transform: translateX(0) scale(1); } to { opacity: 0; transform: translateX(-34px) scale(.3); } }
+@media (prefers-reduced-motion: reduce) { .robot-dock { transition: none; } .wizard-flyby { display: none; } }
+
 @keyframes robot-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 @keyframes robot-shadow { 0%, 100% { transform: scaleX(1); opacity: .9; } 50% { transform: scaleX(.75); opacity: .5; } }
 @keyframes robot-blink { 0%, 90%, 100% { transform: scaleY(1); } 93% { transform: scaleY(.1); } 96% { transform: scaleY(1); } }
@@ -485,7 +555,7 @@ body.assistant-open .robot-dock { opacity: 0; transform: translateY(24px) scale(
 .hat-reasons { margin: 10px 0 4px 18px; display: grid; gap: 5px; font-size: 12.5px; color: var(--text-2); }
 .hat-reasons em { color: var(--text); font-style: normal; font-weight: 600; }
 .hat-thinking i { color: var(--hivis); margin-right: 4px; display: inline-block; animation: hat-wobble .6s ease-in-out infinite alternate; }
-.assistant-drawer.is-thinking .mini-robot .robot-hat, .assistant-drawer.is-thinking .mini-robot .robot-hat-ridge, .assistant-drawer.is-thinking .mini-robot .robot-hat-brim { transform-box: view-box; transform-origin: 60px 46px; animation: hat-wobble .5s ease-in-out infinite alternate; }
+.assistant-drawer.is-thinking .mini-robot .robot-hat, .assistant-drawer.is-thinking .mini-robot .robot-hat-ridge, .assistant-drawer.is-thinking .mini-robot .robot-hat-brim, .assistant-drawer.is-thinking .mini-robot .wiz-hat-band { transform-box: view-box; transform-origin: 60px 46px; animation: hat-wobble .5s ease-in-out infinite alternate; }
 @keyframes hat-reveal { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes hat-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes hat-wobble { from { transform: rotate(-8deg); } to { transform: rotate(8deg); } }
