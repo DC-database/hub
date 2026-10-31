@@ -530,4 +530,17 @@
   html body #iba-esn.iba-sitestock .iba-ss-form .iba-esn-btn { height: 38px; }
   html body #iba-esn.iba-sitestock tfoot td { border-top: 1px solid rgba(127, 227, 214, 0.35); color: #fff; }
   html body #iba-esn.iba-sitestock .iba-esn-picked { white-space: normal; }
+
+  /* 17.0.5 patch 44: Inventory permissions (js/iba-1705-invperm.js) */
+  html body #iba-esn.iba-invperm .iba-esn-box { width: min(760px, 100%); }
+  html body #iba-esn.iba-invperm td small { display: block; font-size: 11.5px; color: #EBD8A8; font-weight: 400; }
+  html body #iba-esn.iba-invperm td.c input { width: 18px; height: 18px; accent-color: #40C4CE; cursor: pointer; }
+  html body #iba-esn.iba-invperm tr.is-changed td { background: rgba(227, 201, 138, 0.10) !important; }
+  html body #iba-esn.iba-invperm .iba-esn-picked { white-space: normal; }
+  html body.iba-inv-off-download:not(#iba-no1):not(#iba-no2):not(#iba-no3) :is(#ms-download-titles-btn, #ms-template-btn),
+  html body.iba-inv-off-report:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-open-report-modal-btn,
+  html body.iba-inv-off-required:not(#iba-no1):not(#iba-no2):not(#iba-no3) :is(#ms-open-requestlist-btn, .ms-add-to-required-btn),
+  html body.iba-inv-off-register:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-add-new-btn,
+  html body.iba-inv-off-upload:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-upload-csv-btn,
+  html body.iba-inv-off-titles:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-upload-titles-btn { display: none !important; }
 }
