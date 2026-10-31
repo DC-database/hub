@@ -4,7 +4,7 @@
    For each person, tick which Material Stock functions they may use.
    - Nothing changed = the same rules as before (the "default" column).
    - A tick that differs from the default is saved for that person only
-     (main db iba_settings/inv_perm/<user key> = { <function>: true/false }).
+     (main db system_settings/inventory_permissions/<user key> = { <function>: true/false }).
    - "Back to default" removes the person's changes.
    - Super Admin always has everything. Delete stays Super Admin only and is
      not in the list. Transfer / Restock / Usage / Return stay open to all.
@@ -13,7 +13,8 @@
    ========================================================================== */
 (function () {
     'use strict';
-    const PATH = 'iba_settings/inv_perm';
+    // same place as the other Super Admin settings (system_settings is writable)
+    const PATH = 'system_settings/inventory_permissions';
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const low = (v) => String(v || '').trim().toLowerCase();
     const $ = (id) => document.getElementById(id);

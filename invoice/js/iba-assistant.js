@@ -2049,6 +2049,9 @@
             if (hits.length) words.length = 0;
         }
         if (!hits.length) hits = all.filter((a) => words.every((w) => hay(a).indexOf(w) !== -1));
+        // 17.0.5 patch 47: spelled differently from the record ("albaraa" for "E.Bara")
+        let close = false;
+        if (!hits.length && q && /[a-z]/.test(q) && !site && !wanted.length) { hits = nameLike(all, q); close = hits.length > 0; }
         // site lists: the site people first (Site DC, Storekeeper, Camp Boss, Logistic), then by name
         const rank = (x) => { const p = norm(x.Position); return /site\s*dc/.test(p) ? 0 : /store\s*keeper/.test(p) ? 1 : /camp boss/.test(p) ? 2 : /logistic/.test(p) ? 3 : 4; };
         if (site || wanted.length) hits.sort((x, y) => rank(x) - rank(y) || String(x.Name).localeCompare(String(y.Name)));
@@ -2080,7 +2083,51 @@
         return { result: { found: people.length, people: people.map((p) => ({ name: p.name, position: p.position, site: p.site, mobile: p.mobile, email: p.email,
             status: p.status, back_on: p.back || undefined, replacement: p.replacement || undefined,
             replacement_contact: p.rep ? { position: p.rep.position || undefined, mobile: p.rep.mobile || undefined, email: p.rep.email || undefined } : undefined, covering_for: p.covering.length ? p.covering : undefined })) },
-            card: { kind: 'person', data: { q: [a.position || '', site ? 'site ' + site : '', q].filter(Boolean).join(' · '), people: people } } };
+            card: { kind: 'person', data: { q: [a.position || '', site ? 'site ' + site : '', q].filter(Boolean).join(' · '), people: people, close: close } } };
+    }
+    // 17.0.5 patch 47: names that sound/spell close. Each name word and the
+    // whole name are cut down to letters, "al"/"el" in front and doubled
+    // letters dropped (Albaraa -> bara, E.Bara -> bara), then compared with a
+    // small number of typos allowed.
+    function nameKey(w) { return String(w || '').toLowerCase().replace(/[^a-z]/g, '').replace(/^(al|el)(?=[a-z]{3})/, '').replace(/(.)\1+/g, '$1'); }
+    function editDist(a, b) {
+        if (a === b) return 0;
+        const m = a.length, n = b.length;
+        if (!m || !n) return m || n;
+        let prev = Array.from({ length: n + 1 }, (_, j) => j);
+        for (let i = 1; i <= m; i++) {
+            const cur = [i];
+            for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+            prev = cur;
+        }
+        return prev[n];
+    }
+    function nameLike(list, q) {
+        const qWords = String(q).split(/[\s.\-_]+/).map(nameKey).filter((w) => w.length >= 2);
+        const qAll = nameKey(q);
+        if (!qAll || qAll.length < 3) return [];
+        const scored = [];
+        list.forEach((x) => {
+            const nWords = String(x.Name || '').split(/[\s.\-_]+/).map(nameKey).filter((w) => w.length >= 2);
+            const nAll = nameKey(x.Name);
+            const allow = (k) => k.length <= 4 ? 1 : k.length <= 7 ? 2 : 3;
+            let best = editDist(qAll, nAll) <= allow(qAll) ? editDist(qAll, nAll) : 99;
+            qWords.forEach((qw) => nWords.forEach((nw) => {
+                const d = editDist(qw, nw);
+                if (d <= allow(qw) && d < best) best = d + 0.5;
+                if (qw.length >= 4 && (nw.indexOf(qw) === 0 || qw.indexOf(nw) === 0) && Math.min(qw.length, nw.length) >= 3 && 1 < best) best = 1;
+            }));
+            if (best < 99) scored.push([best, x]);
+        });
+        scored.sort((a, b) => a[0] - b[0] || String(a[1].Name).localeCompare(String(b[1].Name)));
+        return scored.slice(0, 5).map((s) => s[1]);
+    }
+    // name suggestions (Colleague box on PC and phone)
+    function personOptions() {
+        const seen = new Set();
+        return people().filter((p) => p && p.value && !seen.has(norm(p.value)) && seen.add(norm(p.value)))
+            .map((p) => [p.value, [p.position, p.site].filter(Boolean).join(' · ')])
+            .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
     }
 
     function statusMatch(status, want) {
@@ -3109,7 +3156,7 @@
             ask: () => [{ key: 'q', label: 'Transfer no., vehicle or item', placeholder: 'e.g. TRF-0361, 36588, wheel loader' }],
             build: (v) => looksTransfer(v.q) ? [{ tool: 'track_transfer', args: { control: v.q } }] : [{ tool: 'find_transfers', args: { text: v.q } }] },
         person: { name: 'Find a colleague', icon: 'fa-id-badge', desc: 'Asks for a name, then shows position, site, mobile and email, with a button to message them.',
-            ask: () => [{ key: 'q', label: 'Name, position or site', placeholder: 'e.g. Irwin' }],
+            ask: () => [{ key: 'q', label: 'Name, position or site', placeholder: 'Start typing a name', suggest: () => personOptions() }],
             build: (v) => [{ tool: 'find_person', args: { name: v.q } }] },
         // 15.0.0 patch 31: who works at a site (no AI): site + position
         site_team: { name: 'Site team', icon: 'fa-people-group', desc: 'Pick a site and the positions you need (e.g. Site DC and Storekeeper) and get each person with mobile, email, WhatsApp and Message. No AI used.',
@@ -4235,6 +4282,15 @@
         document.querySelectorAll('#iba-ai-panel [data-aph-mode]').forEach((x) => { const on = x.dataset.aphMode === aphMode; x.classList.toggle('is-on', on); x.setAttribute('aria-checked', on ? 'true' : 'false'); });
         const q = $('iba-aph-q');
         if (q) q.placeholder = APH_HINT[aphMode] || APH_HINT.auto;
+        // 17.0.5 patch 47: Colleague mode suggests names while typing
+        if (q) {
+            if (aphMode === 'person') {
+                let dl = $('iba-aph-people');
+                if (!dl) { dl = document.createElement('datalist'); dl.id = 'iba-aph-people'; q.insertAdjacentElement('afterend', dl); }
+                dl.innerHTML = personOptions().slice(0, 600).map((o) => '<option value="' + esc(o[0]) + '">' + esc(o[1] || '') + '</option>').join('');
+                q.setAttribute('list', 'iba-aph-people'); q.setAttribute('autocomplete', 'off');
+            } else q.removeAttribute('list');
+        }
         if (user && q) q.focus();
     }
     // 17.0.5 patch 9: the phone bottom bar
@@ -5764,7 +5820,8 @@
             const meA = me() || {};
             const isMe = (q) => !!q && ((meA.key && String(q.key) === String(meA.key)) || (myName() && norm(q.name) === norm(myName())));
             const tel = (m) => { const d = String(m || '').replace(/\D+/g, ''); return d ? (d.length === 8 ? '+974' + d : '+' + d.replace(/^00/, '')) : ''; };
-            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + (ps.length > 1 && x.q ? ' · ' + esc(x.q) : '') + '</div>' +
+            d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-id-badge"></i> ' + (ps.length ? (x.close ? 'Did you mean' + (ps.length === 1 ? '' : ' one of these') + '?' : ps.length === 1 ? 'Profile' : ps.length + ' people found') : 'Nobody found') + (ps.length > 1 && x.q && !x.close ? ' · ' + esc(x.q) : '') + '</div>' +
+                (x.close ? '<p style="margin:2px 0 8px;font-size:12px;color:#EBD8A8;-webkit-text-fill-color:#EBD8A8">No one is named exactly "' + esc(x.q) + '". These names are close.</p>' : '') +
                 (ps.length ? ps.map((p) => '<div class="iba-ai-person">' +
                     '<div class="iba-ai-person-top"><span class="iba-ai-avatar">' + esc(p.name.split(/\s+/).map((w) => w.charAt(0)).join('').slice(0, 2).toUpperCase()) + '</span>' +
                     '<span class="iba-ai-grow"><strong>' + esc(p.name) + '</strong><small>' + esc([p.position, p.role && p.role !== p.position ? p.role : ''].filter(Boolean).join(' · ') || '—') + '</small></span>' +

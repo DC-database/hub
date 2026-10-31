@@ -9,6 +9,7 @@
    Stock = the card's site quantities (material_stock/<key>/sites), the same
    number the Stock table and Stock Report use. Read from the copy already
    in memory / saved on this computer; Firebase only when there is none.
+   46: "Came from" column (source site, trans no., date, qty).
    ========================================================================== */
 (function () {
     'use strict';
@@ -43,7 +44,7 @@
     function siteName(code) {
         if (code === 'Main Store') return 'Main Store';
         const s = siteList().find((x) => x && canon(x.site) === code);
-        return s && s.description ? code + ' - ' + s.description : code;
+        return s && s.description ? code + ' - ' + String(s.description).replace(/\uFFFD+/g, ' ').replace(/\s+/g, ' ').trim() : code;
     }
     function family(item) {
         try { if (typeof STOCK_LEGENDS !== 'undefined' && item.familyCode && STOCK_LEGENDS[item.familyCode]) return STOCK_LEGENDS[item.familyCode].name || item.familyCode; } catch (_) {}
@@ -90,9 +91,61 @@
             seen.set(k, { item, qty });
         });
         return Array.from(seen.values()).map(({ item, qty }) => ({
-            id: pid(item), name: pname(item), family: family(item), unit: unit(item), qty
+            id: pid(item), name: pname(item), family: family(item), unit: unit(item), qty, from: cameFrom(pid(item), code, qty)
         })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
     }
+    // 17.0.5 patch 46: where the stock at this site came from: the newest
+    // finished transfers / restocks INTO the site for this item, until they
+    // cover today's qty (max 4). Uses the transfer list Material Stock already
+    // loaded (no extra download); none in memory = left empty.
+    function transfersInMemory() {
+        try { if (typeof allTransferData !== 'undefined' && Array.isArray(allTransferData) && allTransferData.length) return allTransferData; } catch (_) {}
+        return null;
+    }
+    // one pass over the list per site: product ID -> movements into the site
+    let inCache = { list: null, code: null, map: null };
+    function intoSite(code) {
+        const list = transfersInMemory();
+        if (!list) return null;
+        if (inCache.list === list && inCache.code === code && inCache.len === list.length) return inCache.map;
+        const map = new Map();
+        list.forEach((t) => {
+            if (!t) return;
+            const st = String(t.remarks || t.status || '').trim();
+            if (!/^(completed|received)$/i.test(st)) return;
+            const type = String(t.jobType || t.for || 'Transfer').trim();
+            if (type === 'Usage') return;
+            if (type === 'Return' && /^(usage|restock)$/i.test(String(t.originalJobType || '').trim())) return;
+            if (canon(t.toLocation || t.toSite) !== code) return;
+            const id = String(t.productID || t.productId || '').trim();
+            if (!id) return;
+            if (!map.has(id)) map.set(id, []);
+            map.get(id).push(t);
+        });
+        map.forEach((arr) => arr.sort((a, b) => num(b.timestamp) - num(a.timestamp)));
+        inCache = { list, code, len: list.length, map };
+        return map;
+    }
+    function cameFrom(id, code, qty) {
+        const map = intoSite(code);
+        if (!map) return null;
+        const ins = (id && map.get(id)) || [];
+        const out = [];
+        let sum = 0;
+        for (const t of ins) {
+            const q = num(t.receivedQty) || num(t.approvedQty) || num(t.orderedQty) || num(t.requiredQty);
+            const from = canon(t.fromLocation || t.fromSite);
+            const ms = num(t.timestamp) || Date.parse(t.arrivalDate || t.shippingDate || '') || 0;
+            out.push({ from: from ? siteName(from) : (String(t.jobType || t.for || '') === 'Restock' ? 'Supplier' : '-'),
+                no: String(t.controlNumber || t.controlId || t.ref || '').trim(),
+                date: ms ? new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+                qty: q });
+            sum += q;
+            if (sum >= qty || out.length >= 4) break;
+        }
+        return out;
+    }
+    const fromTxt = (r) => r.from === null ? '' : (r.from.length ? r.from.map((f) => f.from + ' · ' + (f.no || 'no number') + ' · ' + f.date + ' · ' + fmt(f.qty)).join('\n') : 'No transfer found');
     function knownSites(list) {
         const s = new Set();
         list.forEach((i) => Object.keys((i && i.sites) || {}).forEach((k) => { if (num(i.sites[k]) > 0) s.add(canon(k)); }));
@@ -111,15 +164,15 @@
             '.meta{display:flex;justify-content:space-between;gap:12px;margin:10px 0 14px;color:#444;font-size:12px}' +
             'table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #9fb3c2;padding:6px 8px;vertical-align:top}' +
             'th{background:#003A5C;color:#fff;text-align:left;text-transform:uppercase;font-size:11px;letter-spacing:.03em;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-            '.mono{font-family:Consolas,Monaco,monospace;font-weight:700;color:#003A5C}.num{text-align:right;font-weight:800}' +
+            '.from{font-size:11px;color:#333;line-height:1.45}.mono{font-family:Consolas,Monaco,monospace;font-weight:700;color:#003A5C;font-size:11px;white-space:nowrap}td{overflow-wrap:anywhere}th{padding:6px 5px}td:first-child,th:first-child{padding-left:5px;padding-right:3px}.num{text-align:right;font-weight:800}' +
             'tfoot td{font-weight:800;background:#f1f5f9;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
             '.foot{margin-top:18px;border-top:1px solid #d9e3ef;padding-top:8px;font-size:11px;color:#64748b;display:flex;justify-content:space-between}' +
-            '@page{size:A4 portrait;margin:10mm}@media print{body{margin:0}}</style></head><body>' +
+            '@page{margin:10mm}@media print{body{margin:0}}</style></head><body>' +
             '<div class="hdr">' + (logo ? '<img src="' + esc(logo) + '" alt="IBA">' : '') + '<div><h1>Site Stock Report</h1><div class="sub">' + esc(title(site, words)) + '</div></div></div>' +
             '<div class="meta"><div><b>Generated:</b> ' + esc(stamp()) + '</div><div><b>Items:</b> ' + rows.length + '</div></div>' +
-            '<table><thead><tr><th style="width:5%">#</th><th style="width:15%">Product ID</th><th>Name</th><th style="width:18%">Family</th><th style="width:11%;text-align:right">Qty</th><th style="width:9%">Unit</th></tr></thead><tbody>' +
-            rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td class="mono">' + esc(r.id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.family) + '</td><td class="num">' + esc(fmt(r.qty)) + '</td><td>' + esc(r.unit) + '</td></tr>').join('') +
-            '</tbody><tfoot><tr><td colspan="4">Total (' + rows.length + ' item' + (rows.length === 1 ? '' : 's') + ')</td><td class="num">' + esc(fmt(rows.reduce((s, r) => s + r.qty, 0))) + '</td><td></td></tr></tfoot></table>' +
+            '<table style="table-layout:fixed"><thead><tr><th style="width:4%">#</th><th style="width:10%">Product ID</th><th style="width:27%">Name</th><th style="width:12%">Family</th><th style="width:7%;text-align:right">Qty</th><th style="width:6%">Unit</th><th style="width:34%">Came from (site · trans no. · date · qty)</th></tr></thead><tbody>' +
+            rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td class="mono">' + esc(r.id) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.family) + '</td><td class="num">' + esc(fmt(r.qty)) + '</td><td>' + esc(r.unit) + '</td><td class="from">' + esc(fromTxt(r)).replace(/\n/g, '<br>') + '</td></tr>').join('') +
+            '</tbody><tfoot><tr><td colspan="4">Total (' + rows.length + ' item' + (rows.length === 1 ? '' : 's') + ')</td><td class="num">' + esc(fmt(rows.reduce((s, r) => s + r.qty, 0))) + '</td><td></td><td></td></tr></tfoot></table>' +
             '<div class="foot"><span>System Generated Report</span><span>Signature: _______________________</span></div></body></html>';
     }
     function print(rows, site, words) {
@@ -132,9 +185,9 @@
         if (!rows.length) return say('Nothing to download.');
         const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
         const lines = [q('Site Stock Report: ' + title(site, words)), q('Generated: ' + stamp()), '',
-            ['#', 'Product ID', 'Name', 'Family', 'Qty', 'Unit'].map(q).join(',')]
-            .concat(rows.map((r, i) => [i + 1, q(r.id), q(r.name), q(r.family), r.qty, q(r.unit)].join(',')))
-            .concat([['', '', q('Total'), '', rows.reduce((s, r) => s + r.qty, 0), ''].join(',')]);
+            ['#', 'Product ID', 'Name', 'Family', 'Qty', 'Unit', 'Came from (site · trans no. · date · qty)'].map(q).join(',')]
+            .concat(rows.map((r, i) => [i + 1, q(r.id), q(r.name), q(r.family), r.qty, q(r.unit), q(fromTxt(r).replace(/\n/g, '; '))].join(',')))
+            .concat([['', '', q('Total'), '', rows.reduce((s, r) => s + r.qty, 0), '', ''].join(',')]);
         const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -202,9 +255,10 @@
         if (broken) err.textContent = broken + ' record' + (broken === 1 ? '' : 's') + ' at this site with no Product ID and no name ' + (broken === 1 ? 'was' : 'were') + ' left out (broken records, not real stock).';
         w.querySelector('[data-ss-count]').innerHTML = rows.length ? '<b>' + rows.length + '</b> item' + (rows.length === 1 ? '' : 's') + ' · ' + esc(title(code, words)) : '';
         if (!rows.length) { out.innerHTML = '<p class="iba-esn-sub">No stock at site <b>' + esc(code) + '</b>' + (w.__words ? ' for "' + esc(w.__words) + '"' : '') + '.</p>'; return; }
-        out.innerHTML = '<div class="iba-esn-scroll"><table class="iba-esn-table"><thead><tr><th>#</th><th>Product ID</th><th>Name</th><th>Family</th><th style="text-align:right">Qty</th><th>Unit</th></tr></thead><tbody>' +
-            rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.id) + '</b></td><td>' + esc(r.name) + '</td><td>' + esc(r.family) + '</td><td style="text-align:right"><b>' + esc(fmt(r.qty)) + '</b></td><td>' + esc(r.unit) + '</td></tr>').join('') +
-            '</tbody><tfoot><tr><td colspan="4"><b>Total</b></td><td style="text-align:right"><b>' + esc(fmt(total)) + '</b></td><td></td></tr></tfoot></table></div>';
+        out.innerHTML = '<div class="iba-esn-scroll"><table class="iba-esn-table"><thead><tr><th>#</th><th>Product ID</th><th>Name</th><th>Family</th><th style="text-align:right">Qty</th><th>Unit</th><th>Came from</th></tr></thead><tbody>' +
+            rows.map((r, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.id) + '</b></td><td>' + esc(r.name) + '</td><td>' + esc(r.family) + '</td><td style="text-align:right"><b>' + esc(fmt(r.qty)) + '</b></td><td>' + esc(r.unit) + '</td><td class="iba-ss-from">' + esc(fromTxt(r)).replace(/\n/g, '<br>') + '</td></tr>').join('') +
+            '</tbody><tfoot><tr><td colspan="4"><b>Total</b></td><td style="text-align:right"><b>' + esc(fmt(total)) + '</b></td><td></td><td></td></tr></tfoot></table></div>' +
+            (rows.some((r) => r.from === null) ? '<p class="iba-esn-sub">"Came from" shows after the Material Stock page has loaded its transfer list.</p>' : '');
     }
 
     // ---- "Site stock" button next to Stock Report ----------------------------

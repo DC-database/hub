@@ -84,14 +84,20 @@
     el.appendChild(m);
   }
 
-  var busy = false;
+  var busy = false, lastSig = '', force = true;
   function run() {
     busy = false;
     if (document.hidden) return;
     var list = document.querySelectorAll(BTN);
-    for (var i = 0; i < list.length; i++) { var b = list[i]; if (visible(b)) { try { fitButton(b); } catch (_) {} } }
     var notes = document.querySelectorAll(NOTE);
-    for (var j = 0; j < notes.length; j++) { var n = notes[j]; if (visible(n)) { try { fitNote(n); } catch (_) {} } }
+    // 17.0.5 patch 48: the 4 s check does nothing when the page has not changed
+    // (same buttons, same width): measuring hundreds of table buttons slowed
+    // Material Stock. A click / resize / new buttons still re-check.
+    var sig = list.length + '|' + notes.length + '|' + innerWidth + '|' + innerHeight;
+    if (!force && sig === lastSig) return;
+    lastSig = sig; force = false;
+    for (var i = 0; i < list.length; i++) { var b = list[i]; if (b.closest(SKIP)) continue; if (visible(b)) { try { fitButton(b); } catch (_) {} } }
+    for (var j = 0; j < notes.length; j++) { var n = notes[j]; if (n.closest(SKIP)) continue; if (visible(n)) { try { fitNote(n); } catch (_) {} } }
   }
   function soon(ms) { if (busy) return; busy = true; setTimeout(function () { (window.requestIdleCallback || setTimeout)(run); }, ms || 250); }
 
@@ -107,7 +113,7 @@
   var rt = 0;
   addEventListener('resize', function () {
     clearTimeout(rt);
-    rt = setTimeout(function () { if (innerWidth > lastW + 20) reset(); lastW = innerWidth; soon(50); }, 300);
+    rt = setTimeout(function () { if (innerWidth > lastW + 20) reset(); lastW = innerWidth; force = true; soon(50); }, 300);
   });
 
   document.addEventListener('click', function (e) {
@@ -119,11 +125,11 @@
       e.preventDefault(); e.stopPropagation();
       return;
     }
-    soon(400); setTimeout(function () { soon(50); }, 1500);
+    force = true; soon(400); setTimeout(function () { force = true; soon(50); }, 1500);
   }, true);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) soon(200); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { force = true; soon(200); } });
   setInterval(function () { soon(0); }, 4000);
   soon(1500);
 
-  window.ibaFit = { run: run, reset: function () { reset(); soon(0); } };
+  window.ibaFit = { run: function () { force = true; run(); }, reset: function () { reset(); force = true; soon(0); } };
 })();

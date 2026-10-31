@@ -1165,7 +1165,16 @@ window.handlePrintWaybill = async function(entry) {
 		// Extra safety net:
 		// Some historical data sets have inconsistent indexing (controlNumber not indexed / saved under different keys).
 		// If the indexed query returns only 1 line but the control has multiple approved rows, do a one-time full scan.
-		if (controlNo && batchItems.length <= 1) {
+		// 17.0.5 patch 46: that full scan downloads the WHOLE transfer list (Firebase
+		// download limit). Skip it when the record says it is a 1-item transaction,
+		// and use the list already in memory (Material Stock) when there is one.
+		const wantItems = Number(entry.batchSize) || 0;
+		let memList = null;
+		try { if (typeof allTransferData !== 'undefined' && Array.isArray(allTransferData) && allTransferData.length) memList = allTransferData; } catch (_) {}
+		if (controlNo && batchItems.length <= 1 && wantItems !== 1 && memList) {
+			const matched = memList.filter((v) => v && String(v.controlNumber || v.controlId || v.ref || '').trim() === controlNo);
+			if (matched.length > batchItems.length) batchItems = matched;
+		} else if (controlNo && batchItems.length <= 1 && wantItems !== 1 && !(entry.isMultiItem === false)) {
 			try {
 				const allSnap = await database.ref('transfer_entries').once('value');
 				const matched = [];
