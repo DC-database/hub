@@ -1,3 +1,20 @@
+17.0.5 patch 50 (31-Oct-2026)
+- PO file (progress-po) fallback, read only, ONE PO per lookup (indexed on PO, never the whole list),
+  only when POVALUE2.csv does not have the PO; answers remembered (misses 10 min):
+  * WorkDesk Job Entry: site / vendor / vendor ID filled from the PO file (hint says which source)
+  * Assistant "New entries to Batch": missing POs checked in the PO file, so they go into Batch too
+  * Assistant PO lookups (Find PO / tracking one PO)
+- Files: index.html, js/iba-1705-addpo.js, js/iba-job-po-fill.js, js/iba-1702-reception-batch.js, js/iba-assistant.js
+
+17.0.5 patch 49 (31-Oct-2026)
+- PO not in POVALUE2.csv (Invoice Entry search / Batch Entry add): the system now looks in the PO file
+  (progress-po records) for that one PO only. Found = vendor, vendor ID, site and amount come from there.
+- Not there and Super Admin: "PO X is not in POVALUE2 or the PO file yet. Add it?" -> Add new PO window
+  (PO filled in, vendor name <-> vendor ID fill each other, Status always Inactive). Save adds it to
+  progress-po records and the Invoice / Batch entry carries on. Others keep the normal not-found message.
+- Needs one Firebase rules line in progress-po (records/$rec .write for new Inactive records).
+- Files: index.html, css/iba-1705-fit.css, js/iba-1705-addpo.js (new), js/app-batch-entry-ui.js, js/app-invoice-entry-search.js
+
 ==========================================================================
 17.0.5 patch 48  (31-Oct-2026)  Material Stock faster, More tools closes
 ==========================================================================
@@ -6,6 +23,7 @@ Files to upload:
   css/iba-1705-fit.css
   js/iba-1705-fit.js
   js/iba-1705-msmenu.js
+  js/materialStock.js
 
 - Material Stock was slow ("setInterval handler took ...ms"): the fit-to-screen
   check measured every table button every 4 s; now it skips table buttons and
@@ -14,7 +32,7 @@ Files to upload:
 - More tools closes when you click/tap anywhere else.
 - The old button row no longer flashes for a moment when Material Stock opens
   (the buttons move into More tools as soon as the app loads).
-- Movement History Trans no. button made small (22 px high, smaller text).
+- Movement History Trans no. is now a small link chip (22 px high), not a big button.
 
 ==========================================================================
 17.0.5 patch 47  (31-Oct-2026)  Colleague: name suggestions + close spellings
