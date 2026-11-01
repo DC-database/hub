@@ -593,4 +593,62 @@
   html body #iba-esn.iba-addpo .iba-ap-form .is-wide { grid-column: 1 / -1; }
   html body #iba-esn.iba-addpo .iba-ap-form input:disabled { opacity: .7; color: #EBD8A8; }
   @media (max-width: 560px) { html body #iba-esn.iba-addpo .iba-ap-form:not([hidden]) { grid-template-columns: 1fr; } }
+  /* 17.0.5 patch 52: tracking sections (in progress / With Accounts) + folded paid / no-invoice POs */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-sec { display: flex !important; align-items: center !important; gap: 8px !important; margin: 6px 2px 0 !important; font-size: 12px !important; font-weight: 800 !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-sec.is-g1 { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold > summary, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-more.is-paidfold > summary { display: block !important; list-style: none !important; cursor: pointer !important; padding: 9px 12px !important; border-radius: 12px !important; border: 1px dashed #2E4A63 !important; background: rgba(16, 38, 30, .55) !important;
+    font-size: 13px !important; font-weight: 700 !important; color: #5BD38A !important; -webkit-text-fill-color: #5BD38A !important; text-align: center !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold > summary::-webkit-details-marker { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold[open] > summary i, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-more.is-paidfold[open] > summary i { transform: rotate(180deg) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel details[open] > summary .iba-tap { display: none !important; }
+  /* 17.0.5 patch 52: a PO is one folder: header on top, its invoices hang under it on a line */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-po { gap: 0 !important; margin: 0 0 18px !important; border: 1px solid #2E4A63 !important; border-radius: 18px !important; background: rgba(8, 18, 30, .55) !important; overflow: hidden !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-po > .iba-trk-pohead { border: 0 !important; border-radius: 0 !important; border-bottom: 1px solid #2E4A63 !important; border-left: 4px solid #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids { position: relative !important; display: flex !important; flex-direction: column !important; gap: 8px !important; margin: 0 !important; padding: 8px 10px 12px 34px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids::before { content: "" !important; position: absolute !important; left: 17px !important; top: 0 !important; bottom: 22px !important; width: 2px !important; background: rgba(227, 201, 138, .45) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-row, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-none { position: relative !important; overflow: visible !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-row::before, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-none::before { content: "" !important; position: absolute !important; left: -17px !important; top: 50% !important; width: 16px !important; height: 2px !important; background: rgba(227, 201, 138, .45) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-row { min-height: 56px !important; background: #132538 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-grp { padding: 4px 0 0 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-poacts { margin-top: 2px !important; }
+  /* 17.0.5 patch 54: With Accounts fold in teal */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold.is-accfold > summary, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-more.is-accfold > summary { color: #4FD1C5 !important; -webkit-text-fill-color: #4FD1C5 !important; background: rgba(15, 40, 44, .55) !important; }
+  /* 17.0.5 patch 56: Batch Entry "copy to Paid" on the Invoice Value label */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .batch-invoice-card label.iba-bv-lab { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 4px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .batch-invoice-card button.iba-bv-copy { display: inline-flex !important; align-items: center !important; gap: 3px !important; height: 18px !important; min-height: 0 !important; min-width: 0 !important; width: auto !important; margin: 0 !important; padding: 0 6px !important;
+    border-radius: 4px !important; border: 1px solid #0d7e85 !important; background: #ffffff !important; color: #0d7e85 !important; -webkit-text-fill-color: #0d7e85 !important; font-size: 9px !important; font-weight: 800 !important; line-height: 1 !important; cursor: pointer !important; box-shadow: none !important; transform: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .batch-invoice-card button.iba-bv-copy i { font-size: 9px !important; color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .batch-invoice-card button.iba-bv-copy:hover { background: #0d7e85 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .batch-invoice-card button.iba-bv-copy.is-done { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  /* 17.0.5 patch 57: PO value taken from the PO file (progress-po) */
+  html body .iba-pofile-upd { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 99px; font-size: 10px; font-weight: 800; letter-spacing: .03em; vertical-align: middle; background: rgba(227, 201, 138, .18); color: #E3C98A; -webkit-text-fill-color: #E3C98A; border: 1px solid rgba(227, 201, 138, .5); }
+  /* 17.0.5 patch 58: Sort for CEO card */
+  html body #iba-ai-panel .iba-cs-sec { margin: 12px 0 6px; padding: 6px 10px; border-radius: 8px; font-size: 12px; letter-spacing: .02em; border-left: 3px solid #E3C98A; background: rgba(227, 201, 138, .10); }
+  html body #iba-ai-panel .iba-cs-sec.is-single { border-left-color: #22c55e; background: rgba(34, 197, 94, .10); }
+  html body #iba-ai-panel .iba-cs-sec.is-sum { border-left-color: #E3C98A; }
+  html body #iba-ai-panel .iba-cs-sec.is-none { border-left-color: #94a3b8; background: rgba(148, 163, 184, .10); }
+  html body #iba-ai-panel .iba-cs-wrap { overflow-x: auto; max-width: 100%; }
+  html body #iba-ai-panel table.iba-cs-t { width: 100%; border-collapse: collapse; font-size: 12px; }
+  html body #iba-ai-panel table.iba-cs-t th { text-align: left; padding: 5px 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; opacity: .75; border-bottom: 1px solid rgba(255, 255, 255, .18); white-space: nowrap; }
+  html body #iba-ai-panel table.iba-cs-t td { padding: 6px 8px; border-bottom: 1px solid rgba(255, 255, 255, .08); vertical-align: top; }
+  html body #iba-ai-panel table.iba-cs-t td:first-child { font-family: ui-monospace, Consolas, monospace; font-weight: 800; white-space: nowrap; }
+  html body #iba-ai-panel table.iba-cs-t td small { display: block; opacity: .7; font-size: 11px; }
+  html body #iba-ai-panel .iba-cs-msg:empty { display: none; }
+  html body #iba-ai-panel .iba-cs-msg { margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; background: rgba(34, 197, 94, .12); font-size: 12px; }
+  /* 17.0.5 patch 59: Sort for CEO move buttons */
+  html body #iba-ai-panel table.iba-cs-t thead th { background: transparent !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body #iba-ai-panel .iba-cs-mvw { display: block; margin-top: 6px; }
+  html body #iba-ai-panel table.iba-cs-t .iba-cs-mv { padding: 3px 9px; font-family: system-ui, sans-serif; font-size: 11px; font-weight: 700; min-height: 0; white-space: nowrap; }
+  html body #iba-ai-panel .iba-cs-urg { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 99px; font-family: inherit; font-size: 10px; font-weight: 800; background: rgba(239, 68, 68, .18); color: #fca5a5; -webkit-text-fill-color: #fca5a5; border: 1px solid rgba(239, 68, 68, .5); }
+  /* 17.0.5 patch 61: Sort for CEO invoice lines */
+  html body #iba-ai-panel .iba-cs-inv { white-space: nowrap; line-height: 1.5; }
+  html body #iba-ai-panel .iba-cs-inv + .iba-cs-inv { margin-top: 3px; }
+  html body #iba-ai-panel .iba-cs-po2 { font-family: ui-monospace, Consolas, monospace; opacity: .8; }
+  html body #iba-ai-panel .iba-cs-st { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 99px; font-size: 10.5px; font-weight: 700; background: rgba(127, 227, 214, .14); color: #7FE3D6; -webkit-text-fill-color: #7FE3D6; border: 1px solid rgba(127, 227, 214, .4); }
+  /* 17.0.5 patch 63: invoice history corrections */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #history-table-body button.iba-hf-del { display: inline-flex !important; align-items: center; justify-content: center; width: 26px !important; height: 24px !important; min-height: 0 !important; flex: 0 0 auto !important; padding: 0 !important; margin-left: 6px; border-radius: 7px; background: rgba(220, 53, 69, .14) !important; border: 1px solid rgba(255, 107, 107, .55) !important; color: #ff8a8a !important; -webkit-text-fill-color: #ff8a8a !important; font-size: 12px; cursor: pointer; vertical-align: middle; box-shadow: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #history-table-body button.iba-hf-del:hover { background: rgba(220, 53, 69, .6) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body #iba-hf-pop .iba-hf-list { margin: 6px 0 10px 18px; padding: 0; line-height: 1.7; }
+  html body #iba-hf-pop .iba-hf-list s { opacity: .7; }
 }
