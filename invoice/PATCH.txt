@@ -1,3 +1,8 @@
+17.0.5 patch 64 (01-Nov-2026)
+- Install as app: the app now has its own name and id ("IBA Invoice", id /invoice/), so it no longer clashes with other
+  IBA apps on port.iba.com.qa (Procurement, Progress PO). Uninstall the old "IBA System" app once, then install again.
+- Files: index.html, manifest.json
+
 17.0.5 patch 63 (01-Nov-2026)
 - Invoice history corrections, everywhere in the system (new js/iba-1705-histfix.js):
   1) If the same person changes an invoice status again within 15 minutes, a pop-up asks "Was this a correction?".
