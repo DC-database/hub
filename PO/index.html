@@ -2,188 +2,225 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Progress PO Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PO Records</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#131a23" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="PO Records" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="page-background">
-    <div class="page-container">
-      <div class="hamburger-menu">
-        <button onclick="toggleMenu()">☰</button>
-        <div id="sideMenu">
-          <button onclick="showTab('mainTab')">Main</button>
-          <button onclick="showTab('adminTab')">Admin</button>
-          <button onclick="window.location.href='https://ibaport.site'">Go back to HUB</button>
+  <!-- ===== Top bar ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" class="brand-icon" />
+      <div>
+        <h1>PO Records</h1>
+        <p class="brand-sub">Original POs in my custody</p>
+      </div>
+    </div>
+    <div id="statusTotals" class="status-totals"></div>
+    <div class="topbar-actions">
+      <button id="installAppBtn" class="btn btn-ghost" hidden title="Install as an app"><i class="fa-solid fa-download"></i><span>Install app</span></button>
+      <button id="adminToolsBtn" class="btn btn-ghost admin-only hidden" onclick="openModal('adminModal')" title="Upload, template and export"><i class="fa-solid fa-gear"></i><span>Admin</span></button>
+      <a class="btn btn-ghost" href="https://ibaport.site" title="Back to HUB"><i class="fa-solid fa-house"></i><span>HUB</span></a>
+      <button id="loginBtn" class="btn btn-primary" onclick="toggleLoginModal()"><i class="fa-solid fa-right-to-bracket"></i><span>Login</span></button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- ===== Search panel ===== -->
+    <section class="panel search-panel">
+      <div class="search-row">
+        <div class="field-icon grow">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchBox" placeholder="Search PO, ReqNum, supplier or project…" autocomplete="off" />
         </div>
+        <select id="statusFilter" onchange="searchRecords()" title="Show Active, Inactive or All records">
+          <option value="Active" selected>Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="All">All</option>
+        </select>
+        <input type="date" id="datePicker" onchange="filterBySpecificDate()" title="Filter by Date Filed" />
+        <button class="btn btn-primary" onclick="searchRecords()"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
+        <button class="btn btn-ghost" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i><span>Clear</span></button>
       </div>
 
-      <div id="mainTab" class="tabContent">
-        <h1>Progress PO Records</h1>
+      <div class="az-filter">
+        <span class="az-label">Supplier A–Z</span>
+        <div id="letterFilter"></div>
+      </div>
+    </section>
 
-        <div class="az-filter">
-          <span>Filter by Supplier:</span>
-          <div id="letterFilter"></div>
-        </div>
+    <!-- ===== Toolbar ===== -->
+    <section class="toolbar">
+      <div class="toolbar-group">
+        <button class="btn btn-accent admin-only hidden" onclick="openAddPOModal()"><i class="fa-solid fa-circle-check"></i><span>Mark Active</span></button>
+        <button class="btn btn-ghost admin-only hidden" onclick="openNewPOModal('')"><i class="fa-solid fa-plus"></i><span>Add new PO</span></button>
+        <button id="deleteSelectedBtn" class="btn btn-warn hidden" onclick="deleteSelectedRecords()"><i class="fa-solid fa-box-archive"></i><span>Release Selected</span></button>
+      </div>
+      <div class="toolbar-group">
+        <span id="resultCount" class="result-count"></span>
+        <button id="addToCollectionBtn" class="btn btn-ghost" title="Add ticked POs to my list" onclick="addCheckedToCollection()"><i class="fa-solid fa-list-check"></i><span>Add to list</span></button>
+        <button id="viewCollectionBtn" class="btn btn-ghost" onclick="viewCollection()">View (0)</button>
+        <button id="clearCollectionBtn" class="btn btn-ghost" title="Clear my list" onclick="clearCollection()"><i class="fa-solid fa-broom"></i><span>Clear list</span></button>
+      </div>
+    </section>
 
-        <div class="actions-bar">
-          <div class="group-left">
-            <input type="text" id="searchBox" placeholder="Search by PO" />
-
-            <select id="statusFilter" onchange="searchRecords()" title="Show Active, Inactive or All records" style="padding: 10px; margin: 5px; border: 1px solid #003A5C; border-radius: 4px;">
-              <option value="Active" selected>Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="All">All</option>
-            </select>
-
-            <!-- NEW CALENDAR PICKER -->
-            <input type="date" id="datePicker" onchange="filterBySpecificDate()" style="padding: 10px; margin: 5px; border: 1px solid #003A5C; border-radius: 4px;" title="Filter by Date Filed" />
-            
-            <button onclick="searchRecords()">Search</button>
-            <button onclick="clearSearch()">Clear</button>
-            <button onclick="openAddPOModal()">Mark Active</button>
-          </div>
-
-          <div class="group-right">
-            <button id="deleteSelectedBtn" class="hidden" style="background-color: #c0392b; border-color: #c0392b;" onclick="deleteSelectedRecords()">Release Selected</button>
-            <button id="addToCollectionBtn" class="btn-collect" title="Add selected to collection" onclick="addCheckedToCollection()">+</button>
-            <button id="viewCollectionBtn" class="btn-view" onclick="viewCollection()">View (0)</button>
-            <button id="clearCollectionBtn" onclick="clearCollection()">Clear</button>
-            <button id="loginBtn" onclick="toggleLoginModal()">Login</button>
-          </div>
-        </div>
-
-        <div class="totals-row">
-          <div id="statusTotals" class="status-totals"></div>
-          <div id="resultCount" class="result-count"></div>
-        </div>
-
-        <div id="noResultsBar" class="hidden no-results-row">
-          <button class="btn-collect" onclick="sendWhatsAppRequestAuto()">Request via WhatsApp</button>
-        </div>
-
+    <!-- ===== Results ===== -->
+    <section class="panel table-panel">
+      <div class="table-wrap">
         <table id="poTable">
-         
-<thead>
+          <thead>
             <tr>
-              <th><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"> Select All</th>
-              <th>ReqNum</th><th>PO</th><th>Supplier ID</th><th>Supplier Name</th><th>Project ID</th><th>Amount</th><th>Status</th><th>Date Filed</th><th>Date Released</th><th>Action</th>
+              <th class="col-check"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" title="Select all" /></th>
+              <th>ReqNum</th><th>PO</th><th>Supplier ID</th><th>Supplier Name</th><th>Project ID</th><th class="num">Amount</th><th>Status</th><th>Date Filed</th><th>Date Released</th><th>Action</th>
             </tr>
           </thead>
-
           <tbody></tbody>
         </table>
       </div>
 
-      <div id="adminTab" class="tabContent hidden">
-        <h2>Admin Login</h2>
-        <input type="email" id="email" placeholder="Email" autocomplete="off" />
-        <input type="password" id="password" placeholder="Password" />
-        <button onclick="login()">Login</button>
-        <button onclick="logout()">Logout</button>
-
-        <div id="adminSection" class="hidden">
-          <h2>Admin Panel (Live Records)</h2>
-          <p style="font-size:14px; color:#666;">
-            CSV columns: ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Status.
-            Status is Active (original in my custody) or Inactive (released). Status is optional and only used for new POs (blank = Inactive).
-            A PO that is already saved gets its details updated, but its Active/Inactive status is never changed by an upload.
-          </p>
-          
-          <input type="file" id="csvUpload" />
-          <button onclick="uploadCSV()">Upload CSV</button>
-          <button onclick="downloadMainTemplate()">Download Template</button>
-          <button onclick="exportRecordsCSV()">Export Records CSV</button>
-        </div>
+      <div id="emptyState" class="empty-state">
+        <i class="fa-regular fa-folder-open"></i>
+        <p>Search for a PO, pick a supplier letter, or choose a date to see records.</p>
       </div>
 
-      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
-      <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
-      <script src="app.js"></script>
+      <div id="noResultsBar" class="hidden no-results-row">
+        <p>No matching PO in your custody.</p>
+        <button class="btn btn-accent" onclick="sendWhatsAppRequestAuto()"><i class="fa-brands fa-whatsapp"></i><span>Request via WhatsApp</span></button>
+      </div>
+    </section>
+  </main>
 
-      <div id="loginModal" class="modal hidden">
-        <div class="modal-content">
-          <span class="close" onclick="toggleLoginModal()">&times;</span>
-          <h3>Login</h3>
-          <input type="email" id="popupEmail" placeholder="Email" autocomplete="off" />
-          <input type="password" id="popupPassword" placeholder="Password" />
-          <button onclick="popupLogin()">Login</button>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- ===== Modals ===== -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-content">
+      <button class="close" onclick="toggleLoginModal()" aria-label="Close">&times;</button>
+      <h3><i class="fa-solid fa-lock"></i> Admin login</h3>
+      <label>Email <input type="email" id="popupEmail" autocomplete="username" /></label>
+      <label>Password <input type="password" id="popupPassword" autocomplete="current-password" /></label>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="toggleLoginModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="popupLogin()">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminModal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <button class="close" onclick="closeModal('adminModal')" aria-label="Close">&times;</button>
+      <h3><i class="fa-solid fa-gear"></i> Admin tools</h3>
+      <div id="adminSection" class="hidden">
+        <div class="note">
+          <p><b>CSV columns:</b> ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Status</p>
+          <p>Status is optional and only used for new POs (blank = Inactive). A PO that is already saved gets its details updated, but its Active/Inactive status is never changed by an upload. Unchanged POs are skipped.</p>
+        </div>
+        <label class="file-drop">
+          <i class="fa-solid fa-file-csv"></i>
+          <span id="csvFileName">Choose a CSV file</span>
+          <input type="file" id="csvUpload" accept=".csv,text/csv" onchange="document.getElementById('csvFileName').textContent = this.files[0] ? this.files[0].name : 'Choose a CSV file'" />
+        </label>
+        <div class="modal-actions spread">
+          <button class="btn btn-ghost" onclick="downloadMainTemplate()"><i class="fa-solid fa-file-arrow-down"></i><span>Template</span></button>
+          <button class="btn btn-ghost" onclick="exportRecordsCSV()"><i class="fa-solid fa-file-export"></i><span>Export records</span></button>
+          <button class="btn btn-primary" onclick="uploadCSV()"><i class="fa-solid fa-upload"></i><span>Upload CSV</span></button>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div id="deleteConfirmModal" class="modal hidden">
-        <div class="modal-content">
-          <p>Delete this record permanently from Firebase? This cannot be undone. To keep it, use Release instead.</p>
-          <button onclick="proceedDelete()">Proceed</button>
-          <button onclick="cancelDelete()">Cancel</button>
-        </div>
+  <div id="deleteConfirmModal" class="modal hidden">
+    <div class="modal-content">
+      <p>Delete this record permanently from Firebase? This cannot be undone. To keep it, use Release instead.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="cancelDelete()">Cancel</button>
+        <button class="btn btn-danger" onclick="proceedDelete()">Delete</button>
       </div>
     </div>
   </div>
 
   <div id="addPOModal" class="modal hidden">
     <div class="modal-content">
-      <span class="close" onclick="closeAddPOModal()">&times;</span>
-      <h3>Mark PO Active</h3>
-      <p style="margin-top:-6px; font-size:12px; opacity:.8;">Admin only • The original is back in my custody</p>
-
-      <input type="text" id="addPOInput" placeholder="Enter PO number" />
-      <div style="margin-top:8px;">
-        <button onclick="addPOFromModal()">Mark Active</button>
-        <button onclick="closeAddPOModal(); openNewPOModal(document.getElementById('addPOInput').value.trim())">Add new PO</button>
-        <button onclick="closeAddPOModal()">Close</button>
+      <button class="close" onclick="closeAddPOModal()" aria-label="Close">&times;</button>
+      <h3><i class="fa-solid fa-circle-check"></i> Mark PO Active</h3>
+      <p class="modal-sub">The original is back in my custody</p>
+      <div class="field-icon">
+        <i class="fa-solid fa-hashtag"></i>
+        <input type="text" id="addPOInput" placeholder="Enter PO number" autocomplete="off" />
       </div>
-
-      <div id="addPOStatus" style="margin-top:10px; font-size:13px;"></div>
+      <div id="addPOStatus" class="modal-msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeAddPOModal(); openNewPOModal(document.getElementById('addPOInput').value.trim())">Add new PO</button>
+        <button class="btn btn-accent" onclick="addPOFromModal()">Mark Active</button>
+      </div>
     </div>
   </div>
 
   <div id="newPOModal" class="modal hidden">
-    <div class="modal-content">
-      <span class="close" onclick="closeNewPOModal()">&times;</span>
+    <div class="modal-content modal-wide">
+      <button class="close" onclick="closeNewPOModal()" aria-label="Close">&times;</button>
       <h3 id="newPOTitle">Add new PO</h3>
-      <p style="margin-top:-6px; font-size:12px; opacity:.8;">Type a Supplier ID or start typing a Supplier Name to pick from the vendor list.</p>
-      <label>ReqNum <input type="text" id="newReqNum" /></label>
-      <label>PO <input type="text" id="newPO" /></label>
-      <label>Supplier ID <input type="text" id="newSupplierID" autocomplete="off" /></label>
-      <label>Supplier Name <input type="text" id="newSupplierName" autocomplete="off" /></label>
-      <label>Project ID <input type="text" id="newProjectID" /></label>
-      <label>Amount <input type="text" id="newAmount" inputmode="decimal" /></label>
-      <label>Status
-        <select id="newStatus">
-          <option value="Active" selected>Active (I have the original)</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </label>
-      <div style="margin-top:8px;">
-        <button onclick="saveNewPO()">Save PO</button>
-        <button onclick="closeNewPOModal()">Cancel</button>
+      <p class="modal-sub">Type a Supplier ID, or start typing a Supplier Name and pick from the list.</p>
+      <div class="form-grid">
+        <label>ReqNum <input type="text" id="newReqNum" /></label>
+        <label>PO <input type="text" id="newPO" /></label>
+        <label>Supplier ID <input type="text" id="newSupplierID" autocomplete="off" /></label>
+        <label>Supplier Name <input type="text" id="newSupplierName" autocomplete="off" /></label>
+        <label>Project ID <input type="text" id="newProjectID" /></label>
+        <label>Amount <input type="text" id="newAmount" inputmode="decimal" /></label>
+        <label class="span-2">Status
+          <select id="newStatus">
+            <option value="Inactive" selected>Inactive</option>
+            <option value="Active">Active (I have the original)</option>
+          </select>
+        </label>
       </div>
-      <div id="newPOStatusMsg" style="margin-top:10px; font-size:13px;"></div>
+      <div id="newPOStatusMsg" class="modal-msg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeNewPOModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveNewPO()">Save PO</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editModal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <button class="close" onclick="closeEditModal()" aria-label="Close">&times;</button>
+      <h3><i class="fa-solid fa-pen"></i> Edit record</h3>
+      <div class="form-grid">
+        <label>ReqNum <input type="text" id="editReqNum" /></label>
+        <label>PO <input type="text" id="editPO" /></label>
+        <label>Supplier ID <input type="text" id="editSupplierID" autocomplete="off" /></label>
+        <label>Supplier Name <input type="text" id="editSupplierName" autocomplete="off" /></label>
+        <label>Project ID <input type="text" id="editProjectID" /></label>
+        <label>Amount <input type="text" id="editAmount" inputmode="decimal" /></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+      </div>
     </div>
   </div>
 
   <datalist id="vendorIdList"></datalist>
   <datalist id="vendorNameList"></datalist>
 
-  <div id="editModal" class="modal hidden">
-    <div class="modal-content">
-      <span class="close" onclick="closeEditModal()">&times;</span>
-      <h3>Edit Record</h3>
-      <input type="text" id="editReqNum" placeholder="ReqNum" />
-      <input type="text" id="editPO" placeholder="PO" />
-      <input type="text" id="editSupplierID" placeholder="Supplier ID" />
-      <input type="text" id="editSupplierName" placeholder="Supplier Name" />
-      <input type="text" id="editProjectID" placeholder="Project ID" />
-      <input type="text" id="editAmount" placeholder="Amount" />
-      <div style="margin-top:8px;">
-        <button onclick="saveEdit()">Save</button>
-        <button onclick="closeEditModal()">Cancel</button>
-      </div>
-    </div>
-  </div>
-
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+  <script src="app.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>

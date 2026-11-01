@@ -140,12 +140,16 @@ function playErrorSound() {
 // Show/hide admin section + login button state
 auth.onAuthStateChanged(user => {
   document.getElementById('adminSection')?.classList.toggle('hidden', !user);
-  document.getElementById('deleteSelectedBtn')?.classList.toggle('hidden', !user); // This line toggles the new delete button
-  
+  document.getElementById('deleteSelectedBtn')?.classList.toggle('hidden', !user); // Release Selected (admin only)
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !user));
+
   const btn = document.getElementById('loginBtn');
   if (btn) {
-    btn.textContent = user ? "Logout" : "Login";
-    if (user) btn.classList.add("logout"); else btn.classList.remove("logout");
+    btn.innerHTML = user
+      ? '<i class="fa-solid fa-right-from-bracket"></i><span>Logout</span>'
+      : '<i class="fa-solid fa-right-to-bracket"></i><span>Login</span>';
+    btn.classList.toggle('btn-primary', !user);
+    btn.classList.toggle('btn-ghost', !!user);
     btn.onclick = user ? logout : toggleLoginModal;
   }
   if (user) migrateMissingStatus();
@@ -180,7 +184,8 @@ function parseCSV(raw) {
   });
 }
 function csvCell(v){ v=String(v ?? ""); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
-function toNumberOrRaw(v){ const n=parseFloat(v); return isNaN(n)? v : n; }
+// "1,250.50" -> 1250.5 ; anything that is not a plain number is kept as text
+function toNumberOrRaw(v){ const t=String(v ?? "").replace(/,/g,"").trim(); return t!=="" && !isNaN(t) ? Number(t) : v; }
 function downloadCSV(name, headerLine){
   const blob=new Blob([headerLine+"\n"],{type:"text/csv;charset=utf-8"});
   const url=URL.createObjectURL(blob); const a=document.createElement("a");
@@ -194,7 +199,9 @@ function generateAZFilter(){
   if(!c) return;
   c.innerHTML = "";
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter=>{
-    const btn=document.createElement("button"); btn.textContent=letter; btn.onclick=()=>filterByVendorLetter(letter); c.appendChild(btn);
+    const btn=document.createElement("button"); btn.textContent=letter; btn.dataset.letter=letter;
+    btn.onclick=()=>{ c.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn)); filterByVendorLetter(letter); };
+    c.appendChild(btn);
   });
 }
 
@@ -204,8 +211,8 @@ function renderRow(childKey, data){
   const r = rec(data);
   const isAdmin = !!auth.currentUser;
   const statusBtn = r.Status === "Active"
-    ? `<button onclick="releaseRecord('${childKey}')">Release</button>`
-    : `<button onclick="reactivateRecord('${childKey}')">Re-activate</button>`;
+    ? `<button class="btn btn-sm btn-warn" onclick="releaseRecord('${childKey}')" title="Original left my custody"><i class="fa-solid fa-box-archive"></i>Release</button>`
+    : `<button class="btn btn-sm btn-ok" onclick="reactivateRecord('${childKey}')" title="Original is back with me"><i class="fa-solid fa-rotate-left"></i>Re-activate</button>`;
 
   const tr=document.createElement('tr');
   tr.dataset.key = childKey;
@@ -221,7 +228,7 @@ function renderRow(childKey, data){
      <td><span class="status-badge status-${r.Status.toLowerCase()}">${r.Status}</span></td>
      <td>${r.DateFiled || "-"}</td>
      <td>${r.DateReleased || "-"}</td>
-     <td>${isAdmin ? `<button onclick="openEditModal('${childKey}')">Edit</button> ` + statusBtn : ""}${viewingCollection ? ` <button class="btn-remove" onclick="removeFromCollection('${childKey}')">Remove from list</button>` : ""}</td>`;
+     <td><div class="row-actions">${isAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openEditModal('${childKey}')" title="Edit"><i class="fa-solid fa-pen"></i>Edit</button>` + statusBtn : ""}${viewingCollection ? `<button class="btn btn-sm btn-ghost" onclick="removeFromCollection('${childKey}')" title="Take off my list (record is not changed)"><i class="fa-solid fa-xmark"></i>Remove from list</button>` : ""}</div></td>`;
   return tr;
 }
 
@@ -235,12 +242,17 @@ function refreshRow(key, data){
   updateResultCount();
 }
 
+let hasSearched = false; // set once the user has searched/filtered, so "no results" differs from "nothing yet"
 function updateResultCount(){
   const count=document.querySelectorAll('#poTable tbody tr').length;
   const el=document.getElementById('resultCount');
-  if (el) el.textContent = count>0 ? `Total Results: ${count}` : '';
+  if (el) el.textContent = count>0 ? `${count.toLocaleString()} result${count===1?'':'s'}` : '';
   const bar=document.getElementById('noResultsBar');
-  if (bar) bar.classList.toggle('hidden', count!==0);
+  if (bar) bar.classList.toggle('hidden', !(count===0 && hasSearched && !viewingCollection));
+  const empty=document.getElementById('emptyState');
+  if (empty) empty.classList.toggle('hidden', count!==0 || (hasSearched && !viewingCollection));
+  const table=document.getElementById('poTable');
+  if (table) table.classList.toggle('hidden', count===0);
 }
 
 // ---- COLLECTION helpers ----
@@ -260,13 +272,25 @@ function addCheckedToCollection(){
   showCollectionNote(`Added ${added} to your list${already ? ` (${already} already in it)` : ""}. List now has ${Object.keys(selectedPOs).length}.`);
 }
 // Short message next to the result count
-function showCollectionNote(msg){
-  const el=document.getElementById('resultCount');
-  if(!el) return;
+function showCollectionNote(msg){ showToast(msg); }
+function showToast(msg){
+  const el=document.getElementById('toast');
+  if(!el){ return; }
   el.textContent=msg;
-  clearTimeout(showCollectionNote.t);
-  showCollectionNote.t=setTimeout(updateResultCount, 4000);
+  el.classList.add('show');
+  clearTimeout(showToast.t);
+  showToast.t=setTimeout(()=>el.classList.remove('show'), 3500);
 }
+// Generic modal open/close (Esc and clicking outside also close)
+function openModal(id){ document.getElementById(id)?.classList.remove('hidden'); }
+function closeModal(id){ document.getElementById(id)?.classList.add('hidden'); }
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.modal:not(.hidden)').forEach(m => m.classList.add('hidden'));
+});
+document.addEventListener('click', e => {
+  if (e.target.classList && e.target.classList.contains('modal')) e.target.classList.add('hidden');
+});
 // Removes one PO from the selected list only (the record itself is not touched)
 function removeFromCollection(key){
   delete selectedPOs[key]; persistSelected();
@@ -302,7 +326,7 @@ function clearCollection() {
 
 // ---------- Search / Filter ----------
 function filterByVendorLetter(letter){
-  currentVendorFilter=letter; currentSearchTerm=""; viewingCollection=false;
+  currentVendorFilter=letter; currentSearchTerm=""; viewingCollection=false; hasSearched=true;
   getRecords(statusFilter()).then(snap=>{
     const tbody=document.querySelector('#poTable tbody'); tbody.innerHTML='';
     snap.forEach(child=>{ const d=child.val(); if(matchesStatus(d) && String(rec(d).SupplierName).toUpperCase().startsWith(letter)) tbody.appendChild(renderRow(child.key,d)); });
@@ -314,7 +338,8 @@ function searchRecords(){
   const searchInput = document.getElementById('searchBox');
   currentSearchTerm=(searchInput.value||"").toLowerCase();
   lastSearchPO = searchInput.value || "";
-  currentVendorFilter=null; viewingCollection=false;
+  currentVendorFilter=null; viewingCollection=false; hasSearched=true;
+  document.querySelectorAll('#letterFilter button.active').forEach(b=>b.classList.remove('active'));
 
   // NEW: Get the calendar date and format it to match our database (DD-MMM-YYYY)
   const dateElement = document.getElementById('datePicker');
@@ -358,7 +383,8 @@ function searchRecords(){
 }
 
 function clearSearch(){
-  currentSearchTerm=""; currentVendorFilter=null; viewingCollection=false;
+  currentSearchTerm=""; currentVendorFilter=null; viewingCollection=false; hasSearched=false;
+  document.querySelectorAll('#letterFilter button.active').forEach(b=>b.classList.remove('active'));
   document.getElementById('searchBox').value='';
   document.getElementById('datePicker').value=''; // <-- This clears the calendar
   document.querySelector('#poTable tbody').innerHTML='';
@@ -719,7 +745,7 @@ function popupLogin() {
   const email = document.getElementById('popupEmail').value;
   const pass = document.getElementById('popupPassword').value;
   auth.signInWithEmailAndPassword(email, pass)
-    .then(() => toggleLoginModal())
+    .then(() => { toggleLoginModal(); document.getElementById('popupPassword').value = ''; showToast('Logged in'); })
     .catch(err => alert(err.message));
 }
 
@@ -733,6 +759,8 @@ function toggleMenu() {
 window.onload = () => { 
     generateAZFilter(); 
     updateSelectedCount();
+    updateResultCount();
+    document.getElementById('popupPassword')?.addEventListener('keypress', e => { if (e.key === 'Enter') popupLogin(); });
 
     // If the View button triggered a refresh, show the collection after reload
     if (sessionStorage.getItem('showPOCollectionAfterReload') === '1') {
@@ -853,7 +881,7 @@ function filterBySpecificDate() {
   
   const targetDate = `${day}-${month}-${year}`; // e.g., "24-MAR-2026"
 
-  viewingCollection=false;
+  viewingCollection=false; hasSearched=true;
   // Pull only records that match this exact date
   getRecords(statusFilter()).then(snapshot => {
     const tbody = document.querySelector('#poTable tbody'); 
@@ -959,7 +987,7 @@ window.showTab=(id)=>{
 window.searchRecords=searchRecords; window.clearSearch=clearSearch;
 window.showDeleteConfirm=showDeleteConfirm; window.proceedDelete=proceedDelete; window.cancelDelete=cancelDelete;
 window.openAddPOModal=openAddPOModal; window.closeAddPOModal=closeAddPOModal; window.addPOFromModal=addPOFromModal;
-window.uploadCSV=uploadCSV; 
+window.uploadCSV=uploadCSV; window.openModal=openModal; window.closeModal=closeModal; window.showToast=showToast;
 window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv",CSV_HEADER);
 
 // Exports every record (all statuses). The first 7 columns match the upload, so the file can be edited and re-uploaded.
