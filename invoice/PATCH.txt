@@ -1,3 +1,78 @@
+17.0.5 patch 63 (01-Nov-2026)
+- Invoice history corrections, everywhere in the system (new js/iba-1705-histfix.js):
+  1) If the same person changes an invoice status again within 15 minutes, a pop-up asks "Was this a correction?".
+     Yes = the wrong status line is removed (the new line keeps correctedFrom). No = both lines stay. A Batch save asks once for all.
+     Approval lines with ESN, Urgent lines and other special lines are never touched.
+  2) Super Admin: small red trash button on each line of the Invoice Status History window ("Are you sure?" first).
+     Only the history line is removed; the invoice status does not change.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1705-histfix.js (new)
+
+17.0.5 patch 62 (01-Nov-2026)
+- Sort for CEO: the saved invoice copy can be hours old (invoices already Paid still showed In Process). Now the typed POs and
+  every PO with a "ready" invoice for those vendors are read fresh from Firebase (one PO each, max 80) before sorting.
+- Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 61 (01-Nov-2026)
+- Sort for CEO: every invoice shown on its own line with invoice no., amount (QAR), invoice date and a status tag, both in
+  "Invoice ready" and "Also waiting" (which now lists up to 12 with their PO), so you can match each paper you hold.
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 60 (01-Nov-2026)
+- Track button: always opens Track (no longer flips back to chat), puts the cursor in the search box with the old text selected,
+  so you just type the new PO / vendor and press Enter.
+- Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 59 (01-Nov-2026)
+- Sort for CEO: a PO that has any other unfinished invoice on the same PO (any status except Paid, With Accounts, Cancelled,
+  Rejected, Removed) goes to Summary later ("Also on this PO" shows them).
+- Each Summary row has "Move to single" for urgent POs (marked Urgent, "Back to summary" undoes it); Send to Batch Entry includes them.
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 58 (01-Nov-2026)
+- New assistant skill "Sort for CEO" (Super Admin, PC): type POs; each PO's vendor is checked across all its POs for ready invoices
+  (In Process, For Approval, Approved, CEO Approval, For SRV, SRV Done). Vendor's only ready invoice = Single (ready for CEO Approval),
+  more ready (other POs or 2+ on this PO) = Summary later, else Not sorted. "Send ready to Batch Entry (N)" adds only the singles.
+  Uses the saved invoice list (no full download).
+- Track: closing the assistant clears the Track search box, Site, Year and results (phone search too), so the next Track starts fresh.
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 57 (01-Nov-2026)
+- PO value accuracy: when a PO's invoices add up to MORE than its POVALUE2 value (negative balance), the PO file (progress-po)
+  is asked for that one PO (indexed, ~300 bytes, kept 10 min, max 30 per search) and its newer PO value is used, with a small "updated" mark.
+  Invoice Records (PO value + balance), Invoice Entry (PO value), Where is my invoice? (PO value).
+- Files: index.html, css/iba-1705-fit.css, js/iba-1705-addpo.js, js/app-invoice-records.js, js/app-invoice-entry-search.js, js/iba-assistant.js
+
+17.0.5 patch 56 (01-Nov-2026)
+- Batch Entry: Invoice No. with "Retention" sets Invoice Value 0.00 (same rule as Invoice Entry; Amount Paid untouched), also applied on Save.
+- Batch Entry: small "to Paid" button on the Invoice Value label copies the value into Amount Paid.
+- Files: index.html, app.js, css/iba-1705-fit.css, js/iba-1705-batchval.js (new)
+
+17.0.5 patch 55 (01-Nov-2026)
+- Notify me also on WorkDesk records (reception New Entry / IPC) in Where is my invoice?: followed (job_entries/<key>/linkedInvoiceKey + remarks, a few bytes)
+  until it becomes an invoice, then that invoice until With Accounts / Paid (same bell, brief Watching table).
+- Files: index.html, js/iba-1705-watch.js, js/iba-assistant.js
+
+17.0.5 patch 54 (01-Nov-2026)
+- Where is my invoice?: more than 2 With Accounts POs fold ("N POs with Accounts · tap to show"); inside a PO
+  more than 2 With Accounts invoices fold too (teal).
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 53 (01-Nov-2026)
+- Side panel Invoice Management: clicking Entry opens Invoice Entry, clicking Finance opens Invoice Records
+  (first page the account may use), with the search box focused (PC only, no keyboard pop-up on touch).
+- Files: index.html, js/iba-shell.js
+
+17.0.5 patch 52 (01-Nov-2026)
+- Where is my invoice? order: In progress (IPC, received, Under Review ... CEO Approval) first, then With Accounts,
+  then fully paid POs and POs with no invoice yet folded ("tap to show"). Paid invoices inside a PO folded too.
+  Every PO still moving is opened (up to 20). Each PO is one folder: its invoices hang under it on a line.
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 51 (31-Oct-2026)
+- Side panel Requisition / Finance Report / PO System links open as a real link click (not window.open),
+  so Chrome / Edge hand them to the installed app when "Open supported links" is on.
+- Files: index.html, js/iba-shell.js
+
 17.0.5 patch 50 (31-Oct-2026)
 - PO file (progress-po) fallback, read only, ONE PO per lookup (indexed on PO, never the whole list),
   only when POVALUE2.csv does not have the PO; answers remembered (misses 10 min):

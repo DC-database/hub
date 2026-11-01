@@ -5715,6 +5715,9 @@ async function imBatchSaveRun() {
             releaseDate: row.querySelector('[name="releaseDate"]') ? row.querySelector('[name="releaseDate"]').value : (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])
         };
 
+        // 17.0.5 p56: same Retention rule as Invoice Entry (invoice no. "Retention" = value 0)
+        try { if (typeof imApplyRetentionInvoiceDataRule === 'function') imApplyRetentionInvoiceDataRule(invoiceData); } catch (_) {}
+
         // Read per-row values first, then apply Global Overrides defensively.
         // The UI also updates rows on global-control changes, but this guarantees
         // multi-row batch save uses the current Global Override values.
