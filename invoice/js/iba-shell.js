@@ -257,6 +257,31 @@
     };
   }
 
+  const BRANCH_SEARCH = { "im-invoice-entry": "im-po-search-input", "im-reporting": "im-reporting-search" };
+  function openBranchDefault(group) {
+    const btns = group.querySelectorAll(":scope > .iba-nav-sub > li > [data-iba-nav]");
+    let key = "";
+    let access = {};
+    try { access = shellAccessMap() || {}; } catch (_) {}
+    for (let i = 0; i < btns.length; i++) {
+      const k = btns[i].getAttribute("data-iba-nav");
+      const li = btns[i].closest("li");
+      if (k === "epicore" || (li && li.style.display === "none") || access[k] === false) continue;
+      key = k; break;
+    }
+    if (!key) return;
+    openPage(key);
+    const id = BRANCH_SEARCH[key];
+    // no keyboard pop-up on touch screens
+    if (!id || (window.matchMedia && !window.matchMedia("(pointer: fine)").matches)) return;
+    let n = 0;
+    (function tryFocus() {
+      const el = document.getElementById(id);
+      if (el && el.offsetParent !== null && !el.disabled) { try { el.focus({ preventScroll: false }); el.select(); } catch (_) {} return; }
+      if (++n < 12) setTimeout(tryFocus, 120);
+    })();
+  }
+
   function firstAllowedImPage() {
     const root = document.querySelector("#iba-app-shell [data-iba-im-root]");
     if (!root) return "";
@@ -1652,8 +1677,12 @@
     document.addEventListener("click", function (e) {
       const nav = e.target.closest && e.target.closest("[data-iba-nav]");
       if (nav) {
-        e.preventDefault();
         const key = nav.getAttribute("data-iba-nav");
+        // 17.0.5 p51: outside sites (Procure, Epicore, Finance, PO) open as a real
+        // link click, so Chrome / Edge can hand them to the installed app
+        // ("Open supported links"); window.open() is never handed over.
+        if (nav.tagName === "A" && /^https?:\/\//i.test(nav.getAttribute("href") || "") && nav.target === "_blank") return;
+        e.preventDefault();
         if (key === "epicore") {
           window.open("https://port.iba.com.qa/Epicore/", "_blank", "noopener");
           return;
@@ -1684,6 +1713,9 @@
           if (root) root.querySelectorAll("[data-iba-im-branch]").forEach(function (b) { b.classList.remove("is-open"); });
           if (opening) group.classList.add("is-open");
           if (root) root.classList.add("is-open");
+          // 17.0.5 p53: Entry opens Invoice Entry, Finance opens Invoice Records
+          // (first page this account may use), with the search box ready
+          if (opening) openBranchDefault(group);
           const list = document.querySelector("#iba-app-shell .iba-nav-list");
           if (list) list.querySelectorAll(":scope > .iba-nav-group").forEach(function (g) {
             if (g !== root) g.classList.remove("is-open");

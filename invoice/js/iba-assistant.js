@@ -1652,7 +1652,7 @@
             return r === 'new entry' || r === 'pending' || r === '';
         }).map((e) => {
             const at = Number(e.timestamp) || Date.parse(e.date || '') || 0;
-            return { kind: 'reception', _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'reception', job: e.key || e._key || undefined, _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || '—', status: 'At Reception (job entry)', payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1679,7 +1679,7 @@
             const at = Number(e.statusChangedAt) || Number(e.updatedAt) || Number(e.timestamp) || Date.parse(e.date || '') || 0;
             const processed = ft !== 'ipc application';
             const label = processed ? 'IPC done - waiting for the actual invoice' : 'With QS for IPC' + (raw && !/^(pending|new entry|ipc application)$/i.test(raw) ? ' (' + raw + ')' : '');
-            return { kind: 'ipc', _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
+            return { kind: 'ipc', job: e.key || e._key || undefined, _t: at, _r: Number(e.timestamp) || Date.parse(e.date || '') || at, invoice_no: e.ref || (processed ? 'IPC' : 'IPC app.'), status: label, side_status: label, payment: 'Not paid yet (not with Accounts)', stage: STAGES[0], stage_index: 0,
                 entered: at ? fmtDate(at) : undefined, entered_by: e.enteredBy || undefined, _years: at ? [dayOfISO(at).slice(0, 4)] : [],
                 with: e.attention || undefined, since: at ? fmtDate(at) : undefined, days: at ? daysSince(at) : undefined,
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
@@ -1754,10 +1754,15 @@
         list.sort((a, b) => (b.when || 0) - (a.when || 0));
         // 17.0.5 patch 22: a vendor's POs with an unpaid invoice come first
         // (the one with the newest invoice on top), then the paid-up ones
+        // 17.0.5 patch 52: in progress first, then With Accounts, then paid-up,
+        // then POs with no invoice yet
+        let nActive = 0;
         if (!poQ && list.length > 1) {
             const rk = await vendorRank(list);
+            const g = (p) => (rk[p.po] && rk[p.po].grp !== undefined) ? rk[p.po].grp : 3;
             const r = (p) => rk[p.po] || {};
-            list.sort((a, b) => ((r(b).open ? 1 : 0) - (r(a).open ? 1 : 0)) || ((r(b).last || 0) - (r(a).last || 0)) || ((b.when || 0) - (a.when || 0)));
+            list.sort((a, b) => (g(a) - g(b)) || ((r(b).last || 0) - (r(a).last || 0)) || ((b.when || 0) - (a.when || 0)));
+            nActive = list.filter((p) => g(p) <= 1).length;
         }
         const vendorLabel =poQ ? (list[0].vendor || '') : (list[0].vendor || vendor);
         // 15.0.0 patch 9: a vendor with many POs shows its newest POs first,
@@ -1767,7 +1772,8 @@
             bySite = countBy(list, 'siteLabel');
             delete bySite.unknown;
         }
-        const shown = list.slice(0, MAX_POS);
+        // every PO still moving is opened (up to 20), the rest fill up to 10
+        const shown = list.slice(0, Math.max(MAX_POS, Math.min(nActive, 20)));
         const jobs = await ensureJobs(shown.map((p) => p.po));
         const pos = await Promise.all(shown.map(async (p) => {
             let invMap = {};
@@ -1778,16 +1784,24 @@
             if (year) items = items.filter((i) => (i._years || []).indexOf(year) !== -1);
             // 17.0.5 patch 16: newest invoice first (by when it came in), so
             // Sep, Jun, Mar, Feb, then last year's
-            items.sort((a, b) => ((b._r || 0) - (a._r || 0)) || ((b._t || 0) - (a._t || 0)));
+            // 17.0.5 patch 52: in progress first, With Accounts next, paid last (each newest first)
+            items.sort((a, b) => (trkGrp(a) - trkGrp(b)) || ((b._r || 0) - (a._r || 0)) || ((b._t || 0) - (a._t || 0)));
             const last = items.reduce((m, i) => Math.max(m, i._r || 0), 0);
             items.forEach((i) => { delete i._years; delete i._t; delete i._r; });
+            // 17.0.5 p57: invoices add up to more than the POVALUE2 value -> newer PO value from the PO file
+            let poValue = p.poValue, poUpd = false;
+            const invTotal = invs.reduce((n, inv) => n + num(inv.invValue), 0);
+            if (acc.amounts && invTotal - (poValue || 0) > 0.01 && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
+                try { const a = (await window.ibaAddPo.amounts([p.po]) || {})[p.po]; if (a != null && Math.abs(a - (poValue || 0)) > 0.005) { poValue = a; poUpd = true; } } catch (_) {}
+            }
             return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
-                po_value: acc.amounts && p.poValue ? money(p.poValue) : undefined, items: items, _last: last || p.when || 0 };
+                po_value: acc.amounts && poValue ? money(poValue) : undefined, po_value_updated: poUpd || undefined, items: items, _last: last || p.when || 0,
+                group: items.length ? Math.min.apply(null, items.map(trkGrp)) : 3 };
         }));
         // 17.0.5 patch 16: the PO with the newest invoice comes first
         // 17.0.5 patch 22: POs with an unpaid invoice before paid-up ones
-        const isOpen = (p) => (p.items || []).some((i) => !(i.stage_index === 5 && !i.side_status)) ? 1 : 0;
-        pos.sort((a, b) => (isOpen(b) - isOpen(a)) || ((b._last || 0) - (a._last || 0)));
+        // 17.0.5 patch 52: group 0 in progress, 1 With Accounts, 2 all paid, 3 no invoice yet
+        pos.sort((a, b) => (a.group - b.group) || ((b._last || 0) - (a._last || 0)));
         pos.forEach((p) => { delete p._last; });
         const posOut = year ? pos.filter((p) => p.items.length || p.year === year) : pos;
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
@@ -1820,14 +1834,23 @@
             } catch (_) { resolve(null); }
         });
     }
+    // 17.0.5 patch 52: 0 = still moving (IPC, received, Under Review ... CEO Approval),
+    // 1 = With Accounts (only a reminder / payment day left), 2 = paid
+    function trkGrp(it) {
+        if (it && it.stage_index === 5 && !it.side_status) return 2;
+        if (it && it.stage_index === 4 && !it.side_status) return 1;
+        return 0;
+    }
     function rankOf(invs) {
-        let open = false, last = 0;
+        let open = false, last = 0, grp = 3;
         Object.keys(invs || {}).forEach((k) => {
             const inv = invs[k] || {};
-            if (norm(inv.status) !== 'paid') open = true;
+            const st = norm(inv.status);
+            if (st !== 'paid') open = true;
+            grp = Math.min(grp, st === 'paid' ? 2 : st === 'with accounts' ? 1 : 0);
             last = Math.max(last, Date.parse(inv.invoiceDate || '') || Number(inv.createdAt) || 0);
         });
-        return { open: open, last: last };
+        return { open: open, last: last, grp: grp };
     }
     async function vendorRank(list) {
         const rk = {};
@@ -2209,6 +2232,107 @@
     // copy + changes (window.ibaInvoiceEntriesLoad), never a new full read
     // when the copy is fresh. Up to BY_STATUS_MAX rows.
     const BY_STATUS_MAX = 100;
+    // ------------------------------------------------------------------
+    // 17.0.5 patch 58: "Sort for CEO". The approved papers E.Ali brings:
+    // type their POs. A vendor with only THIS one invoice ready = Single
+    // (straight to CEO Approval); a vendor with more ready invoices (any of
+    // its POs) = Summary later. Ready = In Process, For Approval, Approved,
+    // CEO Approval, For SRV, SRV Done. Uses the saved invoice list (no big
+    // download). "Send ready to Batch Entry" puts only the singles there.
+    // ------------------------------------------------------------------
+    const CEO_READY = ['in process', 'for approval', 'approved', 'ceo approval', 'for srv', 'srv done'];
+    const CEO_DONE = ['paid', 'with accounts', 'cancelled', 'rejected', 'removed', 'converted to invoice'];
+    async function toolCeoSort(a) {
+        const pos = Array.from(new Set(String((a && a.pos) || '').split(/[\s,;]+/).map((x) => cleanPO(x)).filter(Boolean)));
+        if (!pos.length) return { result: { error: 'Type the PO numbers, e.g. 57376, 57400.' } };
+        if (typeof window.ibaInvoiceEntriesLoad !== 'function') return { result: { error: 'The invoice list is not available on this page.' } };
+        await ensureBase();
+        const map = poMap();
+        const all = ((await window.ibaInvoiceEntriesLoad()) || {}).data || {};
+        const vid = (r) => String((r && (r['Supplier ID'] || r['Vendor ID'])) || '').trim();
+        const vname = (r) => vnorm((r && (r['Supplier Name'] || r['Supplier Name:'] || r.Supplier)) || '');
+        // every vendor's ready invoices, by vendor ID (else name)
+        const vkeyOf = (po) => { const r = map[po] || {}; return vid(r) ? 'id:' + vid(r) : (vname(r) ? 'n:' + vname(r) : ''); };
+        const need = {};
+        pos.forEach((po) => { const k = vkeyOf(po); if (k) need[k] = true; });
+        // 17.0.5 patch 62: the saved copy can be hours old (e.g. invoices already Paid still say In Process),
+        // so every PO that matters (the typed POs + every PO with a "ready" invoice) is read fresh, one PO each.
+        const fresh = {};
+        const getInv = (po) => (Object.prototype.hasOwnProperty.call(fresh, po) ? fresh[po] : all[po]) || {};
+        const buildReady = () => {
+            const out = {};
+            const poSet = {};
+            Object.keys(all).forEach((po) => { poSet[po] = true; });
+            Object.keys(fresh).forEach((po) => { poSet[po] = true; });
+            Object.keys(poSet).forEach((po) => {
+                const k = vkeyOf(po);
+                if (!k || !need[k]) return;
+                const invs = getInv(po);
+                Object.keys(invs).forEach((key) => {
+                    const e = invs[key];
+                    if (!e || typeof e !== 'object' || CEO_READY.indexOf(norm(e.status)) === -1) return;
+                    (out[k] = out[k] || []).push({ po: po, key: key, inv: e.invNumber || e.invEntryID || key, status: String(e.status || ''), value: num(e.invValue), date: e.invoiceDate || '' });
+                });
+            });
+            return out;
+        };
+        let readyBy = buildReady();
+        let idb = null;
+        try { if (typeof invoiceDb !== 'undefined') idb = invoiceDb; } catch (_) {}
+        if (idb && idb.ref) {
+            const check = {};
+            pos.forEach((po) => { check[po] = true; });
+            Object.keys(readyBy).forEach((k) => readyBy[k].forEach((x) => { check[x.po] = true; }));
+            const list = Object.keys(check).slice(0, 80);
+            for (let i = 0; i < list.length; i += 10) {
+                await Promise.all(list.slice(i, i + 10).map((po) => withTimeout(idb.ref('invoice_entries/' + po).once('value'), 9000, 'PO ' + po)
+                    .then((snap) => { fresh[po] = (snap && snap.val()) || {}; }).catch(() => {})));
+            }
+            readyBy = buildReady();
+        }
+        const single = [], summary = [], none = [];
+        pos.forEach((po) => {
+            const r = map[po] || {};
+            const k = vkeyOf(po);
+            const vendor = String(r['Supplier Name'] || r['Supplier Name:'] || '') || '—';
+            const site = siteNo(r['Project ID'] || '') || String(r['Project ID'] || '');
+            const ready = (k && readyBy[k]) || [];
+            const mine = ready.filter((x) => x.po === po);
+            // 17.0.5 patch 59: any other unfinished invoice on the SAME PO (any status) also means summary
+            const invs = getInv(po);
+            const pend = Object.keys(invs).filter((key) => { const e = invs[key]; return e && typeof e === 'object' && !mine.some((m) => m.key === key) && CEO_DONE.indexOf(norm(e.status)) === -1; })
+                .map((key) => ({ po: po, key: key, inv: invs[key].invNumber || invs[key].invEntryID || key, status: String(invs[key].status || ''), value: num(invs[key].invValue), date: invs[key].invoiceDate || '' }));
+            const row = { po: po, vendor: vendor, site: site, mine: mine, pend: pend, others: ready.filter((x) => x.po !== po) };
+            if (!map[po]) { row.why = 'Not in POVALUE2'; none.push(row); }
+            else if (!mine.length) { row.why = 'No invoice on this PO is in a ready status'; none.push(row); }
+            else if (ready.length > 1 || pend.length) summary.push(row);
+            else single.push(row);
+        });
+        const out = { single: single, summary: summary, none: none, statuses: 'In Process, For Approval, Approved, CEO Approval, For SRV, SRV Done' };
+        return { result: { single: single.map((x) => x.po), summary: summary.map((x) => x.po), not_ready: none.map((x) => x.po) }, card: { kind: 'ceosort', data: out } };
+    }
+    function ceoSortHtml(x) {
+        // 17.0.5 patch 61: every invoice on its own line with no., amount, date and status, so the paper can be matched
+        const one = (i, withPo) => '<div class="iba-cs-inv">' + (withPo ? '<span class="iba-cs-po2">PO ' + esc(i.po) + '</span> ' : '') + '<b>' + esc(i.inv) + '</b>' +
+            (i.value ? ' · QAR ' + esc(money(i.value)) : '') + (i.date ? ' · ' + esc(fmtDate(i.date)) : '') + ' <span class="iba-cs-st">' + esc(i.status || 'no status') + '</span></div>';
+        const inv = (l) => l.map((i) => one(i, false)).join('');
+        const also = (r) => { const l = (r.pend || []).concat(r.others || []); return l.slice(0, 12).map((i) => one(i, true)).join('') + (l.length > 12 ? '<div class="iba-cs-inv">+' + (l.length - 12) + ' more</div>' : ''); };
+        const tbl = (rows, other) => '<div class="iba-cs-wrap"><table class="iba-cs-t"><thead><tr><th>PO</th><th>Vendor</th><th>Site</th><th>Invoice ready</th>' + (other ? '<th>Also waiting</th>' : '') + '</tr></thead><tbody>' +
+            rows.map((r) => '<tr><td class="is-po">' + esc(r.po) + (r.moved ? ' <span class="iba-cs-urg">Urgent</span>' : '') +
+                (other ? '<div class="iba-cs-mvw"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-move="' + esc(r.po) + '" title="Urgent: send this PO alone, without waiting for the summary"><i class="fa-solid fa-arrow-up"></i> Move to single</button></div>'
+                    : (r.moved ? '<div class="iba-cs-mvw"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-back="' + esc(r.po) + '" title="Put it back in Summary later"><i class="fa-solid fa-arrow-down"></i> Back to summary</button></div>' : '')) +
+                '</td><td>' + esc(r.vendor) + '</td><td>' + esc(r.site) + '</td><td>' + inv(r.mine) + '</td>' +
+                (other ? '<td>' + (also(r) || (r.mine.length > 1 ? r.mine.length + ' invoices on this PO' : '')) + '</td>' : '') + '</tr>').join('') +
+            '</tbody></table></div>';
+        let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort for CEO<span class="iba-ai-badge is-plain">' + (x.single.length + x.summary.length + x.none.length) + ' POs</span></div>';
+        h += '<div class="iba-cs-sec is-single"><b><i class="fa-solid fa-user-tie"></i> Single · ready for CEO Approval · ' + x.single.length + '</b></div>' + (x.single.length ? tbl(x.single, false) : '<p class="iba-ai-empty">None.</p>');
+        h += '<div class="iba-cs-sec is-sum"><b><i class="fa-solid fa-layer-group"></i> Summary later (more invoices waiting from this vendor) · ' + x.summary.length + '</b></div>' + (x.summary.length ? tbl(x.summary, true) : '<p class="iba-ai-empty">None.</p>');
+        if (x.none.length) h += '<div class="iba-cs-sec is-none"><b><i class="fa-solid fa-circle-question"></i> Not sorted · ' + x.none.length + '</b></div><ul class="iba-ai-rows">' + x.none.map((r) => '<li><b>' + esc(r.po) + '</b><span class="iba-ai-grow">' + esc(r.vendor) + '<small>' + esc(r.why) + '</small></span></li>').join('') + '</ul>';
+        h += '<p class="iba-ai-foot">Ready means: ' + esc(x.statuses) + '. Sort the papers first, then:</p>';
+        h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn is-main" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-table-list"></i> Send ready to Batch Entry (' + x.single.reduce((n, r) => n + r.mine.length, 0) + ')</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
+        return h;
+    }
+
     async function batchByStatus(a) {
         if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
         if (typeof window.ibaInvoiceEntriesLoad !== 'function') return { result: { error: 'The invoice list is not available on this page.' } };
@@ -2721,9 +2845,10 @@
         invoice_activity: toolActivity,
         track_transfer: toolTransfer,
         find_transfers: toolTransferFind,
-        download_invoices: toolExport
+        download_invoices: toolExport,
+        ceo_sort: toolCeoSort
     };
-    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch', 'recent_status_changes', 'download_invoices'];
+    const SUPER_ONLY = ['find_po', 'open_po', 'fill_invoice_form', 'add_to_batch', 'recent_status_changes', 'download_invoices', 'ceo_sort'];
     async function runTool(name, args) {
         if (SUPER_ONLY.indexOf(name) !== -1 && !isSuper()) return { result: { error: 'This job is only for the Super Admin.' } };
         if (!phoneOk(name)) return { result: { error: PHONE_NO } };
@@ -3174,6 +3299,10 @@
                 const pos = String(v.pos || '').split(/[\s,;]+/).filter(Boolean);
                 return [{ tool: 'add_to_batch', args: { pos: pos, status: v.status || undefined, latest_only: v.which === 'latest' } }];
             } },
+        // 17.0.5 patch 58
+        ceo_sort: { name: 'Sort for CEO', icon: 'fa-arrow-down-wide-short', superOnly: true, desc: 'Type the POs of the approved papers. Each one is sorted: Single (its vendor has only this invoice ready, so it can go to CEO Approval alone) or Summary later (the same vendor has more ready invoices: In Process, For Approval, Approved, CEO Approval, For SRV or SRV Done). Then one button puts only the singles in Batch Entry. No AI used.',
+            ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 57376, 57400, 57411', poList: true }],
+            build: (v) => [{ tool: 'ceo_sort', args: { pos: v.pos } }] },
         // 17.0.3 patch 10: today's invoices of some statuses -> Batch Entry
         today_batch: { name: 'Today to Batch', icon: 'fa-calendar-day', superOnly: true, desc: 'Every invoice that got the picked status today (Qatar time) goes into Batch Entry: Under Review, With Accounts, For Approval, CEO Approval, or all four. Up to 100 at a time. Nothing is saved until you press Save. No AI used.',
             ask: () => [{ key: 'st', label: 'Status today', type: 'select', options: [
@@ -3816,11 +3945,24 @@
 
     function autoSize(ta) { ta.style.height = 'auto'; ta.style.height = Math.min(140, ta.scrollHeight) + 'px'; }
 
+    // 17.0.5 patch 58: closing the assistant forgets the Track search, so the
+    // next Track starts empty (martin: old results were still there).
+    function clearTrackSearch() {
+        const ph = $('iba-aph-q'), phOut = $('iba-aph-out');
+        if (ph && ph.value && phOut) phOut.innerHTML = ''; // phone: only a search, not the brief
+        ['iba-ai-track-q', 'iba-ai-track-site', 'iba-ai-track-year', 'iba-aph-q'].forEach((id) => {
+            const el = $(id);
+            if (el && el.value) { el.value = ''; try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch (_) {} }
+        });
+        const out = $('iba-ai-track-out'); if (out) out.innerHTML = '';
+    }
+
     function toggle(open) {
         const p = $('iba-ai-panel');
         if (!p) return;
         if (!open) closeReceipt();
         if (!open && wide) closeWide();
+        if (!open) clearTrackSearch();
         p.hidden = !open;
         $('iba-ai-fab').classList.toggle('is-open', !!open);
         if (open) {
@@ -3900,6 +4042,41 @@
         if (b.closest('#iba-ai-chips, #iba-ai-skills, .iba-ai-apps, .iba-ai-wide-apps')) bumpChip(chipKey(b));
         const act = b.dataset.ai;
         if (b.hasAttribute('data-wide-open')) { e.preventDefault(); return openWide(b.closest('.iba-ai-card')); }
+        if (b.hasAttribute('data-ceosort-move') || b.hasAttribute('data-ceosort-back')) {
+            e.preventDefault();
+            const card = b.closest('.iba-ai-card');
+            const x = card && card.__ceo;
+            if (!x) return;
+            const back = b.hasAttribute('data-ceosort-back');
+            const po = back ? b.dataset.ceosortBack : b.dataset.ceosortMove;
+            const from = back ? x.single : x.summary, to = back ? x.summary : x.single;
+            const i = from.findIndex((r) => r.po === po);
+            if (i === -1) return;
+            const r = from.splice(i, 1)[0];
+            r.moved = !back;
+            to.push(r);
+            const oldHead = card.querySelector(':scope > .iba-ai-card-head');
+            card.innerHTML = ceoSortHtml(x);
+            const newHead = card.querySelector(':scope > .iba-ai-card-head');
+            if (oldHead && newHead) { const keep = oldHead.querySelector('.iba-ai-head-actions'); if (keep) newHead.appendChild(keep); }
+            return;
+        }
+        if (b.hasAttribute('data-ceosort-send')) {
+            e.preventDefault();
+            const card = b.closest('.iba-ai-card');
+            const x = card && card.__ceo;
+            const msg = card && card.querySelector('[data-ceosort-msg]');
+            if (!x || typeof window.ibaAddToBatch !== 'function') return;
+            const items = [];
+            x.single.forEach((r) => r.mine.forEach((i) => items.push({ po: i.po, key: i.key })));
+            b.disabled = true;
+            if (msg) msg.textContent = 'Putting ' + items.length + ' invoice' + (items.length === 1 ? '' : 's') + ' in Batch Entry…';
+            window.ibaAddToBatch(items).then((r) => {
+                const n = (r && (r.added_count != null ? r.added_count : (r.added && r.added.length))) || items.length;
+                if (msg) msg.textContent = 'Done: ' + n + ' in Batch Entry. Set the status there to CEO Approval and Save.';
+            }).catch((err) => { b.disabled = false; if (msg) msg.textContent = 'Could not add: ' + ((err && err.message) || err); });
+            return;
+        }
         if (b.hasAttribute('data-wide-close')) { e.preventDefault(); return closeWide(); }
         if (b.hasAttribute('data-brief-apv-print')) {
             const card = b.closest('.iba-ai-card');
@@ -4036,7 +4213,15 @@
             if (state.view !== 'chat') showView('chat');
             return openWide(cards[cards.length - 1]);
         }
-        if (act === 'skills' || act === 'setup' || act === 'track') return showView(state.view === act ? (onPhone() ? 'phone' : 'chat') : act);
+        // 17.0.5 patch 60: Track always opens Track with the cursor in the search box and the
+        // old text selected, so typing replaces it (martin: no extra clicks to search again).
+        if (act === 'track') {
+            showView('track');
+            const q = $('iba-ai-track-q');
+            if (q) setTimeout(() => { try { q.focus(); q.select(); } catch (_) {} }, 30);
+            return;
+        }
+        if (act === 'skills' || act === 'setup') return showView(state.view === act ? (onPhone() ? 'phone' : 'chat') : act);
         if (b.dataset.viewGo) return showView(b.dataset.viewGo);
         if (b.dataset.track) {
             let q = {};
@@ -5363,33 +5548,68 @@
         if (r.year_rule) h += '<p class="iba-ai-foot">' + esc(r.year_rule) + '.</p>';
         const many = r.pos.some((p) => (p.items || []).length);
         if (many) h += '<p class="iba-trk-hint">Tap an invoice to see it alone.</p>';
-        r.pos.forEach((p, pi) => {
+        // 17.0.5 patch 52: in progress first, With Accounts next; fully paid POs
+        // and POs with no invoice yet are folded (tap to show)
+        const poHtml = (p, pi) => {
             const items = p.items || [];
-            const isPaid = (it) => it.stage_index === 5 && !it.side_status;
+            const isPaid = (it) => trkGrp(it) === 2;
             const paid = items.filter(isPaid);
             const open = items.filter((it) => !isPaid(it));
-            h += '<div class="iba-trk-po"><div class="iba-trk-pohead"><span class="iba-trk-lbl">PURCHASE ORDER</span>' +
+            let x = '<div class="iba-trk-po"><div class="iba-trk-pohead"><span class="iba-trk-lbl">PURCHASE ORDER</span>' +
                 '<span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
                 (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') +
                 '<span class="iba-trk-chips">' + (p.site ? '<span class="is-site">Site ' + esc(siteNo(p.site) || p.site) + '</span>' : '') + (p.year ? '<span>' + esc(p.year) + '</span>' : '') +
-                    (p.po_value ? '<span class="iba-trk-poval">PO value <b>' + esc(p.po_value) + '</b></span>' : '') + '</span></div>';
-            if (!items.length) h += '<p class="iba-trk-none">No invoice received yet for this PO.</p>';
-            // 17.0.5 patch 16: one list, newest invoice first (open and paid
-            // together, like a bank statement); older ones fold after 8
+                    (p.po_value ? '<span class="iba-trk-poval">PO value <b>' + esc(p.po_value) + '</b>' + (p.po_value_updated ? ' <span class="iba-pofile-upd" title="Updated in the PO file (progress-po)">updated</span>' : '') + '</span>' : '') + '</span></div>';
+            // 17.0.5 patch 52: everything under the PO hangs off it (tree line), so
+            // it reads PO -> its invoices / WorkDesk records -> next PO
+            x += '<div class="iba-trk-kids">';
+            if (!items.length) x += '<p class="iba-trk-none">No invoice received yet for this PO.</p>';
             if (items.length) {
                 const vP = paid.reduce((n, it) => n + num(it.value), 0);
-                h += '<div class="iba-trk-grp">INVOICES · ' + items.length + (open.length ? ' · ' + open.length + ' open' : '') + (paid.length ? ' · ' + paid.length + ' paid' + (vP ? ' (' + esc(money(vP)) + ')' : '') : '') + '</div>';
-                const SHOW = 8;
-                items.slice(0, SHOW).forEach((it, i) => { h += trkRowHtml(it, pi, i); });
-                if (items.length > SHOW) {
-                    h += '<details class="iba-trk-more"><summary><i class="fa-solid fa-chevron-down"></i> Show ' + (items.length - SHOW) + ' older</summary>' +
-                        items.slice(SHOW).map((it, i) => trkRowHtml(it, pi, i + SHOW)).join('') + '</details>';
+                x += '<div class="iba-trk-grp">UNDER PO ' + esc(p.po) + ' · ' + items.length + ' invoice' + (items.length === 1 ? '' : 's') + (open.length ? ' · ' + open.length + ' open' : '') + (paid.length ? ' · ' + paid.length + ' paid' + (vP ? ' (' + esc(money(vP)) + ')' : '') : '') + '</div>';
+                // items come in order: moving, With Accounts, paid
+                // 17.0.5 patch 54: more than 2 With Accounts invoices fold like the paid ones
+                const mov = open.filter((it) => trkGrp(it) === 0), accI = open.filter((it) => trkGrp(it) === 1);
+                mov.forEach((it, i) => { x += trkRowHtml(it, pi, i); });
+                if (accI.length > 2) {
+                    const vA = accI.reduce((n, it) => n + num(it.value), 0);
+                    x += '<details class="iba-trk-more is-paidfold is-accfold"><summary><i class="fa-solid fa-chevron-down"></i> ' + accI.length + ' with Accounts' + (vA ? ' (' + esc(money(vA)) + ')' : '') + '<span class="iba-tap"> · tap to show</span></summary>' +
+                        accI.map((it, i) => trkRowHtml(it, pi, mov.length + i)).join('') + '</details>';
+                } else accI.forEach((it, i) => { x += trkRowHtml(it, pi, mov.length + i); });
+                if (paid.length && !open.length && paid.length <= 2) paid.forEach((it, i) => { x += trkRowHtml(it, pi, open.length + i); });
+                else if (paid.length) {
+                    x += '<details class="iba-trk-more is-paidfold"><summary><i class="fa-solid fa-chevron-down"></i> ' + paid.length + ' paid' + (vP ? ' (' + esc(money(vP)) + ')' : '') + '<span class="iba-tap"> · tap to show</span></summary>' +
+                        paid.map((it, i) => trkRowHtml(it, pi, open.length + i)).join('') + '</details>';
                 }
             }
             const inRecords = items.some((it) => it.kind === 'invoice');
             // 17.0.5 patch 27: "Remind all" removed (each invoice has its own Remind)
-            if (inRecords) h += '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>';
-            h += '</div>';
+            if (inRecords) x += '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>';
+            return x + '</div></div>';
+        };
+        const grpOf = (p) => (p.group !== undefined ? p.group : ((p.items || []).length ? Math.min.apply(null, p.items.map(trkGrp)) : 3));
+        const idx = r.pos.map((p, pi) => ({ p: p, pi: pi, g: grpOf(p) }));
+        const part = (g) => idx.filter((o) => o.g === g);
+        const single = r.pos.length === 1;
+        const HEAD = { 0: '<i class="fa-solid fa-person-running"></i> In progress', 1: '<i class="fa-solid fa-building-columns"></i> With Accounts · waiting for a payment day' };
+        [0, 1].forEach((g) => {
+            const l = part(g);
+            if (!l.length) return;
+            // 17.0.5 patch 54: many With Accounts POs fold like the paid ones
+            if (g === 1 && l.length > 2 && !single) {
+                h += '<details class="iba-trk-fold is-accfold"><summary><i class="fa-solid fa-chevron-down"></i> ' + l.length + ' POs with Accounts · waiting for a payment day<span class="iba-tap"> · tap to show</span></summary>' +
+                    l.map((o) => poHtml(o.p, o.pi)).join('') + '</details>';
+                return;
+            }
+            if (!single) h += '<div class="iba-trk-sec is-g' + g + '">' + HEAD[g] + ' · ' + l.length + ' PO' + (l.length === 1 ? '' : 's') + '</div>';
+            l.forEach((o) => { h += poHtml(o.p, o.pi); });
+        });
+        [[2, 'fully paid'], [3, 'with no invoice yet']].forEach(([g, label]) => {
+            const l = part(g);
+            if (!l.length) return;
+            if (single) { l.forEach((o) => { h += poHtml(o.p, o.pi); }); return; }
+            h += '<details class="iba-trk-fold"><summary><i class="fa-solid fa-chevron-down"></i> ' + l.length + ' PO' + (l.length === 1 ? '' : 's') + ' ' + label + '<span class="iba-tap"> · tap to show</span></summary>' +
+                l.map((o) => poHtml(o.p, o.pi)).join('') + '</details>';
         });
         if (r.by_site && Object.keys(r.by_site).length) {
             const base = r.query || {};
@@ -5429,8 +5649,10 @@
         const canRemind = !paid && it.with && !noRemind(it);
         const canUrg = it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser()));
         // 17.0.5 patch 21: Notify me (until it reaches With Accounts)
-        const canWatch = window.ibaWatch && it.kind === 'invoice' && it.key && p.po && !paid && !(it.stage_index >= 4 && !side);
-        const acts = (canWatch ? window.ibaWatch.btnHtml({ po: p.po, key: it.key, inv: it.invoice_no, vendor: p.vendor || '', site: siteNo(p.site) || p.site || '', value: it.value || '', status: it.status || '' }) : '') +
+        // 17.0.5 patch 55: WorkDesk records (reception / IPC) can be watched too
+        const wJob = (it.kind === 'reception' || it.kind === 'ipc') && it.job;
+        const canWatch = window.ibaWatch && ((it.kind === 'invoice' && it.key) || wJob) && p.po && !paid && !(it.stage_index >= 4 && !side);
+        const acts = (canWatch ? window.ibaWatch.btnHtml({ po: p.po, key: wJob ? 'J-' + it.job : it.key, job: wJob ? it.job : undefined, inv: it.invoice_no, vendor: p.vendor || '', site: siteNo(p.site) || p.site || '', value: it.value || '', status: it.status || '' }) : '') +
             (canRemind ? '<button type="button" class="iba-trk-btn is-main" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: firstName2(it.with), items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
             (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
             (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '') +
@@ -5781,6 +6003,9 @@
                 '<li><span class="iba-ai-grow">' + esc(p.name) + '<small>' + esc([p.position, p.site].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' : '<p class="iba-ai-empty">Nobody found.</p>');
         } else if (card.kind === 'action') {
             d.innerHTML = '<div class="iba-ai-card-head' + (x.ok ? '' : ' is-bad') + '"><i class="fa-solid ' + esc(x.icon || 'fa-check') + '"></i> ' + esc(x.text) + '</div>';
+        } else if (card.kind === 'ceosort') {
+            d.innerHTML = ceoSortHtml(x);
+            d.__ceo = x;
         } else if (card.kind === 'track') {
             d.innerHTML = trackCardHtml(x);
             d.__trk = x;

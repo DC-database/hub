@@ -205,5 +205,27 @@
         });
     }
 
-    window.ibaAddPo = { find, fill, resolve, open: openForm };
+    // 17.0.5 p57: the PO file's current PO value for a few POs (Invoice Records)
+    const amtCache = new Map();
+    const AMT_MS = 10 * 60 * 1000;
+    async function amounts(list) {
+        const out = {};
+        await Promise.all((list || []).map(async (po) => {
+            const p = normPO(po);
+            if (!p) return;
+            const c = amtCache.get(p);
+            if (c && Date.now() - c.at < AMT_MS) { if (c.amt != null) out[po] = c.amt; return; }
+            let amt = null;
+            try {
+                const r = await findNow(p);
+                const n = r ? parseFloat(String(r.Amount).replace(/,/g, '')) : NaN;
+                if (isFinite(n) && n > 0) amt = n;
+            } catch (_) { return; }
+            amtCache.set(p, { at: Date.now(), amt: amt });
+            if (amt != null) out[po] = amt;
+        }));
+        return out;
+    }
+
+    window.ibaAddPo = { find, fill, resolve, amounts, open: openForm };
 })();

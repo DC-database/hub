@@ -1314,8 +1314,13 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             return searchMatch && siteMatch && summarySearchMatch;
         });
 
+        // 17.0.5 p57: a PO whose invoices add up to MORE than its POVALUE2 value
+        // (negative balance) is checked once in the PO file (progress-po, one
+        // small indexed read, kept 10 minutes); the newer PO value is used.
+        let poFileChecks = 0;
+
         for (const poNumber of filteredPONumbers) {
-            const poDetails = allPOs[poNumber] || {};
+            let poDetails = allPOs[poNumber] || {};
             const site = poDetails['Project ID'] || 'N/A';
             const vendor = poDetails['Supplier Name'] || 'N/A';
 
@@ -1349,7 +1354,17 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             let totalInvSum = 0;
             invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
 
-            const poVal = parseFloat(poDetails.Amount) || 0;
+            let poVal = parseFloat(poDetails.Amount) || 0;
+            if (totalInvSum - poVal > 0.01 && poFileChecks < 30 && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
+                poFileChecks++;
+                try {
+                    const fileAmt = (await window.ibaAddPo.amounts([poNumber]) || {})[poNumber];
+                    if (fileAmt != null && Math.abs(fileAmt - poVal) > 0.005) {
+                        poDetails = Object.assign({}, poDetails, { Amount: fileAmt, __poFileAmt: true, __csvAmount: poDetails.Amount });
+                        poVal = fileAmt;
+                    }
+                } catch (_) {}
+            }
             let balance = poVal - totalInvSum;
             if (poVal === 0) balance = 0;
 
@@ -1608,7 +1623,7 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             const totalInvValueDisplay = canViewAmounts ? `<strong>${formatCurrency(totalInvValue)}</strong>` : '---';
             const totalAmountPaidDisplay = canViewAmounts ? `<strong>${formatCurrency(finalTotalPaid)}</strong>` : '---';
     
-            const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` : 'N/A') : '---';
+            const poValueDisplay = canViewAmounts ? (poData.poDetails.Amount ? `QAR ${formatCurrency(poData.poDetails.Amount)}` + (poData.poDetails.__poFileAmt ? ` <span class="iba-pofile-upd" title="Updated in the PO file (progress-po). POVALUE2 says QAR ${formatCurrency(poData.poDetails.__csvAmount || 0)}">updated</span>` : '') : 'N/A') : '---';
             const balanceDisplay = canViewAmounts ? `QAR ${formatCurrency(poData.balance)}` : '---';
 
             let highlightClass = '';

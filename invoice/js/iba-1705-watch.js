@@ -68,7 +68,11 @@
             await Promise.all(ids.map(function (id) {
                 var w = st.list[id];
                 if (!w || !w.po || !w.key) return null;
-                return d.ref('invoice_entries/' + w.po + '/' + w.key + '/status').once('value')
+                // 17.0.5 patch 55: a WorkDesk record (reception / IPC) is followed
+                // until it becomes an invoice, then that invoice is followed
+                if (w.job && !w.ikey) return checkJob(id, w);
+                var ipo = w.ikey ? (w.ipo || w.po) : w.po, ikey = w.ikey || w.key;
+                return d.ref('invoice_entries/' + ipo + '/' + ikey + '/status').once('value')
                     .then(function (s) { var v = s && s.val(); st.status[id] = v == null ? '__gone' : String(v); })
                     .catch(function () {});
             }));
@@ -76,6 +80,24 @@
             await tidy();
         } finally { st.checking = false; }
         paint();
+    }
+    // WorkDesk record: only its link to the invoice and its remark (a few bytes)
+    async function checkJob(id, w) {
+        var m = mainDb(), d = invDb();
+        if (!m) return;
+        try {
+            var r = await Promise.all([m.ref('job_entries/' + w.job + '/linkedInvoiceKey').once('value'), m.ref('job_entries/' + w.job + '/linkedInvoicePO').once('value'), m.ref('job_entries/' + w.job + '/remarks').once('value')]);
+            var ik = r[0] && r[0].val(), ip = r[1] && r[1].val(), rm = r[2] && r[2].val();
+            if (ik) {
+                w.ikey = String(ik); w.ipo = String(ip || w.po);
+                try { await mainDb().ref(path() + '/' + id).update({ ikey: w.ikey, ipo: w.ipo }); } catch (_) {}
+                if (d) { var s = await d.ref('invoice_entries/' + w.ipo + '/' + w.ikey + '/status').once('value'); var v = s && s.val(); st.status[id] = v == null ? '__gone' : String(v); }
+                return;
+            }
+            if (rm == null) { st.status[id] = '__gone'; return; }
+            var t = String(rm || '').trim();
+            st.status[id] = /^(removed|cancelled|canceled|deleted)$/i.test(t) ? t : 'In WorkDesk' + (t && !/^(new entry|pending)$/i.test(t) ? ' (' + t + ')' : ' (at Reception)');
+        } catch (_) {}
     }
     // Paid and seen more than a day ago: off the list
     async function tidy() {
@@ -117,9 +139,11 @@
         if (Object.keys(st.list).length >= MAX_WATCH) { alert('You are already watching ' + MAX_WATCH + ' invoices. Stop one first (Now brief, Watching).'); return false; }
         var w = {
             po: String(info.po), key: String(info.key), inv: String(info.inv || ''),
+            job: info.job ? String(info.job) : undefined,
             vendor: String(info.vendor || ''), site: String(info.site || ''), value: String(info.value || ''),
             by: myName(), at: Date.now()
         };
+        if (!w.job) delete w.job;
         st.list[id] = w;
         if (info.status) st.status[id] = String(info.status);
         try { await d.ref(path() + '/' + id).set(w); } catch (e) {
