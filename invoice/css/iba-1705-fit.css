@@ -661,4 +661,54 @@
   html body #iba-esn.iba-pull .iba-pull-chip.is-ok { border-color: rgba(34, 197, 94, .6); background: rgba(34, 197, 94, .14); }
   html body #iba-esn.iba-pull .iba-pull-chip.is-same { border-color: rgba(227, 201, 138, .6); background: rgba(227, 201, 138, .12); }
   html body #iba-esn.iba-pull .iba-pull-chip.is-bad { border-color: rgba(239, 68, 68, .6); background: rgba(239, 68, 68, .14); }
+  /* 17.0.5 patch 69: still with Procurement + WhatsApp request */
+  html body #iba-esn.iba-pull .iba-pull-chip.is-proc { border-color: rgba(127, 227, 214, .6); background: rgba(127, 227, 214, .12); display: inline-flex; align-items: center; gap: 6px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-pull button.iba-pull-req { display: inline-flex !important; align-items: center; gap: 5px; min-height: 0 !important; height: 24px !important; padding: 0 9px !important; border-radius: 99px !important; font-size: 11.5px !important; font-weight: 700; background: #1f9d55 !important; border: 1px solid #25d366 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; cursor: pointer; box-shadow: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-pull button.iba-pull-req.is-all { height: 28px !important; }
+  /* 17.0.5 patch 72: Summary Note sheet (white paper): row hover kept readable (dark text, light blue-grey row) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #summary-note-printable-area tbody tr:hover > td { color: #14293f !important; -webkit-text-fill-color: #14293f !important; background: #e6eef5 !important; background-color: #e6eef5 !important; }
+  /* 17.0.5 patch 74: Material update preview (iba-1705-msmigrate.js) + "was <old ID>" under the Product ID */
+  html body:not(#iba-no1):not(#iba-no2) #iba-msm .iba-pb-box.iba-msm-box { width: min(1120px, 96vw) !important; max-width: 96vw !important; }
+  html body #iba-msm .iba-pb-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-msm .iba-msm-x { background: transparent !important; border: 0 !important; color: inherit !important; font-size: 18px; cursor: pointer; box-shadow: none !important; }
+  html body #iba-msm .iba-msm-scroll { max-height: 58vh; overflow: auto; border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; margin-top: 8px; }
+  html body #iba-msm .iba-msm-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  html body #iba-msm .iba-msm-table th { position: sticky; top: 0; background: rgba(12, 24, 40, .96); color: #E3C98A; text-align: left; padding: 7px 8px; font-weight: 700; z-index: 1; }
+  html body #iba-msm .iba-msm-table td { padding: 6px 8px; border-top: 1px solid rgba(255, 255, 255, .08); vertical-align: top; color: #eef3f8; }
+  html body #iba-msm .iba-msm-table td s { opacity: .55; }
+  html body #iba-msm .iba-msm-table td small { opacity: .7; }
+  html body #iba-msm .iba-msm-table tr.is-bad td { background: rgba(220, 53, 69, .12); }
+  html body #iba-msm .iba-msm-table tr.is-same td { opacity: .55; }
+  html body #iba-msm .iba-msm-id { font-family: ui-monospace, Consolas, monospace; white-space: nowrap; }
+  html body #iba-msm .iba-msm-bad { color: #ff9b9b; }
+  html body #iba-msm .iba-msm-ok { color: #7FE3D6; white-space: nowrap; }
+  html body #iba-msm .iba-msm-same { color: #b9c4cf; }
+  html body #iba-msm .iba-msm-msg { margin-top: 8px; min-height: 1em; }
+  html body .ms-old-id { display: block; font-size: 10.5px; opacity: .7; font-style: italic; margin-top: 2px; }
+  /* 17.0.5 patch 76: Material Stock page bar (Showing 1-25 of 200 · Previous / Next) */
+  html body #ms-page-bar.ms-page-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 10px 0 4px; padding: 9px 14px; border-radius: 12px; border: 1px solid rgba(227, 201, 138, .35); background: rgba(12, 24, 40, .55); color: #eef3f8; font-size: 13px; }
+  html body #ms-page-bar[hidden] { display: none !important; }
+  html body #ms-page-bar .ms-page-info b { color: #E3C98A; }
+  html body #ms-page-bar .ms-page-nav { display: inline-flex; align-items: center; gap: 10px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-page-bar .ms-page-nav button { min-height: 0 !important; height: 32px !important; padding: 0 14px !important; border-radius: 99px !important; font-size: 12.5px !important; display: inline-flex !important; align-items: center; gap: 6px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-page-bar .ms-page-nav button:disabled { opacity: .4 !important; cursor: default; }
+  html body:not(#iba-no1):not(#iba-no2) #ms-page-bar .ms-page-size { display: inline-flex; align-items: center; gap: 6px; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; font-size: 12.5px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-page-bar .ms-page-size select { height: 28px !important; min-height: 0 !important; padding: 0 6px !important; width: auto !important; border-radius: 8px !important; }
+  /* 17.0.5 patch 77: Material Stock table only: visible scrollbar + "more rows below" pill */
+  html body #wd-material-stock .ms-premium-tablewrap:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) { scrollbar-width: auto !important; scrollbar-color: rgba(227, 201, 138, .75) rgba(255, 255, 255, .06) !important; position: relative; }
+  html body #wd-material-stock .ms-premium-tablewrap:not(#iba-no1)::-webkit-scrollbar { width: 12px !important; height: 12px !important; display: block !important; background: rgba(255, 255, 255, .06) !important; }
+  html body #wd-material-stock .ms-premium-tablewrap:not(#iba-no1)::-webkit-scrollbar-thumb { background: rgba(227, 201, 138, .75) !important; border-radius: 99px; border: 2px solid rgba(12, 24, 40, .8); }
+  /* 17.0.5 patch 78: hint lives in the page bar (not over the rows); bar keeps clear of the assistant bot (bottom right) */
+  html body #ms-page-bar.ms-page-bar { justify-content: flex-start; padding-right: 96px; }
+  html body #ms-page-bar .ms-page-more { color: #7FE3D6; font-weight: 700; }
+  html body #ms-page-bar .ms-page-more[hidden] { display: none !important; }
+  html body #ms-page-bar .ms-page-nav { margin-left: auto; }
+  html body #ms-page-bar .ms-page-size { order: 5; }
+  /* 17.0.5 patch 79: same visible scrollbar on the other Inventory tables: Active Job and Work History (inventory mode only) */
+  html body #inv-active-job .table-wrapper:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4),
+  html body.inventory-mode #wd-reporting .table-wrapper:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) { scrollbar-width: auto !important; scrollbar-color: rgba(227, 201, 138, .75) rgba(255, 255, 255, .06) !important; }
+  html body #inv-active-job .table-wrapper:not(#iba-no1)::-webkit-scrollbar,
+  html body.inventory-mode #wd-reporting .table-wrapper:not(#iba-no1)::-webkit-scrollbar { width: 12px !important; height: 12px !important; display: block !important; background: rgba(255, 255, 255, .06) !important; }
+  html body #inv-active-job .table-wrapper:not(#iba-no1)::-webkit-scrollbar-thumb,
+  html body.inventory-mode #wd-reporting .table-wrapper:not(#iba-no1)::-webkit-scrollbar-thumb { background: rgba(227, 201, 138, .75) !important; border-radius: 99px; border: 2px solid rgba(12, 24, 40, .8); }
 }
