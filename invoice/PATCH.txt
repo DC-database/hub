@@ -1,3 +1,21 @@
+17.0.5 patch 68 (02-Nov-2026)
+- PO pull-out list: forgot +Del? The list window now has a box "Type PO numbers" + Add (like a cart). Each PO is checked in the
+  PO file: Active ones are added (supplier, project, amount, date filed), never twice; released / not-in-file POs are refused with
+  the reason. Then tick Pulled and Proceed exactly as before.
+- New assistant skill "Add PO to pull-out list" (Super Admin) opens the list with the cursor in that box.
+- Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js, js/iba-1705-release.js
+
+17.0.5 patch 67 (02-Nov-2026)
+- Invoice Value / Amount Paid always shown with commas (100,000.00) in Invoice Entry and on every Batch Entry card,
+  also when the system fills them (open invoice, new card, to Paid, retention, assistant) and live while typing.
+  Display only: saves already strip commas, Firebase keeps the same value (100000.00).
+- Files: index.html, js/iba-1705-money.js (new)
+
+17.0.5 patch 66 (02-Nov-2026)
+- Assistant (PC): a skill that opens a page (Batch Entry, Invoice Entry / open PO / fill invoice, Invoice Records, Add job,
+  Active Task, Active Job) now closes the assistant back to the bot icon, so the page is free to use.
+- Files: index.html, js/iba-assistant.js
+
 17.0.5 patch 65 (02-Nov-2026)
 - PC: invoice / SRV PDF buttons (OneDrive / SharePoint) open in ONE side window on the right half of the screen instead of
   a new tab; the next PDF reuses the same window. Ctrl/Shift/middle click = normal new tab. Phones unchanged.
