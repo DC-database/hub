@@ -1,3 +1,65 @@
+17.0.5 patch 80 (02-Nov-2026)
+- Download Titles file (and so the Excel sheet tab) is named after the family tab: "Civil & Structural.csv"; a search on All = "Search - <words>.csv".
+  Files: index.html, js/materialStock.js, js/iba-1705-msmigrate.js
+
+17.0.5 patch 79 (02-Nov-2026)
+- Inventory Active Job and Work History tables: same visible gold scrollbar as Material Stock (only appears when the list is longer than the box). WorkDesk / Invoice tables unchanged.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 78 (02-Nov-2026)
+- Material Stock: "more rows below" hint removed (it covered rows). Visible scrollbar stays. Page bar keeps clear of the assistant bot (Rows picker no longer under it).
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js
+
+17.0.5 patch 77 (02-Nov-2026)
+- Material Stock table only: visible gold scrollbar inside the table box + "N more rows below · scroll down" pill at the bottom (click = scroll down), hidden at the end. Other pages keep hidden scrollbars.
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js
+
+17.0.5 patch 76 (02-Nov-2026)
+- Material Stock table in pages: bar under the table "Showing 1-25 of 200 · more on the next page", Previous / Page x of y / Next, Rows 25/50/100 (kept per browser).
+  New search / family / site goes back to page 1. Download Titles and reports still use all results.
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js
+
+17.0.5 patch 75 (02-Nov-2026)
+- Update Titles (Admin/Logistic): the Super Admin full file (Firebase Key, Product ID, New Title, ...) is read by its headers too: titles only, other columns ignored. Quoted titles with commas read correctly.
+  Files: index.html, js/materialStock.js
+
+17.0.5 patch 74 (02-Nov-2026)
+- Material Stock (Super Admin): Download Titles now gives Firebase Key, Product ID, Title, Unit, Family, Relationship (+ names for info).
+  Update Titles reads it by the Firebase key (extra columns ignored), shows a preview (old ID -> new ID, unit, family, linked records, blocked rows) and saves each item
+  together with its transfers / stock adjustments / requests in ONE write. New family/relationship keeps the series (1.104.00150 -> 2.201.00150).
+  Quantity and site stock are never written (safety lock). Old ID kept (oldProductIDs): search still finds it, list shows "was ...".
+  New transfers also store materialKey (the Firebase key). Admin/Logistic keep the old titles-only upload.
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js, js/transferLogic.js, js/iba-1705-msmigrate.js (new)
+
+17.0.5 patch 73 (02-Nov-2026)
+- Sort for CEO "Send ready to Batch Entry": shows the real outcome as a pop-up message (added / already there / not found / error) because the assistant closes when Batch Entry opens; an error is no longer reported as "Done".
+  Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 72 (02-Nov-2026)
+- Summary Note: hovering a row no longer turns the text white on the white sheet (dark text, light blue-grey row).
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 71 (02-Nov-2026)
+- Adding a NEW invoice (Invoice Entry or Batch) on a PO that is still with Procurement
+  (not Active, never filed) now pops up "Original PO not in your file yet" with
+  "Request original PO" (WhatsApp to Hafiz, message ready, you press Send). Super Admin only,
+  once per PO per day; a Batch save shows one pop-up for all its POs.
+  Files: index.html, js/iba-1705-release.js
+
+17.0.5 patch 70 (02-Nov-2026)
+- PO pull-out box: an Inactive PO with NO date filed (and no release date) is "Still with Procurement" even when an invoice is
+  already entered (invoices can come before the paper PO; martin's PO 65427). It then says "invoice already entered" and gets the
+  WhatsApp "Request original PO" button. Inactive with a date filed = "was in your file (no release date)".
+- Files: index.html, js/iba-1705-release.js
+
+17.0.5 patch 69 (02-Nov-2026)
+- PO pull-out box: a PO that is not Active now says why: "released <date> (returned to Accounts)", "released earlier (it has
+  invoices)", "Still with Procurement (new, never filed)" (no release date, no date filed, no invoices) or "not in the PO file".
+  One small read of that PO's invoices only.
+- "Still with Procurement" POs get a WhatsApp "Request original PO" button to Reception (Hafiz, mobile from the user list),
+  and "Request all (N)" puts several POs in one message (PO · vendor · Site). The message is only prepared; you press Send.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1705-release.js
+
 17.0.5 patch 68 (02-Nov-2026)
 - PO pull-out list: forgot +Del? The list window now has a box "Type PO numbers" + Add (like a cart). Each PO is checked in the
   PO file: Active ones are added (supplier, project, amount, date filed), never twice; released / not-in-file POs are refused with
