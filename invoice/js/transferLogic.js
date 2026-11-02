@@ -1091,6 +1091,8 @@ async function saveTransferEntry(e) {
                 isMultiItem: itemsToSave.length > 1,
                 jobType: type, for: type,
                 productID: item.productID,
+                // 17.0.5 patch 74: the item's Firebase key too (never changes, even when the Product ID does)
+                materialKey: (function () { try { const m = (allMaterialStockData || []).filter((x) => String(x.productID || x.productId || '').trim() === String(item.productID || '').trim()); return m.length === 1 ? (m[0].key || null) : null; } catch (_) { return null; } })(),
                 productName: item.productName,
                 details: item.details,
                 requiredQty: item.qty,

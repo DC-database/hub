@@ -4077,10 +4077,15 @@
             x.single.forEach((r) => r.mine.forEach((i) => items.push({ po: i.po, key: i.key })));
             b.disabled = true;
             if (msg) msg.textContent = 'Putting ' + items.length + ' invoice' + (items.length === 1 ? '' : 's') + ' in Batch Entry…';
+            // 17.0.5 patch 73: the panel closes when Batch Entry opens, so the outcome is also shown as a toast; errors are no longer reported as "Done"
+            const tell = (t, tone) => { if (msg) msg.textContent = t; try { if (typeof window.ibaToast === 'function') window.ibaToast(t, tone || 'success'); } catch (_) {} };
             window.ibaAddToBatch(items).then((r) => {
-                const n = (r && (r.added_count != null ? r.added_count : (r.added && r.added.length))) || items.length;
-                if (msg) msg.textContent = 'Done: ' + n + ' in Batch Entry. Set the status there to CEO Approval and Save.';
-            }).catch((err) => { b.disabled = false; if (msg) msg.textContent = 'Could not add: ' + ((err && err.message) || err); });
+                r = r || {};
+                if (r.error) { b.disabled = false; return tell('Could not add: ' + r.error, 'error'); }
+                const n = (r.added || []).length, had = (r.already_in_batch || []).length, miss = (r.not_added || []).length;
+                if (!n && !had) { b.disabled = false; return tell('Nothing was added to Batch Entry' + (miss ? ' (' + miss + ' invoice' + (miss === 1 ? '' : 's') + ' not found)' : '') + '.', 'error'); }
+                tell((n ? n + ' added to Batch Entry' : '') + (had ? (n ? ', ' : '') + had + ' already there' : '') + (miss ? ', ' + miss + ' not found' : '') + '. Set the status to CEO Approval and Save.');
+            }).catch((err) => { b.disabled = false; tell('Could not add: ' + ((err && err.message) || err), 'error'); });
             return;
         }
         if (b.hasAttribute('data-wide-close')) { e.preventDefault(); return closeWide(); }

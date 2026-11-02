@@ -1724,7 +1724,58 @@ window.msAlignCompletedReceiptGap = function () {
     return Promise.resolve();
 };
 
+// 17.0.5 patch 76: Material Stock shows its results in pages ("Showing 1-25 of 200", Previous / Next),
+// so nobody thinks the first rows on the screen are all there is. Download Titles and the reports
+// still use ALL results (lastFilteredStockData).
+let msPageNo = 1;
+let msPageSig = '';
+let msPageLastData = null;
+function msPageSize() {
+    try { const n = parseInt(localStorage.getItem('iba-ms-page-size-v1'), 10); if ([25, 50, 100].indexOf(n) !== -1) return n; } catch (_) {}
+    return 25;
+}
+function msPageBar() {
+    let bar = document.getElementById('ms-page-bar');
+    if (bar) return bar;
+    const table = document.getElementById('ms-table');
+    if (!table) return null;
+    const wrap = table.closest('.table-wrapper') || table;
+    bar = document.createElement('div');
+    bar.id = 'ms-page-bar';
+    bar.className = 'ms-page-bar';
+    wrap.insertAdjacentElement('afterend', bar);
+    bar.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-ms-page]');
+        if (!b || b.disabled) return;
+        msPageNo = parseInt(b.getAttribute('data-ms-page'), 10) || 1;
+        renderMaterialStockTable(msPageLastData || allMaterialStockData);
+        try { table.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
+    });
+    bar.addEventListener('change', (e) => {
+        const sel = e.target.closest('[data-ms-size]');
+        if (!sel) return;
+        try { localStorage.setItem('iba-ms-page-size-v1', sel.value); } catch (_) {}
+        msPageNo = 1;
+        renderMaterialStockTable(msPageLastData || allMaterialStockData);
+    });
+    return bar;
+}
+// 17.0.5 patch 78: the visible scrollbar (CSS) shows the list goes on; no extra hint (martin: it blocked the rows)
+function msDrawPageBar(total, from, to, page, pages) {
+    const bar = msPageBar();
+    if (!bar) return;
+    if (!total) { bar.hidden = true; bar.innerHTML = ''; return; }
+    bar.hidden = false;
+    const size = msPageSize();
+    bar.innerHTML = `<span class="ms-page-info">Showing <b>${from}–${to}</b> of <b>${total}</b>${page < pages ? ' · more on the next page' : ''}</span>` +
+        (pages > 1 ? `<span class="ms-page-nav"><button type="button" class="secondary-btn" data-ms-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}><i class="fa-solid fa-chevron-left"></i> Previous</button>` +
+            `<span class="ms-page-no">Page <b>${page}</b> of ${pages}</span>` +
+            `<button type="button" class="secondary-btn" data-ms-page="${page + 1}" ${page >= pages ? 'disabled' : ''}>Next <i class="fa-solid fa-chevron-right"></i></button></span>` : '') +
+        `<label class="ms-page-size">Rows <select data-ms-size>${[25, 50, 100].map((n) => `<option value="${n}"${n === size ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`;
+}
+
 function renderMaterialStockTable(data) {
+    msPageLastData = data;
     try {
         const scBtn = document.getElementById('ms-stock-check-btn');
         if (scBtn) scBtn.classList.toggle('hidden', !msCanAlignStock());
@@ -1745,6 +1796,7 @@ function renderMaterialStockTable(data) {
         }
         if (countDisplay) countDisplay.textContent = '';
         lastFilteredStockData = [];
+        msDrawPageBar(0);
         return;
     }
 
@@ -1808,7 +1860,9 @@ function renderMaterialStockTable(data) {
         const pName = String(item.productName || '').toLowerCase();
         const pDetails = String(item.details || item.relationship || '').toLowerCase();
 
-        const matchesText = pID.includes(searchTerm) || pName.includes(searchTerm) || pDetails.includes(searchTerm);
+        // 17.0.5 patch 74: an old Product ID (before a family change) still finds the item
+        const pOld = Array.isArray(item.oldProductIDs) ? item.oldProductIDs.join(' ').toLowerCase() : '';
+        const matchesText = pID.includes(searchTerm) || pName.includes(searchTerm) || pDetails.includes(searchTerm) || (!!searchTerm && pOld.includes(searchTerm));
         if (!matchesText) return false;
 
         // 3. SITE FILTER LOGIC
@@ -1845,10 +1899,22 @@ function renderMaterialStockTable(data) {
 
     if (uniqueFiltered.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777;">No materials found.</td></tr>';
+        msDrawPageBar(0);
         return;
     }
 
-    uniqueFiltered.forEach(item => {
+    // 17.0.5 patch 76: one page at a time; a new search / family / site starts again at page 1
+    const pageSig = [searchTerm, currentCategoryFilter || '', siteFilterVal].join('|');
+    if (pageSig !== msPageSig) { msPageSig = pageSig; msPageNo = 1; }
+    const pageSize = msPageSize();
+    const pageCount = Math.max(1, Math.ceil(uniqueFiltered.length / pageSize));
+    if (msPageNo > pageCount) msPageNo = pageCount;
+    if (msPageNo < 1) msPageNo = 1;
+    const pageStart = (msPageNo - 1) * pageSize;
+    const pageItems = uniqueFiltered.slice(pageStart, pageStart + pageSize);
+    msDrawPageBar(uniqueFiltered.length, pageStart + 1, pageStart + pageItems.length, msPageNo, pageCount);
+
+    pageItems.forEach(item => {
         // 1. PRE-CALCULATE HISTORY
         const stockID = String(item.productID || item.productId || '').trim();
         const productTransfers = allTransferData.filter(t => {
@@ -1909,7 +1975,7 @@ function renderMaterialStockTable(data) {
         parentRow.classList.add('ms-parent-row');
         parentRow.innerHTML = `
             <td class="ms-cell-expand">${firstColContent}</td>
-            <td class="ms-cell-code"><span class="ms-product-code">${item.productID || item.productId}</span>${dupBadge}</td>
+            <td class="ms-cell-code"><span class="ms-product-code">${item.productID || item.productId}</span>${dupBadge}${Array.isArray(item.oldProductIDs) && item.oldProductIDs.length ? `<small class="ms-old-id" title="Old Product ID(s)">was ${msEscapeHtml(item.oldProductIDs[item.oldProductIDs.length - 1])}</small>` : ''}</td>
             <td class="ms-cell-detail"><div class="ms-product-title"><strong>${item.productName}</strong>${hasPhotoIcon}</div></td>
             <td class="ms-cell-family"><span class="ms-family-badge">${familyDisplay}</span></td>
             <td class="ms-cell-relation"><span class="ms-relation-text">${relationshipDisplay || '-'}</span></td>
@@ -2458,12 +2524,27 @@ function msCanUpdateTitles() {
     return msInvCan('titles', role === 'admin' || isVacationDelegate || position.includes('logistic'));
 }
 
+// 17.0.5 patch 80: the CSV file (and so the Excel sheet tab) is named after the family tab you are on,
+// e.g. "Civil & Structural.csv"; a search on All = "Search - blocks.csv".
+function msTitlesFileName() {
+    const clean = (v) => String(v || '').replace(/[\\/:*?"<>|\[\]]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 31).trim();
+    let name = '';
+    try {
+        if (currentCategoryFilter && currentCategoryFilter !== 'All' && STOCK_LEGENDS[currentCategoryFilter]) name = STOCK_LEGENDS[currentCategoryFilter].name;
+    } catch (_) {}
+    if (!name) { const q = (document.getElementById('ms-search-input') || {}).value; if (q && q.trim()) name = 'Search - ' + q.trim(); }
+    return (clean(name) || 'Material_Titles') + '.csv';
+}
+window.msTitlesFileName = msTitlesFileName;
+
 function handleDownloadTitles() {
     const rows = Array.isArray(lastFilteredStockData) ? lastFilteredStockData : [];
     if (!rows.length) {
         alert('Search or choose a family first. Download Titles only uses the rows on the screen.');
         return;
     }
+    // 17.0.5 patch 74: Super Admin gets Firebase Key, Unit, Family, Relationship too (iba-1705-msmigrate.js)
+    if (window.ibaMsMigrate && typeof imIsCurrentUserSuperAdmin === 'function' && imIsCurrentUserSuperAdmin()) { window.ibaMsMigrate.download(rows); return; }
     const lines = ['Product ID,New Title'];
     rows.forEach((item) => {
         const id = String(item.productID || item.productId || '').trim();
@@ -2474,7 +2555,7 @@ function handleDownloadTitles() {
     const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'Material_Titles.csv';
+    link.download = msTitlesFileName();
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -2686,6 +2767,13 @@ function handleUploadTitles(event) {
     }
     const file = event.target.files && event.target.files[0];
     if (!file) return;
+    // 17.0.5 patch 74: Super Admin: title, unit, family, relationship and Product ID, saved by Firebase key, with a preview
+    if (window.ibaMsMigrate && typeof imIsCurrentUserSuperAdmin === 'function' && imIsCurrentUserSuperAdmin()) {
+        const r2 = new FileReader();
+        r2.onload = (ev) => { event.target.value = ''; window.ibaMsMigrate.run(String(ev.target.result || '')); };
+        r2.readAsText(file);
+        return;
+    }
     const reader = new FileReader();
     reader.onload = async function (e) {
         const lines = String(e.target.result || '').split(/\r?\n/);
@@ -2697,12 +2785,18 @@ function handleUploadTitles(event) {
         const titleUpdates = {};
         const nameById = {};
         let missing = 0;
+        let fullCols = null;
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
-            const pID = cols[0];
-            const pName = cols[1];
+            // 17.0.5 patch 75: the Super Admin's full file (Firebase Key, Product ID, New Title, ...) works here too: titles only
+            const cols = (window.ibaMsMigrate ? (window.ibaMsMigrate.parseCsv(line)[0] || []) : line.split(',').map((c) => c.trim().replace(/^"|"$/g, '')));
+            if (i === 0 || fullCols) {
+                const h = cols.map((c) => String(c).toLowerCase());
+                if (i === 0 && h.some((c) => c === 'firebase key')) { fullCols = { id: h.findIndex((c) => c === 'product id'), name: h.findIndex((c) => /title/.test(c)) }; continue; }
+            }
+            const pID = fullCols ? cols[fullCols.id] : cols[0];
+            const pName = fullCols ? cols[fullCols.name] : cols[1];
             if (!pID || !pName || pID.toLowerCase() === 'product id' || pID.toLowerCase() === 'id') continue;
             const existing = idMap.get(pID);
             if (!existing || !existing.key) { missing++; continue; }

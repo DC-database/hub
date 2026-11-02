@@ -105,8 +105,9 @@
         try {
             watchList();
             if (onList(p)) return { po: p, ok: false, why: 'already on the list' };
-            const hit = activeOf(await lookup(p));
-            if (!hit) return { po: p, ok: false, why: 'not Active in the PO file (already released or not in the file)' };
+            const val = await lookup(p);
+            const hit = activeOf(val);
+            if (!hit) { const c = await classify(p, val); return Object.assign({ po: p, ok: false }, c); }
             if (list[hit[0]]) return { po: p, ok: false, why: 'already on the list' };
             const rec = hit[1];
             const row = {
@@ -122,6 +123,39 @@
             console.error('PO pull-out list:', err);
             return { po: p, ok: false, why: 'could not add: ' + ((err && err.message) || err) };
         } finally { busy.delete(p); }
+    }
+    // 17.0.5 patch 69: why is a PO not Active? (one small read of that PO's invoices, never the whole list)
+    function invDb() { try { return (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) ? invoiceDb : null; } catch (_) { return null; } }
+    async function classify(p, val) {
+        if (!val || typeof val !== 'object' || !Object.keys(val).length) return { kind: 'none', why: 'not in the PO file' };
+        const recs = Object.keys(val).map((k) => val[k] || {});
+        const rec = recs.find((r) => String(field(r, 'DateReleased') || '').trim()) || recs[0];
+        const vendor = String(field(rec, 'SupplierName') || ''), site = String(field(rec, 'ProjectID') || '');
+        const rel = String(field(rec, 'DateReleased') || '').trim();
+        if (rel) return { kind: 'released', why: 'Inactive · released ' + rel + ' (returned to Accounts)', vendor, site };
+        // 17.0.5 patch 70: the DATE FILED decides (an invoice can arrive before the paper PO)
+        const filed = String(field(rec, 'DateFiled') || '').trim();
+        if (filed) return { kind: 'inactive', why: 'Inactive · was in your file (filed ' + filed + ', no release date)', vendor, site };
+        let hasInv = false;
+        try { const d = invDb(); if (d) { const s = await d.ref('invoice_entries/' + p).limitToFirst(1).once('value'); hasInv = !!(s && s.exists && s.exists()); } } catch (_) {}
+        return { kind: 'proc', why: 'Still with Procurement (never filed' + (hasInv ? ', invoice already entered' : '') + ')', vendor, site };
+    }
+    // WhatsApp to Reception (Hafiz) asking for the original PO papers: the message is only prepared, you press Send
+    function receptionNumber() {
+        let all = {};
+        try { all = (typeof window.getApproversDataSafe === 'function' && window.getApproversDataSafe()) || {}; } catch (_) {}
+        if (!all || !Object.keys(all).length) { try { all = (typeof allApproverData !== 'undefined' && allApproverData) || {}; } catch (_) {} }
+        const hit = Object.keys(all).map((k) => all[k] || {}).find((a) => /^hafiz\b/i.test(String(a.Name || '').trim()));
+        let m = hit ? String(hit.Mobile || hit.mobile || '').replace(/\D/g, '') : '';
+        if (m.length === 8) m = '974' + m;
+        return m;
+    }
+    function requestOriginal(items) {
+        const n = receptionNumber();
+        if (!n) { say("Hafiz's mobile is not in the user list."); return; }
+        const lines = items.map((x) => '• PO ' + x.po + (x.vendor ? ' · ' + x.vendor : '') + (x.site ? ' · Site ' + x.site : '')).join('\n');
+        const text = 'Hi Hafiz, please send me the original PO' + (items.length > 1 ? 's' : '') + ':\n' + lines + '\n\nThank you,\n' + (me() || '');
+        window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
     }
     async function addToList(poNumber) {
         if (!isSuper()) { say('Only the Super Admin can use the PO pull-out list.'); return; }
@@ -163,6 +197,8 @@
             if (b.hasAttribute('data-pull-go')) return proceed(w, b);
             if (b.dataset.pullTick) return tick(w, b.dataset.pullTick);
             if (b.dataset.pullDrop) return drop(w, b.dataset.pullDrop);
+            if (b.dataset.pullReq) { const x = (w.__proc || []).find((r) => r.po === b.dataset.pullReq); return requestOriginal([x || { po: b.dataset.pullReq }]); }
+            if (b.hasAttribute('data-pull-reqall')) return requestOriginal(w.__proc || []);
         });
         w.addEventListener('submit', (e) => { if (e.target.closest('[data-pull-add]')) { e.preventDefault(); addTyped(w); } });
         w.addEventListener('keydown', (e) => {
@@ -190,8 +226,11 @@
         if (btn) btn.disabled = false;
         unsure(w);
         draw(w);
-        res.innerHTML = out.map((r) => '<span class="iba-pull-chip ' + (r.ok ? 'is-ok' : (r.why === 'already on the list' ? 'is-same' : 'is-bad')) + '"><b>' + esc(r.po) + '</b> ' +
-            esc(r.ok ? 'added' : r.why) + '</span>').join('');
+        const proc = out.filter((r) => r.kind === 'proc');
+        w.__proc = proc;
+        res.innerHTML = out.map((r) => '<span class="iba-pull-chip ' + (r.ok ? 'is-ok' : (r.why === 'already on the list' ? 'is-same' : (r.kind === 'proc' ? 'is-proc' : 'is-bad'))) + '"><b>' + esc(r.po) + '</b> ' +
+            esc(r.ok ? 'added' : r.why) + (r.kind === 'proc' ? ' <button type="button" class="iba-pull-req" data-pull-req="' + esc(r.po) + '" title="WhatsApp to Reception asking for the original PO"><i class="fa-brands fa-whatsapp"></i> Request original PO</button>' : '') + '</span>').join('') +
+            (proc.length > 1 ? '<button type="button" class="iba-pull-req is-all" data-pull-reqall><i class="fa-brands fa-whatsapp"></i> Request all (' + proc.length + ')</button>' : '');
         if (q) { q.value = ''; q.focus(); }
     }
     function draw(w) {
@@ -270,5 +309,101 @@
         else say(done.length + ' PO' + (done.length === 1 ? '' : 's') + ' marked Inactive. The list is cleared.');
     }
 
-    window.ibaPoFile = { activeOf, isActive, lookup, addToList, openList, markButton, today };
+    // ---- 17.0.5 patch 71: first invoice on a PO still with Procurement -> offer the request at once ----
+    // Watches only NEW invoices (push on invoice_entries/<PO>), reads that one PO in the PO file,
+    // and if it was never filed (no DateFiled, not Active) shows "Request original PO" right away.
+    // Super Admin only, once per PO per day.
+    const SEEN_KEY = 'iba-procreq-v1';
+    function seenGet() { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; } catch (_) { return {}; } }
+    function seenSet(po) {
+        try {
+            const m = seenGet(), now = Date.now();
+            Object.keys(m).forEach((k) => { if (now - m[k] > 86400000) delete m[k]; });
+            m[po] = now;
+            localStorage.setItem(SEEN_KEY, JSON.stringify(m));
+        } catch (_) {}
+    }
+    let reqQueue = new Set();
+    let reqTimer = 0;
+    function queueReq(po) {
+        const p = normPO(po);
+        if (!p || !isSuper()) return;
+        const m = seenGet();
+        if (m[p] && Date.now() - m[p] < 86400000) return;
+        reqQueue.add(p);
+        clearTimeout(reqTimer);
+        reqTimer = setTimeout(checkReq, 1500); // a Batch save adds many: one pop-up for all
+    }
+    async function checkReq() {
+        const pos = Array.from(reqQueue);
+        reqQueue = new Set();
+        const proc = [];
+        for (const p of pos) {
+            try {
+                const val = await lookup(p);
+                if (activeOf(val)) continue;
+                const c = await classify(p, val);
+                if (c.kind === 'proc') proc.push({ po: p, vendor: c.vendor || '', site: c.site || '' });
+            } catch (_) {}
+        }
+        if (proc.length) offerReq(proc);
+    }
+    function offerReq(items) {
+        items.forEach((x) => seenSet(x.po));
+        const old = document.getElementById('iba-procreq');
+        if (old) old.remove();
+        const w = document.createElement('div');
+        w.id = 'iba-procreq';
+        w.className = 'iba-pb-layer';
+        const one = items.length === 1;
+        w.innerHTML = '<div class="iba-pb-box" role="alertdialog" aria-modal="true" aria-labelledby="iba-procreq-t" style="width:min(540px,100%)">' +
+            '<div class="iba-pb-head"><b id="iba-procreq-t"><i class="fa-solid fa-folder-open"></i> Original PO not in your file yet</b></div>' +
+            '<div class="iba-pb-sub"><p>' + (one ? 'This PO is' : 'These POs are') + ' still with Procurement (never filed):</p><ul class="iba-hf-list">' +
+            items.map((x) => '<li><b>PO ' + esc(x.po) + '</b>' + (x.vendor ? ' · ' + esc(x.vendor) : '') + (x.site ? ' · Site ' + esc(x.site) : '') + '</li>').join('') +
+            '</ul><p>Ask Hafiz (Reception) to send the original' + (one ? '' : 's') + '? WhatsApp opens with the message ready, you press Send.</p></div>' +
+            '<div class="iba-pb-foot"><span></span><button type="button" data-no>Later</button>' +
+            '<button type="button" data-yes class="is-main"><i class="fa-brands fa-whatsapp"></i> ' + (one ? 'Request original PO' : 'Request all (' + items.length + ')') + '</button></div></div>';
+        document.body.appendChild(w);
+        const end = () => w.remove();
+        w.addEventListener('click', (e) => {
+            if (e.target === w) return end();
+            const b = e.target.closest('button');
+            if (!b) return;
+            if (b.hasAttribute('data-yes')) requestOriginal(items);
+            end();
+        });
+        w.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); end(); } });
+        setTimeout(() => { const n = w.querySelector('[data-no]'); if (n) n.focus(); }, 0);
+    }
+    function hookNewInvoice() {
+        try {
+            const R = window.firebase && firebase.database && firebase.database.Reference;
+            if (!R || !R.prototype || R.prototype.__ibaProcReq) return;
+            const proto = R.prototype;
+            const orig = proto.push;
+            let rootUrl = '';
+            proto.push = function () {
+                const res = orig.apply(this, arguments);
+                try {
+                    const d = invDb();
+                    if (d) {
+                        if (!rootUrl) rootUrl = d.ref().toString().replace(/\/$/, '');
+                        const s = this.toString();
+                        if (s.indexOf(rootUrl + '/invoice_entries/') === 0) {
+                            const parts = s.slice(rootUrl.length + 1).split('/');
+                            if (parts.length === 2 && parts[1]) {
+                                const po = decodeURIComponent(parts[1]);
+                                Promise.resolve(res).then(() => queueReq(po)).catch(() => {});
+                            }
+                        }
+                    }
+                } catch (_) {}
+                return res;
+            };
+            proto.__ibaProcReq = true;
+        } catch (e) { console.warn('[IBA PO file] new-invoice hook not set:', e); }
+    }
+    hookNewInvoice();
+
+    window.ibaPoFile = { activeOf, isActive, lookup, addToList, openList, markButton, today, classify, requestOriginal, offerReq, queueReq };
 })();
