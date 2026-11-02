@@ -27,7 +27,9 @@ function installHelpText() {
   if (!/^https?:$/.test(location.protocol)) return 'This page was opened as a file from your computer. Open the website link (https://...) instead, then click Install app.';
   if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return 'On iPhone/iPad: tap the Share button in Safari, then "Add to Home Screen".';
   if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return 'Almost ready: press Ctrl+Shift+R once to reload, wait a few seconds, then click Install app again.';
-  return 'Use the browser menu: Chrome ⋮ > Cast, save and share > Install page as app (Edge: ⋯ > Apps > Install this site as an app). If it is already installed, open it from your Start menu.';
+  return 'Chrome is not offering the install yet. Try: Chrome ⋮ > Cast, save and share > Install page as app (Edge: ⋯ > Apps > Install this site as an app).\n\n' +
+    'If that option is missing, another app on this site (for example IBA System) may be installed for the whole site. Remove that app, reinstall it from its own page, then come back here and click Install app.\n\n' +
+    'Quick alternative: Chrome ⋮ > Cast, save and share > Create shortcut, and tick "Open as window".';
 }
 
 installAppBtn?.addEventListener('click', async () => {

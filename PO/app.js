@@ -591,6 +591,161 @@ function saveNewPO(){
   }).catch(e => { msg.textContent = "Error: " + e.message; playErrorSound(); });
 }
 
+// ---------- Settings: background photo ----------
+// Photos come from the GitHub /photo folder (same as Procurement Hub). The chosen photo is downloaded
+// once, shrunk to screen size and kept in this browser (IndexedDB), so the page stays fast.
+const GITHUB_PHOTO_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
+const GITHUB_PHOTO_RAW = "https://raw.githubusercontent.com/DC-database/hub/main/photo/";
+const GITHUB_PHOTO_THUMBS = GITHUB_PHOTO_RAW + 'thumbs/';
+const UI_SETTINGS_KEY = 'po_ui_settings_v1';
+const PHOTO_LIST_KEY = 'po_bg_photo_list_v1';
+
+function loadUiSettings(){ try { return JSON.parse(localStorage.getItem(UI_SETTINGS_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function saveUiSettings(s){ try { localStorage.setItem(UI_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {} }
+
+function bgDbOp(mode, fn){
+  return new Promise(resolve => {
+    let req;
+    try { req = indexedDB.open('po_bg_db', 1); } catch (e) { resolve(null); return; }
+    req.onupgradeneeded = () => req.result.createObjectStore('bg');
+    req.onerror = () => resolve(null);
+    req.onsuccess = () => {
+      let out = null;
+      const tx = req.result.transaction('bg', mode);
+      const r = fn(tx.objectStore('bg'));
+      if (r) r.onsuccess = () => { out = r.result; };
+      tx.oncomplete = () => resolve(out ?? null);
+      tx.onerror = tx.onabort = () => resolve(null);
+    };
+  });
+}
+// Shrinks a photo so its short side fits the screen (max 2048 px)
+async function shrinkImageBlob(blob){
+  try {
+    if (typeof createImageBitmap !== 'function') return blob;
+    const bmp0 = await createImageBitmap(blob);
+    const side = Math.min(2048, Math.max(1280, Math.round(Math.max(screen.width || 1920, screen.height || 1080) * Math.min(window.devicePixelRatio || 1, 2))));
+    const scale = Math.min(1, side / Math.min(bmp0.width, bmp0.height));
+    if (scale === 1 && blob.size < 1500000) { bmp0.close?.(); return blob; }
+    const w = Math.round(bmp0.width * scale), h = Math.round(bmp0.height * scale);
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    canvas.getContext('2d').drawImage(bmp0, 0, 0, w, h); bmp0.close?.();
+    const out = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.86));
+    return out && out.size < blob.size ? out : blob;
+  } catch (e) { return blob; }
+}
+let bgObjectUrl = '';
+function setBgLayer(url){
+  if (bgObjectUrl && bgObjectUrl !== url) URL.revokeObjectURL(bgObjectUrl);
+  bgObjectUrl = url && url.startsWith('blob:') ? url : '';
+  if (url) document.documentElement.style.setProperty('--bg-image', `url("${url}")`);
+  else document.documentElement.style.removeProperty('--bg-image');
+  document.documentElement.classList.toggle('has-bg', !!url);
+}
+function applyBgLook(s){
+  document.documentElement.style.setProperty('--bg-blur', (s.bgBlur ?? 2) + 'px');
+  document.documentElement.style.setProperty('--bg-dim', String((s.bgDim ?? 35) / 100));
+}
+async function applyBackground(){
+  const s = loadUiSettings();
+  applyBgLook(s);
+  const stored = await bgDbOp('readonly', st => st.get('current'));
+  if (stored && stored.blob && (stored.source === 'file' || stored.source === s.bgUrl)) { setBgLayer(URL.createObjectURL(stored.blob)); return; }
+  if (!s.bgUrl) { setBgLayer(''); return; }
+  try {
+    const res = await fetch(s.bgUrl, { mode: 'cors', cache: 'force-cache' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const small = await shrinkImageBlob(await res.blob());
+    await bgDbOp('readwrite', st => st.put({ blob: small, source: s.bgUrl }, 'current'));
+    setBgLayer(URL.createObjectURL(small));
+  } catch (e) { setBgLayer(s.bgUrl); } // no CORS: show the link as it is
+}
+// GitHub allows 60 folder listings an hour per network, so keep the list for an hour.
+async function listGithubPhotos(){
+  let cached = null;
+  try { cached = JSON.parse(localStorage.getItem(PHOTO_LIST_KEY) || 'null'); } catch (e) {}
+  if (cached && Array.isArray(cached.files) && Date.now() - cached.savedAt < 3600000) return cached.files;
+  let res;
+  try { res = await fetch(GITHUB_PHOTO_API); } catch (e) { if (cached) return cached.files; throw e; }
+  if (!res.ok) { if (cached) return cached.files; throw new Error(res.status === 403 ? 'GitHub limits how often the folder can be listed. Try again in an hour.' : 'GitHub answered ' + res.status + '.'); }
+  const files = (await res.json() || [])
+    .filter(f => f && f.type === 'file' && /\.(jpe?g|png|webp|gif)$/i.test(f.name))
+    .map(f => ({ name: f.name, url: f.download_url || (GITHUB_PHOTO_RAW + encodeURIComponent(f.name)) }));
+  try { localStorage.setItem(PHOTO_LIST_KEY, JSON.stringify({ files, savedAt: Date.now() })); } catch (e) {}
+  return files;
+}
+async function renderGithubPhotoGrid(){
+  const box = document.getElementById('githubPhotoGrid');
+  if (!box) return;
+  box.innerHTML = '<p class="hint">Loading photos…</p>';
+  try {
+    const files = await listGithubPhotos();
+    if (!files.length) { box.innerHTML = '<p class="hint">No photos found in the GitHub photo folder.</p>'; return; }
+    const current = loadUiSettings().bgUrl || '';
+    box.innerHTML = `<select id="bgPhotoSelect"><option value="">No photo</option>${files.map(f =>
+      `<option value="${escapeAttr(f.url)}"${f.url === current ? ' selected' : ''}>${escapeAttr(f.name.replace(/\.[^.]+$/, ''))}</option>`).join('')}</select>
+      <div class="photo-preview" id="bgPhotoPreview"><img alt=""><span></span></div>`;
+    showPhotoPreview(current);
+  } catch (e) {
+    box.innerHTML = `<p class="hint">Could not list the GitHub photo folder. ${escapeAttr(e.message || '')}</p>`;
+  }
+}
+// One small preview only (about 15 KB from wsrv.nl), never the full photo.
+function showPhotoPreview(url){
+  const box = document.getElementById('bgPhotoPreview');
+  if (!box) return;
+  const img = box.querySelector('img'), note = box.querySelector('span');
+  box.classList.toggle('hidden', !url);
+  if (!url) return;
+  note.textContent = 'Loading preview…'; img.style.visibility = 'hidden';
+  img.onload = () => { img.style.visibility = ''; note.textContent = ''; };
+  img.onerror = () => { note.textContent = 'No preview, but the photo is set as your background.'; };
+  img.src = 'https://wsrv.nl/?url=' + encodeURIComponent(url) + '&w=320&h=180&fit=cover&output=webp&q=70';
+}
+function openSettings(){
+  const s = loadUiSettings();
+  document.getElementById('bgBlur').value = s.bgBlur ?? 2;
+  document.getElementById('bgDim').value = s.bgDim ?? 35;
+  openModal('settingsModal');
+  renderGithubPhotoGrid();
+}
+async function clearBackground(){
+  const s = loadUiSettings(); delete s.bgUrl; saveUiSettings(s);
+  await bgDbOp('readwrite', st => st.delete('current'));
+  setBgLayer('');
+  const sel = document.getElementById('bgPhotoSelect'); if (sel) sel.value = '';
+  showPhotoPreview('');
+  showToast('Background removed');
+}
+document.addEventListener('change', async e => {
+  if (e.target.id === 'bgPhotoSelect') {
+    const url = e.target.value;
+    showPhotoPreview(url);
+    if (!url) { await clearBackground(); return; }
+    const s = loadUiSettings(); s.bgUrl = url; saveUiSettings(s);
+    await bgDbOp('readwrite', st => st.delete('current'));
+    await applyBackground();
+    return;
+  }
+  if (e.target.id === 'bgImageFile' && e.target.files[0]) {
+    const file = e.target.files[0];
+    document.getElementById('bgFileName').textContent = file.name;
+    const small = await shrinkImageBlob(file);
+    const s = loadUiSettings(); delete s.bgUrl; saveUiSettings(s);
+    await bgDbOp('readwrite', st => st.put({ blob: small, source: 'file' }, 'current'));
+    setBgLayer(URL.createObjectURL(small));
+    { const sel = document.getElementById('bgPhotoSelect'); if (sel) sel.value = ''; showPhotoPreview(''); }
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'bgBlur' && e.target.id !== 'bgDim') return;
+  const s = loadUiSettings();
+  s.bgBlur = Number(document.getElementById('bgBlur').value);
+  s.bgDim = Number(document.getElementById('bgDim').value);
+  saveUiSettings(s); applyBgLook(s);
+});
+applyBackground();
+
 // ---------- WhatsApp request ----------
 function normalizeWhatsAppNumber(num){
   const digits=(num||"").replace(/\D/g,'');
@@ -952,22 +1107,6 @@ window.addEventListener('load', () => {
     }
 });
 
-// --- ADD THIS AT THE BOTTOM ---
-// Listener for Cross-Tab Automation from Invoice Management
-window.addEventListener('message', (event) => {
-    // Security check: only allow messages from your own domain
-    if (event.origin !== 'https://ibaport.site') return; 
-    
-    if (event.data && event.data.action === 'triggerDeleteBtn') {
-        const btn = document.getElementById('deleteselectedbtn');
-        if (btn) {
-            console.log("Remote trigger: Clicking Delete Button");
-            btn.click();
-        } else {
-            console.warn("Remote trigger failed: Button 'deleteselectedbtn' not found.");
-        }
-    }
-});
 
 // Ensure the function is available globally
 window.filterBySpecificDate = filterBySpecificDate;
@@ -987,7 +1126,7 @@ window.showTab=(id)=>{
 window.searchRecords=searchRecords; window.clearSearch=clearSearch;
 window.showDeleteConfirm=showDeleteConfirm; window.proceedDelete=proceedDelete; window.cancelDelete=cancelDelete;
 window.openAddPOModal=openAddPOModal; window.closeAddPOModal=closeAddPOModal; window.addPOFromModal=addPOFromModal;
-window.uploadCSV=uploadCSV; window.openModal=openModal; window.closeModal=closeModal; window.showToast=showToast;
+window.uploadCSV=uploadCSV; window.openSettings=openSettings; window.clearBackground=clearBackground; window.openModal=openModal; window.closeModal=closeModal; window.showToast=showToast;
 window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv",CSV_HEADER);
 
 // Exports every record (all statuses). The first 7 columns match the upload, so the file can be edited and re-uploaded.

@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>PO Records</title>
-  <link rel="manifest" href="manifest.webmanifest?v=1.0.2" />
-  <meta name="theme-color" content="#131a23" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="manifest" href="manifest.webmanifest?v=1.1.0" />
+  <meta name="theme-color" content="#141619" />
+  <link rel="icon" href="icons/icon.svg?v=2" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=2" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="PO" />
@@ -19,10 +19,11 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <div class="bg-layer" id="bgLayer"></div>
   <!-- ===== Top bar ===== -->
   <header class="topbar">
     <div class="brand">
-      <img src="icons/icon.svg" alt="" class="brand-icon" />
+      <img src="icons/icon.svg?v=2" alt="" class="brand-icon" />
       <div>
         <h1>PO Records</h1>
         <p class="brand-sub">Original POs in my custody</p>
@@ -32,7 +33,7 @@
     <div class="topbar-actions">
       <button id="installAppBtn" class="btn btn-ghost" hidden title="Install as an app"><i class="fa-solid fa-download"></i><span>Install app</span></button>
       <button id="adminToolsBtn" class="btn btn-ghost admin-only hidden" onclick="openModal('adminModal')" title="Upload, template and export"><i class="fa-solid fa-gear"></i><span>Admin</span></button>
-      <a class="btn btn-ghost" href="https://ibaport.site" title="Back to HUB"><i class="fa-solid fa-house"></i><span>HUB</span></a>
+      <button id="settingsBtn" class="btn btn-ghost" onclick="openSettings()" title="Background and look"><i class="fa-solid fa-sliders"></i><span>Settings</span></button>
       <button id="loginBtn" class="btn btn-primary" onclick="toggleLoginModal()"><i class="fa-solid fa-right-to-bracket"></i><span>Login</span></button>
     </div>
   </header>
@@ -141,6 +142,30 @@
     </div>
   </div>
 
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content modal-wide">
+      <button class="close" onclick="closeModal('settingsModal')" aria-label="Close">&times;</button>
+      <h3><i class="fa-solid fa-sliders"></i> Settings</h3>
+      <p class="modal-sub">Background is saved in this browser only.</p>
+      <label>Photo from GitHub
+        <div id="githubPhotoGrid"><p class="hint">Loading photos…</p></div>
+      </label>
+      <label class="file-drop">
+        <i class="fa-solid fa-image"></i>
+        <span id="bgFileName">Or attach a photo from this computer</span>
+        <input type="file" id="bgImageFile" accept="image/*" />
+      </label>
+      <div class="form-grid">
+        <label>Blur <input type="range" id="bgBlur" min="0" max="24" value="2" /></label>
+        <label>Dim <input type="range" id="bgDim" min="0" max="80" value="35" /></label>
+      </div>
+      <div class="modal-actions spread">
+        <button class="btn btn-ghost" onclick="clearBackground()"><i class="fa-solid fa-ban"></i><span>No background</span></button>
+        <button class="btn btn-primary" onclick="closeModal('settingsModal')">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div id="deleteConfirmModal" class="modal hidden">
     <div class="modal-content">
       <p>Delete this record permanently from Firebase? This cannot be undone. To keep it, use Release instead.</p>
@@ -221,6 +246,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script src="app.js"></script>
+  <script src="police-bot.js"></script>
   <script src="pwa.js"></script>
 </body>
 </html>
