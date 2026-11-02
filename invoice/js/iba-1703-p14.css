@@ -1,0 +1,248 @@
+/* ==========================================================================
+   iba-1703-p14.css — 17.0.3 patch 14
+   Assistant Now Brief, big window:
+   - "Waiting for approval" table: one fact per column (PO, With, Vendor,
+     Urgent, Inv no., Action for, Value, Remarks, Age, Files). Narrower
+     space drops Remarks/Files, then the Urgent column (the red row stays).
+   - six number tiles on top (Urgent and Over 7 days included)
+   - a PO opened from the brief stays pinned on the right, the row it came
+     from is highlighted, and it has a close button
+   - PO card: paid invoices fold into one green line; the open ones are
+     grouped (not with Accounts yet / with Accounts) under a paid bar
+   ========================================================================== */
+@layer iba-ui {
+  /* ---- approvals table ------------------------------------------------ */
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li > span { min-width: 0 !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li :is(.c-with, .c-vend, .c-no, .c-rem) { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-vend { font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-with { font-size: 12.5px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-no { font-size: 12.5px !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-val { font-variant-numeric: tabular-nums !important; font-weight: 700 !important; text-align: right !important; justify-content: flex-end !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-rem { font-size: 12px !important; font-style: italic !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-act { display: inline-flex !important; gap: 4px !important; flex-wrap: nowrap !important; justify-content: flex-start !important; }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 .iba-ai-dash { opacity: .45 !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-co2, .is-tk2) li.iba-ai-ttab-head .c-val { text-align: right !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-co2, .is-tk2, .is-jb2) li.iba-ai-ttab-head > span { font-style: normal !important; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  #iba-ai-panel .iba-ai-st-pill {
+    display: inline-block !important; max-width: 100% !important; padding: 2px 9px !important; border-radius: 999px !important;
+    font-size: 11.5px !important; font-weight: 700 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;
+    border: 1px solid rgba(127, 178, 255, .5) !important; background: rgba(127, 178, 255, .12) !important; color: #A9CBFF !important; -webkit-text-fill-color: #A9CBFF !important;
+  }
+  #iba-ai-panel .iba-ai-st-pill.is-ceo { border-color: rgba(201, 167, 255, .5) !important; background: rgba(201, 167, 255, .12) !important; color: #D7BFFF !important; -webkit-text-fill-color: #D7BFFF !important; }
+  #iba-ai-panel .iba-ai-st-pill.is-acc { border-color: rgba(245, 184, 81, .5) !important; background: rgba(245, 184, 81, .12) !important; color: #F8CD7E !important; -webkit-text-fill-color: #F8CD7E !important; }
+
+  /* narrow side panel: PO + vendor + urgent, then the rest wrapped */
+  @container (max-width: 639px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 4px 10px !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-po { order: 1 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-vend { order: 2 !important; flex: 1 1 50% !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-urg { order: 3 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-with { order: 4 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-no { order: 5 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-st { order: 6 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-val { order: 7 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-age { order: 8 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-rem { order: 9 !important; flex: 1 1 100% !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-act { order: 10 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-urg:has(.iba-ai-dash) { display: none !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-rem:has(.iba-ai-dash),
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-act:empty { display: none !important; }
+  }
+
+  /* columns: compact (no Urgent column, no Remarks, no Files) */
+  @container (min-width: 640px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) {
+      display: grid !important; gap: 8px !important; flex-wrap: nowrap !important;
+      grid-template-columns: 74px 88px minmax(80px, 1fr) 84px 118px 92px 44px !important;
+    }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li :is(.c-urg, .c-rem, .c-act),
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-urg:has(.iba-ai-dash) { display: none !important; }
+  }
+  /* + Urgent column */
+  @container (min-width: 760px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { grid-template-columns: 74px 88px minmax(100px, 1fr) 84px 84px 118px 92px 44px !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li .c-urg,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-urg:has(.iba-ai-dash) { display: block !important; }
+  }
+  /* full: + Remarks + Files */
+  @container (min-width: 980px) {
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li,
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) { gap: 10px !important; grid-template-columns: 74px 92px minmax(130px, 1.4fr) 84px 92px 124px 100px minmax(100px, 1fr) 46px 96px !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li :is(.c-rem, .c-act) { display: block !important; }
+    #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li:not(.iba-ai-ttab-head) .c-act { display: inline-flex !important; }
+  }
+  #iba-ai-panel .iba-ai-ttab.is-co.is-co2 li[hidden] { display: none !important; }
+
+  /* the row of the PO that is open on the right */
+  #iba-ai-panel .iba-ai-ttab li.is-picked,
+  #iba-ai-panel #iba-ai-wide-body .iba-ai-ttab li.is-picked,
+  #iba-ai-panel #iba-ai-wide-body .iba-ai-ttab li.is-picked.is-urgent { background: rgba(63, 208, 201, 0.18) !important; box-shadow: inset 3px 0 0 #3FD0C9 !important; }
+
+  /* ---- six tiles ------------------------------------------------------ */
+  #iba-ai-panel .iba-ai-stats.is-six { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  #iba-ai-panel.is-wide #iba-ai-wide-body .iba-ai-stats.is-six { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) .iba-ai-stats.is-six { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  #iba-ai-panel .iba-ai-stats.is-six > .is-urg.is-on b { color: #FF7A7A !important; -webkit-text-fill-color: #FF7A7A !important; }
+  #iba-ai-panel .iba-ai-stats.is-six > .is-urg.is-on { border-color: rgba(255, 107, 107, 0.55) !important; background: rgba(120, 20, 20, 0.30) !important; }
+  #iba-ai-panel .iba-ai-stats.is-six > .is-late.is-on b { color: #F5B851 !important; -webkit-text-fill-color: #F5B851 !important; }
+  #iba-ai-panel .iba-ai-stats.is-six > .is-late.is-on { border-color: rgba(245, 184, 81, 0.5) !important; background: rgba(110, 72, 10, 0.28) !important; }
+
+  /* ---- opened PO pinned on the right ---------------------------------- */
+  #iba-ai-panel #iba-ai-wide-more > .iba-ai-more-close {
+    align-self: flex-end !important; margin: 0 0 -6px !important; width: 30px !important; height: 30px !important; padding: 0 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; cursor: pointer !important;
+    border-radius: 999px !important; border: 1px solid rgba(232, 217, 182, 0.35) !important; background: rgba(8, 18, 30, 0.55) !important;
+    color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 14px !important;
+  }
+  #iba-ai-panel #iba-ai-wide-more > .iba-ai-more-close:hover { border-color: #3FD0C9 !important; }
+  @container (min-width: 1150px) {
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> .iba-ai-card.is-brief):has(> #iba-ai-wide-more > *) { grid-template-columns: minmax(0, 3fr) minmax(360px, 2fr) !important; }
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) > .iba-ai-card.is-brief { position: relative !important; top: auto !important; }
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> .iba-ai-card.is-brief) > #iba-ai-wide-more:not(:empty) {
+      position: sticky !important; top: 0 !important; align-self: start !important;
+      max-height: calc(var(--iba-wide-h, 80vh) - 8px) !important; overflow-y: auto !important; overscroll-behavior: contain !important;
+    }
+  }
+
+  /* ---- PO card: paid bar, groups, folded paid ------------------------- */
+  #iba-ai-panel .iba-ai-paid-pill {
+    display: inline-flex !important; align-items: center !important; gap: 4px !important; padding: 2px 9px !important; border-radius: 999px !important;
+    font-size: 11.5px !important; font-weight: 800 !important; border: 1px solid rgba(90, 209, 143, .5) !important; background: rgba(90, 209, 143, .14) !important;
+    color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important;
+  }
+  #iba-ai-panel .iba-ai-trk-sum { display: grid !important; gap: 5px !important; margin: 8px 0 4px !important; }
+  #iba-ai-panel .iba-ai-trk-sumrow { display: flex !important; flex-wrap: wrap !important; gap: 4px 14px !important; font-size: 12px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-ai-trk-sumrow b { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-variant-numeric: tabular-nums !important; }
+  #iba-ai-panel .iba-ai-trk-sumrow .is-p { color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; }
+  #iba-ai-panel .iba-ai-trk-sumrow .is-a { color: #F8CD7E !important; -webkit-text-fill-color: #F8CD7E !important; }
+  #iba-ai-panel .iba-ai-trk-sumrow .is-n { color: #A9CBFF !important; -webkit-text-fill-color: #A9CBFF !important; }
+  #iba-ai-panel .iba-ai-trk-prog { display: flex !important; height: 8px !important; border-radius: 5px !important; overflow: hidden !important; background: rgba(255, 255, 255, 0.08) !important; }
+  #iba-ai-panel .iba-ai-trk-prog i { display: block !important; height: 100% !important; }
+  #iba-ai-panel .iba-ai-trk-prog .is-p { background: #5AD18F !important; }
+  #iba-ai-panel .iba-ai-trk-prog .is-a { background: #F5B851 !important; }
+  #iba-ai-panel .iba-ai-trk-prog .is-n { background: #7FB2FF !important; }
+  #iba-ai-panel .iba-ai-trk-grp { margin: 10px 0 2px !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .05em !important; text-transform: uppercase !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+
+  #iba-ai-panel details.iba-ai-paid { margin: 8px 0 2px !important; border: 1px solid rgba(90, 209, 143, .4) !important; border-radius: 10px !important; background: rgba(20, 80, 50, .22) !important; }
+  #iba-ai-panel details.iba-ai-paid > summary {
+    list-style: none !important; display: flex !important; align-items: center !important; gap: 10px !important; padding: 8px 12px !important; cursor: pointer !important; font-size: 12.5px !important;
+  }
+  #iba-ai-panel details.iba-ai-paid > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-ai-paid-ck { font-weight: 800 !important; color: #7EE2A8 !important; -webkit-text-fill-color: #7EE2A8 !important; white-space: nowrap !important; }
+  #iba-ai-panel .iba-ai-paid-txt { color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-variant-numeric: tabular-nums !important; }
+  #iba-ai-panel .iba-ai-paid-exp { margin-left: auto !important; font-weight: 700 !important; color: #3FD0C9 !important; -webkit-text-fill-color: #3FD0C9 !important; white-space: nowrap !important; }
+  #iba-ai-panel .iba-ai-paid-exp::after { content: "Show \25BE"; }
+  #iba-ai-panel details.iba-ai-paid[open] .iba-ai-paid-exp::after { content: "Hide \25B4"; }
+  #iba-ai-panel .iba-ai-paid-list { display: grid !important; gap: 2px !important; padding: 4px 12px 10px !important; border-top: 1px dashed rgba(90, 209, 143, .35) !important; }
+  #iba-ai-panel .iba-ai-paid-list > div { padding: 3px 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) auto auto minmax(160px, max-content) !important; gap: 4px 16px !important; align-items: center !important; font-size: 12.5px !important; }
+  #iba-ai-panel .iba-ai-paid-list > div > span { color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-ai-paid-list > div > b { font-variant-numeric: tabular-nums !important; text-align: right !important; }
+  #iba-ai-panel .iba-ai-paid-no {
+    justify-self: start !important; padding: 0 !important; border: 0 !important; background: none !important; cursor: pointer !important;
+    font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-decoration: underline dotted !important; text-underline-offset: 3px !important;
+  }
+  #iba-ai-panel .iba-ai-paid-list .iba-ai-mini { padding: 2px 6px !important; margin: 0 !important; }
+}
+
+/* ---- phone: easy to read and tap (not the Z Flip cover screen) ---------- */
+@layer iba-ui {
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-aph-search { min-height: 54px !important; padding: 5px 5px 5px 16px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel #iba-aph-q { min-height: 44px !important; font-size: 17px !important; padding: 10px 0 !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-aph-go { flex: 0 0 44px !important; width: 44px !important; height: 44px !important; }
+
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-card.is-track .iba-ai-mini {
+    min-height: 44px !important; padding: 0 16px !important; font-size: 14.5px !important; border-radius: 12px !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important; margin: 6px 6px 0 0 !important;
+  }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-card.is-track .iba-ai-trk-acts { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-card.is-track .iba-ai-trk-acts .iba-ai-mini { margin: 0 !important; width: 100% !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-top .iba-ai-grow small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; font-size: 13.5px !important; line-height: 1.4 !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-top strong { font-size: 15.5px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-val { font-size: 15.5px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-po-head b { font-size: 17px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-sumrow { font-size: 14px !important; gap: 4px 12px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-prog { height: 10px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-trk-grp { font-size: 12.5px !important; margin-top: 14px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel details.iba-ai-paid > summary { min-height: 52px !important; padding: 10px 14px !important; font-size: 14.5px !important; flex-wrap: wrap !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-ck { font-size: 16px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list > div { min-height: 44px !important; font-size: 15px !important; grid-template-columns: minmax(0, 1fr) auto auto !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list .iba-ai-mini { min-height: 40px !important; padding: 0 10px !important; margin: 0 !important; }
+}
+@layer iba-ui {
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-txt { order: 3 !important; flex-basis: 100% !important; }
+}
+
+/* ---- tasks by status + inventory: one fact per column too -------------- */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li > span { min-width: 0 !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li :is(.c-vend, .c-no, .c-rem, .c-item, .c-next, .c-from, .c-to) { white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li:not(.iba-ai-ttab-head) :is(.c-vend, .c-item) { font-weight: 700 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li :is(.c-no, .c-from, .c-to) { font-size: 12.5px !important; }
+  #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-val { font-variant-numeric: tabular-nums !important; font-weight: 700 !important; text-align: right !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li:not(.iba-ai-ttab-head) :is(.c-rem, .c-next) { font-size: 12px !important; font-style: italic !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) .iba-ai-dash { opacity: .45 !important; }
+  #iba-ai-panel .iba-ai-ttab.is-jb2 li .c-to i { font-size: 10px !important; opacity: .7 !important; }
+
+  /* narrow side panel: wrapped block per row */
+  @container (max-width: 639px) {
+    #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li:not(.iba-ai-ttab-head) { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 4px 10px !important; }
+    #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li :is(.c-vend, .c-item) { flex: 1 1 45% !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-po { order: 1 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-vend { order: 2 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-urg { order: 3 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-site { order: 4 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-no { order: 5 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-val { order: 6 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-age { order: 7 !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-rem { order: 8 !important; flex: 1 1 100% !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-act { order: 9 !important; flex: 1 1 100% !important; justify-content: flex-start !important; }
+    #iba-ai-panel .iba-ai-ttab.is-jb2 li .c-next { flex: 1 1 100% !important; }
+    #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li:not(.iba-ai-ttab-head) :is(.c-urg, .c-rem, .c-val):has(.iba-ai-dash) { display: none !important; }
+  }
+  /* compact: no Urgent column (row stays red), no Remarks / Next */
+  @container (min-width: 640px) {
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li { display: grid !important; gap: 8px !important; grid-template-columns: 70px 52px minmax(90px, 1fr) 110px 96px 44px minmax(150px, 300px) !important; }
+    #iba-ai-panel .iba-ai-ttab.is-jb2 li { display: grid !important; gap: 8px !important; grid-template-columns: 92px 64px 72px minmax(100px, 1fr) 140px 50px 92px !important; }
+    #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li :is(.c-urg, .c-rem, .c-next) { display: none !important; }
+  }
+  @container (min-width: 760px) {
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li { grid-template-columns: 70px 52px minmax(110px, 1fr) 84px 110px 96px 44px minmax(150px, 300px) !important; }
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li .c-urg { display: block !important; }
+  }
+  @container (min-width: 980px) {
+    #iba-ai-panel .iba-ai-ttab.is-tk2 li { gap: 10px !important; grid-template-columns: 74px 56px minmax(130px, 1.3fr) 84px 120px 104px minmax(100px, 1fr) 46px minmax(170px, 300px) !important; }
+    #iba-ai-panel .iba-ai-ttab.is-jb2 li { gap: 10px !important; grid-template-columns: 96px 70px 80px minmax(140px, 1.4fr) 150px minmax(120px, 1fr) 50px 96px !important; }
+    #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li :is(.c-rem, .c-next) { display: block !important; }
+  }
+  #iba-ai-panel .iba-ai-ttab:is(.is-tk2, .is-jb2) li[hidden] { display: none !important; }
+}
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-paid-files { display: inline-flex !important; flex-wrap: nowrap !important; gap: 6px !important; justify-content: flex-end !important; min-width: 0 !important; }
+  #iba-ai-panel .iba-ai-paid-files .iba-ai-mini { flex: 0 0 auto !important; margin: 0 !important; white-space: nowrap !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files { grid-column: 1 / -1 !important; justify-content: flex-start !important; gap: 8px !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files:empty { display: none !important; }
+}
+@layer iba-ui {
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list > div { padding: 6px 0 8px !important; border-bottom: 1px solid rgba(90, 209, 143, .18) !important; }
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list > div:last-child { border-bottom: 0 !important; }
+}
+/* 17.0.4 patch 2: paid rows never overlap - files go under the row when the card is narrow */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-paid-list { container-type: inline-size !important; }
+  #iba-ai-panel .iba-ai-paid-list > div,
+  body.iba-phone:not(.iba-phone-cover) #iba-ai-panel .iba-ai-paid-list > div { grid-template-columns: minmax(0, 1fr) auto auto !important; gap: 4px 16px !important; }
+  #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-no { max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; text-align: left !important; }
+  #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files { grid-column: 1 / -1 !important; justify-content: flex-start !important; }
+  #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files:empty { display: none !important; }
+  @container (min-width: 560px) {
+    #iba-ai-panel .iba-ai-paid-list > div { grid-template-columns: minmax(0, 1fr) auto auto max-content !important; }
+    #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files { grid-column: auto !important; justify-content: flex-end !important; }
+    #iba-ai-panel .iba-ai-paid-list .iba-ai-paid-files:empty { display: block !important; }
+  }
+}
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-paid-list > div { padding: 6px 0 !important; border-bottom: 1px solid rgba(90, 209, 143, .16) !important; }
+  #iba-ai-panel .iba-ai-paid-list > div:last-child { border-bottom: 0 !important; }
+}

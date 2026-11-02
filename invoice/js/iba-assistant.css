@@ -1,0 +1,1394 @@
+/* ==========================================================================
+   css/iba-assistant.css  —  14.0.0 patch 12 : IBA Assistant
+   Same cascade layer as css/iba-ui.css ("iba-ui"); same glass look as the
+   popups. Desktop only (the phone keeps its own minimal screens).
+   ========================================================================== */
+@layer iba-ui {
+
+  /* ---------- the round button ---------- */
+  .iba-ai-fab {
+    position: fixed !important;
+    right: 22px !important;
+    bottom: 22px !important;
+    z-index: 9990 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1.5px solid rgba(227, 201, 138, 0.75) !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 30% 25%, #1F5B6E 0%, #12324A 55%, #0C2133 100%) !important;
+    color: #E3C98A !important;
+    -webkit-text-fill-color: #E3C98A !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 0 6px rgba(227, 201, 138, 0.08) !important;
+    cursor: pointer !important;
+    transition: transform .15s ease, opacity .15s ease !important;
+  }
+  .iba-ai-fab[hidden] { display: none !important; }
+  .iba-ai-fab:hover { transform: translateY(-2px) scale(1.05) !important; }
+  .iba-ai-fab.is-open { opacity: 0 !important; pointer-events: none !important; }
+  .iba-ai-fab i { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  .iba-ai-fab-dot {
+    position: absolute !important;
+    top: 3px !important;
+    right: 3px !important;
+    width: 12px !important;
+    height: 12px !important;
+    border: 2px solid #0C2133 !important;
+    border-radius: 50% !important;
+    background: #E3C98A !important;
+    opacity: 0 !important;
+  }
+  .iba-ai-fab.has-items .iba-ai-fab-dot { opacity: 1 !important; animation: ibaAiDot 2.4s ease-in-out infinite !important; }
+  .iba-ai-fab.needs-setup .iba-ai-fab-dot { opacity: 1 !important; background: #7DB7F0 !important; animation: none !important; }
+  @keyframes ibaAiDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  /* the Add button the assistant points at */
+  #im-add-invoice-button.iba-ai-pulse { animation: ibaAiPulse 1.2s ease-in-out 6 !important; }
+  @keyframes ibaAiPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(227, 201, 138, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(227, 201, 138, 0.55), 0 0 18px rgba(227, 201, 138, 0.5); }
+  }
+
+  /* ---------- the small bubble (greeting / "check the form") ---------- */
+  .iba-ai-bubble {
+    position: fixed !important;
+    right: 88px !important;
+    bottom: 26px !important;
+    z-index: 9991 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    max-width: min(420px, calc(100vw - 120px)) !important;
+    padding: 12px 12px 12px 14px !important;
+    border: 1px solid rgba(227, 201, 138, 0.45) !important;
+    border-radius: 14px !important;
+    background: linear-gradient(180deg, #1B3A57 0%, #12283D 100%) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5) !important;
+    font-size: 13.5px !important;
+    line-height: 1.45 !important;
+    animation: ibaAiIn .25s ease both !important;
+  }
+  .iba-ai-bubble[hidden] { display: none !important; }
+  .iba-ai-bubble > i { margin-top: 2px !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  .iba-ai-bubble-text { flex: 1 1 auto !important; min-width: 0 !important; }
+  .iba-ai-bubble-text p { margin: 0 !important; color: inherit !important; }
+  .iba-ai-bubble-text small { color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  .iba-ai-bubble-actions { display: flex !important; flex-direction: column !important; align-items: flex-end !important; gap: 6px !important; }
+  .iba-ai-bubble-actions button {
+    margin: 0 !important;
+    padding: 5px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    border-radius: 8px !important;
+    background: rgba(19, 138, 151, 0.9) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-bubble-actions button[data-bubble="x"] { padding: 2px 8px !important; background: transparent !important; border-color: transparent !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; font-size: 16px !important; }
+  @keyframes ibaAiIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- the panel ---------- */
+  .iba-ai-panel {
+    position: fixed !important;
+    top: 76px !important;
+    right: 16px !important;
+    bottom: 16px !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 420px !important;
+    max-width: calc(100vw - 32px) !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, #17324C 0%, #0F2235 100%) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(227, 201, 138, 0.08) !important;
+    font-size: 14px !important;
+    animation: ibaAiIn .22s ease both !important;
+  }
+  .iba-ai-panel[hidden] { display: none !important; }
+  .iba-ai-panel *, .iba-ai-panel *::before, .iba-ai-panel *::after { box-sizing: border-box !important; }
+  .iba-ai-panel :is(p, li, dd, dt, td, th, span, small, strong, b, h3, label, code) { -webkit-text-fill-color: currentColor !important; text-shadow: none !important; }
+  .iba-ai-head {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 12px 10px 12px 14px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: linear-gradient(90deg, rgba(227, 201, 138, 0.10), rgba(227, 201, 138, 0) 60%) !important;
+  }
+  .iba-ai-mark {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 34px !important;
+    height: 34px !important;
+    margin-right: 4px !important;
+    border: 1.5px solid rgba(227, 201, 138, 0.7) !important;
+    border-radius: 10px !important;
+    background: rgba(227, 201, 138, 0.08) !important;
+    color: #E3C98A !important;
+    -webkit-text-fill-color: #E3C98A !important;
+  }
+  .iba-ai-title { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; }
+  .iba-ai-title strong { color: #FFFFFF !important; font-size: 15px !important; font-weight: 700 !important; line-height: 1.2 !important; }
+  .iba-ai-title small { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: #EBD8A8 !important; font-size: 11.5px !important; }
+  .iba-ai-icon {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid transparent !important;
+    border-radius: 9px !important;
+    background: transparent !important;
+    color: #EBD8A8 !important;
+    -webkit-text-fill-color: #EBD8A8 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-icon:hover { background: rgba(255, 255, 255, 0.07) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  .iba-ai-icon.is-on { border-color: rgba(227, 201, 138, 0.5) !important; background: rgba(227, 201, 138, 0.12) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  .iba-ai-icon i, .iba-ai-mini i, .iba-ai-btn i { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+
+  .iba-ai-view { flex: 1 1 auto !important; min-height: 0 !important; display: flex !important; flex-direction: column !important; }
+  .iba-ai-view[hidden] { display: none !important; }
+  .iba-ai-log, .iba-ai-pane {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    padding: 14px !important;
+    scrollbar-width: thin !important;
+  }
+  .iba-ai-log { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+
+  /* messages */
+  .iba-ai-msg { max-width: 92% !important; animation: ibaAiIn .2s ease both !important; }
+  .iba-ai-msg .iba-ai-text {
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    overflow-wrap: anywhere !important;
+  }
+  .iba-ai-msg.is-user { align-self: flex-end !important; }
+  .iba-ai-msg.is-user .iba-ai-text { border-bottom-right-radius: 4px !important; background: rgba(19, 138, 151, 0.85) !important; color: #FFFFFF !important; }
+  .iba-ai-msg.is-user.is-skill .iba-ai-text { background: rgba(227, 201, 138, 0.18) !important; border: 1px solid rgba(227, 201, 138, 0.45) !important; color: #E3C98A !important; font-weight: 700 !important; }
+  .iba-ai-msg.is-bot { align-self: flex-start !important; }
+  .iba-ai-msg.is-bot .iba-ai-text { border: 1px solid rgba(255, 255, 255, 0.08) !important; border-bottom-left-radius: 4px !important; background: rgba(255, 255, 255, 0.05) !important; color: #EEF3F8 !important; }
+  .iba-ai-text p { margin: 0 0 6px !important; color: inherit !important; font-size: inherit !important; line-height: inherit !important; }
+  .iba-ai-text p:last-child { margin-bottom: 0 !important; }
+  .iba-ai-text ul { margin: 4px 0 6px !important; padding-left: 18px !important; }
+  .iba-ai-text li { margin: 2px 0 !important; color: inherit !important; }
+  .iba-ai-text code { padding: 1px 5px !important; border-radius: 5px !important; background: rgba(255, 255, 255, 0.08) !important; font-size: 12.5px !important; }
+  .iba-ai-text strong { color: #FFFFFF !important; }
+  .iba-ai-msg-tools { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 6px !important; }
+  .iba-ai-msg-tools:empty { display: none !important; }
+
+  .iba-ai-mini, .iba-ai-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #EBD8A8 !important;
+    -webkit-text-fill-color: #EBD8A8 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.3 !important;
+    white-space: nowrap !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    transform: none !important;
+  }
+  .iba-ai-mini:hover, .iba-ai-btn:hover { background: rgba(255, 255, 255, 0.10) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  .iba-ai-mini.is-main, .iba-ai-btn.is-main { border-color: transparent !important; background: #138A97 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  .iba-ai-mini.is-main:hover, .iba-ai-btn.is-main:hover { background: #17A0AE !important; }
+  .iba-ai-btn { padding: 8px 14px !important; font-size: 13px !important; border-radius: 10px !important; }
+
+  .iba-ai-note {
+    align-self: stretch !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    border-radius: 10px !important;
+    background: rgba(125, 183, 240, 0.10) !important;
+    color: #C3DDF8 !important;
+    font-size: 13px !important;
+  }
+  .iba-ai-note.is-error { background: rgba(239, 138, 122, 0.12) !important; color: #FFD0C8 !important; }
+  .iba-ai-note.is-wait { background: rgba(242, 193, 78, 0.12) !important; color: #F8DC97 !important; }
+  .iba-ai-note i { color: inherit !important; }
+
+  .iba-ai-typing { align-self: flex-start !important; display: inline-flex !important; gap: 5px !important; padding: 12px 14px !important; border-radius: 14px !important; background: rgba(255, 255, 255, 0.05) !important; }
+  .iba-ai-typing span { width: 7px !important; height: 7px !important; border-radius: 50% !important; background: #E3C98A !important; animation: ibaAiDots 1s ease-in-out infinite !important; }
+  .iba-ai-typing span:nth-child(2) { animation-delay: .15s !important; }
+  .iba-ai-typing span:nth-child(3) { animation-delay: .3s !important; }
+  @keyframes ibaAiDots { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+  /* cards */
+  .iba-ai-card {
+    align-self: stretch !important;
+    padding: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-left: 3px solid #E3C98A !important;
+    border-radius: 12px !important;
+    background: rgba(8, 18, 30, 0.45) !important;
+    animation: ibaAiIn .2s ease both !important;
+  }
+  .iba-ai-card.is-po { border-left-color: #7DB7F0 !important; }
+  .iba-ai-card.is-form { border-left-color: #5FD3A0 !important; }
+  .iba-ai-card.is-people { border-left-color: #B9A4F5 !important; }
+  .iba-ai-card.is-action { border-left-color: #138A97 !important; padding: 9px 12px !important; }
+  .iba-ai-card-head { display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; margin-bottom: 8px !important; color: #FFFFFF !important; font-size: 13.5px !important; font-weight: 700 !important; }
+  .iba-ai-card.is-action .iba-ai-card-head { margin: 0 !important; font-weight: 600 !important; }
+  .iba-ai-card-head.is-bad { color: #FFD0C8 !important; }
+  .iba-ai-card-head > i { color: #E3C98A !important; }
+  .iba-ai-head-actions { display: inline-flex !important; gap: 6px !important; margin-left: auto !important; }
+  .iba-ai-badge { margin-left: auto !important; padding: 2px 8px !important; border: 1px solid rgba(242, 193, 78, 0.5) !important; border-radius: 999px !important; background: rgba(242, 193, 78, 0.14) !important; color: #F8DC97 !important; font-size: 11px !important; font-weight: 700 !important; }
+  .iba-ai-stats { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)) !important; gap: 6px !important; margin: 0 0 8px !important; }
+  .iba-ai-stats > div { padding: 7px 9px !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 9px !important; background: rgba(255, 255, 255, 0.04) !important; }
+  .iba-ai-stats b { display: block !important; color: #FFFFFF !important; font-size: 15px !important; font-variant-numeric: tabular-nums !important; }
+  .iba-ai-stats span { display: block !important; color: #EBD8A8 !important; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .06em !important; text-transform: uppercase !important; }
+  /* 15.0.0 patch 10: the brief fits its 4 counts on one row */
+  .iba-ai-card.is-brief .iba-ai-stats { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)) !important; }
+  .iba-ai-card.is-brief .iba-ai-stats span { font-size: 9.5px !important; letter-spacing: .04em !important; }
+  .iba-ai-card.is-brief .iba-ai-rows li[hidden] { display: none !important; }
+  .iba-ai-brief-status { display: flex !important; flex-wrap: wrap !important; gap: 5px !important; margin: 0 0 6px !important; }
+  .iba-ai-brief-status span { padding: 3px 8px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.04) !important; color: #C9D3DD !important; font-size: 11px !important; }
+  .iba-ai-brief-status b { color: #FFFFFF !important; margin-left: 2px !important; }
+  .iba-ai-brief-more { display: block !important; margin: 6px auto 2px !important; }
+  .iba-ai-sub { margin: 8px 0 4px !important; color: #EBD8A8 !important; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .07em !important; text-transform: uppercase !important; }
+  .iba-ai-rows { margin: 0 !important; padding: 0 !important; list-style: none !important; }
+  .iba-ai-rows li { display: flex !important; align-items: center !important; gap: 8px !important; padding: 6px 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; }
+  .iba-ai-rows li:last-child { border-bottom: 0 !important; }
+  .iba-ai-grow { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; flex-direction: column !important; color: #EEF3F8 !important; font-size: 13px !important; overflow: hidden !important; }
+  .iba-ai-grow > small, .iba-ai-grow small { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: #EBD8A8 !important; font-size: 11.5px !important; }
+  .iba-ai-grow strong { color: #FFFFFF !important; }
+  .iba-ai-po, .iba-ai-tag {
+    flex: 0 0 auto !important;
+    margin: 0 !important;
+    padding: 3px 8px !important;
+    border: 1px solid rgba(125, 183, 240, 0.45) !important;
+    border-radius: 7px !important;
+    background: rgba(125, 183, 240, 0.12) !important;
+    color: #C3DDF8 !important;
+    -webkit-text-fill-color: #C3DDF8 !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    font-variant-numeric: tabular-nums !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-tag { cursor: default !important; border-color: rgba(95, 211, 160, 0.4) !important; background: rgba(95, 211, 160, 0.10) !important; color: #A8EBCB !important; -webkit-text-fill-color: #A8EBCB !important; }
+  .iba-ai-po:hover { background: rgba(125, 183, 240, 0.22) !important; }
+  .iba-ai-age { flex: 0 0 auto !important; padding: 1px 7px !important; border-radius: 999px !important; font-size: 11px !important; font-weight: 700 !important; }
+  .iba-ai-age.is-fresh { background: rgba(95, 211, 160, 0.14) !important; color: #A8EBCB !important; }
+  .iba-ai-age.is-watch { background: rgba(242, 193, 78, 0.14) !important; color: #F8DC97 !important; }
+  .iba-ai-age.is-alert { background: rgba(242, 160, 90, 0.16) !important; color: #F7C58A !important; }
+  .iba-ai-age.is-critical { background: rgba(239, 128, 112, 0.16) !important; color: #F5A99C !important; }
+  .iba-ai-po-who { margin: -2px 0 8px !important; color: #EBD8A8 !important; font-size: 13px !important; }
+  .iba-ai-table { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; table-layout: auto !important; }
+  .iba-ai-table th { padding: 5px 6px !important; border: 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important; background: transparent !important; color: #EBD8A8 !important; font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .05em !important; text-transform: uppercase !important; text-align: left !important; position: static !important; }
+  .iba-ai-table td { padding: 6px !important; border: 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; background: transparent !important; color: #EEF3F8 !important; vertical-align: top !important; }
+  .iba-ai-table td.num { text-align: right !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; }
+  .iba-ai-dl { display: grid !important; grid-template-columns: auto 1fr !important; gap: 4px 12px !important; margin: 0 !important; }
+  .iba-ai-dl dt { color: #EBD8A8 !important; font-size: 12px !important; }
+  .iba-ai-dl dd { margin: 0 !important; color: #FFFFFF !important; font-size: 13px !important; font-weight: 600 !important; }
+  .iba-ai-warn { margin: 8px 0 0 !important; padding: 8px 10px 8px 26px !important; border-radius: 8px !important; background: rgba(242, 193, 78, 0.10) !important; color: #F8DC97 !important; font-size: 12.5px !important; }
+  .iba-ai-foot { display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; margin: 8px 0 0 !important; color: #EBD8A8 !important; font-size: 12.5px !important; }
+  .iba-ai-foot b { color: #FFFFFF !important; }
+  .iba-ai-empty { margin: 4px 0 !important; color: #EBD8A8 !important; font-size: 13px !important; }
+  .iba-ai-empty i { color: #E3C98A !important; margin-right: 6px !important; }
+  .iba-ai-skill-form { display: flex !important; gap: 6px !important; margin-top: 8px !important; }
+  .iba-ai-skill-form input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 30px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(227, 201, 138, 0.5) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 13px !important;
+    outline: none !important;
+  }
+  .iba-ai-saved { margin: 8px 0 0 !important; color: #E3C98A !important; font-size: 12.5px !important; }
+
+  /* quick chips + input */
+  .iba-ai-chips { flex: 0 0 auto !important; display: flex !important; flex-wrap: wrap !important; gap: 6px !important; padding: 8px 12px 0 !important; border-top: 1px solid rgba(255, 255, 255, 0.06) !important; }
+  .iba-ai-chips[hidden] { display: none !important; }
+  .iba-ai-chips button {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 5px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: #EBD8A8 !important;
+    -webkit-text-fill-color: #EBD8A8 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-chips button:hover { border-color: rgba(227, 201, 138, 0.5) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  .iba-ai-chips button i { color: inherit !important; -webkit-text-fill-color: currentColor !important; font-size: 11px !important; }
+  .iba-ai-input { flex: 0 0 auto !important; display: flex !important; align-items: flex-end !important; gap: 8px !important; margin: 0 !important; padding: 10px 12px 12px !important; }
+  .iba-ai-input[hidden] { display: none !important; }
+  .iba-ai-input textarea {
+    flex: 1 1 auto !important;
+    min-height: 42px !important;
+    max-height: 140px !important;
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    caret-color: #E3C98A !important;
+    font-family: inherit !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
+    resize: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .iba-ai-input textarea::placeholder { color: #9FB3C8 !important; -webkit-text-fill-color: #9FB3C8 !important; }
+  .iba-ai-input textarea:focus { border-color: rgba(227, 201, 138, 0.7) !important; box-shadow: 0 0 0 3px rgba(227, 201, 138, 0.18) !important; }
+  .iba-ai-input button {
+    flex: 0 0 auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    background: #138A97 !important;
+    color: #FFFFFF !important;
+    -webkit-text-fill-color: #FFFFFF !important;
+    font-size: 15px !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-input button:disabled { opacity: .45 !important; cursor: default !important; }
+  .iba-ai-input button i { color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+
+  /* skills and setup panes */
+  .iba-ai-pane h3 { display: flex !important; align-items: center !important; gap: 8px !important; margin: 0 0 6px !important; color: #FFFFFF !important; font-size: 15px !important; }
+  .iba-ai-pane h3 i { color: #E3C98A !important; }
+  .iba-ai-help { margin: 0 0 12px !important; color: #EBD8A8 !important; font-size: 12.5px !important; line-height: 1.45 !important; }
+  .iba-ai-help.small { margin-top: 14px !important; font-size: 11.5px !important; color: #EBD8A8 !important; }
+  .iba-ai-help a { color: #7DB7F0 !important; -webkit-text-fill-color: #7DB7F0 !important; font-weight: 600 !important; text-decoration: none !important; }
+  .iba-ai-skill-list { margin: 0 !important; padding: 0 !important; list-style: none !important; }
+  .iba-ai-skill-list li { display: flex !important; align-items: center !important; gap: 8px !important; margin: 0 0 8px !important; padding: 10px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 10px !important; background: rgba(255, 255, 255, 0.04) !important; }
+  .iba-ai-field { display: flex !important; flex-direction: column !important; gap: 4px !important; margin: 0 0 10px !important; }
+  .iba-ai-field[hidden] { display: none !important; }
+  .iba-ai-field > span { color: #EBD8A8 !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .06em !important; text-transform: uppercase !important; }
+  .iba-ai-field :is(input, select) {
+    width: 100% !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 13.5px !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .iba-ai-field select option { background: #0F1C2B !important; color: #EEF3F8 !important; }
+  .iba-ai-field :is(input, select):focus { border-color: rgba(227, 201, 138, 0.7) !important; }
+  .iba-ai-setup-actions { display: flex !important; gap: 8px !important; margin-top: 4px !important; }
+  .iba-ai-status { min-height: 18px !important; margin: 10px 0 0 !important; color: #EBD8A8 !important; font-size: 12.5px !important; }
+  .iba-ai-status.is-ok { color: #A8EBCB !important; }
+  .iba-ai-status.is-bad { color: #F5A99C !important; }
+
+  /* ---------- patch 13: Track an invoice ---------- */
+  .iba-ai-track-form { display: grid !important; grid-template-columns: 1fr 70px 70px !important; gap: 6px !important; margin: 0 0 12px !important; }
+  .iba-ai-track-form button { grid-column: 1 / -1 !important; justify-content: center !important; }
+  .iba-ai-track-form input {
+    width: 100% !important;
+    height: 38px !important;
+    margin: 0 !important;
+    padding: 0 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 13.5px !important;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .iba-ai-track-form input::placeholder { color: #9FB3C8 !important; -webkit-text-fill-color: #9FB3C8 !important; }
+  .iba-ai-track-form input:focus { border-color: rgba(227, 201, 138, 0.7) !important; }
+  .iba-ai-track-out { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .iba-ai-card.is-track { border-left-color: #E3C98A !important; }
+  .iba-ai-chiprow { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-bottom: 4px !important; }
+  .iba-ai-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    border: 1px solid rgba(227, 201, 138, 0.4) !important;
+    border-radius: 999px !important;
+    background: rgba(227, 201, 138, 0.08) !important;
+    color: #EEF3F8 !important;
+    -webkit-text-fill-color: #EEF3F8 !important;
+    font-size: 12.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+  }
+  .iba-ai-chip b { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  .iba-ai-chip:hover { background: rgba(227, 201, 138, 0.18) !important; }
+  .iba-ai-trk-po { margin-top: 10px !important; padding-top: 8px !important; border-top: 1px solid rgba(255, 255, 255, 0.07) !important; }
+  .iba-ai-trk-po:first-of-type { margin-top: 4px !important; }
+  .iba-ai-trk-po-head { display: flex !important; align-items: baseline !important; flex-wrap: wrap !important; gap: 4px 8px !important; margin-bottom: 6px !important; }
+  .iba-ai-trk-po-head b { color: #FFFFFF !important; font-size: 14px !important; }
+  .iba-ai-trk-po-head span { color: #EBD8A8 !important; font-size: 12px !important; }
+  .iba-ai-trk-val { margin-left: auto !important; color: #EEF3F8 !important; font-size: 12.5px !important; font-weight: 700 !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; }
+  .iba-ai-trk-item { margin: 0 0 6px !important; padding: 8px 10px !important; border: 1px solid rgba(255, 255, 255, 0.07) !important; border-radius: 10px !important; background: rgba(255, 255, 255, 0.03) !important; }
+  .iba-ai-trk-item.is-side { border-color: rgba(242, 193, 78, 0.35) !important; background: rgba(242, 193, 78, 0.05) !important; }
+  .iba-ai-trk-top { display: flex !important; align-items: center !important; gap: 8px !important; }
+  .iba-ai-trk-top strong { color: #FFFFFF !important; font-size: 13px !important; }
+  .iba-ai-trk-item.is-side .iba-ai-trk-top strong { color: #F8DC97 !important; }
+  .iba-ai-pipe { display: grid !important; grid-template-columns: repeat(6, 1fr) !important; gap: 2px !important; margin: 8px 0 2px !important; padding: 0 !important; list-style: none !important; }
+  .iba-ai-pipe li { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 3px !important; margin: 0 !important; color: #5F7186 !important; font-size: 10px !important; font-weight: 600 !important; text-align: center !important; white-space: nowrap !important; }
+  .iba-ai-pipe li span { display: block !important; width: 100% !important; height: 5px !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.08) !important; }
+  .iba-ai-pipe li.is-done { color: #EBD8A8 !important; }
+  .iba-ai-pipe li.is-done span { background: rgba(95, 211, 160, 0.7) !important; }
+  .iba-ai-pipe li.is-now { color: #E3C98A !important; font-weight: 800 !important; }
+  .iba-ai-pipe li.is-now span { background: #E3C98A !important; box-shadow: 0 0 8px rgba(227, 201, 138, 0.7) !important; }
+  .iba-ai-pipe li.is-now.is-side { color: #F2C14E !important; }
+  .iba-ai-pipe li.is-now.is-side span { background: repeating-linear-gradient(90deg, #F2C14E 0 6px, rgba(242, 193, 78, 0.35) 6px 10px) !important; }
+  .iba-ai-pipe li.is-now.is-final { color: #5FD3A0 !important; }
+  .iba-ai-pipe li.is-now.is-final span { background: #5FD3A0 !important; box-shadow: 0 0 8px rgba(95, 211, 160, 0.6) !important; }
+  .iba-ai-trk-histbtn { margin-top: 6px !important; padding: 2px 8px !important; font-size: 11px !important; }
+  .iba-ai-trk-steps { display: none !important; margin: 6px 0 0 !important; padding: 0 0 0 16px !important; color: #EBD8A8 !important; font-size: 11.5px !important; }
+  .iba-ai-trk-item.show-steps .iba-ai-trk-steps { display: block !important; }
+  .iba-ai-trk-steps b { color: #EEF3F8 !important; }
+  .iba-ai-panel [data-super-only][hidden], .iba-ai-chips button[hidden] { display: none !important; }
+
+  /* ---------- patch 15 ---------- */
+  .iba-ai-trk-dates { margin-top: 4px !important; color: #EBD8A8 !important; font-size: 11.5px !important; }
+  .iba-ai-card.is-reception { border-left-color: #7DB7F0 !important; }
+  .iba-ai-card.is-activity { border-left-color: #B9A4F5 !important; }
+  .iba-ai-badge.is-plain { border-color: rgba(125, 183, 240, 0.5) !important; background: rgba(125, 183, 240, 0.14) !important; color: #C3DDF8 !important; }
+  .iba-ai-lastact { margin: 0 0 6px !important; padding: 8px 10px !important; border-radius: 8px !important; background: rgba(185, 164, 245, 0.10) !important; color: #EEF3F8 !important; font-size: 13px !important; line-height: 1.45 !important; }
+  .iba-ai-lastact b { color: #D8CCFB !important; }
+  .iba-ai-tl-date { flex: 0 0 auto !important; min-width: 82px !important; color: #EBD8A8 !important; font-size: 11.5px !important; font-variant-numeric: tabular-nums !important; }
+}
+
+@layer iba-ui {
+  /* ---------- patch 16 ---------- */
+  .iba-ai-card.is-jobs { border-left-color: #7DB7F0 !important; }
+  .iba-ai-card.is-status { border-left-color: #F0B86E !important; }
+  .iba-ai-cnts { display: flex !important; flex-wrap: wrap !important; gap: 4px 6px !important; margin: 0 0 6px !important; }
+  .iba-ai-cnt { display: inline-flex !important; align-items: baseline !important; gap: 4px !important; padding: 2px 8px !important; border-radius: 999px !important; border: 1px solid rgba(167, 182, 198, 0.28) !important; background: rgba(255, 255, 255, 0.05) !important; color: #C9D5E1 !important; font-size: 11.5px !important; white-space: nowrap !important; }
+  .iba-ai-cnt b { color: #FFFFFF !important; font-weight: 700 !important; }
+  .iba-ai-jtype { display: inline-block !important; align-self: flex-start !important; width: auto !important; margin: 0 0 2px !important; padding: 0 6px !important; border-radius: 6px !important; background: rgba(125, 183, 240, 0.16) !important; color: #C3DDF8 !important; font-size: 11px !important; font-weight: 600 !important; vertical-align: 1px !important; }
+}
+
+@layer iba-ui {
+  /* ---------- patch 17: Print / Excel on result cards ---------- */
+  .iba-ai-cardacts { display: flex !important; gap: 6px !important; justify-content: flex-end !important; margin-top: 8px !important; padding-top: 8px !important; border-top: 1px solid rgba(167, 182, 198, 0.16) !important; }
+  .iba-ai-cardacts .iba-ai-mini { display: inline-flex !important; align-items: center !important; gap: 6px !important; }
+  .iba-ai-cardacts .iba-ai-mini[disabled] { opacity: .6 !important; cursor: progress !important; }
+}
+
+@layer iba-ui {
+  /* ---------- 15.0.0: Batch Entry from the assistant ---------- */
+  .iba-ai-card.is-batch { border-left-color: #F0B86E !important; }
+  #im-batch-save-button.iba-ai-pulse { animation: ibaAiPulse 1.2s ease-in-out 5 !important; }
+}
+
+/* 15.0.0 patch 4: transfer card (who must act on TRF-0361) */
+@layer iba-ui {
+  .iba-ai-card.is-transfer { border-left-color: #F2B66D !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact { background: rgba(242, 182, 109, 0.12) !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact b { color: #FFD9A8 !important; }
+  .iba-ai-card.is-transfer .iba-ai-lastact small { color: #C9D3DD !important; font-size: 12px !important; }
+  .iba-ai-trf-flow { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px !important; margin: 0 0 8px !important; font-size: 12px !important; }
+  .iba-ai-trf-flow > span { padding: 3px 9px !important; border-radius: 999px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; color: #AEB9C5 !important; background: rgba(255, 255, 255, 0.04) !important; }
+  .iba-ai-trf-flow > span.is-done { color: #9FE3D6 !important; border-color: rgba(94, 214, 196, 0.45) !important; background: rgba(94, 214, 196, 0.10) !important; }
+  .iba-ai-trf-flow > span.is-now { color: #1B1306 !important; border-color: #F2B66D !important; background: #F2B66D !important; font-weight: 700 !important; }
+  .iba-ai-trf-flow > i { font-size: 9px !important; color: #6F7C8A !important; }
+  .iba-ai-card.is-transfer hr.iba-ai-sep { border: 0 !important; border-top: 1px dashed rgba(255, 255, 255, 0.14) !important; margin: 10px 0 !important; }
+}
+
+/* 15.0.0 patch 5: find transfers by text */
+@layer iba-ui {
+  .iba-ai-track-form.is-trf { grid-template-columns: 1fr 70px !important; }
+  /* 15.0.0 patch 7: Invoices | Inventory, side by side */
+  .iba-ai-seg { grid-column: 1 / -1 !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; margin: 0 0 2px !important; }
+  .iba-ai-seg > button {
+    display: grid !important; grid-template-columns: auto 1fr !important; grid-template-rows: auto auto !important; column-gap: 9px !important; align-items: center !important;
+    grid-column: auto !important; min-height: 52px !important; margin: 0 !important; padding: 8px 10px !important; text-align: left !important; cursor: pointer !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important; border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.04) !important; color: #C9D3DD !important; box-shadow: none !important;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  }
+  .iba-ai-seg > button i { grid-row: 1 / span 2 !important; font-size: 17px !important; width: 20px !important; text-align: center !important; color: #8FA2B5 !important; }
+  .iba-ai-seg > button span { font-size: 13.5px !important; font-weight: 700 !important; line-height: 1.2 !important; }
+  .iba-ai-seg > button small { font-size: 11px !important; line-height: 1.25 !important; color: #8FA2B5 !important; white-space: normal !important; }
+  .iba-ai-seg > button:hover { border-color: rgba(255, 255, 255, 0.28) !important; background: rgba(255, 255, 255, 0.07) !important; }
+  .iba-ai-seg > button.is-on { border-color: rgba(94, 214, 196, 0.75) !important; background: rgba(94, 214, 196, 0.14) !important; color: #EEF8F6 !important; }
+  .iba-ai-seg > button.is-on i { color: #5ED6C4 !important; }
+  .iba-ai-seg > button.is-on small { color: #B7E9E1 !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on { border-color: rgba(242, 182, 109, 0.8) !important; background: rgba(242, 182, 109, 0.14) !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on i { color: #F2B66D !important; }
+  .iba-ai-seg > button[data-kind="trf"].is-on small { color: #F5D9B3 !important; }
+  .iba-ai-seg > button:focus-visible { outline: 2px solid #5ED6C4 !important; outline-offset: 2px !important; }
+  .iba-ai-track-form input[hidden] { display: none !important; }
+  .iba-ai-card.is-trf_find { border-left-color: #F2B66D !important; }
+  .iba-ai-card.is-trf_find .iba-ai-rows li { align-items: flex-start !important; }
+  .iba-ai-trf-no { flex: 0 0 auto !important; margin: 1px 8px 0 0 !important; font-weight: 700 !important; white-space: nowrap !important; cursor: pointer !important; }
+  .iba-ai-trf-match { color: #FFD9A8 !important; font-style: italic !important; }
+  .iba-ai-trf-warn { color: #FFB4A8 !important; }
+  .iba-ai-card.is-trf_find .iba-ai-grow small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; overflow-wrap: anywhere !important; }
+  #iba-ai-trf-detail { margin-top: 10px !important; }
+}
+
+/* 15.0.0 patch 9: next step, reminders, skipped steps, setup guide */
+@layer iba-ui {
+  .iba-ai-next { display: block !important; margin-top: 2px !important; color: #9FE3D6 !important; font-size: 11.5px !important; white-space: normal !important; }
+  .iba-ai-next i { font-size: 9.5px !important; margin-right: 3px !important; }
+  .iba-ai-trk-acts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin: 8px 0 2px !important; }
+  .iba-ai-pipe li.is-skipped { color: #7F8C99 !important; text-decoration: line-through !important; }
+  .iba-ai-pipe li.is-skipped span { background: transparent !important; border: 1px dashed rgba(255, 255, 255, 0.35) !important; }
+  .iba-ai-remind { margin-top: 10px !important; padding: 10px !important; border: 1px solid rgba(242, 182, 109, 0.45) !important; border-radius: 10px !important; background: rgba(242, 182, 109, 0.07) !important; }
+  .iba-ai-rem-row { display: grid !important; grid-template-columns: 80px 1fr !important; align-items: center !important; gap: 8px !important; margin: 0 0 8px !important; font-size: 12.5px !important; color: #C9D3DD !important; }
+  .iba-ai-rem-row input, .iba-ai-rem-text {
+    width: 100% !important; box-sizing: border-box !important; margin: 0 !important; padding: 7px 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important; border-radius: 8px !important; background: rgba(255, 255, 255, 0.06) !important;
+    color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 13px !important; font-family: inherit !important;
+  }
+  .iba-ai-rem-text { min-height: 84px !important; resize: vertical !important; line-height: 1.4 !important; }
+  .iba-ai-rem-acts { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 6px !important; margin-top: 8px !important; }
+  .iba-ai-rem-msg { font-size: 12px !important; color: #C9D3DD !important; }
+  .iba-ai-rem-msg.is-ok { color: #8FE3B5 !important; }
+  .iba-ai-rem-msg.is-bad { color: #FFB4A8 !important; }
+  .iba-ai-rem-body { white-space: pre-line !important; color: #E6EDF3 !important; }
+  .iba-ai-remlist li { align-items: flex-start !important; gap: 6px !important; }
+  .iba-ai-skill-ask { padding: 10px 12px !important; }
+  .iba-ai-guide { margin: 8px 0 0 !important; padding-left: 20px !important; font-size: 12.5px !important; line-height: 1.5 !important; color: #D7E0E8 !important; }
+  .iba-ai-guide li { margin: 0 0 4px !important; }
+  #iba-ai-fab.has-reminder { animation: ibaAiRemPulse 1.6s ease-in-out infinite !important; }
+  #iba-ai-fab.has-reminder::after {
+    content: attr(data-rem); position: absolute !important; top: -4px !important; right: -4px !important; min-width: 18px !important; height: 18px !important;
+    padding: 0 5px !important; border-radius: 999px !important; background: #F07A68 !important; color: #fff !important; font-size: 11px !important; font-weight: 700 !important;
+    line-height: 18px !important; text-align: center !important; box-sizing: border-box !important;
+  }
+}
+@keyframes ibaAiRemPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 122, 104, 0.55); } 50% { box-shadow: 0 0 0 10px rgba(240, 122, 104, 0); } }
+
+/* ==========================================================================
+   15.0.0 patch 11: animated assistant (robot), voice, mic, recent changes
+   ========================================================================== */
+@layer iba-ui {
+  .iba-ai-fab.is-bot {
+    width: 74px !important; height: 84px !important; right: 16px !important; bottom: 10px !important;
+    border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
+    overflow: visible !important;
+  }
+  .iba-ai-fab.is-bot:hover { transform: none !important; }
+  .iba-ai-fab.is-bot .iba-ai-fab-dot { top: 4px !important; right: 12px !important; }
+  #iba-ai-fab.is-bot.has-reminder { animation: none !important; }
+  #iba-ai-fab.is-bot.has-reminder::after { top: 2px !important; right: 4px !important; }
+  .iba-ai-bot { width: 74px !important; height: 84px !important; display: block !important; overflow: visible !important; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45)) !important; }
+  .iba-ai-bot .bot-shadow { fill: rgba(0, 0, 0, 0.35); }
+  .iba-ai-bot .bot-legs rect { fill: #0E2A40; stroke: #E3C98A; stroke-width: 1.2; }
+  .iba-ai-bot .bot-arm { fill: none; stroke: #E3C98A; stroke-width: 4; stroke-linecap: round; }
+  .iba-ai-bot .bot-torso { fill: url(#ibaBotBody); stroke: #E3C98A; stroke-width: 1.4; }
+  .iba-ai-bot .bot-heart { fill: #5ED6C4; }
+  .iba-ai-bot .bot-antenna { stroke: #E3C98A; stroke-width: 2; stroke-linecap: round; }
+  .iba-ai-bot .bot-bulb { fill: #E3C98A; }
+  .iba-ai-bot .bot-ear { fill: #E3C98A; }
+  .iba-ai-bot .bot-skull { fill: url(#ibaBotHead); stroke: #E3C98A; stroke-width: 1.6; }
+  .iba-ai-bot .bot-visor { fill: #07121C; }
+  .iba-ai-bot .bot-eye { fill: #5ED6C4; }
+  .iba-ai-bot .bot-mouth { fill: none; stroke: #5ED6C4; stroke-width: 2; stroke-linecap: round; }
+  .iba-ai-bot :is(.bot-all, .bot-head, .bot-eyes, .bot-eye, .bot-arm, .bot-mouth, .bot-bulb, .bot-heart) { transform-box: fill-box; }
+  /* idle: gentle bob, head tilt now and then, blink, look around */
+  .iba-ai-bot .bot-all { transform-origin: 50% 100%; animation: ibaBotBob 3.4s ease-in-out infinite; }
+  .iba-ai-bot .bot-head { transform-origin: 50% 90%; animation: ibaBotTilt 9s ease-in-out infinite; }
+  .iba-ai-bot .bot-eyes { animation: ibaBotLook 7s ease-in-out infinite; }
+  .iba-ai-bot .bot-eye { transform-origin: 50% 50%; animation: ibaBotBlink 4.8s infinite; }
+  .iba-ai-bot .bot-heart { transform-origin: 50% 50%; animation: ibaBotHeart 2.6s ease-in-out infinite; }
+  .iba-ai-bot .bot-arm-l { transform-origin: 0% 0%; }
+  .iba-ai-bot .bot-arm-r { transform-origin: 0% 0%; }
+  /* hover: looks at you and smiles wider */
+  .iba-ai-fab.is-bot:hover .bot-head { animation: none; transform: rotate(-4deg); }
+  .iba-ai-fab.is-bot:hover .bot-eyes { animation: none; transform: translateY(-1px); }
+  .iba-ai-fab.is-bot:hover .bot-mouth { d: path("M35 43 q5 5 10 0"); }
+  /* something waiting: the bulb glows */
+  .iba-ai-fab.is-bot.has-items .bot-bulb { animation: ibaBotBulb 1.8s ease-in-out infinite; }
+  .iba-ai-fab.is-bot.needs-setup .bot-bulb { fill: #7DB7F0; }
+  /* a reminder: waves at you */
+  .iba-ai-fab.is-bot.has-reminder .bot-arm-r { animation: ibaBotWave 1.1s ease-in-out infinite; }
+  .iba-ai-fab.is-bot.has-reminder .bot-bulb { fill: #F07A68; animation: ibaBotBulb 1s ease-in-out infinite; }
+  /* talking */
+  .iba-ai-fab.is-bot.is-talking .bot-mouth { transform-origin: 50% 0%; animation: ibaBotTalk .22s ease-in-out infinite alternate; }
+  .iba-ai-mark.is-talking { animation: ibaBotMark .5s ease-in-out infinite alternate !important; }
+  /* background tab or "reduce motion": stand still */
+  body.iba-ai-tab-hidden .iba-ai-bot * { animation-play-state: paused !important; }
+  @media (prefers-reduced-motion: reduce) { .iba-ai-bot * { animation: none !important; } }
+
+  /* mic */
+  .iba-ai-input button#iba-ai-mic { background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; }
+  .iba-ai-input button#iba-ai-mic.is-listening { background: #C2410C !important; animation: ibaBotMark .6s ease-in-out infinite alternate !important; }
+
+  /* setup: look and voice */
+  .iba-ai-look-h { margin-top: 16px !important; }
+  .iba-ai-check { display: flex !important; align-items: center !important; gap: 8px !important; margin: 6px 0 !important; color: #D7E0E8 !important; font-size: 13px !important; cursor: pointer !important; }
+  .iba-ai-check input { width: 16px !important; height: 16px !important; accent-color: #1E9C8C !important; }
+
+  /* Track: recent status changes */
+  .iba-ai-recent { margin: 10px 0 4px !important; border: 1px solid rgba(255, 255, 255, 0.10) !important; border-radius: 12px !important; background: rgba(255, 255, 255, 0.03) !important; }
+  .iba-ai-recent[hidden] { display: none !important; }
+  .iba-ai-recent > summary { padding: 9px 12px !important; cursor: pointer !important; color: #EEF3F8 !important; font-size: 13px !important; font-weight: 700 !important; list-style: none !important; }
+  .iba-ai-recent > summary::-webkit-details-marker { display: none !important; }
+  .iba-ai-recent > summary small { margin-left: 6px !important; color: #EBD8A8 !important; font-weight: 600 !important; }
+  .iba-ai-recent-body { display: grid !important; gap: 8px !important; padding: 0 12px 12px !important; }
+  .iba-ai-recent-body select { height: 36px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; padding: 0 10px !important; }
+  .iba-ai-recent-when { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  .iba-ai-recent-when button { padding: 5px 10px !important; border-radius: 999px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: transparent !important; color: #C9D3DD !important; font-size: 12px !important; cursor: pointer !important; }
+  .iba-ai-recent-when button.is-on { background: rgba(94, 214, 196, 0.18) !important; border-color: #5ED6C4 !important; color: #FFFFFF !important; }
+  .iba-ai-recent-mine { display: flex !important; align-items: center !important; gap: 8px !important; color: #C9D3DD !important; font-size: 12.5px !important; }
+}
+@keyframes ibaBotBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes ibaBotTilt { 0%, 30%, 52%, 70%, 100% { transform: rotate(0); } 38%, 46% { transform: rotate(-7deg); } 78%, 86% { transform: rotate(6deg); } }
+@keyframes ibaBotLook { 0%, 20%, 100% { transform: translateX(0); } 28%, 42% { transform: translateX(-2.5px); } 55%, 68% { transform: translateX(2.5px); } }
+@keyframes ibaBotBlink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.12); } }
+@keyframes ibaBotHeart { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .55; transform: scale(.8); } }
+@keyframes ibaBotBulb { 0%, 100% { filter: drop-shadow(0 0 0 rgba(227, 201, 138, 0)); opacity: 1; } 50% { filter: drop-shadow(0 0 5px rgba(227, 201, 138, .95)); opacity: .7; } }
+@keyframes ibaBotWave { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-115deg); } }
+@keyframes ibaBotTalk { from { transform: scaleY(1); } to { transform: scaleY(2.6); } }
+@keyframes ibaBotMark { from { box-shadow: 0 0 0 0 rgba(94, 214, 196, 0.6); } to { box-shadow: 0 0 0 6px rgba(94, 214, 196, 0); } }
+
+/* ==========================================================================
+   15.0.0 patch 15: engineer robot, speech bubble, people card, skills
+   ========================================================================== */
+@layer iba-ui {
+  .iba-ai-fab.is-bot { height: 90px !important; }
+  .iba-ai-bot { height: 90px !important; }
+  .iba-ai-bot .bot-hat { fill: url(#ibaBotHat); stroke: #A16207; stroke-width: 1.2; }
+  .iba-ai-bot .bot-ridge { fill: #FDE68A; opacity: .85; }
+  .iba-ai-bot .bot-brim { fill: #EAB308; stroke: #A16207; stroke-width: 1; }
+  .iba-ai-bot .bot-bulb { fill: #FFFBEB; stroke: #A16207; stroke-width: .8; }
+  .iba-ai-bot .bot-ear { fill: #94A3B8; }
+  .iba-ai-bot .bot-vest { fill: url(#ibaBotVest); stroke: #9A3412; stroke-width: .8; }
+  .iba-ai-bot .bot-stripe { fill: #E5E7EB; opacity: .92; }
+  .iba-ai-bot .bot-heart { fill: #F8FAFC; stroke: #0E2A40; stroke-width: .6; }
+  .iba-ai-bot .bot-boots rect { fill: #3F2A14; stroke: #E3C98A; stroke-width: .8; }
+  .iba-ai-bot :is(.bot-hat, .bot-brim, .bot-ridge, .bot-vest) { transform-box: fill-box; }
+  .iba-ai-fab.is-bot.has-items .bot-bulb { fill: #FDE047; }
+  .iba-ai-fab.is-bot.has-reminder .bot-bulb { fill: #F07A68; }
+
+  /* speech bubble above the robot */
+  .iba-ai-tip {
+    position: fixed !important; right: 24px !important; bottom: 104px !important; z-index: 9991 !important;
+    display: flex !important; align-items: flex-start !important; gap: 8px !important;
+    max-width: 250px !important; padding: 10px 12px !important; border-radius: 14px 14px 4px 14px !important;
+    background: #FFFFFF !important; color: #0F2537 !important; -webkit-text-fill-color: #0F2537 !important;
+    border: 2px solid #FACC15 !important; box-shadow: 0 12px 26px rgba(0, 0, 0, .35) !important;
+    font-size: 13px !important; font-weight: 600 !important; line-height: 1.35 !important; cursor: pointer !important;
+    opacity: 0 !important; transform: translateY(8px) scale(.96) !important; transform-origin: bottom right !important;
+    pointer-events: none !important; transition: opacity .2s ease, transform .2s ease !important;
+  }
+  .iba-ai-tip.is-on { opacity: 1 !important; transform: none !important; pointer-events: auto !important; }
+  .iba-ai-tip::after { content: "" !important; position: absolute !important; right: 18px !important; bottom: -9px !important; border: 8px solid transparent !important; border-top-color: #FACC15 !important; border-bottom: 0 !important; }
+  .iba-ai-tip-x { flex: 0 0 auto !important; width: 20px !important; height: 20px !important; margin: -3px -4px 0 0 !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: transparent !important; color: #64748B !important; font-size: 16px !important; line-height: 20px !important; cursor: pointer !important; }
+
+  /* person card */
+  .iba-ai-person { padding: 8px 0 10px !important; border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important; }
+  .iba-ai-person:last-child { border-bottom: 0 !important; }
+  .iba-ai-person-top { display: flex !important; align-items: center !important; gap: 10px !important; }
+  .iba-ai-avatar { flex: 0 0 auto !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 38px !important; height: 38px !important; border-radius: 50% !important; background: linear-gradient(135deg, #FACC15, #EA580C) !important; color: #0F2537 !important; -webkit-text-fill-color: #0F2537 !important; font-weight: 800 !important; font-size: 13px !important; }
+  .iba-ai-person-top strong { display: block !important; color: #FFFFFF !important; font-size: 14px !important; }
+  .iba-ai-person-top small { color: #9FB0C1 !important; }
+  .iba-ai-person-dl { display: grid !important; grid-template-columns: 62px 1fr !important; gap: 4px 8px !important; margin: 8px 0 !important; font-size: 12.5px !important; }
+  .iba-ai-person-dl dt { color: #EBD8A8 !important; font-weight: 700 !important; text-transform: uppercase !important; font-size: 10.5px !important; letter-spacing: .05em !important; padding-top: 2px !important; }
+  .iba-ai-person-dl dd { margin: 0 !important; color: #E6EDF3 !important; word-break: break-word !important; }
+  .iba-ai-person-dl a { color: #5ED6C4 !important; -webkit-text-fill-color: #5ED6C4 !important; text-decoration: none !important; }
+  .iba-ai-person-acts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  .iba-ai-person-acts a.iba-ai-mini { text-decoration: none !important; }
+
+  /* skills */
+  .iba-ai-skill-list.is-ready li { align-items: center !important; }
+  .iba-ai-skill-ico { flex: 0 0 auto !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 30px !important; height: 30px !important; border-radius: 9px !important; background: rgba(250, 204, 21, 0.14) !important; color: #FACC15 !important; -webkit-text-fill-color: #FACC15 !important; }
+  .iba-ai-skill-new { display: grid !important; grid-template-columns: 1fr !important; gap: 6px !important; margin: 0 0 6px !important; }
+  .iba-ai-skill-new input, .iba-ai-skill-new select { height: 34px !important; padding: 0 10px !important; border-radius: 9px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  .iba-ai-skill-new button { justify-self: start !important; }
+  .iba-ai-skill-ask select { width: 100% !important; height: 32px !important; border-radius: 8px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; }
+}
+@layer iba-ui { .iba-ai-skill-list.is-ready small { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; } }
+/* 15.0.0 patch 18: "Do it" in the brief */
+@layer iba-ui {
+  .iba-ai-rows li .iba-ai-go { flex: 0 0 auto !important; margin-left: 4px !important; white-space: nowrap !important; }
+}
+/* 15.0.0 patch 23: the assistant on the phone - opened from the robot button
+   in the phone's top bar, full screen; no floating robot, tips or bubbles */
+@layer iba-ui {
+  body.iba-phone .iba-ai-tip, body.iba-phone .iba-ai-bubble { display: none !important; }
+  body.iba-phone #iba-ai-panel.iba-ai-panel {
+    top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important;
+    width: 100vw !important; max-width: none !important; height: 100vh !important; height: 100dvh !important;
+    border-radius: 0 !important; border: 0 !important; z-index: 2147482000 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0) !important;
+  }
+  body.iba-phone #iba-ai-panel [data-open-task], body.iba-phone #iba-ai-panel [data-open-job], body.iba-phone #iba-ai-panel [data-show-batch],
+  body.iba-phone #iba-ai-panel [data-chip-fill^="New invoice"], body.iba-phone #iba-ai-panel [data-ai-new-inv], body.iba-phone #iba-ai-panel [data-ai-open-po] { display: none !important; }
+  /* a ready-made skill's answers stay readable after Run (the form is locked) */
+  #iba-ai-panel .iba-ai-skill-ask :is(select, input):disabled { color: #C9D3DD !important; -webkit-text-fill-color: #C9D3DD !important; opacity: .8 !important; }
+  body.iba-phone #iba-ai-panel input, body.iba-phone #iba-ai-panel textarea, body.iba-phone #iba-ai-panel select { font-size: 16px !important; }
+  .iba-ph-ai[hidden] { display: none !important; }
+  .iba-ph-ai.has-items { position: relative !important; }
+  .iba-ph-ai.has-items::after { content: "" !important; position: absolute !important; top: 6px !important; right: 6px !important; width: 8px !important; height: 8px !important; border-radius: 50% !important; background: #E3C98A !important; }
+}
+/* 15.0.0 patch 25: the phone assistant - a search home (search, track,
+   remind, message). Desktop keeps the full assistant. */
+@layer iba-ui {
+  .iba-aph-only { display: none !important; }
+  body.iba-phone #iba-ai-panel .iba-aph-only { display: inline-flex !important; }
+  body.iba-phone #iba-ai-panel .iba-ai-head :is([data-ai="brief"], [data-ai="track"], [data-ai="skills"], [data-ai="new"]) { display: none !important; }
+  body.iba-phone #iba-ai-panel #iba-ai-chips { display: none !important; }
+  body.iba-phone #iba-ai-panel .iba-ai-head .iba-ai-mark { display: none !important; }
+
+  .iba-ai-phone .iba-ai-pane { padding: 14px 14px 28px !important; display: flex !important; flex-direction: column !important; gap: 14px !important; }
+  .iba-aph-hero { display: flex !important; align-items: center !important; gap: 12px !important; padding: 14px !important; border-radius: 18px !important;
+    background: radial-gradient(120% 140% at 0% 0%, rgba(94, 214, 196, 0.22) 0%, rgba(94, 214, 196, 0) 55%), linear-gradient(135deg, #1D4466 0%, #13304A 100%) !important;
+    border: 1px solid rgba(227, 201, 138, 0.22) !important; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28) !important; }
+  .iba-aph-bot { flex: 0 0 64px !important; width: 64px !important; height: 76px !important; display: block !important; }
+  .iba-aph-bot svg { width: 64px !important; height: 76px !important; display: block !important; animation: ibaAphBob 3.2s ease-in-out infinite !important; transform-origin: 50% 90% !important; }
+  @keyframes ibaAphBob { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-2deg); } }
+  .iba-aph-hi strong { display: block !important; font-size: 21px !important; line-height: 1.2 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  .iba-aph-hi small { display: block !important; margin-top: 4px !important; font-size: 12.5px !important; letter-spacing: .04em !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+
+  .iba-aph-search { display: flex !important; align-items: center !important; gap: 8px !important; padding: 6px 6px 6px 14px !important; border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.08) !important; border: 1px solid rgba(255, 255, 255, 0.14) !important; }
+  .iba-aph-search:focus-within { border-color: #E3C98A !important; box-shadow: 0 0 0 3px rgba(227, 201, 138, 0.18) !important; }
+  .iba-aph-search[hidden] { display: none !important; }
+  .iba-aph-search > i { color: #EBD8A8 !important; }
+  .iba-aph-search input { flex: 1 1 auto !important; min-width: 0 !important; border: 0 !important; outline: 0 !important; background: transparent !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; font-size: 16px !important; padding: 8px 0 !important; }
+  .iba-aph-search input::placeholder { color: #9FB3C8 !important; -webkit-text-fill-color: #9FB3C8 !important; }
+  .iba-aph-go { flex: 0 0 42px !important; width: 42px !important; height: 42px !important; border-radius: 50% !important; border: 0 !important; background: linear-gradient(135deg, #2BB3A0, #1E7F74) !important; color: #fff !important; font-size: 16px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; }
+
+  .iba-aph-tiles { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .iba-aph-tiles button { position: relative !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 3px !important; padding: 12px !important; min-height: 92px !important; border-radius: 16px !important; text-align: left !important;
+    background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.10) !important; color: #EEF3F8 !important; transition: transform .12s ease, border-color .15s ease !important; }
+  .iba-aph-tiles button:active { transform: scale(.97) !important; }
+  /* 15.0.0 patch 27: Invoice is the main search (full width), no By status */
+  .iba-aph-tiles button[data-aph-mode="inv"] { grid-column: 1 / -1 !important; min-height: 78px !important; }
+  .iba-aph-tiles button i { width: 34px !important; height: 34px !important; border-radius: 11px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; margin-bottom: 4px !important;
+    background: var(--c) !important; color: #fff !important; font-size: 15px !important; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25) !important; }
+  .iba-aph-tiles button b { font-size: 14.5px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  .iba-aph-tiles button small { font-size: 11.5px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  .iba-aph-tiles button.is-on { border-color: var(--c) !important; background: rgba(255, 255, 255, 0.09) !important; box-shadow: inset 0 0 0 1px var(--c) !important; }
+  .iba-aph-tiles button.is-on::after { content: "\2713" !important; position: absolute !important; top: 10px !important; right: 12px !important; color: var(--c) !important; font-weight: 800 !important; }
+
+  .iba-aph-status { display: flex !important; gap: 8px !important; }
+  .iba-aph-status[hidden] { display: none !important; }
+  .iba-aph-status select { flex: 1 1 auto !important; font-size: 16px !important; padding: 10px 12px !important; border-radius: 12px !important; background: rgba(255, 255, 255, 0.08) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; }
+  .iba-aph-status select option { color: #0F2235 !important; -webkit-text-fill-color: #0F2235 !important; }
+
+  .iba-aph-rem:empty { display: none !important; }
+  .iba-aph-rem { padding: 10px 12px !important; border-radius: 16px !important; background: rgba(227, 201, 138, 0.08) !important; border: 1px solid rgba(227, 201, 138, 0.25) !important; }
+  .iba-aph-out:empty { display: none !important; }
+  .iba-aph-foot { margin: 0 !important; font-size: 12px !important; line-height: 1.5 !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  .iba-aph-foot .iba-ai-mini { margin-top: 6px !important; }
+  .iba-ph-ai.has-reminder { position: relative !important; }
+  .iba-ph-ai.has-reminder::after { content: attr(data-rem) !important; position: absolute !important; top: 2px !important; right: 0 !important; min-width: 16px !important; height: 16px !important; padding: 0 4px !important; border-radius: 8px !important; background: #dc2626 !important; color: #fff !important; font: 700 10px/16px Arial, sans-serif !important; text-align: center !important; }
+}
+/* 15.0.0 patch 25: easier Setup - model list button, Ollama setup file */
+@layer iba-ui {
+  .iba-ai-model-row { display: flex !important; gap: 6px !important; align-items: stretch !important; }
+  .iba-ai-model-row input { flex: 1 1 auto !important; min-width: 0 !important; }
+  .iba-ai-model-row .iba-ai-btn { flex: 0 0 auto !important; white-space: nowrap !important; padding: 6px 10px !important; }
+  .iba-ai-setupfile { margin: 10px 0 4px !important; display: flex !important; flex-direction: column !important; gap: 6px !important; align-items: flex-start !important; }
+  .iba-ai-setupfile small { color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; line-height: 1.45 !important; }
+  .iba-ai-manual { margin-top: 6px !important; }
+  .iba-ai-manual summary { cursor: pointer !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; font-weight: 700 !important; }
+}
+
+/* 15.0.0 patch 27: phone "bubble head" - the robot's head in a round bubble
+   floating at the bottom corner (drag it anywhere, it snaps to the side).
+   The robot button in the phone's top bar is gone. */
+@layer iba-ui {
+  .iba-ph-ai, .iba-ph-ai.has-reminder { display: none !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab, body.iba-phone .iba-ai-fab.iba-ai-fab.is-bot {
+    position: fixed !important;
+    right: var(--iba-ph-r, 12px) !important; bottom: var(--iba-ph-b, calc(86px + env(safe-area-inset-bottom, 0px))) !important;
+    left: var(--iba-ph-l, auto) !important; top: var(--iba-ph-t, auto) !important;
+    width: 62px !important; height: 62px !important; min-width: 0 !important; padding: 0 !important; margin: 0 !important;
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 34% 28%, #3E8AA0 0%, #1B4A66 45%, #0E2235 100%) !important;
+    border: 2px solid rgba(227, 201, 138, 0.9) !important;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45), 0 0 0 5px rgba(227, 201, 138, 0.14) !important;
+    z-index: 2147481000 !important;
+    overflow: visible !important;
+    touch-action: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    transition: left .28s cubic-bezier(.2,.9,.3,1.2), right .28s cubic-bezier(.2,.9,.3,1.2), transform .15s ease, opacity .2s ease !important;
+    animation: ibaPhBubbleIn .45s cubic-bezier(.2,.9,.3,1.3) both, ibaPhBubbleFloat 3.4s ease-in-out .5s infinite !important;
+  }
+  body.iba-phone .iba-ai-fab.iba-ai-fab[hidden] { display: none !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab:hover { transform: none !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab:active { transform: scale(.93) !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab.is-dragging { transition: none !important; animation: none !important; transform: scale(1.1) !important; box-shadow: 0 16px 34px rgba(0, 0, 0, 0.55), 0 0 0 7px rgba(227, 201, 138, 0.22) !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab.is-open { opacity: 0 !important; pointer-events: none !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab svg.iba-ai-bot { width: 56px !important; height: 56px !important; margin: 0 !important; overflow: hidden !important; clip-path: circle(50%) !important; border-radius: 50% !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab .bot-shadow { display: none !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab > i { font-size: 22px !important; color: #E3C98A !important; }
+  body.iba-phone .iba-ai-fab.iba-ai-fab .iba-ai-fab-dot { top: 2px !important; right: 2px !important; }
+  /* reminders: a red count on the bubble */
+  body.iba-phone .iba-ai-fab.iba-ai-fab.has-reminder::after {
+    content: attr(data-rem) !important; position: absolute !important; top: -4px !important; right: -4px !important;
+    min-width: 20px !important; height: 20px !important; padding: 0 5px !important; border-radius: 10px !important;
+    background: #dc2626 !important; color: #fff !important; border: 2px solid #0E2235 !important;
+    font: 800 11px/16px Arial, sans-serif !important; text-align: center !important; box-sizing: border-box !important;
+  }
+  @keyframes ibaPhBubbleIn { from { opacity: 0; transform: scale(.4) translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes ibaPhBubbleFloat { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+  @media (prefers-reduced-motion: reduce) { body.iba-phone .iba-ai-fab.iba-ai-fab { animation: none !important; } }
+}
+
+/* 15.0.0 patch 27: skills as tap tiles (same look as the phone home) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-tiles { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; margin: 0 0 12px !important; }
+  #iba-ai-panel .iba-ai-tile-wrap { position: relative !important; display: flex !important; }
+  #iba-ai-panel .iba-ai-tile { position: relative !important; flex: 1 1 auto !important; width: 100% !important; display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 3px !important;
+    padding: 12px !important; min-height: 104px !important; border-radius: 16px !important; text-align: left !important; cursor: pointer !important;
+    background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.10) !important; color: #EEF3F8 !important;
+    transition: transform .12s ease, border-color .15s ease, background-color .15s ease, box-shadow .15s ease !important; }
+  #iba-ai-panel .iba-ai-tile:hover { background: rgba(255, 255, 255, 0.09) !important; border-color: var(--c) !important; box-shadow: inset 0 0 0 1px var(--c), 0 8px 18px rgba(0, 0, 0, 0.22) !important; transform: translateY(-1px) !important; }
+  #iba-ai-panel .iba-ai-tile:active { transform: scale(.97) !important; }
+  #iba-ai-panel .iba-ai-tile:focus-visible { outline: 2px solid var(--c) !important; outline-offset: 2px !important; }
+  #iba-ai-panel .iba-ai-tile > i { width: 36px !important; height: 36px !important; border-radius: 11px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; margin-bottom: 6px !important;
+    background: var(--c) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 15px !important; box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25) !important; }
+  #iba-ai-panel .iba-ai-tile > b { font-size: 13.5px !important; line-height: 1.25 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-ai-tile > small { font-size: 11.5px !important; line-height: 1.3 !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; white-space: normal !important; }
+  #iba-ai-panel .iba-ai-tile-admin { position: absolute !important; top: 10px !important; right: 11px !important; font-size: 11px !important; color: #E8D9B6 !important; -webkit-text-fill-color: #E8D9B6 !important; opacity: .75 !important; pointer-events: auto !important; }
+  #iba-ai-panel .iba-ai-tile-del { position: absolute !important; top: 6px !important; right: 6px !important; width: 26px !important; height: 26px !important; border-radius: 50% !important; padding: 0 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; border: 0 !important; background: rgba(0, 0, 0, 0.25) !important; color: #C9D3DD !important; -webkit-text-fill-color: #C9D3DD !important; font-size: 12px !important; cursor: pointer !important; opacity: .7 !important; }
+  #iba-ai-panel .iba-ai-tile-del:hover { opacity: 1 !important; background: #b42318 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-skill-add { margin: 4px 0 0 !important; border: 1px dashed rgba(255, 255, 255, 0.18) !important; border-radius: 14px !important; padding: 0 12px !important; }
+  #iba-ai-panel .iba-ai-skill-add > summary { cursor: pointer !important; list-style: none !important; padding: 11px 0 !important; font-weight: 700 !important; font-size: 13px !important; color: #E8D9B6 !important; -webkit-text-fill-color: #E8D9B6 !important; }
+  #iba-ai-panel .iba-ai-skill-add > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-ai-skill-add[open] { padding-bottom: 10px !important; }
+}
+
+/* 15.0.0 patch 29: skill question boxes - the picked value was clipped
+   (a general rule gave selects 12px padding + 16px text in a 32px box) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-skill-ask select,
+  #iba-ai-panel .iba-ai-skill-ask input:not([type="checkbox"]):not([type="radio"]) {
+    height: 38px !important; min-height: 38px !important; padding: 0 34px 0 11px !important; margin: 0 !important;
+    font-size: 13.5px !important; line-height: 36px !important; text-indent: 0 !important; box-sizing: border-box !important;
+    color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; }
+  #iba-ai-panel .iba-ai-skill-ask input:not([type="checkbox"]):not([type="radio"]) { padding-right: 11px !important; }
+  #iba-ai-panel .iba-ai-skill-ask select option { color: #122033 !important; -webkit-text-fill-color: #122033 !important; background: #ffffff !important; }
+}
+
+/* 15.0.0 patch 36: Cancel easy to see on every question form, x in the corner */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-mini.iba-ai-cancel { background: transparent !important; border: 1px solid rgba(226, 232, 240, 0.38) !important; color: #E2E8F0 !important; -webkit-text-fill-color: #E2E8F0 !important; }
+  #iba-ai-panel .iba-ai-mini.iba-ai-cancel:hover { background: rgba(239, 68, 68, 0.16) !important; border-color: rgba(248, 113, 113, 0.7) !important; color: #FECACA !important; -webkit-text-fill-color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-skill-ask .iba-ai-card-head { position: relative !important; padding-right: 34px !important; }
+  #iba-ai-panel .iba-ai-ask-x { position: absolute !important; top: -4px !important; right: -4px !important; width: 28px !important; height: 28px !important; padding: 0 !important; border-radius: 50% !important; border: 0 !important;
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; background: rgba(255, 255, 255, 0.08) !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; cursor: pointer !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-ai-ask-x:hover { background: rgba(239, 68, 68, 0.25) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-skill-ask:has(:disabled[type="submit"]) .iba-ai-ask-x { display: none !important; }
+}
+
+/* 15.0.0 patch 37: Mark urgent (For Approval / CEO Approval) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-list { list-style: none !important; margin: 8px 0 0 !important; padding: 0 !important; display: grid !important; gap: 6px !important; max-height: 420px !important; overflow: auto !important; }
+  #iba-ai-panel .iba-ai-urg-list li { display: flex !important; align-items: center !important; gap: 10px !important; padding: 8px 10px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; background: rgba(255, 255, 255, 0.04) !important; }
+  #iba-ai-panel .iba-ai-urg-list li.is-urgent { border-color: rgba(248, 113, 113, 0.45) !important; background: rgba(220, 38, 38, 0.10) !important; }
+  #iba-ai-panel .iba-ai-urg-list input[type="checkbox"] { width: 18px !important; height: 18px !important; flex: 0 0 auto !important; accent-color: #dc2626 !important; }
+  #iba-ai-panel .iba-ai-urg-list small { display: block !important; white-space: normal !important; }
+  #iba-ai-panel .iba-ai-urg-note { color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; font-style: italic !important; }
+  #iba-ai-panel .iba-ai-urg-badge { display: inline-flex !important; align-items: center !important; gap: 4px !important; flex: 0 0 auto !important; padding: 2px 8px !important; border-radius: 999px !important; font-size: 10.5px !important; font-weight: 800 !important; letter-spacing: .03em !important;
+    background: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; vertical-align: 1px !important; }
+  #iba-ai-panel .iba-ai-urg-acts { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 8px 14px !important; margin-top: 10px !important; padding-top: 10px !important; border-top: 1px solid rgba(255, 255, 255, 0.08) !important; }
+  #iba-ai-panel .iba-ai-urg-all { display: inline-flex !important; align-items: center !important; gap: 6px !important; font-size: 12px !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-all input { width: 16px !important; height: 16px !important; accent-color: #dc2626 !important; }
+  #iba-ai-panel .iba-ai-urg-msg { font-size: 12px !important; color: #FCD34D !important; -webkit-text-fill-color: #FCD34D !important; }
+  #iba-ai-panel .iba-ai-mini.is-danger { background: #dc2626 !important; border-color: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-mini.is-danger:hover { background: #b91c1c !important; }
+}
+
+/* 15.0.0 patch 38: reason box, "Already urgent" fold, small reason form on tracking */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-reason { flex: 1 1 100% !important; display: grid !important; gap: 4px !important; font-size: 12px !important; color: #CBD5E1 !important; -webkit-text-fill-color: #CBD5E1 !important; }
+  #iba-ai-panel .iba-ai-urg-reason input, #iba-ai-panel .iba-ai-urg-mini input { height: 36px !important; padding: 0 10px !important; border-radius: 9px !important; border: 1px solid rgba(255, 255, 255, 0.18) !important; background: rgba(7, 18, 28, 0.6) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 13px !important; }
+  #iba-ai-panel .iba-ai-urg-done { margin-top: 12px !important; border: 1px solid rgba(248, 113, 113, 0.35) !important; border-radius: 12px !important; padding: 0 10px 8px !important; }
+  #iba-ai-panel .iba-ai-urg-done > summary { cursor: pointer !important; list-style: none !important; padding: 10px 0 4px !important; display: flex !important; align-items: center !important; gap: 8px !important; font-size: 13px !important; font-weight: 700 !important; color: #FECACA !important; -webkit-text-fill-color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-urg-done > summary::-webkit-details-marker { display: none !important; }
+  #iba-ai-panel .iba-ai-urg-mini { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 8px !important; }
+  #iba-ai-panel .iba-ai-urg-mini input { flex: 1 1 220px !important; }
+}
+
+/* 15.0.0 patch 44: the big window (the panel grows to the middle of the screen),
+   sent-for-approval rows in the brief, SRV buttons */
+@layer iba-ui {
+  #iba-ai-panel.iba-ai-panel.is-wide {
+    top: 3vh !important;
+    bottom: 3vh !important;
+    left: max(2vw, calc(50vw - 640px)) !important;
+    right: max(2vw, calc(50vw - 640px)) !important;
+    width: auto !important;
+    max-width: none !important;
+    z-index: 10002 !important;
+    font-size: 15px !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 100vmax rgba(3, 9, 16, 0.6) !important;
+  }
+  #iba-ai-panel .iba-ai-wide-bar { display: flex !important; align-items: center !important; gap: 10px !important; padding: 10px 18px !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; background: rgba(8, 18, 30, 0.35) !important; }
+  #iba-ai-panel .iba-ai-wide-title { flex: 1 1 auto !important; min-width: 0 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; font-weight: 700 !important; font-size: 14px !important; }
+  #iba-ai-panel .iba-ai-wide-body { padding: 18px 22px 28px !important; }
+  #iba-ai-panel .iba-ai-wide-body > .iba-ai-card { font-size: 14.5px !important; padding: 18px 20px !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-expand { display: none !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-card-head { font-size: 17px !important; margin-bottom: 12px !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-rows small { font-size: 13px !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-sub { font-size: 13px !important; margin-top: 16px !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-stats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; }
+  /* wide lists: rows side by side when there is room */
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-rows { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)) !important; column-gap: 22px !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-rows li[hidden] { display: none !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-urg-list { max-height: none !important; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)) !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-card.is-track { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(540px, 1fr)) !important; column-gap: 22px !important; align-items: start !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-card.is-track > :not(.iba-ai-trk-po) { grid-column: 1 / -1 !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-card.is-track .iba-ai-trk-po { margin-top: 10px !important; }
+  #iba-ai-panel #iba-ai-wide-more:not(:empty) { margin-top: 18px !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  #iba-ai-panel .iba-ai-wide-ph { opacity: .75 !important; font-style: italic !important; }
+  #iba-ai-panel .iba-ai-expand { padding: 4px 8px !important; }
+
+  /* brief: sent for approval */
+  #iba-ai-panel .iba-ai-apv-sub { display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 6px 10px !important; }
+  #iba-ai-panel .iba-ai-apv li.is-urgent { background: rgba(220, 38, 38, 0.08) !important; border-radius: 8px !important; padding-left: 6px !important; padding-right: 6px !important; }
+  #iba-ai-panel .iba-ai-apv .iba-ai-grow small { display: block !important; white-space: normal !important; }
+  #iba-ai-panel .iba-ai-apv-files { display: inline-flex !important; gap: 4px !important; flex: 0 0 auto !important; }
+  #iba-ai-panel .iba-ai-apv-files a.iba-ai-mini, #iba-ai-panel .iba-ai-trk-item a.iba-ai-mini, #iba-ai-panel .iba-ai-urg-list a.iba-ai-mini { text-decoration: none !important; }
+  #iba-ai-panel .iba-ai-apv .iba-ai-urg-badge { align-self: flex-start !important; width: auto !important; margin: 2px 0 !important; }
+}
+
+/* 15.0.0 patch 45: the big window sits above the header and sidebar, opens in
+   the free area beside them, never dims the page, and can be moved/resized */
+@layer iba-ui {
+  #iba-ai-panel.iba-ai-panel.is-wide {
+    top: calc(var(--iba-shell-header-h, 0px) + 10px) !important;
+    left: calc(var(--iba-shell-sidebar-w, 0px) + 14px) !important;
+    right: 14px !important;
+    bottom: 14px !important;
+    z-index: 100000 !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(227, 201, 138, 0.25) !important;
+  }
+  #iba-ai-panel.iba-ai-panel.is-wide.is-moved {
+    left: var(--wx) !important;
+    top: var(--wy) !important;
+    width: var(--ww) !important;
+    height: var(--wh) !important;
+    right: auto !important;
+    bottom: auto !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-bar, #iba-ai-panel.is-wide .iba-ai-head { cursor: move !important; touch-action: none !important; user-select: none !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-bar :is(button, a) { cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-wide-handle { color: rgba(227, 201, 138, 0.6) !important; -webkit-text-fill-color: rgba(227, 201, 138, 0.6) !important; flex: 0 0 auto !important; }
+  #iba-ai-panel .iba-ai-wide-grip { display: none !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-grip {
+    display: block !important; position: absolute !important; right: 2px !important; bottom: 2px !important;
+    width: 18px !important; height: 18px !important; cursor: nwse-resize !important; z-index: 5 !important; touch-action: none !important;
+    background: linear-gradient(135deg, transparent 0 55%, rgba(227, 201, 138, 0.55) 55% 62%, transparent 62% 72%, rgba(227, 201, 138, 0.55) 72% 79%, transparent 79%) !important;
+  }
+  #iba-ai-panel.is-dragging { transition: none !important; user-select: none !important; }
+  #iba-ai-panel.is-dragging * { user-select: none !important; }
+
+  /* brief: what needs you first, company figures folded away */
+  #iba-ai-panel .iba-ai-brief-alert { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin: 4px 0 8px !important; }
+  #iba-ai-panel .iba-ai-brief-alert span { display: inline-flex !important; align-items: center !important; gap: 6px !important; padding: 4px 10px !important; border-radius: 999px !important; font-size: 12px !important; font-weight: 700 !important; }
+  #iba-ai-panel .iba-ai-brief-alert .is-urgent { background: rgba(220, 38, 38, 0.16) !important; border: 1px solid rgba(248, 113, 113, 0.45) !important; color: #FECACA !important; -webkit-text-fill-color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-brief-alert .is-late { background: rgba(250, 204, 21, 0.12) !important; border: 1px solid rgba(250, 204, 21, 0.4) !important; color: #FDE68A !important; -webkit-text-fill-color: #FDE68A !important; }
+  #iba-ai-panel .iba-ai-rows li.is-urgent { background: rgba(220, 38, 38, 0.08) !important; border-radius: 8px !important; box-shadow: inset 3px 0 0 #F87171 !important; padding-left: 8px !important; }
+  #iba-ai-panel .iba-ai-co { margin-top: 14px !important; padding-top: 4px !important; border-top: 1px dashed rgba(255, 255, 255, 0.12) !important; }
+  #iba-ai-panel .iba-ai-co-tile { margin: 6px 0 0 !important; padding: 9px 11px !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; border-radius: 11px !important; background: rgba(255, 255, 255, 0.035) !important; }
+  #iba-ai-panel .iba-ai-co-main { display: flex !important; align-items: flex-start !important; gap: 9px !important; font-size: 13px !important; color: #DCE4EC !important; -webkit-text-fill-color: #DCE4EC !important; }
+  #iba-ai-panel .iba-ai-co-main > i { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; margin-top: 3px !important; }
+  #iba-ai-panel .iba-ai-co-main small { display: block !important; margin-top: 3px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; font-size: 12px !important; white-space: normal !important; }
+  #iba-ai-panel .iba-ai-co-main .iba-ai-urg-badge { display: inline-flex !important; width: auto !important; vertical-align: middle !important; }
+  #iba-ai-panel .iba-ai-co-acts { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 8px !important; }
+  #iba-ai-panel .iba-ai-co-list { margin-top: 8px !important; }
+  #iba-ai-panel .iba-ai-co-list[hidden] { display: none !important; }
+  #iba-ai-panel [data-co-toggle][aria-expanded="true"] i { transform: rotate(180deg) !important; }
+
+  /* skills: search and groups */
+  #iba-ai-panel .iba-ai-skill-find { display: flex !important; align-items: center !important; gap: 8px !important; margin: 0 0 10px !important; padding: 0 12px !important; height: 38px !important; border-radius: 11px !important; border: 1px solid rgba(255, 255, 255, 0.16) !important; background: rgba(7, 18, 28, 0.6) !important; }
+  #iba-ai-panel .iba-ai-skill-find i { color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-ai-skill-find input { flex: 1 1 auto !important; min-width: 0 !important; height: 100% !important; border: 0 !important; outline: 0 !important; background: transparent !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 13px !important; box-shadow: none !important; }
+  #iba-ai-panel .iba-ai-skill-group { margin: 0 0 10px !important; }
+  #iba-ai-panel .iba-ai-skill-group[hidden], #iba-ai-panel .iba-ai-skill-group [hidden] { display: none !important; }
+  #iba-ai-panel .iba-ai-skill-group > .iba-ai-sub { margin: 4px 0 6px !important; }
+}
+
+/* 15.0.0 patch 46: a table in an AI reply shows as a small table */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-mdtable { margin: 6px 0 !important; overflow-x: auto !important; }
+  #iba-ai-panel .iba-ai-mdtable table { border-collapse: collapse !important; width: 100% !important; font-size: 12px !important; }
+  #iba-ai-panel .iba-ai-mdtable :is(th, td) { padding: 4px 6px !important; border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important; text-align: left !important; white-space: nowrap !important; color: #DCE4EC !important; -webkit-text-fill-color: #DCE4EC !important; }
+  #iba-ai-panel .iba-ai-mdtable th { color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; font-weight: 700 !important; }
+}
+
+/* 15.0.0 patch 46: the big window in the glass theme, with a tidy layout
+   (summary on the left, the invoice tracking beside it on a wide screen) */
+@layer iba-ui {
+  #iba-ai-panel.iba-ai-panel.is-wide {
+    background:
+      radial-gradient(120% 80% at 0% 0%, rgba(94, 214, 196, 0.10) 0%, rgba(94, 214, 196, 0) 55%),
+      radial-gradient(90% 70% at 100% 100%, rgba(227, 201, 138, 0.08) 0%, rgba(227, 201, 138, 0) 60%),
+      linear-gradient(160deg, rgba(23, 50, 76, 0.66) 0%, rgba(9, 20, 33, 0.78) 100%) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(1.35) !important;
+    backdrop-filter: blur(26px) saturate(1.35) !important;
+    border: 1px solid rgba(232, 217, 182, 0.30) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-head { background: rgba(10, 22, 36, 0.35) !important; border-bottom: 1px solid rgba(232, 217, 182, 0.16) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-view { container-type: inline-size !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-bar { padding: 8px 22px !important; background: transparent !important; border-bottom: 1px solid rgba(232, 217, 182, 0.12) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-title { font-size: 12px !important; letter-spacing: .12em !important; text-transform: uppercase !important; color: rgba(232, 217, 182, 0.85) !important; -webkit-text-fill-color: rgba(232, 217, 182, 0.85) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body.iba-ai-wide-body { padding: 22px 26px 30px !important; background: transparent !important; }
+
+  /* glass cards */
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card {
+    padding: 20px 22px !important;
+    border: 1px solid rgba(232, 217, 182, 0.18) !important;
+    border-radius: 18px !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.035) 100%) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    backdrop-filter: blur(12px) !important;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.07) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card-head {
+    font-size: 18px !important; letter-spacing: .01em !important;
+    margin: 0 0 14px !important; padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card-head > i {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important;
+    width: 32px !important; height: 32px !important; border-radius: 10px !important;
+    background: rgba(227, 201, 138, 0.14) !important; border: 1px solid rgba(227, 201, 138, 0.30) !important; font-size: 14px !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-po-who { margin: -6px 0 14px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; font-size: 13.5px !important; }
+
+  /* figures as tiles */
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; gap: 10px !important; margin: 0 0 16px !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats > div {
+    position: relative !important; overflow: hidden !important;
+    padding: 14px 16px 12px !important; border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats > div::before { content: "" !important; position: absolute !important; left: 0 !important; right: 0 !important; top: 0 !important; height: 2px !important; background: var(--tile, #7DB7F0) !important; opacity: .85 !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats > div:nth-child(2) { --tile: #E3C98A; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats > div:nth-child(3) { --tile: #5FD3A0; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats > div:nth-child(4) { --tile: #5ED6C4; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats b { font-size: 20px !important; font-weight: 800 !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-stats span { display: block !important; margin-top: 3px !important; font-size: 10.5px !important; letter-spacing: .1em !important; text-transform: uppercase !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+
+  /* tables */
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-table { font-size: 13.5px !important; border-radius: 12px !important; overflow: hidden !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-table thead tr { background: rgba(255, 255, 255, 0.05) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-table th { padding: 10px 12px !important; color: #C9B98F !important; -webkit-text-fill-color: #C9B98F !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-table td { padding: 10px 12px !important; vertical-align: middle !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-table tbody tr:hover td { background: rgba(255, 255, 255, 0.04) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card.is-po .iba-ai-table th:nth-child(2) { text-align: right !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card.is-po .iba-ai-table td:nth-child(3) span,
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card.is-po .iba-ai-table td:nth-child(3) { font-weight: 600 !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-cardacts { margin-top: 14px !important; padding-top: 12px !important; border-top: 1px solid rgba(255, 255, 255, 0.07) !important; }
+
+  /* buttons: glass pills */
+  #iba-ai-panel.is-wide :is(.iba-ai-wide-body, .iba-ai-wide-bar) .iba-ai-mini {
+    border-radius: 999px !important; padding: 5px 12px !important;
+    background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(232, 217, 182, 0.22) !important;
+  }
+  #iba-ai-panel.is-wide :is(.iba-ai-wide-body, .iba-ai-wide-bar) .iba-ai-mini:hover { background: rgba(227, 201, 138, 0.16) !important; border-color: rgba(227, 201, 138, 0.5) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-mini.is-danger { border-color: rgba(248, 113, 113, 0.45) !important; }
+
+  /* invoice tracking: each invoice its own glass tile, side by side */
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card.is-track { display: block !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-po {
+    display: grid !important; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important; gap: 12px !important;
+    margin: 0 0 14px !important; padding: 0 !important; border: 0 !important; background: transparent !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-po-head {
+    grid-column: 1 / -1 !important; display: flex !important; align-items: baseline !important; gap: 10px !important; flex-wrap: wrap !important;
+    padding: 10px 14px !important; border-radius: 12px !important; background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-po-head .iba-ai-trk-val { margin-left: auto !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-item {
+    margin: 0 !important; padding: 14px 16px !important; border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025)) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-top { align-items: flex-start !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-dates { margin: 8px 0 4px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; font-size: 12.5px !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-item > a.iba-ai-mini,
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-item > button.iba-ai-mini { margin: 6px 4px 0 0 !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-steps { margin: 10px 0 0 !important; padding: 10px 12px 10px 26px !important; border-radius: 10px !important; background: rgba(7, 18, 28, 0.35) !important; font-size: 12.5px !important; }
+
+  /* side by side: the result on the left, what was opened from it on the right */
+  #iba-ai-panel.is-wide #iba-ai-wide-more:empty { display: none !important; }
+  @container (min-width: 1150px) {
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) {
+      display: grid !important; grid-template-columns: minmax(400px, 5fr) minmax(0, 7fr) !important; gap: 20px !important; align-items: start !important;
+    }
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) > .iba-ai-card { position: sticky !important; top: 0 !important; align-self: start !important; }
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) > #iba-ai-wide-more { margin-top: 0 !important; }
+    #iba-ai-panel.is-wide #iba-ai-wide-body:has(> #iba-ai-wide-more > *) .iba-ai-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  }
+}
+
+/* 15.0.0 patch 47: the big window clearly see-through (the page and the
+   background photo show behind it), text kept sharp on frosted tiles;
+   quick-pick buttons in the chat */
+@layer iba-ui {
+  #iba-ai-panel.iba-ai-panel.is-wide {
+    background:
+      linear-gradient(160deg, rgba(20, 44, 68, 0.38) 0%, rgba(8, 18, 30, 0.48) 100%) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+    backdrop-filter: blur(16px) saturate(1.4) !important;
+    border: 1px solid rgba(232, 217, 182, 0.38) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-head { background: rgba(8, 18, 30, 0.30) !important; }
+  #iba-ai-panel.is-wide .iba-ai-view, #iba-ai-panel.is-wide .iba-ai-pane, #iba-ai-panel.is-wide .iba-ai-wide-view { background: transparent !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card {
+    background: linear-gradient(180deg, rgba(10, 22, 36, 0.42) 0%, rgba(10, 22, 36, 0.30) 100%) !important;
+    border-color: rgba(232, 217, 182, 0.26) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(.iba-ai-stats > div, .iba-ai-trk-item, .iba-ai-trk-po-head, .iba-ai-co-tile) { background: rgba(8, 18, 30, 0.38) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(p, li, td, th, span, small, strong, b, h3, label, .iba-ai-card-head) { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important; }
+
+  #iba-ai-panel .iba-ai-quick-btns { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 8px !important; }
+  #iba-ai-panel .iba-ai-quick-btn {
+    display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 3px !important; text-align: left !important;
+    padding: 10px 12px !important; border-radius: 12px !important; cursor: pointer !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important; background: rgba(255, 255, 255, 0.05) !important; color: #EEF3F8 !important;
+  }
+  #iba-ai-panel .iba-ai-quick-btn:hover { border-color: var(--c) !important; background: rgba(255, 255, 255, 0.09) !important; }
+  #iba-ai-panel .iba-ai-quick-btn i { color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; font-size: 15px !important; }
+  #iba-ai-panel .iba-ai-quick-btn b { font-size: 13px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel .iba-ai-quick-btn small { font-size: 11px !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; }
+}
+
+/* 15.0.0 patch 48: no double title / box in the big window - the window is
+   the card (its title, buttons and content sit straight on the glass);
+   the URGENT label keeps its own width in every list */
+@layer iba-ui {
+  #iba-ai-panel.is-wide .iba-ai-wide-title { visibility: hidden !important; }
+  #iba-ai-panel.is-wide #iba-ai-wide-body:not(:has(> #iba-ai-wide-more > *)) > .iba-ai-card {
+    padding: 2px 4px 8px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  #iba-ai-panel.is-wide #iba-ai-wide-body:not(:has(> #iba-ai-wide-more > *)) > .iba-ai-card > .iba-ai-card-head { font-size: 20px !important; }
+  #iba-ai-panel .iba-ai-urg-badge, #iba-ai-panel .iba-ai-rows .iba-ai-urg-badge {
+    display: inline-flex !important; align-self: flex-start !important; justify-self: start !important;
+    width: auto !important; max-width: max-content !important; flex: 0 0 auto !important;
+  }
+}
+
+/* 15.0.0 patch 49: big window - detail lines easy to read on the glass
+   (warm gold instead of faint grey, notes in white, darker tiles behind) */
+@layer iba-ui {
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(small, .iba-ai-trk-dates, .iba-ai-po-who, .iba-ai-foot, .iba-ai-empty, .iba-ai-trk-po-head span:not(.iba-ai-trk-val)) {
+    color: #F3DFA8 !important; -webkit-text-fill-color: #F3DFA8 !important;
+    font-weight: 500 !important; opacity: 1 !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body small { font-size: 12.5px !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(.iba-ai-urg-note, .iba-ai-rows small em, .iba-ai-rows em, i.iba-ai-note-txt) {
+    color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; font-weight: 600 !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(.iba-ai-urg-list li, .iba-ai-rows li, .iba-ai-trk-item, .iba-ai-stats > div, .iba-ai-co-tile) {
+    background: rgba(6, 14, 24, 0.55) !important;
+    border-color: rgba(232, 217, 182, 0.20) !important;
+  }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-urg-list li.is-urgent,
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-rows li.is-urgent { background: rgba(90, 14, 14, 0.55) !important; border-color: rgba(248, 113, 113, 0.55) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body :is(strong, b, .iba-ai-trk-val) { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-chip b { color: #FACC15 !important; -webkit-text-fill-color: #FACC15 !important; }
+}
+/* patch 49: the same for the whole assistant (side panel, big window, phone):
+   grey detail text becomes warm gold, easy to read */
+@layer iba-ui {
+  #iba-ai-panel :is(small, .iba-ai-foot, .iba-ai-empty, .iba-ai-trk-dates, .iba-ai-po-who, .iba-ai-rem-row > span, .iba-ai-hint, .iba-ai-stats span, .iba-ai-brief-status span, .iba-ai-head small, .iba-aph-foot, .iba-aph-tiles button small, .iba-ai-quick-btn small, .iba-ai-skill-list small, .iba-ai-tile small, .iba-ai-urg-list + label, .iba-ai-trk-po-head span:not(.iba-ai-trk-val)),
+  #iba-ai-panel .iba-ai-card label:not(.iba-ai-skill-find),
+  #iba-ai-panel .iba-ai-table th {
+    color: #F3DFA8 !important; -webkit-text-fill-color: #F3DFA8 !important; opacity: 1 !important;
+  }
+  #iba-ai-panel#iba-ai-panel :is(.iba-ai-urg-note, .iba-ai-apv .iba-ai-grow small + small) { color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; font-weight: 600 !important; }
+}
+
+/* 17.0.0 patch 3: act on a task right in the brief */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-rows li { flex-wrap: wrap !important; }
+  #iba-ai-panel .iba-ai-acts { display: inline-flex !important; flex-wrap: wrap !important; gap: 4px !important; flex: 0 0 auto !important; margin-left: 6px !important; }
+  #iba-ai-panel .iba-ai-act { white-space: nowrap !important; }
+  #iba-ai-panel .iba-ai-act.is-approve { background: rgba(34, 197, 94, 0.22) !important; border-color: rgba(34, 197, 94, 0.55) !important; color: #BBF7D0 !important; }
+  #iba-ai-panel .iba-ai-act.is-reject { background: rgba(239, 68, 68, 0.2) !important; border-color: rgba(239, 68, 68, 0.55) !important; color: #FECACA !important; }
+  #iba-ai-panel .iba-ai-act.is-srv, #iba-ai-panel .iba-ai-act.is-closeout { background: rgba(19, 138, 151, 0.28) !important; border-color: rgba(19, 138, 151, 0.7) !important; color: #CFFAFE !important; }
+  #iba-ai-panel .iba-ai-act.is-process, #iba-ai-panel .iba-ai-act.is-ceo, #iba-ai-panel .iba-ai-act.is-print { background: rgba(227, 201, 138, 0.16) !important; border-color: rgba(227, 201, 138, 0.5) !important; color: #F3DFA8 !important; }
+  #iba-ai-panel .iba-ai-go.is-open { padding-left: 7px !important; padding-right: 7px !important; }
+  #iba-ai-panel .iba-ai-rows li.is-busy .iba-ai-act { opacity: 0.5 !important; pointer-events: none !important; }
+  #iba-ai-panel .iba-ai-rows li.is-done { opacity: 0.72 !important; }
+  #iba-ai-panel .iba-ai-rows li.is-done .iba-ai-grow > :first-child { text-decoration: line-through !important; }
+  #iba-ai-panel .iba-ai-act-note { display: block !important; margin-top: 2px !important; color: #F3DFA8 !important; }
+  #iba-ai-panel .iba-ai-act-note:empty { display: none !important; }
+  #iba-ai-panel .iba-ai-act-note.is-done { color: #86EFAC !important; }
+  #iba-ai-panel .iba-ai-act-note.is-error { color: #FCA5A5 !important; }
+  /* while a page window (Process, approval, SRV) is open it sits above the assistant */
+  body.iba-ai-acting #iba-ai-panel.iba-ai-panel, body.iba-ai-acting #iba-ai-panel.iba-ai-panel.is-wide { z-index: 50 !important; }
+  body.iba-ai-acting .modal-overlay:not(.hidden), body.iba-ai-acting #iba-apd:not(.hidden) { z-index: 100050 !important; }
+}
+
+/* 17.0.0 patch 5: Now brief on the phone */
+@layer iba-ui {
+  #iba-ai-panel .iba-aph-brief { display: flex !important; align-items: center !important; gap: 12px !important; width: 100% !important; margin: 10px 0 !important; padding: 12px 14px !important;
+    border-radius: 16px !important; border: 1px solid rgba(227, 201, 138, 0.45) !important; background: linear-gradient(135deg, rgba(227, 201, 138, 0.22), rgba(19, 138, 151, 0.2)) !important;
+    color: #F3DFA8 !important; text-align: left !important; font: inherit !important; cursor: pointer !important; }
+  #iba-ai-panel .iba-aph-brief > i:first-child { font-size: 20px !important; color: #E3C98A !important; }
+  #iba-ai-panel .iba-aph-brief span { flex: 1 !important; display: flex !important; flex-direction: column !important; }
+  #iba-ai-panel .iba-aph-brief b { color: #fff !important; font-size: 15px !important; }
+  #iba-ai-panel .iba-aph-brief small { color: #EBD8A8 !important; font-size: 12px !important; }
+  #iba-ai-panel .iba-aph-kpis { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; margin: 8px 0 10px !important; }
+  #iba-ai-panel .iba-aph-kpis div { padding: 8px 6px !important; border-radius: 12px !important; background: rgba(255, 255, 255, 0.06) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; text-align: center !important; }
+  #iba-ai-panel .iba-aph-kpis b { display: block !important; font-size: 18px !important; color: #fff !important; }
+  #iba-ai-panel .iba-aph-kpis span { font-size: 10.5px !important; color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-aph-kpis .is-urg b { color: #FCA5A5 !important; }
+  #iba-ai-panel .iba-aph-kpis .is-late b { color: #FCD34D !important; }
+  #iba-ai-panel .iba-aph-tasks li { display: block !important; padding: 9px 0 !important; }
+  #iba-ai-panel .iba-aph-trow { display: flex !important; align-items: center !important; gap: 8px !important; }
+  #iba-ai-panel .iba-aph-tasks .iba-ai-acts { display: flex !important; margin: 6px 0 0 !important; gap: 6px !important; }
+  #iba-ai-panel .iba-aph-tasks .iba-ai-act { flex: 1 1 0 !important; justify-content: center !important; padding: 7px 6px !important; }
+  #iba-ai-panel .iba-aph-tasks .iba-ai-act.is-pc, #iba-ai-panel .iba-aph-tasks .iba-ai-act.is-remind { background: rgba(255, 255, 255, 0.06) !important; border-color: rgba(255, 255, 255, 0.18) !important; color: #EEF3F8 !important; }
+  #iba-ai-panel .iba-aph-age { flex: 0 0 auto !important; padding: 2px 7px !important; border-radius: 999px !important; font-size: 11px !important; background: rgba(127, 227, 214, 0.15) !important; color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-aph-age.is-late { background: rgba(252, 211, 77, 0.16) !important; color: #FCD34D !important; }
+  #iba-ai-panel .iba-aph-tasks li.is-urgent { border-left: 3px solid #ef4444 !important; padding-left: 8px !important; }
+  #iba-ai-panel .is-aph-brief .iba-aph-foot { margin-top: 10px !important; font-size: 12px !important; color: #EBD8A8 !important; }
+}
+
+/* 17.0.0 patch 9: Now Brief tasks as a table grouped by site */
+@layer iba-ui {
+  /* 17.0.0 patch 11: one table per site, never split into two columns by the wide window */
+  #iba-ai-panel .iba-ai-ttab, #iba-ai-panel .iba-ai-wide-body .iba-ai-rows.iba-ai-ttab { display: block !important; column-gap: 0 !important; }
+  #iba-ai-panel .iba-ai-ttab-wrap { container-type: inline-size !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  #iba-ai-panel .iba-ai-ttab-site { border: 1px solid rgba(227, 201, 138, 0.22) !important; border-radius: 12px !important; padding: 6px 10px 8px !important; background: rgba(15, 34, 53, 0.28) !important; }
+  #iba-ai-panel .iba-ai-ttab-sitehead { display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; padding: 4px 0 6px !important; border-bottom: 1px solid rgba(227, 201, 138, 0.25) !important; color: #F3DFA8 !important; }
+  #iba-ai-panel .iba-ai-ttab-sitehead b { font-size: 14px !important; }
+  #iba-ai-panel .iba-ai-ttab-count { padding: 2px 8px !important; border-radius: 999px !important; background: #E3C98A !important; color: #14293f !important; font-weight: 700 !important; font-size: 11px !important; }
+  #iba-ai-panel .iba-ai-ttab-step { color: #7FE3D6 !important; font-size: 12px !important; }
+  #iba-ai-panel .iba-ai-ttab li .c-site { font-size: 12px !important; color: #EBD8A8 !important; }
+  #iba-ai-panel .iba-ai-ttab-total { margin-left: auto !important; color: #7FE3D6 !important; font-size: 12px !important; font-weight: 600 !important; }
+  #iba-ai-panel .iba-ai-ttab li.iba-ai-ttab-head { display: none !important; }
+  #iba-ai-panel .iba-ai-ttab li .c-st { display: flex !important; flex-direction: column !important; font-size: 12px !important; }
+  #iba-ai-panel .iba-ai-ttab li .c-act { display: inline-flex !important; flex-wrap: wrap !important; gap: 4px !important; align-items: center !important; justify-content: flex-end !important; }
+  #iba-ai-panel .iba-ai-ttab li .c-act .iba-ai-acts { display: inline-flex !important; flex-wrap: wrap !important; gap: 4px !important; }
+  /* narrow panel: PO + vendor on the first line, status / age / buttons under it */
+  #iba-ai-panel .iba-ai-ttab li:not(.iba-ai-ttab-head) { flex-wrap: wrap !important; }
+  #iba-ai-panel .iba-ai-ttab li .c-st { flex: 1 1 140px !important; }
+  /* wide: a real table with columns */
+  @container (min-width: 640px) {
+    #iba-ai-panel .iba-ai-ttab li { display: grid !important; grid-template-columns: 78px minmax(70px, 0.6fr) minmax(0, 2fr) 44px minmax(230px, 400px) !important; gap: 12px !important; align-items: center !important; padding: 7px 10px !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; }
+    #iba-ai-panel .iba-ai-ttab li.is-urgent { background: rgba(90, 14, 14, 0.45) !important; box-shadow: inset 3px 0 0 #F87171 !important; }
+    #iba-ai-panel .iba-ai-ttab li .c-act { justify-content: flex-end !important; }
+    #iba-ai-panel .iba-ai-ttab li.iba-ai-ttab-head { display: grid !important; padding: 6px 10px 4px !important; background: transparent !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: 0.04em !important; color: #E3C98A !important; opacity: 0.85 !important; border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
+    #iba-ai-panel .iba-ai-ttab li[hidden] { display: none !important; }
+    #iba-ai-panel .iba-ai-ttab li .c-main { min-width: 0 !important; }
+  }
+}
+
+/* 17.0.0 patch 18: Inventory and Reminders as tables; Expand at the bottom */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-ttab li .c-site { display: flex !important; flex-direction: column !important; }
+  #iba-ai-panel .iba-ai-ttab.is-rem .iba-ai-rem-body { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  #iba-ai-panel .iba-ai-ttab.is-rem li .c-po { display: flex !important; flex-direction: column !important; gap: 4px !important; align-items: flex-start !important; }
+  #iba-ai-panel .iba-ai-sub [data-rem-all] { margin-left: 8px !important; text-transform: none !important; letter-spacing: 0 !important; }
+  #iba-ai-panel .iba-ai-expand-foot { display: flex !important; width: 100% !important; justify-content: center !important; margin-top: 10px !important; padding: 8px !important; border-style: dashed !important; }
+  #iba-ai-panel .iba-ai-wide-body .iba-ai-expand-foot { display: none !important; }
+  body.iba-phone #iba-ai-panel .iba-ai-head-expand { display: none !important; }
+  #iba-ai-panel.is-wide .iba-ai-head-expand { color: #14293f !important; background: #E3C98A !important; }
+  @container (min-width: 640px) {
+    #iba-ai-panel .iba-ai-ttab.is-rem li { grid-template-columns: 96px minmax(90px, 0.6fr) minmax(0, 3fr) 0 110px !important; }
+    #iba-ai-panel .iba-ai-ttab.is-jobs li { grid-template-columns: 96px minmax(90px, 0.7fr) minmax(0, 2fr) 44px 120px !important; }
+  }
+}
+
+/* 17.0.2 patch 9: Mark urgent as one table (For Approval) */
+@layer iba-ui {
+  #iba-ai-panel .iba-ai-urg-tablewrap { margin: 8px 0 0 !important; max-height: 440px !important; overflow: auto !important; border: 1px solid rgba(255, 255, 255, 0.12) !important; border-radius: 12px !important; background: rgba(6, 14, 24, 0.28) !important; }
+  #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-urg-tablewrap { max-height: none !important; }
+  #iba-ai-panel .iba-ai-urg-table { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; }
+  #iba-ai-panel .iba-ai-urg-table thead th {
+    position: sticky !important; top: 0 !important; z-index: 1 !important;
+    padding: 8px 10px !important; text-align: left !important; white-space: nowrap !important;
+    background: rgba(16, 36, 56, 0.92) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important;
+    font-size: 11px !important; font-weight: 700 !important; letter-spacing: 0.03em !important; text-transform: uppercase !important;
+    border-bottom: 1px solid rgba(227, 201, 138, 0.25) !important;
+  }
+  #iba-ai-panel .iba-ai-urg-table tbody td {
+    padding: 7px 10px !important; vertical-align: middle !important; white-space: nowrap !important;
+    color: #DCE4EC !important; -webkit-text-fill-color: #DCE4EC !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025) !important; }
+  #iba-ai-panel .iba-ai-urg-table:not(.is-urgent) tbody tr { cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:hover td { background: rgba(255, 255, 255, 0.07) !important; }
+  #iba-ai-panel .iba-ai-urg-table tbody tr:has(input:checked) td { background: rgba(220, 38, 38, 0.14) !important; }
+  #iba-ai-panel .iba-ai-urg-table :is(th, td).is-num { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-po { font-weight: 700 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-vendor { max-width: 220px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-note { max-width: 260px !important; overflow: hidden !important; text-overflow: ellipsis !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-files { display: table-cell !important; }
+  #iba-ai-panel .iba-ai-urg-table td.is-files a.iba-ai-mini { margin-right: 4px !important; text-decoration: none !important; }
+  #iba-ai-panel .iba-ai-urg-table :is(th, td):first-child { width: 28px !important; }
+  #iba-ai-panel .iba-ai-urg-table.is-urgent :is(th, td):first-child { width: auto !important; }
+  #iba-ai-panel .iba-ai-urg-table input[type="checkbox"] { width: 16px !important; height: 16px !important; accent-color: #dc2626 !important; cursor: pointer !important; }
+  #iba-ai-panel .iba-ai-urg-table.is-urgent td.is-status { color: #F8A39A !important; -webkit-text-fill-color: #F8A39A !important; font-weight: 700 !important; }
+}
