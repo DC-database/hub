@@ -1,3 +1,9 @@
+17.0.5 patch 65 (02-Nov-2026)
+- PC: invoice / SRV PDF buttons (OneDrive / SharePoint) open in ONE side window on the right half of the screen instead of
+  a new tab; the next PDF reuses the same window. Ctrl/Shift/middle click = normal new tab. Phones unchanged.
+  (SharePoint blocks showing its PDFs inside our page - tested by martin - so a side window is used.)
+- Files: index.html, js/iba-1705-pdfwin.js (new)
+
 17.0.5 patch 64 (01-Nov-2026)
 - Install as app: the app now has its own name and id ("IBA Invoice", id /invoice/), so it no longer clashes with other
   IBA apps on port.iba.com.qa (Procurement, Progress PO). Uninstall the old "IBA System" app once, then install again.
