@@ -1,431 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Payment Management System</title>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>IBA Finance</title>
+<meta name="theme-color" content="#0b1724">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="teller.css">
 </head>
 <body>
+<div id="bgLayer" aria-hidden="true"></div>
+<div id="bgDim" aria-hidden="true"></div>
 
-    <div id="loginScreen">
-        <div class="card" id="loginCard">
-            <div class="card-body">
-                <h3 class="card-title text-center mb-4 text-primary">IBA Payments</h3>
-                <form id="loginForm">
-                    <div class="mb-3">
-                        <label for="loginEmail" class="form-label">Email address</label>
-                        <input type="email" class="form-control" id="loginEmail" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="loginPassword" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="loginPassword" required>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
-                    </div>
-                </form>
-                <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
-                <div class="text-center text-muted mt-3">
-                    <small id="loginVersionDisplay"></small>
-                </div>
-            </div>
-        </div>
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="glass login-card">
+    <div class="brand brand-lg">
+      <img src="icons/icon.svg" alt="" width="56" height="56">
+      <div><div class="brand-name">IBA <span>Finance</span></div><div class="brand-sub">Payments &amp; certificates</div></div>
     </div>
-    
-    <div id="mainApp" style="display: none;">
-        <div class="dashboard-container">
-            
-            <nav class="sidebar">
-                <div class="sidebar-brand">
-                    <span>Finance Report</span>
-                </div>
-                
-                <ul class="nav-links">
-                    <li class="nav-item">
-                        <a href="#" class="nav-link active" id="paymentLink">
-                            <i class="bi bi-cash-coin"></i>
-                            <span>Payments</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" id="vendorLink">
-                            <i class="bi bi-people-fill"></i>
-                            <span>Vendors</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link" id="recordsLink">
-                            <i class="bi bi-database"></i>
-                            <span>Records</span>
-                        </a>
-                    </li>
-                </ul>
-
-                <div class="mt-auto pt-4 border-top border-secondary">
-                    <div class="text-white small mb-2 ps-3" id="userEmailDisplay"></div>
-                    <a href="#" class="nav-link text-danger" id="logoutLink">
-                        <i class="bi bi-box-arrow-left"></i>
-                        <span>Logout</span>
-                    </a>
-                    <div class="ps-3 text-white-50 small mt-2">
-                        <span id="versionDisplay"></span>
-                    </div>
-                </div>
-            </nav>
-
-            <main class="main-content">
-                
-                <div class="container-fluid" id="paymentSection">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h2 class="fw-bold text-dark">Payment Dashboard</h2>
-                        <button class="btn btn-primary shadow-sm" id="addNewBtn" disabled>
-                            <i class="bi bi-plus-lg"></i> New Payment
-                        </button>
-                    </div>
-                    
-                    <div class="card mb-4">
-    <div class="card-body">
-        <!-- Professional Segmented Toggle -->
-        <div class="search-mode-toggle mb-4">
-            <div class="segmented-control">
-                <input type="radio" name="searchMode" id="modePo" class="segmented-input" checked>
-                <label for="modePo" class="segmented-label">
-                    <i class="bi bi-upc-scan me-1"></i> PO Number
-                </label>
-                <input type="radio" name="searchMode" id="modeVendor" class="segmented-input">
-                <label for="modeVendor" class="segmented-label">
-                    <i class="bi bi-building me-1"></i> Vendor / Site
-                </label>
-                <div class="segmented-slider"></div>
-            </div>
-        </div>
-
-        <div class="row align-items-center search-wrapper">
-            <div class="col-md-8">
-                <div class="input-group">
-                    <span class="input-group-text bg-transparent border-0 ps-3">
-                        <i class="bi bi-search text-muted"></i>
-                    </span>
-                    <input type="text" class="form-control" id="searchPoNo" placeholder="Enter PO Number to search...">
-                </div>
-            </div>
-            <div class="col-md-4 text-end">
-                <button class="btn btn-primary" type="button" id="searchBtn">
-                    <i class="bi bi-search me-1"></i> Search
-                </button>
-                <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
-                    <i class="bi bi-x-lg me-1"></i> Clear
-                </button>
-            </div>
-        </div>
-    </div>
+    <form id="loginForm" class="mt-4">
+      <label for="loginEmail" class="form-label">Email address</label>
+      <input type="email" class="form-control mb-3" id="loginEmail" autocomplete="username" required>
+      <label for="loginPassword" class="form-label">Password</label>
+      <input type="password" class="form-control mb-4" id="loginPassword" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-gold w-100" id="loginBtn">Sign in</button>
+    </form>
+    <div id="loginError" class="alert alert-danger mt-3 mb-0" hidden></div>
+    <div class="text-center small mt-3 muted" id="loginVersion"></div>
+  </div>
 </div>
 
-                    <div id="searchResults" style="display: none;">
-                        <div class="alert alert-info border-0 shadow-sm" id="noResultsAlert" style="display: none;">
-                            <i class="bi bi-info-circle me-2"></i> No payments found. Click "New Payment" to create one.
-                        </div>
-                        <div id="searchResultsBody"></div>
-                    </div>
-                </div>
-
-                <div class="container-fluid" id="vendorSection" style="display: none;">
-                    <h2 class="fw-bold text-dark mb-4">Vendor Management</h2>
-                    <div class="card">
-                        <div class="card-header">Upload Vendor List</div>
-                        <div class="card-body">
-                            <form id="vendorUploadForm">
-                                <div class="mb-3">
-                                    <label for="vendorCsv" class="form-label">Select CSV File</label>
-                                    <input class="form-control" type="file" id="vendorCsv" accept=".csv" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Upload Data</button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="container-fluid" id="recordsSection" style="display: none;">
-                    <h2 class="fw-bold text-dark mb-4">Data Records</h2>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-header">Import Data</div>
-                                <div class="card-body">
-                                    <form id="importForm">
-                                        <div class="mb-3">
-                                            <label for="paymentCsv" class="form-label">CSV File</label>
-                                            <input class="form-control" type="file" id="paymentCsv" accept=".csv" required>
-                                        </div>
-                                        <div class="form-check mb-3">
-                                            <input type="checkbox" class="form-check-input" id="overwriteData">
-                                            <label class="form-check-label" for="overwriteData">Overwrite existing data</label>
-                                        </div>
-                                        <button type="button" class="btn btn-primary" id="importBtn">Import</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card h-100">
-                                <div class="card-header">System Actions</div>
-                                <div class="card-body d-flex flex-column gap-3 justify-content-center">
-                                    <button class="btn btn-outline-secondary w-100" id="downloadTemplateBtn">
-                                        <i class="bi bi-download me-2"></i> Download Template
-                                    </button>
-                                    <button class="btn btn-danger w-100" id="deleteAllBtn" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
-                                        <i class="bi bi-trash me-2"></i> Delete All Records
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
-        </div>
+<!-- ============ APP ============ -->
+<div id="mainApp" hidden>
+  <header class="topbar">
+    <a href="#" class="brand" data-view="dashboard" aria-label="IBA Finance home">
+      <img src="icons/icon.svg" alt="" width="40" height="40">
+      <div><div class="brand-name">IBA <span>Finance</span></div><div class="brand-sub">Payments &amp; certificates</div></div>
+    </a>
+    <nav class="topnav" aria-label="Main">
+      <a href="#" class="navlink active" data-view="dashboard"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+      <a href="#" class="navlink" data-view="vendors"><i class="bi bi-people"></i><span>Vendors</span></a>
+      <a href="#" class="navlink" data-view="records"><i class="bi bi-database"></i><span>Records</span></a>
+      <a href="#" class="navlink super-only" data-view="settings" hidden><i class="bi bi-gear"></i><span>Settings</span></a>
+    </nav>
+    <div class="topbar-right">
+      <span class="sync-pill" id="syncPill" title="Data status"><i class="bi bi-cloud-check"></i> <span id="syncText">Loading…</span></span>
+      <button type="button" class="btn btn-ghost btn-sm" id="installAppBtn" hidden><i class="bi bi-download"></i> Install app</button>
+      <div class="dropdown">
+        <button class="avatar" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account" id="avatarBtn">?</button>
+        <ul class="dropdown-menu dropdown-menu-end dark-menu">
+          <li><span class="dropdown-item-text small" id="userEmail"></span></li>
+          <li><span class="dropdown-item-text small muted" id="appVersion"></span></li>
+          <li><hr class="dropdown-divider"></li>
+          <li class="super-only" hidden><button class="dropdown-item" type="button" id="bgMenuBtn"><i class="bi bi-image me-2"></i>Background</button></li>
+          <li><button class="dropdown-item" type="button" id="reloadAllBtn"><i class="bi bi-arrow-repeat me-2"></i>Reload all records</button></li>
+          <li><button class="dropdown-item text-danger-soft" type="button" id="logoutBtn"><i class="bi bi-box-arrow-left me-2"></i>Log out</button></li>
+        </ul>
+      </div>
     </div>
+  </header>
 
-    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="paymentModalLabel">Payment Details</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="paymentForm">
-                        <div class="row g-3 mb-4 p-3 bg-white rounded shadow-sm">
-                            <h6 class="text-primary border-bottom pb-2">Contract Information</h6>
-                            <div class="col-md-4">
-                                <label for="poNo" class="form-label">PO Number</label>
-                                <input type="text" class="form-control" id="poNo" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="site" class="form-label">Site / Project</label>
-                                <input type="text" class="form-control" id="site">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="poValue" class="form-label">PO Value</label>
-                                <input type="text" class="form-control" id="poValue">
-                            </div>
-                            <div class="col-md-6">
-                                <label for="vendor" class="form-label">Vendor Name</label>
-                                <input type="text" class="form-control" id="vendor" list="vendorList">
-                                <datalist id="vendorList"></datalist>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="vendorId" class="form-label">Vendor ID</label>
-                                <input type="text" class="form-control" id="vendorId" list="vendorIdList">
-                                 <datalist id="vendorIdList"></datalist>
-                            </div>
-                        </div>
+  <main class="content">
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view">
+      <div class="stats" id="stats"></div>
 
-                        <div class="row g-3 p-3 bg-white rounded shadow-sm">
-                            <h6 class="text-primary border-bottom pb-2">Invoice Details</h6>
-                            <div class="col-md-3">
-                                <label for="paymentNo" class="form-label">Payment No (PVN)</label>
-                                <input type="text" class="form-control" id="paymentNo" placeholder="Auto-generated if empty">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="chequeNo" class="form-label">Cheque No.</label>
-                                <input type="text" class="form-control" id="chequeNo">
-                            </div>
-                            <div class="col-md-3">
-                                <label for="datePaid" class="form-label">Date Paid</label>
-                                <input type="date" class="form-control" id="datePaid">
-                            </div>
-                            <div class="col-md-3">
-                                </div>
-                            
-                            <div class="col-md-4">
-                                <label for="certifiedAmount" class="form-label">Certified Amount</label>
-                                <input type="text" class="form-control fw-bold text-dark" id="certifiedAmount">
-                            </div>
-                            <div class="col-md-4">
-                                <label for="retention" class="form-label">Retention</label>
-                                <input type="text" class="form-control text-danger" id="retention">
-                                <div class="mt-2 input-group input-group-sm">
-                                    <input type="number" class="form-control" id="retentionPercentage" placeholder="%">
-                                    <span class="input-group-text">% of</span>
-                                    <input type="text" class="form-control" id="retentionBaseAmount" placeholder="Base">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="payment" class="form-label">Net Payment</label>
-                                <input type="text" class="form-control fw-bold text-success" id="payment" readonly>
-                            </div>
-                            
-                            <div class="col-12">
-                                <label for="note" class="form-label">Notes</label>
-                                <textarea class="form-control" id="note" rows="2"></textarea>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelBtn">Cancel</button>
-                    <button type="button" class="btn btn-warning text-white" id="clearBtn">Clear Form</button>
-                    <button type="button" class="btn btn-success" id="addNewPaymentBtn" style="display: none;">Save as New</button>
-                    <button type="submit" form="paymentForm" class="btn btn-primary" id="saveBtn">Save Record</button>
-                </div>
+      <div class="glass search-card">
+        <div class="search-top">
+          <label for="smartSearch" class="search-label">Search by</label>
+          <div class="mode-tabs" id="modeTabs" role="radiogroup" aria-label="Search by">
+            <button type="button" class="mode-tab on" data-mode="auto" role="radio" aria-checked="true"><i class="bi bi-magic"></i> Auto</button>
+            <button type="button" class="mode-tab" data-mode="po" role="radio" aria-checked="false">PO</button>
+            <button type="button" class="mode-tab" data-mode="site" role="radio" aria-checked="false">Site</button>
+            <button type="button" class="mode-tab" data-mode="vendor" role="radio" aria-checked="false">Vendor</button>
+          </div>
+        </div>
+        <div class="search-row">
+          <div class="search-wrap">
+          <div class="search-box" id="searchBox">
+            <i class="bi bi-search"></i>
+            <input id="smartSearch" type="text" autocomplete="off" placeholder="e.g. 41287, M1111, site 170, Gulf Steel" aria-describedby="searchHint">
+            <span class="detect-chip" id="detectChip" hidden></span>
+            <button type="button" class="clear-x" id="clearSearch" aria-label="Clear search" hidden><i class="bi bi-x-lg"></i></button>
+          </div>
+          <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+          </div>
+          <button type="button" class="btn btn-teal search-btn" id="searchBtn" aria-label="Search"><i class="bi bi-arrow-right-short d-md-none"></i><span class="d-none d-md-inline">Search</span></button>
+        </div>
+        <div class="search-hint" id="searchHint">
+          <span id="modeSwitch" hidden>Wrong guess? Search as
+            <button type="button" class="chip-btn" data-mode="po">PO</button>
+            <button type="button" class="chip-btn" data-mode="site">Site</button>
+            <button type="button" class="chip-btn" data-mode="vendor">Vendor</button>
+          </span>
+          <span class="ms-auto muted" id="modeHelp">Auto: 5 digits = PO · 170, M1111, Site 170 = Site · words = Vendor</span>
+        </div>
+      </div>
+
+      <div id="results"></div>
+    </section>
+
+    <!-- VENDORS -->
+    <section id="view-vendors" class="view" hidden>
+      <h2 class="view-title">Vendors</h2>
+      <div class="glass p-4">
+        <p class="muted mb-3">The vendor list fills the Vendor name and Vendor ID boxes. It is read from <code>Vendors.csv</code> on GitHub (no Firebase download).</p>
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+          <span class="pill" id="vendorCount">0 vendors</span>
+          <button type="button" class="btn btn-ghost btn-sm" id="vendorReloadBtn"><i class="bi bi-arrow-repeat"></i> Reload list</button>
+        </div>
+        <div class="super-only" hidden>
+          <hr class="hr-soft">
+          <form id="vendorUploadForm" class="row g-2 align-items-end">
+            <div class="col-md-8"><label for="vendorCsv" class="form-label">Upload a backup vendor list to Firebase (CSV with "Name" and "Supplier ID")</label>
+            <input class="form-control" type="file" id="vendorCsv" accept=".csv" required></div>
+            <div class="col-md-4"><button type="submit" class="btn btn-gold w-100">Upload</button></div>
+          </form>
+        </div>
+        <label for="vendorFilter" class="form-label mt-3">Find a vendor</label>
+        <input id="vendorFilter" class="form-control" placeholder="Type a name or ID">
+        <div class="table-wrap mt-3"><table class="tbl"><thead><tr><th>Vendor name</th><th>Vendor ID</th></tr></thead><tbody id="vendorTable"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- RECORDS -->
+    <section id="view-records" class="view" hidden>
+      <h2 class="view-title">Records</h2>
+      <div class="grid-2">
+        <div class="glass p-4">
+          <h3 class="card-h">Export</h3>
+          <p class="muted">Download every payment as a CSV file that opens in Excel. Uses the copy already in this browser, so it costs no download.</p>
+          <button type="button" class="btn btn-teal" id="exportBtn"><i class="bi bi-file-earmark-spreadsheet"></i> Export all to CSV</button>
+          <button type="button" class="btn btn-ghost ms-2" id="templateBtn"><i class="bi bi-download"></i> Empty template</button>
+        </div>
+        <div class="glass p-4">
+          <h3 class="card-h">Import</h3>
+          <form id="importForm">
+            <label for="paymentCsv" class="form-label">CSV file (same columns as the template)</label>
+            <input class="form-control mb-2" type="file" id="paymentCsv" accept=".csv" required>
+            <div class="form-check mb-3 super-only" hidden>
+              <input type="checkbox" class="form-check-input" id="overwriteData">
+              <label class="form-check-label" for="overwriteData">Replace all existing records (a backup downloads first)</label>
             </div>
+            <button type="button" class="btn btn-gold" id="importBtn">Import</button>
+          </form>
         </div>
-    </div>
+        <div class="glass p-4 super-only danger-card" hidden>
+          <h3 class="card-h">Delete all records</h3>
+          <p class="muted">Super Admin only. A full backup CSV downloads first.</p>
+          <button type="button" class="btn btn-danger" id="deleteAllBtn"><i class="bi bi-trash"></i> Delete all records</button>
+        </div>
+      </div>
+    </section>
 
-    <div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Payment Certificate</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="report-header">
-                        <img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" alt="IBA Logo" class="report-logo">
-                    </div>
-                    
-                    <div class="report-details">
-                        <div class="report-details-col">
-                            <p><strong>Date:</strong> <span id="reportDate"></span></p>
-                            <p><strong>LPO No:</strong> <span id="reportPoNo"></span></p>
-                            <p><strong>Project:</strong> <span id="reportProject"></span></p>
-                        </div>
-                        <div class="report-details-col">
-                            <p><strong>Vendor No:</strong> <span id="reportVendorId"></span></p>
-                            <p><strong>Vendor Name:</strong> <span id="reportVendorName"></span></p>
-                            <p><strong>Total PO Value:</strong> <span id="reportTotalPoValue"></span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="report-summary">
-                        <div class="report-summary-col">
-                            <p><strong>Total Certificate Cost:</strong> <span id="reportTotalCertified"></span></p>
-                            <p><strong>Total Previous Payment:</strong> <span id="reportTotalPrevPayment"></span></p>
-                        </div>
-                        <div class="report-summary-col">
-                            <p><strong>Total Commited Cost:</strong> <span id="reportTotalCommitted"></span></p>
-                            <p><strong>Total Retention To Date:</strong> <span id="reportTotalRetention"></span></p>
-                        </div>
-                    </div>
-                    
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th>P/N</th>
-                                    <th>Cheque No.</th>
-                                    <th>CERTIFIED AMOUNT</th>
-                                    <th>RETENTION</th>
-                                    <th>PAYMENT</th>
-                                    <th>DATE PAID</th>
-                                </tr>
-                            </thead>
-                            <tbody id="reportTableBody"></tbody>
-                            <tfoot>
-                                <tr>
-                                    <th colspan="2" class="text-end">Total Payment:</th>
-                                    <td id="reportTotalCertifiedAmount"></td>
-                                    <td id="reportTotalRetentionAmount"></td>
-                                    <td id="reportTotalPaymentAmount"></td>
-                                    <td></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                    
-                    <div class="signatures">
-                        <div class="signature-box"><p>Prepared By</p><div class="signature-line"></div></div>
-                        <div class="signature-box"><p>Site Approval</p><div class="signature-line"></div></div>
-                        <div class="signature-box"><p>Finance</p><div class="signature-line"></div></div>
-                        <div class="signature-box"><p>CEO</p><div class="signature-line"></div></div>
-                    </div>
-                    <div id="reportNotesSection" style="display: none; margin-top: 40px;">
-                        <h5>Notes:</h5>
-                        <div id="reportNotesContent"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="printReportBtn">Print Report</button>
-                </div>
+    <!-- SETTINGS (Irwin) -->
+    <section id="view-settings" class="view" hidden>
+      <h2 class="view-title">Settings · Background <span class="pill pill-gold">Only the Super Admin sees this</span></h2>
+      <div class="glass p-4">
+        <div class="bg-grid" id="bgGrid"></div>
+        <div class="row g-2 mt-2 align-items-end">
+          <div class="col-md-9"><label for="bgUrl" class="form-label">Or paste a picture link (https)</label><input id="bgUrl" class="form-control" placeholder="https://…/photo.jpg"></div>
+          <div class="col-md-3"><button type="button" class="btn btn-ghost w-100" id="bgUseUrl">Use this link</button></div>
+        </div>
+        <div class="row g-4 mt-1">
+          <div class="col-md-6"><label for="dimDesk" class="form-label">Darkness on desktop: <b id="dimDeskVal"></b></label><input type="range" class="form-range gold-range" id="dimDesk" min="0" max="80" step="5"></div>
+          <div class="col-md-6"><label for="dimPhone" class="form-label">Darkness on phone: <b id="dimPhoneVal"></b></label><input type="range" class="form-range gold-range" id="dimPhone" min="0" max="80" step="5"></div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+          <span class="muted align-self-center">Changes show here at once. Save applies them for everyone.</span>
+          <button type="button" class="btn btn-ghost ms-auto" id="bgDefault">Default</button>
+          <button type="button" class="btn btn-gold" id="bgSave">Save</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottomnav" aria-label="Main">
+    <a href="#" class="navlink active" data-view="dashboard"><i class="bi bi-house"></i><span>Home</span></a>
+    <a href="#" class="navlink" data-view="vendors"><i class="bi bi-people"></i><span>Vendors</span></a>
+    <a href="#" class="navlink" data-view="records"><i class="bi bi-database"></i><span>Records</span></a>
+    <a href="#" class="navlink super-only" data-view="settings" hidden><i class="bi bi-gear"></i><span>Settings</span></a>
+    <button type="button" class="navlink teller-nav" id="tellerNavBtn"><i class="bi bi-chat-dots"></i><span>Teller</span></button>
+  </nav>
+</div>
+
+<!-- ============ PAYMENT MODAL ============ -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-md-down">
+    <div class="modal-content dark-modal">
+      <div class="modal-header">
+        <div class="icon-tile"><i class="bi bi-cash-stack"></i></div>
+        <div class="ms-3"><h5 class="modal-title" id="paymentTitle">New payment</h5><div class="small muted" id="paymentSub"></div></div>
+        <span class="pvn-badge ms-auto" id="pvnBadge"></span>
+        <button type="button" class="btn-close btn-close-white ms-3" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="formWarnings"></div>
+        <form id="paymentForm" novalidate>
+          <div class="sec-h">CONTRACT</div>
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3"><label for="poNo" class="form-label">PO number</label><input id="poNo" class="form-control" inputmode="numeric" required></div>
+            <div class="col-6 col-md-3"><label for="site" class="form-label">Site</label><input id="site" class="form-control"></div>
+            <div class="col-12 col-md-3"><label for="poValue" class="form-label">PO value</label><input id="poValue" class="form-control money" inputmode="decimal"></div>
+            <div class="col-12 col-md-3"><label for="paymentNo" class="form-label">Payment no. (PVN)</label><input id="paymentNo" class="form-control" readonly></div>
+            <div class="col-md-8"><label for="vendor" class="form-label">Vendor name</label><input id="vendor" class="form-control" list="vendorList" autocomplete="off"><datalist id="vendorList"></datalist></div>
+            <div class="col-md-4"><label for="vendorId" class="form-label">Vendor ID</label><input id="vendorId" class="form-control" list="vendorIdList" autocomplete="off"><datalist id="vendorIdList"></datalist></div>
+          </div>
+          <div class="sec-h">THIS PAYMENT</div>
+          <div class="row g-3">
+            <div class="col-md-4"><label for="certifiedAmount" class="form-label">Certified amount</label><input id="certifiedAmount" class="form-control money fw-semibold" inputmode="decimal"></div>
+            <div class="col-md-4"><label for="retention" class="form-label">Retention</label>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-ghost pct-btn" data-pct="5">5%</button>
+                <button type="button" class="btn btn-ghost pct-btn" data-pct="10">10%</button>
+                <input id="retentionPct" class="form-control pct-input" inputmode="decimal" placeholder="%" aria-label="Retention percent">
+                <input id="retention" class="form-control money" inputmode="decimal">
+              </div>
             </div>
-        </div>
+            <div class="col-md-4"><div class="net-box"><span class="small muted">Net payment</span><span id="netPay">0.00</span></div></div>
+            <div class="col-md-4"><label for="chequeNo" class="form-label">Cheque no.</label><input id="chequeNo" class="form-control" placeholder="Leave empty until paid"></div>
+            <div class="col-md-4"><label for="datePaid" class="form-label">Date paid</label><input id="datePaid" type="date" class="form-control"></div>
+            <div class="col-md-4"><label for="note" class="form-label">Notes</label><textarea id="note" class="form-control" rows="1"></textarea></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <span class="small muted me-auto" id="footHint"></span>
+        <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-teal" id="copyNewBtn" hidden></button>
+        <button type="button" class="btn btn-gold" id="saveBtn">Save</button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <div class="modal fade" id="deleteAllModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Delete All Payment Records</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="fw-bold">Are you sure you want to delete ALL payment records?</p>
-                    <p class="text-danger">This action cannot be undone.</p>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="confirmDelete">
-                        <label class="form-check-label" for="confirmDelete">I understand this will delete everything</label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn" disabled>Delete All</button>
-                </div>
-            </div>
-        </div>
+<!-- ============ CONFIRM MODAL ============ -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content dark-modal">
+      <div class="modal-header"><h5 class="modal-title" id="confirmTitle"></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer" id="confirmFoot"></div>
     </div>
+  </div>
+</div>
 
-    <!-- Vendor Search Results Popup Modal -->
-    <div class="modal fade" id="vendorSearchModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header" style="background-color: var(--primary-color); color: white;">
-                    <h5 class="modal-title">
-                        <i class="bi bi-building me-2"></i>Select a PO Record
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3 text-muted">
-                        <small><i class="bi bi-info-circle"></i> Showing records matching "<span id="vendorSearchKeyword"></span>"</small>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead style="background-color: var(--primary-color); color: white;">
-                                <tr>
-                                    <th>Vendor Name</th>
-                                    <th>PO Number</th>
-                                    <th>Site / Project</th>
-                                    <th>PO Value</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody id="vendorSearchResultsBody">
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted">Loading...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                </div>
-            </div>
+<!-- ============ REPORT MODAL (prints white) ============ -->
+<div class="modal fade" id="reportModal" tabindex="-1" aria-hidden="true" aria-label="Payment certificate">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content report-paper">
+      <div class="modal-header no-print">
+        <h5 class="modal-title">Payment certificate</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="report-header"><img src="https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/logo%20(1).png" alt="IBA logo" class="report-logo"></div>
+        <div class="report-details">
+          <div class="report-details-col">
+            <p><strong>Date:</strong> <span id="reportDate"></span></p>
+            <p><strong>LPO No:</strong> <span id="reportPoNo"></span></p>
+            <p><strong>Project:</strong> <span id="reportProject"></span></p>
+          </div>
+          <div class="report-details-col">
+            <p><strong>Vendor No:</strong> <span id="reportVendorId"></span></p>
+            <p><strong>Vendor Name:</strong> <span id="reportVendorName"></span></p>
+            <p><strong>Total PO Value:</strong> <span id="reportTotalPoValue"></span></p>
+          </div>
         </div>
+        <div class="report-summary">
+          <div class="report-summary-col">
+            <p><strong>Total Certificate Cost:</strong> <span id="reportTotalCertified"></span></p>
+            <p><strong>Total Previous Payment:</strong> <span id="reportTotalPrevPayment"></span></p>
+          </div>
+          <div class="report-summary-col">
+            <p><strong>Total Commited Cost:</strong> <span id="reportTotalCommitted"></span></p>
+            <p><strong>Total Retention To Date:</strong> <span id="reportTotalRetention"></span></p>
+          </div>
+        </div>
+        <table class="report-table">
+          <thead><tr><th>P/N</th><th>Cheque No.</th><th>CERTIFIED AMOUNT</th><th>RETENTION</th><th>PAYMENT</th><th>DATE PAID</th></tr></thead>
+          <tbody id="reportTableBody"></tbody>
+          <tfoot><tr><th colspan="2" class="text-end">Total Payment:</th><td id="reportTotalCertifiedAmount"></td><td id="reportTotalRetentionAmount"></td><td id="reportTotalPaymentAmount"></td><td></td></tr></tfoot>
+        </table>
+        <div class="signatures">
+          <div class="signature-box"><p>Prepared By</p><div class="signature-line"></div></div>
+          <div class="signature-box"><p>Site Approval</p><div class="signature-line"></div></div>
+          <div class="signature-box"><p>Finance</p><div class="signature-line"></div></div>
+          <div class="signature-box"><p>CEO</p><div class="signature-line"></div></div>
+        </div>
+        <div id="reportNotesSection" hidden><h5>Notes:</h5><div id="reportNotesContent"></div></div>
+      </div>
+      <div class="modal-footer no-print">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="printReportBtn"><i class="bi bi-printer"></i> Print</button>
+      </div>
     </div>
+  </div>
+</div>
 
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="app.js"></script>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="pwa.js"></script>
+<script src="app.js"></script>
+<script src="teller.js"></script>
 </body>
 </html>

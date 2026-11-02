@@ -1,0 +1,109 @@
+/* =====================================================================
+   Teller robot + chat (IBA Finance 6.0)
+   ===================================================================== */
+.teller-root { position: fixed; right: 18px; bottom: 14px; z-index: 1040; pointer-events: none; transition: opacity .8s ease, transform .3s ease; }
+body:not(.signed-in) .teller-root { display: none; }
+.teller-root.faded { opacity: 0.3; }
+.teller-root.chat-open { opacity: 0; pointer-events: none; transform: translateY(20px); }
+.teller-stage { position: relative; width: 196px; height: 118px; }
+.teller-stage svg.rb { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 10px 12px rgba(0,0,0,0.45)); }
+.teller-hit { position: absolute; left: 62px; top: 0; width: 74px; height: 118px; border: 0; background: transparent; cursor: pointer; pointer-events: auto; border-radius: 30px; }
+.teller-hit:focus-visible { outline: 3px solid var(--gold); }
+.teller-bubble { position: absolute; right: 150px; top: 6px; white-space: nowrap; padding: 8px 14px; border-radius: 14px 14px 4px 14px; background: #12324a; border: 1px solid var(--gold); color: var(--text); font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(4px); transition: all .25s; pointer-events: none; }
+.teller-root.say .teller-bubble, .teller-hit:hover ~ .teller-bubble, .teller-hit:focus-visible ~ .teller-bubble { opacity: 1; transform: none; }
+
+/* ---- robot parts ---- */
+.rb * { transform-box: fill-box; }
+.rb .rb-all { transform-origin: 50% 100%; animation: rbBob 3.4s ease-in-out infinite; }
+.rb .rb-eye { transform-origin: 50% 50%; animation: rbBlink 4.8s infinite; }
+.rb .rb-armup, .rb .rb-armcount, .rb .rb-z, .rb .prop, .rb .rb-flybill { opacity: 0; }
+.rb .prop { transition: opacity .4s ease; }
+
+.m-look .rb-eyes { animation: rbLook 4s ease-in-out infinite; }
+.m-look .rb-head { transform-origin: 50% 90%; animation: rbTilt 4s ease-in-out infinite; }
+.m-coin .rb-coin { transform-origin: 50% 50%; animation: rbFlip 2.4s ease-in-out infinite; }
+.m-salute .rb-armup { animation: rbArmUp 2.6s ease-in-out 1 forwards; }
+.m-salute .rb-armdown { animation: rbArmDown 2.6s ease-in-out 1 forwards; }
+.m-doze .rb-eye { animation: rbSleep 5s ease-in-out infinite; }
+.m-doze .rb-head { transform-origin: 50% 90%; animation: rbNod 5s ease-in-out infinite; }
+.m-doze .rb-z { animation: rbZ 2.5s ease-out infinite; }
+.m-doze .rb-z2 { animation-delay: 1.2s; }
+
+/* counting paper money in the machine */
+.m-count .prop-counter { opacity: 1; }
+.m-count .rb-armdown { opacity: 0; }
+.m-count .rb-armcount { opacity: 1; animation: rbTap .5s ease-in-out infinite alternate; transform-origin: 100% 0%; }
+.m-count .rb-eyes { transform: translateX(-3px); }
+.m-count .bill-in { animation: rbBillIn 1.2s linear infinite; }
+.m-count .bill-in.b2 { animation-delay: .4s; }
+.m-count .bill-in.b3 { animation-delay: .8s; }
+.m-count .bill-out { animation: rbBillOut 1.2s linear infinite; }
+.m-count .bill-out.b2 { animation-delay: .6s; }
+.m-count .cnt { animation: rbCnt 3.6s steps(1) infinite; }
+.m-count .cnt.c2 { animation-delay: 1.2s; }
+.m-count .cnt.c3 { animation-delay: 2.4s; }
+
+/* putting money in the vault */
+.m-vault .prop-vault { opacity: 1; }
+.m-vault .rb-eyes { transform: translateX(3px); }
+.m-vault .vault-door { transform-origin: 0% 50%; animation: rbDoor 5s ease-in-out 1 forwards; }
+.m-vault .vault-wheel { transform-origin: 50% 50%; animation: rbWheel 5s ease-in-out 1 forwards; }
+.m-vault .rb-flybill { animation: rbFly 5s ease-in-out 1 forwards; }
+
+@keyframes rbBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2.5px); } }
+@keyframes rbBlink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes rbLook { 0%,15%,100% { transform: translateX(0); } 30%,45% { transform: translateX(-3px); } 60%,75% { transform: translateX(3px); } }
+@keyframes rbTilt { 0%,15%,100% { transform: rotate(0); } 30%,45% { transform: rotate(-4deg); } 60%,75% { transform: rotate(4deg); } }
+@keyframes rbFlip { 0%,20%,100% { transform: translateY(0) scaleX(1); } 35% { transform: translateY(-26px) scaleX(-1); } 45% { transform: translateY(-30px) scaleX(1); } 55% { transform: translateY(-26px) scaleX(-1); } 70% { transform: translateY(0) scaleX(1); } }
+@keyframes rbArmUp { 0%,15%,85%,100% { opacity: 0; } 25%,75% { opacity: 1; } }
+@keyframes rbArmDown { 0%,15%,85%,100% { opacity: 1; } 25%,75% { opacity: 0; } }
+@keyframes rbSleep { 0%,10%,90%,100% { transform: scaleY(1); } 20%,80% { transform: scaleY(0.12); } }
+@keyframes rbNod { 0%,10%,90%,100% { transform: rotate(0) translateY(0); } 20%,80% { transform: rotate(-5deg) translateY(1.5px); } }
+@keyframes rbZ { 0% { opacity: 0; transform: translate(0,0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(6px,-10px); } }
+@keyframes rbTap { from { transform: rotate(0); } to { transform: rotate(-8deg); } }
+@keyframes rbBillIn { 0% { opacity: 0; transform: translateY(-6px); } 20% { opacity: 1; } 70% { opacity: 1; transform: translateY(4px); } 100% { opacity: 0; transform: translateY(8px); } }
+@keyframes rbBillOut { 0% { opacity: 0; transform: translateX(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(-10px) rotate(-12deg); } }
+@keyframes rbCnt { 0% { opacity: 1; } 33.3% { opacity: 0; } }
+@keyframes rbDoor { 0%,8% { transform: scaleX(1); } 22%,62% { transform: scaleX(0.15); } 76%,100% { transform: scaleX(1); } }
+@keyframes rbWheel { 0%,76% { transform: rotate(0); } 100% { transform: rotate(270deg); } }
+@keyframes rbFly { 0%,22% { opacity: 0; transform: translate(0,0) scale(1); } 28% { opacity: 1; } 55% { opacity: 1; transform: translate(31px,-4px) scale(.6); } 62%,100% { opacity: 0; transform: translate(34px,-4px) scale(.4); } }
+
+@media (prefers-reduced-motion: reduce) { .rb *, .teller-root { animation: none !important; transition: none !important; } }
+
+/* ---- chat panel ---- */
+.teller-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100vw; z-index: 1050; display: flex; flex-direction: column; background: rgba(13,20,31,0.98); border-left: 1px solid var(--line); box-shadow: -20px 0 50px rgba(0,0,0,0.45); transform: translateX(105%); transition: transform .28s ease; color: var(--text); }
+.teller-panel.open { transform: none; }
+.tp-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.tp-head svg { width: 46px; height: 55px; flex: none; }
+.tp-title { font-weight: 700; font-size: 17px; }
+.tp-status { font-size: 12px; color: var(--teal-2); }
+.tp-status.off { color: var(--text-3); }
+.tp-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 88%; padding: 12px 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+.msg.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: var(--teal); color: var(--teal-ink); font-weight: 500; }
+.msg.bot { align-self: flex-start; border-radius: 16px 16px 16px 4px; background: rgba(255,255,255,0.07); border: 1px solid var(--line-2); }
+.msg.bot.typing { color: var(--text-3); font-style: italic; }
+.msg .list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; white-space: normal; }
+.msg .li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); font-size: 13px; }
+.msg .li b { color: var(--orange-2); white-space: nowrap; }
+.msg .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; white-space: normal; }
+.msg .acts button { min-height: 36px; padding: 0 12px; border-radius: 10px; font: 600 13px Poppins, sans-serif; border: 1px solid rgba(255,255,255,0.25); background: transparent; color: var(--text); }
+.msg .acts button.gold { background: var(--gold); color: var(--gold-ink); border: 0; }
+.tp-foot { padding: 12px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.tp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.tp-chips button { min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(242,194,48,0.5); background: transparent; color: #f7d978; font: 500 13px Poppins, sans-serif; }
+.tp-form { display: flex; gap: 8px; }
+.tp-form input { flex: 1; min-height: 48px; border-radius: 14px; }
+.tp-send { width: 48px; min-height: 48px; border-radius: 14px; border: 0; background: var(--teal); color: var(--teal-ink); font-size: 18px; }
+.tp-settings { padding: 14px 16px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.tp-settings[hidden] { display: none; }
+.tp-settings .help { color: var(--text-3); font-size: 12px; }
+
+@media (max-width: 768px) {
+  .teller-root { right: 4px; bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .teller-stage { width: 148px; height: 90px; }
+  .teller-hit { left: 46px; width: 56px; height: 90px; }
+  .teller-bubble { right: 110px; }
+  .teller-panel { width: 100vw; border-left: 0; }
+  .teller-root.faded .teller-hit { pointer-events: none; }
+}
