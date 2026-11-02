@@ -1,7 +1,7 @@
 // PO Records service worker: makes the app installable and lets it open without internet.
 // App files: network first (you always get the newest version), saved copy when offline.
 // Fonts and libraries from CDNs: saved copy first. Firebase and GitHub data are never cached here.
-const CACHE = 'po-records-v1.3.4';
+const CACHE = 'po-records-v1.3.5';
 const SHELL = ['./', './index.html', './style.css', './app.js', './pwa.js', './police-bot.js', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 const CDN_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com', 'www.gstatic.com'];
 
