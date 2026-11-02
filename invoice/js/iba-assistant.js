@@ -946,6 +946,7 @@
     }
 
     async function openPO(po) {
+        if (!onPhone()) toggle(false); // 17.0.5 patch 66
         if (typeof window.ibaOpenShellPage === 'function') window.ibaOpenShellPage('im-invoice-entry');
         await wait(450);
         const top = $('im-po-search-input');
@@ -991,6 +992,7 @@
             const ok = await openPO(po);
             if (!ok) return { result: { error: 'PO ' + po + ' could not be opened on Invoice Entry.' } };
         } else if (typeof window.ibaOpenShellPage === 'function' && window.__ibaNavKey !== 'im-invoice-entry') {
+            if (!onPhone()) toggle(false);
             window.ibaOpenShellPage('im-invoice-entry');
             await wait(400);
         }
@@ -2165,6 +2167,7 @@
         return !!(sec && $('im-batch-table-body') && sec.offsetParent !== null && !sec.classList.contains('hidden'));
     }
     async function openBatchEntry() {
+        if (!onPhone()) toggle(false); // 17.0.5 patch 66: a skill that opens a page puts the assistant back to the bot icon
         // opening the page empties its table, so only open it when it is not already open
         if (batchVisible()) return true;
         if (typeof window.ibaOpenShellPage === 'function') window.ibaOpenShellPage('im-batch-entry');
@@ -3246,6 +3249,9 @@
         esn_printers: { name: 'Who can print ESN', icon: 'fa-stamp', superOnly: true, desc: 'Pick the people who print the ESN of invoices their engineer approved (site Approval button) and then press Ready. Kept by user record + name + mobile; a change switches printing off until re-added.',
             ask: () => [], action: () => { if (typeof window.ibaEsnPrinters === 'function') window.ibaEsnPrinters(); } },
         // 17.0.5 patch 38/39: POs to take out of the paper file (js/iba-1705-release.js)
+        // 17.0.5 patch 68: forgot +Del? type POs into the pull-out list (cart)
+        po_pull_add: { name: 'Add PO to pull-out list', icon: 'fa-cart-plus', superOnly: true, desc: 'Forgot to press +Del? Type the PO numbers: Active POs are added to the PO pull-out list (never twice), then tick Pulled and Proceed as usual.',
+            ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList({ add: true }); } },
         po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Original POs you put on the list with +Del or the folder button. Take them out of your paper file, tick Pulled, then Proceed: ticked POs become Inactive and the list is cleared.',
             ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList(); } },
         // 17.0.5 patch 40: current stock of one site (js/iba-1705-sitestock.js), Super Admin + E.Ali
@@ -4549,7 +4555,7 @@
         [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
         [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
         [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']],
-        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull']],
+        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull', 'po_pull_add']],
         [/\b(stock|inventory|balance)\b.*\bsite\b|\bsite\b.*\b(stock|inventory|balance)\b/i, ['site_stock']]
     ];
     function quickPicks(ids, all) {
@@ -5340,6 +5346,7 @@
 
     // 15.0.0 patch 9: Invoice Records, searched for this PO
     async function openInRecords(po) {
+        if (!onPhone()) toggle(false); // 17.0.5 patch 66
         if (typeof window.ibaOpenShellPage === 'function') { try { await window.ibaOpenShellPage('im-reporting'); } catch (_) {} }
         await wait(500);
         const input = $('im-reporting-search');

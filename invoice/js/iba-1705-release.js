@@ -96,28 +96,38 @@
 
     // ---- +Del / folder: put it on the list ---------------------------------
     const busy = new Set();
-    async function addToList(poNumber) {
-        if (!isSuper()) { say('Only the Super Admin can use the PO pull-out list.'); return; }
+    // 17.0.5 patch 68: one PO -> { po, ok, why } (used by +Del and by the box in the list window)
+    async function addOne(poNumber) {
         const p = normPO(poNumber);
-        if (!p || busy.has(p)) return;
+        if (!p) return { po: String(poNumber || ''), ok: false, why: 'not a PO number' };
+        if (busy.has(p)) return { po: p, ok: false, why: 'busy' };
         busy.add(p);
         try {
             watchList();
+            if (onList(p)) return { po: p, ok: false, why: 'already on the list' };
             const hit = activeOf(await lookup(p));
-            if (!hit) { say('PO ' + p + ' is not Active in the PO file (already released or not in the file).'); return; }
+            if (!hit) return { po: p, ok: false, why: 'not Active in the PO file (already released or not in the file)' };
+            if (list[hit[0]]) return { po: p, ok: false, why: 'already on the list' };
             const rec = hit[1];
-            await mainDb().ref(LIST + '/' + hit[0]).set({
+            const row = {
                 po: String(field(rec, 'PO') || p), supplier: String(field(rec, 'SupplierName') || ''), project: String(field(rec, 'ProjectID') || ''),
                 amount: field(rec, 'Amount') === '' ? '' : field(rec, 'Amount'), dateFiled: String(field(rec, 'DateFiled') || ''),
                 addedBy: me(), addedAt: Date.now(), pulled: false
-            });
-            list[hit[0]] = { po: p };
+            };
+            await mainDb().ref(LIST + '/' + hit[0]).set(row);
+            list[hit[0]] = row;
             markButtons();
-            say('PO ' + p + ' added to the pull-out list.');
+            return { po: p, ok: true, why: 'added' };
         } catch (err) {
             console.error('PO pull-out list:', err);
-            say('Could not add PO ' + p + ': ' + ((err && err.message) || err));
+            return { po: p, ok: false, why: 'could not add: ' + ((err && err.message) || err) };
         } finally { busy.delete(p); }
+    }
+    async function addToList(poNumber) {
+        if (!isSuper()) { say('Only the Super Admin can use the PO pull-out list.'); return; }
+        const r = await addOne(poNumber);
+        if (r.why === 'busy') return;
+        say(r.ok ? 'PO ' + r.po + ' added to the pull-out list.' : 'PO ' + r.po + ': ' + r.why + '.');
     }
     window.imAddToDeletionCollection = addToList;
 
@@ -127,7 +137,7 @@
 
     let win = null;
     function close() { if (win && win.isConnected) win.remove(); win = null; }
-    async function openList() {
+    async function openList(opts) {
         if (!isSuper()) { say('The PO pull-out list is for the Super Admin only.'); return; }
         close();
         win = document.createElement('div');
@@ -138,6 +148,8 @@
             '<div class="iba-esn-head"><b><i class="fa-solid fa-folder-minus"></i> PO pull-out list</b>' +
             '<button type="button" class="iba-esn-x" data-pull-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
             '<div class="iba-esn-body"><p class="iba-esn-sub">Take these original POs out of your file and tick <b>Pulled</b>. Then press <b>Proceed</b>: ticked POs become Inactive and the list is cleared.</p>' +
+            '<form class="iba-pull-add" data-pull-add autocomplete="off"><input type="text" inputmode="numeric" data-pull-q placeholder="Forgot +Del? Type PO numbers, e.g. 57376, 54719" aria-label="PO numbers to add">' +
+            '<button type="submit" class="iba-esn-btn is-go"><i class="fa-solid fa-cart-plus"></i> Add</button></form><div class="iba-pull-res" data-pull-res></div>' +
             '<div class="iba-pull-out"><p class="iba-esn-sub"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</p></div><div class="iba-esn-err"></div></div>' +
             '<div class="iba-esn-foot"><span class="iba-esn-picked" data-pull-count></span><span class="iba-esn-sp"></span>' +
             '<button type="button" class="iba-esn-btn" data-pull-x>Close</button>' +
@@ -152,16 +164,35 @@
             if (b.dataset.pullTick) return tick(w, b.dataset.pullTick);
             if (b.dataset.pullDrop) return drop(w, b.dataset.pullDrop);
         });
+        w.addEventListener('submit', (e) => { if (e.target.closest('[data-pull-add]')) { e.preventDefault(); addTyped(w); } });
         w.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') close();
-            else if (e.key === 'Enter' && !e.target.closest('button')) { e.preventDefault(); proceed(w, w.querySelector('[data-pull-go]')); }
+            else if (e.key === 'Enter' && !e.target.closest('button') && !e.target.closest('[data-pull-add]')) { e.preventDefault(); proceed(w, w.querySelector('[data-pull-go]')); }
         });
         w.focus();
+        if (opts && opts.add) { const q = w.querySelector('[data-pull-q]'); if (q) q.focus(); }
         listOn = false;
         try { const s = await mainDb().ref(LIST).once('value'); list = s.val() || {}; }
         catch (e) { w.querySelector('.iba-esn-err').textContent = 'Could not load the list: ' + ((e && e.message) || e); }
         watchList();
         draw(w);
+    }
+    // 17.0.5 patch 68: the box in the window adds POs like a cart (only Active POs, never twice)
+    async function addTyped(w) {
+        const q = w.querySelector('[data-pull-q]'), res = w.querySelector('[data-pull-res]');
+        const pos = Array.from(new Set(String((q && q.value) || '').split(/[\s,;]+/).map(normPO).filter(Boolean)));
+        if (!pos.length) { if (q) q.focus(); return; }
+        const btn = w.querySelector('[data-pull-add] button');
+        if (btn) btn.disabled = true;
+        res.innerHTML = '<span class="iba-pull-chip"><i class="fa-solid fa-circle-notch fa-spin"></i> Checking ' + pos.length + ' PO' + (pos.length === 1 ? '' : 's') + '…</span>';
+        const out = [];
+        for (const p of pos) out.push(await addOne(p));
+        if (btn) btn.disabled = false;
+        unsure(w);
+        draw(w);
+        res.innerHTML = out.map((r) => '<span class="iba-pull-chip ' + (r.ok ? 'is-ok' : (r.why === 'already on the list' ? 'is-same' : 'is-bad')) + '"><b>' + esc(r.po) + '</b> ' +
+            esc(r.ok ? 'added' : r.why) + '</span>').join('');
+        if (q) { q.value = ''; q.focus(); }
     }
     function draw(w) {
         const all = rows();
@@ -170,7 +201,7 @@
         const go = w.querySelector('[data-pull-go]');
         w.querySelector('[data-pull-count]').innerHTML = all.length ? '<b>' + done + '</b> of ' + all.length + ' pulled' : '';
         if (go && !go.dataset.sure) go.disabled = !all.length;
-        if (!all.length) { out.innerHTML = '<p class="iba-esn-sub">The list is empty. Use +Del or the folder button on an Active PO to add one.</p>'; return; }
+        if (!all.length) { out.innerHTML = '<p class="iba-esn-sub">The list is empty. Type PO numbers above, or use +Del or the folder button on an Active PO.</p>'; return; }
         out.innerHTML = '<div class="iba-esn-scroll"><table class="iba-esn-table"><thead><tr><th>#</th><th>PO</th><th>Supplier</th><th>Project</th><th style="text-align:right">Amount</th><th>Date filed</th><th></th></tr></thead><tbody>' +
             all.map((x, i) => '<tr class="' + (x.pulled ? 'is-pulled' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.po) + '</b></td><td>' + esc(x.supplier) +
                 '</td><td>' + esc(x.project) + '</td><td style="text-align:right">' + money(x.amount) + '</td><td>' + esc(x.dateFiled) + '</td>' +
