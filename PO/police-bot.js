@@ -105,8 +105,9 @@
   }
   async function setStatus(item, status) {
     const changes = status === 'Active'
-      ? { Status: 'Active', DateFiled: today(), DateReleased: null, DateAdded: null }
+      ? { Status: 'Active', DateFiled: today(), DateAdded: null }
       : { Status: 'Inactive', DateReleased: today() };
+    if (typeof crimeLog === 'function') changes.Log = crimeLog(item.data, status === 'Active' ? 'J' : 'R', today());
     await db.ref('records/' + item.key).update(changes);
     const updated = { ...item.data, ...changes };
     if (typeof refreshRow === 'function') refreshRow(item.key, updated);

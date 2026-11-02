@@ -189,6 +189,9 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--hivis); 
 .status-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .9; }
 .status-active { background: rgba(54, 195, 178, 0.14); color: #7fe9da; border-color: rgba(54, 195, 178, 0.35); }
 .status-inactive { background: rgba(133, 146, 161, 0.14); color: #aab4c0; border-color: rgba(133, 146, 161, 0.3); }
+.status-procurement { background: rgba(227, 179, 65, 0.14); color: #f0c860; border-color: rgba(227, 179, 65, 0.35); white-space: nowrap; }
+button.status-refresh { cursor: pointer; font: inherit; color: var(--text-2); background: transparent; }
+button.status-refresh:hover { color: var(--hivis); border-color: rgba(242, 107, 29, .5); }
 
 .empty-state { display: grid; place-items: center; gap: 10px; padding: 48px 16px; color: var(--text-3); text-align: center; }
 .empty-state i { font-size: 34px; opacity: .6; }
@@ -435,3 +438,14 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--hivis); 
 @keyframes twirl { to { transform: rotate(360deg); } }
 @keyframes clip-up { to { transform: rotate(28deg); } }
 @keyframes read { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+.po-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted rgba(242, 107, 29, .5); text-underline-offset: 3px; }
+.po-link:hover { color: var(--hivis); }
+.rap-count { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 700; color: var(--hivis); background: rgba(242, 107, 29, .14); border: 1px solid rgba(242, 107, 29, .35); }
+.rap-summary { margin: 4px 0 10px; color: var(--text-2); }
+.rap-sheet { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; max-height: 320px; overflow-y: auto; }
+.rap-sheet li { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: rgba(255, 255, 255, .04); border-left: 3px solid var(--text-3); }
+.rap-sheet li.rap-jail { border-left-color: var(--hivis); }
+.rap-sheet li.rap-jail i { color: var(--hivis); }
+.rap-sheet li.rap-release { border-left-color: #7fe9da; }
+.rap-sheet li.rap-release i { color: #7fe9da; }
+.rap-sheet b { font-family: var(--mono); font-weight: 600; }

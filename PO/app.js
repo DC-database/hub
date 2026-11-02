@@ -66,32 +66,97 @@ function toMap(snap){ const m = {}; snap.forEach(c => { m[c.key] = c.val(); }); 
 function syncActive(){
   if (!activeReady) activeReady = new Promise(res => {
     db.ref('records').orderByChild('Status').equalTo('Active').on('value', snap => {
-      recordCache.active = toMap(snap); renderTotals(); res();
+      recordCache.active = toMap(snap); reconcileSavedList(); renderTotals(); res();
     });
   });
   return activeReady;
 }
-function syncAll(){
-  if (!allReady) allReady = new Promise(res => {
-    db.ref('records').on('value', snap => { recordCache.all = toMap(snap); renderTotals(); res(); });
+
+// The full list is saved in this browser (IndexedDB) and reused for up to a day, so Inactive/All
+// searches don't download ~7 MB on every visit. Changes made in this app update the saved copy at once.
+// The Active list is always live, so a PO jailed or released elsewhere (e.g. the invoice system)
+// is corrected by re-reading just that one record. Upload and export always use a fresh live copy.
+const SAVED_LIST_MAX_AGE = 24 * 3600 * 1000;
+let allLive = false, allSavedAt = 0, saveListTimer = null;
+function listDbOp(mode, fn){
+  return new Promise(resolve => {
+    try {
+      const open = indexedDB.open('po_records_cache', 1);
+      open.onupgradeneeded = () => open.result.createObjectStore('lists');
+      open.onerror = () => resolve(null);
+      open.onsuccess = () => {
+        try {
+          const tx = open.result.transaction('lists', mode);
+          const req = fn(tx.objectStore('lists'));
+          tx.oncomplete = () => resolve(req && req.result); tx.onerror = () => resolve(null);
+        } catch (e) { resolve(null); }
+      };
+    } catch (e) { resolve(null); }
   });
+}
+function saveListSoon(){
+  if (!recordCache.all) return;
+  clearTimeout(saveListTimer);
+  saveListTimer = setTimeout(() => listDbOp('readwrite', st => st.put({ map: recordCache.all, savedAt: allSavedAt }, 'all')), 2000);
+}
+function reconcileSavedList(){
+  const all = recordCache.all, active = recordCache.active;
+  if (!all || allLive || !active) return;
+  let changed = false;
+  Object.keys(active).forEach(k => { if (rec(all[k] || {}).Status !== "Active") { all[k] = active[k]; changed = true; } });
+  Object.keys(all).forEach(k => {
+    if (rec(all[k]).Status === "Active" && !active[k]) {
+      db.ref('records/' + k).once('value').then(sn => {
+        if (sn.exists()) all[k] = sn.val(); else delete all[k];
+        renderTotals(); saveListSoon(); if (lastRenderedRows[k]) refreshRow(k, all[k] || lastRenderedRows[k]);
+      });
+    }
+  });
+  if (changed) saveListSoon();
+}
+function syncAll(fresh){
+  if (fresh && !allLive) allReady = null;
+  if (!allReady) allReady = (async () => {
+    if (!fresh) {
+      const saved = await listDbOp('readonly', st => st.get('all'));
+      if (saved && saved.map && Date.now() - saved.savedAt < SAVED_LIST_MAX_AGE) {
+        recordCache.all = saved.map; allSavedAt = saved.savedAt;
+        await syncActive(); reconcileSavedList(); renderTotals();
+        return;
+      }
+    }
+    await new Promise(res => {
+      db.ref('records').on('value', snap => {
+        recordCache.all = toMap(snap); allLive = true; allSavedAt = Date.now();
+        saveListSoon(); renderTotals(); res();
+      });
+    });
+  })();
   return allReady;
 }
-// Resolves to a snapshot-like object for the given status filter
-function getRecords(filter){
-  if (filter === "Active" && !recordCache.all) return syncActive().then(() => asSnap(recordCache.active));
-  return syncAll().then(() => asSnap(recordCache.all));
+function refreshSavedList(){
+  showToast('Downloading the full PO list…');
+  return syncAll(true).then(() => { showToast('Full PO list updated'); if (hasSearched && !viewingCollection) searchRecords(); });
 }
+// Resolves to a snapshot-like object for the given status filter. fresh = always the live Firebase copy.
+function getRecords(filter, fresh){
+  if (filter === "Active" && !recordCache.all) return syncActive().then(() => asSnap(recordCache.active));
+  return syncAll(fresh).then(() => asSnap(recordCache.all));
+}
+function timeAgo(t){ const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago'; }
 function renderTotals(){
   const totals = document.getElementById('statusTotals');
   if (!totals) return;
   const all = recordCache.all;
   const active = all ? Object.values(all).filter(d => rec(d).Status === "Active").length : Object.keys(recordCache.active || {}).length;
   const total = all ? Object.keys(all).length : null;
+  const savedNote = all && !allLive
+    ? ` <button type="button" class="status-badge status-refresh" onclick="refreshSavedList()" title="Inactive/Total come from the list saved in this browser at ${new Date(allSavedAt).toLocaleString()}. Click to download a fresh copy.">↻ ${timeAgo(allSavedAt)}</button>`
+    : "";
   totals.innerHTML =
     `<span class="status-badge status-active">Active: ${active.toLocaleString()}</span> ` +
     (all
-      ? `<span class="status-badge status-inactive">Inactive: ${(total - active).toLocaleString()}</span> <span class="status-badge">Total: ${total.toLocaleString()}</span>`
+      ? `<span class="status-badge status-inactive">Inactive: ${(total - active).toLocaleString()}</span> <span class="status-badge">Total: ${total.toLocaleString()}</span>${savedNote}`
       : `<span class="status-badge status-inactive" title="Choose Inactive or All to load every PO">Inactive / Total: choose All</span>`);
 }
 // One-time fix for records saved before Status existed: they are the POs in my custody, so mark them Active.
@@ -205,8 +270,16 @@ function generateAZFilter(){
   });
 }
 
+// Active = in my custody. Inactive with a release date = I released it.
+// Inactive without a release date = never came to me: the original is still with Procurement, so it can be requested.
+function custodyLabel(r){
+  if (r.Status === "Active") return { text: "Active", cls: "active" };
+  if (r.DateReleased) return { text: "Released", cls: "inactive" };
+  return { text: "With Procurement", cls: "procurement" };
+}
 function renderRow(childKey, data){
   lastRenderedRows[childKey]=data;
+  if (recordCache.all && !allLive) { recordCache.all[childKey] = data; }
   const checked = selectedPOs[childKey] ? 'checked' : '';
   const r = rec(data);
   const isAdmin = !!auth.currentUser;
@@ -214,26 +287,31 @@ function renderRow(childKey, data){
     ? `<button class="btn btn-sm btn-warn" onclick="releaseRecord('${childKey}')" title="Original left my custody"><i class="fa-solid fa-box-archive"></i>Release</button>`
     : `<button class="btn btn-sm btn-ok" onclick="reactivateRecord('${childKey}')" title="Original is back with me"><i class="fa-solid fa-rotate-left"></i>Re-activate</button>`;
 
+  const custody = custodyLabel(r);
+  const jailCount = crimeEvents(data).filter(e => e.type === 'jail').length;
+  const requestBtn = custody.cls === "procurement"
+    ? `<button class="btn btn-sm btn-accent" onclick="requestRecord('${childKey}')" title="Ask Procurement for the original"><i class="fa-brands fa-whatsapp"></i>Request</button>` : "";
   const tr=document.createElement('tr');
   tr.dataset.key = childKey;
   if (r.Status === "Inactive") tr.classList.add('row-inactive');
   tr.innerHTML =
     `<td><input type="checkbox" class="rowSelect" data-key="${childKey}" ${checked}></td>
      <td>${r.ReqNum}</td>
-     <td>${r.PO}</td>
+     <td><button type="button" class="po-link" onclick="showPoliceRecord('${childKey}')" title="Show police record">${r.PO}</button></td>
      <td>${r.SupplierID}</td>
      <td>${r.SupplierName}</td>
      <td>${r.ProjectID}</td>
      <td>${formatNumber(r.Amount)}</td>
-     <td><span class="status-badge status-${r.Status.toLowerCase()}">${r.Status}</span></td>
+     <td><span class="status-badge status-${custody.cls}">${custody.text}</span>${jailCount > 1 ? ` <span class="rap-count" title="Jailed ${jailCount} times">×${jailCount}</span>` : ""}</td>
      <td>${r.DateFiled || "-"}</td>
      <td>${r.DateReleased || "-"}</td>
-     <td><div class="row-actions">${isAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openEditModal('${childKey}')" title="Edit"><i class="fa-solid fa-pen"></i>Edit</button>` + statusBtn : ""}${viewingCollection ? `<button class="btn btn-sm btn-ghost" onclick="removeFromCollection('${childKey}')" title="Take off my list (record is not changed)"><i class="fa-solid fa-xmark"></i>Remove from list</button>` : ""}</div></td>`;
+     <td><div class="row-actions">${requestBtn}${isAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openEditModal('${childKey}')" title="Edit"><i class="fa-solid fa-pen"></i>Edit</button>` + statusBtn : ""}${viewingCollection ? `<button class="btn btn-sm btn-ghost" onclick="removeFromCollection('${childKey}')" title="Take off my list (record is not changed)"><i class="fa-solid fa-xmark"></i>Remove from list</button>` : ""}</div></td>`;
   return tr;
 }
 
 // Re-draws one row in place after its status changes
 function refreshRow(key, data){
+  if (recordCache.all) { recordCache.all[key] = data; saveListSoon(); }
   const old = document.querySelector(`#poTable tbody tr[data-key="${key}"]`);
   if (!old) return;
   if (!matchesStatus(data)) { old.remove(); delete lastRenderedRows[key]; }
@@ -374,11 +452,27 @@ function searchRecords(){
       }
     });
 
-    if (matchCount === 0 && (currentSearchTerm !== "" || targetDate !== "")) {
-      playErrorSound(); 
-    }
-
     updateResultCount();
+    // Smart lookup: in the Active view, an exact PO number that isn't in my custody is still shown
+    // (Released or With Procurement) without switching the filter. Costs one small indexed read.
+    const term = (searchInput.value || "").trim();
+    const shownExact = [...tbody.querySelectorAll('tr[data-key]')].some(tr => String(rec(lastRenderedRows[tr.dataset.key] || {}).PO).trim() === term);
+    const lookup = (statusFilter() === "Active" && term && !targetDate && !shownExact)
+      ? (recordCache.all
+          ? Promise.resolve(Object.entries(recordCache.all).find(([, d]) => String(rec(d).PO).trim() === term) || null)
+          : findRecordByPO(term).catch(() => null))
+      : Promise.resolve(null);
+    lookup.then(found => {
+      if (term !== (searchInput.value || "").trim()) return; // a newer search started
+      if (found && rec(found[1]).Status !== "Active") {
+        tbody.appendChild(renderRow(found[0], found[1]));
+        matchCount++;
+        updateResultCount();
+        const lbl = custodyLabel(rec(found[1]));
+        showToast(lbl.cls === "procurement" ? `PO ${term} is not in jail: still with Procurement. You can request it.` : `PO ${term} is not in jail: released ${rec(found[1]).DateReleased}.`);
+      }
+      if (matchCount === 0 && (currentSearchTerm !== "" || targetDate !== "")) playErrorSound();
+    });
   });
 }
 
@@ -411,19 +505,66 @@ function deleteRecord(key){
   }).catch(err => alert(err.message));
 }
 
+// ---------- Police record (crime history) ----------
+// Each PO keeps a short log of every jail (J) and release (R) date, e.g. "J01-NOV-2026,R05-NOV-2026".
+// Stored inside the record as "Log" (about 12 bytes per event), so no new Firebase rules are needed.
+// Dates are never cleared: a new jail/release only overwrites DateFiled/DateReleased and adds to the log.
+function crimeLog(data, type, date){
+  const d = data || {}, r = rec(d);
+  let log = d.Log ? String(d.Log).split(',').filter(Boolean) : [];
+  if (!log.length) { // first entry: keep what the record already tells us
+    if (r.DateFiled && (r.Status === "Active" || r.DateReleased)) log.push('J' + r.DateFiled);
+    if (r.DateReleased) log.push('R' + r.DateReleased);
+  }
+  if (log[log.length - 1] !== type + date) log.push(type + date);
+  return log.join(',');
+}
+function crimeEvents(data){
+  const d = data || {}, r = rec(d);
+  let log = d.Log ? String(d.Log).split(',').filter(Boolean) : [];
+  if (!log.length) {
+    if (r.DateFiled && (r.Status === "Active" || r.DateReleased)) log.push('J' + r.DateFiled);
+    if (r.DateReleased) log.push('R' + r.DateReleased);
+  }
+  return log.map(e => ({ type: e[0] === 'J' ? 'jail' : 'release', date: e.slice(1) }));
+}
+function showPoliceRecord(key){
+  const data = lastRenderedRows[key] || (recordCache.all || {})[key] || (recordCache.active || {})[key];
+  if (!data) return;
+  const r = rec(data), ev = crimeEvents(data), jails = ev.filter(e => e.type === 'jail').length;
+  let m = document.getElementById('policeRecordModal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'policeRecordModal'; m.className = 'modal hidden';
+    m.addEventListener('click', e => { if (e.target === m) closeModal('policeRecordModal'); });
+    document.body.appendChild(m);
+  }
+  const lbl = custodyLabel(r);
+  m.innerHTML = `<div class="modal-content">
+    <button class="close" onclick="closeModal('policeRecordModal')" aria-label="Close">&times;</button>
+    <h3><i class="fa-solid fa-id-card"></i> Police record: PO ${escapeAttr(String(r.PO))}</h3>
+    <p class="modal-sub">${escapeAttr(String(r.SupplierName || ''))} · now <span class="status-badge status-${lbl.cls}">${lbl.text}</span></p>
+    <p class="rap-summary">${jails ? `Jailed <b>${jails}</b> time${jails === 1 ? '' : 's'}.` : 'Clean record: never been in jail.'}</p>
+    ${ev.length ? `<ol class="rap-sheet">${ev.map(e => `<li class="rap-${e.type}"><i class="fa-solid ${e.type === 'jail' ? 'fa-lock' : 'fa-lock-open'}"></i><span>${e.type === 'jail' ? 'Jailed' : 'Released'}</span><b>${escapeAttr(e.date)}</b></li>`).join('')}</ol>` : ''}
+    <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal('policeRecordModal')">Close</button></div>
+  </div>`;
+  openModal('policeRecordModal');
+}
+
 // ---------- Release / Re-activate ----------
 // Release = original left my custody: mark Inactive and stamp Date Released.
 function releaseRecord(key){
   if(!auth.currentUser){ alert("Only admin can release"); return; }
-  const changes = { Status: "Inactive", DateReleased: getFormattedDate() };
+  const today = getFormattedDate();
+  const changes = { Status: "Inactive", DateReleased: today, Log: crimeLog(lastRenderedRows[key], 'R', today) };
   db.ref('records/' + key).update(changes)
     .then(() => refreshRow(key, { ...lastRenderedRows[key], ...changes }))
     .catch(err => alert(err.message));
 }
-// Re-activate = original is back with me: mark Active, new Date Filed, clear Date Released.
+// Re-activate = original is back with me: mark Active, new Date Filed. Date Released is kept (it's history).
 function reactivateRecord(key){
   if(!auth.currentUser){ alert("Only admin can re-activate"); return; }
-  const changes = { Status: "Active", DateFiled: getFormattedDate(), DateReleased: null, DateAdded: null };
+  const today = getFormattedDate();
+  const changes = { Status: "Active", DateFiled: today, DateAdded: null, Log: crimeLog(lastRenderedRows[key], 'J', today) };
   db.ref('records/' + key).update(changes)
     .then(() => refreshRow(key, { ...lastRenderedRows[key], ...changes }))
     .catch(err => alert(err.message));
@@ -451,6 +592,7 @@ function saveEdit(){
   fields.Amount = toNumberOrRaw(fields.Amount);
   const cur = rec(lastRenderedRows[key]);
   const next = { ...cur, ...fields, ...OLD_FIELDS, DateReleased: cur.DateReleased || null };
+  if (lastRenderedRows[key] && lastRenderedRows[key].Log) next.Log = lastRenderedRows[key].Log;
   db.ref('records/' + key).update(next)
     .then(() => { refreshRow(key, next); closeEditModal(); })
     .catch(err => alert(err.message));
@@ -496,7 +638,8 @@ function addPOFromModal(){
       playErrorSound(); // <-- Trigger sound
       return;
     }
-    const changes = { Status: "Active", DateFiled: getFormattedDate(), DateReleased: null, DateAdded: null };
+    const today = getFormattedDate();
+    const changes = { Status: "Active", DateFiled: today, DateAdded: null, Log: crimeLog(data, 'J', today) };
     return db.ref('records/' + key).update(changes).then(() => {
       const updated = { ...data, ...changes };
       const tbody = document.querySelector('#poTable tbody');
@@ -752,11 +895,17 @@ function normalizeWhatsAppNumber(num){
   return digits.length===8 ? '974'+digits : digits; 
 }
 
+function requestRecord(key){
+  const r = rec(lastRenderedRows[key] || {});
+  openWhatsAppRequest(r.PO, r.SupplierName);
+}
 async function sendWhatsAppRequestAuto() {
   const po = (lastSearchPO || document.getElementById('searchBox').value || "").trim();
   if (!po) { alert("Please enter a PO number first."); return; }
   const found = await findRecordByPO(po).catch(() => null);
-  const vendor = found ? rec(found[1]).SupplierName : "";
+  openWhatsAppRequest(po, found ? rec(found[1]).SupplierName : "");
+}
+function openWhatsAppRequest(po, vendor){
   const target = normalizeWhatsAppNumber(WHATSAPP_REQUEST_NUMBER);
   const text = `Requesting original for the following:\nPO: ${po}\nVendor: ${vendor || '-'}`;
   window.open(`https://wa.me/${target}?text=${encodeURIComponent(text)}`, '_blank');
@@ -818,7 +967,7 @@ function uploadCSV(){
 
     const uploadDate = getFormattedDate(); 
 
-    getRecords("All").then(snap => {
+    getRecords("All", true).then(snap => {
       const byPO = {};
       const backup = [CSV_HEADER + ",Date Filed,Date Released"];
       snap.forEach(child => {
@@ -845,6 +994,7 @@ function uploadCSV(){
           const [key, data] = byPO[k];
           const cur = rec(data);
           const next = { ...cur, ...OLD_FIELDS, PO: cur.PO || PO };
+          if (data.Log) next.Log = data.Log; // keep the police record
           // Blank cells keep what is already saved
           ["ReqNum","SupplierID","SupplierName","ProjectID","Amount"].forEach(f => { if (fields[f] !== "") next[f] = fields[f]; });
           // Upload never changes the status of a PO that is already saved.
@@ -860,6 +1010,7 @@ function uploadCSV(){
           const ref = db.ref('records').push();
           // Blank Status on a new PO = Inactive (full PO lists are mostly not in my custody)
           const next = { ...fields, Status: status || "Inactive", DateFiled: uploadDate };
+          if (next.Status === "Active") next.Log = 'J' + uploadDate;
           if (next.Status === "Active") addedActive++;
           updates[ref.key] = next;
           byPO[k] = [ref.key, next];
@@ -991,13 +1142,14 @@ function deleteSelectedRecords() {
     if (key && rec(lastRenderedRows[key]).Status === "Active") {
       updates[key + '/Status'] = "Inactive";
       updates[key + '/DateReleased'] = today;
+      updates[key + '/Log'] = crimeLog(lastRenderedRows[key], 'R', today);
       keys.push(key);
     }
   });
   if (!keys.length) { alert("The selected records are already Inactive."); return; }
 
   db.ref('records').update(updates).then(() => {
-    keys.forEach(key => refreshRow(key, { ...lastRenderedRows[key], Status: "Inactive", DateReleased: today }));
+    keys.forEach(key => refreshRow(key, { ...lastRenderedRows[key], Status: "Inactive", DateReleased: today, Log: updates[key + '/Log'] }));
     document.getElementById('selectAllCheckbox').checked = false;
   }).catch(err => alert("Error releasing records: " + err.message));
 }
@@ -1131,7 +1283,7 @@ window.downloadMainTemplate=()=>downloadCSV("progress_po_template.csv",CSV_HEADE
 
 // Exports every record (all statuses). The first 7 columns match the upload, so the file can be edited and re-uploaded.
 function exportRecordsCSV(){
-  getRecords("All").then(snap => {
+  getRecords("All", true).then(snap => {
     const lines = [CSV_HEADER + ",Date Filed,Date Released"];
     snap.forEach(child => {
       const r = rec(child.val());
@@ -1145,6 +1297,6 @@ window.releaseRecord=releaseRecord; window.reactivateRecord=reactivateRecord;
 window.openNewPOModal=openNewPOModal; window.closeNewPOModal=closeNewPOModal; window.saveNewPO=saveNewPO;
 window.openEditModal=openEditModal; window.closeEditModal=closeEditModal; window.saveEdit=saveEdit;
 window.addCheckedToCollection=addCheckedToCollection; window.removeFromCollection=removeFromCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
-window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto;
+window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto; window.requestRecord=requestRecord; window.showPoliceRecord=showPoliceRecord; window.crimeLog=crimeLog; window.refreshSavedList=refreshSavedList;
 window.toggleSelectAll = toggleSelectAll;
 window.deleteSelectedRecords = deleteSelectedRecords;
