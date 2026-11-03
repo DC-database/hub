@@ -1,3 +1,30 @@
+17.0.5 patch 92 (03-Nov-2026)
+- Transfers: the SOURCE picks which request goes first (martin). Source step counts only requests
+  already confirmed (Pending Admin). After the source confirms one, the other Pending Source
+  requests for the same item + site are checked oldest first; those that no longer fit are
+  Bounced back to their requester at once with the reason (confirmed qty, earlier requests,
+  qty left). Toast tells the source which TRFs were sent back.
+- Active Job count also listens to Bounced lines (iba-live-counts OPEN_STEPS).
+  Files: js/transferLogic.js, js/iba-live-counts.js, index.html
+
+17.0.5 patch 91 (03-Nov-2026)
+- Transfers: Source checks stock first. On "Confirm & Send" the system reads live stock at the
+  From site minus requests saved EARLIER (first come, first served). Not enough -> the line is
+  "Bounced": back to the requester's Active Task with the reason (nothing moves, record kept).
+  Requester opens it: "Send again" with a lower qty (checked against stock minus all waiting
+  requests, then back to the Source) or "Cancel request" (= Rejected, shows on Rejected slip).
+  Admin approval unchanged (stock deduct still refuses if short). Phone list shows the bounced note.
+  Files: js/transferLogic.js, app.js, index.html
+
+17.0.5 patch 90 (03-Nov-2026)
+- Transfers: first come, first served. A request still waiting (Pending / Pending Source /
+  Pending Admin) holds its qty at the From site. The next request can only ask for what is left:
+  "M18 has 1460, but 1000 is already requested by TRF-0790. You can ask for up to 460."
+  The From Site list "(Avail: N)" shows the same free qty. Rejected/deleted requests free it.
+  Lines already In Transit / Pending Confirmation are no longer subtracted twice. Waiting
+  requests are read by step (remarks index), no longer the whole transfer list.
+  Files: js/transferLogic.js, index.html
+
 17.0.5 patch 89 (03-Nov-2026)
 - Transfer form: stock check when making a transfer is now strict. Before, it only looked at this
   browser's copy of Material Stock and skipped an item that was not in it, and needed the exact site

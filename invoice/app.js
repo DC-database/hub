@@ -1089,6 +1089,9 @@ function renderMobileActiveTasks(tasks) {
             else if (task.remarks === 'Pending Confirmation' && task.requestor === currentUser) {
                  statusMessage = "<i class='fa-solid fa-desktop'></i> Action Required on Desktop (Requestor)";
             }
+            else if (task.remarks === 'Bounced') { // 17.0.5 patch 91
+                 statusMessage = "<i class='fa-solid fa-rotate-left'></i> Sent back: not enough stock. Send again or cancel on Desktop";
+            }
             else {
                 statusMessage = `<i class='fa-solid fa-clock'></i> Waiting for other party`;
             }
