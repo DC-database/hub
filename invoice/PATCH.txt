@@ -1,3 +1,24 @@
+17.0.5 patch 83 (03-Nov-2026)
+- Assistant made simple, like phone apps: big app icons with one short word, no cards, no small print.
+  Phone: Brief (red number = your tasks), Invoice, Inventory, Colleague; shorter texts.
+  Desktop: greeting is one line ("Tap an icon, or type your question below"); icons Invoice, Brief, Transfer, Colleague, All skills.
+  All skills page: grid of app icons with short names; the description shows when you hover; shield = admins only.
+  Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js
+
+17.0.5 patch 82 (03-Nov-2026)
+- Phone Item Finder search box: the two thin lines inside the box are gone (the glow sat on the input and was cut off at top/bottom); gold border + glow now on the whole box, box 58px tall.
+  Files: index.html, css/iba-1705-fit.css
+
+17.0.5 patch 81 (03-Nov-2026)
+- Search boxes: no more white text from Chrome autofill (dark box, light text); search-like boxes no longer offer saved entries.
+- Material Stock expanded item: every site shown (no inner scroll), Set button beside the qty, Movement History shows latest 10 + "Show all (N)", the box grows and the row scrolls to the top.
+- Undo a merge (Super Admin): "Undo a merge" button lists the last 25 merges; undo takes the merged quantities back from the main card (refuses if a site is short), gives each card back (rebuilds a deleted card), moves its transfers back, marks the merge undone.
+- Assistant brief "Watching" table: one fact per column (PO, Vendor, Site, Invoice no., Amount, Where it is now, buttons).
+- Phone assistant: Good morning -> search bar -> 4 big square tiles, 2 a row (Now brief, Where is my invoice?, Inventory, Colleague); big sound on/off button.
+- Phone brief: the whole task row is tappable and opens a full screen card in plain words (where it is, with whom, since when, amount, next step) with the row's buttons at the bottom and a big X.
+- Phone Invoice / Inventory pages: bigger search box, gold Search / Scan buttons, bigger result cards. PC unchanged.
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js, js/iba-1705-msmenu.js, js/iba-1705-watch.js, js/iba-assistant.js, js/iba-1705-search.js (new), js/iba-1705-unmerge.js (new)
+
 17.0.5 patch 80 (02-Nov-2026)
 - Download Titles file (and so the Excel sheet tab) is named after the family tab: "Civil & Structural.csv"; a search on All = "Search - <words>.csv".
   Files: index.html, js/materialStock.js, js/iba-1705-msmigrate.js
