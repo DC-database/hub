@@ -209,24 +209,106 @@ function paintTransferModalGlass() {
 // 1.1 INVENTORY RESERVATION LOGIC
 // ==========================================================================
 async function fetchActiveTransfers() {
+    // 17.0.5 patch 90: first come, first served. A request that is still waiting
+    // (Pending / Pending Source / Pending Admin) HOLDS its qty at the From site, so
+    // the next request can only ask for what is left. Lines already In Transit /
+    // Pending Confirmation are not counted: their stock was already taken off.
+    // Only the waiting steps are read (by the "remarks" index), never the whole list.
     const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
-    activeTransfersCache = [];
+    const list = [];
+    const holds = (t) => {
+        const type = String(t.jobType || t.for || '').trim();
+        if (type === 'Transfer' || type === 'Usage') return true;
+        if (type === 'Return') return String(t.originalJobType || '').trim() !== 'Usage';
+        return false; // Restock does not take stock from a site
+    };
     try {
-        const snap = await database.ref('transfer_entries').orderByChild('timestamp').once('value');
-        const data = snap.val();
-        if (data) {
-            Object.values(data).forEach(t => {
-                const pendingStatuses = ['Pending', 'Pending Source', 'Pending Admin', 'In Transit', 'Pending Confirmation'];
-                if (pendingStatuses.includes(t.remarks || t.status)) {
-                    activeTransfersCache.push({
-                        productID: t.productID || t.productId,
-                        fromSite: (t.fromLocation || t.fromSite || '').trim(),
-                        qty: parseFloat(t.orderedQty || t.requiredQty || 0)
-                    });
-                }
+        const steps = ['Pending', 'Pending Source', 'Pending Admin'];
+        const snaps = await Promise.all(steps.map((st) => database.ref('transfer_entries').orderByChild('remarks').equalTo(st).once('value')));
+        snaps.forEach((snap) => {
+            const data = (snap && snap.val()) || {};
+            Object.keys(data).forEach((k) => {
+                const t = data[k] || {};
+                if (!holds(t)) return;
+                list.push({
+                    key: k,
+                    productID: String(t.productID || t.productId || '').trim(),
+                    fromSite: (t.fromLocation || t.fromSite || '').trim(),
+                    qty: parseFloat(t.orderedQty || t.requiredQty || 0) || 0,
+                    controlNumber: String(t.controlNumber || '').trim(),
+                    by: String(t.requestor || t.enteredBy || '').trim(),
+                    remarks: String(t.remarks || '').trim()
+                });
             });
-        }
+        });
+        activeTransfersCache = list;
     } catch(e) { console.error("Error fetching active transfers:", e); }
+    return activeTransfersCache;
+}
+window.fetchActiveTransfers = fetchActiveTransfers;
+
+// 17.0.5 patch 91: free qty for ONE request line at its From site, first come first
+// served. Live stock card(s) by Product ID (never the whole list), all spellings of the
+// site added up, minus the other waiting requests. onlyEarlier (source step) = count
+// only requests the source already confirmed (Pending Admin): the source picks which
+// request goes first (martin), the others bounce when they no longer fit.
+async function tfFreeForLine(task, onlyEarlier) {
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    const id = String(task.productID || task.productId || '').trim();
+    const site = String(task.fromLocation || task.fromSite || '').trim();
+    const norm = (v) => String(v || '').trim().toLowerCase();
+    let cards = [];
+    const v = {};
+    let snap = await database.ref('material_stock').orderByChild('productID').equalTo(id).limitToFirst(5).once('value');
+    Object.assign(v, (snap && snap.val()) || {});
+    if (!Object.keys(v).length) { snap = await database.ref('material_stock').orderByChild('productId').equalTo(id).limitToFirst(5).once('value'); Object.assign(v, (snap && snap.val()) || {}); }
+    cards = Object.keys(v).map((k) => v[k] || {}).filter((c) => !c.mergedInto);
+    let available = 0;
+    cards.forEach((c) => Object.keys(c.sites || {}).forEach((sk) => { if (stockSiteKeysMatch(sk, site)) available += parseFloat(c.sites[sk]) || 0; }));
+    available = Math.round(available * 1000) / 1000;
+    await fetchActiveTransfers();
+    const held = (activeTransfersCache || []).filter((t) => t.key !== task.key && norm(t.productID) === norm(id) &&
+        stockSiteKeysMatch(t.fromSite, site) && (!onlyEarlier || t.remarks === 'Pending Admin' || t.remarks === 'Pending'));
+    const heldQty = Math.round(held.reduce((n, t) => n + (t.qty || 0), 0) * 1000) / 1000;
+    const free = Math.max(0, Math.round((available - heldQty) * 1000) / 1000);
+    const who = Array.from(new Set(held.map((t) => t.controlNumber || 'another request'))).slice(0, 4).join(', ');
+    return { found: cards.length > 0, available, heldQty, free, who, site };
+}
+function tfShortText(r, qty) {
+    if (!r.found) return 'This item is not in Material Stock.';
+    if (r.heldQty > 0) return `Not enough stock: ${r.site} has ${r.available}, ${r.heldQty} already requested by ${r.who}. Only ${r.free} left, ${qty} asked.`;
+    return `Not enough stock: ${r.site} has only ${r.available}, ${qty} asked.`;
+}
+window.tfFreeForLine = tfFreeForLine;
+
+// 17.0.5 patch 92: after the source confirms one request, the other requests still at
+// Pending Source for the same item and site are checked (oldest first). Those that no
+// longer fit are Bounced back to their requester with the reason. Returns their numbers.
+async function tfBounceOthers(task, qty) {
+    const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+    const id = String(task.productID || task.productId || '').trim().toLowerCase();
+    const site = String(task.fromLocation || task.fromSite || '').trim();
+    const chk = await tfFreeForLine(Object.assign({}, task, { key: '__none__' }), true); // free after confirmed ones (incl. this one)
+    let free = chk.free;
+    const others = (activeTransfersCache || []).filter((t) => t.key !== task.key && t.remarks === 'Pending Source' &&
+        String(t.productID || '').toLowerCase() === id && stockSiteKeysMatch(t.fromSite, site)).sort((a, b) => (String(a.key) < String(b.key) ? -1 : 1));
+    const out = [];
+    let waiting = 0, waitingWho = [];
+    for (const t of others) {
+        if ((t.qty || 0) <= free + 1e-9) { free = Math.round((free - (t.qty || 0)) * 1000) / 1000; waiting += (t.qty || 0); waitingWho.push(t.controlNumber || 'another request'); continue; }
+        const snap = await database.ref(`transfer_entries/${t.key}`).once('value');
+        const fresh = snap && snap.val();
+        if (!fresh || fresh.remarks !== 'Pending Source') continue;
+        const why = `Not enough stock: ${chk.site} has ${chk.available}, ${chk.heldQty} already confirmed (${chk.who})` +
+            (waiting > 0 ? `, ${Math.round(waiting * 1000) / 1000} for earlier requests (${waitingWho.slice(0, 3).join(', ')})` : '') +
+            `. Only ${free} left, ${t.qty} asked.`;
+        await commitUpdate(database, t.key, {
+            status: 'Bounced', remarks: 'Bounced', attention: fresh.requestor || fresh.enteredBy || '',
+            bounceReason: why, bouncedBy: (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '', bouncedAt: Date.now()
+        }, why, { keepModalOpen: true, deferRefresh: true });
+        out.push(fresh.controlNumber || t.key);
+    }
+    return out;
 }
 
 // 14.0.0 patch 1: stock already moved by an OPEN task (not yet completed).
@@ -433,6 +515,8 @@ window.openTransferActionModal = async function(task) {
     dateContainer.classList.add('hidden');
     rejectBtn.classList.remove('hidden');
     approveBtn.innerHTML = "Approve";
+    if (!rejectBtn.dataset.ibaLabel) rejectBtn.dataset.ibaLabel = rejectBtn.textContent || 'Reject';
+    rejectBtn.textContent = rejectBtn.dataset.ibaLabel;
 
     // Use approvedQty if it exists (for next steps), else original ordered
     const safeOrdered = parseFloat(task.orderedQty) || 0;
@@ -465,6 +549,15 @@ window.openTransferActionModal = async function(task) {
         qtyInput.classList.add('input-required-highlight');
         rejectBtn.classList.add('hidden');
     }
+    else if (task.remarks === 'Bounced') {
+        // 17.0.5 patch 91
+        title.textContent = "Sent back: not enough stock";
+        approveBtn.textContent = "Send again";
+        approveBtn.style.backgroundColor = "#17a2b8";
+        rejectBtn.textContent = "Cancel request";
+        qtyInput.value = safeOrdered;
+        qtyInput.classList.add('input-required-highlight');
+    }
     else if (task.remarks === 'Pending Confirmation') {
         title.textContent = "Final Step: Confirm Usage";
         approveBtn.textContent = "Confirm Actual Usage";
@@ -479,6 +572,7 @@ window.openTransferActionModal = async function(task) {
             <p><strong>Item:</strong> ${task.vendorName || task.productName}</p>
             <p><strong>Type:</strong> ${task.for || 'Transfer'}</p>
             <p><strong>Status:</strong> <span style="color:#00748C; font-weight:bold;">${task.remarks}</span></p>
+            ${task.remarks === 'Bounced' && task.bounceReason ? `<p style="color:#D32F2F;font-weight:700;">${String(task.bounceReason).replace(/[<>&]/g, '')}</p><p style="font-size:.85rem;">Lower the qty and press <b>Send again</b>, or press <b>Cancel request</b>.</p>` : ''}
         </div>`;
 
     modal.classList.remove('hidden');
@@ -599,6 +693,29 @@ window.handleTransferAction = async (status, options = {}) => {
 
             // --- WORKFLOW LOGIC ---
 
+            // 17.0.5 patch 91: a bounced line, the requester sends it again (usually a
+            // lower qty). Checked against stock minus every waiting request, then it
+            // goes back to the source checker. Reject on a bounced line = cancel it.
+            if (task.remarks === 'Bounced') {
+                if (!(qty > 0)) { alert('Please enter a qty above 0, or press Cancel request.'); if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; } return false; }
+                setProgress('Checking stock...');
+                const chk = await tfFreeForLine(task, false);
+                if (qty > chk.free + 1e-9) {
+                    alert(tfShortText(chk, qty) + `\n\nYou can send up to ${chk.free}.`);
+                    if (btn) { btn.disabled = false; btn.innerHTML = originalBtnHtml; }
+                    return false;
+                }
+                updates.orderedQty = qty;
+                updates.approvedQty = null;
+                updates.status = 'Pending';
+                updates.remarks = 'Pending Source';
+                updates.attention = task.sourceContact || '';
+                updates.resentAt = Date.now();
+                await commitUpdate(database, key, updates, note || `Sent again with qty ${qty}`, opts);
+                if (!silentMode) tfDone(`Sent again (${qty}) to ${task.sourceContact || 'the source'}.`);
+                return true;
+            }
+
             if (jobType === 'Restock') {
                 if (task.remarks === 'Pending Admin' || task.remarks === 'Pending') {
                     if (!task.receiver) { if (!silentMode) alert("Error: No Receiver."); if (btn) btn.disabled = false; return false; }
@@ -645,12 +762,35 @@ window.handleTransferAction = async (status, options = {}) => {
             if (jobType === 'Transfer') {
                 // Step 1: Source Confirms
                 if (task.remarks === 'Pending Source') {
+                    // 17.0.5 patch 91: the source checks stock first. Requests saved
+                    // earlier come first; if not enough is left, the line bounces back
+                    // to the requester (nothing moves, the record stays).
+                    setProgress('Checking stock...');
+                    let chk = null;
+                    try { chk = await tfFreeForLine(task, true); } catch (e) { console.warn('[transfer] source stock check failed', e); }
+                    if (chk && qty > chk.free + 1e-9) {
+                        const why = tfShortText(chk, qty);
+                        const backTo = task.requestor || task.enteredBy || '';
+                        updates.status = 'Bounced';
+                        updates.remarks = 'Bounced';
+                        updates.attention = backTo;
+                        updates.bounceReason = why;
+                        updates.bouncedBy = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '';
+                        updates.bouncedAt = Date.now();
+                        await commitUpdate(database, key, updates, (note ? note + ' | ' : '') + why, opts);
+                        if (!silentMode) alert(`Sent back to ${backTo || 'the requester'}.\n\n${why}\n\nThey can lower the qty and send it again, or cancel it.`);
+                        return true;
+                    }
                     updates.approvedQty = qty;
                     updates.status = 'Pending';
                     updates.remarks = 'Pending Admin';
                     updates.attention = task.approver;
                     await commitUpdate(database, key, updates, note, opts);
-                    if (!silentMode) tfDone("Source confirmed. Sent to Admin."); return true;
+                    // 17.0.5 patch 92: other requests for the same item from this site that
+                    // no longer fit bounce back to their requesters right away.
+                    let bounced = [];
+                    try { bounced = await tfBounceOthers(task, qty); } catch (e) { console.warn('[transfer] bounce others failed', e); }
+                    if (!silentMode) tfDone("Source confirmed. Sent to Admin." + (bounced.length ? ` ${bounced.join(', ')} sent back (not enough stock left).` : '')); return true;
                 }
 
                 // Step 2: Admin Authorizes (DEDUCTION HAPPENS HERE)
@@ -1053,6 +1193,7 @@ async function saveTransferEntry(e) {
         // item that is not in Material Stock is refused.
         const stockDbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
         const normId = (v) => String(v || '').trim().toLowerCase();
+        try { await fetchActiveTransfers(); } catch (_) {}   // fresh holds at the moment of saving
         const want = new Map();
         itemsToSave.forEach((item) => {
             const k = normId(item.productID) + '@@' + (stockCanonicalSiteKey(item.fromSite) || String(item.fromSite || '').trim().toLowerCase());
@@ -1079,7 +1220,18 @@ async function saveTransferEntry(e) {
             let available = 0;
             cards.forEach((c) => Object.keys(c.sites || {}).forEach((sk) => { if (stockSiteKeysMatch(sk, w.site)) available += parseFloat(c.sites[sk]) || 0; }));
             available = Math.round(available * 1000) / 1000;
-            if (w.qty > available + 1e-9) errors.push(`- ${w.name || w.id}: Need ${w.qty} from ${w.site}, but only ${available} available.`);
+            // 17.0.5 patch 90: waiting requests hold their qty (first come, first served)
+            const held = (activeTransfersCache || []).filter((t) => normId(t.productID) === normId(w.id) && stockSiteKeysMatch(t.fromSite, w.site) && !(controlNo && t.controlNumber === controlNo));
+            const heldQty = Math.round(held.reduce((n, t) => n + (t.qty || 0), 0) * 1000) / 1000;
+            const free = Math.max(0, Math.round((available - heldQty) * 1000) / 1000);
+            if (w.qty > free + 1e-9) {
+                if (heldQty > 0) {
+                    const who = Array.from(new Set(held.map((t) => t.controlNumber || 'another request'))).slice(0, 4).join(', ');
+                    errors.push(`- ${w.name || w.id}: ${w.site} has ${available}, but ${heldQty} is already requested by ${who}. You can ask for up to ${free}.`);
+                } else {
+                    errors.push(`- ${w.name || w.id}: Need ${w.qty} from ${w.site}, but only ${available} available.`);
+                }
+            }
         }
 
         if (errors.length > 0) {

@@ -44,7 +44,7 @@
     const INV_KEYS_TTL = 3 * 24 * 60 * 60 * 1000;
     const ON_HOLD = /on hold/i;
     // patch 10: open steps of an inventory request (transferLogic.js)
-    const OPEN_STEPS = ['Pending Source', 'Pending Admin', 'Pending', 'Pending Confirmation', 'Approved', 'In Transit'];
+    const OPEN_STEPS = ['Pending Source', 'Pending Admin', 'Pending', 'Pending Confirmation', 'Approved', 'In Transit', 'Bounced']; // 17.0.5 patch 92: Bounced
     const INDEX_STORE = 'iba-live-inv-index-v1';
     const INDEX_TTL_YES = 7 * 24 * 60 * 60 * 1000;
     const INDEX_TTL_NO = 6 * 60 * 60 * 1000;
