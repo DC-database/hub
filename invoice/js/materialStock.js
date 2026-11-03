@@ -1445,7 +1445,7 @@ async function populateMaterialStock(forceRefresh = false) {
 
     if(tabsContainer) tabsContainer.innerHTML = '<span style="padding:10px;">Downloading data...</span>';
 
-    tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Downloading stock data...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Downloading stock data...</td></tr>';
 
     try {
         const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
@@ -1488,7 +1488,7 @@ async function populateMaterialStock(forceRefresh = false) {
 
     } catch (error) {
         console.error("Error loading material stock:", error);
-        if(tableBody) tableBody.innerHTML = '<tr><td colspan="7" style="color:red; text-align:center;">Error loading data. Check connection.</td></tr>';
+        if(tableBody) tableBody.innerHTML = '<tr><td colspan="9" style="color:red; text-align:center;">Error loading data. Check connection.</td></tr>';
     }
     })();
 
@@ -1792,7 +1792,7 @@ function renderMaterialStockTable(data) {
     // (Site filter alone does not trigger listing to avoid heavy initial rendering.)
     if (!searchTerm && !currentCategoryFilter) {
         if (tableBody) {
-            tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above or type in the search box.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:#777;">List cleared. Please select a Family tab above or type in the search box.</td></tr>';
         }
         if (countDisplay) countDisplay.textContent = '';
         lastFilteredStockData = [];
@@ -1901,7 +1901,7 @@ function renderMaterialStockTable(data) {
     tableBody.innerHTML = '';
 
     if (uniqueFiltered.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#777;">No materials found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#777;">No materials found.</td></tr>';
         msDrawPageBar(0);
         return;
     }
@@ -1927,6 +1927,16 @@ function renderMaterialStockTable(data) {
 
         const displayStock = msDisplayStockFromReceipts(item, productTransfers);
         const totalStock = displayStock.total;
+        // 17.0.5 patch 88: stock on the road = authorized Transfers / Returns not yet received
+        // (taken off the source at Admin authorize, added to the destination only when received)
+        const transitList = productTransfers.filter((t) => {
+            const st = String((t && (t.remarks || t.status)) || '').trim();
+            const ty = String((t && (t.jobType || t.for)) || 'Transfer');
+            return st === 'In Transit' && (ty === 'Transfer' || ty === 'Return');
+        });
+        const transitQty = Math.round(transitList.reduce((n, t) => n + (parseFloat(t.approvedQty ?? t.orderedQty ?? t.requiredQty) || 0), 0) * 1000) / 1000;
+        const grandTotal = Math.round(((parseFloat(totalStock) || 0) + transitQty) * 1000) / 1000;
+        const transitTitle = transitList.map((t) => (t.controlNumber || t.controlId || t.ref || 'Transfer') + ': ' + (t.approvedQty ?? t.orderedQty ?? '') + ' ' + (t.fromLocation || t.fromSite || '') + ' > ' + (t.toLocation || t.toSite || '')).join('\n');
         const gapIcon = displayStock.hasGap
             ? ' <i class="fa-solid fa-triangle-exclamation" style="color:#f0ad4e; margin-left:4px;" title="Movement history shows more stock than this card holds at some site. Open the row to check."></i>'
             : '';
@@ -1983,6 +1993,8 @@ function renderMaterialStockTable(data) {
             <td class="ms-cell-family"><span class="ms-family-badge">${familyDisplay}</span></td>
             <td class="ms-cell-relation"><span class="ms-relation-text">${relationshipDisplay || '-'}</span></td>
             <td class="ms-cell-stock"><span class="ms-stock-pill">${totalStock}</span> ${msUnitHtml(item)}${gapIcon}</td>
+            <td class="ms-cell-transit">${transitQty ? `<span class="ms-transit-pill" title="${msEscapeHtml(transitTitle)}"><i class="fa-solid fa-truck-fast"></i> ${transitQty}</span>` : '<span class="ms-transit-none">-</span>'}</td>
+            <td class="ms-cell-total"><span class="ms-total-num">${grandTotal}</span></td>
             <td class="ms-cell-actions">${actionButtons}</td>
         `;
 
@@ -2003,7 +2015,7 @@ function renderMaterialStockTable(data) {
         childRow.className = 'stock-child-row hidden';
         childRow.dataset.itemKey = item.key || '';
         childRow.dataset.ready = '0';
-        childRow.innerHTML = '<td colspan="7" style="padding:12px 25px; color:#777;">Open this row to load stock and movement history.</td>';
+        childRow.innerHTML = '<td colspan="9" style="padding:12px 25px; color:#777;">Open this row to load stock and movement history.</td>';
 
         tableBody.appendChild(parentRow);
         tableBody.appendChild(childRow);
@@ -2914,6 +2926,19 @@ window.msFillStockDetail = function (row) {
         breakdownRows += `<tr><td colspan="2" class="ms-bd-dup"><i class="fa-solid fa-clone"></i> ${dupCards.length} cards use Product ID ${msEscapeHtml(stockID)}. Tick them in the list and use Merge Selected so transfers use one card.</td></tr>`;
     }
 
+    // 17.0.5 patch 87: Qty column showed only the RECEIVED qty, so a transfer
+    // still on the road showed 0. Now: received qty when done, otherwise the
+    // approved (else requested) qty with a small "on the way" / "requested" note.
+    const msHistQty = (t, done) => {
+        const n = (v) => (v === undefined || v === null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
+        if (done) return msEscapeHtml(String(n(t.receivedQty) ?? n(t.approvedQty) ?? n(t.orderedQty) ?? 0));
+        const ap = n(t.approvedQty), req = n(t.orderedQty) ?? n(t.requiredQty);
+        const st = String(t.remarks || t.status || '');
+        if (/transit/i.test(st)) return `${msEscapeHtml(String(ap ?? req ?? 0))}<small class="ms-hist-qnote">on the way</small>`;
+        if (ap !== null) return `${msEscapeHtml(String(ap))}<small class="ms-hist-qnote">approved</small>`;
+        if (req !== null) return `${msEscapeHtml(String(req))}<small class="ms-hist-qnote">requested</small>`;
+        return '0';
+    };
     let historyRows = '';
     if (!productTransfers.length) {
         historyRows = '<tr><td colspan="8" class="ms-hist-empty">No movement history found.</td></tr>';
@@ -2939,14 +2964,14 @@ window.msFillStockDetail = function (row) {
                 ? `<a href="#" role="button" class="ms-hist-trn" data-trn-key="${msEscapeHtml(t.key)}" title="Print this transaction (current status)"><i class="fa-solid fa-print"></i> ${msEscapeHtml(trn)}</a>`
                 : '<span class="ms-hist-trn-txt">-</span>';
             // 17.0.5 patch 81: the latest 10 show, the rest open with "Show all"
-            historyRows += `<tr${histIndex >= 10 ? ' class="ms-hist-old"' : ''}><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${t.receivedQty || 0}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
+            historyRows += `<tr${histIndex >= 10 ? ' class="ms-hist-old"' : ''}><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${msHistQty(t, isCompleted)}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
         });
     }
 
     const photo = typeof msBuildMaterialPhotoCard === 'function' ? msBuildMaterialPhotoCard(item, canAttachPhoto) : '';
     // 14.0.0 glass layout (three panels).
     row.innerHTML = `
-        <td colspan="7" class="ms-glass-detail">
+        <td colspan="9" class="ms-glass-detail">
             <div class="ms-glass-detail-grid">
                 <div class="ms-glass-panel">
                     <h4><i class="fa-regular fa-image"></i> Item Photo</h4>

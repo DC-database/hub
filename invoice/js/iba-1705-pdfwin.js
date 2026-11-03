@@ -46,11 +46,23 @@
         return true;
     }
 
+    // 17.0.5 patch 84: phones / tablets download a plain SharePoint .pdf link
+    // (Android Chrome). "?web=1" opens it in SharePoint's own online viewer
+    // inside the browser instead. PC is unchanged (side window above).
+    function toWeb(u) {
+        u = String(u || '');
+        if (!isPdf(u) || /[?&]web=1(&|#|$)/i.test(u)) return u;
+        const h = u.indexOf('#');
+        const base = h === -1 ? u : u.slice(0, h), hash = h === -1 ? '' : u.slice(h);
+        return base + (base.indexOf('?') === -1 ? '?' : '&') + 'web=1' + hash;
+    }
+
     // links (<a href="...pdf" target="_blank">)
     document.addEventListener('click', (e) => {
         if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
         const a = e.target.closest && e.target.closest('a[href]');
         if (!a || !isPdf(a.href)) return;
+        if (!isPc()) { try { a.href = toWeb(a.href); } catch (_) {} return; }
         if (show(a.href)) { e.preventDefault(); e.stopPropagation(); }
     }, true);
 
@@ -59,9 +71,10 @@
     window.open = function (url, target) {
         try {
             if ((!target || target === '_blank') && isPdf(url) && show(String(url))) return win;
+            if (isPdf(url) && !isPc()) { const a = Array.prototype.slice.call(arguments); a[0] = toWeb(url); return origOpen.apply(window, a); }
         } catch (_) {}
         return origOpen.apply(window, arguments);
     };
 
-    window.ibaPdfWin = { show: show, isPdf: isPdf };
+    window.ibaPdfWin = { show: show, isPdf: isPdf, toWeb: toWeb };
 })();

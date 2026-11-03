@@ -1045,24 +1045,41 @@ async function saveTransferEntry(e) {
     // 4. Validate Stock for EACH Item (Multi-Source Support)
     if (type !== 'Restock') {
         let errors = [];
-        for (const item of itemsToSave) {
-            // Find item in cache
-            let stockData = null;
-            if (typeof allMaterialStockData !== 'undefined') {
-                stockData = allMaterialStockData.find(i => i.productID === item.productID || i.productId === item.productID);
+        // 17.0.5 patch 89: the old check used only this browser's copy and skipped
+        // the item when it was not in it (and needed the exact site spelling), so a
+        // request could ask for more than the site had (TRF-0785: 8170). Now: the
+        // item's card(s) by Product ID (live read if not loaded), all spellings of the
+        // site added up, the same item twice from one site counted together, and an
+        // item that is not in Material Stock is refused.
+        const stockDbRef = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
+        const normId = (v) => String(v || '').trim().toLowerCase();
+        const want = new Map();
+        itemsToSave.forEach((item) => {
+            const k = normId(item.productID) + '@@' + (stockCanonicalSiteKey(item.fromSite) || String(item.fromSite || '').trim().toLowerCase());
+            const w = want.get(k) || { id: String(item.productID || '').trim(), name: item.productName, site: item.fromSite, qty: 0 };
+            w.qty += parseFloat(item.qty) || 0;
+            want.set(k, w);
+        });
+        for (const w of want.values()) {
+            // this browser's full copy first (kept fresh by Pocket); a live read only
+            // when the item is not in it (never the whole stock list)
+            let cards = (typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData))
+                ? allMaterialStockData.filter((i) => i && normId(i.productID || i.productId) === normId(w.id)) : [];
+            if (!cards.length) {
+                try {
+                    const v = {};
+                    let snap = await stockDbRef.ref('material_stock').orderByChild('productID').equalTo(w.id).limitToFirst(5).once('value');
+                    Object.assign(v, (snap && snap.val()) || {});
+                    if (!Object.keys(v).length) { snap = await stockDbRef.ref('material_stock').orderByChild('productId').equalTo(w.id).limitToFirst(5).once('value'); Object.assign(v, (snap && snap.val()) || {}); }
+                    cards = Object.keys(v).map((k) => Object.assign({ key: k }, v[k] || {}));
+                } catch (e) { console.warn('[transfer] live stock check failed', e); }
             }
-
-            if (stockData) {
-                // Check stock AT THE SPECIFIC ITEM'S SOURCE
-                let availableAtSource = 0;
-                if (stockData.sites && stockData.sites[item.fromSite]) {
-                    availableAtSource = parseFloat(stockData.sites[item.fromSite]);
-                }
-
-                if (item.qty > availableAtSource) {
-                    errors.push(`- ${item.productName}: Need ${item.qty} from ${item.fromSite}, but only ${availableAtSource} available.`);
-                }
-            }
+            cards = cards.filter((c) => c && !c.mergedInto);
+            if (!cards.length) { errors.push(`- ${w.name || w.id}: ${w.id} is not in Material Stock, so it cannot be sent.`); continue; }
+            let available = 0;
+            cards.forEach((c) => Object.keys(c.sites || {}).forEach((sk) => { if (stockSiteKeysMatch(sk, w.site)) available += parseFloat(c.sites[sk]) || 0; }));
+            available = Math.round(available * 1000) / 1000;
+            if (w.qty > available + 1e-9) errors.push(`- ${w.name || w.id}: Need ${w.qty} from ${w.site}, but only ${available} available.`);
         }
 
         if (errors.length > 0) {

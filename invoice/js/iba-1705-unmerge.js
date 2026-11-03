@@ -93,8 +93,14 @@
                 const n = need(log);
                 const m = w.querySelector('[data-um-msg]');
                 if (m) m.innerHTML = 'Undo takes <b>' + Object.entries(n).map(([s, q]) => esc(siteName(s)) + ' ' + fmt(q)).join(', ') + '</b> off ' + esc(log.mainId) + ' and gives it back to ' + list(log.merged).map((x) => esc(x.id)).join(', ') + '. Press <b>Yes, undo</b> to go ahead.';
+                // 17.0.5 patch 86: a merged card that was deleted and has no saved copy -> ask its name / unit here
+                askNames(w, log);
                 return;
             }
+            list(log.merged).forEach((x) => {
+                const ni = w.querySelector('[data-um-name="' + x.key + '"]'), ui = w.querySelector('[data-um-unit="' + x.key + '"]');
+                x.typedName = ni ? String(ni.value || '').trim() : ''; x.typedUnit = ui ? String(ui.value || '').trim() : '';
+            });
             w.__busy = true;
             b.disabled = true;
             const m = w.querySelector('[data-um-msg]');
@@ -104,6 +110,25 @@
             if (res.ok) { log.undoneAt = Date.now(); draw(w); const m2 = w.querySelector('[data-um-msg]'); if (m2) m2.innerHTML = '<span class="iba-um-ok"><i class="fa-solid fa-check"></i> ' + esc(res.text) + '</span>'; }
             else { b.disabled = false; delete b.dataset.sure; b.innerHTML = '<i class="fa-solid fa-rotate-left"></i> Undo'; }
         });
+    }
+
+    async function askNames(w, log) {
+        const d = db();
+        const gone = [];
+        for (const x of list(log.merged)) {
+            if (x.card || !x.key) continue;
+            try { if (!(await d.ref('material_stock/' + x.key).once('value')).exists()) gone.push(x); } catch (_) {}
+        }
+        const m = w.querySelector('[data-um-msg]');
+        if (!gone.length || !m || !w.isConnected) return;
+        const box = document.createElement('div');
+        box.className = 'iba-um-names';
+        box.innerHTML = '<p><i class="fa-solid fa-pen"></i> ' + (gone.length === 1 ? 'This card was deleted' : 'These cards were deleted') + ' after the merge. Type the name (and unit) to bring ' + (gone.length === 1 ? 'it' : 'them') + ' back with it:</p>' +
+            gone.map((x) => '<div class="iba-um-namerow"><b>' + esc(x.id) + '</b><input type="text" data-um-name="' + esc(x.key) + '" placeholder="Item name" autocomplete="off" spellcheck="false">' +
+                '<input type="text" data-um-unit="' + esc(x.key) + '" placeholder="Unit" autocomplete="off" spellcheck="false"></div>').join('');
+        m.appendChild(box);
+        const first = box.querySelector('input');
+        if (first) try { first.focus(); } catch (_) {}
     }
 
     async function undo(log, say) {
@@ -144,7 +169,7 @@
             try { wasGone = !(await d.ref('material_stock/' + m.key).once('value')).exists(); } catch (_) {}
             try {
                 const r = await d.ref('material_stock/' + m.key).transaction((cur) => {
-                    const base = cur || (m.card ? JSON.parse(JSON.stringify(m.card)) : { productID: m.id, productName: m.id + ' (restored - type the name)', status: 'Active', transferredQty: 0 });
+                    const base = cur || (m.card ? JSON.parse(JSON.stringify(m.card)) : Object.assign({ productID: m.id, productName: m.typedName || (m.id + ' (restored - type the name)'), status: 'Active', transferredQty: 0 }, m.typedUnit ? { unit: m.typedUnit } : {}));
                     const sites = Object.assign({}, cur ? (cur.sites || {}) : {});
                     Object.entries(m.sites || {}).forEach(([s, q]) => { sites[s] = num(sites[s]) + num(q); });
                     base.sites = sites;
@@ -155,6 +180,8 @@
                     return base;
                 });
                 ok = !!(r && r.committed);
+                // 17.0.5 patch 85: older merges keep no card copy: take the card's own name for its history
+                try { if (ok && r.snapshot) { const v = r.snapshot.val() || {}; if (v.productName && !/\(restored - type the name\)/.test(v.productName)) m.name = v.productName; } } catch (_) {}
                 // a deleted card is back: the item counter goes up again
                 if (ok && wasGone) { try { await d.ref().update({ 'material_stock_meta/count': firebase.database.ServerValue.increment(1), 'material_stock_meta/updatedAt': TS }); } catch (_) {} }
             } catch (e) { console.error('Undo merge: card', m.id, e); }
@@ -198,7 +225,8 @@
                 if (!m || !t.key || String(t.productID || t.productId || '').trim() !== String(log.mainId)) return;
                 upd['transfer_entries/' + t.key + '/productID'] = m.id;
                 upd['transfer_entries/' + t.key + '/productId'] = m.id;
-                if (m.card && m.card.productName) upd['transfer_entries/' + t.key + '/productName'] = m.card.productName;
+                const nm = m.name || (m.card && m.card.productName);
+                if (nm) upd['transfer_entries/' + t.key + '/productName'] = nm;
                 upd['transfer_entries/' + t.key + '/mergedFrom'] = null;
                 moved++;
             });
