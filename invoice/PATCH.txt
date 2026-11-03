@@ -1,3 +1,31 @@
+17.0.5 patch 89 (03-Nov-2026)
+- Transfer form: stock check when making a transfer is now strict. Before, it only looked at this
+  browser's copy of Material Stock and skipped an item that was not in it, and needed the exact site
+  spelling, so a request could ask for more than the site had (TRF-0785: 8170). Now it finds the item
+  by Product ID (small live read if not loaded), adds up all spellings of the site, counts the same
+  item twice from one site together, and refuses an item that is not in Material Stock.
+  Files: js/transferLogic.js, index.html
+
+17.0.5 patch 88 (03-Nov-2026)
+- Material Stock table: "Total Stock" is now 3 columns: At sites (stock at the sites now) | In transit (authorized Transfers / Returns not yet received, hover = TRF list) | Total (both). Breakdown unchanged (only what each site has now). No extra download (uses the loaded transfer list).
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js
+
+17.0.5 patch 87 (03-Nov-2026)
+- Material Stock Movement History Qty: was the RECEIVED qty only (0 while in transit). Now: Completed = received qty; In Transit = approved qty + "on the way"; approved = qty + "approved"; pending = requested qty + "requested".
+  Files: index.html, css/iba-1705-fit.css, js/materialStock.js
+
+17.0.5 patch 86 (03-Nov-2026)
+- Undo a merge: when a merged card was deleted after an old merge (no saved copy), the confirm step asks for its name and unit; the card and its history come back with that name.
+  Files: index.html, css/iba-1705-fit.css, js/iba-1705-unmerge.js
+
+17.0.5 patch 85 (03-Nov-2026)
+- Undo a merge, merges made before patch 81: their moved history records also get their own item name back (taken from the card, which old merges kept at qty 0).
+  Files: index.html, js/iba-1705-unmerge.js
+
+17.0.5 patch 84 (03-Nov-2026)
+- Phone / tablet: INV and SRV PDFs (SharePoint / OneDrive) open in SharePoint online viewer (?web=1) inside the browser instead of downloading. PC unchanged (side window).
+  Files: index.html, js/iba-1705-pdfwin.js
+
 17.0.5 patch 83 (03-Nov-2026)
 - Assistant made simple, like phone apps: big app icons with one short word, no cards, no small print.
   Phone: Brief (red number = your tasks), Invoice, Inventory, Colleague; shorter texts.
