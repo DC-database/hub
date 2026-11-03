@@ -893,4 +893,31 @@
   html body #iba-ai-skills.is-apps .iba-ai-tile-del { position: absolute !important; top: -2px !important; left: calc(50% + 18px) !important; right: auto !important; width: 22px !important; height: 22px !important; border-radius: 50% !important; padding: 0 !important; }
   html body #iba-ai-skills.is-apps .iba-ai-skill-group { margin-bottom: 10px !important; }
   html body #iba-ai-panel .iba-aph-hero .iba-aph-hi small { display: none !important; }
+
+  /* 17.0.5 patch 86: undo a merge - name / unit for a card deleted after an old merge */
+  html body #iba-unmerge .iba-um-names { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(227, 201, 138, .08); border: 1px solid rgba(227, 201, 138, .35); }
+  html body #iba-unmerge .iba-um-names p { margin: 0 0 8px; color: #EBD8A8; }
+  html body #iba-unmerge .iba-um-namerow { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 8px; align-items: center; margin-top: 6px; }
+  html body #iba-unmerge .iba-um-namerow input { height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .18); background: #0E1D2D; color: #EEF3F8; -webkit-text-fill-color: #EEF3F8; font-size: 14px; min-width: 0; }
+  html body #iba-unmerge .iba-um-namerow input:focus { outline: 0; border-color: #E3C98A; }
+  /* 17.0.5 patch 87 */
+  html body #wd-material-stock td.ms-hist-qty small.ms-hist-qnote, html body td.ms-hist-qty small.ms-hist-qnote { display: block !important; font-size: 10.5px !important; font-weight: 700 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; opacity: 1 !important; white-space: nowrap !important; }
+  /* 17.0.5 patch 88: Material Stock = At sites | In transit | Total (9 columns) */
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(1), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(1) { width: 4% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(2), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(2) { width: 11% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(3), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(3) { width: 22% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(4), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(4) { width: 12% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(5), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(5) { width: 14% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(6), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(6) { width: 7% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(7), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(7) { width: 7% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(8), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(8) { width: 7% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(9), html body #wd-material-stock #ms-table > tbody > tr.ms-parent-row > td:nth-child(9) { width: 16% !important; }
+  html body #wd-material-stock #ms-table > thead > tr > th:nth-child(n+6):nth-child(-n+8) { text-align: right !important; white-space: nowrap !important; }
+  html body #wd-material-stock #ms-table td:is(.ms-cell-transit, .ms-cell-total) { text-align: right !important; white-space: nowrap !important; font-variant-numeric: tabular-nums; }
+  html body #wd-material-stock #ms-table td.ms-cell-stock { text-align: right !important; }
+  html body #wd-material-stock #ms-table .ms-transit-pill { display: inline-flex !important; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-weight: 800; font-size: 13px;
+    background: rgba(227, 201, 138, .14) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; border: 1px solid rgba(227, 201, 138, .45); cursor: help; }
+  html body #wd-material-stock #ms-table .ms-transit-pill i { font-size: 11px; color: inherit !important; -webkit-text-fill-color: currentColor !important; }
+  html body #wd-material-stock #ms-table .ms-transit-none { color: #6E8296 !important; -webkit-text-fill-color: #6E8296 !important; }
+  html body #wd-material-stock #ms-table .ms-total-num { font-weight: 800; font-size: 15px; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
 }
