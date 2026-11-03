@@ -287,16 +287,20 @@
         ids.sort(function (a, b) { return rank(b) - rank(a); });
         var nAcc = ids.filter(function (id) { return isAcc(st.status[id]); }).length;
         return '<div data-watch-brief><div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Watching (' + ids.length + ')' + (nAcc ? ' · ' + nAcc + ' reached Accounts' : '') + '</div>' +
-            '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-remlist iba-ai-ttab is-rem iba-watch-list">' +
-            '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">Vendor · site</span><span class="c-main">Invoice · where it is now</span><span class="c-age"></span><span class="c-act"></span></li>' +
+            // 17.0.5 patch 81: one fact per column, like "In the company" (PO, Vendor, Site, Invoice, Amount, Status, buttons)
+            '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-ttab is-watch2 iba-watch-list">' +
+            '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-vend">Vendor</span><span class="c-site">Site</span><span class="c-no">Invoice no.</span><span class="c-val">Amount (QAR)</span><span class="c-st">Where it is now</span><span class="c-act"></span></li>' +
             ids.map(function (id) {
                 var w = st.list[id] || {};
                 var s = st.status[id];
                 var tone = isPaid(s) ? 'is-paid' : isAcc(s) ? 'is-acc' : '';
                 var label = s === '__gone' ? 'Not found (deleted?)' : (s || 'Checking…');
                 return '<li class="' + tone + '"><span class="c-po"><b class="iba-watch-pono">' + esc(w.po) + '</b></span>' +
-                    '<span class="c-site"><b>' + esc(w.vendor || '—') + '</b><small>' + esc(w.site ? 'Site ' + w.site : '') + '</small></span>' +
-                    '<span class="iba-ai-grow c-main">' + esc([w.inv, w.value ? 'QAR ' + money(w.value) : ''].filter(Boolean).join(' · ')) + ' <span class="iba-watch-st ' + tone + '">' + esc(label) + '</span></span><span class="c-age"></span>' +
+                    '<span class="c-vend" title="' + esc(w.vendor || '') + '">' + esc(w.vendor || '—') + '</span>' +
+                    '<span class="c-site">' + esc(w.site ? 'Site ' + w.site : '—') + '</span>' +
+                    '<span class="c-no" title="' + esc(w.inv || '') + '">' + esc(w.inv || '—') + '</span>' +
+                    '<span class="c-val">' + (w.value ? esc(money(w.value)) : '—') + '</span>' +
+                    '<span class="c-st"><span class="iba-watch-st ' + tone + '">' + esc(label) + '</span></span>' +
                     '<span class="c-act">' + (isAcc(s) ? '<button type="button" class="iba-ai-mini" data-watch-ask="' + esc(id) + '"><i class="fa-regular fa-paper-plane"></i> Ask Accounts</button>' : '') +
                     '<button type="button" class="iba-ai-mini" data-watch-stop="' + esc(id) + '" title="Stop watching this invoice"><i class="fa-solid fa-bell-slash"></i> Stop</button></span></li>';
             }).join('') + '</ul></div></div></div>';

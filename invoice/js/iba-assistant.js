@@ -3843,19 +3843,22 @@
             '</div></div>' +
             // 15.0.0 patch 25: the phone home - search, track, remind, message
             '<div class="iba-ai-view iba-ai-phone" data-view="phone" hidden><div class="iba-ai-pane">' +
-              '<div class="iba-aph-hero"><span class="iba-aph-bot">' + BOT_SVG + '</span><div class="iba-aph-hi"><strong id="iba-aph-hello">Hello</strong><small>Search · Track · Remind · Message</small></div></div>' +
-              // 17.0.0 patch 5: Now brief on the phone
-              '<button type="button" class="iba-aph-brief" data-aph-brief><i class="fa-solid fa-sun"></i><span><b>Now brief</b><small id="iba-aph-brief-n">Your tasks, urgent first</small></span><i class="fa-solid fa-chevron-right"></i></button>' +
+              // 17.0.5 patch 81: phone home = hello -> search -> 4 big square tiles (2 a row)
+              '<div class="iba-aph-hero"><span class="iba-aph-bot">' + BOT_SVG + '</span><div class="iba-aph-hi"><strong id="iba-aph-hello">Hello</strong><small>Search · Track · Remind · Message</small></div>' +
+                '<button type="button" class="iba-aph-sound" data-iba-sound-btn data-aph-sound aria-label="Sounds on / off" title="Sounds on / off"><i class="fa-solid fa-volume-high"></i></button></div>' +
               '<form class="iba-aph-search" id="iba-aph-form" autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
-                '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +                '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
-              '<div class="iba-aph-tiles" role="radiogroup" aria-label="What to look for">' +
-                '<button type="button" data-aph-mode="inv" style="--c:#2a78d6"><i class="fa-solid fa-magnifying-glass-location"></i><b>Where is my invoice?</b><small>Type the PO or vendor</small></button>' +
-                '<button type="button" data-aph-mode="trf" style="--c:#14a37f"><i class="fa-solid fa-truck-ramp-box"></i><b>Inventory</b><small>Transfer, vehicle, item</small></button>' +
-                '<button type="button" data-aph-mode="person" style="--c:#eb6834"><i class="fa-solid fa-id-badge"></i><b>Colleague</b><small>Message, call, WhatsApp</small></button>' +
+                '<input id="iba-aph-q" type="search" enterkeyhint="search" placeholder="PO, vendor, transfer no. or a name"/>' +
+                '<button type="submit" class="iba-aph-go" aria-label="Search"><i class="fa-solid fa-arrow-right"></i></button></form>' +
+              // 17.0.5 patch 83: big app icons with one short word (no cards, no small print)
+              '<div class="iba-aph-tiles is-4 is-icons" role="group" aria-label="What to look for">' +
+                '<button type="button" class="iba-aph-brief" data-aph-brief style="--c:#d39b25" title="Now brief: your tasks, urgent first"><i class="fa-solid fa-sun"><em class="iba-aph-badge" id="iba-aph-brief-n" hidden></em></i><b>Brief</b></button>' +
+                '<button type="button" data-aph-mode="inv" style="--c:#2a78d6" title="Where is my invoice? Type the PO or vendor"><i class="fa-solid fa-magnifying-glass-location"></i><b>Invoice</b></button>' +
+                '<button type="button" data-aph-mode="trf" style="--c:#14a37f" title="Inventory: transfer, vehicle or item"><i class="fa-solid fa-truck-ramp-box"></i><b>Inventory</b></button>' +
+                '<button type="button" data-aph-mode="person" style="--c:#eb6834" title="Colleague: call or WhatsApp"><i class="fa-solid fa-id-badge"></i><b>Colleague</b></button>' +
               '</div>' +
               '<div class="iba-aph-rem" id="iba-aph-rem"></div>' +
               '<div class="iba-ai-track-out iba-aph-out" id="iba-aph-out"></div>' +
-              '<p class="iba-aph-foot"><i class="fa-solid fa-bell"></i> Every invoice or transfer you find has a <b>Remind</b> button. The full assistant is on the computer.' +
+              '<p class="iba-aph-foot">' +
                 ' <button type="button" class="iba-ai-mini" data-aph-chat data-needs-ai><i class="fa-solid fa-comments"></i> Ask in words</button></p>' +
             '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
@@ -4196,6 +4199,8 @@
         if (b.id === 'iba-ai-mic') return listen(b);
         if (b.dataset.taskAct) return taskAct(b);
         if (b.hasAttribute('data-aph-brief')) return phoneBrief();
+        if (b.dataset.aphRow !== undefined) return phoneTaskDetail(Number(b.dataset.aphRow), b);
+        if (b.hasAttribute('data-aph-sound')) { if (typeof window.toggleSystemAudio === 'function') window.toggleSystemAudio(); if (typeof window.ibaPaintSoundButtons === 'function') window.ibaPaintSoundButtons(); return; }
         if (b.dataset.aphPo) { const q = $('iba-aph-q'); if (q) q.value = b.dataset.aphPo; return phoneSearch(b.dataset.aphPo); }
         if (b.dataset.openTask) { let q = {}; try { q = JSON.parse(b.dataset.openTask); } catch (_) {} return openTaskPage(q); }
         if (b.dataset.openJob) return openJobPage(b.dataset.openJob);
@@ -4472,7 +4477,7 @@
     // 15.0.0 patch 25: phone home logic (no AI needed)
     // ------------------------------------------------------------------
     const APH_MODE_KEY = 'iba-ai-aph-mode';
-    const APH_HINT = { auto: 'PO, vendor, transfer no. or a name', inv: 'PO number or vendor name', trf: 'TRF-0361, vehicle no. or item', person: 'Name, position, site or mobile no.' };
+    const APH_HINT = { auto: 'PO, vendor, transfer or name', inv: 'PO number or vendor name', trf: 'TRF-0361, vehicle no. or item', person: 'Name, position, site or mobile no.' };
     let aphMode = 'auto';
     function setPhoneMode(m, user) {
         aphMode = (user && aphMode === m) ? 'auto' : (APH_HINT[m] !== undefined ? m : 'auto');
@@ -4515,6 +4520,7 @@
         if (!document.querySelector('#iba-ai-panel [data-aph-mode].is-on') && aphMode === 'auto') setPhoneMode(lsGet(APH_MODE_KEY, 'auto'), false);
         document.querySelectorAll('#iba-ai-panel [data-needs-ai]').forEach((el) => { el.hidden = !ready(); });
         paintPhoneRem();
+        if (typeof window.ibaPaintSoundButtons === 'function') { try { window.ibaPaintSoundButtons(); } catch (_) {} }
     }
     async function phoneCard(promise, out) {
         if (state.busy) return;
@@ -4779,14 +4785,65 @@
             try { out.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
             const n = $('iba-aph-brief-n');
             const x = o.card.data;
-            if (n) n.textContent = (x.tasks || []).length + ' task' + ((x.tasks || []).length === 1 ? '' : 's') + ' · ' + (x.tasks || []).filter((t) => isUrgentNote(t.note)).length + ' urgent';
+            if (n) { const nt = (x.tasks || []).length; n.textContent = nt > 99 ? '99+' : String(nt); n.hidden = !nt; }
         } catch (err) {
             out.innerHTML = '<div class="iba-ai-note is-error">' + esc((err && err.message) || String(err)) + '</div>';
         } finally { state.busy = false; }
     }
+    // 17.0.5 patch 81: tap a brief row on the phone -> full screen card in
+    // plain words (where it is, with whom, since when, amount, next step),
+    // the same receipt as tracking when the invoice is found, + the row's buttons
+    let aphTasks = [];
+    function aphDetailBasic(t) {
+        const dd = daysSince(t.at);
+        const rows = [
+            ['PO', t.po], ['Vendor', t.vendor], ['Invoice no.', t.ref], ['Site', t.site ? (siteNo(t.site) || t.site) : ''],
+            ['Status', t.status], ['With', t.attention || (firstName() ? 'You' : '')], ['Waiting', dd === null ? '' : (dd === 0 ? 'since today' : dd + ' day' + (dd === 1 ? '' : 's'))],
+            ['Amount', t.amount ? 'QAR ' + money(t.amount) : ''], ['Note', t.note]
+        ].filter((r) => r[1]);
+        return '<div class="iba-trk-r-body is-aph-basic"><div class="iba-trk-r-left"><div class="iba-trk-r-hero"><span class="iba-trk-ic"><i class="fa-solid fa-file-invoice"></i></span>' +
+            '<span class="iba-trk-r-title">' + esc(t.status || 'Task') + '</span><span class="iba-trk-r-sub">Next: ' + esc(nextStep(t.status)) + '</span>' +
+            (t.amount ? '<span class="iba-trk-r-amt">QAR ' + esc(money(t.amount)) + '</span>' : '') + '</div></div>' +
+            '<div class="iba-trk-r-right"><dl class="iba-trk-r-dl">' + rows.map((r) => '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>').join('') + '</dl></div></div>';
+    }
+    async function phoneTaskDetail(i, from) {
+        const t = aphTasks[i];
+        const panel = $('iba-ai-panel');
+        if (!t || !panel) return;
+        closeReceipt();
+        const o = document.createElement('div');
+        o.id = 'iba-trk-rcpt';
+        o.className = 'iba-trk-rcpt is-aph-detail';
+        o.setAttribute('role', 'dialog');
+        o.setAttribute('aria-label', 'PO ' + (t.po || ''));
+        o.__from = from;
+        const top = '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to brief"><i class="fa-solid fa-xmark"></i></button><span>Back to brief</span></div>';
+        const acts = taskActionsHtml(t, true);
+        const actsHtml = acts ? '<ul class="iba-ai-rows iba-aph-dt-acts"><li>' + acts + '</li></ul>' : '';
+        o.innerHTML = top + aphDetailBasic(t) + (t.kind === 'invoice' && t.po ? '<div class="iba-ai-typing"><span></span><span></span><span></span></div>' : '') + actsHtml;
+        panel.appendChild(o);
+        if (t.kind !== 'invoice' || !t.po) return;
+        try {
+            const r = await trackSearch({ po: t.po });
+            if (!o.isConnected) return;
+            const k = String(t.key || ''), po = String(t.po || '');
+            const invKey = po && k.indexOf(po + '_') === 0 ? k.slice(po.length + 1) : k;
+            let p = null, it = null;
+            (r.pos || []).forEach((pp) => (pp.items || []).forEach((x) => {
+                if (it) return;
+                if ((invKey && x.key === invKey) || (t.ref && norm(x.invoice_no) === norm(t.ref))) { p = pp; it = x; }
+            }));
+            if (!it) { const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove(); return; }
+            o.__it = it;
+            o.innerHTML = receiptHtml(p, it, 0, 'Back to brief') + actsHtml;
+        } catch (_) {
+            const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove();
+        }
+    }
     function phoneBriefHtml(x) {
         const r = x.result || {};
         const tasks = (x.tasks || []).map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
+        aphTasks = tasks;
         const jobs = x.jobs || [];
         const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
         const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
@@ -4800,10 +4857,11 @@
             h += '<div class="iba-ai-sub">Your tasks' + (nUrg ? ' · urgent first' : ' · oldest first') + '</div><ul class="iba-ai-rows iba-aph-tasks" data-brief-list="aph">' + tasks.map((t, i) => {
                 const dd = daysSince(t.at);
                 return '<li' + (i >= MORE ? ' hidden' : '') + (isUrgentNote(t.note) ? ' class="is-urgent"' : '') + '>' +
-                    '<div class="iba-aph-trow"><button type="button" class="iba-ai-po" data-aph-po="' + esc(t.po || '') + '">' + esc(t.po || '—') + '</button>' +
+                    // 17.0.5 patch 81: the whole row opens the full details
+                    '<button type="button" class="iba-aph-trow" data-aph-row="' + i + '" aria-label="Details for PO ' + esc(t.po || '') + '"><span class="iba-ai-po">' + esc(t.po || '—') + '</span>' +
                     '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type || '') + (isUrgentNote(t.note) ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
                     '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small></span>' +
-                    (dd === null ? '' : '<span class="iba-aph-age' + (dd > 7 ? ' is-late' : '') + '">' + dd + 'd</span>') + '</div>' +
+                    (dd === null ? '' : '<span class="iba-aph-age' + (dd > 7 ? ' is-late' : '') + '">' + dd + 'd</span>') + '<i class="fa-solid fa-chevron-right iba-aph-tgo" aria-hidden="true"></i></button>' +
                     taskActionsHtml(t, true) + '</li>';
             }).join('') + '</ul>' + (tasks.length > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="aph"><i class="fa-solid fa-chevron-down"></i> Show all ' + tasks.length + '</button>' : '');
         }
@@ -4814,7 +4872,7 @@
         }
         if (!tasks.length && !jobs.length) h += '<p class="iba-ai-empty"><i class="fa-solid fa-mug-hot"></i> Nothing is waiting for you.</p>';
         if (window.ibaWatch) h += window.ibaWatch.briefHtml();
-        h += '<p class="iba-aph-foot">Process, SRV Done and printing are on the PC. <b>Do on PC</b> pins a task to your reminders there.</p></div>';
+        h += '<p class="iba-aph-foot">Tap a task to see it. Printing is on the PC.</p></div>';
         return h;
     }
 
@@ -5635,7 +5693,7 @@
         if (!x || x.mode !== 'pos') return trackHtml(x);
         return trackListHtml(x);
     }
-    function receiptHtml(p, it, nOpen) {
+    function receiptHtml(p, it, nOpen, backLbl) {
         const ps = plainStatus(it), tone = trkTone(it, ps), who = trkWho(it), side = !!it.side_status;
         const paid = it.stage_index === 5 && !side;
         let sub = '';
@@ -5671,7 +5729,7 @@
             (canUrg ? '<button type="button" class="iba-trk-btn' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
             (it.kind === 'invoice' ? '<button type="button" class="iba-trk-btn" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '');
         return '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to results"><i class="fa-solid fa-xmark"></i></button>' +
-                '<span>Back to results' + (nOpen > 1 ? ' (' + nOpen + ')' : '') + '</span></div>' +
+                '<span>' + esc(backLbl || 'Back to results') + (nOpen > 1 ? ' (' + nOpen + ')' : '') + '</span></div>' +
             '<div class="iba-trk-r-body is-' + tone + '">' +
               '<div class="iba-trk-r-left">' +
                 '<div class="iba-trk-r-hero"><span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
@@ -6185,9 +6243,9 @@
         const groups = SKILL_GROUPS.map((g) => { const ids = g[1].filter((id) => tpls.indexOf(id) !== -1); ids.forEach((id) => grouped.add(id)); return [g[0], ids]; });
         const rest = tpls.filter((id) => !grouped.has(id));
         if (rest.length) groups.push(['More', rest]);
-        box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> Skills</h3>' +
-            '<p class="iba-ai-help">One click does the job, without the AI (no key, no quota). A skill asks for what it needs each time.</p>' +
-            '<label class="iba-ai-skill-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="iba-ai-skill-find" placeholder="Find a skill, e.g. delivery, approval, report" autocomplete="off"></label>' +
+        box.classList.add('is-apps'); // 17.0.5 patch 83: big app icons, one short name; details on hover
+        box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> All skills</h3>' +
+            '<label class="iba-ai-skill-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="iba-ai-skill-find" placeholder="Find a skill" autocomplete="off"></label>' +
             (top.length ? '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub"><i class="fa-solid fa-star"></i> Most used</div><div class="iba-ai-tiles">' + top.map(tplTile).join('') + '</div></div>' : '') +
             groups.filter((g) => g[1].length).map((g) => '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub">' + esc(g[0]) + '</div><div class="iba-ai-tiles">' + g[1].map(tplTile).join('') + '</div></div>').join('') +
             '<p class="iba-ai-empty" id="iba-ai-skill-none" hidden>No skill matches that.</p>' +
@@ -6464,15 +6522,14 @@
         if (!l || (l.children.length && !force)) return;
         if (!ready() && !isSuper()) {
             // 15.0.0 patch 10: without a key, only show what works without one.
-            addBot(greetingWord() + ', ' + firstName() + '. Here is what I can do for you, no key needed:\n- Sun button: today\'s brief, your tasks and reminders\n- Track button: where an invoice or a transfer (TRF, STK, USE, RET) is\n- Type a transfer number, e.g. "TRF-0361"\nTo ask in plain words, add a free key in Setup (gear button).', {});
+            // 17.0.5 patch 83: short and simple, the icons do the rest
+            addBot(greetingWord() + ', ' + firstName() + '. Tap an icon to start.', {});
             const l0 = l.lastElementChild;
             if (l0) { const t = l0.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
             addApps();
             return;
         }
-        addBot(greetingWord() + ', ' + firstName() + '. How can I help?\n' + (isSuper()
-            ? '- "What\'s waiting for me?"\n- "Show PO 12345"\n- "Where is the Al Noor invoice for site 177, 2025?"\n- "New invoice for PO 12345: B-300, 5,000, For SRV to Bob"\n- "Draft a reminder to Bob about PO 12345"'
-            : '- "Where is the invoice for PO 12345?"\n- "Al Noor invoices, site 177, 2025"\n- "What\'s waiting for me?"\n- "Draft a reminder to Bob about PO 12345"\nNo key needed: the sun button shows today\'s tasks and reminders, the Track button finds invoices and transfers.'), {});
+        addBot(greetingWord() + ', ' + firstName() + '. Tap an icon, or type your question below.', {});
         const last = l.lastElementChild;
         if (last) { const t = last.querySelector('.iba-ai-msg-tools'); if (t) t.remove(); }
         addApps();
@@ -6485,10 +6542,11 @@
         const d = document.createElement('div');
         d.className = 'iba-ai-apps';
         d.innerHTML =
-            '<button type="button" class="is-hero" data-run-tpl="inv_status"><i><span class="fa-solid fa-magnifying-glass-location"></span></i><b>Where is my invoice?</b></button>' +
-            '<button type="button" class="is-c1" data-ai="brief"><i><span class="fa-solid fa-sun"></span></i><b>Now brief</b></button>' +
-            '<button type="button" class="is-c3" data-run-tpl="transfer"><i><span class="fa-solid fa-truck-ramp-box"></span></i><b>Transfer</b></button>' +
-            '<button type="button" class="is-c4" data-run-tpl="person"><i><span class="fa-solid fa-id-badge"></span></i><b>Colleague</b></button>';
+            '<button type="button" class="is-hero" data-run-tpl="inv_status" title="Where is my invoice? Type the PO or vendor"><i><span class="fa-solid fa-magnifying-glass-location"></span></i><b>Invoice</b></button>' +
+            '<button type="button" class="is-c1" data-ai="brief" title="Now brief: your tasks and reminders"><i><span class="fa-solid fa-sun"></span></i><b>Brief</b></button>' +
+            '<button type="button" class="is-c3" data-run-tpl="transfer" title="Find a transfer: who must act next"><i><span class="fa-solid fa-truck-ramp-box"></span></i><b>Transfer</b></button>' +
+            '<button type="button" class="is-c4" data-run-tpl="person" title="Find a colleague: call, WhatsApp, email"><i><span class="fa-solid fa-id-badge"></span></i><b>Colleague</b></button>' +
+            '<button type="button" class="is-c5" data-ai="skills" title="Every skill you can use"><i><span class="fa-solid fa-table-cells-large"></span></i><b>All skills</b></button>';
         l.appendChild(d);
     }
     function peek(text) {

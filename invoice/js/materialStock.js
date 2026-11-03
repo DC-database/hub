@@ -1819,6 +1819,9 @@ function renderMaterialStockTable(data) {
         if (canMergeStock) mergeBtn.classList.remove('hidden');
         else mergeBtn.classList.add('hidden');
     }
+    // 17.0.5 patch 81: Undo merge (Super Admin)
+    const undoMergeBtn = document.getElementById('ms-merge-undo-btn');
+    if (undoMergeBtn) undoMergeBtn.classList.toggle('hidden', !isIrwin);
 
     const tableHeadRow = document.querySelector('#ms-table thead tr');
     if (tableHeadRow) {
@@ -2898,7 +2901,7 @@ window.msFillStockDetail = function (row) {
         const setQty = isIrwin
             ? ` <button type="button" class="secondary-btn ms-set-qty-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" title="Set the exact quantity at this site (Irwin)"><i class="fa-solid fa-pen"></i> Set</button>`
             : '';
-        const mainRow = `<tr><td class="ms-bd-site" style="width:70%;">${siteLabel} ${deleteSite}</td><td class="ms-bd-qty" style="width:30%;">${r.qty} ${msUnitHtml(item)}${setQty}</td></tr>`;
+        const mainRow = `<tr><td class="ms-bd-site" style="width:70%;">${siteLabel} ${deleteSite}</td><td class="ms-bd-qty" style="width:30%;"><div class="ms-bd-qtyline"><span class="ms-bd-num">${r.qty} ${msUnitHtml(item)}</span>${setQty}</div></td></tr>`;
         if (!r.gap) return mainRow;
         const alignBtn = canAlign
             ? ` <button type="button" class="secondary-btn ms-align-site-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" title="Set the card qty at this site to the qty from completed movement history">Align</button>`
@@ -2915,7 +2918,7 @@ window.msFillStockDetail = function (row) {
     if (!productTransfers.length) {
         historyRows = '<tr><td colspan="8" class="ms-hist-empty">No movement history found.</td></tr>';
     } else {
-        productTransfers.forEach((t) => {
+        productTransfers.forEach((t, histIndex) => {
             const date = t.shippingDate || (t.timestamp ? new Date(t.timestamp).toISOString().split('T')[0] : '');
             const type = t.jobType || t.for || 'Transfer';
             const from = msEscapeHtml(t.fromLocation || t.fromSite || '');
@@ -2935,7 +2938,8 @@ window.msFillStockDetail = function (row) {
             const trnCell = trn
                 ? `<a href="#" role="button" class="ms-hist-trn" data-trn-key="${msEscapeHtml(t.key)}" title="Print this transaction (current status)"><i class="fa-solid fa-print"></i> ${msEscapeHtml(trn)}</a>`
                 : '<span class="ms-hist-trn-txt">-</span>';
-            historyRows += `<tr><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${t.receivedQty || 0}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
+            // 17.0.5 patch 81: the latest 10 show, the rest open with "Show all"
+            historyRows += `<tr${histIndex >= 10 ? ' class="ms-hist-old"' : ''}><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${t.receivedQty || 0}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
         });
     }
 
@@ -2950,7 +2954,7 @@ window.msFillStockDetail = function (row) {
                 </div>
                 <div class="ms-glass-panel">
                     <h4><i class="fa-solid fa-cubes"></i> Current Stock Breakdown</h4>
-                    <div class="ms-glass-scroll">
+                    <div class="ms-glass-scroll ms-bd-scroll">
                         <table class="stock-detail-table">
                             <thead><tr><th>Site</th><th>Qty</th></tr></thead>
                             <tbody>${breakdownRows}</tbody>
@@ -2959,12 +2963,13 @@ window.msFillStockDetail = function (row) {
                 </div>
                 <div class="ms-glass-panel ms-glass-panel-wide">
                     <h4><i class="fa-solid fa-clock-rotate-left"></i> Movement History</h4>
-                    <div class="ms-glass-scroll">
+                    <div class="ms-glass-scroll ms-hist-scroll">
                         <table class="stock-detail-table">
                             <thead><tr><th>Date</th><th>Trans no.</th><th>Type</th><th>Route</th><th>Qty</th><th>By</th><th>Status</th><th>Action</th></tr></thead>
                             <tbody>${historyRows}</tbody>
                         </table>
                     </div>
+                    ${productTransfers.length > 10 ? `<button type="button" class="secondary-btn ms-hist-all" data-ms-hist-all>Show all (${productTransfers.length})</button>` : ''}
                 </div>
             </div>
         </td>`;
@@ -3198,6 +3203,16 @@ async function msSetSiteQty(key, site, btn) {
 }
 window.msSetSiteQty = msSetSiteQty;
 
+// 17.0.5 patch 81: Movement History "Show all (N)"
+document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-ms-hist-all]');
+    if (!b) return;
+    e.preventDefault();
+    const panel = b.closest('.ms-glass-panel');
+    if (!panel) return;
+    const on = panel.classList.toggle('ms-hist-showall');
+    b.textContent = on ? 'Show latest 10' : 'Show all (' + panel.querySelectorAll('tbody tr').length + ')';
+});
 window.toggleStockDetail = function(rowId, btn) {
     // 1. Auto-Minimize Others (Close all other open rows)
     const allOpenRows = document.querySelectorAll('.stock-child-row:not(.hidden)');
@@ -3221,6 +3236,12 @@ window.toggleStockDetail = function(rowId, btn) {
         }
         row.classList.toggle('hidden');
         btn.textContent = row.classList.contains('hidden') ? '+' : '-';
+        // 17.0.5 patch 81: the opened item moves to the top of the table box, which stretches to show it all
+        if (!row.classList.contains('hidden')) {
+            const parentRow = row.previousElementSibling;
+            const wrap = row.closest('.table-wrapper');
+            setTimeout(() => { try { if (wrap && parentRow) wrap.scrollTop = Math.max(0, parentRow.offsetTop - ((wrap.querySelector('thead') || {}).offsetHeight || 0)); if (parentRow) parentRow.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {} }, 30);
+        }
     }
     if (typeof msPaintRowFrost === 'function') msPaintRowFrost();
 };
@@ -3469,6 +3490,7 @@ async function handleMergeSelected() {
         for (const item of others) {
             const expectId = String(item.productID || item.productId || '').trim();
             let captured = null;
+            let capturedCard = null;
             let problem = '';
             const ok = await runTx(item.key, (cur) => {
                 captured = null; problem = '';
@@ -3476,6 +3498,7 @@ async function handleMergeSelected() {
                 if (String(cur.productID || cur.productId || '').trim() !== expectId) { problem = 'changed'; return; }
                 if (cur.mergedInto) { problem = 'already merged into ' + cur.mergedInto; return; }
                 captured = { ...(cur.sites || {}) };
+                capturedCard = JSON.parse(JSON.stringify(cur)); // 17.0.5 patch 81: full copy for Undo merge
                 cur.sites = {};
                 cur.stockQty = 0;
                 cur.balanceQty = 0;
@@ -3491,7 +3514,7 @@ async function handleMergeSelected() {
                 if (typeof populateMaterialStock === 'function') populateMaterialStock(true);
                 return;
             }
-            taken.push({ key: item.key, id: expectId, sites: captured || {} });
+            taken.push({ key: item.key, id: expectId, sites: captured || {}, card: capturedCard || null });
         }
 
         // Step 2: add everything to the main card atomically.
@@ -3521,19 +3544,22 @@ async function handleMergeSelected() {
         }
 
         // Merge log (exact quantities moved, for audit / manual recovery).
+        let mergeLogRef = null;
         try {
-            await database.ref('stock_merges').push({
+            mergeLogRef = database.ref('stock_merges').push();
+            await mergeLogRef.set({
                 mainId, mainKey: main.key,
-                merged: taken.map((t) => ({ id: t.id, key: t.key, sites: t.sites })),
+                merged: taken.map((t) => ({ id: t.id, key: t.key, sites: t.sites, card: t.card || null })),
                 by: who, at: firebase.database.ServerValue.TIMESTAMP
             });
-        } catch (logError) { console.warn('Merge log failed:', logError); }
+        } catch (logError) { mergeLogRef = null; console.warn('Merge log failed:', logError); }
 
         // Step 3: history follows the stock.
         await fetchTransfersOnly();
         const idSet = new Set(taken.map((t) => t.id));
         idSet.delete(mainId);
         const updates = {};
+        const movedTransfers = {};
         let historyCount = 0;
         (allTransferData || []).forEach((entry) => {
             const pid = String(entry.productID || entry.productId || '').trim();
@@ -3542,8 +3568,11 @@ async function handleMergeSelected() {
             updates[`transfer_entries/${entry.key}/productId`] = mainId;
             updates[`transfer_entries/${entry.key}/productName`] = main.productName || '';
             updates[`transfer_entries/${entry.key}/mergedFrom`] = pid;
+            movedTransfers[entry.key] = { id: pid, name: entry.productName || '' };
             historyCount++;
         });
+        // 17.0.5 patch 81: the exact transfers moved, so Undo merge moves back only these
+        if (mergeLogRef && historyCount) { try { await mergeLogRef.child('transfers').set(movedTransfers); } catch (_) {} }
         const keys = Object.keys(updates);
         for (let i = 0; i < keys.length; i += 400) {
             const batch = {};
