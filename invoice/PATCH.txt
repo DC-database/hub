@@ -1,3 +1,59 @@
+17.0.5 patch 105 (04-Nov-2026)
+- Payments page: "Add to payment list" uses the same date as Invoice Records Mark Paid:
+  original With Accounts date + 1 day, never Friday (Thursday -> Saturday), never after today.
+  Reads withAccountsReleaseDate first, then releaseDate. Date stays editable in the table.
+- Rows added to the list before this rule (paid date = today) are fixed once automatically
+  when the Payments page opens. No extra button.
+Files: index.html, js/app-payments.js, js/iba-1705-paymonth.js
+
+17.0.5 patch 104 (04-Nov-2026)
+- Payments: when the With Accounts pocket row has no release date, the release date is read from the invoice itself
+  (one small read per invoice) right after adding, and the paid date becomes release + 1 day (never Friday).
+Files: index.html, js/app-payments.js
+
+17.0.5 patch 103 (04-Nov-2026)
+- Month to Payments: "Use the Finance Date Paid" tick removed (martin: always release date + 1 day, never Friday).
+  Finance column stays as information only.
+Files: index.html, js/iba-1705-paymonth.js
+
+17.0.5 patch 102 (04-Nov-2026)
+- Finance moved to the PO: a "Finance" button on the PO card (assistant tracking list, invoice view, phone) opens a mini
+  Finance sheet for that PO: PO value, Certified, Paid, Retention held, Certified not paid yet, Balance left on PO,
+  and every payment (PVN, cheque, certified, retention, payment, Date Paid / not paid). Loads only when pressed.
+  "No record in Finance for PO ... yet" / "Couldn't reach Finance, try again". The per-invoice Finance box is removed.
+- Payments: every invoice added (Search Invoices AND By month) gets Paid date = With Accounts date + 1 day, never Friday,
+  never after today. A date picked in the Search popup still applies to all; dates stay editable in the table.
+Files: index.html, js/app-payments.js, js/iba-assistant.js, js/iba-1705-paymonth.js, js/iba-1705-finpay.js, css/iba-1705-fit.css
+
+17.0.5 patch 101 (04-Nov-2026)
+- NEW Finance link, read only (js/iba-1705-finpay.js, window.ibaFinPay): reads payment-report db "payments" by poNo
+  (indexed, one small read per PO, kept for the session; never writes to Finance). Matched on PO only (Finance combines payments).
+- Assistant invoice view (PC receipt + phone detail): invoices With Accounts show a FINANCE box: possible payment
+  (first Finance payment with Date Paid on/after the With Accounts date) + PVN / cheque / amount / Date Paid list.
+  Seen by: Super Admin, Admin Finance/Accounts/Accounting, Admin CEO/COO/Manager/Engineer. Normal Users never.
+- Month to Payments: Finance column (paid date + cheque) and tick "Use the Finance Date Paid where found" (Payments users only).
+Files: index.html, js/iba-assistant.js, js/iba-1705-paymonth.js, css/iba-1705-fit.css, js/iba-1705-finpay.js (new)
+
+17.0.5 patch 100 (04-Nov-2026)
+- Month to Payments: Paid date = the day after the With Accounts (release) date, never a Friday
+  (Thursday release -> Saturday). Shown in a new "Paid date" column before adding; still editable in the Payments list.
+Files: index.html, js/iba-1705-paymonth.js, css/iba-1705-fit.css
+
+17.0.5 patch 99 (04-Nov-2026)
+- NEW "Month to Payments" (js/iba-1705-paymonth.js, window.ibaPayMonth): pick month + year -> every invoice still With Accounts
+  whose With Accounts (release) date is in that month goes into the Payments list (count, vendors, total and list shown first).
+  Uses the Payments page's With Accounts pocket (no invoice_entries read). Already-listed invoices are left as they are;
+  invoices with no With Accounts date are counted, not added. Nothing is Paid until "Mark as Paid".
+- Open it from the "By month" button on the Payments page (next to Search Invoices) or the assistant skill "Month to Payments".
+  Only for people who can open Payments, PC only.
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css, js/iba-1705-paymonth.js (new)
+
+17.0.5 patch 98 (04-Nov-2026)
+- Phone (assistant phone view and mobile pages): "Open in Invoice Records" buttons are no longer shown (desktop only). PC keeps them.
+- Phone PO card: PURCHASE ORDER (blue PO number) | SITE (teal number + site name), then VENDOR (left) | PO VALUE (QAR) (right).
+  Small title on top, bold value under it. PC card unchanged.
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
 17.0.5 patch 97 (03-Nov-2026)
 - Phone AI assistant brief: each task is a colour card (gold approval, teal SRV, blue inquiry/other):
   status + days, big PO, vendor, big QAR, Site · INV, "Tap for details". Buttons only inside the detail.
