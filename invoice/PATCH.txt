@@ -1,3 +1,35 @@
+17.0.5 patch 110 (04-Nov-2026)
+- Batch Entry: "Tell me for all" tick moved up to the right corner of the "Set All Notes To" title line (Global Overrides).
+Files: index.html, js/iba-1705-ret.js, css/iba-1705-fit.css
+
+17.0.5 patch 109 (04-Nov-2026)
+- Sort for CEO = traffic light on each card: RED lamp = kindly check first, GREEN lamp = proceed,
+  YELLOW lamp = "Urgent - sent on purpose" (you pressed Send anyway: goes to CEO but was not a clean green; reason still shown).
+  Tiles: Proceed / Urgent / Check first / Not ready. Button "Send N green + yellow to Batch Entry".
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 108 (04-Nov-2026)
+- Sort for CEO redesigned as signal cards: GREEN "Proceed - send to CEO" when nothing else is waiting;
+  RED "Kindly check first" when the same PO or the same vendor has other invoices waiting (says which, lists them).
+  Tiles on top (Proceed / Check first / Not ready). Red card button "Send anyway (urgent)" turns it green; "Put back to check" undoes.
+  Green button "Send N green to Batch Entry".
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 107 (04-Nov-2026)
+- Assistant: every skill you run shows a "Run again" button under its line in the chat.
+  Skills with questions open the same form again with your last answers filled in (change them or press Run);
+  skills without questions run straight away. No need to go back to All skills.
+Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 106 (04-Nov-2026)
+- Pages keep what you left on them (PC only, memory only - a refresh or sign-out clears it):
+  Batch Entry card list (with typed values) comes back when you return; only Save / Clear / Refresh empty it.
+  Invoice Records search results come back for 1 hour with a "Kept from HH:MM - Refresh" note.
+  Add New Job: a half-typed new job comes back when you open Add again (Add Job / Clear ends it).
+  Invoice Entry: the Attention picked in the invoice pop-up survives the Invoice Management button.
+- Assistant: typing a PO number (PO card) now shows the Finance button too (was only on tracking cards).
+Files: index.html, js/iba-1705-keep.js (NEW), js/iba-assistant.js
+
 17.0.5 patch 105 (04-Nov-2026)
 - Payments page: "Add to payment list" uses the same date as Invoice Records Mark Paid:
   original With Accounts date + 1 day, never Friday (Thursday -> Saturday), never after today.
