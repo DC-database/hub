@@ -1428,6 +1428,29 @@ async function publishRecentItem(item) {
     await dbReq.ref(RECENT_ITEMS_PATH).child(item.firebaseKey).set(recentItemPayload(item));
 }
 
+// The recent list keeps its own copy of each new item. After an edit, bring that copy up to date
+// (part code, description, UOM, category, group, class). Who added it and when stay the same.
+async function updateRecentItemCopy(key, data) {
+    const ref = dbReq.ref(RECENT_ITEMS_PATH).child(key);
+    const snap = await ref.once('value');
+    if (!snap.exists()) return;
+    const fields = ["Part Code", "Description", "UOM", "Activity Code", "Activity Name", "Group Code", "Group Name", "Class Code", "Class Name"];
+    const patch = {};
+    fields.forEach(f => { if (data[f] !== undefined) patch[f] = data[f]; });
+    await ref.update(patch);
+    const row = sharedRecentItems.find(r => r.firebaseKey === key);
+    if (row) Object.assign(row, patch);
+}
+
+// Show the catalog's current values, so items edited before this fix also show correctly.
+function withCurrentCatalogValues(row) {
+    const live = allSearchableItems.find(i => i.firebaseKey === row.firebaseKey);
+    if (!live) return row;
+    const out = { ...row };
+    ["Part Code", "Description", "UOM", "Activity Code", "Activity Name", "Group Code", "Group Name", "Class Code", "Class Name"].forEach(f => { if (live[f] !== undefined && live[f] !== '') out[f] = live[f]; });
+    return out;
+}
+
 async function loadSharedRecentItems() {
     const snap = await dbReq.ref(RECENT_ITEMS_PATH).once('value');
     const rows = [];
@@ -1437,7 +1460,7 @@ async function loadSharedRecentItems() {
         });
     }
     rows.sort((a, b) => String(b.CreatedAt || '').localeCompare(String(a.CreatedAt || '')));
-    sharedRecentItems = rows.slice(0, 200);
+    sharedRecentItems = rows.slice(0, 200).map(withCurrentCatalogValues);
     return sharedRecentItems;
 }
 
@@ -2032,6 +2055,7 @@ $id('editItemForm').addEventListener('submit', async (e) => {
         const idx = allSearchableItems.findIndex(item => item.firebaseKey === key);
         if (idx > -1) allSearchableItems[idx] = { ...allSearchableItems[idx], ...updateData };
         invalidateAssistantIndex();
+        await updateRecentItemCopy(key, updateData).catch(err => console.warn(err));
         await commitCatalogChange().catch(err => console.warn(err));
         // Keep any cart rows for this item in step with the new code.
         let cartTouched = false;
@@ -4407,7 +4431,7 @@ document.addEventListener('keydown', (e) => {
 //    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 // TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
 // ==========================================
-const APP_VERSION = '8.0.5';
+const APP_VERSION = '8.0.6';
 const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
 let lastUpdateCheck = 0;
 let pendingUpdateVersion = '';
