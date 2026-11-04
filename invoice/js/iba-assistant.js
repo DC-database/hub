@@ -285,6 +285,8 @@
     // robot button in the phone's top bar (no floating robot or tips there),
     // full screen. Jobs that open desktop pages are left out on the phone.
     function onPhone() { const b = document.body; return !!(b && b.classList.contains('iba-phone')); }
+    // 17.0.5 p98: phone screens (assistant phone view or the mobile app pages): no desktop-only buttons
+    function onMobileUi() { const b = document.body; return !!(b && (b.classList.contains('iba-phone') || b.classList.contains('iba-mobile-ui'))); }
     // 15.0.0 patch 25: on the phone the assistant only searches, tracks,
     // reminds and messages. Everything else (brief, Batch Entry, new invoice,
     // reports, downloads) is on the computer.
@@ -1517,6 +1519,14 @@
         if (/^(site\s*\d*|no site( assigned)?)$/i.test(nm.trim()) || nm === no) nm = '';
         return nm;
     }
+    // 17.0.5 p101: Finance payments of this PO (hint) while the invoice is With Accounts
+    // 17.0.5 p102: martin moved Finance to the PO (button on the PO card), so no box per invoice
+    function trkFinBox() { return ''; }
+    function trkFinBtn(p) {
+        if (!window.ibaFinPay || !p || !p.po) return '';
+        const b = window.ibaFinPay.btnHtml(p.po, p.po_value || '');
+        return b ? '<div class="iba-trk-pc-fin">' + b + '</div>' : '';
+    }
     function trkStepTo(s) {
         if (s.to) return ' → ' + (s.to_plain ? esc(s.to) : '<b class="iba-trk-to">' + esc(s.to) + '</b>') + esc(s.to_tail || '');
         return s.by ? ' (by ' + esc(s.by) + ')' : '';
@@ -1524,12 +1534,23 @@
     function trkPoCard(p, withUpd) {
         const no = p.site ? (siteNo(p.site) || String(p.site)) : '';
         const nm = p.site ? trkSiteName(p.site) : '';
+        // 17.0.5 p98: phone = 2 x 2 grid: PO | SITE, then VENDOR | PO VALUE
+        // (small title on top, bold value under it); PO and site in their own colours
+        if (onMobileUi()) {
+            const cell = (lbl, val, cls) => '<div class="iba-trk-pm-c' + (cls ? ' ' + cls : '') + '"><span class="iba-trk-lbl">' + lbl + '</span><b>' + val + '</b></div>';
+            return '<div class="iba-trk-pm">' +
+                cell('PURCHASE ORDER', 'PO ' + esc(p.po), 'is-po') +
+                (no ? '<div class="iba-trk-pm-c is-site is-r"><span class="iba-trk-lbl">SITE</span><b>' + esc(no) + '</b>' + (nm ? '<small>' + esc(nm) + '</small>' : '') + '</div>' : '<div></div>') +
+                (p.vendor ? cell('VENDOR', esc(p.vendor), 'is-ven') : '<div></div>') +
+                (p.po_value ? cell('PO VALUE (QAR)', esc(p.po_value), 'is-val is-r') : '') +
+                '</div>' + trkFinBtn(p);
+        }
         return '<div class="iba-trk-pc">' +
             '<div class="iba-trk-pc-l"><span class="iba-trk-lbl">PURCHASE ORDER</span><span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
               (p.po_value ? '<span class="iba-trk-pc-val">PO value <b>' + esc(p.po_value) + '</b>' + (withUpd && p.po_value_updated ? ' <span class="iba-pofile-upd" title="Updated in the PO file (progress-po)">updated</span>' : '') + '</span>' : '') + '</div>' +
             (no ? '<div class="iba-trk-pc-r"><span class="iba-trk-lbl">SITE</span><span class="iba-trk-pc-site">' + esc(no) + '</span>' + (nm ? '<span class="iba-trk-pc-sname">' + esc(nm) + '</span>' : '') + '</div>' : '') +
             '</div>' +
-            (p.vendor || p.year ? '<div class="iba-trk-pc-ven">' + (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') + (p.year ? '<span class="iba-trk-pc-yr">' + esc(p.year) + '</span>' : '') + '</div>' : '');
+            (p.vendor || p.year ? '<div class="iba-trk-pc-ven">' + (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') + (p.year ? '<span class="iba-trk-pc-yr">' + esc(p.year) + '</span>' : '') + '</div>' : '') + trkFinBtn(p);
     }
     function poYear(rec) { const m = String((rec && (rec['Entry Date'] || rec['Order Date'] || rec.Date)) || '').match(/(\d{4})/); return m ? m[1] : ''; }
     function poDateValue(rec) {
@@ -3349,6 +3370,9 @@
         ceo_sort: { name: 'Sort for CEO', icon: 'fa-arrow-down-wide-short', superOnly: true, desc: 'Type the POs of the approved papers. Each one is sorted: Single (its vendor has only this invoice ready, so it can go to CEO Approval alone) or Summary later (the same vendor has more ready invoices: In Process, For Approval, Approved, CEO Approval, For SRV or SRV Done). Then one button puts only the singles in Batch Entry. No AI used.',
             ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 57376, 57400, 57411', poList: true }],
             build: (v) => [{ tool: 'ceo_sort', args: { pos: v.pos } }] },
+        // 17.0.5 patch 99: one month of With Accounts invoices -> Payments list (js/iba-1705-paymonth.js)
+        pay_month: { name: 'Month to Payments', icon: 'fa-calendar-check', desc: 'Pick a month and year: every invoice still With Accounts whose With Accounts date is in that month goes into the Payments list, ready to mark Paid. Only for people who can open Payments. No AI used.',
+            check: () => !!(window.ibaPayMonth && window.ibaPayMonth.allowed()), ask: () => [], action: () => { if (window.ibaPayMonth) window.ibaPayMonth.open(); } },
         // 17.0.3 patch 10: today's invoices of some statuses -> Batch Entry
         today_batch: { name: 'Today to Batch', icon: 'fa-calendar-day', superOnly: true, desc: 'Every invoice that got the picked status today (Qatar time) goes into Batch Entry: Under Review, With Accounts, For Approval, CEO Approval, or all four. Up to 100 at a time. Nothing is saved until you press Save. No AI used.',
             ask: () => [{ key: 'st', label: 'Status today', type: 'select', options: [
@@ -4888,6 +4912,7 @@
               '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps">' + segs + '</ol></div>' +
               (ps.next && !paid ? '<div class="iba-aph-next"><span class="iba-aph-next-ic">→</span><div><b>Next step</b><span>' + esc(ps.next) + '</span></div></div>' : '') +
               (actsHtml || '') + (links ? '<div class="iba-aph-links">' + links + '</div>' : '') +
+              trkFinBox(p, it) +
               '<div class="iba-aph-small">' + f('INVOICE DATE', esc(it.invoice_date || '')) + f('ENTERED BY', esc(entBy)) +
                 f('STATUS IN SYSTEM', esc(it.side_status || it.status || '')) + f('NOTE', esc(t.note || '')) + '</div>' +
               (steps.length ? '<div class="iba-trk-r-sec iba-aph-hist"><span class="iba-trk-lbl">WHAT HAPPENED</span><ul class="iba-trk-r-hist">' +
@@ -4924,6 +4949,7 @@
             if (!it) { const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove(); return; }
             o.__it = it;
             o.innerHTML = aphDetailHtml(t, p, it, actsHtml);
+            try { if (window.ibaFinPay) window.ibaFinPay.fill(o); } catch (_) {}
         } catch (_) {
             const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove();
         }
@@ -5599,7 +5625,7 @@
             // Remind only when there is one; otherwise each invoice's own Remind
             const openIt = p.items.filter((it) => it.stage_index < 5 && !noRemind(it));
             if (openIt.length > 1) openIt.length = 0;
-            if (inRecords || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
+            if ((inRecords && !onMobileUi()) || openIt.length) h += '<div class="iba-ai-trk-acts">' + (inRecords && !onMobileUi() ? '<button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '') +
                 (openIt.length === 1 ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, items: openIt.map((it) => ({ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days })) })) + '"><i class="fa-solid fa-bell"></i> ' + 'Remind' + '</button>' : '') + '</div>';
             h += '</div>';
         });
@@ -5741,7 +5767,7 @@
             }
             const inRecords = items.some((it) => it.kind === 'invoice');
             // 17.0.5 patch 27: "Remind all" removed (each invoice has its own Remind)
-            if (inRecords) x += '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>';
+            if (inRecords && !onMobileUi()) x += '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>';
             return x + '</div></div>';
         };
         const grpOf = (p) => (p.group !== undefined ? p.group : ((p.items || []).length ? Math.min.apply(null, p.items.map(trkGrp)) : 3));
@@ -5814,7 +5840,7 @@
             (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV</a>' : '') +
             (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '') +
             (canUrg ? '<button type="button" class="iba-trk-btn' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
-            (it.kind === 'invoice' ? '<button type="button" class="iba-trk-btn" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '');
+            (it.kind === 'invoice' && !onMobileUi() ? '<button type="button" class="iba-trk-btn" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button>' : '');
         return '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to results"><i class="fa-solid fa-xmark"></i></button>' +
                 '<span>' + esc(backLbl || 'Back to results') + (nOpen > 1 ? ' (' + nOpen + ')' : '') + '</span></div>' +
             '<div class="iba-trk-r-body is-' + tone + '">' +
@@ -5828,6 +5854,7 @@
               '<div class="iba-trk-r-right">' +
                 '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps' + (side ? ' is-side' : '') + '">' + segs + '</ol>' +
                   (ps.next && !paid ? '<p class="iba-trk-r-next"><b>Next:</b> ' + esc(ps.next) + '</p>' : '') + '</div>' +
+                trkFinBox(p, it) +
                 '<div class="iba-trk-r-cols">' +
                   (rows.length ? '<dl class="iba-trk-r-dl">' + rows.map((x) => '<div><dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd></div>').join('') + '</dl>' : '') +
                   (steps.length ? '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHAT HAPPENED</span><ul class="iba-trk-r-hist">' +
@@ -5862,6 +5889,7 @@
         o.setAttribute('role', 'dialog');
         o.setAttribute('aria-label', 'Invoice ' + it.invoice_no);
         o.innerHTML = receiptHtml(p, it, nOpen);
+        try { if (window.ibaFinPay) window.ibaFinPay.fill(o); } catch (_) {}
         o.__from = btn;
         o.__it = it;
         panel.appendChild(o);
@@ -6296,7 +6324,7 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -6304,7 +6332,7 @@
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch']],
+        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'recent', 'batch']],

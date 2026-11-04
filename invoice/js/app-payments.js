@@ -7,6 +7,37 @@
 
 let paymentSearchResults = new Map();
 let paymentModalGlobalPaidDate = '';
+// 17.0.5 p102: paid date of a newly added invoice = With Accounts (release) date + 1 day,
+// never a Friday, never after today; a date picked by hand in the popup still wins.
+let paymentModalGlobalDateTouched = false;
+async function paymentFillMissingReleaseDates(ids) {
+    if (paymentModalGlobalDateTouched || typeof invoiceDb === 'undefined' || !invoiceDb) return;
+    const today = paymentToday();
+    let changed = false;
+    for (const id of ids) {
+        const row = invoicesToPay && invoicesToPay[id];
+        if (!row || paymentDateISO(row.releaseDate) || !row.po || !row.key) continue;
+        try {
+            const snap = await invoiceDb.ref(`invoice_entries/${row.po}/${row.key}`).once('value');
+            const rel = paymentWithAccountsDateValue(snap.val() || {});
+            const cur = invoicesToPay[id];
+            if (!rel || !cur) continue;
+            cur.releaseDate = rel;
+            if (paymentDateISO(cur.paidDate) === today) cur.paidDate = paymentAutoPaidDate(rel);
+            changed = true;
+        } catch (_) {}
+    }
+    if (changed) { persistPaymentCart(); renderPaymentsCart(); }
+}
+function paymentAutoPaidDate(releaseValue) {
+    const today = paymentToday();
+    if (paymentModalGlobalDateTouched && paymentModalGlobalPaidDate) return paymentModalGlobalPaidDate;
+    if (!paymentCanCurrentUserEditPaidDate()) return today;
+    let auto = '';
+    try { if (window.ibaPayMonth && typeof window.ibaPayMonth.paidDateFor === 'function') auto = window.ibaPayMonth.paidDateFor(releaseValue); } catch (_) { auto = ''; }
+    if (!auto) return paymentModalGlobalPaidDate || today;
+    return auto > today ? today : auto;
+}
 let paymentRestoredStorageKey = '';
 let paymentReadyIndex = new Map();
 let paymentReadyIndexLoadPromise = null;
@@ -145,7 +176,9 @@ function paymentPaidHistoryYear(value, invoiceData = {}) {
 }
 
 function paymentWithAccountsDateValue(invoiceData = {}) {
+    // 17.0.5 p105: same source as Invoice Records Mark Paid (original With Accounts date first)
     return paymentText(
+        invoiceData.withAccountsReleaseDate ||
         invoiceData.releaseDate ||
         invoiceData.ReleaseDate ||
         invoiceData['Release Date'] ||
@@ -1402,6 +1435,7 @@ function openPaymentSearchModal() {
         return;
     }
     paymentModalGlobalPaidDate = paymentToday();
+    paymentModalGlobalDateTouched = false;
     const globalPaidDateInput = document.getElementById('im-payment-modal-global-date');
     if (globalPaidDateInput) {
         globalPaidDateInput.value = paymentModalGlobalPaidDate;
@@ -1409,7 +1443,7 @@ function openPaymentSearchModal() {
         const canEditGlobalDate = paymentCanCurrentUserEditPaidDate();
         globalPaidDateInput.disabled = !canEditGlobalDate;
         globalPaidDateInput.title = canEditGlobalDate
-            ? 'This date applies to newly added invoices while this popup remains open.'
+            ? 'Leave it as today: each invoice gets its With Accounts date + 1 day (never Friday). Pick a date here only to use that date for all invoices added while this popup is open.'
             : 'Paid Date is locked to today for users without Accounts date-edit permission.';
         globalPaidDateInput.onchange = () => {
             const normalizedDate = paymentDateISO(globalPaidDateInput.value);
@@ -1418,6 +1452,7 @@ function openPaymentSearchModal() {
                 return;
             }
             paymentModalGlobalPaidDate = normalizedDate;
+            paymentModalGlobalDateTouched = true;
             globalPaidDateInput.value = normalizedDate;
         };
     }
@@ -1542,7 +1577,7 @@ function paymentResultFromInvoice(poNumber, invoiceKey, invoiceData) {
         originalAttention: paymentText(invoiceData.attention),
         invoiceDate: paymentInvoiceDateValue(invoiceData),
         releaseDate: paymentWithAccountsDateValue(invoiceData),
-        paidDate: paymentModalGlobalPaidDate || paymentToday()
+        paidDate: paymentAutoPaidDate(paymentWithAccountsDateValue(invoiceData))
     };
 }
 
@@ -2111,11 +2146,13 @@ async function handleAddSelectedToPayments() {
             releaseDate: paymentWithAccountsDateValue(item),
             // The popup global date applies only at the moment this invoice is added.
             // After insertion, the cart row is independent from the popup date.
-            paidDate: paymentModalGlobalPaidDate || paymentToday()
+            paidDate: paymentAutoPaidDate(paymentWithAccountsDateValue(item))
         };
     });
     persistPaymentCart();
     renderPaymentsCart();
+    // 17.0.5 p104: rows whose With Accounts pocket has no release date -> read it from the invoice itself
+    paymentFillMissingReleaseDates(selected.map(item => item.id)).catch(() => {});
 
     if (imPaymentModalPOInput) imPaymentModalPOInput.value = '';
     if (imPaymentModalResults) {
