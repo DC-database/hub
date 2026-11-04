@@ -1107,4 +1107,48 @@
   html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl table { font-size: 11.5px !important; }
   html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl :is(th, td) { padding: 5px 3px !important; }
   html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl th { font-size: 9.5px !important; letter-spacing: .03em !important; }
+
+  /* 17.0.5 p108: Sort for CEO signal cards */
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles { display: flex !important; gap: 8px !important; margin: 4px 0 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles > div { flex: 1 1 0 !important; padding: 8px 10px !important; border-radius: 10px !important; border: 1px solid rgba(255,255,255,.12) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles b { display: block !important; font-size: 22px !important; line-height: 1.1 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles span { font-size: 11px !important; letter-spacing: .05em !important; text-transform: uppercase !important; opacity: .85 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-go { background: rgba(34,197,94,.14) !important; border-color: rgba(34,197,94,.45) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-go b { color: #4ade80 !important; -webkit-text-fill-color: #4ade80 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-stop { background: rgba(239,68,68,.14) !important; border-color: rgba(239,68,68,.45) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-stop b { color: #f87171 !important; -webkit-text-fill-color: #f87171 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-none b { color: #cbd5e1 !important; -webkit-text-fill-color: #cbd5e1 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-list { display: grid !important; gap: 8px !important; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c { padding: 10px 12px !important; border-radius: 12px !important; border: 1px solid rgba(255,255,255,.12) !important; border-left-width: 5px !important; background: rgba(255,255,255,.04) !important; min-width: 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-go { border-left-color: #22c55e !important; background: rgba(34,197,94,.08) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-stop { border-left-color: #ef4444 !important; background: rgba(239,68,68,.09) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-sig { display: inline-flex !important; align-items: center !important; gap: 6px !important; padding: 3px 10px !important; border-radius: 99px !important; font-size: 11.5px !important; font-weight: 800 !important; letter-spacing: .02em !important; margin-bottom: 6px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-go .iba-cs-sig { background: #16a34a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-stop .iba-cs-sig { background: #dc2626 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-top { display: flex !important; align-items: baseline !important; gap: 8px !important; flex-wrap: wrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-po { font-family: ui-monospace, Consolas, monospace !important; font-weight: 800 !important; font-size: 15px !important; color: #8FB8FF !important; -webkit-text-fill-color: #8FB8FF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-site { font-size: 11.5px !important; font-weight: 700 !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-ven { font-weight: 700 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; margin: 2px 0 6px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-why { font-size: 12px !important; font-weight: 700 !important; color: #fca5a5 !important; -webkit-text-fill-color: #fca5a5 !important; margin: 0 0 6px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-lbl { font-size: 10.5px !important; letter-spacing: .06em !important; text-transform: uppercase !important; opacity: .7 !important; margin: 6px 0 2px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c .iba-cs-inv { white-space: normal !important; font-size: 12px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c-acts { margin-top: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c .iba-cs-mv { padding: 4px 10px !important; font-size: 11.5px !important; min-height: 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-ai-cardacts .iba-ai-btn.iba-cs-send:not(:disabled) { background-image: none !important; box-shadow: none !important;  background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+
+  /* 17.0.5 p109: traffic light on each Sort for CEO card (top = red, middle = amber, bottom = green) */
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c { position: relative !important; padding-right: 48px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tl { position: absolute !important; top: 10px !important; right: 10px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; padding: 5px 4px !important; border-radius: 9px !important; background: #0b0f14 !important; border: 1px solid rgba(255,255,255,.18) !important; box-shadow: inset 0 0 0 1px rgba(0,0,0,.6) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tl i { display: block !important; width: 16px !important; height: 16px !important; border-radius: 50% !important; background: #2a2f36 !important; opacity: .55 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tl.is-stop i:nth-child(1) { background: #ef4444 !important; opacity: 1 !important; box-shadow: 0 0 10px 3px rgba(239,68,68,.75) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tl.is-go i:nth-child(3) { background: #22c55e !important; opacity: 1 !important; box-shadow: 0 0 10px 3px rgba(34,197,94,.75) !important; }
+
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-urg { border-left-color: #f59e0b !important; background: rgba(245,158,11,.09) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-urg .iba-cs-sig { background: #d97706 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-urg .iba-cs-c-why { color: #fcd34d !important; -webkit-text-fill-color: #fcd34d !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tl.is-urg i:nth-child(2) { background: #f59e0b !important; opacity: 1 !important; box-shadow: 0 0 10px 3px rgba(245,158,11,.75) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-urg { background: rgba(245,158,11,.14) !important; border-color: rgba(245,158,11,.45) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-tiles .is-urg b { color: #fbbf24 !important; -webkit-text-fill-color: #fbbf24 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c.is-urg .iba-cs-urg { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2) label.iba-ret-tick.is-in-note { margin: 0 !important; }
 }
