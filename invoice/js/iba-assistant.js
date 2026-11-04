@@ -1508,6 +1508,29 @@
     const MAX_POS = 10;
     function stageOf(status) { const k = norm(status); return Object.prototype.hasOwnProperty.call(STAGE_OF, k) ? STAGE_OF[k] : -1; }
     function siteNo(v) { return (String(v == null ? '' : v).match(/\d+/) || [''])[0]; }
+    // 17.0.5 p95: PO card = PO no. + PO value on the left, SITE (big coloured number,
+    // site name small under it) on the right, vendor across the bottom.
+    function trkSiteName(site) {
+        const no = siteNo(site); let nm = '';
+        try { if (typeof wdSiteDisplayParts === 'function') nm = wdSiteDisplayParts(String(site || '')).siteName || ''; } catch (_) {}
+        if (!nm) nm = String(site || '').replace(/^\s*site\s*[:#-]?\s*/i, '').replace(no, '').replace(/^\s*[-–—:|,/]+\s*/, '').trim();
+        if (/^(site\s*\d*|no site( assigned)?)$/i.test(nm.trim()) || nm === no) nm = '';
+        return nm;
+    }
+    function trkStepTo(s) {
+        if (s.to) return ' → ' + (s.to_plain ? esc(s.to) : '<b class="iba-trk-to">' + esc(s.to) + '</b>') + esc(s.to_tail || '');
+        return s.by ? ' (by ' + esc(s.by) + ')' : '';
+    }
+    function trkPoCard(p, withUpd) {
+        const no = p.site ? (siteNo(p.site) || String(p.site)) : '';
+        const nm = p.site ? trkSiteName(p.site) : '';
+        return '<div class="iba-trk-pc">' +
+            '<div class="iba-trk-pc-l"><span class="iba-trk-lbl">PURCHASE ORDER</span><span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
+              (p.po_value ? '<span class="iba-trk-pc-val">PO value <b>' + esc(p.po_value) + '</b>' + (withUpd && p.po_value_updated ? ' <span class="iba-pofile-upd" title="Updated in the PO file (progress-po)">updated</span>' : '') + '</span>' : '') + '</div>' +
+            (no ? '<div class="iba-trk-pc-r"><span class="iba-trk-lbl">SITE</span><span class="iba-trk-pc-site">' + esc(no) + '</span>' + (nm ? '<span class="iba-trk-pc-sname">' + esc(nm) + '</span>' : '') + '</div>' : '') +
+            '</div>' +
+            (p.vendor || p.year ? '<div class="iba-trk-pc-ven">' + (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') + (p.year ? '<span class="iba-trk-pc-yr">' + esc(p.year) + '</span>' : '') + '</div>' : '');
+    }
     function poYear(rec) { const m = String((rec && (rec['Entry Date'] || rec['Order Date'] || rec.Date)) || '').match(/(\d{4})/); return m ? m[1] : ''; }
     function poDateValue(rec) {
         const d = String((rec && (rec['Entry Date'] || rec['Order Date'] || rec.Date)) || '');
@@ -1605,7 +1628,23 @@
         const h = inv && inv.history;
         const arr = Array.isArray(h) ? h : (h && typeof h === 'object' ? Object.values(h) : []);
         return arr.filter(Boolean).map((x) => ({ status: String(x.status || x.action || '').trim(), by: String(x.updatedBy || x.by || '').trim(),
+            to: x.to === undefined || x.to === null ? undefined : String(x.to).trim(),
             at: Number(x.timestamp) || Date.parse(x.date || '') || 0 })).filter((x) => x.status).sort((a, b) => a.at - b.at);
+    }
+    // 17.0.5 p96: "What happened" names who HAS the invoice after each step (the
+    // next one to act), not who typed it. Under Review = the person who entered it.
+    // New history rows carry `to` (iba-1705-histto.js); older rows only know the
+    // current holder for the latest step.
+    function stepTo(h, isNow, inv) {
+        const s = norm(h.status);
+        if (/srv done/.test(s)) return { to: 'handing to office', plain: true };
+        if (/reception|^received$|^new entry$/.test(s)) return { to: 'Reception', plain: true };
+        if (s === 'under review') return h.by ? { to: h.by, tail: ' (entered)' } : null;
+        if (s === 'with accounts') return { to: 'Accounts', plain: true };
+        if (s === 'paid') return null;
+        if (h.to !== undefined) return h.to ? { to: h.to } : null;
+        const a = isNow ? String(inv.attention || '').trim() : '';
+        return a ? { to: a } : null;
     }
     function trackInvoice(inv, acc) {
         const status = String(inv.status || '').trim() || 'Under Review';
@@ -1638,7 +1677,8 @@
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
             with_accounts_on: accAt ? fmtDate(accAt) : undefined, paid_on: paidAt ? fmtDate(paidAt) : undefined,
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
-            steps: hist.slice(-6).map((h) => ({ status: h.status, by: h.by || undefined, date: fmtDate(h.at) })),
+            steps: hist.slice(-6).map((h, i, a) => { const t = stepTo(h, i === a.length - 1 && norm(h.status) === norm(status), inv);
+                return { status: h.status, by: h.by || undefined, date: fmtDate(h.at), to: t ? t.to : undefined, to_plain: t && t.plain ? true : undefined, to_tail: t && t.tail ? t.tail : undefined }; }),
             _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0,
             // 17.0.5 patch 16: when the invoice came in (newest first in the list)
             _r: Date.parse(inv.invoiceDate || '') || Number(enteredAt) || Number(inv.createdAt) || 0,
@@ -4806,6 +4846,54 @@
             (t.amount ? '<span class="iba-trk-r-amt">QAR ' + esc(money(t.amount)) + '</span>' : '') + '</div></div>' +
             '<div class="iba-trk-r-right"><dl class="iba-trk-r-dl">' + rows.map((r) => '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>').join('') + '</dl></div></div>';
     }
+    function aphTone(status) {
+        const s = norm(status);
+        if (/approval|^report/.test(s)) return 'apv';
+        if (/srv/.test(s)) return 'srv';
+        if (/inquir|enquir/.test(s)) return 'inq';
+        if (/with accounts/.test(s)) return 'acc';
+        if (/^paid/.test(s)) return 'paid';
+        return 'oth';
+    }
+    // 17.0.5 patch 97: phone detail in the agreed order: PO card, NOW card,
+    // where it is, next step, buttons, small details, what happened
+    function aphDetailHtml(t, p, it, actsHtml) {
+        p = Object.assign({}, p, { vendor: p.vendor || t.vendor || '', site: p.site || t.site || '' });
+        const ps = plainStatus(it), side = !!it.side_status;
+        const paid = it.stage_index === 5 && !side;
+        const who = trkWho(it);
+        const nowI = paid ? 6 : it.stage_index;
+        const skipped = it.skipped_index || [];
+        const segs = RCPT_STEPS.map((lbl, i) => {
+            const cls = skipped.indexOf(i) !== -1 ? 'is-skip' : i < nowI || (paid && i === 5) ? 'is-done' : i === nowI ? 'is-now' : '';
+            return '<li class="' + cls + '"><i></i><span>' + lbl + '</span></li>';
+        }).join('');
+        const f = (lbl, val, cls) => val ? '<div class="iba-aph-f' + (cls ? ' ' + cls : '') + '"><span>' + esc(lbl) + '</span><b>' + val + '</b></div>' : '';
+        const me = firstName();
+        const withTxt = who ? (me && norm(String(who).split(/\s+/)[0]) === norm(me) ? 'You (' + esc(who) + ')' : esc(who)) : '';
+        const waitTxt = it.days !== undefined && !paid ? esc(trkDays(it)) + (it.since ? ' · since ' + esc(it.since) : '') : (it.since ? esc(it.since) : '');
+        const steps = (it.steps || []).slice().reverse();
+        const entBy = ((it.steps || []).find((x) => norm(x.status) === 'under review') || {}).by || '';
+        const links = (it.pdf ? '<a class="iba-trk-btn" href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> INV PDF</a>' : '') +
+            (it.srv ? '<a class="iba-trk-btn" href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV PDF</a>' : '');
+        return '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to brief"><i class="fa-solid fa-xmark"></i></button><span>Back to brief</span></div>' +
+            '<div class="iba-aph-d is-' + aphTone(it.status || t.status) + '">' +
+              '<div class="iba-trk-r-po">' + trkPoCard(p, false) + '</div>' +
+              '<div class="iba-aph-now">' +
+                '<div class="iba-aph-f is-full is-title"><span>NOW</span><b>' + esc(ps.title) + '</b></div>' +
+                f('WITH', withTxt) + f('WAITING', waitTxt) +
+                (it.value ? '<div class="iba-aph-f is-full is-amt"><span>INVOICE VALUE (QAR)</span><b>' + esc(it.value) + '</b></div>' : '') +
+                f('INVOICE NO.', esc(it.invoice_no || '') + (it.urgent ? ' ' + trkUrgBadge() : '')) + f('RECEIVED', esc(it.entered || '')) +
+              '</div>' +
+              '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps">' + segs + '</ol></div>' +
+              (ps.next && !paid ? '<div class="iba-aph-next"><span class="iba-aph-next-ic">→</span><div><b>Next step</b><span>' + esc(ps.next) + '</span></div></div>' : '') +
+              (actsHtml || '') + (links ? '<div class="iba-aph-links">' + links + '</div>' : '') +
+              '<div class="iba-aph-small">' + f('INVOICE DATE', esc(it.invoice_date || '')) + f('ENTERED BY', esc(entBy)) +
+                f('STATUS IN SYSTEM', esc(it.side_status || it.status || '')) + f('NOTE', esc(t.note || '')) + '</div>' +
+              (steps.length ? '<div class="iba-trk-r-sec iba-aph-hist"><span class="iba-trk-lbl">WHAT HAPPENED</span><ul class="iba-trk-r-hist">' +
+                steps.map((x) => '<li><b>' + esc(x.date || '') + '</b><span>' + esc(x.status || '') + trkStepTo(x) + '</span></li>').join('') + '</ul></div>' : '') +
+            '</div>';
+    }
     async function phoneTaskDetail(i, from) {
         const t = aphTasks[i];
         const panel = $('iba-ai-panel');
@@ -4835,7 +4923,7 @@
             }));
             if (!it) { const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove(); return; }
             o.__it = it;
-            o.innerHTML = receiptHtml(p, it, 0, 'Back to brief') + actsHtml;
+            o.innerHTML = aphDetailHtml(t, p, it, actsHtml);
         } catch (_) {
             const ty = o.querySelector('.iba-ai-typing'); if (ty) ty.remove();
         }
@@ -4854,15 +4942,18 @@
             '<div class="is-late"><b>' + nLate + '</b><span>Over 7 days</span></div><div><b>' + (r.active_job || 0) + '</b><span>Inventory</span></div></div>';
         h += remindersHtml();
         if (tasks.length) {
-            h += '<div class="iba-ai-sub">Your tasks' + (nUrg ? ' · urgent first' : ' · oldest first') + '</div><ul class="iba-ai-rows iba-aph-tasks" data-brief-list="aph">' + tasks.map((t, i) => {
+            h += '<div class="iba-ai-sub">Your tasks' + (nUrg ? ' · urgent first' : ' · oldest first') + '</div><ul class="iba-ai-rows iba-aph-tasks is-cards" data-brief-list="aph">' + tasks.map((t, i) => {
                 const dd = daysSince(t.at);
-                return '<li' + (i >= MORE ? ' hidden' : '') + (isUrgentNote(t.note) ? ' class="is-urgent"' : '') + '>' +
-                    // 17.0.5 patch 81: the whole row opens the full details
-                    '<button type="button" class="iba-aph-trow" data-aph-row="' + i + '" aria-label="Details for PO ' + esc(t.po || '') + '"><span class="iba-ai-po">' + esc(t.po || '—') + '</span>' +
-                    '<span class="iba-ai-grow">' + esc(t.vendor || t.ref || t.type || '') + (isUrgentNote(t.note) ? ' <span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>' : '') +
-                    '<small>' + esc([t.ref, t.status, t.amount ? 'QAR ' + money(t.amount) : ''].filter(Boolean).join(' · ')) + '</small></span>' +
-                    (dd === null ? '' : '<span class="iba-aph-age' + (dd > 7 ? ' is-late' : '') + '">' + dd + 'd</span>') + '<i class="fa-solid fa-chevron-right iba-aph-tgo" aria-hidden="true"></i></button>' +
-                    taskActionsHtml(t, true) + '</li>';
+                const urg = isUrgentNote(t.note);
+                // 17.0.5 patch 97: one colour card per task (like a bank card); tap = full details + buttons
+                return '<li' + (i >= MORE ? ' hidden' : '') + (urg ? ' class="is-urgent"' : '') + '>' +
+                    '<button type="button" class="iba-aph-tcard is-' + aphTone(t.status) + '" data-aph-row="' + i + '" aria-label="Details for PO ' + esc(t.po || '') + '">' +
+                      '<span class="iba-aph-tc-head"><span class="iba-aph-tc-st">' + esc(String(t.status || t.type || 'Task').toUpperCase()) + (urg ? ' · URGENT' : '') + '</span>' +
+                        (dd === null ? '' : '<span class="iba-aph-tc-age' + (dd > 7 ? ' is-late' : '') + '">' + (dd === 0 ? 'today' : dd + ' day' + (dd === 1 ? '' : 's')) + '</span>') + '</span>' +
+                      '<span class="iba-aph-tc-mid"><span class="iba-aph-tc-l"><b class="iba-aph-tc-po">' + esc(t.po || '—') + '</b><span class="iba-aph-tc-ven">' + esc(t.vendor || t.type || '') + '</span></span>' +
+                        (t.amount ? '<span class="iba-aph-tc-amt"><small>QAR</small><b>' + esc(money(t.amount)) + '</b></span>' : '') + '</span>' +
+                      '<span class="iba-aph-tc-foot"><span>' + esc([t.site ? 'Site ' + (siteNo(t.site) || t.site) : '', t.ref].filter(Boolean).join(' · ')) + '</span><span>Tap for details ›</span></span>' +
+                    '</button></li>';
             }).join('') + '</ul>' + (tasks.length > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="aph"><i class="fa-solid fa-chevron-down"></i> Show all ' + tasks.length + '</button>' : '');
         }
         if (jobs.length) {
@@ -5488,7 +5579,7 @@
                     (it.stage_index < 5 && it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Send a reminder about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser())) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
-                        '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.by ? ' · ' + esc(x.by) : '') + '</li>').join('') + '</ul>' : '') +
+                        '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.to ? trkStepTo(x) : (x.by ? ' · ' + esc(x.by) : '')) + '</li>').join('') + '</ul>' : '') +
                     '</div>';
             };
             if (notYet.length) { h += grpHead('Not with Accounts yet', notYet.length); notYet.forEach(renderIt); }
@@ -5625,11 +5716,7 @@
             const isPaid = (it) => trkGrp(it) === 2;
             const paid = items.filter(isPaid);
             const open = items.filter((it) => !isPaid(it));
-            let x = '<div class="iba-trk-po"><div class="iba-trk-pohead"><span class="iba-trk-lbl">PURCHASE ORDER</span>' +
-                '<span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
-                (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') +
-                '<span class="iba-trk-chips">' + (p.site ? '<span class="is-site">Site ' + esc(siteNo(p.site) || p.site) + '</span>' : '') + (p.year ? '<span>' + esc(p.year) + '</span>' : '') +
-                    (p.po_value ? '<span class="iba-trk-poval">PO value <b>' + esc(p.po_value) + '</b>' + (p.po_value_updated ? ' <span class="iba-pofile-upd" title="Updated in the PO file (progress-po)">updated</span>' : '') + '</span>' : '') + '</span></div>';
+            let x = '<div class="iba-trk-po"><div class="iba-trk-pohead">' + trkPoCard(p, true) + '</div>';
             // 17.0.5 patch 52: everything under the PO hangs off it (tree line), so
             // it reads PO -> its invoices / WorkDesk records -> next PO
             x += '<div class="iba-trk-kids">';
@@ -5736,10 +5823,7 @@
                   '<span class="iba-trk-r-title">' + esc(ps.title) + '</span>' + (sub ? '<span class="iba-trk-r-sub">' + sub + '</span>' : '') +
                   (it.value ? '<span class="iba-trk-r-amt">QAR ' + esc(it.value) + '</span>' : '') +
                   '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>' +
-                '<div class="iba-trk-r-po"><span class="iba-trk-lbl">PURCHASE ORDER</span><span class="iba-trk-pono">PO ' + esc(p.po) + '</span>' +
-                  (p.vendor ? '<span class="iba-trk-vendor">' + esc(p.vendor) + '</span>' : '') +
-                  '<span class="iba-trk-chips">' + (p.site ? '<span class="is-site">Site ' + esc(siteNo(p.site) || p.site) + '</span>' : '') + (p.year ? '<span>' + esc(p.year) + '</span>' : '') +
-                    (p.po_value ? '<span>PO value ' + esc(p.po_value) + '</span>' : '') + '</span></div>' +
+                '<div class="iba-trk-r-po">' + trkPoCard(p, false) + '</div>' +
               '</div>' +
               '<div class="iba-trk-r-right">' +
                 '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps' + (side ? ' is-side' : '') + '">' + segs + '</ol>' +
@@ -5747,7 +5831,7 @@
                 '<div class="iba-trk-r-cols">' +
                   (rows.length ? '<dl class="iba-trk-r-dl">' + rows.map((x) => '<div><dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd></div>').join('') + '</dl>' : '') +
                   (steps.length ? '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHAT HAPPENED</span><ul class="iba-trk-r-hist">' +
-                    steps.map((s) => '<li><b>' + esc(s.date || '') + '</b> · ' + esc(s.status || '') + (s.by ? ' (by ' + esc(s.by) + ')' : '') + '</li>').join('') + '</ul></div>' : '') +
+                    steps.map((s) => '<li><b>' + esc(s.date || '') + '</b> · ' + esc(s.status || '') + trkStepTo(s) + '</li>').join('') + '</ul></div>' : '') +
                 '</div>' +
                 (acts ? '<div class="iba-trk-r-acts">' + acts + '</div>' : '') +
               '</div>' +

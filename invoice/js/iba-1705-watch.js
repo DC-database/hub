@@ -286,6 +286,8 @@
         // reached Accounts / paid first
         ids.sort(function (a, b) { return rank(b) - rank(a); });
         var nAcc = ids.filter(function (id) { return isAcc(st.status[id]); }).length;
+        // 17.0.5 patch 97: phone = one colour card per invoice (tap = track it)
+        if (document.body && document.body.classList.contains('iba-phone')) return phoneCards(ids, nAcc);
         return '<div data-watch-brief><div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Watching (' + ids.length + ')' + (nAcc ? ' · ' + nAcc + ' reached Accounts' : '') + '</div>' +
             // 17.0.5 patch 81: one fact per column, like "In the company" (PO, Vendor, Site, Invoice, Amount, Status, buttons)
             '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-ttab is-watch2 iba-watch-list">' +
@@ -304,6 +306,39 @@
                     '<span class="c-act">' + (isAcc(s) ? '<button type="button" class="iba-ai-mini" data-watch-ask="' + esc(id) + '"><i class="fa-regular fa-paper-plane"></i> Ask Accounts</button>' : '') +
                     '<button type="button" class="iba-ai-mini" data-watch-stop="' + esc(id) + '" title="Stop watching this invoice"><i class="fa-solid fa-bell-slash"></i> Stop</button></span></li>';
             }).join('') + '</ul></div></div></div>';
+    }
+    function phoneTone(s) {
+        if (isPaid(s)) return 'paid';
+        if (isAcc(s)) return 'acc';
+        var x = String(s || '').toLowerCase();
+        if (/approval|^report/.test(x)) return 'apv';
+        if (/srv/.test(x)) return 'srv';
+        if (/inquir|enquir/.test(x)) return 'inq';
+        return 'oth';
+    }
+    function ago(t) {
+        t = Number(t) || 0; if (!t) return '';
+        var d = Math.floor((Date.now() - t) / 86400000);
+        return d <= 0 ? 'today' : d + ' day' + (d === 1 ? '' : 's');
+    }
+    function phoneCards(ids, nAcc) {
+        return '<div data-watch-brief><div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Watching (' + ids.length + ')' + (nAcc ? ' · ' + nAcc + ' with Accounts' : '') + '</div>' +
+            '<ul class="iba-ai-rows iba-aph-tasks is-cards iba-watch-list">' + ids.map(function (id) {
+                var w = st.list[id] || {};
+                var s = st.status[id];
+                var label = s === '__gone' ? 'Not found (deleted?)' : (s || 'Checking…');
+                var acc = isAcc(s), paid = isPaid(s);
+                return '<li><div class="iba-aph-tcard is-' + phoneTone(s) + '">' +
+                    '<button type="button" class="iba-aph-tc-open" data-aph-po="' + esc(w.po) + '" aria-label="Track PO ' + esc(w.po) + '">' +
+                      '<span class="iba-aph-tc-head"><span class="iba-aph-tc-st">' + esc(String(label).toUpperCase()) + (paid ? ' ✓' : '') + '</span><span class="iba-aph-tc-age">' + esc(ago(w.at)) + '</span></span>' +
+                      '<span class="iba-aph-tc-mid"><span class="iba-aph-tc-l"><b class="iba-aph-tc-po">' + esc(w.po) + '</b><span class="iba-aph-tc-ven">' + esc(w.vendor || '') + '</span></span>' +
+                        (w.value ? '<span class="iba-aph-tc-amt"><small>QAR</small><b>' + esc(money(w.value)) + '</b></span>' : '') + '</span>' +
+                      '<span class="iba-aph-tc-foot"><span>' + esc([w.site ? 'Site ' + w.site : '', w.inv].filter(Boolean).join(' · ')) + '</span><span>Tap to track ›</span></span>' +
+                    '</button>' +
+                    (paid ? '' : '<span class="iba-aph-tc-btns' + (acc ? '' : ' is-one') + '">' + (acc ? '<button type="button" class="iba-ai-mini is-main" data-watch-ask="' + esc(id) + '">Ask Accounts</button>' : '') +
+                      '<button type="button" class="iba-ai-mini" data-watch-stop="' + esc(id) + '">Stop</button></span>') +
+                    '</div></li>';
+            }).join('') + '</ul></div>';
     }
     function rank(id) { var s = st.status[id]; return isAcc(s) ? 2 : isPaid(s) ? 1 : 0; }
 
