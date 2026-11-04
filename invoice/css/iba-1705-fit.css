@@ -1030,4 +1030,81 @@
   #iba-ai-panel .iba-aph-hist { padding: 16px !important; border-radius: 16px !important; background: #111E2B !important; }
   #iba-ai-panel .iba-aph-hist .iba-trk-r-hist > li { display: flex !important; gap: 10px !important; font-size: 13px !important; }
   #iba-ai-panel .iba-aph-hist .iba-trk-r-hist > li > b { flex: 0 0 auto !important; min-width: 64px !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+
+  /* 17.0.5 p98: phone PO card 2 x 2 (PO | SITE / VENDOR | PO VALUE) */
+  #iba-ai-panel .iba-trk-pm { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 14px 16px !important; align-items: start !important; }
+  #iba-ai-panel .iba-trk-pm-c { display: flex !important; flex-direction: column !important; gap: 3px !important; min-width: 0 !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-r { align-items: flex-end !important; text-align: right !important; }
+  #iba-ai-panel .iba-trk-pm-c > b { font-size: 16px !important; font-weight: 800 !important; line-height: 1.25 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; overflow-wrap: anywhere !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-po > b { font-family: var(--t-mono, monospace) !important; font-size: 28px !important; line-height: 1.1 !important; letter-spacing: .02em !important; color: #8FB8FF !important; -webkit-text-fill-color: #8FB8FF !important; white-space: nowrap !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-site > b { font-family: var(--t-mono, monospace) !important; font-size: 28px !important; line-height: 1.1 !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-site > small { font-size: 12px !important; color: #B5F0E8 !important; -webkit-text-fill-color: #B5F0E8 !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-val > b { font-size: 18px !important; }
+  #iba-ai-panel .iba-trk-pm-c.is-ven > b { font-size: 15px !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+
+  /* 17.0.5 p99: Month to Payments pop-up */
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-box { width: min(880px, 100%) !important; display: flex !important; flex-direction: column !important; max-height: min(86vh, 900px) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-watch-x { width: 36px !important; height: 36px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .16) !important; background: transparent !important; color: #EEF3F8 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-hint { margin: 10px 18px 0 !important; font-size: 13px !important; line-height: 1.45 !important; color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-pick { display: flex !important; flex-wrap: wrap !important; gap: 12px !important; margin: 12px 18px 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-pick label { display: flex !important; flex-direction: column !important; gap: 4px !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .08em !important; color: #9FB3C2 !important; text-transform: uppercase !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-pick select { min-width: 130px !important; height: 40px !important; padding: 0 10px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .18) !important; background: #0F1D2B !important; color: #EEF3F8 !important; font: inherit !important; font-size: 15px !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-out { margin: 12px 18px 0 !important; min-height: 60px !important; overflow: auto !important; flex: 1 1 auto !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-sum { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-sum > div { display: flex !important; flex-direction: column !important; gap: 2px !important; padding: 10px 12px !important; border-radius: 12px !important; background: rgba(255, 255, 255, .05) !important; border: 1px solid rgba(255, 255, 255, .1) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-sum b { font-size: 22px !important; color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-sum .is-amt b { color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-sum span { font-size: 12px !important; color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list table { width: 100% !important; border-collapse: collapse !important; font-size: 13px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list th { position: sticky !important; top: 0 !important; background: #12263A !important; text-align: left !important; font-size: 11px !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: #9FB3C2 !important; padding: 7px 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list td { padding: 7px 8px !important; border-top: 1px solid rgba(255, 255, 255, .07) !important; color: #EEF3F8 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list td:nth-child(4) { color: #E3C98A !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list :is(th, td).is-n { text-align: right !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-note { margin: 8px 0 0 !important; font-size: 12.5px !important; color: #EBD8A8 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-empty { margin: 10px 0 !important; font-size: 14px !important; color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-acts { display: flex !important; justify-content: flex-end !important; gap: 10px !important; padding: 14px 18px 16px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-acts button[disabled] { opacity: .5 !important; cursor: not-allowed !important; }
+
+  /* 17.0.5 p101: Finance payments hint (receipt / phone detail / Month to Payments) */
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-box { display: flex !important; flex-direction: column !important; gap: 8px !important; padding: 14px 16px !important; border-radius: 14px !important; background: rgba(79, 209, 197, .08) !important; border: 1px solid rgba(79, 209, 197, .35) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-box p { margin: 0 !important; font-size: 13.5px !important; line-height: 1.4 !important; color: #D6E0EA !important; -webkit-text-fill-color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-box .iba-fin-hit { color: #8BE3B5 !important; -webkit-text-fill-color: #8BE3B5 !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-box .iba-fin-hit b { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-list { list-style: none !important; margin: 0 !important; padding: 0 !important; display: flex !important; flex-direction: column !important; gap: 4px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-list li { display: grid !important; grid-template-columns: minmax(0, 1fr) auto auto !important; gap: 10px !important; font-size: 12.5px !important; padding: 5px 0 !important; border-top: 1px solid rgba(255, 255, 255, .07) !important; color: #D6E0EA !important; -webkit-text-fill-color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-list li b { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; text-align: right !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-list li em { font-style: normal !important; color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-box .iba-fin-foot { font-size: 11.5px !important; color: #9FB3C2 !important; -webkit-text-fill-color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-fin { white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-fin .is-hit { color: #8BE3B5 !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-fin small { display: block !important; font-size: 11px !important; color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-pd.is-fin { color: #8BE3B5 !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-finbar { display: flex !important; align-items: center !important; gap: 8px !important; margin: 0 0 10px !important; font-size: 13px !important; color: #EEF3F8 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-finbar input { width: 18px !important; height: 18px !important; accent-color: #4FD1C5 !important; }
+
+  /* 17.0.5 p102: PO-level Finance sheet */
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-trk-pc-fin { display: flex !important; justify-content: flex-end !important; margin-top: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-btn { display: inline-flex !important; align-items: center !important; gap: 6px !important; min-height: 34px !important; padding: 0 14px !important; border-radius: 99px !important; border: 1px solid rgba(79, 209, 197, .45) !important; background: rgba(79, 209, 197, .12) !important; color: #B5F0E8 !important; -webkit-text-fill-color: #B5F0E8 !important; font: inherit !important; font-size: 13px !important; font-weight: 700 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-btn[aria-expanded="true"] { background: rgba(79, 209, 197, .28) !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-sheet { display: flex !important; flex-direction: column !important; gap: 10px !important; margin: 8px 0 12px !important; padding: 14px !important; border-radius: 14px !important; background: rgba(79, 209, 197, .07) !important; border: 1px solid rgba(79, 209, 197, .3) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-sheet[hidden] { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-sheet p { margin: 0 !important; font-size: 13.5px !important; color: #D6E0EA !important; -webkit-text-fill-color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel.is-wide .iba-fin-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles > div { display: flex !important; flex-direction: column !important; gap: 2px !important; padding: 8px 10px !important; border-radius: 10px !important; background: rgba(255, 255, 255, .05) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles span { font-size: 10.5px !important; font-weight: 700 !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: #9FB3C2 !important; -webkit-text-fill-color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles b { font-size: 15px !important; font-weight: 800 !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles .is-ok b { color: #8BE3B5 !important; -webkit-text-fill-color: #8BE3B5 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tiles .is-warn b { color: #FFC970 !important; -webkit-text-fill-color: #FFC970 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl { overflow-x: auto !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl table { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl th { text-align: left !important; font-size: 10.5px !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: #9FB3C2 !important; -webkit-text-fill-color: #9FB3C2 !important; padding: 5px 6px !important; background: transparent !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl td { padding: 6px !important; border-top: 1px solid rgba(255, 255, 255, .08) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl td em { font-style: normal !important; color: #FFC970 !important; -webkit-text-fill-color: #FFC970 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-tbl .is-n { text-align: right !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-fin-sheet .iba-fin-foot { font-size: 11.5px !important; color: #9FB3C2 !important; -webkit-text-fill-color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl table { font-size: 11.5px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl :is(th, td) { padding: 5px 3px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel:not(.is-wide) .iba-fin-tbl th { font-size: 9.5px !important; letter-spacing: .03em !important; }
 }
