@@ -2376,24 +2376,43 @@
         return { result: { single: single.map((x) => x.po), summary: summary.map((x) => x.po), not_ready: none.map((x) => x.po) }, card: { kind: 'ceosort', data: out } };
     }
     function ceoSortHtml(x) {
-        // 17.0.5 patch 61: every invoice on its own line with no., amount, date and status, so the paper can be matched
+        // 17.0.5 p108: signal cards. GREEN = nothing else waiting -> proceed, send to CEO.
+        // RED = same PO or same vendor has other invoices waiting -> kindly check first.
         const one = (i, withPo) => '<div class="iba-cs-inv">' + (withPo ? '<span class="iba-cs-po2">PO ' + esc(i.po) + '</span> ' : '') + '<b>' + esc(i.inv) + '</b>' +
             (i.value ? ' · QAR ' + esc(money(i.value)) : '') + (i.date ? ' · ' + esc(fmtDate(i.date)) : '') + ' <span class="iba-cs-st">' + esc(i.status || 'no status') + '</span></div>';
-        const inv = (l) => l.map((i) => one(i, false)).join('');
-        const also = (r) => { const l = (r.pend || []).concat(r.others || []); return l.slice(0, 12).map((i) => one(i, true)).join('') + (l.length > 12 ? '<div class="iba-cs-inv">+' + (l.length - 12) + ' more</div>' : ''); };
-        const tbl = (rows, other) => '<div class="iba-cs-wrap"><table class="iba-cs-t"><thead><tr><th>PO</th><th>Vendor</th><th>Site</th><th>Invoice ready</th>' + (other ? '<th>Also waiting</th>' : '') + '</tr></thead><tbody>' +
-            rows.map((r) => '<tr><td class="is-po">' + esc(r.po) + (r.moved ? ' <span class="iba-cs-urg">Urgent</span>' : '') +
-                (other ? '<div class="iba-cs-mvw"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-move="' + esc(r.po) + '" title="Urgent: send this PO alone, without waiting for the summary"><i class="fa-solid fa-arrow-up"></i> Move to single</button></div>'
-                    : (r.moved ? '<div class="iba-cs-mvw"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-back="' + esc(r.po) + '" title="Put it back in Summary later"><i class="fa-solid fa-arrow-down"></i> Back to summary</button></div>' : '')) +
-                '</td><td>' + esc(r.vendor) + '</td><td>' + esc(r.site) + '</td><td>' + inv(r.mine) + '</td>' +
-                (other ? '<td>' + (also(r) || (r.mine.length > 1 ? r.mine.length + ' invoices on this PO' : '')) + '</td>' : '') + '</tr>').join('') +
-            '</tbody></table></div>';
+        const head = (r) => '<div class="iba-cs-c-top"><span class="iba-cs-c-po">PO ' + esc(r.po) + '</span>' + (r.site ? '<span class="iba-cs-c-site">Site ' + esc(r.site) + '</span>' : '') +
+            (r.moved ? '<span class="iba-cs-urg">Urgent</span>' : '') + '</div><div class="iba-cs-c-ven">' + esc(r.vendor) + '</div>';
+        const why = (r) => {
+            const samePo = (r.pend || []).length + Math.max(0, (r.mine || []).length - 1);
+            const otherPos = Array.from(new Set((r.others || []).map((i) => i.po)));
+            const parts = [];
+            if (samePo) parts.push('This PO has ' + samePo + ' more invoice' + (samePo === 1 ? '' : 's') + ' waiting');
+            if (otherPos.length) parts.push('This vendor has ' + (r.others || []).length + ' more waiting on PO ' + otherPos.slice(0, 4).join(', ') + (otherPos.length > 4 ? ' +' + (otherPos.length - 4) : ''));
+            return parts.join(' · ');
+        };
+        const green = (r) => '<div class="iba-cs-c is-go">' +
+            '<span class="iba-cs-tl is-go" aria-hidden="true"><i></i><i></i><i></i></span>' +
+            '<div class="iba-cs-sig"><i class="fa-solid fa-circle-check"></i> Proceed · send to CEO</div>' + head(r) +
+            '<div class="iba-cs-c-lbl">Ready</div>' + r.mine.map((i) => one(i, false)).join('') +
+            (r.moved ? '<div class="iba-cs-c-acts"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-back="' + esc(r.po) + '"><i class="fa-solid fa-rotate-left"></i> Put back to check</button></div>' : '') + '</div>';
+        const red = (r) => {
+            const l = (r.pend || []).concat(r.others || []);
+            return '<div class="iba-cs-c is-stop">' +
+                '<span class="iba-cs-tl is-stop" aria-hidden="true"><i></i><i></i><i></i></span>' +
+                '<div class="iba-cs-sig"><i class="fa-solid fa-triangle-exclamation"></i> Kindly check first</div>' + head(r) +
+                '<div class="iba-cs-c-why">' + esc(why(r)) + '</div>' +
+                '<div class="iba-cs-c-lbl">This paper</div>' + r.mine.map((i) => one(i, false)).join('') +
+                (l.length ? '<div class="iba-cs-c-lbl">Also waiting</div>' + l.slice(0, 12).map((i) => one(i, true)).join('') + (l.length > 12 ? '<div class="iba-cs-inv">+' + (l.length - 12) + ' more</div>' : '') : '') +
+                '<div class="iba-cs-c-acts"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-move="' + esc(r.po) + '" title="Urgent: send this PO alone, without waiting for the others"><i class="fa-solid fa-arrow-up"></i> Send anyway (urgent)</button></div></div>';
+        };
+        const nGo = x.single.reduce((n, r) => n + r.mine.length, 0);
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort for CEO<span class="iba-ai-badge is-plain">' + (x.single.length + x.summary.length + x.none.length) + ' POs</span></div>';
-        h += '<div class="iba-cs-sec is-single"><b><i class="fa-solid fa-user-tie"></i> Single · ready for CEO Approval · ' + x.single.length + '</b></div>' + (x.single.length ? tbl(x.single, false) : '<p class="iba-ai-empty">None.</p>');
-        h += '<div class="iba-cs-sec is-sum"><b><i class="fa-solid fa-layer-group"></i> Summary later (more invoices waiting from this vendor) · ' + x.summary.length + '</b></div>' + (x.summary.length ? tbl(x.summary, true) : '<p class="iba-ai-empty">None.</p>');
-        if (x.none.length) h += '<div class="iba-cs-sec is-none"><b><i class="fa-solid fa-circle-question"></i> Not sorted · ' + x.none.length + '</b></div><ul class="iba-ai-rows">' + x.none.map((r) => '<li><b>' + esc(r.po) + '</b><span class="iba-ai-grow">' + esc(r.vendor) + '<small>' + esc(r.why) + '</small></span></li>').join('') + '</ul>';
-        h += '<p class="iba-ai-foot">Ready means: ' + esc(x.statuses) + '. Sort the papers first, then:</p>';
-        h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn is-main" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-table-list"></i> Send ready to Batch Entry (' + x.single.reduce((n, r) => n + r.mine.length, 0) + ')</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
+        h += '<div class="iba-cs-tiles"><div class="is-go"><b>' + x.single.length + '</b><span>Proceed</span></div><div class="is-stop"><b>' + x.summary.length + '</b><span>Check first</span></div>' +
+            (x.none.length ? '<div class="is-none"><b>' + x.none.length + '</b><span>Not ready</span></div>' : '') + '</div>';
+        h += '<div class="iba-cs-list">' + x.summary.map(red).join('') + x.single.map(green).join('') + '</div>';
+        if (x.none.length) h += '<div class="iba-cs-c-lbl iba-cs-none-lbl">Not ready</div><ul class="iba-ai-rows">' + x.none.map((r) => '<li><b>' + esc(r.po) + '</b><span class="iba-ai-grow">' + esc(r.vendor) + '<small>' + esc(r.why) + '</small></span></li>').join('') + '</ul>';
+        h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn iba-cs-send" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-paper-plane"></i> Send ' + nGo + ' green to Batch Entry</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
+        h += '<p class="iba-ai-foot">Waiting means: ' + esc(x.statuses) + ', or anything not finished on the same PO.</p>';
         return h;
     }
 
@@ -3443,7 +3462,7 @@
     };
     function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.check || !!t.check()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
     let sgSeq = 0;
-    function askTplValues(title, fields) {
+    function askTplValues(title, fields, prefill) {
         return new Promise((resolve) => {
             const f = document.createElement('form');
             f.className = 'iba-ai-card is-action iba-ai-skill-ask';
@@ -3455,6 +3474,7 @@
                       (p.suggest ? ' list="iba-ai-sg-' + sgSeq + '-' + i + '" autocomplete="off"><datalist id="iba-ai-sg-' + sgSeq + '-' + i + '"></datalist' : '') + '>') + '</label>').join('') +
                 '<div class="iba-ai-rem-acts"><button type="submit" class="iba-ai-mini is-main"><i class="fa-solid fa-play"></i> Run</button><button type="button" class="iba-ai-mini iba-ai-cancel" data-cancel><i class="fa-solid fa-xmark"></i> Cancel</button></div>';
             put(f);
+            if (prefill) fields.forEach((p, i) => { const el = f.querySelector('[data-i="' + i + '"]'); if (el && prefill[p.key] != null && prefill[p.key] !== '') el.value = prefill[p.key]; });
             wireAskCancel(f, resolve);
             sgSeq++;
             if (fields.some((p) => p.suggest)) {
@@ -3737,7 +3757,7 @@
         if (el.selectionStart !== el.value.length) return; // typing in the middle: leave it
         if (/(^|[\s,;])\d{5}$/.test(el.value)) el.value = el.value + ', ';
     }, true);
-    async function runTemplate(id, title) {
+    async function runTemplate(id, title, prefill) {
         if (!tplAllowed(id)) { showView('chat'); addNote('This skill is for the Super Admin only.'); return; }
         if (state.busy) return;
         bumpSkillUse(id);
@@ -3748,14 +3768,15 @@
         const fields = t.ask();
         let vals = {};
         if (fields.length) {
-            vals = await askTplValues(name, fields);
+            vals = await askTplValues(name, fields, prefill);
             if (!vals) return;
+            const used = Object.assign({}, vals);
             addUser('▶ ' + name + ': ' + fields.map((p) => {
                 const v = vals[p.key];
                 if (p.type === 'select') { const o = p.options.find((x) => x[0] === v); return o ? o[1] : v; }
                 return v;
-            }).join(' · '), true);
-        } else addUser('▶ ' + name, true);
+            }).join(' · '), true, () => runTemplate(id, title, used));
+        } else addUser('▶ ' + name, true, () => runTemplate(id, title));
         state.busy = true;
         setBusy(true);
         try {
@@ -3793,9 +3814,9 @@
             const vals = await askSkillValues(sk, params);
             if (!vals) return;
             sk = skillWithValues(sk, vals);
-            addUser('▶ ' + sk.name + ': ' + vals.map((v) => v.value).join(', '), true);
+            addUser('▶ ' + sk.name + ': ' + vals.map((v) => v.value).join(', '), true, () => runSkill(name));
         } else {
-            addUser('▶ ' + sk.name, true);
+            addUser('▶ ' + sk.name, true, () => runSkill(name));
         }
         state.busy = true;
         setBusy(true);
@@ -5342,12 +5363,24 @@
         if (inList) html += '</ul>';
         return html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
     }
-    function addUser(text, isSkill) {
+    function addUser(text, isSkill, rerun) {
         const d = document.createElement('div');
         d.className = 'iba-ai-msg is-user' + (isSkill ? ' is-skill' : '');
-        d.innerHTML = '<div class="iba-ai-text">' + esc(text).replace(/\n/g, '<br>') + '</div>';
+        d.innerHTML = '<div class="iba-ai-text">' + esc(text).replace(/\n/g, '<br>') + '</div>' +
+            // 17.0.5 p107: repeat a skill straight from the chat
+            (typeof rerun === 'function' ? '<button type="button" class="iba-ai-mini iba-ai-rerun" data-ai-rerun title="Run this skill again"><i class="fa-solid fa-rotate-right"></i> Run again</button>' : '');
+        if (typeof rerun === 'function') d.__rerun = rerun;
         return put(d);
     }
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest && e.target.closest('[data-ai-rerun]');
+        if (!b) return;
+        const m = b.closest('.iba-ai-msg');
+        if (!m || typeof m.__rerun !== 'function') return;
+        e.preventDefault();
+        if (state.busy) return;
+        m.__rerun();
+    });
     function addBot(text, opts) {
         const o = opts || {};
         const d = document.createElement('div');
@@ -6169,6 +6202,8 @@
                       '<div><b>' + esc(x.paid_total || '0.00') + '</b><span>Paid</span></div>' +
                       '<div><b>' + esc(x.remaining || '—') + '</b><span>Remaining</span></div>' +
                     '</div>' +
+                    // 17.0.5 p106: typing a PO shows this card, so it gets the Finance button too
+                    trkFinBtn({ po: x.po, po_value: x.po_value }) +
                     (x.invoices.length ? '<table class="iba-ai-table"><thead><tr><th>Inv. No.</th><th>Value</th><th>Status</th><th>Attention</th></tr></thead><tbody>' +
                         x.invoices.map((i) => '<tr><td>' + esc(i.invoice_no || i.entry) + '</td><td class="num">' + esc(i.value) + '</td><td>' + esc(i.status) + '</td><td>' + esc(i.attention || '') + '</td></tr>').join('') +
                         '</tbody></table>' + (x.more_invoices ? '<p class="iba-ai-foot">+' + esc(x.more_invoices) + ' more</p>' : '') : '<p class="iba-ai-empty">No invoices yet.</p>');

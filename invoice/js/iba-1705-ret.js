@@ -329,7 +329,18 @@
             lab.className = 'iba-ret-tick is-batch';
             lab.innerHTML = '<input type="checkbox" id="iba-ret-all"> <i class="fa-solid fa-reply" aria-hidden="true"></i> Tell me for all';
             lab.title = 'Every invoice in this batch: your Returned bell gets +1 when the person acts on it';
-            gl.parentNode.appendChild(lab);
+            // 17.0.5 p110: sits on the "Set All Notes To" title line, right corner (martin)
+            var nl = document.querySelector('label[for="im-batch-global-note"]');
+            if (nl && nl.parentNode) {
+                var row = document.createElement('div');
+                row.className = 'iba-ret-note-row';
+                row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;';
+                nl.parentNode.insertBefore(row, nl);
+                nl.style.marginBottom = '0';
+                row.appendChild(nl);
+                lab.classList.add('is-in-note');
+                row.appendChild(lab);
+            } else gl.parentNode.appendChild(lab);
         }
     }
     function paintTicks() {
