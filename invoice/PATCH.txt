@@ -1,3 +1,41 @@
+17.0.5 patch 97 (03-Nov-2026)
+- Phone AI assistant brief: each task is a colour card (gold approval, teal SRV, blue inquiry/other):
+  status + days, big PO, vendor, big QAR, Site · INV, "Tap for details". Buttons only inside the detail.
+- Tap a card = new detail: PO card (PO + value | SITE), NOW card (with, waiting, big invoice value, invoice no., received),
+  where it is, next step, Approve/Reject (only if you may decide) + Do on PC / Remind + INV/SRV PDF, small details, what happened.
+- Phone Watching = same cards with Ask Accounts | Stop; tap = track that PO. PC unchanged.
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css, js/iba-1705-watch.js
+
+17.0.5 patch 96 (03-Nov-2026)
+- Tracking (AI assistant) "What happened" shows who HAS the invoice after each step:
+  For SRV / In Process / For Approval / Report / CEO Approval -> the Attention person,
+  SRV Done -> handing to office, Under Review -> who entered it (entered), Reception -> Reception, With Accounts -> Accounts.
+  Older steps without a saved name keep "(by ...)".
+- NEW js/iba-1705-histto.js: every new invoice history row also saves "to" (the Attention at that step). No extra Firebase reads.
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css, js/iba-1705-histto.js (new)
+
+17.0.5 patch 95 (03-Nov-2026)
+- Tracking (AI assistant): PO card rearranged. Left: PURCHASE ORDER, big PO number, PO value under it.
+  Right: SITE title, big coloured site number, site name small under it. Vendor below.
+  Same card on the PO list and on the invoice detail (receipt).
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 94 (03-Nov-2026)
+- Returned bell: unticking "Tell me when they act" on an invoice that is still waiting and pressing Update stops it
+  (before, untick + same status kept it). Off by default everywhere.
+  Files: js/iba-1705-ret.js, index.html
+
+17.0.5 patch 93 (03-Nov-2026)
+- "Tell me when they act" = Returned bell (new js/iba-1705-ret.js). Different from Notify me.
+  Invoice Entry: tick box under Status (hidden for Under Review / With Accounts / Paid / CLOSED).
+  Batch Entry: return-arrow button on each card (next to APP) + "Tell me for all" under Set All Statuses.
+  Saving with it ticked remembers the invoice for you (iba_assistant/ret/<your key>/<po>~<key>) with the
+  status you set. When someone acts (status no longer the one you set), the gold "Returned" bell in the
+  top bar gets +1: "For Approval -> Approved · by E.Ali · 2h ago", with Print ESN (approved) and Got it.
+  When YOU save that invoice with a new status it is removed by itself, unless you tick again.
+  Reads only the ticked invoices' status every 15 min (+ last history line when it moved). PC only.
+  Files: js/iba-1705-ret.js (new), css/iba-1705-fit.css, index.html
+
 17.0.5 patch 92 (03-Nov-2026)
 - Transfers: the SOURCE picks which request goes first (martin). Source step counts only requests
   already confirmed (Pending Admin). After the source confirms one, the other Pending Source
