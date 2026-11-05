@@ -468,7 +468,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
 <link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
 <link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
-<link href="css/iba-1705-fit.css?v=17.0.5-p110" rel="stylesheet"/>
+<link href="css/iba-1705-fit.css?v=17.0.5-p127" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -684,6 +684,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
       <button class="iba-nav-btn" data-iba-group-toggle data-iba-sys="wd" type="button">WorkDesk</button>
       <ul class="iba-nav-sub">
         <li><button data-iba-nav="wd-add-job" type="button">+ Add New Job</button></li>
+        <li><button data-iba-nav="wd-add-job" data-iba-newinv class="iba-newinv-nav" type="button">+ New Invoice</button></li>
+        <li><button data-iba-nav="wd-add-job" data-iba-newreq class="iba-newreq-nav" type="button">+ New Requisition</button></li>
         <li><button data-iba-nav="wd-active-task" type="button">Active Task</button></li>
         <li><button data-iba-nav="wd-job-records" type="button">Job Records</button></li>
       </ul>
@@ -1789,7 +1791,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <div><span>Vendor:</span> <span class="im-po-vendor">---</span></div>
 <div style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 4px; margin-top: 2px;">
 <span>PO Record:</span>
-<span class="im-po-record im-po-record-status im-po-record-status-checking"><i class="fa-solid fa-circle-notch fa-spin"></i> Checking PO file...</span>
+<span class="im-po-record im-po-record-status im-po-record-status-none" data-po-file-state="idle"><i class="fa-regular fa-circle"></i> <span>Search a PO to check file</span></span>
 </div>
 </div>
 </div>
@@ -3770,6 +3772,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
+<script src="js/iba-1705-invcopy.js?v=17.0.5-p129"></script>
 <script src="js/inventory-pocket.js?v=17.0.3-p11"></script>
 <script src="js/materialStock.js?v=17.0.5-p88"></script>
 <script src="js/iba-1705-msmigrate.js?v=17.0.5-p80"></script>
@@ -3811,7 +3814,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-invoice-entry-search.js?v=17.0.5-p57"></script>
 <script src="js/app-attention-validation.js?v=17.0.5-p16"></script>
 <script src="js/iba-attention-picker.js?v=17.0.0-p15"></script>
-<script src="js/app-batch-entry-ui.js?v=17.0.5-p49"></script>
+<script src="js/app-batch-entry-ui.js?v=17.0.5-p123"></script>
 <script src="js/iba-1705-batchval.js?v=17.0.5-p56"></script>
 <script src="js/iba-ui-skin.js?v=15.0.0"></script>
 <script src="js/app-im-event-wiring.js?v=17.0.0-p7"></script>
@@ -3823,17 +3826,17 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
       window.IBA_SYSTEM_VERSION = '17.0.5';
-      window.IBA_PATCH = '110'; window.IBA_PATCH_DATE = '04-Nov-2026'; // bump on every upload (Settings > System Version)
+      window.IBA_PATCH = '129'; window.IBA_PATCH_DATE = '05-Nov-2026'; // bump on every upload (Settings > System Version)
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
 <script src="js/iba-shell.js?v=17.0.5-p53"></script>
-<script src="js/iba-phone.js?v=17.0.5-p33"></script>
+<script src="js/iba-phone.js?v=17.0.5-p117"></script>
 <script src="js/iba-live-counts.js?v=17.0.5-p92"></script>
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=17.0.5-p109"></script>
+<script src="js/iba-assistant.js?v=17.0.5-p128"></script>
 <script src="js/iba-status-options.js?v=15.0.0-p45"></script>
 <script src="js/iba-job-po-fill.js?v=17.0.5-p50"></script>
 <script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
@@ -3850,7 +3853,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1702-urgent.js?v=17.0.2"></script>
 <script src="js/iba-1702-reception-batch.js?v=17.0.5-p50"></script>
 <script src="js/iba-1702-clear.js?v=17.0.5-p22"></script>
-<script src="js/iba-1702-opo.js?v=17.0.5-p38"></script>
+<script src="js/iba-1702-opo.js?v=17.0.5-p115"></script>
 <script src="js/iba-1702-esn.js?v=17.0.5-p17"></script>
 <script src="js/iba-lpo-mail.js?v=17.0.5-p1"></script>
 <script src="js/iba-1705-view.js?v=17.0.5-p2"></script>
@@ -3862,18 +3865,22 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1705-srvpick.js?v=17.0.5-p28"></script>
 <script src="js/iba-1705-reply.js?v=17.0.5-p33"></script>
 <script src="js/iba-1705-modalfit.js?v=17.0.5-p36"></script>
-<script src="js/iba-1705-release.js?v=17.0.5-p71"></script>
+<script src="js/iba-1705-release.js?v=17.0.5-p116"></script>
 <script src="js/iba-1705-addpo.js?v=17.0.5-p57"></script>
 <script src="js/iba-1705-sitestock.js?v=17.0.5-p46b"></script>
 <script src="js/iba-1705-msmenu.js?v=17.0.5-p81"></script>
 <script src="js/iba-1705-place.js?v=17.0.5-p19b"></script>
 <script src="js/iba-1705-recv.js?v=17.0.5-p20"></script>
-<script src="js/iba-1705-watch.js?v=17.0.5-p97"></script>
-<script src="js/iba-1705-ret.js?v=17.0.5-p110"></script>
+<script src="js/iba-1705-watch.js?v=17.0.5-p117"></script>
+<script src="js/iba-1705-ret.js?v=17.0.5-p117"></script>
 <script src="js/iba-1705-histto.js?v=17.0.5-p96"></script>
 <script src="js/iba-1705-finpay.js?v=17.0.5-p102"></script>
 <script src="js/iba-1705-paymonth.js?v=17.0.5-p105"></script>
-<script src="js/iba-1705-keep.js?v=17.0.5-p106"></script>
+<script src="js/iba-1705-keep.js?v=17.0.5-p114"></script>
+<script src="js/iba-1705-ieui.js?v=17.0.5-p116"></script>
+<script src="js/iba-1705-batchui.js?v=17.0.5-p116"></script>
+<script src="js/iba-1705-mhome.js?v=17.0.5-p124"></script>
+<script src="js/iba-1705-newinv.js?v=17.0.5-p128"></script>
 <script src="js/iba-1705-ver.js?v=17.0.5-p27"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>

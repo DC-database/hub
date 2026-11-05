@@ -1,3 +1,129 @@
+17.0.5 patch 129 (05-Nov-2026)
+- Material database downloads cut (it used 1.37 GB in 3 days). New js/iba-1705-invcopy.js:
+  every whole-list read of material_stock / transfer_entries (Material Stock page, phone material
+  finder, Inventory loading, assistant transfer search, Site stock, weekly safety sync ...) is
+  answered from a saved copy in the browser (IndexedDB "iba_inventory_copy") + only what changed:
+  every write to material_stock/<key> or transfer_entries/<key> also writes a tiny change row to
+  iba_inv_changes; a read gets only the change rows since the last check, re-reads just those
+  items and picks up new transfers by key. Whole list again only: no copy yet, copy older than
+  24 h, change rows unreadable, or >300 changes. Filtered reads use the copy only when it is
+  already there (never forces a whole-list read). Change rows older than 4 days are tidied.
+  Console shows "[IBA material copy] ..." for every read; window.ibaInvCopy.info().
+- Files: index.html, js/iba-1705-invcopy.js (new)
+
+17.0.5 patch 128 (05-Nov-2026)
+- Assistant "Add new requisition": with a requisition no. that already has a PO in POVALUE2.csv, it answers in the chat
+  ("Requisition X already has PO Y (vendor · site · value). No need to add it again.") + the PO tracking card;
+  the window does not open. The same check stays in the New Requisition window (patch 127). window.ibaReqPo(ref).
+- Files: index.html, js/iba-1705-newinv.js, js/iba-assistant.js
+
+17.0.5 patch 127 (05-Nov-2026)
+- New requisition: if the requisition no. is already in POVALUE2.csv (ReqNum column, in memory, no download),
+  step 1 shows "Requisition X already has PO Y" + vendor, site, value and a "Track PO Y" button (opens the assistant).
+  Save is blocked (nothing to save). PO file (progress-po) not checked: no ReqNum index there.
+- Files: index.html, js/iba-1705-newinv.js, css/iba-1705-fit.css
+
+17.0.5 patch 126 (05-Nov-2026)
+- Requisition samples: requisition numbers are 5 digits from 20000 (POs are 60000+), so the samples are
+  "e.g. 20418" (Requisition no., assistant skill) and "e.g. 20418.pdf or SharePoint link" (attachment).
+- Files: index.html, js/iba-1705-newinv.js, js/iba-assistant.js
+
+17.0.5 patch 125 (05-Nov-2026)
+- New requisition Attention: "Procurement" group on top = fixed names Cyril, Awais, Emad, Hafiz (in that order),
+  matched on the first word of the user Name; no Position lookup. Everyone else below.
+- Files: index.html, js/iba-1705-newinv.js
+
+17.0.5 patch 124 (05-Nov-2026)
+- WorkDesk "+ New Requisition" (under + New Invoice): guided 4-step window like New invoice, no PO.
+  1 Requisition no. + Site (+ Value optional), 2 Vendor optional (ID <-> name fill each other),
+  3 Attachment (requisition PDF; amber reminder when empty), 4 Attention (Procurement grouped on top) + note.
+  Job type PR; vendor name/ID are saved for PR jobs from this window. Title pill "Procurement" (blue).
+- Attachment box sample in both windows: "e.g. REQ-2026-0418.pdf or SharePoint link"
+  (file name with .pdf = opened from SharePoint Attachments folder; a full link opens as it is).
+- New invoice title pill "Reception" now really shows (the page CSS hid the old one).
+- Assistant skill "Add new requisition" (Quick work); phone Home task cards show type + ref when no PO.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1705-newinv.js, js/iba-assistant.js, js/iba-1705-mhome.js
+
+17.0.5 patch 123 (05-Nov-2026)
+- Batch Entry: vendor showed N/A for a PO added with "Add PO" (PO file, not yet in POVALUE2.csv).
+  The old PO lookup (getInvoicePurchaseOrderDetails) no longer exists, so existing invoice cards
+  and the "Search and Add Existing Invoices" window never looked in the PO file.
+  Now both read that ONE PO from the PO file (indexed, cached) when POVALUE2 has no vendor/site.
+- Files: index.html, js/app-batch-entry-ui.js
+
+17.0.5 patch 122 (05-Nov-2026)
+- New assistant skill "Copy invoice list" (Super Admin): same status/period and same columns as Download invoice list, no header, tab-separated; button "Copy for Excel (N)" copies, then Ctrl+V in Excel. Download invoice list card also has the Copy button.
+Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 121 (05-Nov-2026)
+- Site code keeps its letter: M40 shows as M40 (was 40). Tracking PO card, phone Home, and the assistant site access / site search treat M40 and 40 as different sites (siteCode() in iba-assistant.js). Site name under it drops the repeated code ("3 Villas Hazoom Lusail").
+Files: index.html, js/iba-assistant.js, js/iba-1705-mhome.js
+
+17.0.5 patch 120 (05-Nov-2026)
+- New invoice window: typing in the boxes stays dark with white text (focus / browser autofill made them light with white text). Autofill off on PO, invoice no., amount, vendor.
+- Step 4 shows "Goes to: Irwin (automatic)" instead of an Attention picker (the app always sends invoice jobs to Irwin or his vacation replacement).
+Files: index.html, js/iba-1705-newinv.js, css/iba-1705-fit.css
+
+17.0.5 patch 119 (05-Nov-2026)
+- Side menu: only the item in use is lit (+ New Invoice or + Add New Job), not both.
+Files: index.html, js/iba-1705-newinv.js
+
+17.0.5 patch 118 (05-Nov-2026) - New invoice window + simpler tracking rows (martin approved samples)
+- WorkDesk Add New Job with Job type Invoice = guided "New invoice" window: kicker "Step N of 4",
+  1 PO (Site / Vendor / Vendor ID fill from the PO list, PO value shown, "N invoices on this PO"; PO not in
+  records -> red hint, + Add PO for Super Admin), 2 Invoice no. / date / amount (warns if that invoice no.
+  is already on the PO), 3 Attachment, 4 Group / Attention / note. Status Pending hidden. Next empty box
+  glows; Save invoice works once must-fill boxes are filled. After saving it stays in New invoice for the
+  next one. Same boxes moved (ids, drop-downs, vendor name <-> ID suggestions, Add routine unchanged).
+  "Other job type" link = normal form. Edit and other job types unchanged. PC only.
+- Side menu WorkDesk: "+ New Invoice" (gold) opens it straight. Assistant skill "Add new invoice".
+- Where is my invoice? rows: invoice no. | value, status (+ who) | date (Given dd-Mon-yy / Paid dd-Mon-yy).
+  No icon, no "N days ago".
+Files: index.html, js/iba-1705-newinv.js (NEW), js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 117 (05-Nov-2026) - Phone Home for everyone (martin approved mock-up)
+- Phone opens on a new Home page (invoice side, first tab) for every user:
+  greeting, gold "N waiting for your approval · M urgent" bar (approvers) -> Approve,
+  "Where is my invoice?" search (PO or vendor, same rules as the assistant: own sites only),
+  4 counters Active task / Active job / Returned / Accounts, each opens its list,
+  "My tasks" (newest 4 + See all) with "do it on PC".
+- Invoice view: PO left + Site right (bold), vendor bigger, Invoice / Value / Invoice date / With,
+  View invoice / SRV, "Where it is" steps + History, "This task is yours: open the PC".
+- "Ask about this": opens Messages to the person who sent it, with PO / invoice written in.
+  Look only: nothing can be changed on the phone.
+- Approve tab shows only when there is something to approve. PC unchanged.
+Files: index.html, js/iba-1705-mhome.js (NEW), js/iba-phone.js, js/iba-assistant.js (window.ibaTrack),
+       js/iba-1705-watch.js + js/iba-1705-ret.js (items() lists), css/iba-1705-fit.css
+
+17.0.5 patch 116 (05-Nov-2026)
+- PO pull-out list: new "Given to" box on each row (pick a user, optional). Proceed makes the PO Inactive as before AND, when a name is given, an Original PO job (status "PO Revision", attention = that name, vendor/site/amount from the PO file). Invoice Entry then shows "Under revision · name"; when the paper comes back use "Put back in file" (patch 115).
+- Assistant: "Add PO to pull-out list" and "PO pull-out list" merged into one skill (the type box is always in the window).
+- Invoice Entry (PC): Search PO / refresh / Clear joined in one glass group; PO strip shows small labels over big values (PO, Site, PO value, Vendor), PO record + OPF/+Del on the right. Active jobs side panel: 2 lines per job (PO + new + N | value / vendor | date 05-Nov-26). New js/iba-1705-ieui.js.
+- Batch Entry (PC): one glass top panel: row 1 PO search + [Search PO | By Status | New PO] ... [Refresh | Total | Save all]; row 2 Summary note + [Search Note | Clear] ... Send all to [CA | IP | WA] (CA = CEO Approval + Hamad, IP = In Process + E.Ali, WA = With Accounts, no attention); row 3 Apply to all (Attention, Status with SUM ALL, Note with Tell me for all). "Set all status" list: Most used group first (With Accounts, For SRV, In Process, Report, For Summary, CEO Approval). Cards are see-through glass and the fields are regrouped: must-fill (Inv No, Date, Value, Paid, amber) + Status/Attention/Note on one line, system-filled (Invoice name, SRV name, Description, Release) on a dashed line below. IPC/F/FIVE chips one style. New js/iba-1705-batchui.js. Phone untouched.
+Files: index.html, js/iba-1705-release.js, js/iba-assistant.js, js/iba-1705-ieui.js (NEW), js/iba-1705-batchui.js (NEW), css/iba-1705-fit.css
+
+17.0.5 patch 115 (05-Nov-2026)
+- WorkDesk Job Records > Original PO (Super Admin): rows whose PO is not in your file get a "Put back in file" button. One click (after "Are you sure"): the PO file record goes back to Active with DateFiled today (old release date kept), and the Original PO job is deleted, so it also leaves that person's Active Task. If the PO has no record in the PO file yet, it is added as Active (vendor/site/amount from the PO list).
+Files: index.html, js/iba-1702-opo.js, css/iba-1705-fit.css
+
+17.0.5 patch 114 (05-Nov-2026)
+- Invoice Entry: "PO Record" no longer shows a spinning "Checking PO file..." before any PO is searched. It starts as "Search a PO to check file" (same as after Clear); the spinner only shows while a searched PO is really being checked.
+Files: index.html
+
+17.0.5 patch 113 (05-Nov-2026)
+- Invoice Records: the "Results kept from HH:MM" note no longer sits inside the results table (it was squeezed into the PO Number column with a big Refresh button). It is now a small line above the table, right side, with a plain Refresh link. A new Search removes it.
+Files: index.html, js/iba-1705-keep.js
+
+17.0.5 patch 112 (05-Nov-2026)
+- Review fix: a half-typed Add New Job draft is kept only in the module it was typed in (WorkDesk or Inventory share the same job pop-up; a WorkDesk draft no longer shows up in Inventory Add, or the other way round).
+Files: index.html, js/iba-1705-keep.js
+
+17.0.5 patch 111 (05-Nov-2026)
+- Sort for CEO: slim one-line rows grouped by colour (Kindly check first / Urgent / Proceed), each group folds open/closed;
+  the other waiting invoices fold under "N also waiting" (tap to open). Small traffic light on each row and group.
+- (Includes the p109 yellow/urgent code: an earlier copy to the PC had missed it.)
+Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
 17.0.5 patch 110 (04-Nov-2026)
 - Batch Entry: "Tell me for all" tick moved up to the right corner of the "Set All Notes To" title line (Global Overrides).
 Files: index.html, js/iba-1705-ret.js, css/iba-1705-fit.css
