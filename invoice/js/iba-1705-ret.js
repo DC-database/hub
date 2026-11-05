@@ -58,7 +58,8 @@
     function moved(id) {
         var w = st.list[id];
         var s = st.status[id];
-        return !!(w && s && s !== '__gone' && norm(s) !== norm(w.sent));
+        // 17.0.5 patch 137: a row without PO / sent status is a leftover, never an alert
+        return !!(w && w.po && w.key && w.sent && s && s !== '__gone' && norm(s) !== norm(w.sent));
     }
     function alerts() { return Object.keys(st.list).filter(function (id) { return moved(id) && !st.list[id].seen; }); }
 
@@ -175,6 +176,12 @@
         var d = mainDb();
         if (!d || !myKey()) return;
         try { var snap = await d.ref(path()).once('value'); st.list = (snap && snap.val()) || {}; } catch (_) { st.list = {}; }
+        // 17.0.5 patch 137: a late 'who acted' / 'Got it' write after the row was removed left a
+        // half row (no PO, only the new status): the pop-up showed "PO" with nothing. Remove those.
+        Object.keys(st.list).forEach(function (id) {
+            var w = st.list[id];
+            if (!w || typeof w !== 'object' || !w.po || !w.key || !w.sent) { delete st.list[id]; try { d.ref(path() + '/' + id).remove().catch(function () {}); } catch (_) {} }
+        });
         Object.keys(st.list).forEach(function (id) { if (st.status[id] === undefined && st.list[id].last) st.status[id] = st.list[id].last; });
         st.loaded = true;
         await check(true);
@@ -213,7 +220,7 @@
         var upd = { last: st.status[id], lastBy: by, lastAt: when || Date.now(), seen: null };
         Object.assign(w, upd);
         delete w.seen;
-        if (m && myKey()) m.ref(path() + '/' + id).update(upd).catch(function () {});
+        if (m && myKey() && st.list[id] === w) m.ref(path() + '/' + id).update(upd).catch(function () {});
     }
 
     // ---- top bar bell ---------------------------------------------------------------
@@ -281,7 +288,7 @@
         var w = st.list[id], m = mainDb();
         if (!w) return;
         w.seen = Date.now();
-        if (m && myKey()) m.ref(path() + '/' + id).update({ seen: w.seen }).catch(function () {});
+        if (m && myKey() && w.po && w.key) m.ref(path() + '/' + id).update({ seen: w.seen }).catch(function () {});
     }
 
     // ---- tick boxes ---------------------------------------------------------------------
