@@ -1,3 +1,30 @@
+17.0.5 patch 136 (05-Nov-2026)
+- Summary Note suggestions: an older note that is not among the 500 most recently used (e.g. "Qatar Pipeline & Fitting 09-May-2026") now appears while typing: after 5+ letters, the saved notes whose name starts with the typed text are read (max 40 rows) and added to the dropdown and the saved list.
+- Print summary notes: same vendor when a word is cut short ("Fittin" / "Fitting" = "Fittings", "Pipe" = "Pipeline"), so the newest earlier note is picked as Previous.
+- Files: index.html, js/iba-1705-notesync.js, js/iba-1705-snbatch.js
+
+17.0.5 patch 135 (05-Nov-2026)
+- Summary Note table order: invoices of the same PO stay together, oldest first inside each PO (INV 4, 5, 6, 7, 8 by invoice number, then invoice date); then the next PO the same way. Also used by "Print summary notes".
+- Files: index.html, app.js
+
+17.0.5 patch 134 (05-Nov-2026)
+- Summary Note suggestions: the older notes come back. Patch 133 re-dated the saved note list on every check, so the full list (500 newest notes) was never reloaded. Now the saved list keeps its own date, and the full list is read once after this patch (and again if the saved list is very short, at most every 12 h).
+- Files: index.html, js/iba-1705-notesync.js
+
+17.0.5 patch 133 (05-Nov-2026)
+- Summary Note suggestions (previous / current note boxes) now include notes made today: each time the
+  suggestions are filled, only notes used since the last check are read (invoice_note_index by lastUsedAt,
+  a few rows) and added to the saved list. New js/iba-1705-notesync.js (window.ibaNotesFresh), also used
+  by Print summary notes.
+- Files: index.html, js/iba-1705-notesync.js (new), js/iba-1705-snbatch.js
+
+17.0.5 patch 132 (05-Nov-2026)
+- Print summary notes: previous note found even when the vendor name changed: same vendor ID (the note's
+  last PO -> POVALUE2 Supplier ID, from the saved note list, no download) or same vendor on the invoices,
+  else the name match now ignores words like Trading / W.L.L. / Est / Co ("SunTech" = "SunTech Trading").
+  The dropdown also lists every other earlier note ("Other notes") to pick by hand.
+- Files: index.html, js/iba-1705-snbatch.js
+
 17.0.5 patch 131 (05-Nov-2026)
 - Print summary notes: when no note of today is found in the saved note list, the note names are read
   fresh once (the saved list is kept per site/folder, e.g. the local folder copy had an old list).

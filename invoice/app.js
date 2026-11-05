@@ -6307,7 +6307,18 @@ async function handleGenerateSummary() {
         }
 
         if (isSummaryGenerationStale()) return;
-        allCurrentInvoices.sort((a, b) => (a.site || '').localeCompare(b.site || ''));
+        // 17.0.5 patch 135: rows grouped by PO (same PO together), and inside each PO the
+        // oldest invoice first (INV-4, INV-5, INV-6...); then the next PO the same way.
+        const snInvNo = (inv) => { const m = String((inv && inv.invEntryID) || '').match(/(\d+)/); return m ? parseInt(m[1], 10) : 1e9; };
+        const snInvTime = (inv) => { const d = normalizeDateForInput(inv && inv.invoiceDate); const t = d ? Date.parse(d + 'T00:00:00') : NaN; return isNaN(t) ? 9e15 : t; };
+        const snPoSite = {};
+        allCurrentInvoices.forEach((inv) => { const k = String(inv.po || ''); const st = inv.site || ''; if (!(k in snPoSite) || (st && st.localeCompare(snPoSite[k]) < 0)) snPoSite[k] = st; });
+        allCurrentInvoices.sort((a, b) =>
+            (snPoSite[String(a.po || '')] || '').localeCompare(snPoSite[String(b.po || '')] || '') ||
+            String(a.po || '').localeCompare(String(b.po || ''), undefined, { numeric: true }) ||
+            (snInvNo(a) - snInvNo(b)) ||
+            (snInvTime(a) - snInvTime(b)) ||
+            String(a.key || '').localeCompare(String(b.key || '')));
         const vendorData = allPOs[allCurrentInvoices[0].po] || allPOs[String(allCurrentInvoices[0].po).toUpperCase()] || null;
         snVendorName.textContent = getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
 
