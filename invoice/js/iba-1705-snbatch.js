@@ -27,28 +27,53 @@
     function say(msg) { try { if (typeof window.ibaToast === 'function') return window.ibaToast(msg); } catch (_) {} try { console.info('[IBA summary print] ' + msg); } catch (_) {} }
 
     // ---- note names ------------------------------------------------------------
-    function dateOf(t) { try { return (typeof imNoteTextDate === 'function') ? (imNoteTextDate(t) || 0) : 0; } catch (_) { return 0; } }
+    // 17.0.5 patch 131: a name with day + month but no year counts as this year
+    const MI = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
+    function dateOf(t) {
+        const s = String(t || '').toLowerCase();
+        if (/(?:^|[^0-9])(19|20)\d{2}(?![0-9])/.test(s)) { try { return (typeof imNoteTextDate === 'function') ? (imNoteTextDate(t) || 0) : 0; } catch (_) { return 0; } }
+        const y = new Date().getFullYear();
+        let m = /(?:^|[^0-9])(\d{1,2})(?:st|nd|rd|th)?[\s\/.,-]*(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)/.exec(s);
+        if (m) return Date.UTC(y, MI[m[2]], Number(m[1]));
+        m = /(jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*[\s\/.,-]*(\d{1,2})(?![0-9])/.exec(s);
+        if (m) return Date.UTC(y, MI[m[1]], Number(m[2]));
+        m = /(?:^|[^0-9])(\d{1,2})[\/.-](\d{1,2})(?![0-9\/.-])/.exec(s);
+        if (m && Number(m[2]) >= 1 && Number(m[2]) <= 12) return Date.UTC(y, Number(m[2]) - 1, Number(m[1]));
+        return 0;
+    }
+    function usedAt(t) {
+        try { const u = __imInvoiceNoteUsageMeta.get(imInvoiceNoteUsageKey(t)); return (u && Number(u.lastUsedAt)) || 0; } catch (_) { return 0; }
+    }
     function vendorKey(t) {
         let s = ' ' + String(t || '').toLowerCase() + ' ';
         s = s.replace(new RegExp('\\b\\d{1,2}(st|nd|rd|th)?[\\s\\/.,-]*' + MON + '[\\s\\/.,-]*(19|20)\\d{2}\\b', 'g'), ' ')
             .replace(new RegExp('\\b' + MON + '[\\s\\/.,-]*\\d{1,2}(st|nd|rd|th)?[\\s\\/.,-]*(19|20)\\d{2}\\b', 'g'), ' ')
             .replace(/\b\d{1,2}[\/.-]\d{1,2}[\/.-](19|20)\d{2}\b/g, ' ')
             .replace(new RegExp('\\b' + MON + '[\\s\\/.,-]*(19|20)\\d{2}\\b', 'g'), ' ')
+            .replace(new RegExp('\\b\\d{1,2}(st|nd|rd|th)?[\\s\\/.,-]*' + MON + '\\b', 'g'), ' ')
+            .replace(new RegExp('\\b' + MON + '[\\s\\/.,-]*\\d{1,2}(st|nd|rd|th)?\\b', 'g'), ' ')
+            .replace(/\b\d{1,2}[\/.-]\d{1,2}\b/g, ' ')
+            .replace(/\b(19|20)\d{2}\b/g, ' ')
             .replace(/[^a-z0-9&]+/g, ' ').trim();
         return s;
     }
     function todayUTC() { const d = new Date(); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); }
-    async function names() {
-        try { if (typeof loadInvoiceNoteIndex === 'function') await loadInvoiceNoteIndex(false); } catch (_) {}
+    async function names(fresh) {
+        try { if (typeof loadInvoiceNoteIndex === 'function') await loadInvoiceNoteIndex(!!fresh); } catch (_) {}
         let set = null;
         try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
         const out = [];
-        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s) out.push({ text: s, date: dateOf(s), vk: vendorKey(s) }); });
+        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s) out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s) }); });
         return out;
+    }
+    function isToday(n, today) {
+        if (n.date) return n.date === today;
+        const d = n.used ? new Date(n.used) : null;     // no date in the name: used today
+        return !!d && Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) === today;
     }
     function plan(list) {
         const today = todayUTC();
-        return list.filter((n) => n.date === today).sort((a, b) => a.text.localeCompare(b.text)).map((n) => {
+        return list.filter((n) => isToday(n, today)).sort((a, b) => a.text.localeCompare(b.text)).map((n) => {
             const earlier = list.filter((x) => x !== n && x.vk && x.vk === n.vk && x.date && x.date < n.date).sort((a, b) => b.date - a.date);
             return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text) };
         });
@@ -73,16 +98,24 @@
         document.body.appendChild(win);
         win.addEventListener('click', onClick);
         win.addEventListener('change', count);
-        const rows = plan(await names());
+        let all = await names(false);
+        let rows = plan(all);
+        if (!rows.length) { all = await names(true); rows = plan(all); }   // one fresh read of the note names
         if (!win) return;
         const body = win.querySelector('.iba-esn-body');
         if (!rows.length) {
-            body.innerHTML = '<p class="iba-esn-sub">No summary note has today\'s date in its name yet. Name them like <b>Khalifa Steel ' + esc(new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-')) + '</b>.</p>';
-            return;
+            // nothing dated today: the newest notes, to tick by hand
+            const recent = all.slice().sort((a, b) => (b.used || b.date) - (a.used || a.date)).slice(0, 12);
+            recent.forEach((n) => {
+                const earlier = all.filter((x) => x !== n && x.vk && x.vk === n.vk && x.date && n.date && x.date < n.date).sort((a, b) => b.date - a.date);
+                rows.push({ cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), off: true });
+            });
+            if (!rows.length) { body.innerHTML = '<p class="iba-esn-sub">No summary notes found on this computer yet. Open the Summary Note once, then try again.</p>'; return; }
         }
-        body.innerHTML = '<p class="iba-esn-sub">Each note prints on its own A4 page with its previous note. The previous note is the same vendor\'s latest earlier note; change it if needed.</p>' +
-            '<table class="iba-snb-t"><thead><tr><th><input type="checkbox" data-snb-all checked aria-label="All"></th><th>Current note (today)</th><th>Previous note</th></tr></thead><tbody>' +
-            rows.map((r, i) => '<tr><td><input type="checkbox" data-snb-on="' + i + '" checked></td><td><b>' + esc(r.cur) + '</b></td><td><select class="iba-esn-place iba-snb-prev" data-snb-prev="' + i + '">' +
+        const off = rows.some((r) => r.off);
+        body.innerHTML = (off ? '<p class="iba-esn-sub"><b>No note with today\'s date found.</b> Here are your newest notes: tick the ones to print.</p>' : '') + '<p class="iba-esn-sub">Each note prints on its own A4 page with its previous note. The previous note is the same vendor\'s latest earlier note; change it if needed.</p>' +
+            '<table class="iba-snb-t"><thead><tr><th><input type="checkbox" data-snb-all' + (off ? '' : ' checked') + ' aria-label="All"></th><th>' + (off ? 'Note' : 'Current note (today)') + '</th><th>Previous note</th></tr></thead><tbody>' +
+            rows.map((r, i) => '<tr><td><input type="checkbox" data-snb-on="' + i + '"' + (r.off ? '' : ' checked') + '></td><td><b>' + esc(r.cur) + '</b></td><td><select class="iba-esn-place iba-snb-prev" data-snb-prev="' + i + '">' +
                 '<option value="">none</option>' + r.options.map((o) => '<option' + (o === r.prev ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></td></tr>').join('') +
             '</tbody></table>';
         win.__rows = rows;
