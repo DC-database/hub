@@ -1,3 +1,21 @@
+17.0.5 patch 131 (05-Nov-2026)
+- Print summary notes: when no note of today is found in the saved note list, the note names are read
+  fresh once (the saved list is kept per site/folder, e.g. the local folder copy had an old list).
+  Names without a year (Olive Office 5-Nov) count as this year; a name with no date counts as today when
+  it was used today. Still none: the 12 newest notes are listed to tick by hand.
+- Files: index.html, js/iba-1705-snbatch.js
+
+17.0.5 patch 130 (05-Nov-2026)
+- Assistant skill "Print summary notes" (Super Admin, PC; Reports and lists): lists every summary note
+  with TODAY's date in its name (from the note-name list the Summary Note already keeps, no download).
+  Previous note per row = same vendor name (note name without its date) with the latest earlier date,
+  changeable in a dropdown ("none" when there is no earlier note). Print all (N): each note is generated
+  with the normal Summary Note code (same small note-index reads), its design C page is taken, and all
+  go to ONE print, each note on its own A4 page with its own "Previous note · Current note" line at the
+  page bottom. Notes with no invoices are skipped and listed in a message.
+- js/iba-17-p27.js: the single-note print builder does nothing while the batch print is on screen.
+- Files: index.html, js/iba-1705-snbatch.js (new), js/iba-17-p27.js, js/iba-assistant.js, css/iba-1705-fit.css
+
 17.0.5 patch 129 (05-Nov-2026)
 - Material database downloads cut (it used 1.37 GB in 3 days). New js/iba-1705-invcopy.js:
   every whole-list read of material_stock / transfer_entries (Material Stock page, phone material
