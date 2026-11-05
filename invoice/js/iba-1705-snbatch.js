@@ -59,11 +59,16 @@
     }
     function todayUTC() { const d = new Date(); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); }
     async function names(fresh) {
-        try { if (typeof loadInvoiceNoteIndex === 'function') await loadInvoiceNoteIndex(!!fresh); } catch (_) {}
+        try { if (typeof loadInvoiceNoteIndex === 'function') await loadInvoiceNoteIndex(false); } catch (_) {}
+        // 17.0.5 patch 133: only the notes used since the last check (fresh = the whole list once more)
+        try { if (typeof window.ibaNotesFresh === 'function') await window.ibaNotesFresh(); } catch (_) {}
+        if (fresh) { try { if (typeof loadInvoiceNoteIndex === 'function') await loadInvoiceNoteIndex(true); } catch (_) {} }
+        try { if ((typeof allPOData === 'undefined' || !allPOData || !Object.keys(allPOData).length) && typeof ensureInvoicePOBaseDataFetched === 'function') await ensureInvoicePOBaseDataFetched(false); } catch (_) {}
         let set = null;
         try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
+        const meta = noteMeta();
         const out = [];
-        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s) out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s) }); });
+        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s) { const m = meta[s.toLowerCase()] || {}; out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s), vid: m.vid || '', vname: m.vname || '' }); } });
         return out;
     }
     function isToday(n, today) {
@@ -71,11 +76,53 @@
         const d = n.used ? new Date(n.used) : null;     // no date in the name: used today
         return !!d && Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) === today;
     }
+    // 17.0.5 patch 132: same vendor even when the name grew or shrank
+    // ("SunTech" = "SunTech Trading" = "Suntech Trading W.L.L.")
+    const FILL = new Set(['trading', 'trade', 'traders', 'co', 'company', 'est', 'establishment', 'wll', 'w', 'l', 'llc', 'ltd', 'limited', 'qatar', 'doha', 'for', 'and', '&', 'the', 'group', 'contracting', 'contractors', 'services', 'service', 'general', 'gen', 'cont', 'intl', 'international', 'new', 'summary', 'note', 'payment']);
+    function core(vk) { return String(vk || '').split(' ').filter((w) => w && !FILL.has(w)); }
+    function sameVendor(a, b) {
+        if (a.vid && b.vid && a.vid === b.vid) return 3;          // same vendor ID
+        if (a.vname && b.vname && a.vname === b.vname) return 3;  // same vendor on the invoices
+        if (!a.vk || !b.vk) return 0;
+        if (a.vk === b.vk) return 2;
+        const x = core(a.vk), y = core(b.vk);
+        if (!x.length || !y.length) return 0;
+        const short = x.length <= y.length ? x : y, long = short === x ? y : x;
+        if (short.join(' ').length < 4) return 0;
+        // every main word of the shorter name is in the longer one, first word the same
+        // 17.0.5 patch 136: a cut-short word counts too ("Fittin" = "Fittings", "Pipe" = "Pipeline")
+        const same = (w, v) => w === v || (Math.min(w.length, v.length) >= 4 && (w.indexOf(v) === 0 || v.indexOf(w) === 0));
+        return same(short[0], long[0]) && short.every((w) => long.some((v) => same(w, v))) ? 1 : 0;
+    }
+    function earlierOf(list, n) {
+        return list.filter((x) => x !== n && x.date && n.date && x.date < n.date && sameVendor(x, n)).sort((a, b) => b.date - a.date);
+    }
+    // 17.0.5 patch 132: each note's vendor ID from the saved note list (its last PO -> POVALUE2 Supplier ID)
+    function noteMeta() {
+        const out = {};
+        let data = null;
+        try { const c = (typeof getCache === 'function') ? getCache(typeof IM_NOTE_INDEX_CACHE_KEY !== 'undefined' ? IM_NOTE_INDEX_CACHE_KEY : 'cached_INVOICE_NOTE_INDEX') : null; data = c && c.data; } catch (_) {}
+        const list = Array.isArray(data) ? data : Object.values(data || {});
+        let pos = null;
+        try { pos = (typeof allPOData !== 'undefined' && allPOData) ? allPOData : null; } catch (_) {}
+        list.forEach((it) => {
+            if (!it || typeof it !== 'object') return;
+            const t = String(it.text || it.note || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (!t) return;
+            let po = String(it.lastPO || '').trim().toUpperCase();
+            if (!po && it.refs && typeof it.refs === 'object') { const r = Object.values(it.refs)[0]; po = String((r && r.po) || '').trim().toUpperCase(); }
+            const row = po && pos ? (pos[po] || null) : null;
+            const vid = row ? String(row['Supplier ID'] || row['Supplier ID:'] || row['Vendor ID'] || '').trim() : '';
+            out[t] = { vid: vid, vname: String(it.lastVendor || (row && row['Supplier Name']) || '').trim().toLowerCase() };
+        });
+        return out;
+    }
     function plan(list) {
         const today = todayUTC();
         return list.filter((n) => isToday(n, today)).sort((a, b) => a.text.localeCompare(b.text)).map((n) => {
-            const earlier = list.filter((x) => x !== n && x.vk && x.vk === n.vk && x.date && x.date < n.date).sort((a, b) => b.date - a.date);
-            return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text) };
+            const earlier = earlierOf(list, n);
+            const others = list.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && x.date < n.date).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
+            return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), others: others };
         });
     }
 
@@ -107,8 +154,9 @@
             // nothing dated today: the newest notes, to tick by hand
             const recent = all.slice().sort((a, b) => (b.used || b.date) - (a.used || a.date)).slice(0, 12);
             recent.forEach((n) => {
-                const earlier = all.filter((x) => x !== n && x.vk && x.vk === n.vk && x.date && n.date && x.date < n.date).sort((a, b) => b.date - a.date);
-                rows.push({ cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), off: true });
+                const earlier = earlierOf(all, n);
+                const others = all.filter((x) => x !== n && earlier.indexOf(x) === -1).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
+                rows.push({ cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), others: others, off: true });
             });
             if (!rows.length) { body.innerHTML = '<p class="iba-esn-sub">No summary notes found on this computer yet. Open the Summary Note once, then try again.</p>'; return; }
         }
@@ -116,7 +164,8 @@
         body.innerHTML = (off ? '<p class="iba-esn-sub"><b>No note with today\'s date found.</b> Here are your newest notes: tick the ones to print.</p>' : '') + '<p class="iba-esn-sub">Each note prints on its own A4 page with its previous note. The previous note is the same vendor\'s latest earlier note; change it if needed.</p>' +
             '<table class="iba-snb-t"><thead><tr><th><input type="checkbox" data-snb-all' + (off ? '' : ' checked') + ' aria-label="All"></th><th>' + (off ? 'Note' : 'Current note (today)') + '</th><th>Previous note</th></tr></thead><tbody>' +
             rows.map((r, i) => '<tr><td><input type="checkbox" data-snb-on="' + i + '"' + (r.off ? '' : ' checked') + '></td><td><b>' + esc(r.cur) + '</b></td><td><select class="iba-esn-place iba-snb-prev" data-snb-prev="' + i + '">' +
-                '<option value="">none</option>' + r.options.map((o) => '<option' + (o === r.prev ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</select></td></tr>').join('') +
+                '<option value="">none</option>' + (r.options.length ? '<optgroup label="Same vendor">' + r.options.map((o) => '<option' + (o === r.prev ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</optgroup>' : '') +
+                ((r.others || []).length ? '<optgroup label="Other notes">' + r.others.map((o) => '<option>' + esc(o) + '</option>').join('') + '</optgroup>' : '') + '</select></td></tr>').join('') +
             '</tbody></table>';
         win.__rows = rows;
         count();
