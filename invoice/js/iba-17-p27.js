@@ -108,6 +108,8 @@
     }
 
     function build() {
+        // 17.0.5 patch 130: "Print summary notes" has filled #sn-c with many notes
+        if (window.__ibaSnBatch) return;
         const area = document.getElementById('summary-note-printable-area');
         // only when the Summary Note is really on screen (not for other prints)
         if (!area || area.classList.contains('hidden') || !area.getClientRects().length) return;

@@ -3364,6 +3364,10 @@
             check: () => typeof window.ibaNewInvoice === 'function',
             ask: () => [{ key: 'po', label: 'PO number (leave empty to type it in the window)', placeholder: 'e.g. 62598', optional: true }],
             run: async (v) => { toggle(false); await window.ibaNewInvoice(v.po); return null; } },
+        // 17.0.5 patch 130: every summary note of today in one print
+        sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note with today\'s date in its name, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). No AI used.',
+            check: () => !!(window.ibaSummaryBatch && typeof window.ibaSummaryBatch.open === 'function'),
+            ask: () => [], run: async () => { toggle(false); await window.ibaSummaryBatch.open(); return null; } },
         // 17.0.5 patch 124: New requisition window (no PO yet)
         new_requisition: { name: 'Add new requisition', icon: 'fa-file-signature', desc: 'For Procurement: opens the New requisition window in 4 steps. Requisition no. and site, vendor optional, the requisition PDF, then pick who it goes to (Procurement on top). No AI used.',
             check: () => typeof window.ibaNewRequisition === 'function',
@@ -4690,6 +4694,7 @@
         [/\b(approvals?|approve|ceo|coo)\b/i, ['approvals_list', 'urgent', 'inv_status']],
         [/\b(new|add)\s+invoice\b/i, ['new_invoice']],
         [/\b(new|add)\s+(requisition|req)\b/i, ['new_requisition']],
+        [/\bprint\b.*\bsummary\b|\bsummary\s+notes?\b.*\bprint\b/i, ['sn_print_all']],
         [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
         [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
         [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']],
@@ -6420,7 +6425,7 @@
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
-        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
+        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
@@ -6428,7 +6433,7 @@
         ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
-        ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
+        ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
         ['Admin tools', ['handover', 'dbcheck']]
     ];
     function skillTile(attr, icon, name, sub, color, title, extra) {
