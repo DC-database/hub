@@ -13,6 +13,8 @@
      taking the papers out, then Proceed: ticked POs get Status "Inactive" +
      DateReleased today ("31-OCT-2026", same look as DateFiled); the list is
      emptied (unticked POs just leave the list and stay Active).
+   - 17.0.5 patch 116: optional "Given to" name per row: Proceed also makes an
+     Original PO job (status PO Revision, attention = that name) for it.
    ========================================================================== */
 (function () {
     'use strict';
@@ -181,7 +183,7 @@
         win.innerHTML = '<div class="iba-esn-box is-wide" role="dialog" aria-modal="true" aria-label="PO pull-out list">' +
             '<div class="iba-esn-head"><b><i class="fa-solid fa-folder-minus"></i> PO pull-out list</b>' +
             '<button type="button" class="iba-esn-x" data-pull-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
-            '<div class="iba-esn-body"><p class="iba-esn-sub">Take these original POs out of your file and tick <b>Pulled</b>. Then press <b>Proceed</b>: ticked POs become Inactive and the list is cleared.</p>' +
+            '<div class="iba-esn-body"><p class="iba-esn-sub">Take these original POs out of your file and tick <b>Pulled</b>. Then press <b>Proceed</b>: ticked POs become Inactive and the list is cleared. Someone taking the PO? Put the name in <b>Given to</b>: an Original PO job (PO Revision) is made for them.</p>' +
             '<form class="iba-pull-add" data-pull-add autocomplete="off"><input type="text" inputmode="numeric" data-pull-q placeholder="Forgot +Del? Type PO numbers, e.g. 57376, 54719" aria-label="PO numbers to add">' +
             '<button type="submit" class="iba-esn-btn is-go"><i class="fa-solid fa-cart-plus"></i> Add</button></form><div class="iba-pull-res" data-pull-res></div>' +
             '<div class="iba-pull-out"><p class="iba-esn-sub"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading…</p></div><div class="iba-esn-err"></div></div>' +
@@ -200,9 +202,11 @@
             if (b.dataset.pullReq) { const x = (w.__proc || []).find((r) => r.po === b.dataset.pullReq); return requestOriginal([x || { po: b.dataset.pullReq }]); }
             if (b.hasAttribute('data-pull-reqall')) return requestOriginal(w.__proc || []);
         });
+        w.addEventListener('change', (e) => { const i = e.target.closest && e.target.closest('[data-pull-to]'); if (i) setGiven(w, i); });
         w.addEventListener('submit', (e) => { if (e.target.closest('[data-pull-add]')) { e.preventDefault(); addTyped(w); } });
         w.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') close();
+            else if (e.key === 'Enter' && e.target.closest('[data-pull-to]')) { e.preventDefault(); e.target.blur(); }
             else if (e.key === 'Enter' && !e.target.closest('button') && !e.target.closest('[data-pull-add]')) { e.preventDefault(); proceed(w, w.querySelector('[data-pull-go]')); }
         });
         w.focus();
@@ -241,13 +245,62 @@
         w.querySelector('[data-pull-count]').innerHTML = all.length ? '<b>' + done + '</b> of ' + all.length + ' pulled' : '';
         if (go && !go.dataset.sure) go.disabled = !all.length;
         if (!all.length) { out.innerHTML = '<p class="iba-esn-sub">The list is empty. Type PO numbers above, or use +Del or the folder button on an Active PO.</p>'; return; }
-        out.innerHTML = '<div class="iba-esn-scroll"><table class="iba-esn-table"><thead><tr><th>#</th><th>PO</th><th>Supplier</th><th>Project</th><th style="text-align:right">Amount</th><th>Date filed</th><th></th></tr></thead><tbody>' +
+        out.innerHTML = '<div class="iba-esn-scroll"><table class="iba-esn-table"><thead><tr><th>#</th><th>PO</th><th>Supplier</th><th>Project</th><th style="text-align:right">Amount</th><th>Date filed</th><th title="Optional: who takes the original PO. Proceed makes an Original PO job (PO Revision) for that person">Given to</th><th></th></tr></thead><tbody>' +
             all.map((x, i) => '<tr class="' + (x.pulled ? 'is-pulled' : '') + '"><td>' + (i + 1) + '</td><td><b>' + esc(x.po) + '</b></td><td>' + esc(x.supplier) +
                 '</td><td>' + esc(x.project) + '</td><td style="text-align:right">' + money(x.amount) + '</td><td>' + esc(x.dateFiled) + '</td>' +
+                '<td><input type="text" class="iba-pull-to" list="iba-pull-users" data-pull-to="' + esc(x.key) + '" value="' + esc(x.givenTo || '') + '" placeholder="optional" aria-label="Given to (optional)" autocomplete="off"></td>' +
                 '<td class="iba-pull-acts"><button type="button" class="iba-esn-btn is-small' + (x.pulled ? ' is-go' : '') + '" data-pull-tick="' + esc(x.key) + '">' +
                 (x.pulled ? '<i class="fa-solid fa-check"></i> Pulled' : '<i class="fa-regular fa-square"></i> Pulled') + '</button>' +
                 '<button type="button" class="iba-esn-btn is-small" data-pull-drop="' + esc(x.key) + '" title="Take it off the list (it stays Active)" aria-label="Remove from list"><i class="fa-solid fa-xmark"></i></button></td></tr>').join('') +
-            '</tbody></table></div>';
+            '</tbody></table></div>' + usersList();
+    }
+    // ---- 17.0.5 patch 116: "Given to" -> Original PO job (PO Revision) ----
+    function users() {
+        try {
+            const a = (typeof allUsersData !== 'undefined' && Array.isArray(allUsersData)) ? allUsersData : [];
+            return a.filter((u) => u && u.Name && String(u.Status || '').trim().toLowerCase() !== 'disabled').map((u) => String(u.Name).trim());
+        } catch (_) { return []; }
+    }
+    function usersList() { return '<datalist id="iba-pull-users">' + Array.from(new Set(users())).sort().map((n) => '<option value="' + esc(n) + '"></option>').join('') + '</datalist>'; }
+    function realName(v) {
+        const t = String(v || '').trim().toLowerCase();
+        if (!t) return '';
+        return users().find((n) => n.toLowerCase() === t) || null;
+    }
+    async function setGiven(w, inp) {
+        const key = inp.dataset.pullTo;
+        if (!list[key]) return;
+        const err = w.querySelector('.iba-esn-err');
+        const v = String(inp.value || '').trim();
+        const name = realName(v);
+        if (v && !name) { inp.classList.add('is-bad'); err.textContent = '"' + v + '" is not in the user list. Pick a name from the list.'; return; }
+        inp.classList.remove('is-bad');
+        err.textContent = '';
+        unsure(w);
+        list[key].givenTo = name || '';
+        if (name && inp.value !== name) inp.value = name;
+        try { await mainDb().ref(LIST + '/' + key + '/givenTo').set(name || null); }
+        catch (e) { err.textContent = 'Could not save the name: ' + ((e && e.message) || e); }
+    }
+    async function giveJob(x) {
+        const d = mainDb();
+        let who = x.givenTo;
+        try { if (typeof resolveVacationAssignee === 'function') who = resolveVacationAssignee(who) || who; } catch (_) {}
+        let day = '';
+        try { day = (typeof formatDate === 'function') ? formatDate(new Date()) : ''; } catch (_) {}
+        const now = firebase.database.ServerValue.TIMESTAMP;
+        const job = {
+            for: 'Original PO', ref: '', amount: x.amount === '' || x.amount == null ? '' : String(x.amount), po: String(x.po || ''),
+            site: String(x.project || ''), group: '', attention: who, date: day || today(), remarks: 'PO Revision',
+            details: '', note: '', vendorName: String(x.supplier || ''),
+            timestamp: now, createdAt: now, updatedAt: now, createdBy: me(), updatedBy: me(), enteredBy: me()
+        };
+        const ref = d.ref('job_entries').push();
+        await ref.set(job);
+        const local = Object.assign({}, job, { key: ref.key, source: 'job_entry', updatedAt: Date.now(), timestamp: Date.now(), createdAt: Date.now() });
+        try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await wdWriteWorkdeskJobRecentMarker(ref.key, local, 'created'); } catch (_) {}
+        try { if (typeof wdUpsertLocalWorkdeskJobEntryCache === 'function') wdUpsertLocalWorkdeskJobEntryCache(ref.key, local); } catch (_) {}
+        return who;
     }
     function unsure(w) { const go = w.querySelector('[data-pull-go]'); if (go && go.dataset.sure) { delete go.dataset.sure; go.innerHTML = '<i class="fa-solid fa-check-double"></i> Proceed'; } }
     async function tick(w, key) {
@@ -277,11 +330,12 @@
         // one more press to be sure (Enter or click)
         if (!b.dataset.sure) {
             b.dataset.sure = '1';
-            b.innerHTML = '<i class="fa-solid fa-check-double"></i> Yes: ' + done.length + ' Inactive' + (left ? ', ' + left + ' stay Active' : '');
+            const nGive = done.filter((x) => x.givenTo).length;
+            b.innerHTML = '<i class="fa-solid fa-check-double"></i> Yes: ' + done.length + ' Inactive' + (nGive ? ' + ' + nGive + ' job' + (nGive === 1 ? '' : 's') : '') + (left ? ', ' + left + ' stay Active' : '');
             return;
         }
         b.disabled = true;
-        const fails = [];
+        const fails = [], gave = [], jobFails = [];
         const day = today();
         for (const x of done) {
             try {
@@ -292,7 +346,11 @@
                 upd[keyOf(rec, 'Status')] = 'Inactive';
                 upd[keyOf(rec, 'DateReleased')] = day;
                 await progDb().ref('records/' + x.key).update(upd);
-            } catch (e) { fails.push(x.po + ' (' + ((e && e.message) || e) + ')'); }
+            } catch (e) { fails.push(x.po + ' (' + ((e && e.message) || e) + ')'); continue; }
+            if (x.givenTo) {
+                try { gave.push(x.po + ' to ' + (await giveJob(x))); }
+                catch (e) { jobFails.push(x.po + ' (job not made: ' + ((e && e.message) || e) + ')'); }
+            }
         }
         // the list is always emptied, except POs that could not be written
         const keep = new Set(done.filter((x) => fails.some((f) => f.indexOf(x.po + ' (') === 0)).map((x) => x.key));
@@ -305,8 +363,14 @@
         b.disabled = false;
         draw(w);
         markButtons();
-        if (fails.length) err.textContent = 'Not saved: ' + fails.join(', ');
-        else say(done.length + ' PO' + (done.length === 1 ? '' : 's') + ' marked Inactive. The list is cleared.');
+        if (gave.length) {
+            try { if (window.ibaOriginalPO) window.ibaOriginalPO.refresh(); } catch (_) {}
+            try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
+            try { if (typeof wdRebuildAllSystemEntriesFromFamilyCaches === 'function') wdRebuildAllSystemEntriesFromFamilyCaches(); } catch (_) {}
+        }
+        const allFails = fails.concat(jobFails);
+        if (allFails.length) err.textContent = 'Not saved: ' + allFails.join(', ');
+        else say(done.length + ' PO' + (done.length === 1 ? '' : 's') + ' marked Inactive' + (gave.length ? '; Original PO job: ' + gave.join(', ') : '') + '. The list is cleared.');
     }
 
     // ---- 17.0.5 patch 71: first invoice on a PO still with Procurement -> offer the request at once ----

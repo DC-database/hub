@@ -104,7 +104,9 @@
         // Once invoice work showed up in this session the side stays, so it
         // does not vanish right after the last approval.
         if (state.inv.list.length > 0) state.invSeen = true;
-        if (canRecords() || state.invSeen) out.push('invoice');
+        // 17.0.5 patch 117: everyone has the invoice side (Home: my tasks,
+        // where is my invoice); Approve / Records tabs only when they apply
+        out.push('invoice');
         out.push('inventory');
         return out;
     }
@@ -134,6 +136,7 @@
           </header>
           <div class="iba-ph-switch" id="iba-ph-switch" role="tablist" aria-label="Workspace"></div>
           <main class="iba-ph-main" id="iba-ph-main">
+            <section class="iba-ph-pane" data-pane="invoice-home"></section>
             <section class="iba-ph-pane" data-pane="invoice-approve"></section>
             <section class="iba-ph-pane" data-pane="invoice-records">
               <form class="iba-ph-search" id="iba-ph-rec-form" autocomplete="off">
@@ -223,7 +226,9 @@
 
     function tabsFor(side) {
         if (side === 'invoice') {
-            const t = [{ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: state.inv.list.length + state.qs.length }];
+            const n = state.inv.list.length + state.qs.length;
+            const t = [{ id: 'home', icon: 'fa-house', label: 'Home' }];
+            if (n || state.invSeen) t.push({ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: n });
             if (canRecords()) t.push({ id: 'records', icon: 'fa-folder-open', label: 'Records' });
             return t;
         }
@@ -301,10 +306,19 @@
         state.tab = tab;
         paintTabs();
         showPane();
+        if (state.side === 'invoice' && tab === 'home') renderHome();
         if (state.side === 'invoice' && tab === 'approve') { renderInvoiceApprove(); if (stale(state.inv)) loadInvoice(); }
         if (state.side === 'invoice' && tab === 'records') openRecords();
         if (state.side === 'inventory' && tab === 'approve') { renderInventoryApprove(); if (stale(state.stk)) loadInventory(); }
         if (state.side === 'inventory' && tab === 'search') openSearch();
+    }
+
+    // 17.0.5 patch 117: Home page (js/iba-1705-mhome.js)
+    function renderHome() {
+        const pane = document.querySelector('#iba-phone [data-pane="invoice-home"]');
+        if (!pane) return;
+        if (window.ibaPhoneHome) { try { window.ibaPhoneHome.render(pane); } catch (e) { console.warn('[phone] home', e); } }
+        else if (!pane.innerHTML.trim()) pane.innerHTML = '<div class="iba-ph-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading…</p></div>';
     }
 
     function stale(bucket) { return !bucket.loading && (Date.now() - bucket.loadedAt > STALE_MS); }
@@ -322,6 +336,7 @@
     function refresh(force) {
         if (force) { state.inv.loadedAt = 0; state.stk.loadedAt = 0; }
         if (state.side === 'invoice' && state.tab === 'records') { runRecordsSearch(); }
+        if (state.side === 'invoice' && state.tab === 'home' && window.ibaPhoneHome) window.ibaPhoneHome.refresh();
         if (state.side === 'inventory' && state.tab === 'search') {
             try { if (typeof window.openInventoryMobileMaterialFinder === 'function') window.openInventoryMobileMaterialFinder(); } catch (_) {}
         }
@@ -351,11 +366,9 @@
         if (first) first.innerHTML = '<div class="iba-ph-empty"><i class="fa-solid fa-spinner fa-spin"></i><p>Loading your work…</p></div>';
         try { if (typeof ensureApproverDataCached === 'function') await ensureApproverDataCached(); } catch (_) {}
         await Promise.all([loadInvoice(true), loadInventory(true)]);
-        // Land where the work is.
-        if (state.inv.list.length || state.qs.length) { state.tab = 'approve'; setSide('invoice'); }
-        else if (state.stk.list.length) { state.tab = 'approve'; setSide('inventory'); }
-        else if (canRecords()) { state.tab = 'approve'; setSide('invoice'); }
-        else { state.tab = 'search'; setSide('inventory'); }
+        // 17.0.5 patch 117: everyone lands on Home (approvals show on top of it)
+        state.tab = 'home';
+        setSide('invoice');
     }
 
     function leave() {
@@ -459,6 +472,7 @@
         paintSwitch();
         paintTabs();
         if (state.side === 'invoice' && state.tab === 'approve') renderInvoiceApprove();
+        if (state.side === 'invoice' && state.tab === 'home') renderHome();
     }
 
     function invCard(t) {
@@ -1041,6 +1055,9 @@
         VERSION,
         enter, leave, refresh, setSide, setTab,
         isOn: () => state.on,
+        approvals: () => ({ list: state.inv.list.slice(), qs: state.qs.slice(), loading: state.inv.loading, urgent: state.inv.list.filter((t) => A() && A().isUrgent(t)).length }),
+        inventoryWaiting: () => state.stk.list.length,
+        openMessages,
         state: () => ({ side: state.side, tab: state.tab, invoices: state.inv.list.length, inventory: state.stk.list.length })
     };
 

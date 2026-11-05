@@ -14,6 +14,8 @@
       local copies cleaned.
    Reads only: the archive by PO (indexed, one PO at a time) and the
    Original PO job records (saved Job Records copy, else one indexed read).
+   4) 17.0.5 patch 115: Original PO rows not in the file get "Put back in
+      file" (Super Admin): record -> Active + DateFiled today, job deleted.
    ========================================================================== */
 (function () {
     'use strict';
@@ -137,7 +139,8 @@
             inArchive(p).then((found) => {
                 if (!tr.isConnected) return;
                 tr.dataset.ibaOpo = found ? 'back' : 'out';
-                if (!found || tr.querySelector('.iba-opo-back')) return;
+                if (!found) { addFileBtn(tr, cell); return; }
+                if (tr.querySelector('.iba-opo-back')) return;
                 tr.classList.add('iba-opo-row-back');
                 const b = document.createElement('span');
                 b.className = 'iba-opo-back';
@@ -147,6 +150,83 @@
                 updateBar();
             });
         });
+    }
+
+    // ---- 17.0.5 patch 115: "Put back in file" (Super Admin) ------------------
+    // The person returned the original paper PO: one click sets the PO file
+    // record back to Active (DateFiled today) and deletes this Original PO job,
+    // so it also leaves that person's Active Task.
+    function addFileBtn(tr, cell) {
+        if (!isSuper() || tr.querySelector('.iba-opo-file')) return;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'iba-opo-file';
+        b.title = 'The original PO came back: put it back in your file (Active) and delete this job';
+        b.innerHTML = '<i class="fa-solid fa-box-archive"></i> Put back in file';
+        cell.insertAdjacentElement('afterend', b);
+    }
+    async function removeJob(key, e) {
+        const d = mainDb();
+        await d.ref('job_entries/' + key).remove();
+        try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await wdWriteWorkdeskJobRecentMarker(key, e || {}, 'deleted'); } catch (_) {}
+        try { if (typeof wdRemoveLocalWorkdeskJobEntryCache === 'function') wdRemoveLocalWorkdeskJobEntryCache(key); } catch (_) {}
+    }
+    function poAmount(p) {
+        try { const r = (typeof allPOData !== 'undefined' && allPOData) ? allPOData[p] : null; const a = r && (r.Amount != null ? r.Amount : r.amount); const n = parseFloat(String(a == null ? '' : a).replace(/,/g, '')); return isFinite(n) ? n : ''; } catch (_) { return ''; }
+    }
+    function poField(p, n) { try { const r = (typeof allPOData !== 'undefined' && allPOData) ? allPOData[p] : null; return (r && r[n] != null) ? r[n] : ''; } catch (_) { return ''; } }
+    async function backInFile(btn) {
+        const tr = btn.closest('tr[data-key]');
+        if (!tr || !isSuper()) return;
+        const key = tr.getAttribute('data-key');
+        const cell = tr.querySelector('.wd-po-code');
+        const p = normPO(cell && cell.textContent);
+        const pd = progDb(), md = mainDb(), pf = window.ibaPoFile;
+        if (!key || !p || !pd || !md || !pf) { alert('Cannot do this right now (PO file not reachable).'); return; }
+        const e = findEntry(key) || {};
+        btn.disabled = true;
+        try {
+            const val = await pf.lookup(p);
+            const keys = val ? Object.keys(val) : [];
+            const day = pf.today();
+            let msg;
+            if (pf.activeOf(val)) {
+                if (!confirm('PO ' + p + ' is already Active in your file.\n\nDelete this Original PO job' + (e.attention ? ' (with ' + e.attention + ')' : '') + '?')) { btn.disabled = false; return; }
+                msg = 'PO ' + p + ' was already in your file. Job deleted.';
+            } else if (keys.length) {
+                if (!confirm('Put PO ' + p + ' back in your file?\n\n• PO file: Status Active, DateFiled ' + day + '\n• This Original PO job' + (e.attention ? ' (with ' + e.attention + ')' : '') + ' is deleted')) { btn.disabled = false; return; }
+                // the record with the newest release (the one that went out), else the first
+                const k = keys.slice().sort((a, b) => String(val[b].DateReleased || '').localeCompare(String(val[a].DateReleased || '')))[0];
+                const rec = val[k] || {};
+                const kOf = (n) => Object.keys(rec).find((x) => x.toLowerCase() === n.toLowerCase()) || n;
+                const upd = {};
+                upd[kOf('Status')] = 'Active';
+                upd[kOf('DateFiled')] = day;
+                await pd.ref('records/' + k).update(upd);
+                msg = 'PO ' + p + ' is back in your file (Active). Job deleted.';
+            } else {
+                if (!confirm('PO ' + p + ' is not in your PO file yet.\n\nAdd it as Active (filed ' + day + ') and delete this Original PO job?')) { btn.disabled = false; return; }
+                await pd.ref('records').push({
+                    ReqNum: '', PO: p, SupplierID: String(poField(p, 'Supplier ID') || ''), SupplierName: String(e.vendorName || poField(p, 'Supplier Name') || ''),
+                    ProjectID: String(e.site || poField(p, 'Project ID') || ''), Amount: poAmount(p), Status: 'Active', DateFiled: day
+                });
+                msg = 'PO ' + p + ' added to your file (Active). Job deleted.';
+            }
+            await removeJob(key, e);
+            archive.set(p, { found: true, at: Date.now() });
+            opoJobs = null;
+            tr.remove();
+            try { if (typeof wdClearWorkdeskDashboardCache === 'function') wdClearWorkdeskDashboardCache(); } catch (_) {}
+            const c = document.getElementById('job-records-count-display');
+            if (c) { const m = c.textContent.match(/(\d+)/); if (m) c.textContent = '(Total Records: ' + Math.max(0, Number(m[1]) - 1) + ')'; }
+            try { if (typeof populateActiveTasks === 'function') populateActiveTasks(); } catch (_) {}
+            updateBar();
+            if (typeof showToast === 'function') { try { showToast(msg, 'success'); } catch (_) {} }
+            else if (typeof window.ibaToast === 'function') window.ibaToast(msg);
+        } catch (err) {
+            btn.disabled = false;
+            alert('Could not put PO ' + p + ' back in file: ' + ((err && err.message) || err));
+        }
     }
 
     function addTicks(body) {
@@ -266,6 +346,8 @@
         const t = e.target;
         if (!t || !t.closest) return;
         if (t.classList && t.classList.contains('iba-jr-tick')) { e.stopPropagation(); return; } // the row click opens the job
+        const fb = t.closest('#job-records-table .iba-opo-file');
+        if (fb) { e.preventDefault(); e.stopPropagation(); backInFile(fb); return; }
         const sel = t.closest('#iba-jr-bulk [data-sel]');
         const del = t.closest('#iba-jr-bulk [data-bulk-del]');
         if (!sel && !del) return;

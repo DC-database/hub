@@ -411,6 +411,8 @@
         briefHtml: briefHtml,
         isOn: function (po, key) { return !!st.list[idOf(po, key)]; },
         refresh: function () { return check(true); },
-        open: openBox
+        open: openBox,
+        // 17.0.5 patch 117: phone Home "Accounts" counter
+        items: function () { return Object.keys(st.list).map(function (id) { var w = st.list[id] || {}; return { id: id, po: w.ipo || w.po, key: w.ikey || w.key, inv: w.inv, vendor: w.vendor, site: w.site, value: w.value, status: st.status[id] || '', at: Number(w.at) || 0 }; }); }
     };
 })();

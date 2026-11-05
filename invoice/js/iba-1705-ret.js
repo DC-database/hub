@@ -430,6 +430,8 @@
         refresh: function () { return check(true); },
         open: openBox,
         list: function () { return st.list; },
+        // 17.0.5 patch 117: phone Home "Returned" counter (moved since you sent it)
+        items: function () { return Object.keys(st.list).filter(moved).map(function (id) { var w = st.list[id] || {}; return { id: id, po: w.po, key: w.key, inv: w.inv, vendor: w.vendor, site: w.site, value: w.value, sent: w.sent, status: st.status[id] || '', seen: !!w.seen, at: Number(w.at) || 0 }; }); },
         _onWrite: onMyWrite
     };
 })();

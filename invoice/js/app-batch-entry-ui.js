@@ -453,9 +453,16 @@ async function addInvoiceToBatchTable(invData) {
         return (!s || s === 'n/a' || s === 'na' || s === 'null' || s === 'undefined');
     };
 
-    if ((isNA(resolvedSite) || isNA(resolvedVendor)) && typeof getInvoicePurchaseOrderDetails === 'function') {
+    // 17.0.5 patch 123: getInvoicePurchaseOrderDetails no longer exists, so a PO
+    // added with "Add PO" (PO file, not yet in POVALUE2.csv) showed vendor N/A.
+    // Now: POVALUE2 list in memory, else ONE indexed read of that PO in the PO file.
+    if (isNA(resolvedSite) || isNA(resolvedVendor)) {
         try {
-            const poDetails = await getInvoicePurchaseOrderDetails(invData.po);
+            const poKey = String(invData.po || '').trim().toUpperCase();
+            let poDetails = (typeof allPOData !== 'undefined' && allPOData && allPOData[poKey]) || null;
+            if (!poDetails && typeof getInvoicePurchaseOrderDetails === 'function') poDetails = await getInvoicePurchaseOrderDetails(poKey);
+            if (!poDetails && window.ibaAddPo && typeof window.ibaAddPo.fill === 'function') poDetails = await window.ibaAddPo.fill(poKey);
+            poDetails = poDetails || {};
             if (isNA(resolvedSite)) resolvedSite = normalizeNameText(poDetails['Project ID'] || poDetails['Project ID:'] || resolvedSite || 'N/A');
             if (isNA(resolvedVendor)) resolvedVendor = normalizeNameText(poDetails['Supplier Name'] || poDetails['Supplier Name:'] || poDetails['Supplier'] || resolvedVendor || 'N/A');
         } catch (_) {}
@@ -799,6 +806,16 @@ async function handleBatchModalPOSearch() {
         let vendor = poData ? (poData['Supplier Name'] || poData['Vendor'] || poData['Supplier'] || 'N/A') : 'N/A';
 
         // If CSV data is not available for this PO, recover site/vendor from invoice rows when possible.
+        // 17.0.5 patch 123: PO added with "Add PO" lives in the PO file only
+        if ((site === 'N/A' || vendor === 'N/A') && window.ibaAddPo && typeof window.ibaAddPo.fill === 'function') {
+            try {
+                const pf = await window.ibaAddPo.fill(poNumber);
+                if (pf) {
+                    if (site === 'N/A') site = pf['Project ID'] || 'N/A';
+                    if (vendor === 'N/A') vendor = pf['Supplier Name'] || 'N/A';
+                }
+            } catch (_) {}
+        }
         if (site === 'N/A' || vendor === 'N/A') {
             const firstInvoice = Object.values(invoicesData || {})[0] || {};
             if (site === 'N/A') site = firstInvoice.site || firstInvoice.Site || firstInvoice.projectID || firstInvoice.projectId || 'N/A';

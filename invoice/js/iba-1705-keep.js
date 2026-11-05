@@ -76,14 +76,18 @@
         var d = document.createElement('div');
         d.id = 'iba-keep-note';
         d.className = 'iba-keep-note';
-        d.style.cssText = 'display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:12px;opacity:.85;';
-        d.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Kept from ' + hhmm(at) +
-            ' <button type="button" class="iba-keep-refresh secondary-btn" style="padding:2px 10px;font-size:12px;min-height:0;"><i class="fa-solid fa-rotate"></i> Refresh</button>';
-        d.querySelector('button').addEventListener('click', function () {
+        // p113: sits ABOVE the results sheet (not inside the grid body, where it became a grid cell)
+        d.style.cssText = 'display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0 0 6px;font-size:12px;color:#9FB3C2;';
+        d.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i><span>Results kept from ' + hhmm(at) + '</span>' +
+            '<a href="#" class="iba-keep-refresh" style="color:#7FE3D6;font-weight:700;text-decoration:none;"><i class="fa-solid fa-rotate"></i> Refresh</a>';
+        d.querySelector('a').addEventListener('click', function (ev) {
+            ev.preventDefault();
             kept.rec = null; d.remove();
             var b = $('im-reporting-search-btn'); if (b) b.click();
         });
-        box.insertBefore(d, box.firstChild);
+        var sheet = box.closest('.iba-records-sheet');
+        if (sheet && sheet.parentNode) sheet.parentNode.insertBefore(d, sheet);
+        else box.parentNode.insertBefore(d, box);
     }
 
     function wrapIm() {
@@ -106,11 +110,13 @@
     }
     // remember the Records data while it is on screen (so the 1 hour counts from the search)
     document.addEventListener('click', function (e) {
-        if (e.target.closest && e.target.closest('#im-reporting-search-btn')) kept.rec = null;
+        if (e.target.closest && e.target.closest('#im-reporting-search-btn')) { kept.rec = null; var n = $('iba-keep-note'); if (n) n.remove(); }
     }, true);
 
     // ---- Add New Job draft ----
-    var job = { dirty: false, lastMode: '', vals: null };
+    var job = { dirty: false, lastMode: '', vals: null, mod: '' };
+    // WorkDesk and Inventory share the same job pop-up: a draft only comes back in the module it was typed in
+    function curMod() { try { return window.__ibaActiveModule || (document.body.classList.contains('inventory-mode') ? 'inventory' : 'workdesk'); } catch (_) { return ''; } }
     function jobFields() {
         var m = $('standard-job-modal');
         if (!m) return [];
@@ -127,12 +133,14 @@
         if (typeof orig !== 'function' || orig.__ibaKeep) return !!(orig && orig.__ibaKeep);
         var w = function (mode) {
             var draft = null;
-            if (!onPhone() && mode === 'Add' && job.lastMode === 'Add' && job.dirty) {
+            if (!onPhone() && mode === 'Add' && job.lastMode === 'Add' && job.dirty && job.mod === curMod()) {
                 draft = jobFields().map(function (el) {
                     return [el.id, (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value];
                 });
             }
+            if (mode === 'Add' && job.mod !== curMod()) job.dirty = false;
             job.lastMode = mode;
+            job.mod = curMod();
             var res = orig.apply(this, arguments);
             if (mode !== 'Add') job.dirty = false;
             if (draft) {

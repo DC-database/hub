@@ -260,7 +260,7 @@
         // 15.0.0 patch 18: Site "All" (as in the rest of IBA) means every site
         const allSite = /(^|[\s,;\/])all([\s,;\/]|$)/i.test(String(a.Site || ''));
         const wide = sup || del || allSite || pos.includes('manager') || /senior\s*qs/.test(pos) || tokens.some((t) => WIDE_TOKENS.indexOf(t) !== -1);
-        const sites = String(a.Site || '').split(/[,;\/]+/).map((x) => (String(x).match(/\d+/) || [''])[0]).filter(Boolean);
+        const sites = String(a.Site || '').split(/[,;\/]+/).map((x) => siteCode(x)).filter(Boolean);
         return { super: sup, delegate: del, allSites: wide, sites: sites, amounts: sup || del || role === 'admin' || tokens.indexOf('accounting') !== -1 };
     }
     // Who may use the assistant: "everyone" (default) or "me" (Super Admin only).
@@ -1509,13 +1509,18 @@
     };
     const MAX_POS = 10;
     function stageOf(status) { const k = norm(status); return Object.prototype.hasOwnProperty.call(STAGE_OF, k) ? STAGE_OF[k] : -1; }
-    function siteNo(v) { return (String(v == null ? '' : v).match(/\d+/) || [''])[0]; }
+    // 17.0.5 patch 121: a site code is digits, sometimes with a letter in front
+    // (M40 is not site 40), so the letter is kept
+    function siteCode(v) { const t = String(v == null ? '' : v); const m = t.match(/\b[A-Za-z]?\d+/) || t.match(/\d+/); return m ? m[0].toUpperCase() : ''; }
+    function siteNo(v) { return siteCode(v); }
     // 17.0.5 p95: PO card = PO no. + PO value on the left, SITE (big coloured number,
     // site name small under it) on the right, vendor across the bottom.
     function trkSiteName(site) {
         const no = siteNo(site); let nm = '';
         try { if (typeof wdSiteDisplayParts === 'function') nm = wdSiteDisplayParts(String(site || '')).siteName || ''; } catch (_) {}
         if (!nm) nm = String(site || '').replace(/^\s*site\s*[:#-]?\s*/i, '').replace(no, '').replace(/^\s*[-–—:|,/]+\s*/, '').trim();
+        // 17.0.5 patch 121: "Site M40 - 3 Villas" -> "3 Villas" (the code is shown big already)
+        if (no) { const esc2 = no.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); nm = nm.replace(new RegExp('^\\s*(site\\s*[:#-]?\\s*)?' + esc2 + '\\b\\s*[-–—:|,/]*\\s*', 'i'), '').trim(); }
         if (/^(site\s*\d*|no site( assigned)?)$/i.test(nm.trim()) || nm === no) nm = '';
         return nm;
     }
@@ -2380,8 +2385,6 @@
         // RED = same PO or same vendor has other invoices waiting -> kindly check first.
         const one = (i, withPo) => '<div class="iba-cs-inv">' + (withPo ? '<span class="iba-cs-po2">PO ' + esc(i.po) + '</span> ' : '') + '<b>' + esc(i.inv) + '</b>' +
             (i.value ? ' · QAR ' + esc(money(i.value)) : '') + (i.date ? ' · ' + esc(fmtDate(i.date)) : '') + ' <span class="iba-cs-st">' + esc(i.status || 'no status') + '</span></div>';
-        const head = (r) => '<div class="iba-cs-c-top"><span class="iba-cs-c-po">PO ' + esc(r.po) + '</span>' + (r.site ? '<span class="iba-cs-c-site">Site ' + esc(r.site) + '</span>' : '') +
-            (r.moved ? '<span class="iba-cs-urg">Urgent</span>' : '') + '</div><div class="iba-cs-c-ven">' + esc(r.vendor) + '</div>';
         const why = (r) => {
             const samePo = (r.pend || []).length + Math.max(0, (r.mine || []).length - 1);
             const otherPos = Array.from(new Set((r.others || []).map((i) => i.po)));
@@ -2390,28 +2393,36 @@
             if (otherPos.length) parts.push('This vendor has ' + (r.others || []).length + ' more waiting on PO ' + otherPos.slice(0, 4).join(', ') + (otherPos.length > 4 ? ' +' + (otherPos.length - 4) : ''));
             return parts.join(' · ');
         };
-        const green = (r) => '<div class="iba-cs-c is-go">' +
-            '<span class="iba-cs-tl is-go" aria-hidden="true"><i></i><i></i><i></i></span>' +
-            '<div class="iba-cs-sig"><i class="fa-solid fa-circle-check"></i> Proceed · send to CEO</div>' + head(r) +
-            '<div class="iba-cs-c-lbl">Ready</div>' + r.mine.map((i) => one(i, false)).join('') +
-            (r.moved ? '<div class="iba-cs-c-acts"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-back="' + esc(r.po) + '"><i class="fa-solid fa-rotate-left"></i> Put back to check</button></div>' : '') + '</div>';
-        const red = (r) => {
+        // 17.0.5 p111: one slim row per PO (martin: cards were too big); the waiting invoices fold
+        // under "N also waiting" and each colour group can be folded too.
+        const lamp = (k) => '<span class="iba-cs-tl is-row is-' + k + '" aria-hidden="true"><i></i><i></i><i></i></span>';
+        const row = (r, k) => {
             const l = (r.pend || []).concat(r.others || []);
-            return '<div class="iba-cs-c is-stop">' +
-                '<span class="iba-cs-tl is-stop" aria-hidden="true"><i></i><i></i><i></i></span>' +
-                '<div class="iba-cs-sig"><i class="fa-solid fa-triangle-exclamation"></i> Kindly check first</div>' + head(r) +
-                '<div class="iba-cs-c-why">' + esc(why(r)) + '</div>' +
-                '<div class="iba-cs-c-lbl">This paper</div>' + r.mine.map((i) => one(i, false)).join('') +
-                (l.length ? '<div class="iba-cs-c-lbl">Also waiting</div>' + l.slice(0, 12).map((i) => one(i, true)).join('') + (l.length > 12 ? '<div class="iba-cs-inv">+' + (l.length - 12) + ' more</div>' : '') : '') +
-                '<div class="iba-cs-c-acts"><button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-move="' + esc(r.po) + '" title="Urgent: send this PO alone, without waiting for the others"><i class="fa-solid fa-arrow-up"></i> Send anyway (urgent)</button></div></div>';
+            const w = k === 'go' ? '' : why(r);
+            const act = k === 'stop' ? '<button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-move="' + esc(r.po) + '" title="Urgent: send this PO alone, without waiting for the others"><i class="fa-solid fa-arrow-up"></i> Send anyway</button>'
+                : (k === 'urg' ? '<button type="button" class="iba-ai-btn iba-cs-mv" data-ceosort-back="' + esc(r.po) + '" title="Put it back to check"><i class="fa-solid fa-rotate-left"></i> Put back</button>' : '');
+            return '<div class="iba-cs-r is-' + k + '">' +
+                '<div class="iba-cs-r-main">' + lamp(k) +
+                  '<div class="iba-cs-r-id"><span class="iba-cs-c-po">PO ' + esc(r.po) + '</span>' + (r.site ? '<span class="iba-cs-c-site">Site ' + esc(r.site) + '</span>' : '') + '</div>' +
+                  '<div class="iba-cs-r-ven">' + esc(r.vendor) + '</div>' +
+                  '<div class="iba-cs-r-inv">' + r.mine.map((i) => one(i, false)).join('') + '</div>' +
+                  (act ? '<div class="iba-cs-r-act">' + act + '</div>' : '') +
+                '</div>' +
+                (w || l.length ? '<div class="iba-cs-r-sub">' + (w ? '<span class="iba-cs-c-why">' + esc(w) + '</span>' : '') +
+                  (l.length ? '<details class="iba-cs-more"><summary>' + l.length + ' also waiting</summary>' + l.slice(0, 20).map((i) => one(i, true)).join('') + (l.length > 20 ? '<div class="iba-cs-inv">+' + (l.length - 20) + ' more</div>' : '') + '</details>' : '') +
+                '</div>' : '') +
+                '</div>';
         };
+        const group = (k, title, rows, open) => rows.length ? '<details class="iba-cs-g is-' + k + '"' + (open ? ' open' : '') + '><summary>' + lamp(k) + '<b>' + title + '</b><span class="iba-cs-g-n">' + rows.length + '</span></summary>' + rows.map((r) => row(r, k)).join('') + '</details>' : '';
         const nGo = x.single.reduce((n, r) => n + r.mine.length, 0);
+        const nUrg = x.single.filter((r) => r.moved).length;
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort for CEO<span class="iba-ai-badge is-plain">' + (x.single.length + x.summary.length + x.none.length) + ' POs</span></div>';
-        h += '<div class="iba-cs-tiles"><div class="is-go"><b>' + x.single.length + '</b><span>Proceed</span></div><div class="is-stop"><b>' + x.summary.length + '</b><span>Check first</span></div>' +
+        h += '<div class="iba-cs-tiles"><div class="is-go"><b>' + (x.single.length - nUrg) + '</b><span>Proceed</span></div>' + (nUrg ? '<div class="is-urg"><b>' + nUrg + '</b><span>Urgent</span></div>' : '') + '<div class="is-stop"><b>' + x.summary.length + '</b><span>Check first</span></div>' +
             (x.none.length ? '<div class="is-none"><b>' + x.none.length + '</b><span>Not ready</span></div>' : '') + '</div>';
-        h += '<div class="iba-cs-list">' + x.summary.map(red).join('') + x.single.map(green).join('') + '</div>';
+        h += '<div class="iba-cs-list">' + group('stop', 'Kindly check first', x.summary, true) + group('urg', 'Urgent · sent on purpose', x.single.filter((r) => r.moved), true) +
+            group('go', 'Proceed · send to CEO', x.single.filter((r) => !r.moved), true) + '</div>';
         if (x.none.length) h += '<div class="iba-cs-c-lbl iba-cs-none-lbl">Not ready</div><ul class="iba-ai-rows">' + x.none.map((r) => '<li><b>' + esc(r.po) + '</b><span class="iba-ai-grow">' + esc(r.vendor) + '<small>' + esc(r.why) + '</small></span></li>').join('') + '</ul>';
-        h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn iba-cs-send" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-paper-plane"></i> Send ' + nGo + ' green to Batch Entry</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
+        h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn iba-cs-send" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-paper-plane"></i> Send ' + nGo + (nUrg ? ' green + yellow' : ' green') + ' to Batch Entry</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
         h += '<p class="iba-ai-foot">Waiting means: ' + esc(x.statuses) + ', or anything not finished on the same PO.</p>';
         return h;
     }
@@ -2899,6 +2910,10 @@
         // SRV name, everything else (e.g. Under Review) -> invoice name.
         const head = ['Time', 'PO', 'Site', 'Inv No', 'Inv name / SRV name / Report name', 'Inv Amount', 'Amount Paid', 'Status'];
         const csv = [head.join(',')].concat(rows.map((r) => [r.since, r.po, r.site, r.invoice_no, r.file, r.value.toFixed(2), r.paid.toFixed(2), r.status].map(csvCell).join(','))).join('\r\n');
+        // 17.0.5 patch 122: same columns and order, no header, tab between cells:
+        // pasted straight into Excel (Copy invoice list)
+        const tsvCell = (v) => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
+        const tsv = rows.map((r) => [r.since, r.po, r.site, r.invoice_no, r.file, r.value.toFixed(2), r.paid.toFixed(2), r.status].map(tsvCell).join('\t')).join('\r\n');
         const pos = new Set(rows.map((r) => r.po)).size;
         const total = rows.reduce((t, r) => t + r.value, 0);
         const label = wants.map((w) => (exportStatusOpts().find((o) => norm(o[0]) === w) || [w])[0]).join(' + ') + (win ? ' · ' + win.label : '') + (a.site ? ' · site ' + a.site : '') + (a.vendor ? ' · ' + a.vendor : '');
@@ -2909,7 +2924,7 @@
         const result = { found: rows.length, pos: pos, total_value: money(total), label: label, source: src,
             first: rows.slice(0, 15).map((r) => ({ po: r.po, invoice_no: r.invoice_no, vendor: r.vendor, value: money(r.value), since: r.since, with: r.attention })) };
         if (!rows.length) result.note = 'No invoice is in that status' + (win ? ' for that time' : '') + '.';
-        return { result: result, card: { kind: 'export', data: Object.assign({}, result, { csv: csv, file: fname, rows: rows.slice(0, 8) }) } };
+        return { result: result, card: { kind: 'export', data: Object.assign({}, result, { csv: csv, tsv: tsv, copy: !!a.copy, file: fname, rows: rows.slice(0, 8) }) } };
     }
 
     const RUN = {
@@ -3330,10 +3345,8 @@
             ask: () => [], action: () => { if (typeof window.ibaEsnPrinters === 'function') window.ibaEsnPrinters(); } },
         // 17.0.5 patch 38/39: POs to take out of the paper file (js/iba-1705-release.js)
         // 17.0.5 patch 68: forgot +Del? type POs into the pull-out list (cart)
-        po_pull_add: { name: 'Add PO to pull-out list', icon: 'fa-cart-plus', superOnly: true, desc: 'Forgot to press +Del? Type the PO numbers: Active POs are added to the PO pull-out list (never twice), then tick Pulled and Proceed as usual.',
-            ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList({ add: true }); } },
-        po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Original POs you put on the list with +Del or the folder button. Take them out of your paper file, tick Pulled, then Proceed: ticked POs become Inactive and the list is cleared.',
-            ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList(); } },
+        po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Original POs to take out of your paper file: added with +Del / the folder button, or type PO numbers in the box. Optional Given to name makes an Original PO job (PO Revision). Tick Pulled, then Proceed: ticked POs become Inactive and the list is cleared.',
+            ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList({ add: true }); } }, // 17.0.5 patch 116: one skill (Add PO to pull-out list merged in)
         // 17.0.5 patch 40: current stock of one site (js/iba-1705-sitestock.js), Super Admin + E.Ali
         site_stock: { name: 'Site stock', icon: 'fa-warehouse', check: () => !!(window.ibaSiteStock && window.ibaSiteStock.allowed()),
             desc: 'Current stock of one site: all items, or one product (e.g. site 170 + plywood). Items with 0 are left out. Print PDF or Download CSV. No AI used.',
@@ -3346,6 +3359,27 @@
             ask: () => [{ key: 'for', label: 'What is it for?', type: 'select', options: JOB_TYPES.map((t) => [t, t]) },
                 { key: 'po', label: 'PO number (leave empty if none)', placeholder: 'e.g. 66176', optional: true }],
             run: async (v) => { await openNewJob(v.for, v.po); return null; } },
+        // 17.0.5 patch 117: the guided New invoice window (js/iba-1705-newinv.js)
+        new_invoice: { name: 'Add new invoice', icon: 'fa-file-invoice', desc: 'For Reception: opens the New invoice window in 4 steps. Type the PO and the site and vendor fill in; it warns if the invoice no. is already on the PO. Check and press Save invoice. No AI used.',
+            check: () => typeof window.ibaNewInvoice === 'function',
+            ask: () => [{ key: 'po', label: 'PO number (leave empty to type it in the window)', placeholder: 'e.g. 62598', optional: true }],
+            run: async (v) => { toggle(false); await window.ibaNewInvoice(v.po); return null; } },
+        // 17.0.5 patch 124: New requisition window (no PO yet)
+        new_requisition: { name: 'Add new requisition', icon: 'fa-file-signature', desc: 'For Procurement: opens the New requisition window in 4 steps. Requisition no. and site, vendor optional, the requisition PDF, then pick who it goes to (Procurement on top). No AI used.',
+            check: () => typeof window.ibaNewRequisition === 'function',
+            ask: () => [{ key: 'ref', label: 'Requisition no. (leave empty to type it in the window)', placeholder: 'e.g. 20418', optional: true }],
+            run: async (v) => {
+                // 17.0.5 patch 128: requisition already has a PO -> answer here, no window
+                const hit = (v.ref && typeof window.ibaReqPo === 'function') ? await window.ibaReqPo(v.ref) : null;
+                if (hit) {
+                    const amt = Number(String(hit.amount || '').replace(/,/g, ''));
+                    addBot('Requisition ' + String(v.ref).trim() + ' already has **PO ' + hit.po + '**' +
+                        ([hit.vendor, hit.site ? 'Site ' + hit.site : '', amt ? 'QAR ' + amt.toLocaleString('en-US', { maximumFractionDigits: 2 }) : ''].filter(Boolean).length ? ' (' + [hit.vendor, hit.site ? 'Site ' + hit.site : '', amt ? 'QAR ' + amt.toLocaleString('en-US', { maximumFractionDigits: 2 }) : ''].filter(Boolean).join(' · ') + ')' : '') +
+                        '. No need to add it again. Here is where that PO is now:', {});
+                    try { const out = await runTool('track_invoices', { po: hit.po }); if (out && out.card) addCard(out.card); } catch (_) {}
+                    return null;
+                }
+                toggle(false); await window.ibaNewRequisition(v.ref); return null; } },
         // 15.0.0 patch 47: reports picked from a list, no AI needed
         po_report: { name: 'PO report', icon: 'fa-file-invoice-dollar', desc: 'Asks for a PO number, then shows the PO value, invoiced, paid and remaining, every invoice and where it is now. Print or Excel from the card. No AI used.',
             ask: () => [{ key: 'po', label: 'PO number', placeholder: 'e.g. 62921' }],
@@ -3446,6 +3480,11 @@
         // 15.0.0 patch 43: which Firebase indexes exist (missing ones make filtered reads download whole lists)
         dbcheck: { name: 'Database check', icon: 'fa-database', superOnly: true, desc: 'Checks the Firebase indexes the system relies on to keep downloads small, and shows the rule to add for any that are missing. Each check reads about 1 KB.',
             ask: () => [], run: async () => { await dbCheckCard(); return null; } },
+        // 17.0.5 patch 122: same list, copied (no header) to paste into Excel
+        export_copy: { name: 'Copy invoice list', icon: 'fa-copy', superOnly: true, desc: 'Same as Download invoice list, but one press copies the rows (same columns, no header) so you click a cell in Excel and press Ctrl+V. No file to open.',
+            ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
+                { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
+            build: (v) => [{ tool: 'download_invoices', args: { status: v.status, when: v.when, copy: true } }] },
         export: { name: 'Download invoice list', icon: 'fa-file-csv', superOnly: true, desc: 'Asks for a status (Under Review, With Accounts, Paid, ...) and a period, then gives a CSV file for Excel. Uses the saved copy: little or no download.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
                 { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
@@ -4645,13 +4684,16 @@
         // 17.0.5 patch 6
         [/\bwhere\b.*\b(inv|invoice|my)\b|\b(track|status)\b.*\binv|\binvoice status\b/i, ['inv_status', 'po_report']],
         [/\b(reports?|list|lists|summary|print|statement)\b/i, ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent']],
-        [/\b(download|csv|excel|export)\b/i, ['export', 'po_report', 'inv_status']],
+        [/\b(copy|paste)\b/i, ['export_copy', 'export']],
+        [/\b(download|csv|excel|export)\b/i, ['export', 'export_copy', 'po_report', 'inv_status']],
         [/\b(urgent|rush)\b/i, ['urgent', 'approvals_list']],
         [/\b(approvals?|approve|ceo|coo)\b/i, ['approvals_list', 'urgent', 'inv_status']],
+        [/\b(new|add)\s+invoice\b/i, ['new_invoice']],
+        [/\b(new|add)\s+(requisition|req)\b/i, ['new_requisition']],
         [/\b(new|add)\s+(job|entry)\b|\bjob entry\b|\breception\b/i, ['new_job']],
         [/\b(deliver(y|ies)?|restock|return|usage|stock|material)\b/i, ['new_delivery', 'transfer']],
         [/\b(colleague|contact|phone|mobile|email|who is)\b/i, ['person', 'site_team']],
-        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull', 'po_pull_add']],
+        [/\b(pull|pulled|released?|original po|po file|deletion|del list)\b/i, ['po_pull']],
         [/\b(stock|inventory|balance)\b.*\bsite\b|\bsite\b.*\b(stock|inventory|balance)\b/i, ['site_stock']]
     ];
     function quickPicks(ids, all) {
@@ -5751,15 +5793,27 @@
         return firstName2(it.with);
     }
     function trkUrgBadge() { return '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>'; }
+    // 17.0.5 patch 117: plain row (martin's sample): invoice no. | value,
+    // status (+ who has it) | the day it got there. No icon, no "N days ago".
+    function trkShortDate(v) { return String(v || '').replace(/^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*[ -]\d{2}(\d{2})$/, (m, d, mo, y) => d.padStart(2, '0') + '-' + mo + '-' + y); }
     function trkRowHtml(it, pi, ii) {
-        const ps = plainStatus(it), tone = trkTone(it, ps), who = trkWho(it);
-        const meta = [it.invoice_date || it.entered || '', who ? 'with ' + who : '', trkDays(it)].filter(Boolean).join(' · ');
-        return '<button type="button" class="iba-trk-row is-' + tone + ((it.days || 0) > 7 ? ' is-long' : '') + '" data-trk-open="' + pi + ':' + ii + '">' +
-            '<span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
-            '<span class="iba-trk-mid"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-now">' + esc(ps.title) + '</span>' +
-                (meta ? '<small>' + esc(meta) + ((it.days || 0) > 7 ? ' · taking long' : '') + '</small>' : '') + '</span>' +
-            '<span class="iba-trk-end">' + (it.value ? '<b>' + esc(it.value) + '</b>' : '') + (it.urgent ? trkUrgBadge() : '') + '</span>' +
-            '<i class="fa-solid fa-chevron-right iba-trk-go"></i></button>';
+        const ps = plainStatus(it), tone = trkTone(it, ps);
+        const s = norm(it.status);
+        let st, dt = '';
+        if (it.side_status) st = it.side_status;
+        else if (it.stage_index === 5) { st = 'Paid'; dt = it.paid_on ? 'Paid ' + trkShortDate(it.paid_on) : ''; }
+        else if (it.stage_index === 4) { st = 'With Accounts'; dt = it.with_accounts_on ? 'Given ' + trkShortDate(it.with_accounts_on) : ''; }
+        else if (it.kind === 'reception' || it.stage_index === 0) st = 'At Reception';
+        else if (it.stage_index === 1 && /under review|in process|entered|new entry|pending/.test(s)) st = 'Being entered';
+        else st = it.status || ps.title;
+        const who = firstName2(it.with);
+        if (who && it.stage_index < 4 && !/^accounts$/i.test(who)) st += ' · ' + who;
+        if (!dt) dt = trkShortDate(it.since || it.invoice_date || it.entered || '');
+        return '<button type="button" class="iba-trk-row is-v2 is-' + tone + '" data-trk-open="' + pi + ':' + ii + '">' +
+            '<span class="iba-trk-v2no">' + esc(it.invoice_no) + '</span>' +
+            '<span class="iba-trk-v2val">' + (it.value ? esc(it.value) : '') + (it.urgent ? trkUrgBadge() : '') + '</span>' +
+            '<span class="iba-trk-v2st">' + esc(st) + '</span>' +
+            '<span class="iba-trk-v2dt">' + esc(dt) + '</span></button>';
     }
     function trackListHtml(r) {
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?' + (r.vendor ? ' · ' + esc(r.vendor) : '') + '</div>';
@@ -6299,8 +6353,12 @@
                 (x.rows.length ? '<ul class="iba-ai-rows">' + x.rows.map((r) => '<li>' + poLink(r.po) + '<span class="iba-ai-grow">' + esc(r.invoice_no || r.entry) + (r.vendor ? ' · ' + esc(r.vendor) : '') +
                     '<small>' + esc([r.file ? 'File: ' + r.file : 'No file name yet', money(r.value), r.since ? 'since ' + r.since : ''].filter(Boolean).join(' · ')) + '</small></span></li>').join('') + '</ul>' +
                     (x.found > x.rows.length ? '<p class="iba-ai-foot">+ ' + esc(x.found - x.rows.length) + ' more in the file</p>' : '') : '<p class="iba-ai-empty">' + esc(x.note || 'Nothing found.') + '</p>') +
-                (x.found && href ? '<p class="iba-ai-foot"><a class="iba-ai-mini is-main" href="' + esc(href) + '" download="' + esc(x.file) + '"><i class="fa-solid fa-download"></i> Download CSV (' + esc(x.found) + ')</a></p>' : '') +
+                (x.found ? '<p class="iba-ai-foot iba-ai-export-acts">' +
+                    '<button type="button" class="iba-ai-mini' + (x.copy ? ' is-main' : '') + '" data-export-copy><i class="fa-regular fa-copy"></i> Copy for Excel (' + esc(x.found) + ')</button> ' +
+                    (href ? '<a class="iba-ai-mini' + (x.copy ? '' : ' is-main') + '" href="' + esc(href) + '" download="' + esc(x.file) + '"><i class="fa-solid fa-download"></i> Download CSV</a>' : '') +
+                    '<span class="iba-ai-export-said" data-export-said></span></p>' : '') +
                 '<p class="iba-ai-foot">Data: ' + esc(x.source) + '</p>';
+            d.__tsv = x.tsv || '';
         } else if (card.kind === 'batch') {
             const added = x.added || [], already = x.already_in_batch || [], na = x.not_added || [];
             const f = x.filled || {};
@@ -6361,16 +6419,16 @@
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
-        export: ['CSV for Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
-        new_job: ['PO in, form filled', '#138A97'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
+        export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
+        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
+        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
-        ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'recent', 'batch']],
+        ['Reports and lists', ['po_report', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
         ['Admin tools', ['handover', 'dbcheck']]
     ];
     function skillTile(attr, icon, name, sub, color, title, extra) {
@@ -7074,6 +7132,39 @@
         const r = await batchAdd(found, {}, notAdded, {});
         return (r && r.result) || {};
     };
+    // 17.0.5 patch 117: the phone Home (js/iba-1705-mhome.js) uses the same
+    // search as "Where is my invoice?" (site access, PO or vendor, one PO read)
+    // 17.0.5 patch 122: "Copy for Excel" on the invoice list card
+    function copyText(t) {
+        if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t).then(() => true, () => legacyCopy(t));
+        return Promise.resolve(legacyCopy(t));
+    }
+    function legacyCopy(t) {
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+            document.body.appendChild(ta); ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            return ok;
+        } catch (_) { return false; }
+    }
+    document.addEventListener('click', (e) => {
+        const b = e.target && e.target.closest && e.target.closest('[data-export-copy]');
+        if (!b) return;
+        e.preventDefault();
+        let card = b.closest('.iba-ai-card');
+        let tsv = card && card.__tsv;
+        if (!tsv) { let n = b.parentElement; while (n && !n.__tsv) n = n.parentElement; tsv = n && n.__tsv; card = n || card; }
+        const said = (card || document).querySelector('[data-export-said]');
+        if (!tsv) { if (said) said.textContent = 'Nothing to copy.'; return; }
+        const n = tsv.split('\r\n').length;
+        copyText(tsv).then((ok) => {
+            if (said) said.textContent = ok ? n + ' row' + (n === 1 ? '' : 's') + ' copied · click a cell in Excel and press Ctrl+V' : 'Could not copy. Use Download CSV.';
+            if (ok) { b.innerHTML = '<i class="fa-solid fa-check"></i> Copied (' + n + ')'; }
+        });
+    }, true);
+    window.ibaTrack = { search: (q) => trackSearch(q), stages: STAGES.slice() };
     window.ibaAssistant = {
         VERSION: VERSION,
         open: () => { if (allowed()) { build(); toggle(true); } },
