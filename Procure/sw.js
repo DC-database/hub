@@ -2,7 +2,7 @@
 // App files: network first (you always get the newest version), saved copy when offline.
 // Fonts and libraries from CDNs: saved copy first. Firebase, Groq and GitHub data are never cached here
 // (the app keeps its own catalog cache).
-const CACHE = 'procurement-hub-v8.0.6';
+const CACHE = 'procurement-hub-v8.0.7';
 const SHELL = ['./', './index.html', './style.css', './app.js', './pwa.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 const CDN_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com', 'www.gstatic.com'];
 

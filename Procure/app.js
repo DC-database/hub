@@ -1041,7 +1041,7 @@ function renderSearchResults(rawQuery) {
         return `<div class="result-item">
             <div class="result-photo">${photo}</div>
             <div class="result-info">
-                <div class="result-line">${partCodeChipHtml(partNo)}<span class="result-desc">${escapeHtml(desc)}</span><span class="uom">${escapeHtml(uom)}</span></div>
+                <div class="result-line">${partCodeChipHtml(partNo)}${partNo ? `<button type="button" class="copy-btn" data-copy-part="${escapeHtml(partNo)}" title="Copy part number" aria-label="Copy part number ${escapeHtml(partNo)}"><i class="fa-regular fa-copy"></i></button>` : ''}<span class="result-desc">${escapeHtml(desc)}</span><span class="uom">${escapeHtml(uom)}</span></div>
                 <div class="result-tags">${tags}</div>
             </div>
             <div class="result-actions">${actions}</div>
@@ -4422,6 +4422,19 @@ document.addEventListener('keydown', (e) => {
 
 
 
+// Copy the part number from a search result (anyone can use it, no sign-in needed).
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-copy-part]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    await writeClipboardText(btn.dataset.copyPart);
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    if (typeof showToast === 'function') showToast(`Copied ${btn.dataset.copyPart}`, 'ok');
+    setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = '<i class="fa-regular fa-copy"></i>'; }, 1200);
+});
+
 // ==========================================
 // SILENT UPDATES
 // version.json on GitHub says which patch is live. The app compares it with APP_VERSION below:
@@ -4431,7 +4444,7 @@ document.addEventListener('keydown', (e) => {
 //    typing, the sorting hat open), it waits until they leave the tab or finish. The cart is kept.
 // TO RELEASE A PATCH: change APP_VERSION here AND "version" in version.json to the same new value.
 // ==========================================
-const APP_VERSION = '8.0.6';
+const APP_VERSION = '8.0.7';
 const UPDATE_CHECK_GAP_MS = 30 * 60 * 1000;
 let lastUpdateCheck = 0;
 let pendingUpdateVersion = '';
