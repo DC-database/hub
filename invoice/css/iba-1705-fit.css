@@ -1457,4 +1457,14 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-snb .iba-snb-t 
 html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-snb .iba-snb-t th:first-child, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-snb .iba-snb-t td:first-child { width: 32px !important; }
 html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-snb .iba-snb-t select.iba-snb-prev { width: 100% !important; min-width: 220px !important; }
 html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-esn.iba-snb .iba-snb-t input[type=checkbox] { width: 16px !important; height: 16px !important; accent-color: #7FE3D6; }
+/* 17.0.5 patch 138: Remind me card */
+html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme .iba-ai-remme-when { font-size: 15px !important; font-weight: 700 !important; color: #f6c453 !important; margin: 4px 0 6px !important; }
+html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme .iba-ai-remme-text { font-size: 14px !important; line-height: 1.45 !important; margin-bottom: 6px !important; }
+html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme .iba-ai-remme-sub, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme-sub { display: block !important; opacity: .75 !important; font-size: 12px !important; }
+html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .iba-ai-remme-when, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .iba-ai-remme-text { text-decoration: line-through !important; opacity: .55 !important; }
+  /* 17.0.5 patch 139: Material Stock pager removed (scrollbar is enough) + the scrollbar no longer pokes out of the
+     rounded top-right corner (Chrome draws the bar square; clip the whole box to the same 16px round) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-page-bar { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-material-stock .ms-premium-tablewrap { clip-path: inset(0 round 16px) !important; }
+  html body #wd-material-stock .ms-premium-tablewrap:not(#iba-no1)::-webkit-scrollbar-corner { background: transparent !important; }
 }
