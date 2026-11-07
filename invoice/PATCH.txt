@@ -1,3 +1,33 @@
+17.0.5 patch 154 (07-Nov-2026)
+- Backgrounds: the GitHub photos were renamed (D-Beach-1.jpg, M-Road-1.jpg ...). New built-in defaults: WorkDesk D-Road.jpg, Inventory D-Nature-2.jpg, Invoice D-Sunset-4.jpg, Login D-Beach-1.jpg, Flip cover M-Stairs-1.jpg (phone sides follow Invoice / Inventory). The Browse list forgets the old saved names, so the new photos show at once.
+- Saved choices still point to the old names: the Super Admin picks and Saves each area again once (applies for everyone).
+Files: index.html, css/iba-shell.css, js/iba-shell.js, js/iba-bg-dim.js
+
+17.0.5 patch 153 (07-Nov-2026)
+- Phone inventory approval: Requested and Approve now sit as two even halves, labels on one line and numbers on one line. "of 50" is gone; a note shows only when the qty is lowered ("lowered from 50") or wrong.
+- Phone assistant: Settings (and All skills) has a big "Back" button at the top to return to the assistant home (the top bar with the X is hidden on the phone).
+Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js, js/iba-phone.js
+
+17.0.5 patch 152 (07-Nov-2026)
+- Sort for CEO: a PO now waits ("Kindly check first") only when another invoice on the same PO or the same vendor is SRV Done, In Process, For Summary, Pending or On Hold (Pending / On Hold = no original PO yet). For SRV, For Approval, Approved and every other status no longer make it wait.
+Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 151 (07-Nov-2026)
+- Phone only (PC unchanged). IBA Assistant on the phone: no top bar any more (no "IBA Assistant" name, Home, Settings, X). The greeting is first. The 4 apps (Brief, Invoice, Inventory, Colleague) are bigger (110 px). Under them, low above the bottom bar, a row of 3 smaller apps: Ask in words (when the AI is set up), Settings, Exit. Bottom bar about 25% bigger.
+- Phone pages: new bottom bar like an app. Big round gold Home in the middle (Home = My tasks), Approve / Records (or Approve / Item search on Inventory) on the left, Messages / Logout on the right. Home from the Inventory side goes to My tasks.
+- Bigger text and buttons on Home (greeting, waiting row, search, 2x2 counts, task cards) and Approve.
+- Approve invoice card: tick + "For Approval" (no "0 of 3"), amount right, then vendor, PO + INV, Site. Buttons View PDF / Reject / Approve, 50 px tall.
+- Approve inventory card: requestor + type + big TRF no., the item name with its details in one box, FROM -> TO road with the truck heading to TO, Requested vs Approve with - / + buttons (never above the requested qty, never below 1).
+- Z Flip cover screen and landscape keep the old small sizes.
+Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js, js/iba-phone.js
+
+17.0.5 patch 150 (07-Nov-2026)
+- ⚡ Urgent tick. Invoice Entry: "⚡ Urgent" under Status next to "Tell me when they act". Batch Entry: a ⚡ button on each card, plus "Urgent for all" next to "Tell me for all". Shown only for For Approval.
+- Urgent is its own flag on the invoice (urgent / urgentBy / urgentAt). The Note is NOT changed. History gets "Marked URGENT" / "Urgent removed" with who.
+- It counts only while the invoice is For Approval. When the approver acts (any other status) the flag is cleared in the same save. Unticking removes it at once (the person who marked it, or the Super Admin).
+- Approver's Urgent tab (PC + phone), the assistant and the task list read the flag. Typing "urgent" in the Note still works as before. The assistant's Mark urgent now sets the flag too.
+Files: index.html, app.js, css/iba-1705-fit.css, js/iba-1705-urgtick.js (new), js/iba-approvals.js, js/iba-assistant.js
+
 17.0.5 patch 149 (07-Nov-2026)
 - "An invoice came back to you": the "by" name is now the person who really acted (newest history line by time). Invoices made from a Reception entry always said "by Reception" because the imported Reception line sorted last. Rows already saying "by Reception" are corrected on the next check.
 Files: index.html, js/iba-1705-ret.js

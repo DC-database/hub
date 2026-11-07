@@ -4389,6 +4389,10 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             site: site,
             invName: invoiceData.invName || '',
             note: invoiceData.note || '',
+            // 17.0.5 patch 150: ⚡ urgent approval flag
+            urgent: invoiceData.urgent === true ? true : null,
+            urgentBy: invoiceData.urgent === true ? (invoiceData.urgentBy || null) : null,
+            urgentAt: invoiceData.urgent === true ? (invoiceData.urgentAt || null) : null,
 
             // 14.0.0 patch 5: approval decision (Approved / Rejected tabs, phone)
             approvalReturnOpen: invoiceData.approvalReturnOpen === true,
