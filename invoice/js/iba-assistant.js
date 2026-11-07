@@ -698,7 +698,7 @@
                 vendor: src.vendorName || r.vendorName || rec['Supplier Name'] || '', site: src.site || r.site || rec['Project ID'] || '',
                 value: acc.amounts && value ? value : 0, status: status, with: String(src.attention || r.attention || '').trim(),
                 at: at, days: at ? daysSince(at) : null, sent_by: sentBy || String(src.enteredBy || r.enteredBy || ''),
-                note: String(src.note || ''), urgent: isUrgentNote(src.note), invoice_date: src.invoiceDate || r.invoiceDate || '',
+                note: String(src.note || ''), urgent: isUrgentT(src), invoice_date: src.invoiceDate || r.invoiceDate || '',
                 details: String((inv && inv.details) || ''),
                 pdf: invPdfUrl(src), srv: inv ? srvPdfUrl(inv) : '', approvals: Number((inv && inv.approvalCount) || 0)
             });
@@ -742,7 +742,7 @@
             items.push({
                 po: po, key: key, no: r.ref || '', vendor: r.vendorName || rec['Supplier Name'] || '', site: site,
                 value: acc.amounts && value ? value : 0, status: 'In Process', with: String(r.attention || '').trim(),
-                at: at, days: at ? daysSince(at) : null, note: String(r.note || ''), urgent: isUrgentNote(r.note),
+                at: at, days: at ? daysSince(at) : null, note: String(r.note || ''), urgent: isUrgentT(r),
                 pdf: invPdfUrl(r)
             });
         });
@@ -1696,7 +1696,7 @@
         // 15.0.0 patch 11: a step the invoice went past is counted as done
         // (it already moved on), so nothing is marked as skipped any more.
         return {
-            kind: 'invoice', key: inv.__key || undefined, pdf: invPdfUrl(inv) || undefined, srv: srvPdfUrl(inv) || undefined, urgent: (APPROVAL_RX.test(status) && isUrgentNote(inv.note)) || undefined, invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
+            kind: 'invoice', key: inv.__key || undefined, pdf: invPdfUrl(inv) || undefined, srv: srvPdfUrl(inv) || undefined, urgent: (APPROVAL_RX.test(status) && isUrgentT(inv)) || undefined, invoice_no: inv.invNumber || inv.invEntryID || '—', status: status, payment: paymentState(status), stage: STAGES[st], stage_index: st,
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
@@ -2311,6 +2311,9 @@
     // ------------------------------------------------------------------
     const CEO_READY = ['in process', 'for approval', 'approved', 'ceo approval', 'for srv', 'srv done'];
     const CEO_DONE = ['paid', 'with accounts', 'cancelled', 'rejected', 'removed', 'converted to invoice'];
+    // 17.0.5 patch 152: only these OTHER invoices (same PO or same vendor) make a PO wait for a
+    // summary (martin: For SRV and every other status do not count; Pending / On Hold = no original PO yet).
+    const CEO_WAIT = ['srv done', 'in process', 'for summary', 'pending', 'on hold'];
     async function toolCeoSort(a) {
         const pos = Array.from(new Set(String((a && a.pos) || '').split(/[\s,;]+/).map((x) => cleanPO(x)).filter(Boolean)));
         if (!pos.length) return { result: { error: 'Type the PO numbers, e.g. 57376, 57400.' } };
@@ -2339,7 +2342,7 @@
                 const invs = getInv(po);
                 Object.keys(invs).forEach((key) => {
                     const e = invs[key];
-                    if (!e || typeof e !== 'object' || CEO_READY.indexOf(norm(e.status)) === -1) return;
+                    if (!e || typeof e !== 'object' || (CEO_READY.indexOf(norm(e.status)) === -1 && CEO_WAIT.indexOf(norm(e.status)) === -1)) return;
                     (out[k] = out[k] || []).push({ po: po, key: key, inv: e.invNumber || e.invEntryID || key, status: String(e.status || ''), value: num(e.invValue), date: e.invoiceDate || '' });
                 });
             });
@@ -2366,18 +2369,18 @@
             const vendor = String(r['Supplier Name'] || r['Supplier Name:'] || '') || '—';
             const site = siteNo(r['Project ID'] || '') || String(r['Project ID'] || '');
             const ready = (k && readyBy[k]) || [];
-            const mine = ready.filter((x) => x.po === po);
+            const mine = ready.filter((x) => x.po === po && CEO_READY.indexOf(norm(x.status)) !== -1);
             // 17.0.5 patch 59: any other unfinished invoice on the SAME PO (any status) also means summary
             const invs = getInv(po);
-            const pend = Object.keys(invs).filter((key) => { const e = invs[key]; return e && typeof e === 'object' && !mine.some((m) => m.key === key) && CEO_DONE.indexOf(norm(e.status)) === -1; })
+            const pend = Object.keys(invs).filter((key) => { const e = invs[key]; return e && typeof e === 'object' && !mine.some((m) => m.key === key) && CEO_WAIT.indexOf(norm(e.status)) !== -1; })
                 .map((key) => ({ po: po, key: key, inv: invs[key].invNumber || invs[key].invEntryID || key, status: String(invs[key].status || ''), value: num(invs[key].invValue), date: invs[key].invoiceDate || '' }));
-            const row = { po: po, vendor: vendor, site: site, mine: mine, pend: pend, others: ready.filter((x) => x.po !== po) };
+            const row = { po: po, vendor: vendor, site: site, mine: mine, pend: pend, others: ready.filter((x) => x.po !== po && CEO_WAIT.indexOf(norm(x.status)) !== -1) };
             if (!map[po]) { row.why = 'Not in POVALUE2'; none.push(row); }
             else if (!mine.length) { row.why = 'No invoice on this PO is in a ready status'; none.push(row); }
-            else if (ready.length > 1 || pend.length) summary.push(row);
+            else if (row.others.length || pend.length) summary.push(row);
             else single.push(row);
         });
-        const out = { single: single, summary: summary, none: none, statuses: 'In Process, For Approval, Approved, CEO Approval, For SRV, SRV Done' };
+        const out = { single: single, summary: summary, none: none, statuses: 'SRV Done, In Process, For Summary, Pending or On Hold' };
         return { result: { single: single.map((x) => x.po), summary: summary.map((x) => x.po), not_ready: none.map((x) => x.po) }, card: { kind: 'ceosort', data: out } };
     }
     function ceoSortHtml(x) {
@@ -2386,7 +2389,7 @@
         const one = (i, withPo) => '<div class="iba-cs-inv">' + (withPo ? '<span class="iba-cs-po2">PO ' + esc(i.po) + '</span> ' : '') + '<b>' + esc(i.inv) + '</b>' +
             (i.value ? ' · QAR ' + esc(money(i.value)) : '') + (i.date ? ' · ' + esc(fmtDate(i.date)) : '') + ' <span class="iba-cs-st">' + esc(i.status || 'no status') + '</span></div>';
         const why = (r) => {
-            const samePo = (r.pend || []).length + Math.max(0, (r.mine || []).length - 1);
+            const samePo = (r.pend || []).length;
             const otherPos = Array.from(new Set((r.others || []).map((i) => i.po)));
             const parts = [];
             if (samePo) parts.push('This PO has ' + samePo + ' more invoice' + (samePo === 1 ? '' : 's') + ' waiting');
@@ -2423,7 +2426,7 @@
             group('go', 'Proceed · send to CEO', x.single.filter((r) => !r.moved), true) + '</div>';
         if (x.none.length) h += '<div class="iba-cs-c-lbl iba-cs-none-lbl">Not ready</div><ul class="iba-ai-rows">' + x.none.map((r) => '<li><b>' + esc(r.po) + '</b><span class="iba-ai-grow">' + esc(r.vendor) + '<small>' + esc(r.why) + '</small></span></li>').join('') + '</ul>';
         h += '<div class="iba-ai-cardacts iba-cs-acts"><button type="button" class="iba-ai-btn iba-cs-send" data-ceosort-send' + (x.single.length ? '' : ' disabled') + '><i class="fa-solid fa-paper-plane"></i> Send ' + nGo + (nUrg ? ' green + yellow' : ' green') + ' to Batch Entry</button></div><p class="iba-cs-msg" data-ceosort-msg></p>';
-        h += '<p class="iba-ai-foot">Waiting means: ' + esc(x.statuses) + ', or anything not finished on the same PO.</p>';
+        h += '<p class="iba-ai-foot">Waiting means another invoice of the same PO or vendor is ' + esc(x.statuses) + '. Other statuses (For SRV, For Approval...) do not count.</p>';
         return h;
     }
 
@@ -3433,7 +3436,7 @@
                 return [{ tool: 'add_to_batch', args: { pos: pos, status: v.status || undefined, latest_only: v.which === 'latest' } }];
             } },
         // 17.0.5 patch 58
-        ceo_sort: { name: 'Sort for CEO', icon: 'fa-arrow-down-wide-short', superOnly: true, desc: 'Type the POs of the approved papers. Each one is sorted: Single (its vendor has only this invoice ready, so it can go to CEO Approval alone) or Summary later (the same vendor has more ready invoices: In Process, For Approval, Approved, CEO Approval, For SRV or SRV Done). Then one button puts only the singles in Batch Entry. No AI used.',
+        ceo_sort: { name: 'Sort for CEO', icon: 'fa-arrow-down-wide-short', superOnly: true, desc: 'Type the POs of the approved papers. Each one is sorted: Single (it can go to CEO Approval alone) or Summary later (the same PO or vendor has another invoice that is SRV Done, In Process, For Summary, Pending or On Hold; For SRV and other statuses do not count). Then one button puts only the singles in Batch Entry. No AI used.',
             ask: () => [{ key: 'pos', label: 'PO numbers', placeholder: 'e.g. 57376, 57400, 57411', poList: true }],
             build: (v) => [{ tool: 'ceo_sort', args: { pos: v.pos } }] },
         // 17.0.5 patch 99: one month of With Accounts invoices -> Payments list (js/iba-1705-paymonth.js)
@@ -3560,6 +3563,8 @@
     // ------------------------------------------------------------------
     const APPROVAL_RX = /^(for approval|ceo approval)$/i;
     const isUrgentNote = (n) => /\burgent/i.test(String(n || ''));
+    // 17.0.5 patch 150: urgent = the ⚡ flag while For Approval, or the old Note word
+    const isUrgentT = (x) => (typeof window.ibaIsUrgent === 'function' ? window.ibaIsUrgent(x) : isUrgentNote(x && x.note));
     const stripUrgent = (n) => String(n || '').replace(/\burgent(ly)?\b\s*[·:\-|,!]*\s*/gi, '').trim();
     // 15.0.0 patch 38: the invoice attachment (same link as the Dashboard's INV button)
     function invPdfUrl(inv) {
@@ -3586,7 +3591,7 @@
     }
     // on: true = mark (Admins, Super Admin), false = remove (Super Admin only)
     async function setUrgent(list, on, remind, reason) {
-        if (!on && !isSuper()) throw new Error('Only the Super Admin can remove urgent.');
+        // 17.0.5 patch 150: whoever marked it, or the Super Admin, may remove it (checked per invoice below)
         if (on && !isAdminUser()) throw new Error('Only Admins can mark urgent.');
         const idb = (typeof invoiceDb !== 'undefined' && invoiceDb && invoiceDb.ref) ? invoiceDb : null;
         if (!idb) throw new Error('The invoice database is not available on this page.');
@@ -3599,22 +3604,23 @@
                 const inv = (await ref.once('value')).val();
                 if (!inv || !APPROVAL_RX.test(String(inv.status || '').trim())) { skipped.push(Object.assign({ why: inv ? 'now ' + inv.status : 'not found' }, x)); return; }
                 const old = String(inv.note || '');
-                if (on === isUrgentNote(old)) { done.push(Object.assign({ inv: inv }, x)); return; }
+                if (on === isUrgentT(inv)) { done.push(Object.assign({ inv: inv }, x)); return; }
+                if (!on && !isSuper() && String(inv.urgentBy || '').trim().toLowerCase() !== String(myName() || '').trim().toLowerCase()) { skipped.push(Object.assign({ why: 'only ' + (inv.urgentBy || 'the Super Admin') + ' can remove it' }, x)); return; }
                 let upd;
                 if (on) {
-                    // "URGENT - reason · old note"; the old note is kept to put back on Remove
-                    const note = 'URGENT' + (why ? ' - ' + why : '') + (old.trim() ? ' · ' + old.trim() : '');
-                    upd = { note: note, urgentPrevNote: old, urgentReason: why || null, urgentBy: myName(), urgentAt: TS, lastUpdated: TS };
+                    // 17.0.5 patch 150: a flag, the Note is not changed; it ends when the approver acts
+                    upd = { urgent: true, urgentReason: why || null, urgentBy: myName(), urgentAt: TS, lastUpdated: TS };
                 } else {
-                    const back = typeof inv.urgentPrevNote === 'string' ? inv.urgentPrevNote : stripUrgent(old);
-                    upd = { note: back, urgentPrevNote: null, urgentReason: null, urgentBy: null, urgentAt: null, lastUpdated: TS };
+                    upd = { urgent: null, urgentReason: null, urgentBy: null, urgentAt: null, lastUpdated: TS };
+                    // older invoices marked with the Note word: put the Note back
+                    if (isUrgentNote(old)) { upd.note = typeof inv.urgentPrevNote === 'string' ? inv.urgentPrevNote : stripUrgent(old); upd.urgentPrevNote = null; }
                 }
                 await Promise.all([
                     ref.update(upd),
                     ref.child('history').push({ action: on ? 'Marked urgent' : 'Urgent removed', status: inv.status || '', by: myName(), timestamp: TS,
                         note: on ? 'Marked URGENT for ' + (inv.attention || 'the approver') + (why ? ': ' + why : '') : 'Back to normal' })
                 ]);
-                const nv = Object.assign({}, inv, { note: upd.note });
+                const nv = Object.assign({}, inv, upd, { urgentAt: on ? Date.now() : null, lastUpdated: Date.now() });
                 try { if (typeof updateInvoiceTaskLookup === 'function') await updateInvoiceTaskLookup(x.po, x.key, nv, inv.attention); } catch (e) { console.warn('urgent: task list', e); }
                 done.push(Object.assign({ inv: nv }, x));
             } catch (e) { skipped.push(Object.assign({ why: (e && e.message) || 'error' }, x)); }
@@ -3729,7 +3735,7 @@
                 const at = Number(inv.statusChangedAt) || Number(inv.lastUpdated) || Number(inv.createdAt) || 0;
                 const rec = pm[String(po).toUpperCase()] || {};
                 rows.push({ po: po, key: k, no: inv.invNumber || inv.invEntryID || '', vendor: inv.vendorName || rec['Supplier Name'] || '', value: Number(String(inv.invValue || 0).replace(/,/g, '')) || 0,
-                    status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentNote(inv.note), pdf: invPdfUrl(inv), srv: srvPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
+                    status: String(inv.status).trim(), with: inv.attention || '', days: at ? daysSince(at) : null, note: String(inv.note || ''), urgent: isUrgentT(inv), pdf: invPdfUrl(inv), srv: srvPdfUrl(inv), reason: inv.urgentReason || '', by: inv.urgentBy || '' });
             });
         });
         // 17.0.2 patch 9: one table (For Approval only - the CEO signs on paper,
@@ -3995,8 +4001,13 @@
               '</div>' +
               '<div class="iba-aph-rem" id="iba-aph-rem"></div>' +
               '<div class="iba-ai-track-out iba-aph-out" id="iba-aph-out"></div>' +
-              '<p class="iba-aph-foot">' +
-                ' <button type="button" class="iba-ai-mini" data-aph-chat data-needs-ai><i class="fa-solid fa-comments"></i> Ask in words</button></p>' +
+              // 17.0.5 patch 151: Ask in words / Settings / Exit = 3 smaller apps at the bottom
+              // (the top bar is hidden on the phone, so Settings and Exit live here)
+              '<div class="iba-aph-tiles is-3 is-icons iba-aph-more" role="group" aria-label="More">' +
+                '<button type="button" data-aph-chat data-needs-ai style="--c:#7B6BE0" title="Ask in words"><i class="fa-solid fa-comments"></i><b>Ask in words</b></button>' +
+                '<button type="button" data-ai="setup" style="--c:#5B6B80" title="Settings"><i class="fa-solid fa-gear"></i><b>Settings</b></button>' +
+                '<button type="button" data-ai="close" style="--c:#D9464C" title="Exit the assistant"><i class="fa-solid fa-right-from-bracket"></i><b>Exit</b></button>' +
+              '</div>' +
             '</div></div>' +
             '<div class="iba-ai-chips" id="iba-ai-chips">' +
               '<button type="button" data-ai="brief"><i class="fa-solid fa-sun"></i> Today\'s brief</button>' +
@@ -4848,7 +4859,7 @@
         const order = Array.from(groups.keys()).sort((a, b) => rank(a) - rank(b) || groups.get(b).list.length - groups.get(a).list.length || a.localeCompare(b));
         return '<div class="iba-ai-ttab-wrap">' + order.map((k, g) => {
             const grp = groups.get(k), list = grp.list;
-            const urg = list.filter((t) => isUrgentNote(t.note)).length;
+            const urg = list.filter((t) => isUrgentT(t)).length;
             const total = list.reduce((n, t) => n + num(t.amount), 0);
             return '<div class="iba-ai-ttab-site"><div class="iba-ai-ttab-sitehead"><i class="fa-solid fa-layer-group"></i> <b>' + esc(grp.name) + '</b>' +
                 '<span class="iba-ai-ttab-count">' + list.length + ' task' + (list.length === 1 ? '' : 's') + '</span>' +
@@ -4859,7 +4870,7 @@
                 '<ul class="iba-ai-rows iba-ai-ttab is-tk2" data-brief-list="tasks-' + g + '">' +
                 '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO</span><span class="c-site">Site</span><span class="c-vend">Vendor</span><span class="c-urg">Urgent</span><span class="c-no">Inv no.</span><span class="c-val">Value (QAR)</span><span class="c-rem">Remarks</span><span class="c-age">Age</span><span class="c-act"></span></li>' +
                 list.map((t, i) => {
-                    const u = isUrgentNote(t.note);
+                    const u = isUrgentT(t);
                     const site = taskSite(t);
                     const rm = String(t.note || '').replace(/\burgent\b[\s:·,\-–—!]*/i, '').trim();
                     const dash = '<span class="iba-ai-dash">—</span>';
@@ -5036,10 +5047,10 @@
     }
     function phoneBriefHtml(x) {
         const r = x.result || {};
-        const tasks = (x.tasks || []).map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
+        const tasks = (x.tasks || []).map((t, i) => ({ t: t, i: i, u: isUrgentT(t) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
         aphTasks = tasks;
         const jobs = x.jobs || [];
-        const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
+        const nUrg = tasks.filter((t) => isUrgentT(t)).length;
         const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
         const MORE = 8;
         let h = '<div class="iba-ai-card is-brief is-aph-brief">' +
@@ -5050,7 +5061,7 @@
         if (tasks.length) {
             h += '<div class="iba-ai-sub">Your tasks' + (nUrg ? ' · urgent first' : ' · oldest first') + '</div><ul class="iba-ai-rows iba-aph-tasks is-cards" data-brief-list="aph">' + tasks.map((t, i) => {
                 const dd = daysSince(t.at);
-                const urg = isUrgentNote(t.note);
+                const urg = isUrgentT(t);
                 // 17.0.5 patch 97: one colour card per task (like a bank card); tap = full details + buttons
                 return '<li' + (i >= MORE ? ' hidden' : '') + (urg ? ' class="is-urgent"' : '') + '>' +
                     '<button type="button" class="iba-aph-tcard is-' + aphTone(t.status) + '" data-aph-row="' + i + '" aria-label="Details for PO ' + esc(t.po || '') + '">' +
@@ -6271,11 +6282,11 @@
             d.setAttribute('data-brief-id', bid);
             const MORE = 5;
             const moreBtn = (n, what) => n > MORE ? '<button type="button" class="iba-ai-mini iba-ai-brief-more" data-brief-more="' + what + '"><i class="fa-solid fa-chevron-down"></i> Show all ' + n + '</button>' : '';
-            const urgentFirst = (list) => list.map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
+            const urgentFirst = (list) => list.map((t, i) => ({ t: t, i: i, u: isUrgentT(t) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
             const tasks = urgentFirst(x.tasks || []);
             const jobs = x.jobs || [];
             const rems = remList.filter(remIsOpen);
-            const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
+            const nUrg = tasks.filter((t) => isUrgentT(t)).length;
             const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
             let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> ' + esc(greetingWord() + (firstName() ? ', ' + firstName() : '')) +
                 '<span class="iba-ai-head-actions">' + (canSpeak() ? '<button type="button" class="iba-ai-mini" data-brief-say title="Read the brief aloud"><i class="fa-solid fa-volume-high"></i></button>' : '') + '<button type="button" class="iba-ai-mini" data-brief-print title="Print or save as PDF: a checklist with charts"><i class="fa-solid fa-print"></i> Print</button></span></div>' +
@@ -6587,6 +6598,8 @@
         return '<div class="iba-ai-tile-wrap"><button type="button" class="iba-ai-tile" ' + attr + ' style="--c:' + color + '" title="' + esc(title || '') + '">' +
             '<i class="fa-solid ' + icon + '"></i><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></button>' + (extra || '') + '</div>';
     }
+    // 17.0.5 patch 153: the phone has no top bar, so Settings / All skills get a Back button
+    function phoneBackHtml() { return onPhone() ? '<button type="button" class="iba-aph-back" data-ai="phone"><i class="fa-solid fa-chevron-left"></i> Back</button>' : ''; }
     function renderSkills() {
         const box = $('iba-ai-skills');
         const list = skills();
@@ -6601,7 +6614,7 @@
         const rest = tpls.filter((id) => !grouped.has(id));
         if (rest.length) groups.push(['More', rest]);
         box.classList.add('is-apps'); // 17.0.5 patch 83: big app icons, one short name; details on hover
-        box.innerHTML = '<h3><i class="fa-solid fa-bolt"></i> All skills</h3>' +
+        box.innerHTML = phoneBackHtml() + '<h3><i class="fa-solid fa-bolt"></i> All skills</h3>' +
             '<label class="iba-ai-skill-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="iba-ai-skill-find" placeholder="Find a skill" autocomplete="off"></label>' +
             (top.length ? '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub"><i class="fa-solid fa-star"></i> Most used</div><div class="iba-ai-tiles">' + top.map(tplTile).join('') + '</div></div>' : '') +
             groups.filter((g) => g[1].length).map((g) => '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub">' + esc(g[0]) + '</div><div class="iba-ai-tiles">' + g[1].map(tplTile).join('') + '</div></div>').join('') +
@@ -6705,7 +6718,7 @@
         const box = $('iba-ai-setup');
         const c = getCfg();
         const b = BRAINS[c.brain];
-        box.innerHTML = '<h3><i class="fa-solid fa-gear"></i> Setup</h3>' +
+        box.innerHTML = phoneBackHtml() + '<h3><i class="fa-solid fa-gear"></i> Setup</h3>' +
             '<label class="iba-ai-field"><span>Brain</span><select id="iba-ai-brain-pick">' + Object.keys(BRAINS).map((k) =>
                 '<option value="' + k + '"' + (k === c.brain ? ' selected' : '') + '>' + esc(BRAINS[k].label) + (k === 'groq' ? ' — recommended' : '') + '</option>').join('') + '</select></label>' +
             '<div class="iba-ai-help" id="iba-ai-key-help">' + brainHelpHtml(b) + '</div>' +

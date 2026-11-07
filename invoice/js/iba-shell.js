@@ -6,9 +6,9 @@
   // itself (see loadPhotoList), so a photo added there shows up in Settings
   // without a code change. This list is only the fallback when GitHub cannot
   // be asked (offline / rate limit).
-  const PHOTO_FILES = ["a.jpg","b.jpg","c.jpg","d.jpg","e.jpg","f.jpg","g.jpg","h.jpg","i.jpg","iba.jpg","j.jpg","job.jpg","k.jpg","l.jpg","m.jpg","office1.jpg","office2.jpg","office3.jpg","office4.jpg"];
+  const PHOTO_FILES = ["D-Beach.jpg","D-Beach-1.jpg","D-Beach-2.jpg","D-Car-1.jpeg","D-Japan-1.jpg","D-Japan-2.jpg","D-Nature-1.jpg","D-Nature-2.jpg","D-Night-1.jpg","D-Night-2.jpg","D-Road.jpg","D-Sunrise-1.jpg","D-Sunrise-1.png","D-Sunset-1.png","D-Sunset-2.jpg","D-Sunset-3.png","D-Sunset-4.jpg","M-Road-1.jpg","M-Road-2.jpg","M-Stairs-1.jpg"]; // 17.0.5 patch 154: new photo names
   const PHOTO_LIST_API = "https://api.github.com/repos/DC-database/hub/contents/photo?ref=main";
-  const PHOTO_LIST_CACHE = "iba-photo-list-v1";
+  const PHOTO_LIST_CACHE = "iba-photo-list-v2"; // v2 (patch 154): photos renamed, forget the old list
   const PHOTO_LIST_TTL = 6 * 60 * 60 * 1000;
   const PHOTO_NONE = "none";
   const GROUPS = ["workdesk", "inventory", "invoice", "login"];
@@ -21,11 +21,11 @@
   const PHONE_FOLLOWS = { "phone-invoice": "invoice", "phone-inventory": "inventory" };
   const BG_SETTINGS_PATH = "system_settings/shell_backgrounds";
   const DEFAULTS = {
-    workdesk: PHOTO_BASE + "a.jpg",
-    inventory: PHOTO_BASE + "e.jpg",
-    invoice: PHOTO_BASE + "g.jpg",
-    login: PHOTO_BASE + "d.jpg",
-    "phone-cover": PHOTO_BASE + "office2.jpg"
+    workdesk: PHOTO_BASE + "D-Road.jpg",
+    inventory: PHOTO_BASE + "D-Nature-2.jpg",
+    invoice: PHOTO_BASE + "D-Sunset-4.jpg",
+    login: PHOTO_BASE + "D-Beach-1.jpg",
+    "phone-cover": PHOTO_BASE + "M-Stairs-1.jpg"
   };
   let photoFiles = PHOTO_FILES.slice();
 

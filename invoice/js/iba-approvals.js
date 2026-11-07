@@ -154,7 +154,11 @@
     // ------------------------------------------------------------------
     // 15.0.0 patch 9: an approval is Urgent when its Note says "urgent"
     // (any capitals; "urgently" counts too). Everything else is Normal.
-    function isUrgent(t) { return /\burgent/i.test(String((t && (t.note || t.invoiceNote)) || '')); }
+    // 17.0.5 patch 150: urgent is also a flag (⚡ Urgent tick), only while For Approval
+    function isUrgent(t) {
+        if (typeof window.ibaIsUrgent === 'function') return window.ibaIsUrgent(t);
+        return /\burgent/i.test(String((t && (t.note || t.invoiceNote)) || ''));
+    }
     function isApprovalStatus(s) { const n = statusNorm(s); return n === 'for approval' || n === 'ceo approval'; }
 
     // 15.0.0 patch 9: background writes that a refresh must wait for.

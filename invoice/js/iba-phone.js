@@ -191,6 +191,8 @@
             const id = b.getAttribute('data-tab');
             if (id === 'messages') { openMessages(); return; }
             if (id === 'logout') { logout(); return; }
+            // 17.0.5 patch 151: Home is always My tasks (invoice side)
+            if (id === 'home' && state.side !== 'invoice') { state.tab = 'home'; setSide('invoice'); return; }
             setTab(id);
         });
         $('iba-ph-rec-form').addEventListener('submit', e => { e.preventDefault(); runRecordsSearch(); });
@@ -238,13 +240,19 @@
         return t;
     }
 
+    // 17.0.5 patch 151: app-like bottom bar. Big round Home (= My tasks) in
+    // the middle, the side's own tabs on the left, Messages + Logout right.
     function paintTabs() {
-        const tabs = tabsFor(state.side).concat([
+        const left = tabsFor(state.side).filter(t => t.id !== 'home').slice(0, 2);
+        while (left.length < 2) left.push(null);
+        const homeOn = state.side === 'invoice' && state.tab === 'home';
+        const tabs = left.concat([
+            { id: 'home', icon: 'fa-house', label: 'Home', mid: true },
             { id: 'messages', icon: 'fa-comments', label: 'Messages', dm: true },
             { id: 'logout', icon: 'fa-right-from-bracket', label: 'Logout' }
         ]);
-        $('iba-ph-tabs').innerHTML = tabs.map(t => `
-            <button type="button" data-tab="${t.id}" class="${t.id === state.tab ? 'is-on' : ''}">
+        $('iba-ph-tabs').innerHTML = tabs.map(t => !t ? '<span class="iba-ph-tab-gap" aria-hidden="true"></span>' : `
+            <button type="button" data-tab="${t.id}" class="${(t.mid ? homeOn : t.id === state.tab) ? 'is-on' : ''}${t.mid ? ' is-mid' : ''}">
               <span class="iba-ph-tab-ic"><i class="fa-solid ${t.icon}"></i>
                 ${t.count ? `<span class="iba-ph-badge">${t.count}</span>` : ''}
                 ${t.dm ? '<span class="iba-ph-badge dm-unread-badge" style="display:none">0</span>' : ''}
@@ -475,28 +483,25 @@
         if (state.side === 'invoice' && state.tab === 'home') renderHome();
     }
 
+    // 17.0.5 patch 151: big, plain card. Tick + status, amount on the right,
+    // then vendor, PO + INV, site; View PDF (always the invoice) / Reject / Approve.
     function invCard(t) {
         const pdf = A().pdfUrl(t);
         const ceo = t.kind === 'ceo';
         const amount = t.amountPaid || t.amount || '';
-        const used = Number(t.approvalCount || 0);
         return `
-          <article class="iba-ph-card" data-inv="${esc(t.key)}">
-            <div class="iba-ph-card-top">
+          <article class="iba-ph-card is-apv" data-inv="${esc(t.key)}">
+            <div class="iba-ph-top2">
               <label class="iba-ph-tick" aria-label="Select"><input type="checkbox" class="iba-ph-sel" data-kind="inv" value="${esc(t.key)}"><span></span></label>
-              <div class="iba-ph-card-main">
-                <div class="iba-ph-card-kicker">${ceo ? '<span class="iba-ph-chip is-gold">CEO Approval</span>' : '<span class="iba-ph-chip">For Approval</span>'}
-                  <span class="iba-ph-chip is-soft" title="Approvals used">${used} of ${A().MAX_APPROVALS}</span></div>
-                <h3>${esc(t.vendorName || 'Unknown vendor')}</h3>
-                <div class="iba-ph-meta"><span>PO ${esc(t.po)}</span><span>INV ${esc(t.invNumber || '—')}</span></div>
-                <div class="iba-ph-meta"><span><i class="fa-solid fa-location-dot"></i> ${esc(t.site || '—')}</span></div>
-              </div>
+              <span class="iba-ph-card-kicker">${ceo ? '<span class="iba-ph-chip is-gold">CEO Approval</span>' : '<span class="iba-ph-chip">For Approval</span>'}</span>
               <div class="iba-ph-amount"><strong>${esc(money(amount))}</strong><small>QAR</small></div>
+              <h3>${esc(t.vendorName || 'Unknown vendor')}</h3>
+              <div class="iba-ph-ln">PO ${esc(t.po)} · INV ${esc(t.invNumber || '—')}</div>
+              <div class="iba-ph-ln"><i class="fa-solid fa-location-dot"></i> Site ${esc(t.site || '—')}</div>
             </div>
             ${t.note ? `<p class="iba-ph-note">${esc(t.note)}</p>` : ''}
-            <div class="iba-ph-card-foot">
-              ${pdf ? `<a class="iba-ph-link" href="${esc(pdf)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> View PDF</a>` : '<span class="iba-ph-link is-off">No PDF</span>'}
-              <span class="iba-ph-spacer"></span>
+            <div class="iba-ph-acts">
+              ${pdf ? `<a class="iba-ph-btn is-pdf" href="${esc(pdf)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> View PDF</a>` : '<span class="iba-ph-btn is-pdf is-off">No PDF</span>'}
               <button type="button" class="iba-ph-btn is-ghost-danger" data-act="inv-reject" data-key="${esc(t.key)}">Reject</button>
               <button type="button" class="iba-ph-btn is-primary" data-act="inv-approve" data-key="${esc(t.key)}">Approve</button>
             </div>
@@ -699,38 +704,42 @@
         return Number.isFinite(o) ? o : 0;
     }
 
-    function route(t) {
+    // 17.0.5 patch 151: logistics card. Requestor + type + big TRF no.,
+    // the item (name with its details), the road FROM -> TO with the truck
+    // heading to TO, then Requested vs Approve (- / +), Reject / Approve.
+    function routeHtml(t) {
         const type = t.for || t.jobType;
         const from = t.fromLocation || t.fromSite || '';
         const to = t.toLocation || t.toSite || '';
-        if (type === 'Usage') return `Used at ${from || '—'}`;
-        if (type === 'Restock') return `Into ${to || '—'}`;
-        return `${from || '—'} <i class="fa-solid fa-arrow-right-long"></i> ${to || '—'}`;
+        const end = (cls, label, v) => `<div class="iba-ph-end ${cls}"><i></i><small>${label}</small><b>${esc(v || '—')}</b></div>`;
+        if (type === 'Usage') return `<div class="iba-ph-route is-one">${end('is-from', 'Used at', from)}</div>`;
+        if (type === 'Restock') return `<div class="iba-ph-route is-one">${end('is-to', 'Into', to)}</div>`;
+        return `<div class="iba-ph-route">${end('is-from', 'From', from)}<div class="iba-ph-road"><span><i class="fa-solid fa-truck"></i></span></div>${end('is-to', 'To', to)}</div>`;
     }
 
     function stkCard(t) {
         const type = t.for || t.jobType || 'Transfer';
         const req = requestedQty(t);
+        const who = t.requestor || t.requestedBy || '';
         return `
-          <article class="iba-ph-card is-stk" data-stk="${esc(t.key)}">
-            <div class="iba-ph-card-top">
+          <article class="iba-ph-card is-stk is-apv" data-stk="${esc(t.key)}">
+            <div class="iba-ph-top3">
               <label class="iba-ph-tick" aria-label="Select"><input type="checkbox" class="iba-ph-sel" data-kind="stk" value="${esc(t.key)}"><span></span></label>
-              <div class="iba-ph-card-main">
-                <div class="iba-ph-card-kicker"><span class="iba-ph-chip is-type-${esc(String(type).toLowerCase())}">${esc(type)}</span><span class="iba-ph-ref">${esc(t.controlNumber || t.ref || '')}</span></div>
-                <h3>${esc(t.productName || 'Unknown item')}</h3>
-                <div class="iba-ph-meta"><span>${route(t)}</span></div>
-                <div class="iba-ph-meta"><span><i class="fa-solid fa-user"></i> ${esc(t.requestor || t.requestedBy || '—')}</span>${t.date ? `<span>${esc(t.date)}</span>` : ''}</div>
-              </div>
-              <div class="iba-ph-amount"><strong>${esc(qtyText(req))}</strong><small>requested</small></div>
+              <span class="iba-ph-who2">${who ? `<i class="fa-solid fa-user"></i> <b>${esc(who)}</b>` : ''}<span class="iba-ph-chip is-type-${esc(String(type).toLowerCase())}">${esc(type)}</span></span>
+              <b class="iba-ph-trf">${esc(t.controlNumber || t.ref || '')}</b>
             </div>
-            ${t.details ? `<p class="iba-ph-note">${esc(t.details)}</p>` : ''}
-            <div class="iba-ph-qty">
-              <label for="iba-ph-qty-${esc(t.key)}">Approve qty</label>
-              <input type="number" inputmode="decimal" min="0" step="any" max="${esc(req)}" id="iba-ph-qty-${esc(t.key)}" class="iba-ph-qty-in" data-key="${esc(t.key)}" value="${esc(req)}">
-              <span class="iba-ph-qty-hint" data-qty-hint="${esc(t.key)}">of ${esc(qtyText(req))}</span>
+            <div class="iba-ph-item"><span class="iba-ph-ith"><i class="fa-solid fa-cubes-stacked"></i></span>
+              <div><b>${esc(t.productName || 'Unknown item')}</b>${t.details ? `<small>${esc(t.details)}</small>` : ''}</div></div>
+            ${routeHtml(t)}
+            <div class="iba-ph-qty3">
+              <div class="iba-ph-req"><small>Requested</small><b>${esc(qtyText(req))}</b></div>
+              <div class="iba-ph-step"><label for="iba-ph-qty-${esc(t.key)}">Approve</label>
+                <div><button type="button" class="iba-ph-sb" data-act="stk-minus" data-key="${esc(t.key)}" aria-label="Less">−</button>
+                <input type="number" inputmode="decimal" min="0" step="any" max="${esc(req)}" id="iba-ph-qty-${esc(t.key)}" class="iba-ph-qty-in" data-key="${esc(t.key)}" value="${esc(req)}">
+                <button type="button" class="iba-ph-sb" data-act="stk-plus" data-key="${esc(t.key)}" aria-label="More">+</button></div>
+                <span class="iba-ph-qty-hint" data-qty-hint="${esc(t.key)}"></span></div>
             </div>
-            <div class="iba-ph-card-foot">
-              <span class="iba-ph-spacer"></span>
+            <div class="iba-ph-acts is-2">
               <button type="button" class="iba-ph-btn is-ghost-danger" data-act="stk-reject" data-key="${esc(t.key)}">Reject</button>
               <button type="button" class="iba-ph-btn is-primary" data-act="stk-approve" data-key="${esc(t.key)}">Approve</button>
             </div>
@@ -959,6 +968,18 @@
         else if (act === 'stk-approve') approveInventory([key]);
         else if (act === 'stk-reject') rejectInventory(key);
         else if (act === 'stk-approve-selected') approveInventory(selected('stk'));
+        else if (act === 'stk-minus' || act === 'stk-plus') {
+            // 17.0.5 patch 151: - / + by 1, never below 1 or above the requested qty
+            const el = document.querySelector(`#iba-phone .iba-ph-qty-in[data-key="${CSS.escape(key)}"]`);
+            const it = findStk(key);
+            if (!el || !it) return;
+            const req = requestedQty(it);
+            let v = parseFloat(el.value);
+            if (!Number.isFinite(v)) v = req;
+            v = act === 'stk-plus' ? Math.min(req, Math.floor(v) + 1) : Math.max(Math.min(1, req), Math.ceil(v) - 1);
+            el.value = String(v);
+            onPaneInput({ target: el });
+        }
     }
 
     function onPaneChange(e) {
@@ -984,7 +1005,7 @@
         const bad = !(v > 0) || v > req;
         t.classList.toggle('is-bad', bad);
         t.classList.toggle('is-lower', !bad && v < req);
-        if (hint) hint.textContent = bad ? (v > req ? `max ${qtyText(req)}` : 'above 0') : (v < req ? `lowered from ${qtyText(req)}` : `of ${qtyText(req)}`);
+        if (hint) hint.textContent = bad ? (v > req ? `max ${qtyText(req)}` : 'above 0') : (v < req ? `lowered from ${qtyText(req)}` : '');
     }
 
     // ------------------------------------------------------------------

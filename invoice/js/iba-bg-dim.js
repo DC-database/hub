@@ -99,10 +99,10 @@
   function previewBg(kind, v) {
     const l = layers(v);
     if (kind === "desktop") {
-      const url = photoOf("workdesk") || PHOTO_BASE + "a.jpg";
+      const url = photoOf("workdesk") || PHOTO_BASE + "D-Road.jpg";
       return "linear-gradient(180deg, rgba(8,12,22," + l["--iba-dim-top"] + "), rgba(8,12,22," + l["--iba-dim-bot"] + ")), url(\"" + url + "\") center / cover no-repeat, #0B1220";
     }
-    const url = photoOf("phone-invoice") || photoOf("invoice") || PHOTO_BASE + "g.jpg";
+    const url = photoOf("phone-invoice") || photoOf("invoice") || PHOTO_BASE + "D-Sunset-4.jpg";
     return "linear-gradient(180deg, rgba(8,16,26," + l["--iba-ph-dim-top"] + ") 0%, rgba(8,16,26," + l["--iba-ph-dim-mid"] + ") 45%, rgba(8,16,26," + l["--iba-ph-dim-bot"] + ") 100%), url(\"" + url + "\") center / cover no-repeat, #0B1724";
   }
   function box() { return document.getElementById("iba-dim-box"); }
