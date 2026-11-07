@@ -1906,24 +1906,21 @@ function renderMaterialStockTable(data) {
         return;
     }
 
-    // 17.0.5 patch 76: one page at a time; a new search / family / site starts again at page 1
-    const pageSig = [searchTerm, currentCategoryFilter || '', siteFilterVal].join('|');
-    if (pageSig !== msPageSig) { msPageSig = pageSig; msPageNo = 1; }
-    const pageSize = msPageSize();
-    const pageCount = Math.max(1, Math.ceil(uniqueFiltered.length / pageSize));
-    if (msPageNo > pageCount) msPageNo = pageCount;
-    if (msPageNo < 1) msPageNo = 1;
-    const pageStart = (msPageNo - 1) * pageSize;
-    const pageItems = uniqueFiltered.slice(pageStart, pageStart + pageSize);
-    msDrawPageBar(uniqueFiltered.length, pageStart + 1, pageStart + pageItems.length, msPageNo, pageCount);
+    // 17.0.5 patch 139: no pages any more (martin: the scrollbar is enough). Every row is listed;
+    // transfers are grouped by product ID once so a long list stays quick.
+    msDrawPageBar(0);
+    const pageItems = uniqueFiltered;
+    const msTfById = new Map();
+    (allTransferData || []).forEach((t) => {
+        const id = String((t && (t.productID || t.productId)) || '').trim();
+        if (!msTfById.has(id)) msTfById.set(id, []);
+        msTfById.get(id).push(t);
+    });
 
     pageItems.forEach(item => {
         // 1. PRE-CALCULATE HISTORY
         const stockID = String(item.productID || item.productId || '').trim();
-        const productTransfers = allTransferData.filter(t => {
-            const transferID = String(t.productID || t.productId || '').trim();
-            return transferID === stockID;
-        });
+        const productTransfers = msTfById.get(stockID) || [];
 
         const displayStock = msDisplayStockFromReceipts(item, productTransfers);
         const totalStock = displayStock.total;

@@ -44,7 +44,9 @@
         { id: 'required', label: 'Required List', def: () => true, how: 'Everyone with Material Stock' },
         { id: 'merge', label: 'Merge selected items', def: (u) => irwin(u) || logistic(u), how: 'Super Admin or Logistic' },
         { id: 'stock_check', label: 'Stock Check (align / approve site qty)', def: (u) => irwin(u) || logistic(u), how: 'Super Admin or Logistic' },
-        { id: 'photo', label: 'Attach item photo', def: (u) => !!String(u.Name || '').trim(), how: 'Everyone signed in' }
+        { id: 'photo', label: 'Attach item photo', def: (u) => !!String(u.Name || '').trim(), how: 'Everyone signed in' },
+        // 17.0.5 patch 142: who shows in the Approves list of Transfer / Usage / Restock / Return
+        { id: 'approve_delivery', label: 'Approve deliveries (Approves list)', def: (u) => /^e\.?\s*ali$/i.test(String(u.Name || '').trim()), how: 'E.Ali only' }
     ];
     const byId = {};
     FUNCS.forEach((f) => { byId[f.id] = f; });
@@ -185,6 +187,7 @@
         w.querySelector('[data-ip-save]').disabled = false;
     }
     async function save(w) {
+        apvCache = null;
         const p = w.__p;
         if (!p) return;
         const val = {};
@@ -203,6 +206,7 @@
         } catch (e) { btn.disabled = false; w.querySelector('.iba-esn-err').textContent = 'Could not save: ' + ((e && e.message) || e); }
     }
     async function reset(w) {
+        apvCache = null;
         const p = w.__p;
         if (!p) return;
         try {
@@ -251,6 +255,33 @@
         if (n < 240) setTimeout(() => waitUser(n + 1), 500);
     })(0);
 
+    // 17.0.5 patch 142: people who may approve deliveries (ticked in this card; default E.Ali).
+    // Reads only system_settings/inventory_permissions (small). The Super Admin is listed only on his own screen.
+    let apvCache = null, apvAt = 0;
+    async function deliveryApprovers() {
+        if (apvCache && Date.now() - apvAt < 60000) return apvCache;
+        let saved = everyone;
+        if (!saved && mainDb()) { try { saved = (await mainDb().ref(PATH).once('value')).val() || {}; } catch (_) { saved = {}; } }
+        let users = null;
+        try { users = (typeof allApproverData !== 'undefined' && allApproverData) || null; } catch (_) {}
+        if (!users && mainDb()) { try { users = (await mainDb().ref('approvers').once('value')).val() || {}; } catch (_) { users = {}; } }
+        const f = byId.approve_delivery;
+        apvCache = Object.keys(users || {}).filter((k) => {
+            const u = users[k] || {}, v = ((saved || {})[k] || {}).approve_delivery;
+            if (!String(u.Name || '').trim()) return false;
+            return typeof v === 'boolean' ? v : !!f.def(u, false);
+        }).map((k) => Object.assign({ key: k }, users[k]));
+        // 17.0.5 patch 144: the Super Admin sees himself in the list (only on his own screen, for trying)
+        try {
+            const mk = myKey(), meU = me();
+            if (isSuper() && mk && !apvCache.some((u) => String(u.key) === mk)) {
+                const u = (users && users[mk]) || meU || {};
+                if (String(u.Name || '').trim()) apvCache.push(Object.assign({}, u, { key: mk }));
+            }
+        } catch (_) {}
+        apvAt = Date.now();
+        return apvCache;
+    }
     window.ibaInvCan = can;
-    window.ibaInvPerm = { open, can, canFor, FUNCS };
+    window.ibaInvPerm = { open, can, canFor, FUNCS, deliveryApprovers, clearApprovers: () => { apvCache = null; } };
 })();

@@ -198,22 +198,31 @@
                 return d.ref('invoice_entries/' + w.po + '/' + w.key + '/status').once('value').then(function (s) {
                     var v = s && s.val();
                     st.status[id] = v == null ? '__gone' : String(v);
-                    if (moved(id) && w.last !== st.status[id]) return who(id);
+                    // 17.0.5 patch 149: also redo old rows that wrongly say "by Reception"
+                    if (moved(id) && (w.last !== st.status[id] || /^reception$/i.test(String(w.lastBy || '').trim()))) return who(id);
                 }).catch(function () {});
             }));
             st.checkedAt = Date.now();
         } finally { st.checking = false; }
         paint();
     }
-    // who acted: the last history line only
+    // who acted: the NEWEST history line by time. 17.0.5 patch 149: not limitToLast(1),
+    // which goes by key: the "imported_0" line of invoices made from Reception sorts
+    // after every pushed "-..." key, so it always said "by Reception". History is small.
     async function who(id) {
         var d = invDb(), m = mainDb(), w = st.list[id];
         if (!d || !w) return;
         var by = '', when = 0;
         try {
-            var s = await d.ref('invoice_entries/' + w.po + '/' + w.key + '/history').limitToLast(1).once('value');
+            var s = await d.ref('invoice_entries/' + w.po + '/' + w.key + '/history').once('value');
             var h = (s && s.val()) || {};
-            var last = h[Object.keys(h)[0]] || {};
+            var last = null, lastT = -1;
+            Object.keys(h).forEach(function (k) {
+                var x = h[k]; if (!x || typeof x !== 'object') return;
+                var t = Number(x.timestamp) || 0;
+                if (t >= lastT) { lastT = t; last = x; }
+            });
+            last = last || {};
             by = String(last.updatedBy || last.by || last.user || '').trim();
             when = Number(last.timestamp) || 0;
         } catch (_) {}

@@ -572,6 +572,7 @@ window.openTransferActionModal = async function(task) {
             <p><strong>Item:</strong> ${task.vendorName || task.productName}</p>
             <p><strong>Type:</strong> ${task.for || 'Transfer'}</p>
             <p><strong>Status:</strong> <span style="color:#00748C; font-weight:bold;">${task.remarks}</span></p>
+            ${task.requiredDate ? `<p><strong>Required date:</strong> ${String(task.requiredDate).replace(/[<>&]/g, '')}</p>` : ''}
             ${task.remarks === 'Bounced' && task.bounceReason ? `<p style="color:#D32F2F;font-weight:700;">${String(task.bounceReason).replace(/[<>&]/g, '')}</p><p style="font-size:.85rem;">Lower the qty and press <b>Send again</b>, or press <b>Cancel request</b>.</p>` : ''}
         </div>`;
 
@@ -1081,12 +1082,17 @@ async function saveTransferEntry(e) {
 
     // 1. Get Global Values (Destination, Approver, etc.)
     // Note: We ignore 'fromLoc' for Multi-Mode because each item has its own.
-    const globalFromLoc = (tfFromSiteChoices ? tfFromSiteChoices.getValue(true) : document.getElementById('tf-from').value) || '';
-    const toLoc = (tfToSiteChoices ? tfToSiteChoices.getValue(true) : document.getElementById('tf-to').value) || '';
-    const sourceContact = (tfSourceContactChoices ? tfSourceContactChoices.getValue(true) : document.getElementById('tf-source-contact').value) || '';
-    const approver = (tfApproverChoices ? tfApproverChoices.getValue(true) : document.getElementById('tf-approver').value) || '';
-    const receiver = (tfReceiverChoices ? tfReceiverChoices.getValue(true) : document.getElementById('tf-receiver').value) || '';
-    const shippingDate = document.getElementById('tf-shipping-date').value;
+    // 17.0.5 patch 140: the guided window (js/iba-1705-invguide.js) hands its values in here
+    const G = (window.__ibaTfGuided && Array.isArray(window.__ibaTfGuided.items)) ? window.__ibaTfGuided : null;
+    const globalFromLoc = G ? String((G.items[0] && G.items[0].fromSite) || '') : ((tfFromSiteChoices ? tfFromSiteChoices.getValue(true) : document.getElementById('tf-from').value) || '');
+    const toLoc = G ? String(G.to || '') : ((tfToSiteChoices ? tfToSiteChoices.getValue(true) : document.getElementById('tf-to').value) || '');
+    const sourceContact = G ? String(G.give || '') : ((tfSourceContactChoices ? tfSourceContactChoices.getValue(true) : document.getElementById('tf-source-contact').value) || '');
+    const approver = G ? String(G.appr || '') : ((tfApproverChoices ? tfApproverChoices.getValue(true) : document.getElementById('tf-approver').value) || '');
+    const receiver = G ? String(G.recv || '') : ((tfReceiverChoices ? tfReceiverChoices.getValue(true) : document.getElementById('tf-receiver').value) || '');
+    const shippingDate = G ? String(G.ship || '') : document.getElementById('tf-shipping-date').value;
+    // date the material is needed (the real arrivalDate is written only when the receiver confirms)
+    const requiredDate = G ? String(G.required || '') : ((document.getElementById('tf-arrival-date') || {}).value || '');
+    const guidedNote = G ? String(G.note || '').trim().slice(0, 500) : '';
     const type = document.getElementById('tf-job-type').value;
     let controlNo = document.getElementById('tf-control-no').value;
     const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
@@ -1162,7 +1168,10 @@ async function saveTransferEntry(e) {
 
     // 3. Build Items List
     let itemsToSave = [];
-    if (isMultiMode) {
+    if (G) {
+        itemsToSave = G.items.filter((it) => it && it.productID && parseFloat(it.qty) > 0);
+        if (!itemsToSave.length) { fail("Add at least one item."); return false; }
+    } else if (isMultiMode) {
         if (multiItemBuffer.length === 0) { alert("Batch list empty."); btn.disabled = false; return; }
         itemsToSave = multiItemBuffer;
     } else {
@@ -1252,6 +1261,7 @@ async function saveTransferEntry(e) {
     let startAttention = (type === 'Transfer') ? sourceContact : approver;
 
     try {
+        const ibaNewLocal = []; // 17.0.5 patch 148: shown in Active Job at once (no refresh)
         const promises = itemsToSave.map((item, itemIndex) => {
             const entryData = {
                 controlNumber: controlNo,
@@ -1279,6 +1289,8 @@ async function saveTransferEntry(e) {
                 approver: approver,
                 receiver: receiver || '',
                 shippingDate: shippingDate,
+                ...(requiredDate ? { requiredDate: requiredDate } : {}),
+                ...(guidedNote ? { note: guidedNote } : {}),
 
                 status: startStatus,
                 remarks: startRemarks,
@@ -1289,7 +1301,9 @@ async function saveTransferEntry(e) {
                 enteredBy: currentUser,
                 history: [{ action: "Created", by: currentUser, timestamp: Date.now(), status: startStatus, remarks: startRemarks }]
             };
-            return database.ref('transfer_entries').push(entryData);
+            const ibaRef = database.ref('transfer_entries').push(entryData);
+            try { ibaNewLocal.push({ key: ibaRef.key, data: entryData }); } catch (_) {}
+            return ibaRef;
         });
 
         await Promise.all(promises);
@@ -1297,10 +1311,16 @@ async function saveTransferEntry(e) {
 
         document.getElementById('transfer-job-modal').classList.add('hidden');
         // 15.0.0 patch 25: the lists refresh in the background (the form closes at once)
+        // 17.0.5 patch 148: the forced reload is skipped when the list was loaded <5 min ago,
+        // so the new requests are added to the list in memory (same shape as a full load)
+        try { ibaAddNewTransfersLocally(ibaNewLocal); } catch (e) { console.warn('[transfer] local add failed', e); }
         setTimeout(async () => {
             try { if (typeof ensureAllEntriesFetched === 'function') await ensureAllEntriesFetched(true); } catch (_) {}
-            try { if (typeof populateActiveTasks === 'function') await populateActiveTasks(); } catch (_) {}
+            try { ibaAddNewTransfersLocally(ibaNewLocal); } catch (_) {}
+            try { if (typeof populateActiveTasks === 'function') await populateActiveTasks(true); } catch (_) {}
+            try { if (window.ibaLiveCounts && typeof window.ibaLiveCounts.recount === 'function') window.ibaLiveCounts.recount(); } catch (_) {}
         }, 30);
+        return true;
 
     } catch (e) { console.error(e); alert("Error saving."); }
     finally { btn.disabled = false; btn.textContent = isMultiMode ? "Save All Items" : "Save Transaction"; }
@@ -2150,3 +2170,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+
+// 17.0.5 patch 148: put just-saved transfer requests into the Inventory list in memory
+function ibaAddNewTransfersLocally(list) {
+    if (!Array.isArray(list) || !list.length) return;
+    if (typeof inventorySystemEntries === 'undefined' || !Array.isArray(inventorySystemEntries)) return;
+    const now = Date.now();
+    list.forEach(({ key, data }) => {
+        if (!key || !data || inventorySystemEntries.some((e) => e && e.key === key)) return;
+        const value = Object.assign({}, data, { timestamp: now, lastUpdated: now });
+        const from = value.fromLocation || value.fromSite || 'N/A';
+        const to = value.toLocation || value.toSite || 'N/A';
+        let combinedSite = from + ' ➔ ' + to;
+        if (value.jobType === 'Usage') combinedSite = 'Used at ' + from;
+        let contactPerson = value.receiver || 'N/A';
+        if (value.remarks === 'Pending') contactPerson = value.approver;
+        inventorySystemEntries.unshift(Object.assign({ key }, value, {
+            source: 'transfer_entry',
+            productID: value.productID || '',
+            jobType: value.jobType || 'Transfer',
+            for: value.jobType || 'Transfer',
+            ref: value.controlNumber || value.controlId || value.ref || key,
+            po: value.controlNumber || value.controlId || value.ref || key,
+            site: combinedSite,
+            contactName: contactPerson,
+            vendorName: value.productName,
+            remarks: value.remarks || value.status || 'Pending'
+        }));
+    });
+    try { if (typeof wdRebuildAllSystemEntriesFromFamilyCaches === 'function') wdRebuildAllSystemEntriesFromFamilyCaches(); } catch (_) {}
+}

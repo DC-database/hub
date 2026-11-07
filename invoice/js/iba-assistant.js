@@ -607,7 +607,7 @@
         const ages = [0, 0, 0, 0];
         tasks.concat(jobs).forEach((t) => { ages[ageBucket(daysSince(t.at))]++; });
         const ageRows = [{ label: '0-2 days', n: ages[0] }, { label: '3-7 days', n: ages[1] }, { label: '8-30 days', n: ages[2], cls: 'warn' }, { label: 'Over 30 days', n: ages[3], cls: 'late' }];
-        const rems = remList.filter((m) => !m.seenAt);
+        const rems = remList.filter(remIsOpen);
         const apv = ((x.approvals && x.approvals.items) || []).slice().sort((p, q) => apvWho(p).localeCompare(apvWho(q)) || ((q.days || 0) - (p.days || 0)));
         const box = '<span class="box"></span>';
         const kpi = (n, l) => '<div class="kpi"><b>' + esc(n) + '</b><span>' + esc(l) + '</span></div>';
@@ -876,7 +876,7 @@
             tasks_by_status: byStatus,
             oldest_tasks: tasks.slice(0, 8).map(compactTask),
             inventory_jobs: jobs.slice(0, 6).map(compactJob),
-            reminders_for_you: remList.filter((r) => !r.seenAt).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
+            reminders_for_you: remList.filter(remIsOpen).slice(0, 5).map((r) => ({ from: r.from, text: r.text, po: r.po || undefined, control: r.control || undefined })),
             inventory_not_loaded: Math.max(0, (Number(w.counts.job) || 0) - jobs.length),
             po_closeout: closeout || undefined,
             po_closeout_loading: closeoutPending || undefined,
@@ -3364,6 +3364,15 @@
             check: () => typeof window.ibaNewInvoice === 'function',
             ask: () => [{ key: 'po', label: 'PO number (leave empty to type it in the window)', placeholder: 'e.g. 62598', optional: true }],
             run: async (v) => { toggle(false); await window.ibaNewInvoice(v.po); return null; } },
+        // 17.0.5 patch 138: a reminder for yourself on a day (no AI)
+        remind_me: { name: 'Remind me', icon: 'fa-bell', desc: 'A reminder for yourself on a day you pick (Saturday, tomorrow 9am, 12 Nov, in 3 days). It pops up then and stays in your brief until you press Seen. You can also just type "remind me Saturday about PO 66459 ...". No AI used.',
+            ask: () => [{ key: 'when', label: 'When', placeholder: 'e.g. Saturday, tomorrow 9am, 12 Nov', suggest: () => remWhenSuggest() }, { key: 'what', label: 'What', placeholder: 'e.g. tell E.Ali to check it' }, { key: 'po', label: 'PO (optional)', placeholder: 'e.g. 66459', optional: true }],
+            run: async (v) => {
+                const due = remWhen(v.when);
+                if (!due) return 'I could not read the day "' + v.when + '". Try Saturday, tomorrow 9am, 12 Nov or in 3 days.';
+                await remSaveShow(due, v.what, String(v.po || '').replace(/\D+/g, '').slice(0, 7) || remPoOf(v.what));
+                return null;
+            } },
         // 17.0.5 patch 130: every summary note of today in one print
         sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note with today\'s date in its name, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). No AI used.',
             check: () => !!(window.ibaSummaryBatch && typeof window.ibaSummaryBatch.open === 'function'),
@@ -4429,12 +4438,13 @@
         if (b.hasAttribute('data-rem-all')) {
             e.preventDefault();
             const card = b.closest('.iba-ai-card');
-            const ids = remList.filter((x) => !x.seenAt).map((x) => x.id);
+            const ids = remList.filter(remIsOpen).map((x) => x.id);
             if (card) card.querySelectorAll('.iba-ai-remlist li:not(.iba-ai-ttab-head)').forEach((li) => li.remove());
             b.remove();
             ids.forEach((id) => { remMarkSeen(id); });
             return;
         }
+        if (b.dataset.remmeCancel) { e.preventDefault(); const id = b.dataset.remmeCancel; const li = b.closest('li'); if (li) li.remove(); else { const c = b.closest('.iba-ai-remme'); if (c) { c.classList.add('is-cancelled'); b.outerHTML = '<span class="iba-ai-remme-sub">Cancelled.</span>'; } } return remCancel(id); }
         if (b.dataset.remSeen) { e.preventDefault(); const li = b.closest('li'); if (li) li.remove(); return remMarkSeen(b.dataset.remSeen); }
         if (b.dataset.aiRemind) { e.preventDefault(); let q = {}; try { q = JSON.parse(b.dataset.aiRemind); } catch (_) {} return openRemind(q, b); }
         if (b.dataset.aiNewInv) { showView('chat'); const t = $('iba-ai-text'); t.value = 'New invoice for PO ' + b.dataset.aiNewInv + ': '; t.focus(); return; }
@@ -4725,6 +4735,8 @@
     }
     async function localAnswer(text) {
         const t = text.replace(/[?!.]+$/, '').trim();
+        // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
+        if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
         const words = t.split(/\s+/).filter(Boolean).length;
         // a PO number, alone or as "po 62921" / "status of po 62921"
         const po = (t.match(/^(?:(?:status|track|check|where is|show)(?:\s+(?:of|the|for))?\s+)?(?:po|p\.o\.?)?[\s#:-]*(\d{4,7})$/i) || [])[1];
@@ -5479,6 +5491,132 @@
     const REM_SEEN_KEY = 'iba-ai-rem-shown-v1';
     let remList = [];
     let remRef = null;
+    // ------------------------------------------------------------------
+    // 17.0.5 patch 138: "Remind me <day> ..." = a reminder for yourself on a
+    // day you pick (no AI, no key). Saved in your own reminders list with
+    // dueAt; it stays hidden until that time, then pops up as a bubble and
+    // shows in "Reminders for you" like any reminder. Upcoming ones show in
+    // the brief under "Coming up" with Cancel.
+    // ------------------------------------------------------------------
+    function remIsOpen(r) { return !!r && !r.seenAt && !(Number(r.dueAt) > Date.now()); }
+    function remIsLater(r) { return !!r && !r.seenAt && Number(r.dueAt) > Date.now(); }
+    const REM_WD = { sun: 0, mon: 1, tue: 2, tues: 2, wed: 3, thu: 4, thur: 4, thurs: 4, fri: 5, sat: 6 };
+    const REM_MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, sept: 8, oct: 9, nov: 10, dec: 11 };
+    const REM_DAY_RX = /\b(day after tomorrow|tomorrow|tmrw|tmr|today|tonight|next week|in\s+\d{1,2}\s+days?|(?:next\s+|this\s+)?(?:sun|mon|tues?|wed|thu|thur|thurs|fri|sat)(?:[a-z]*day)?|\d{1,2}(?:st|nd|rd|th)?[\s\/.-]*(?:jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*(?:[\s\/.,-]*20\d\d)?|(?:jan|feb|mar|apr|may|jun|jul|aug|sept?|oct|nov|dec)[a-z]*[\s\/.-]*\d{1,2}(?:st|nd|rd|th)?(?:[\s\/.,-]*20\d\d)?|\d{1,2}\/\d{1,2}(?:\/20\d\d)?)\b/i;
+    const REM_TIME_RX = /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\bat\s+(\d{1,2})(?::(\d{2}))?\b|\b(morning|noon|afternoon|evening|tonight)\b/i;
+    // when -> a time (ms) or 0
+    function remWhen(s) {
+        const t = String(s || '').toLowerCase();
+        const m = REM_DAY_RX.exec(t);
+        const now = new Date();
+        let d = null;
+        if (m) {
+            const w = m[1].replace(/\s+/g, ' ').trim();
+            let x;
+            d = new Date(now);
+            if (w === 'day after tomorrow') d.setDate(d.getDate() + 2);
+            else if (/^(tomorrow|tmrw|tmr)$/.test(w)) d.setDate(d.getDate() + 1);
+            else if (w === 'today' || w === 'tonight') { /* today */ }
+            else if (w === 'next week') d.setDate(d.getDate() + 7);
+            else if ((x = /^in (\d{1,2}) days?$/.exec(w))) d.setDate(d.getDate() + Number(x[1]));
+            else if ((x = /^(next |this )?(sun|mon|tues?|wed|thu|thur|thurs|fri|sat)/.exec(w))) {
+                const want = REM_WD[x[2]];
+                let diff = (want - now.getDay() + 7) % 7;
+                if (diff === 0) diff = 7;
+                if (x[1] === 'next ' && diff < 7 && false) diff += 7;
+                d.setDate(d.getDate() + diff);
+            } else if ((x = /^(\d{1,2})(?:st|nd|rd|th)?[\s\/.-]*([a-z]{3,4})[a-z]*(?:[\s\/.,-]*(20\d\d))?$/.exec(w)) || (x = /^([a-z]{3,4})[a-z]*[\s\/.-]*(\d{1,2})(?:st|nd|rd|th)?(?:[\s\/.,-]*(20\d\d))?$/.exec(w))) {
+                const a = /^\d/.test(x[1]) ? [x[1], x[2]] : [x[2], x[1]];
+                const mo = REM_MON[a[1]] != null ? REM_MON[a[1]] : REM_MON[a[1].slice(0, 3)];
+                if (mo == null) return 0;
+                d = new Date(x[3] ? Number(x[3]) : now.getFullYear(), mo, Number(a[0]));
+                if (!x[3] && d.getTime() < now.getTime() - 86400000) d.setFullYear(d.getFullYear() + 1);
+            } else if ((x = /^(\d{1,2})\/(\d{1,2})(?:\/(20\d\d))?$/.exec(w))) {
+                d = new Date(x[3] ? Number(x[3]) : now.getFullYear(), Number(x[2]) - 1, Number(x[1]));
+                if (!x[3] && d.getTime() < now.getTime() - 86400000) d.setFullYear(d.getFullYear() + 1);
+            } else d = null;
+        }
+        const tm = REM_TIME_RX.exec(t);
+        if (!d && !tm) return 0;
+        if (!d) d = new Date(now);
+        let h = 8, mi = 0;
+        if (tm) {
+            if (tm[1]) { h = Number(tm[1]) % 12 + (/pm/i.test(tm[3]) ? 12 : 0); mi = Number(tm[2] || 0); }
+            else if (tm[4]) { h = Number(tm[4]); mi = Number(tm[5] || 0); if (h >= 1 && h <= 6) h += 12; }
+            else h = { morning: 8, noon: 12, afternoon: 14, evening: 18, tonight: 19 }[tm[6].toLowerCase()] || 8;
+        } else if (m && m[1].toLowerCase() === 'tonight') h = 19;
+        d.setHours(h, mi, 0, 0);
+        // today with no time (or a time already gone): one hour from now
+        if (d.getTime() <= now.getTime()) {
+            if (d.toDateString() === now.toDateString()) d = new Date(now.getTime() + 3600000);
+            else return 0;
+        }
+        return d.getTime();
+    }
+    function remWhenLabel(ms) {
+        const d = new Date(ms);
+        const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+        let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+        return day + ' ' + String(d.getDate()).padStart(2, '0') + '-' + MONTHS[d.getMonth()] + '-' + d.getFullYear() + ', ' + h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ap;
+    }
+    // the words of the message without "remind me" and the day / time
+    function remWhat(s) {
+        let t = String(s || '').replace(/^\s*(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i, ' ');
+        t = t.replace(REM_DAY_RX, ' ').replace(REM_TIME_RX, ' ');
+        t = t.replace(/^[\s,:;-]*(?:on|this|next|at|by|in the)?\s*/i, '').replace(/^[\s,:;-]*(?:regarding|about|re|to|that|for)\b\s*/i, '').replace(/\s+/g, ' ').trim();
+        return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+    }
+    function remPoOf(s) { const m = /\b(?:po|p\.o\.?)?\s*#?\s*(\d{5})\b/i.exec(String(s || '')); return m ? m[1] : ''; }
+    function remWhenSuggest() {
+        const out = [['Tomorrow', 'tomorrow 8:00 AM']];
+        const now = new Date();
+        for (let i = 2; i <= 7; i++) { const d = new Date(now); d.setDate(d.getDate() + i); const n = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()]; out.push([n, String(d.getDate()).padStart(2, '0') + '-' + MONTHS[d.getMonth()]]); }
+        out.push(['Today 4pm', ''], ['In 3 days', ''], ['Next week', '']);
+        return out;
+    }
+    async function remSaveSelf(dueAt, text, po) {
+        const d = mainDb(), me = myName();
+        if (!d || !me) throw new Error('Sign in first, then try again.');
+        const ref = d.ref('iba_assistant/reminders/' + remSafe(me)).push();
+        await ref.set({ from: me, to: me, self: true, text: String(text || '').slice(0, 600), po: po || '', dueAt: dueAt, at: firebase.database.ServerValue.TIMESTAMP });
+        return ref.key;
+    }
+    async function remCancel(id) {
+        const d = mainDb(), me = myName();
+        if (!d || !me || !id) return;
+        try { await d.ref('iba_assistant/reminders/' + remSafe(me) + '/' + id).remove(); } catch (_) {}
+    }
+    async function remSaveShow(dueAt, text, po) {
+        const what = String(text || '').trim() || (po ? 'PO ' + po : 'Reminder');
+        const id = await remSaveSelf(dueAt, what, po);
+        const c = document.createElement('div');
+        c.className = 'iba-ai-card iba-ai-remme';
+        c.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-bell"></i> Reminder saved</div>' +
+            '<div class="iba-ai-remme-when"><i class="fa-regular fa-calendar"></i> ' + esc(remWhenLabel(dueAt)) + '</div>' +
+            '<div class="iba-ai-remme-text">' + (po ? poLink(po) + ' ' : '') + esc(what) + '</div>' +
+            '<small class="iba-ai-remme-sub">It pops up then and stays in your brief until you press Seen. No AI used.</small>' +
+            '<div class="iba-ai-rem-acts"><button type="button" class="iba-ai-mini iba-ai-cancel" data-remme-cancel="' + esc(id) + '"><i class="fa-solid fa-xmark"></i> Cancel reminder</button></div>';
+        put(c);
+        return id;
+    }
+    // "remind me ..." typed in the chat
+    async function remindMeLocal(text) {
+        const due = remWhen(text.replace(/^\s*(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i, ' '));
+        const what = remWhat(text), po = remPoOf(text);
+        if (!due) { runTemplate('remind_me', null, { what: what, po: po }); return true; }
+        return localDo(text, async () => { await remSaveShow(due, what, po); });
+    }
+    function remLaterHtml() {
+        const later = remList.filter(remIsLater).sort((a, b) => Number(a.dueAt) - Number(b.dueAt));
+        if (!later.length) return '';
+        return '<div class="iba-ai-sub"><i class="fa-regular fa-calendar"></i> Coming up (' + later.length + ')</div>' +
+            '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-remlist iba-ai-ttab is-rem is-later">' +
+            later.map((r) => '<li><span class="c-po">' + (r.po ? poLink(r.po) : '') + '</span>' +
+                '<span class="c-site"><b>' + esc(remWhenLabel(Number(r.dueAt))) + '</b></span>' +
+                '<span class="iba-ai-grow c-main"><small class="iba-ai-rem-body">' + esc(r.text) + '</small></span><span class="c-age"></span>' +
+                '<span class="c-act"><button type="button" class="iba-ai-mini" data-remme-cancel="' + esc(r.id) + '" title="Cancel this reminder"><i class="fa-solid fa-xmark"></i> Cancel</button></span></li>').join('') +
+            '</ul></div></div>';
+    }
     function remSafe(n) { return String(n || '').trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_'); }
     function remText(q) {
         const me = myName() || 'IBA';
@@ -5554,17 +5692,17 @@
         box.querySelector('.iba-ai-rem-to').focus();
     }
     function remindersHtml() {
-        const open = remList.filter((r) => !r.seenAt);
-        if (!open.length) return '';
+        const open = remList.filter(remIsOpen);
+        if (!open.length) return remLaterHtml();
         // 17.0.0 patch 18: one table; "All seen" clears the list at once
         return '<div class="iba-ai-sub"><i class="fa-solid fa-bell"></i> Reminders for you (' + open.length + ')' + (open.length > 1 ? ' <button type="button" class="iba-ai-mini" data-rem-all title="Mark every reminder as seen"><i class="fa-solid fa-check-double"></i> All seen</button>' : '') + '</div>' +
             '<div class="iba-ai-ttab-wrap"><div class="iba-ai-ttab-site"><ul class="iba-ai-rows iba-ai-remlist iba-ai-ttab is-rem">' +
             '<li class="iba-ai-ttab-head" aria-hidden="true"><span class="c-po">PO / TRF</span><span class="c-site">From · date</span><span class="c-main">Message</span><span class="c-age"></span><span class="c-act"></span></li>' +
             open.map((r) =>
             '<li><span class="c-po">' + (r.po ? poLink(r.po) : '') + (r.control && r.control !== r.po ? '<button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '">' + esc(r.control) + '</button>' : '') + '</span>' +
-            '<span class="c-site"><b>' + esc(r.from || 'Someone') + '</b><small>' + esc(fmtDate(Number(r.at) || 0)) + '</small></span>' +
+            '<span class="c-site"><b>' + esc(r.self ? 'You (reminder)' : (r.from || 'Someone')) + '</b><small>' + esc(fmtDate(Number(r.dueAt) || Number(r.at) || 0)) + '</small></span>' +
             '<span class="iba-ai-grow c-main"><small class="iba-ai-rem-body">' + esc(r.text) + '</small></span><span class="c-age"></span>' +
-            '<span class="c-act"><button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></span></li>').join('') + '</ul></div></div>';
+            '<span class="c-act"><button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></span></li>').join('') + '</ul></div></div>' + remLaterHtml();
     }
     async function remMarkSeen(id) {
         const d = mainDb();
@@ -5584,8 +5722,17 @@
         remRef = d.ref('iba_assistant/reminders/' + remSafe(me)).limitToLast(30);
         remRef.on('value', (snap) => {
             const v = (snap && snap.val()) || {};
-            remList = Object.keys(v).map((k) => Object.assign({ id: k }, v[k] || {})).sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
-            const open = remList.filter((r) => !r.seenAt);
+            remList = Object.keys(v).map((k) => Object.assign({ id: k }, v[k] || {})).sort((a, b) => (Number(b.dueAt || b.at) || 0) - (Number(a.dueAt || a.at) || 0));
+            remPaint();
+        }, () => { /* no access: reminders off */ });
+        // 17.0.5 patch 138: a "remind me" reminder becomes due while the page is open
+        if (!remTimer) remTimer = setInterval(() => { const sig = remList.filter(remIsOpen).map((r) => r.id).join(','); if (sig !== remSig) remPaint(); }, 60000);
+    }
+    let remTimer = null, remSig = '';
+    function remPaint() {
+        {
+            const open = remList.filter(remIsOpen);
+            remSig = open.map((r) => r.id).join(',');
             const fab = $('iba-ai-fab');
             if (fab) { fab.classList.toggle('has-reminder', open.length > 0); fab.setAttribute('data-rem', open.length ? String(open.length) : ''); }
             const phb = $('iba-ph-ai');
@@ -5597,10 +5744,10 @@
             if (fresh.length) {
                 lsSet(REM_SEEN_KEY, shown.concat(fresh.map((r) => r.id)).slice(-100));
                 const r = fresh[0];
-                showBubble('<i class="fa-solid fa-bell"></i><div class="iba-ai-bubble-text"><b>Reminder from ' + esc(r.from || 'someone') + '</b><br>' + esc(String(r.text || '').split('\n')[0].slice(0, 140)) + '</div>' +
+                showBubble('<i class="fa-solid fa-bell"></i><div class="iba-ai-bubble-text"><b>' + (r.self ? 'Your reminder' + (r.po ? ' · PO ' + esc(r.po) : '') : 'Reminder from ' + esc(r.from || 'someone')) + '</b><br>' + esc(String(r.text || '').split('\n')[0].slice(0, 140)) + '</div>' +
                     '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="brief">Open</button><button type="button" data-bubble="x" title="Dismiss">×</button></div>', 30000);
             }
-        }, () => { /* no access: reminders off */ });
+        }
     }
     function stopReminders() { try { if (remRef) remRef.off(); } catch (_) {} remRef = null; remList = []; }
 
@@ -6127,7 +6274,7 @@
             const urgentFirst = (list) => list.map((t, i) => ({ t: t, i: i, u: isUrgentNote(t.note) ? 1 : 0 })).sort((p, q) => (q.u - p.u) || (p.i - q.i)).map((o) => o.t);
             const tasks = urgentFirst(x.tasks || []);
             const jobs = x.jobs || [];
-            const rems = remList.filter((m) => !m.seenAt);
+            const rems = remList.filter(remIsOpen);
             const nUrg = tasks.filter((t) => isUrgentNote(t.note)).length;
             const nLate = tasks.concat(jobs).filter((t) => (daysSince(t.at) || 0) > 7).length;
             let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-sun"></i> ' + esc(greetingWord() + (firstName() ? ', ' + firstName() : '')) +
@@ -6425,12 +6572,12 @@
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
-        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
+        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
+        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
@@ -6793,7 +6940,7 @@
                   (oldest && oldest.po ? ' Oldest: PO ' + esc(oldest.po) + (daysSince(oldest.at) !== null ? ' · ' + daysSince(oldest.at) + ' days' : '') + '.' : '')
                 : 'Nothing is waiting for you right now.';
             const setup = !ready() && isSuper();
-            const remN = remList.filter((r) => !r.seenAt).length;
+            const remN = remList.filter(remIsOpen).length;
             if (remN) line += ' <b>' + remN + '</b> reminder' + (remN === 1 ? '' : 's') + ' for you.';
             showBubble('<i class="fa-solid fa-wand-magic-sparkles"></i><div class="iba-ai-bubble-text"><strong>' + esc(greetingWord()) + ', ' + esc(firstName()) + '.</strong> ' + line +
                 (setup ? '<br><small>Plain-word questions need a free key (Setup, 2 minutes).</small>' : '') + '</div>' +
@@ -7020,7 +7167,7 @@
     function briefSpeech(x) {
         const r = x.result || {};
         const tasks = x.tasks || [];
-        const rems = remList.filter((m) => !m.seenAt);
+        const rems = remList.filter(remIsOpen);
         const parts = [greetingWord() + ', ' + firstName() + '.'];
         const nt = Number(r.active_task) || 0, nj = Number(r.active_job) || 0;
         parts.push(nt || nj ? 'You have ' + nt + ' task' + (nt === 1 ? '' : 's') + ' and ' + nj + ' inventory job' + (nj === 1 ? '' : 's') + ' waiting.' : 'Nothing is waiting for you right now.');
