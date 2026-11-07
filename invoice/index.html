@@ -468,7 +468,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
 <link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
 <link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
-<link href="css/iba-1705-fit.css?v=17.0.5-p130" rel="stylesheet"/>
+<link href="css/iba-1705-fit.css?v=17.0.5-p139" rel="stylesheet"/>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -3303,7 +3303,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <div class="form-group"><label for="tf-job-type">Job Type</label><input id="tf-job-type" readonly="" type="text"/></div>
 <div class="form-group"><label for="tf-control-no">Control Number</label><input id="tf-control-no" readonly="" type="text"/></div>
 <div class="form-group"><label for="tf-shipping-date">Shipping Date</label><input id="tf-shipping-date" type="date"/></div>
-<div class="form-group"><label for="tf-arrival-date">Arrival Date</label><input id="tf-arrival-date" type="date"/></div>
+<div class="form-group"><label for="tf-arrival-date">Required date</label><input id="tf-arrival-date" type="date"/></div>
 <div class="form-group"><label for="tf-requestor">Requestor</label><input id="tf-requestor" readonly="" type="text"/></div>
 <div class="form-group"><label for="tf-status">Status</label><select id="tf-status"><option value="Pending Source">Pending Source</option><option value="Pending Admin">Pending Admin</option><option value="In Transit">In Transit</option><option value="Completed">Completed</option><option value="Cancelled">Cancelled</option><option value="Rejected">Rejected</option></select></div>
 <div class="form-group"><label for="tf-remarks">Remarks</label><textarea id="tf-remarks" rows="1"></textarea></div>
@@ -3774,10 +3774,10 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
     </script>
 <script src="js/iba-1705-invcopy.js?v=17.0.5-p129"></script>
 <script src="js/inventory-pocket.js?v=17.0.3-p11"></script>
-<script src="js/materialStock.js?v=17.0.5-p88"></script>
+<script src="js/materialStock.js?v=17.0.5-p139"></script>
 <script src="js/iba-1705-msmigrate.js?v=17.0.5-p80"></script>
 <script src="js/iba-1705-unmerge.js?v=17.0.5-p86"></script>
-<script src="js/transferLogic.js?v=17.0.5-p92"></script>
+<script src="js/transferLogic.js?v=17.0.5-p148"></script>
 <script src="js/app-audio.js?v=15.0.0-p13"></script>
 <script src="js/app-core.js?v=8.2.3"></script>
 <script src="js/app-inventory.js?v=15.0.0-p32"></script>
@@ -3826,7 +3826,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
 <script>
       window.IBA_SYSTEM_VERSION = '17.0.5';
-      window.IBA_PATCH = '137'; window.IBA_PATCH_DATE = '05-Nov-2026'; // bump on every upload (Settings > System Version)
+      window.IBA_PATCH = '149'; window.IBA_PATCH_DATE = '07-Nov-2026'; // bump on every upload (Settings > System Version)
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=15.0.0"></script>
@@ -3836,7 +3836,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-task-check.js?v=17.0.0-p7"></script>
 <script src="js/iba-print.js?v=15.0.0-p32"></script>
 <script src="js/iba-bg-dim.js?v=15.0.0"></script>
-<script src="js/iba-assistant.js?v=17.0.5-p130"></script>
+<script src="js/iba-assistant.js?v=17.0.5-p138"></script>
 <script src="js/iba-status-options.js?v=15.0.0-p45"></script>
 <script src="js/iba-job-po-fill.js?v=17.0.5-p50"></script>
 <script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
@@ -3847,7 +3847,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-17-p13.js?v=17.0.0-p13"></script>
 <script src="js/iba-17-p16.js?v=17.0.2-p2"></script>
 <script src="js/iba-17-p21.js?v=17.0.4-p7"></script>
-<script src="js/iba-1705-invperm.js?v=17.0.5-p45"></script>
+<script src="js/iba-1705-invperm.js?v=17.0.5-p144"></script>
 <script src="js/iba-17-p24.js?v=17.0.5-p44"></script>
 <script src="js/iba-17-p27.js?v=17.0.5-p130"></script>
 <script src="js/iba-1705-snbatch.js?v=17.0.5-p136"></script>
@@ -3874,7 +3874,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1705-place.js?v=17.0.5-p19b"></script>
 <script src="js/iba-1705-recv.js?v=17.0.5-p20"></script>
 <script src="js/iba-1705-watch.js?v=17.0.5-p117"></script>
-<script src="js/iba-1705-ret.js?v=17.0.5-p137"></script>
+<script src="js/iba-1705-ret.js?v=17.0.5-p149"></script>
 <script src="js/iba-1705-histto.js?v=17.0.5-p96"></script>
 <script src="js/iba-1705-finpay.js?v=17.0.5-p102"></script>
 <script src="js/iba-1705-paymonth.js?v=17.0.5-p105"></script>
@@ -3883,6 +3883,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1705-batchui.js?v=17.0.5-p116"></script>
 <script src="js/iba-1705-mhome.js?v=17.0.5-p124"></script>
 <script src="js/iba-1705-newinv.js?v=17.0.5-p128"></script>
+<script src="js/iba-1705-invguide.js?v=17.0.5-p147"></script>
 <script src="js/iba-1705-ver.js?v=17.0.5-p27"></script>
 <script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
 <script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>

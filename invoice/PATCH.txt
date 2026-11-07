@@ -1,3 +1,75 @@
+17.0.5 patch 149 (07-Nov-2026)
+- "An invoice came back to you": the "by" name is now the person who really acted (newest history line by time). Invoices made from a Reception entry always said "by Reception" because the imported Reception line sorted last. Rows already saying "by Reception" are corrected on the next check.
+Files: index.html, js/iba-1705-ret.js
+
+17.0.5 patch 148 (07-Nov-2026)
+- New transfer / usage / restock / return requests show in Active Job (list and count) right after saving, without a page refresh. Before, the list reload was skipped when it had been loaded in the last 5 minutes (old form too).
+Files: index.html, js/transferLogic.js
+
+17.0.5 patch 147 (07-Nov-2026)
+- Transfer / Usage / Restock / Return window: new "–" Minimize button. The draft becomes a floating "Transfer in progress (N items)" pill at the bottom of every page (Open / × throw away), kept until the end of the day. It holds NO stock: stock is taken only at Confirm & save.
+- Reopening checks each item's free stock again. Enough = no change. Less = the item turns amber: "Only X free now (you loaded Y at HH:MM). Someone else used some of it." with Take X / Remove. None = "None left at <site>. Used by another transfer since you loaded it." with Pick another source / Remove. Nothing is removed silently; Confirm & save stays locked until the amber items are fixed.
+- The same stock check runs again when Confirm & save is pressed.
+Files: index.html, js/iba-1705-invguide.js
+
+17.0.5 patch 146 (07-Nov-2026)
+- New delivery / Register windows: the side scrollbar is now the app's slim dark one with the gold thumb (was the plain white browser one).
+- Closing the window (x, Cancel, Esc) after something was entered asks first: "Close without saving? ... you will have to enter them again" with Keep editing / Close anyway. Nothing entered = closes straight away.
+Files: index.html, js/iba-1705-invguide.js
+
+17.0.5 patch 145 (07-Nov-2026)
+- New delivery / Register windows: same see-through glass and the same buttons as the app's other pop-ups (glass teal main button, glass grey others). Delivery details on the confirm page are a clean two-column list (label left, value right), no boxes.
+Files: index.html, js/iba-1705-invguide.js
+
+17.0.5 patch 144 (07-Nov-2026)
+- Delivery Approves list: the Super Admin (Irwin) now sees his own name in the list, only on his own screen, so he can try approving. Other users still see only E.Ali.
+Files: index.html, js/iba-1705-invperm.js
+
+17.0.5 patch 143 (07-Nov-2026)
+- Guided inventory windows fit the screen: info line removed, short step text, step help lines and the Required date note removed (hover the label for it), tighter spacing, header/step line/footer always visible.
+- "Old form" link removed.
+Files: index.html, js/iba-1705-invguide.js
+
+17.0.5 patch 142 (07-Nov-2026)
+- Settings > Inventory permissions: new line "Approve deliveries (Approves list)". Default: E.Ali only.
+  Only ticked people appear in Approves (guided windows AND the old form's Approver list). With one approver
+  (today E.Ali) Approves is filled in by itself.
+- Guided inventory windows now use the system pop-up look: colours from the app's UI tokens, app font,
+  uppercase field labels, teal main button with white text, header/footer lines like the other pop-ups.
+Files: index.html, js/iba-1705-invguide.js, js/iba-1705-invperm.js
+
+17.0.5 patch 141 (07-Nov-2026)
+- Guided transfer window: "Hands it over" renamed "Source contact" (the person at the source site who releases it), also in the confirm window and the route line.
+Files: index.html, js/iba-1705-invguide.js
+
+17.0.5 patch 140 (07-Nov-2026)
+- New guided windows for Transfer / Usage / Restock / Return and Register material (martin approved the mock-up):
+  numbered steps, the step to do now glows gold, done steps turn teal.
+  Step 1 = one material row (photo | item search | source with free stock | qty). "+ Add more" loads it on the truck
+  (🚚 Loaded N in the title) and empties the row; a filled row is loaded by itself on Proceed.
+  Proceed opens a confirm window: items can be changed (✎) or removed (×), delivery details are locked (✎ goes back).
+  Nothing is saved before "Confirm & save". "Old form" link in the footer opens the normal form.
+- New field on transfer records: requiredDate ("Required date", 3 working days after the send date, Friday off).
+  The real arrivalDate is still written only when the receiver confirms. Shown in the approval window.
+- Delivery note is saved in the record's note (approvers see it in the Note box).
+- Old form: "Arrival Date" renamed "Required date" (it was never saved before; now saved as requiredDate).
+- Return made from a task (prefilled) and Edit keep the normal forms.
+Files: index.html, js/transferLogic.js, js/iba-1705-invguide.js (new)
+
+17.0.5 patch 139 (07-Nov-2026)
+- Material Stock: the Previous / Next / "Page 1 of N" / Rows bar is gone. Every row is listed and the scrollbar is enough
+  (transfers are grouped once per product so a long list stays quick).
+- Material Stock table: the scrollbar no longer pokes a square corner out of the rounded top-right edge.
+Files: index.html, js/materialStock.js, css/iba-1705-fit.css
+
+17.0.5 patch 138 (05-Nov-2026)
+- Assistant "Remind me" (no AI, no key used): type e.g. "remind me Saturday about PO 66459 tell E.Ali to check it", or use the "Remind me" skill (Quick work: When / What / PO). Understands today, tomorrow, weekdays (also misspelt like "satruday"), "in 3 days", "next week", "12 Nov", "20/11", and times like 9am / 4pm (default 8:00 AM). Saved for you only; at that time it pops up as "Your reminder" and stays in "Reminders for you" until Seen. Upcoming ones show in the brief under "Coming up" with Cancel; the saved card has "Cancel reminder". No day given -> the Remind me form opens.
+- Files: index.html, js/iba-assistant.js, css/iba-1705-fit.css
+
+17.0.5 patch 137 (05-Nov-2026)
+- "An invoice came back to you" pop-up showed "PO" with no number and no first status (→ CEO Approval by Irwin). Cause: a late "who acted" / "Got it" save landed after the row had been removed, leaving a half row. Half rows are now removed at sign-in, never alert, and late saves skip removed rows.
+- Files: index.html, js/iba-1705-ret.js
+
 17.0.5 patch 136 (05-Nov-2026)
 - Summary Note suggestions: an older note that is not among the 500 most recently used (e.g. "Qatar Pipeline & Fitting 09-May-2026") now appears while typing: after 5+ letters, the saved notes whose name starts with the typed text are read (max 40 rows) and added to the dropdown and the saved list.
 - Print summary notes: same vendor when a word is cut short ("Fittin" / "Fitting" = "Fittings", "Pipe" = "Pipeline"), so the newest earlier note is picked as Previous.
