@@ -954,6 +954,11 @@
   label.iba-ret-tick input { width: 16px !important; height: 16px !important; margin: 0 !important; accent-color: #0d7e85; }
   .batch-invoice-card button.iba-ret-card { height: 20px !important; min-width: 24px !important; padding: 0 6px !important; font-size: 10px !important; line-height: 20px !important; border-radius: 4px !important; border: 1px solid rgba(255, 255, 255, .6) !important; background: transparent !important; color: #fff !important; -webkit-text-fill-color: #fff !important; cursor: pointer !important; }
   .batch-invoice-card button.iba-ret-card.is-on { background: #FFC970 !important; border-color: #FFC970 !important; color: #14293f !important; -webkit-text-fill-color: #14293f !important; }
+  /* 17.0.5 patch 150: ⚡ Urgent tick */
+  label.iba-urg-tick input { accent-color: #E5484D !important; }
+  .batch-invoice-card button.iba-urg-card { height: 20px !important; min-width: 24px !important; padding: 0 5px !important; margin-left: 4px !important; font-size: 11px !important; line-height: 18px !important; border-radius: 4px !important; border: 1px solid rgba(255, 255, 255, .6) !important; background: transparent !important; color: #fff !important; -webkit-text-fill-color: #fff !important; cursor: pointer !important; filter: grayscale(1) brightness(1.4); }
+  .batch-invoice-card button.iba-urg-card.is-on { background: #E5484D !important; border-color: #E5484D !important; filter: none; }
+  .batch-invoice-card button.iba-urg-card[hidden] { display: none !important; }
 
   /* 17.0.5 p95: tracking PO card - PO + PO value left, SITE big coloured number + name right, vendor below */
   #iba-ai-panel .iba-trk-pc { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; gap: 10px 16px !important; align-items: start !important; }
@@ -1467,4 +1472,160 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #ms-page-bar { display: none !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-material-stock .ms-premium-tablewrap { clip-path: inset(0 round 16px) !important; }
   html body #wd-material-stock .ms-premium-tablewrap:not(#iba-no1)::-webkit-scrollbar-corner { background: transparent !important; }
+
+  /* ------------------------------------------------------------------
+     17.0.5 patch 151 — phone: bigger, app-like (PC untouched: everything
+     below needs body.iba-phone)
+     ------------------------------------------------------------------ */
+  /* assistant: no top bar on the phone (greeting first; Settings / Exit are apps) */
+  html body.iba-phone #iba-ai-panel > .iba-ai-head { display: none !important; }
+  html body.iba-phone #iba-ai-panel .iba-ai-view[data-view="phone"] > .iba-ai-pane { min-height: 100% !important; box-sizing: border-box !important; padding-bottom: 6px !important; }
+  @media (min-height: 701px), (min-width: 601px) and (min-height: 501px), (max-aspect-ratio: 74/100) and (min-height: 501px) {
+    html body.iba-phone #iba-ai-panel .iba-aph-tiles.is-4.is-icons { gap: 20px 12px !important; padding: 8px 4px 4px !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tiles.is-4.is-icons > button > i { width: 110px !important; height: 110px !important; border-radius: 30px !important; font-size: 46px !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tiles.is-4.is-icons > button > b { font-size: 17px !important; }
+  }
+  /* the 3 smaller apps, kept low above the bottom bar */
+  html body #iba-ai-panel .iba-aph-more { display: none !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-tiles.iba-aph-more { display: flex !important; justify-content: space-evenly !important; gap: 8px !important;
+    margin-top: auto !important; padding: 14px 0 26px !important; border-top: 1px solid rgba(255, 255, 255, .12) !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button { flex: 0 1 33.3% !important; grid-column: auto !important; align-items: center !important; justify-content: flex-start !important; gap: 7px !important; min-height: 0 !important; padding: 2px 0 !important; text-align: center !important;
+    background: transparent !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button[hidden] { display: none !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button > i { width: 64px !important; height: 64px !important; border-radius: 18px !important; font-size: 26px !important; margin: 0 !important; color: #fff !important; -webkit-text-fill-color: #fff !important;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--c) 78%, #fff) 0%, var(--c) 55%, color-mix(in srgb, var(--c) 70%, #000) 100%) !important;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.3) !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button > b { font-size: 14px !important; font-weight: 800 !important; line-height: 1.2 !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button:active > i { transform: scale(.92) !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-more > button.is-on::after { display: none !important; }
+  /* assistant bottom bar about 25% bigger */
+  @media (min-height: 701px), (min-width: 601px) and (min-height: 501px), (max-aspect-ratio: 74/100) and (min-height: 501px) {
+    html body.iba-phone #iba-ai-panel .iba-aph-tabs { padding: 8px 4px calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tabs > button { min-height: 60px !important; font-size: 13px !important; gap: 4px !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tabs > button > i { font-size: 25px !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-mid > b { width: 64px !important; height: 64px !important; margin-top: -32px !important; }
+    html body.iba-phone #iba-ai-panel .iba-aph-tabs > button.is-mid > b > i { font-size: 28px !important; }
+  }
+  /* Z Flip cover screen: keep it small */
+  @media (max-width: 480px) and (max-height: 560px) {
+    html body.iba-phone #iba-ai-panel .iba-aph-tiles.iba-aph-more { margin-top: 10px !important; padding-bottom: 10px !important; }
+  }
+
+  /* phone pages (Home / Approve): app-like bottom bar, big round Home in the middle */
+  @media (min-height: 701px), (min-width: 601px) and (min-height: 501px), (max-aspect-ratio: 74/100) and (min-height: 501px) {
+    html body.iba-phone #iba-phone .iba-ph-tabs { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)) !important; align-items: end !important; gap: 2px !important;
+      padding: 8px 4px calc(10px + env(safe-area-inset-bottom, 0px)) !important; position: relative !important; z-index: 3 !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button { min-height: 58px !important; padding: 4px 0 !important; gap: 4px !important; background: transparent !important; border-radius: 12px !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button.is-on:not(.is-mid) { color: #fff !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button.is-on:not(.is-mid) .iba-ph-tab-ic { color: #E3C98A !important; }
+    html body.iba-phone #iba-phone .iba-ph-tab-ic { font-size: 24px !important; }
+    html body.iba-phone #iba-phone .iba-ph-tab-label { font-size: 12.5px !important; font-weight: 700 !important; white-space: nowrap !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button.is-mid { color: #fff !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button.is-mid .iba-ph-tab-ic { width: 62px !important; height: 62px !important; margin-top: -32px !important; border-radius: 50% !important; display: grid !important; place-items: center !important;
+      font-size: 28px !important; color: #fff !important; background: linear-gradient(180deg, #E1B44E, #B88A2C) !important; border: 4px solid #0b1724 !important; box-shadow: 0 8px 18px rgba(184, 138, 44, .45) !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button.is-mid:not(.is-on) .iba-ph-tab-ic { filter: saturate(.75) brightness(.9) !important; }
+    html body.iba-phone #iba-phone .iba-ph-tabs > button .iba-ph-badge:not(.dm-unread-badge) { min-width: 22px !important; height: 22px !important; line-height: 22px !important; font-size: 12.5px !important; }
+  }
+  /* bigger text and tap targets on phone pages (not the Z Flip cover screen, not landscape) */
+  @media (min-height: 701px), (min-width: 601px) and (min-height: 501px), (max-aspect-ratio: 74/100) and (min-height: 501px) {
+    html body.iba-phone #iba-phone .iba-ph-mark { width: 46px !important; height: 46px !important; font-size: 13px !important; }
+    html body.iba-phone #iba-phone .iba-ph-who strong { font-size: 17px !important; }
+    html body.iba-phone #iba-phone .iba-ph-who small { font-size: 13px !important; }
+    html body.iba-phone #iba-phone .iba-ph-icon { width: 46px !important; height: 46px !important; font-size: 18px !important; }
+    html body.iba-phone #iba-phone .iba-ph-switch button { min-height: 48px !important; font-size: 15.5px !important; }
+    /* Home */
+    html body.iba-phone #iba-phone .iba-mh { gap: 12px !important; }
+    html body.iba-phone #iba-phone .iba-mh-hi b { font-size: 22px !important; }
+    html body.iba-phone #iba-phone .iba-mh-hi span { font-size: 13.5px !important; color: #E3C98A !important; }
+    html body.iba-phone #iba-phone .iba-mh-apv { min-height: 56px !important; }
+    html body.iba-phone #iba-phone .iba-mh-apv b { font-size: 24px !important; }
+    html body.iba-phone #iba-phone .iba-mh-apv span { font-size: 15.5px !important; }
+    html body.iba-phone #iba-phone .iba-mh-find { height: 54px !important; }
+    html body.iba-phone #iba-phone .iba-mh-find input { font-size: 16px !important; }
+    html body.iba-phone #iba-phone .iba-mh-counts { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    html body.iba-phone #iba-phone .iba-mh-cnt { flex-direction: row !important; justify-content: flex-start !important; gap: 10px !important; min-height: 64px !important; padding: 0 14px !important; }
+    html body.iba-phone #iba-phone .iba-mh-cnt b { font-size: 26px !important; }
+    html body.iba-phone #iba-phone .iba-mh-cnt span { font-size: 14px !important; font-weight: 700 !important; }
+    html body.iba-phone #iba-phone .iba-mh-head b { font-size: 14px !important; color: #E3C98A !important; }
+    html body.iba-phone #iba-phone .iba-mh-head.is-big b { font-size: 19px !important; }
+    html body.iba-phone #iba-phone .iba-mh-head :is(span, button) { font-size: 14px !important; }
+    html body.iba-phone #iba-phone .iba-mh-card { padding: 14px !important; row-gap: 5px !important; border-radius: 16px !important; }
+    html body.iba-phone #iba-phone .iba-mh-po { font-size: 18px !important; }
+    html body.iba-phone #iba-phone .iba-mh-val { font-size: 18px !important; }
+    html body.iba-phone #iba-phone .iba-mh-ven { font-size: 15.5px !important; font-weight: 700 !important; }
+    html body.iba-phone #iba-phone .iba-mh-age { font-size: 13px !important; }
+    html body.iba-phone #iba-phone .iba-mh-chip { font-size: 13px !important; padding: 4px 10px !important; }
+    html body.iba-phone #iba-phone .iba-mh-site, html body.iba-phone #iba-phone .iba-mh-pc { font-size: 13.5px !important; }
+    html body.iba-phone #iba-phone .iba-mh-note { font-size: 14px !important; }
+    html body.iba-phone #iba-phone .iba-mh-back { min-height: 46px !important; font-size: 15.5px !important; }
+    /* Approve lists */
+    html body.iba-phone #iba-phone .iba-ph-title h2 { font-size: 20px !important; }
+    html body.iba-phone #iba-phone .iba-ph-title span { font-size: 14px !important; }
+    html body.iba-phone #iba-phone .iba-ph-urg button { min-height: 50px !important; font-size: 15.5px !important; }
+    html body.iba-phone #iba-phone .iba-ph-urg button b { font-size: 13.5px !important; min-width: 24px !important; }
+    html body.iba-phone #iba-phone .iba-ph-bulk { min-height: 58px !important; padding: 6px 8px 6px 14px !important; gap: 12px !important; }
+    html body.iba-phone #iba-phone .iba-ph-bulk-text { font-size: 16px !important; font-weight: 700 !important; }
+    html body.iba-phone #iba-phone .iba-ph-bulk .iba-ph-btn { min-height: 44px !important; font-size: 14.5px !important; }
+    html body.iba-phone #iba-phone .iba-ph-tick, html body.iba-phone #iba-phone .iba-ph-tick span { width: 30px !important; height: 30px !important; border-radius: 8px !important; }
+    html body.iba-phone #iba-phone .iba-ph-card.is-apv { padding: 14px !important; display: flex !important; flex-direction: column !important; gap: 12px !important; }
+    html body.iba-phone #iba-phone .iba-ph-card.is-apv .iba-ph-chip { font-size: 13px !important; padding: 5px 11px !important; }
+    html body.iba-phone #iba-phone .iba-ph-card.is-apv .iba-ph-note { margin: 0 !important; padding: 10px 12px !important; font-size: 15px !important; }
+    html body.iba-phone #iba-phone .iba-ph-acts .iba-ph-btn { min-height: 50px !important; font-size: 16px !important; font-weight: 800 !important; }
+  }
+  /* room under the last card so the assistant button never sits on Approve */
+  html body.iba-phone #iba-phone .iba-ph-pane.is-on { padding-bottom: 92px !important; }
+  /* invoice card: tick + status, amount right, vendor / PO + INV / site below */
+  html body.iba-phone #iba-phone .iba-ph-top2 { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto !important; column-gap: 12px !important; row-gap: 4px !important; align-items: center !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-card-kicker { margin: 0 !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-amount { grid-column: 3 !important; grid-row: 1 / span 2 !important; align-self: center !important; text-align: right !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-amount strong { font-size: 21px !important; font-weight: 900 !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-amount small { display: block !important; font-size: 12.5px !important; color: #E3C98A !important; font-weight: 700 !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 h3 { grid-column: 1 / 3 !important; margin: 4px 0 0 !important; font-size: 20px !important; line-height: 1.25 !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-ln { grid-column: 1 / -1 !important; font-size: 15px !important; color: #B9C6D3 !important; }
+  html body.iba-phone #iba-phone .iba-ph-top2 .iba-ph-ln i { color: #7FE3D6 !important; margin-right: 2px !important; }
+  html body.iba-phone #iba-phone .iba-ph-acts { display: grid !important; grid-template-columns: 1fr 1fr 1.3fr !important; gap: 8px !important; }
+  html body.iba-phone #iba-phone .iba-ph-acts.is-2 { grid-template-columns: 1fr 1.4fr !important; }
+  html body.iba-phone #iba-phone .iba-ph-acts .iba-ph-btn { width: 100% !important; justify-content: center !important; padding: 0 8px !important; text-decoration: none !important; }
+  html body.iba-phone #iba-phone .iba-ph-btn.is-pdf { border: 1px solid rgba(255, 255, 255, .22) !important; background: rgba(255, 255, 255, .08) !important; color: #E6EDF6 !important; gap: 6px !important; }
+  html body.iba-phone #iba-phone .iba-ph-btn.is-pdf.is-off { opacity: .45 !important; }
+  /* inventory card: requestor + type + big TRF, item, road FROM -> TO, Requested vs Approve */
+  html body.iba-phone #iba-phone .iba-ph-card.is-stk.is-apv { border-color: rgba(227, 201, 138, .45) !important; }
+  html body.iba-phone #iba-phone .iba-ph-top3 { display: flex !important; align-items: center !important; gap: 10px !important; }
+  html body.iba-phone #iba-phone .iba-ph-who2 { display: inline-flex !important; align-items: center !important; gap: 7px !important; min-width: 0 !important; font-size: 16px !important; white-space: nowrap !important; color: #fff !important; }
+  html body.iba-phone #iba-phone .iba-ph-who2 > i { color: #E3C98A !important; }
+  html body.iba-phone #iba-phone .iba-ph-who2 > b { overflow: hidden !important; text-overflow: ellipsis !important; font-weight: 800 !important; }
+  html body.iba-phone #iba-phone .iba-ph-trf { margin-left: auto !important; font: 900 20px ui-monospace, Consolas, monospace !important; color: #9CC7FF !important; white-space: nowrap !important; }
+  html body.iba-phone #iba-phone .iba-ph-item { display: flex !important; align-items: center !important; gap: 12px !important; padding: 10px 12px !important; border-radius: 12px !important; background: rgba(255, 255, 255, .06) !important; }
+  html body.iba-phone #iba-phone .iba-ph-ith { width: 48px !important; height: 48px !important; flex: none !important; border-radius: 10px !important; display: grid !important; place-items: center !important; font-size: 22px !important; color: #E3C98A !important; background: rgba(0, 0, 0, .3) !important; }
+  html body.iba-phone #iba-phone .iba-ph-item > div { display: grid !important; gap: 2px !important; min-width: 0 !important; }
+  html body.iba-phone #iba-phone .iba-ph-item b { font-size: 18px !important; line-height: 1.25 !important; color: #fff !important; }
+  html body.iba-phone #iba-phone .iba-ph-item small { font-size: 14.5px !important; color: #E3C98A !important; font-weight: 600 !important; }
+  html body.iba-phone #iba-phone .iba-ph-route { display: grid !important; grid-template-columns: auto 1fr auto !important; align-items: start !important; gap: 6px !important; padding: 4px 4px 0 !important; }
+  html body.iba-phone #iba-phone .iba-ph-route.is-one { grid-template-columns: auto !important; justify-content: start !important; }
+  html body.iba-phone #iba-phone .iba-ph-end { display: grid !important; justify-items: center !important; gap: 1px !important; min-width: 58px !important; }
+  html body.iba-phone #iba-phone .iba-ph-end > i { width: 14px !important; height: 14px !important; border-radius: 99px !important; background: #E3C98A !important; box-shadow: 0 0 0 4px rgba(227, 201, 138, .2) !important; }
+  html body.iba-phone #iba-phone .iba-ph-end.is-to > i { background: #7FE3D6 !important; box-shadow: 0 0 0 4px rgba(127, 227, 214, .2) !important; }
+  html body.iba-phone #iba-phone .iba-ph-end > small { margin-top: 4px !important; font-size: 11.5px !important; color: #9FB3C2 !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .06em !important; }
+  html body.iba-phone #iba-phone .iba-ph-end > b { font-size: 22px !important; color: #fff !important; }
+  html body.iba-phone #iba-phone .iba-ph-road { position: relative !important; height: 0 !important; margin-top: 6px !important; border-top: 3px dashed rgba(127, 227, 214, .55) !important; }
+  html body.iba-phone #iba-phone .iba-ph-road::after { content: "" !important; position: absolute !important; right: -2px !important; top: -9px !important; border: 7px solid transparent !important; border-left: 10px solid rgba(127, 227, 214, .85) !important; }
+  html body.iba-phone #iba-phone .iba-ph-road > span { position: absolute !important; left: 50% !important; top: -15px !important; transform: translateX(-50%) !important; padding: 0 6px !important; background: #13202F !important; border-radius: 6px !important; }
+  html body.iba-phone #iba-phone .iba-ph-road > span > i { font-size: 20px !important; color: #7FE3D6 !important; }
+  /* 17.0.5 patch 153: Requested | Approve as two even halves, labels on one line, numbers on one line */
+  html body.iba-phone #iba-phone .iba-ph-qty3 { display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; align-items: start !important; column-gap: 12px !important; padding: 12px 12px 12px 14px !important; border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, .12) !important; background: rgba(255, 255, 255, .05) !important; }
+  html body.iba-phone #iba-phone .iba-ph-qty3 :is(small, label) { display: block !important; margin: 0 0 6px !important; font-size: 12px !important; line-height: 16px !important; color: #E3C98A !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .06em !important; text-align: left !important; }
+  html body.iba-phone #iba-phone .iba-ph-req b { display: block !important; font-size: 28px !important; line-height: 44px !important; color: #fff !important; }
+  html body.iba-phone #iba-phone .iba-ph-step { text-align: left !important; }
+  html body.iba-phone #iba-phone .iba-ph-step > div { display: flex !important; align-items: center !important; gap: 6px !important; margin: 0 !important; }
+  html body.iba-phone #iba-phone .iba-ph-sb { width: 44px !important; height: 44px !important; border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, .22) !important; background: rgba(255, 255, 255, .08) !important; color: #fff !important; font-size: 24px !important; font-weight: 800 !important; line-height: 1 !important; padding: 0 !important; touch-action: manipulation !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-in { width: 72px !important; height: 44px !important; padding: 0 4px !important; border-radius: 12px !important; text-align: center !important; font-size: 21px !important; font-weight: 900 !important;
+    border: 1px solid rgba(127, 227, 214, .55) !important; background: rgba(19, 138, 151, .2) !important; color: #fff !important; -moz-appearance: textfield !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-in::-webkit-inner-spin-button, html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-in::-webkit-outer-spin-button { -webkit-appearance: none !important; margin: 0 !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-in.is-bad { border-color: #EF8A7A !important; background: rgba(239, 138, 122, .15) !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-in.is-lower { border-color: #E3C98A !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-hint { display: block !important; margin-top: 6px !important; font-size: 13px !important; color: #E3C98A !important; text-align: center !important; }
+  html body.iba-phone #iba-phone .iba-ph-step .iba-ph-qty-hint:empty { display: none !important; }
+  html body.iba-phone #iba-ai-panel .iba-aph-back { display: inline-flex !important; align-items: center !important; gap: 8px !important; align-self: flex-start !important; min-height: 46px !important; margin: 0 0 10px !important; padding: 0 16px !important; border-radius: 12px !important;
+    border: 1px solid rgba(255, 255, 255, .2) !important; background: rgba(255, 255, 255, .08) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 16px !important; font-weight: 800 !important; cursor: pointer !important; }
+  html body:not(.iba-phone) #iba-ai-panel .iba-aph-back { display: none !important; }
 }

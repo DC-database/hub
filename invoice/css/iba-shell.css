@@ -17,7 +17,7 @@ html body:not(.iba-shell-on),
 html body.login-background:not(.iba-shell-on) {
   min-height: 100vh !important;
   background-color: #0b1220 !important;
-  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/d.jpg")) !important;
+  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/D-Beach-1.jpg")) !important;
   background-size: cover !important;
   background-position: center center !important;
   background-repeat: no-repeat !important;
@@ -29,7 +29,7 @@ html body:not(.iba-shell-on) #iba-bg-layer {
   inset: 0 !important;
   z-index: 0 !important;
   background-color: #0b1220 !important;
-  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/d.jpg")) !important;
+  background-image: var(--iba-login-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/D-Beach-1.jpg")) !important;
   background-size: cover !important;
   background-position: center center !important;
   background-repeat: no-repeat !important;
@@ -45,7 +45,7 @@ html body:not(.iba-shell-on) #login-view .form-container {
 html body.iba-shell-on,
 html body.iba-shell-on #iba-bg-layer {
   background-color: #0b1220 !important;
-  background-image: var(--iba-shell-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/a.jpg")) !important;
+  background-image: var(--iba-shell-bg, url("https://raw.githubusercontent.com/DC-database/hub/main/photo/D-Road.jpg")) !important;
   background-size: cover !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
