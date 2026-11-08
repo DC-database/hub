@@ -51,17 +51,26 @@
         transitCache = { at: Date.now(), list: list };
         return list;
     }
+    // p176: the paper barcode drops "/" (Code128 of "ABC123DEF456/IRWIN" reads
+    // "ABC123DEF456IRWIN"); with no ESN it is the control no. + "/APP".
     function matches(t, code) {
-        const k = key(code), b = esnBase(code);
+        const k = key(code);
         if (!k) return false;
         const c = key(ctrlOf(t));
-        if (c && (c === k || c.replace(/^[A-Z]+/, '') === k.replace(/^[A-Z]+/, '') && /\d/.test(k))) return true;
-        return !!t.esn && esnBase(t.esn) === b && b.length >= 6;
+        if (c) {
+            if (c === k || c + 'APP' === k) return true;
+            const kd = k.replace(/APP$/, '');
+            const cn = c.replace(/^[A-Z]+/, ''), kn = kd.replace(/^[A-Z]+/, '');
+            if (/^\d+$/.test(kn) && /^\d+$/.test(cn) && Number(cn) === Number(kn)) return true;
+        }
+        if (!t.esn) return false;
+        const e = key(t.esn), eb = esnBase(t.esn);
+        return e === k || (eb.length >= 8 && (k === eb || k.indexOf(eb) === 0));
     }
     // older, already finished transfer: one small indexed read by control number
     async function lookupDone(code) {
         const d = db();
-        const raw = String(code || '').trim().toUpperCase();
+        const raw = String(code || '').trim().toUpperCase().replace(/\/?APP$/, '');
         const tries = [raw];
         const m = raw.match(/^([A-Z]+)[\s-]*(\d+)$/);
         if (m) tries.push(m[1] + '-' + m[2]);
