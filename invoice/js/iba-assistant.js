@@ -294,7 +294,7 @@
     // reports, downloads) is on the computer.
     // 15.0.0 patch 27: invoices by PO or vendor only (no search by status)
     const PHONE_ALLOW = ['track_invoices', 'invoice_activity', 'find_po', 'track_transfer', 'find_transfers', 'find_person'];
-    const PHONE_TPL = ['inv_status', 'transfer', 'person'];
+    const PHONE_TPL = ['inv_status', 'transfer', 'person', 'receive_delivery'];
     function phoneOk(name) { return !onPhone() || PHONE_ALLOW.indexOf(name) !== -1; }
     const PHONE_NO = 'On the phone the assistant searches, tracks, reminds and messages (and shows Now brief). Batch Entry, new invoices, reports and downloads are on the computer.';
     function allowed() {
@@ -3487,6 +3487,9 @@
         inv_status: { name: 'Where is my invoice?', icon: 'fa-magnifying-glass-location', desc: 'Type the PO number or the vendor name. Each invoice says in plain words where it is now, who has it, for how long and what comes next, with a Remind button. No AI used.',
             ask: () => [{ key: 'q', label: 'PO number or vendor name', placeholder: 'e.g. 66176 or Al Noor' }],
             build: (v) => /^\s*(po)?[\s#:-]*\d+\s*$/i.test(v.q) ? [{ tool: 'track_invoices', args: { po: v.q.replace(/\D+/g, '') } }] : [{ tool: 'track_invoices', args: { vendor: v.q } }] },
+        // 17.0.5 patch 175: phones and tablets only (touch screen)
+        receive_delivery: { name: 'Receive delivery', icon: 'fa-barcode', desc: 'Scan the barcode on the transfer paper (or type the TRF number), tick what arrived and confirm. Only what arrived goes into your site stock. Phones and tablets only.',
+            check: () => !!(window.ibaReceive && window.ibaReceive.available()), ask: () => [], action: () => window.ibaReceive.open() },
         transfer: { name: 'Find a transfer', icon: 'fa-truck-ramp-box', desc: 'Asks for a transfer number, vehicle or item, then shows who must act next.',
             ask: () => [{ key: 'q', label: 'Transfer no., vehicle or item', placeholder: 'e.g. TRF-0361, 36588, wheel loader' }],
             build: (v) => looksTransfer(v.q) ? [{ tool: 'track_transfer', args: { control: v.q } }] : [{ tool: 'find_transfers', args: { text: v.q } }] },
@@ -6663,7 +6666,7 @@
     // 15.0.0 patch 27: skills as tap tiles (like the phone home):
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
-        inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
+        inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
@@ -6673,7 +6676,7 @@
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
         ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month', 'notes_to_acc']],
-        ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
+        ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
         ['Admin tools', ['handover', 'dbcheck']]
@@ -7000,6 +7003,7 @@
             '<button type="button" class="is-c1" data-ai="brief" title="Now brief: your tasks and reminders"><i><span class="fa-solid fa-sun"></span></i><b>Brief</b></button>' +
             '<button type="button" class="is-c3" data-run-tpl="transfer" title="Find a transfer: who must act next"><i><span class="fa-solid fa-truck-ramp-box"></span></i><b>Transfer</b></button>' +
             '<button type="button" class="is-c4" data-run-tpl="person" title="Find a colleague: call, WhatsApp, email"><i><span class="fa-solid fa-id-badge"></span></i><b>Colleague</b></button>' +
+            (window.ibaReceive && window.ibaReceive.available() ? '<button type="button" class="is-c2" data-run-tpl="receive_delivery" title="Receive delivery: scan the transfer paper"><i><span class="fa-solid fa-barcode"></span></i><b>Receive</b></button>' : '') +
             '<button type="button" class="is-c5" data-ai="skills" title="Every skill you can use"><i><span class="fa-solid fa-table-cells-large"></span></i><b>All skills</b></button>';
         l.appendChild(d);
     }

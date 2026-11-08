@@ -192,6 +192,7 @@
             const id = b.getAttribute('data-tab');
             if (id === 'messages') { openMessages(); return; }
             if (id === 'logout') { logout(); return; }
+            if (id === 'receive') { if (window.ibaReceive) window.ibaReceive.open(); return; }
             // 17.0.5 patch 151: Home is always My tasks (invoice side)
             if (id === 'home' && state.side !== 'invoice') { state.tab = 'home'; setSide('invoice'); return; }
             setTab(id);
@@ -237,6 +238,8 @@
         }
         const t = [];
         if (mayApproveInventory()) t.push({ id: 'approve', icon: 'fa-clipboard-check', label: 'Approve', count: state.stk.list.length });
+        // 17.0.5 patch 175: Receive a delivery by scan (js/iba-1705-receive.js)
+        if (window.ibaReceive) t.push({ id: 'receive', icon: 'fa-barcode', label: 'Receive' });
         t.push({ id: 'search', icon: 'fa-magnifying-glass', label: 'Item search' });
         return t;
     }
@@ -244,8 +247,9 @@
     // 17.0.5 patch 151: app-like bottom bar. Big round Home (= My tasks) in
     // the middle, the side's own tabs on the left, Messages + Logout right.
     function paintTabs() {
-        const left = tabsFor(state.side).filter(t => t.id !== 'home').slice(0, 2);
+        const left = tabsFor(state.side).filter(t => t.id !== 'home').slice(0, 3);
         while (left.length < 2) left.push(null);
+        try { $('iba-ph-tabs').classList.toggle('is-six', left.length > 2); } catch (_) {}
         const homeOn = state.side === 'invoice' && state.tab === 'home';
         const tabs = left.concat([
             { id: 'home', icon: 'fa-house', label: 'Home', mid: true },

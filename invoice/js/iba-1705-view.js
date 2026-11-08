@@ -38,7 +38,7 @@
     function paint() {
         // phone screen: the desktop icon (tablets only)
         document.querySelectorAll('[data-iba-view="desktop"]').forEach((b) => {
-            const show = isTablet() && !window.IBA_FORCE_DESKTOP;
+            const show = !window.IBA_TABLET_DESKTOP_OFF && isTablet() && !window.IBA_FORCE_DESKTOP; // p175: off
             if (b.hidden === show) b.hidden = !show;
         });
         // desktop view on a tablet: a way back to the phone screen
