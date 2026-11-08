@@ -1832,6 +1832,7 @@ function wdAccessLabel() {
 
 function wdFormatDashboardDate(value) {
     if (!value) return '';
+    if (typeof window.ibaDay === 'function') return window.ibaDay(value); // 17.0.5 p157: 07-Nov-26
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return wdText(value);
     return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });

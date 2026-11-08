@@ -13,6 +13,7 @@
 // --- DATE FORMATTER ---
 function formatToDDMMMYY(dateStr) {
     if (!dateStr) return '---';
+    if (typeof window.ibaDay === 'function') return window.ibaDay(dateStr); // 17.0.5 p157
     const d = new Date(normalizeDateForInput(dateStr) + 'T00:00:00');
     if (isNaN(d)) return dateStr;
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

@@ -20,7 +20,7 @@
     const STEPS = ['Received', 'Entered', 'SRV', 'Approval', 'With Accounts', 'Paid'];
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const norm = (v) => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
-    const st = { view: 'home', list: '', inv: null, find: null, q: '', busy: false, back: [] };
+    const st = { view: 'home', list: '', status: '', inv: null, find: null, q: '', busy: false, back: [] };
     let pane = null;
 
     function me() { try { return (typeof currentApprover !== 'undefined' && currentApprover) || null; } catch (_) { return null; } }
@@ -33,6 +33,7 @@
     }
     function shortDate(v) {
         if (!v) return '';
+        if (typeof window.ibaDay === 'function') return window.ibaDay(v); // 17.0.5 p157
         if (window.ibaIeUi && typeof window.ibaIeUi.shortDate === 'function') { try { return window.ibaIeUi.shortDate(v); } catch (_) {} }
         const d = new Date(typeof v === 'number' ? v : String(v));
         return isNaN(d) ? String(v) : String(d.getDate()).padStart(2, '0') + '-' + MON[d.getMonth()] + '-' + String(d.getFullYear()).slice(2);
@@ -136,10 +137,31 @@
         h += '<div class="iba-mh-found" id="iba-mh-found">' + foundHtml() + '</div>';
         h += '<div class="iba-mh-counts">' +
             cnt('task', c.task, 'Active task') + cnt('job', c.job, 'Active job') + cnt('ret', c.ret, 'Returned') + cnt('acc', c.acc, 'Accounts') + '</div>';
-        h += '<div class="iba-mh-head"><b>My tasks</b>' + (t.length > 4 ? '<button type="button" data-mh-list="task">See all ' + t.length + '</button>' : '') + '</div>';
-        h += t.length ? '<div class="iba-mh-cards">' + t.slice(0, 4).map((x, i) => taskCard(x, i, 'task')).join('') + '</div>' : empty('No tasks for you right now.');
+        h += '<div class="iba-mh-head"><b>My tasks</b>' + (t.length ? '<span>' + t.length + '</span>' : '') + '</div>';
+        h += t.length ? groupsHtml(t) : empty('No tasks for you right now.');
         h += '<p class="iba-mh-note">Tasks are done on the PC. Here you can see them, open the invoice and ask.</p>';
         return h;
+    }
+    // 17.0.5 patch 158: My tasks grouped by status (martin). Groups in order of
+    // their newest task; one task = just the card, more = first 2 + "See all".
+    function groupsHtml(t) {
+        const groups = [];
+        const byKey = {};
+        t.forEach((x, i) => {
+            const label = String(x.status || 'Other').trim() || 'Other';
+            const k = norm(label);
+            if (!byKey[k]) { byKey[k] = { label: label, items: [] }; groups.push(byKey[k]); }
+            byKey[k].items.push([x, i]);
+        });
+        return '<div class="iba-mh-groups">' + groups.map((g) => {
+            const n = g.items.length;
+            const attr = ' data-mh-list="task" data-mh-status="' + esc(g.label) + '"';
+            return '<div class="iba-mh-grp is-' + tone(g.label) + '">' +
+                '<button type="button" class="iba-mh-gh"' + (n > 2 ? attr : ' tabindex="-1"') + '><i class="iba-mh-dot"></i><b>' + esc(g.label) + '</b><span class="iba-mh-gn">' + n + '</span>' + (n > 2 ? '<i class="fa-solid fa-chevron-right"></i>' : '') + '</button>' +
+                g.items.slice(0, 2).map((p) => taskCard(p[0], p[1], 'task')).join('') +
+                (n > 2 ? '<button type="button" class="iba-mh-more"' + attr + '>See all ' + n + ' ' + esc(g.label) + ' <i class="fa-solid fa-chevron-right"></i></button>' : '') +
+                '</div>';
+        }).join('') + '</div>';
     }
     function cnt(k, n, label) {
         return '<button type="button" class="iba-mh-cnt is-' + k + '" data-mh-list="' + k + '"><b>' + n + '</b><span>' + esc(label) + '</span></button>';
@@ -152,10 +174,12 @@
     };
     function listHtml(k) {
         const L = LISTS[k];
-        const l = L.get();
-        return back('Home') + '<div class="iba-mh-head is-big"><b>' + esc(L.title) + '</b><span>' + l.length + '</span></div>' +
+        const all = L.get();
+        const f = k === 'task' && st.status ? norm(st.status) : '';
+        const l = all.map((x, i) => [x, i]).filter((p) => !f || norm(String(p[0].status || 'Other').trim() || 'Other') === f);
+        return back('Home') + '<div class="iba-mh-head is-big"><b>' + esc(f ? st.status : L.title) + '</b><span>' + l.length + '</span></div>' +
             '<p class="iba-mh-note is-top">' + esc(L.note) + '</p>' +
-            (l.length ? '<div class="iba-mh-cards">' + l.map(L.card).join('') + '</div>' : empty(L.none));
+            (l.length ? '<div class="iba-mh-cards">' + l.map((p) => L.card(p[0], p[1])).join('') + '</div>' : empty(L.none));
     }
     function foundHtml() {
         const f = st.find;
@@ -389,14 +413,14 @@
     function onClick(e) {
         const t = e.target;
         let b;
-        if ((b = t.closest('[data-mh-back]'))) { const prev = st.back.pop() || { view: 'home' }; st.view = prev.view; st.list = prev.list || ''; if (st.view !== 'inv') st.inv = null; paint(); return; }
+        if ((b = t.closest('[data-mh-back]'))) { const prev = st.back.pop() || { view: 'home' }; st.view = prev.view; st.list = prev.list || ''; if (st.view === 'home') st.status = ''; if (st.view !== 'inv') st.inv = null; paint(); return; }
         if ((b = t.closest('[data-mh-go]'))) {
             const g = b.getAttribute('data-mh-go');
             if (g === 'approve' && P()) P().setTab('approve');
             if (g === 'inventory' && P()) { P().setSide('inventory'); P().setTab('approve'); }
             return;
         }
-        if ((b = t.closest('[data-mh-list]'))) { st.back = [{ view: 'home' }]; st.view = 'list'; st.list = b.getAttribute('data-mh-list'); paint(); return; }
+        if ((b = t.closest('[data-mh-list]'))) { st.back = [{ view: 'home' }]; st.view = 'list'; st.list = b.getAttribute('data-mh-list'); st.status = b.getAttribute('data-mh-status') || ''; paint(); return; }
         if ((b = t.closest('[data-mh-open]'))) { const x = b.getAttribute('data-mh-open').split(':'); openFrom(x[0], Number(x[1])); return; }
         if ((b = t.closest('[data-mh-found]'))) {
             const x = b.getAttribute('data-mh-found').split(':').map(Number);

@@ -299,6 +299,7 @@
     function setSide(side) {
         if (!sides().includes(side)) side = sides()[0];
         state.side = side;
+        try { const rt = $('iba-phone'); if (rt) rt.setAttribute('data-side', side); } catch (_) {} // p159: yellow / pink family
         paintPhoneBg();
         try {
             window.__ibaActiveModule = side === 'inventory' ? 'inventory' : 'invoice';
@@ -558,8 +559,9 @@
         const btn = document.querySelector(`#iba-phone [data-act="${kind}-approve-selected"]`);
         const txt = document.querySelector(`#iba-phone [data-bulk-count="${kind}"]`);
         const allBox = document.querySelector(`#iba-phone .iba-ph-all[data-kind="${kind}"]`);
-        if (btn) { btn.disabled = sel.length === 0; btn.innerHTML = `<i class="fa-solid fa-check-double"></i> Approve${sel.length ? ' ' + sel.length : ''} selected`; }
-        if (txt) txt.textContent = sel.length ? `${sel.length} selected` : 'Select all';
+        // 17.0.5 patch 159: short "Approve" button + a counter next to Select all
+        if (btn) { btn.disabled = sel.length === 0; btn.innerHTML = `<i class="fa-solid fa-check-double"></i> Approve${sel.length ? ' ' + sel.length : ''}`; }
+        if (txt) txt.innerHTML = sel.length ? `Selected <span class="iba-ph-bcnt">${sel.length}</span>` : `Select all <span class="iba-ph-bcnt">${all.length}</span>`;
         if (allBox) allBox.checked = all.length > 0 && sel.length === all.length;
         document.querySelectorAll(`#iba-phone .iba-ph-sel[data-kind="${kind}"]`).forEach(c => {
             const card = c.closest('.iba-ph-card');
@@ -714,7 +716,11 @@
         const end = (cls, label, v) => `<div class="iba-ph-end ${cls}"><i></i><small>${label}</small><b>${esc(v || '—')}</b></div>`;
         if (type === 'Usage') return `<div class="iba-ph-route is-one">${end('is-from', 'Used at', from)}</div>`;
         if (type === 'Restock') return `<div class="iba-ph-route is-one">${end('is-to', 'Into', to)}</div>`;
-        return `<div class="iba-ph-route">${end('is-from', 'From', from)}<div class="iba-ph-road"><span><i class="fa-solid fa-truck"></i></span></div>${end('is-to', 'To', to)}</div>`;
+        // 17.0.5 patch 159 (martin's tracker look): ticked dot, dashes to the truck, grey dashes to the destination
+        const when = (typeof window.ibaDay === 'function' && (t.timestamp || t.date)) ? window.ibaDay(t.timestamp || t.date) : '';
+        const site = (v) => esc(/^\s*site\b/i.test(String(v || '')) ? v : 'Site ' + (v || '—'));
+        return `<div class="iba-ph-trk"><div class="iba-ph-trk-line"><span class="iba-ph-trk-dot is-a"><i class="fa-solid fa-check"></i></span><span class="iba-ph-trk-dash"></span><span class="iba-ph-trk-truck"><i class="fa-solid fa-truck"></i></span><span class="iba-ph-trk-dash is-b"></span><span class="iba-ph-trk-dot is-b"></span></div>` +
+            `<div class="iba-ph-trk-ends"><div><small>${when ? 'Requested ' + esc(when) : 'Requested'}</small><b>${site(from)}</b></div><div><small>Waiting your approval</small><b>${site(to)}</b></div></div></div>`;
     }
 
     function stkCard(t) {
@@ -734,9 +740,9 @@
             <div class="iba-ph-qty3">
               <div class="iba-ph-req"><small>Requested</small><b>${esc(qtyText(req))}</b></div>
               <div class="iba-ph-step"><label for="iba-ph-qty-${esc(t.key)}">Approve</label>
-                <div><button type="button" class="iba-ph-sb" data-act="stk-minus" data-key="${esc(t.key)}" aria-label="Less">−</button>
+                <div><button type="button" class="iba-ph-sb" data-act="stk-minus" data-key="${esc(t.key)}" aria-label="Less"><i class="fa-solid fa-chevron-down"></i></button>
                 <input type="number" inputmode="decimal" min="0" step="any" max="${esc(req)}" id="iba-ph-qty-${esc(t.key)}" class="iba-ph-qty-in" data-key="${esc(t.key)}" value="${esc(req)}">
-                <button type="button" class="iba-ph-sb" data-act="stk-plus" data-key="${esc(t.key)}" aria-label="More">+</button></div>
+                <button type="button" class="iba-ph-sb" data-act="stk-plus" data-key="${esc(t.key)}" aria-label="More"><i class="fa-solid fa-chevron-up"></i></button></div>
                 <span class="iba-ph-qty-hint" data-qty-hint="${esc(t.key)}"></span></div>
             </div>
             <div class="iba-ph-acts is-2">
@@ -822,7 +828,7 @@
             return;
         }
         const one = plan.length === 1;
-        const body = `<ul class="iba-ph-plain">${plan.map(p => `<li><strong>${esc(p.t.productName)}</strong> · ${esc(p.t.for || p.t.jobType)} · ${esc(qtyText(p.q))}${p.q < p.req ? ` <em>(lowered from ${esc(qtyText(p.req))})</em>` : ''}</li>`).join('')}</ul>`;
+        const body = `<ul class="iba-ph-plain">${plan.map(p => `<li><strong>${esc(p.t.productName)}</strong> · ${esc(p.t.for || p.t.jobType)} · ${esc(qtyText(p.q))}</li>`).join('')}</ul>`;
         const r = await sheet({ title: one ? 'Approve this request?' : `Approve ${plan.length} requests?`, body, okLabel: 'Approve', placeholder: 'Note (optional)' });
         if (!r.ok) return;
         const done = [];
@@ -1005,7 +1011,8 @@
         const bad = !(v > 0) || v > req;
         t.classList.toggle('is-bad', bad);
         t.classList.toggle('is-lower', !bad && v < req);
-        if (hint) hint.textContent = bad ? (v > req ? `max ${qtyText(req)}` : 'above 0') : (v < req ? `lowered from ${qtyText(req)}` : '');
+        if (hint) { try { hint.style.setProperty('color', '#FF8A8A', 'important'); } catch (_) {} }
+        if (hint) hint.textContent = bad ? (v > req ? `max ${qtyText(req)}` : 'above 0') : '' /* p160: no "lowered from" (martin) */;
     }
 
     // ------------------------------------------------------------------

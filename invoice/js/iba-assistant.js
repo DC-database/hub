@@ -160,6 +160,7 @@
     function addDays(d, n) { return new Date(d.getTime() + n * 86400000); }
     function dayOfISO(v) {
         if (v === null || v === undefined || v === '') return '';
+        if (typeof window.ibaDayISO === 'function') { const iso = window.ibaDayISO(v); if (iso) return iso; } // 17.0.5 p157: day-first dates
         if (typeof v === 'number' || /^\d{10,}$/.test(String(v))) { const q = qatarParts(new Date(Number(v))); return q.y + '-' + q.m + '-' + q.d; }
         const s0 = String(v).trim();
         let m = s0.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -217,6 +218,7 @@
     function inRange(day, rg) { return !!day && (!rg || (day >= rg.from && day <= rg.to)); }
     function fmtDate(v) {
         if (!v) return '';
+        if (typeof window.ibaDay === 'function') return window.ibaDay(v); // 17.0.5 p157: always 07-Nov-26
         const t = typeof v === 'number' ? v : Date.parse(v);
         if (!Number.isFinite(t)) return String(v);
         const q = qatarParts(new Date(t));
@@ -698,7 +700,7 @@
                 vendor: src.vendorName || r.vendorName || rec['Supplier Name'] || '', site: src.site || r.site || rec['Project ID'] || '',
                 value: acc.amounts && value ? value : 0, status: status, with: String(src.attention || r.attention || '').trim(),
                 at: at, days: at ? daysSince(at) : null, sent_by: sentBy || String(src.enteredBy || r.enteredBy || ''),
-                note: String(src.note || ''), urgent: isUrgentT(src), invoice_date: src.invoiceDate || r.invoiceDate || '',
+                note: String(src.note || ''), urgent: isUrgentT(src), invoice_date: fmtDate(src.invoiceDate || r.invoiceDate || ''),
                 details: String((inv && inv.details) || ''),
                 pdf: invPdfUrl(src), srv: inv ? srvPdfUrl(inv) : '', approvals: Number((inv && inv.approvalCount) || 0)
             });
@@ -2901,7 +2903,7 @@
                 const at = reached(inv, norm(st));
                 if (win && (!at || at < win.from || at > win.to)) return;
                 rows.push({ po: po, key: k, invoice_no: String(inv.invNumber || '').trim(), entry: String(inv.invEntryID || '').trim(), vendor: vendor, site: site,
-                    invoice_date: inv.invoiceDate || '', value: num(inv.invValue), paid: num(inv.amountPaid), status: st, since: at ? fmtDate(at) + ' ' + fmtClock(at) : '',
+                    invoice_date: fmtDate(inv.invoiceDate || ''), value: num(inv.invValue), paid: num(inv.amountPaid), status: st, since: at ? fmtDate(at) + ' ' + fmtClock(at) : '',
                     days: at ? Math.max(0, Math.floor((Date.now() - at) / 86400000)) : '', attention: String(inv.attention || '').trim(), entered_by: String(inv.enteredBy || '').trim(),
                     release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0, file: fileNameFor(inv, st) });
             });
@@ -3179,13 +3181,36 @@
         }
         return Array.isArray(s) ? s : [];
     }
-    function saveSkills(list) { lsSet(skillsKey(), list); syncSkillsUp(list); }
+    function saveSkills(list) { list = dropGone(list, goneMarks()); lsSet(skillsKey(), list); syncSkillsUp(list); }
     function skillsRef() {
         try {
             if (typeof db === 'undefined' || !db || !db.ref) return null;
             const key = String(myName() || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
             return key ? db.ref('iba_assistant/' + key + '/skills') : null;
         } catch (_) { return null; }
+    }
+    // 17.0.5 patch 156: deleted skills kept coming back. The sign-in sync only
+    // ADDED skills from the cloud copy, so a device (or a page opened before
+    // the delete) that still had the old list pushed it up again on its next
+    // save. Now a delete leaves a "gone" mark (name -> time) locally and in
+    // iba_assistant/<user>/skills_gone; any copy older than the mark is dropped
+    // everywhere. Saving a skill again with the same name revives it.
+    function goneKey() { return skillsKey() + ':gone'; }
+    function goneMarks() { const g = lsGet(goneKey(), null); return g && typeof g === 'object' && !Array.isArray(g) ? g : {}; }
+    function goneRef() {
+        try {
+            if (typeof db === 'undefined' || !db || !db.ref) return null;
+            const key = String(myName() || '').replace(/[.#$[\]\/\\]/g, '_').replace(/\s+/g, '_');
+            return key ? db.ref('iba_assistant/' + key + '/skills_gone') : null;
+        } catch (_) { return null; }
+    }
+    function dropGone(list, gone) { return list.filter((s) => s && s.name && !((gone[norm(s.name)] || 0) >= (s.at || 0))); }
+    function markGone(name) {
+        const g = goneMarks();
+        g[norm(name)] = Date.now();
+        lsSet(goneKey(), g);
+        const r = goneRef();
+        if (r && r.child) { try { r.child(String(norm(name)).replace(/[.#$[\]\/\\]/g, '_') || 'x').set({ n: norm(name), t: g[norm(name)] }).catch(() => {}); } catch (_) {} }
     }
     function syncSkillsUp(list) {
         const ref = skillsRef();
@@ -3198,14 +3223,30 @@
         skillsPulled = true;
         const ref = skillsRef();
         if (!ref) return;
+        const gr = goneRef();
         try {
-            withTimeout(ref.once('value'), 8000, 'skills').then((snap) => {
-                const remote = snap && snap.val();
-                if (!Array.isArray(remote)) return;
+            Promise.all([
+                withTimeout(ref.once('value'), 8000, 'skills'),
+                gr ? withTimeout(gr.once('value'), 8000, 'skills gone').catch(() => null) : Promise.resolve(null)
+            ]).then(([snap, gsnap]) => {
+                const gone = goneMarks();
+                const rg = gsnap && gsnap.val();
+                if (rg && typeof rg === 'object') Object.values(rg).forEach((m) => { if (m && m.n && (m.t || 0) > (gone[m.n] || 0)) gone[m.n] = m.t; });
+                lsSet(goneKey(), gone);
+                const raw = snap && snap.val();
+                const remote = Array.isArray(raw) ? raw : [];
                 const local = skills();
-                const byName = new Map(local.map((s) => [norm(s.name), s]));
-                remote.forEach((s) => { if (s && s.name && !byName.has(norm(s.name))) byName.set(norm(s.name), s); });
-                lsSet(skillsKey(), Array.from(byName.values()));
+                const byName = new Map();
+                local.concat(remote).forEach((s) => {
+                    if (!s || !s.name) return;
+                    const k = norm(s.name);
+                    const have = byName.get(k);
+                    if (!have || (s.at || 0) > (have.at || 0)) byName.set(k, s);
+                });
+                const merged = dropGone(Array.from(byName.values()), gone).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 40);
+                lsSet(skillsKey(), merged);
+                const names = (l) => l.filter((s) => s && s.name).map((s) => norm(s.name)).sort().join('|');
+                if (names(merged) !== names(remote)) syncSkillsUp(merged);
                 if (state.view === 'skills') renderSkills();
             }).catch(() => {});
         } catch (_) {}
@@ -3442,6 +3483,9 @@
         // 17.0.5 patch 99: one month of With Accounts invoices -> Payments list (js/iba-1705-paymonth.js)
         pay_month: { name: 'Month to Payments', icon: 'fa-calendar-check', desc: 'Pick a month and year: every invoice still With Accounts whose With Accounts date is in that month goes into the Payments list, ready to mark Paid. Only for people who can open Payments. No AI used.',
             check: () => !!(window.ibaPayMonth && window.ibaPayMonth.allowed()), ask: () => [], action: () => { if (window.ibaPayMonth) window.ibaPayMonth.open(); } },
+        // 17.0.5 patch 155: CEO approved Summary Notes -> Batch Entry as With Accounts + SRV name (js/iba-1705-n2a.js)
+        notes_to_acc: { name: 'Notes to Accounts', icon: 'fa-file-export', superOnly: true, desc: 'Tick the Summary Notes the CEO approved: every invoice under them goes into Batch Entry as With Accounts with the note\'s SRV name (first 23 letters of the vendor + today). Invoices that already have an SRV name or are not CEO Approval are highlighted. Copy or download one row per SRV name to rename the scans. Nothing is saved until you press Save. No AI used.',
+            check: () => !!(window.ibaNotesToAcc && window.ibaNotesToAcc.allowed()), ask: () => [], action: () => { if (window.ibaNotesToAcc) window.ibaNotesToAcc.open(); } },
         // 17.0.3 patch 10: today's invoices of some statuses -> Batch Entry
         today_batch: { name: 'Today to Batch', icon: 'fa-calendar-day', superOnly: true, desc: 'Every invoice that got the picked status today (Qatar time) goes into Batch Entry: Under Review, With Accounts, For Approval, CEO Approval, or all four. Up to 100 at a time. Nothing is saved until you press Save. No AI used.',
             ask: () => [{ key: 'st', label: 'Status today', type: 'select', options: [
@@ -4470,6 +4514,7 @@
         if (b.dataset.runSkill) return runSkill(b.dataset.runSkill);
         if (b.dataset.delSkill) {
             if (!confirm('Delete the skill "' + b.dataset.delSkill + '"?')) return;
+            markGone(b.dataset.delSkill);
             saveSkills(skills().filter((s) => norm(s.name) !== norm(b.dataset.delSkill)));
             return renderSkills();
         }
@@ -5958,7 +6003,11 @@
     function trkUrgBadge() { return '<span class="iba-ai-urg-badge"><i class="fa-solid fa-bolt"></i> URGENT</span>'; }
     // 17.0.5 patch 117: plain row (martin's sample): invoice no. | value,
     // status (+ who has it) | the day it got there. No icon, no "N days ago".
-    function trkShortDate(v) { return String(v || '').replace(/^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*[ -]\d{2}(\d{2})$/, (m, d, mo, y) => d.padStart(2, '0') + '-' + mo + '-' + y); }
+    function trkShortDate(v) {
+        const s = String(v || '').trim();
+        const m = s.match(/^(\S+(?:\s+[A-Za-z]{3,9}\.?\s+\d{4})?)(\s+\d{1,2}:\d{2}.*)?$/);
+        if (typeof window.ibaDay === 'function' && m) { const d = window.ibaDay(m[1]); if (d !== m[1]) return d + (m[2] || ''); }
+        return s.replace(/^(\d{1,2})[ -]([A-Za-z]{3})[A-Za-z]*[ -]\d{2}(\d{2})$/, (m, d, mo, y) => d.padStart(2, '0') + '-' + mo + '-' + y); }
     function trkRowHtml(it, pi, ii) {
         const ps = plainStatus(it), tone = trkTone(it, ps);
         const s = norm(it.status);
@@ -6580,7 +6629,7 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -6588,7 +6637,7 @@
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     const SKILL_GROUPS = [
-        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month']],
+        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month', 'notes_to_acc']],
         ['Find and track', ['inv_status', 'transfer', 'person', 'site_team']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],

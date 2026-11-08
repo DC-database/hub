@@ -51,6 +51,7 @@
     function shortDate(v) {
         const t = String(v || '').trim();
         if (!t) return '';
+        if (typeof window.ibaDay === 'function') return window.ibaDay(t); // 17.0.5 p157
         let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
         if (m) return m[3].padStart(2, '0') + '-' + MON[Number(m[2]) - 1] + '-' + m[1].slice(2);
         m = t.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3})[A-Za-z]*[-\/ ](\d{2,4})/);
