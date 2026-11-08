@@ -1171,7 +1171,9 @@
     paint();
     // on the Settings page: refresh the list from GitHub (new photos appear
     // without a code change)
-    if (askGitHub) loadPhotoList(false).then(paint);
+    // 17.0.5 patch 174: opening Settings always asks GitHub again (a photo just uploaded shows
+    // within a minute instead of after the 6-hour saved list); one small call per Settings visit
+    if (askGitHub) loadPhotoList(true).then(paint);
   }
 
   // Backgrounds are shared through Firebase like the Opening choice, so the
