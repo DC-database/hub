@@ -1,3 +1,43 @@
+17.0.5 patch 161 (08-Nov-2026)
+- Phone inventory approve: the confirm pop-up after Approve no longer says "(lowered from X)" either. No "lowered from" anywhere now.
+Files: index.html, js/iba-phone.js
+
+17.0.5 patch 160 (08-Nov-2026)
+- Phone inventory approve: no more "lowered from X" text; the numbers stay in line when you change the amount. Only a real problem shows (e.g. "max 50"), small and red in the top-right corner of the box, without moving anything.
+Files: index.html, css/iba-1705-fit.css, js/iba-phone.js
+
+17.0.5 patch 159 (08-Nov-2026)
+- Phone approve redesign as agreed in the sample (https://claude.ai/artifact/WCDTmY1JfkFiKpYETjTUGE), phone only:
+  * Colour family by side (#iba-phone[data-side]): Invoice = yellow text/Approve buttons, Inventory = pink; white text stays white.
+  * Invoice/Inventory and Urgent/Normal = one dark pill each; picked side gets a yellow or pink pill.
+  * Top bar without a card: IBA | thick coloured line | name, sound + refresh without boxes, one long line under it, soft dark shade behind for white photos.
+  * Approve pages: no title bar; Select all with a counter; smaller "Approve" bulk button.
+  * Inventory card: item box with thin border; road like a delivery tracker (Requested date / Site from, truck, Waiting your approval / Site to); Requested + Approve side by side, big numbers, Approve in pink with up/down arrows on the right (taller, spaced apart).
+  * Reject = red text + red border. Bottom bar icons + Home circle in Claude orange. Assistant robot 20% smaller and faded until touched.
+Files: index.html, css/iba-1705-fit.css, js/iba-phone.js
+
+17.0.5 patch 158 (08-Nov-2026)
+- Phone readable on any background photo (as in the agreed sample): every phone panel, card, title and button group sits on the same see-through dark glass (light frost) with a soft text shadow; name bar + Invoice/Inventory switch = one glass panel, switch 50 px. Covers Home, Approve (invoice + inventory), Records, Item search. Phone only (body.iba-phone).
+- Phone Home "My tasks" grouped by status with a count; one task = just the card, more = first 2 + "See all N <status>" (filtered list).
+- Main phone buttons (chosen side of the switch, Approve, Approve selected, Search, OK) in Claude's clay orange; bold yellow text (vendor names, waiting rows, labels) now light orange. martin's thank-you.
+Files: index.html, css/iba-1705-fit.css, js/iba-1705-mhome.js
+
+17.0.5 patch 157 (07-Nov-2026)
+- Invoice dates on cards all show as 07-Nov-26 (assistant tracking list + receipt + brief, phone Home, Active jobs panel, WorkDesk Dashboard task cards, Invoice Records). New js/iba-1705-day.js (window.ibaDay / ibaDayISO) reads every saved shape (2026-11-07, 07/11/2026, 07-11-26, 07-11-2026, 07.11.2026, 7-Nov-2026, timestamps). Before, "07-11-26" style dates showed raw or were read as 11 July (month and day swapped).
+Files: index.html, js/iba-1705-day.js (new), js/iba-assistant.js, js/iba-1705-ieui.js, js/iba-1705-mhome.js, js/app-workdesk-dashboard.js, js/app-invoice-records.js
+
+17.0.5 patch 156 (07-Nov-2026)
+- Deleted assistant skills no longer come back. A delete now leaves a "gone" mark (on this device and in the cloud, iba_assistant/<user>/skills_gone), so an older copy on another device or an old open page cannot bring it back. Saving a skill with the same name again revives it.
+Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 155 (07-Nov-2026)
+- New skill "Notes to Accounts" (Super Admin, PC): in the assistant (All skills > Quick work) and as a button next to Summary Note search in Batch Entry.
+- Lists every Summary Note whose invoices are CEO Approval (tick boxes, Select all; any other note can be typed). Check reads each invoice fresh and shows one block per note with its SRV name = first 23 letters of the vendor + today (same as Summary Note "going to Accounts"; can be edited).
+- Highlights: invoice that already has an SRV name (amber, ticked), invoice not CEO Approval (red, left unticked), more than one vendor in a note, same SRV name twice, SRV name already used by other invoices.
+- "Send N to Batch Entry": the ticked invoices go into Batch Entry with Status With Accounts and the SRV name filled. Nothing is saved until Save.
+- "Copy SRV list" / "Download CSV": one row per unique SRV name (SRV name, PDF file name, note, vendor, invoices, POs, total) for renaming the scans.
+Files: index.html, css/iba-1705-fit.css, js/iba-assistant.js, js/iba-1705-n2a.js (new)
+
 17.0.5 patch 154 (07-Nov-2026)
 - Backgrounds: the GitHub photos were renamed (D-Beach-1.jpg, M-Road-1.jpg ...). New built-in defaults: WorkDesk D-Road.jpg, Inventory D-Nature-2.jpg, Invoice D-Sunset-4.jpg, Login D-Beach-1.jpg, Flip cover M-Stairs-1.jpg (phone sides follow Invoice / Inventory). The Browse list forgets the old saved names, so the new photos show at once.
 - Saved choices still point to the old names: the Super Admin picks and Saves each area again once (applies for everyone).
