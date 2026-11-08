@@ -1952,4 +1952,6 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body:not(#iba-g1) #iba-rcv .rcv-tick { width: 56px !important; height: 56px !important; border-radius: 50% !important; background: #3DDC97 !important; display: grid !important; place-items: center !important; color: #06281a !important; font-size: 28px !important; font-weight: 900 !important; text-shadow: none !important; }
   html body.iba-rcv-open #iba-ai-panel, html body.iba-rcv-open .iba-ai-fab { visibility: hidden !important; }
   #iba-ai-panel .iba-ai-apps > .is-c2 > i { background: linear-gradient(145deg, #FF9DB4, #D9567A) !important; }
+  /* 17.0.5 patch 177: tablet - Invoice/Inventory switch centred like the Home counters (it had max-width 720 but a 10px left margin) */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone #iba-ph-switch { margin-left: max(10px, calc((100% - 720px) / 2)) !important; margin-right: max(10px, calc((100% - 720px) / 2)) !important; }
 }
