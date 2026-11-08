@@ -1824,10 +1824,24 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone header.iba-ph-head.iba-ph-head { background: linear-gradient(180deg, rgba(5,10,18,.72) 0%, rgba(5,10,18,.45) 70%, rgba(5,10,18,0) 100%) !important; margin: 0 !important; padding: 12px 16px 12px !important; border-bottom: 0 !important; box-shadow: none !important; position: relative !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone header.iba-ph-head.iba-ph-head::after { content: "" !important; position: absolute !important; left: 14px !important; right: 14px !important; bottom: 0 !important; height: 2px !important; background: rgba(255,255,255,.75) !important; box-shadow: 0 1px 3px rgba(0,0,0,.45) !important; border-radius: 2px !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch { margin-top: 10px !important; }
-  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head #iba-ph-pos { font-weight: 700 !important; } }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head #iba-ph-pos { font-weight: 700 !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-ai-fab { transition: opacity .25s, transform .25s !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-ai-fab:is(:hover, :active, :focus-visible, .is-open), html body.iba-phone:not(#iba-g1):not(#iba-g2):has(#iba-ai-bubble:not([hidden])) #iba-ai-fab { opacity: 1 !important; }
   /* 17.0.5 patch 160: the qty hint never pushes the numbers out of line (only errors show, small and red, on the APPROVE label line) */
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 .iba-ph-step { position: relative !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 .iba-ph-step .iba-ph-qty-hint.iba-ph-qty-hint { position: absolute !important; top: 0 !important; left: auto !important; right: 0 !important; bottom: auto !important; margin: 0 !important; font-size: 12px !important; line-height: 16px !important; font-weight: 700 !important; color: #FF8A8A !important; text-align: right !important; }
+  /* 17.0.5 patch 162: date in the top bar, right of the name after a thin divider */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-brand { display: flex !important; align-items: center !important; min-width: 0 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-date { margin-left: 10px !important; padding-left: 10px !important; border-left: 1px solid rgba(255,255,255,.45) !important; font-size: 12.5px !important; font-weight: 700 !important; line-height: 1.2 !important; color: #fff !important; text-shadow: 0 1px 4px rgba(0,0,0,.85) !important; white-space: nowrap !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-date:empty { display: none !important; }
+  /* 17.0.5 patch 163: list note inside the title bar, small + italic */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head.is-big { align-items: center !important; flex-wrap: nowrap !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head.is-big b { flex: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head .iba-mh-hnote { flex: 1 1 auto !important; min-width: 0 !important; margin-left: 2px !important; padding-left: 10px !important; border-left: 1px solid rgba(255,255,255,.35) !important; font-size: 12px !important; font-style: italic !important; font-weight: 500 !important; line-height: 1.25 !important; color: #DCE6F0 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head.is-big > span { flex: none !important; }
+  /* p164: invoice facts sit straight on the invoice card (no inner box) */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-inv .iba-mh-facts.iba-mh-facts { background: none !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; padding: 0 !important; margin-top: 10px !important; border-radius: 0 !important; }
+  /* p170: For Approval task cards open Approve; the card found there flashes */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-pc.is-apv { color: #F7BE45 !important; font-weight: 700 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-card.is-flash { outline: 2px solid #F7BE45 !important; outline-offset: 2px !important; box-shadow: 0 0 0 6px rgba(247,190,69,.25), 0 8px 22px rgba(0,0,0,.22) !important; transition: outline-color .3s, box-shadow .3s !important; }
 }
