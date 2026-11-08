@@ -128,6 +128,7 @@
                 <strong id="iba-ph-name"></strong>
                 <small id="iba-ph-pos"></small>
               </div>
+              <span class="iba-ph-date" id="iba-ph-date" aria-label="Today"></span>
             </div>
             <button type="button" class="iba-ph-icon iba-ph-ai" id="iba-ph-ai" aria-label="IBA Assistant" title="IBA Assistant" hidden><i class="fa-solid fa-robot"></i></button>
             <button type="button" class="iba-ph-icon iba-ph-sound" id="iba-ph-sound" data-iba-sound-btn aria-label="Sounds"><i class="fa-solid fa-volume-high"></i></button>
@@ -296,7 +297,17 @@
         else root.style.removeProperty('--ph-photo');
     }
 
+    // 17.0.5 patch 162: today's date in the top bar, right of the name, after a divider
+    function paintDate() {
+        const el = $('iba-ph-date');
+        if (!el) return;
+        const d = new Date();
+        const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const W = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        el.innerHTML = W[d.getDay()] + '<br>' + String(d.getDate()).padStart(2, '0') + ' ' + M[d.getMonth()];
+    }
     function setSide(side) {
+        paintDate();
         if (!sides().includes(side)) side = sides()[0];
         state.side = side;
         try { const rt = $('iba-phone'); if (rt) rt.setAttribute('data-side', side); } catch (_) {} // p159: yellow / pink family

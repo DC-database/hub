@@ -265,8 +265,9 @@ function msPhotoOtherExtUrl(raw) {
 function msPhotoUrlFromInput(raw) {
     const v = String(raw || '').trim();
     if (!v) return '';
-    if (/^https?:\/\//i.test(v)) return msNormalizePhotoUrl(v);
-    return msPhotoOtherExtUrl(v) || msBuildMaterialPhotoUrlFromName(v);
+    // 17.0.5 patch 169: the app's item-photo copy first, OneDrive as fallback
+    const u = /^https?:\/\//i.test(v) ? msNormalizePhotoUrl(v) : (msPhotoOtherExtUrl(v) || msBuildMaterialPhotoUrlFromName(v));
+    return window.ibaItemPhotos ? window.ibaItemPhotos.map(u) : u;
 }
 // what to put in the box: "nail" for nail.jpg, "nail.jpeg" for other extensions
 function msPhotoInputValue(raw) {
@@ -389,10 +390,11 @@ function msGetMaterialPhotoInputValue(item) {
 
 function msGetMaterialPhotoUrl(item) {
     const photoName = msNormalizePhotoName(item?.photoName || item?.photoFileName || item?.photoFile || '');
-    if (photoName) return msBuildMaterialPhotoUrlFromName(photoName);
+    const mp = (u) => (window.ibaItemPhotos ? window.ibaItemPhotos.map(u) : u); // 17.0.5 patch 169
+    if (photoName) return mp(msBuildMaterialPhotoUrlFromName(photoName));
 
     // photoUrl/photoLink are accepted for compatibility with older records.
-    return msNormalizePhotoUrl(item?.photoUrl || item?.photoLink || '');
+    return mp(msNormalizePhotoUrl(item?.photoUrl || item?.photoLink || ''));
 }
 
 function msBuildMaterialPhotoCard(item, canAttachPhoto) {
@@ -501,7 +503,7 @@ function msParsePhotoIndexText(text) {
         const header = value.replace(/\s+/g, '').toLowerCase();
         if (idx === 0 && ['photoname', 'photo', 'filename', 'name', 'itemphoto'].includes(header)) return;
 
-        const cleanName = msNormalizePhotoName(value);
+        const cleanName = msPhotoInputValue(value); // p168: "pipe.png" keeps .png, "nail.jpg" -> "nail"
         if (cleanName) names.push(cleanName);
     });
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
@@ -533,6 +535,29 @@ async function msFetchOptionalPhotoIndexNames() {
 }
 
 async function msGetMaterialPhotoLibraryNames() {
+    // 17.0.5 patch 166: the list comes from the real OneDrive Photo folder (read only).
+    // No Firebase and no PhotoIndex.csv. Fallback = names already used on stock items.
+    window.__msPhotoFolderState = 'off';
+    // 17.0.5 patch 169: photos in the app's item-photo folder (list.json from shrink-photos.bat)
+    try {
+        if (window.ibaItemPhotos) {
+            const own = await window.ibaItemPhotos.load();
+            if (own && own.length) { window.__msPhotoFolderState = 'item-photo'; return own.slice().sort((a, b) => a.localeCompare(b)); }
+        }
+    } catch (_) {}
+    try {
+        if (window.ibaFolderPhotos && window.ibaFolderPhotos.configured()) {
+            const r = await window.ibaFolderPhotos.list();
+            window.__msPhotoFolderState = r.state;
+            if (r.names && r.names.length) return r.names.slice();
+        }
+    } catch (_) {}
+    // 17.0.5 patch 168: no Microsoft link yet -> PhotoIndex.csv on GitHub is the folder list
+    // (made from the OneDrive Photo folder by make-photo-list.bat on martin's PC)
+    try {
+        const csvNames = await msFetchOptionalPhotoIndexNames();
+        if (csvNames && csvNames.length) { window.__msPhotoFolderState = 'csv'; return Array.from(new Set(csvNames)).sort((a, b) => a.localeCompare(b)); }
+    } catch (_) {}
     const candidates = new Map();
 
     // 1) Names already attached to stock items.
@@ -555,28 +580,7 @@ async function msGetMaterialPhotoLibraryNames() {
         }
     } catch (_) {}
 
-    // 4) Optional Firebase text library. This is database text only, not Firebase Storage.
-    try {
-        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
-        const snap = await database.ref(MS_MATERIAL_PHOTO_LIBRARY_DB_PATH).once('value');
-        const value = snap.val();
-        if (value) {
-            if (Array.isArray(value)) {
-                value.forEach(v => msAddPhotoCandidate(candidates, typeof v === 'string' ? v : (v.photoName || v.name || ''), 'Library'));
-            } else {
-                Object.keys(value).forEach(k => {
-                    const v = value[k];
-                    msAddPhotoCandidate(candidates, typeof v === 'string' ? v : (v.photoName || v.name || k), 'Library');
-                });
-            }
-        }
-    } catch (err) {
-        console.warn('Photo library DB list not available:', err);
-    }
-
-    // 5) Optional external PhotoIndex.csv/txt/json file if configured.
-    const indexNames = await msFetchOptionalPhotoIndexNames();
-    indexNames.forEach(name => msAddPhotoCandidate(candidates, name, 'Photo Index'));
+    // 17.0.5 patch 166: Firebase photo library and PhotoIndex.csv no longer read.
 
     const names = Array.from(candidates.values()).map(v => v.name).sort((a, b) => a.localeCompare(b));
     try { localStorage.setItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY, JSON.stringify(names)); } catch (_) {}
@@ -594,19 +598,7 @@ async function msRememberMaterialPhotoName(photoName) {
         localStorage.setItem(MS_MATERIAL_PHOTO_LIBRARY_CACHE_KEY, JSON.stringify(next));
     } catch (_) {}
 
-    // Also store in Firebase Realtime Database as tiny text, if rules allow.
-    try {
-        const key = msPhotoLibraryKey(cleanName);
-        if (!key) return;
-        const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
-        await database.ref(`${MS_MATERIAL_PHOTO_LIBRARY_DB_PATH}/${key}`).set({
-            photoName: cleanName,
-            updatedBy: msGetCurrentMaterialUserName() || 'System',
-            updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
-    } catch (err) {
-        console.warn('Photo name saved locally but not to shared library:', err);
-    }
+    // 17.0.5 patch 166: nothing written to Firebase any more.
 }
 
 function msSetPhotoBrowserStatus(message, isError) {
@@ -642,7 +634,7 @@ function msFilterAndRenderPhotoLibrary(names) {
 
     const unique = new Map();
     (Array.isArray(names) ? names : []).forEach(name => {
-        const cleanName = msNormalizePhotoName(name);
+        const cleanName = msPhotoInputValue(name); // p166: "pipe.png" keeps .png
         if (cleanName) unique.set(cleanName.toLowerCase(), cleanName);
     });
 
@@ -722,7 +714,32 @@ async function msOpenMaterialPhotoBrowser(options = {}) {
     const names = await msGetMaterialPhotoLibraryNames();
     window.__msLastPhotoLibraryNames = names;
     msFilterAndRenderPhotoLibrary(names);
+    msPhotoFolderNote();
 }
+
+// 17.0.5 patch 166: Microsoft sign-in note / button for the folder list
+function msPhotoFolderNote() {
+    const st = window.__msPhotoFolderState;
+    if (st !== 'signin' && st !== 'error') return;
+    const el = document.getElementById('ms-photo-browser-status');
+    if (!el) return;
+    const msg = st === 'signin'
+        ? 'Sign in with your Microsoft (company) account once to see every photo in the folder.'
+        : 'Could not read the Photo folder: ' + msEscapeHtml((window.ibaFolderPhotos && window.ibaFolderPhotos.lastError()) || 'unknown error');
+    el.innerHTML = msg + ' <button type="button" class="secondary-btn" data-ms-photo-signin style="margin-left:6px;padding:4px 10px;">' +
+        (st === 'signin' ? '<i class="fa-brands fa-microsoft"></i> Sign in' : 'Try again') + '</button>';
+    el.style.color = st === 'error' ? '#dc3545' : '';
+}
+document.addEventListener('click', async (e) => {
+    const b = e.target && e.target.closest && e.target.closest('[data-ms-photo-signin]');
+    if (!b || !window.ibaFolderPhotos) return;
+    b.disabled = true;
+    msSetPhotoBrowserStatus('Reading the Photo folder...', false);
+    const r = await window.ibaFolderPhotos.list({ interactive: true, force: true });
+    window.__msPhotoFolderState = r.state;
+    if (r.names && r.names.length) { window.__msLastPhotoLibraryNames = r.names.slice(); msFilterAndRenderPhotoLibrary(r.names); }
+    msPhotoFolderNote();
+});
 
 function msCloseMaterialPhotoBrowser() {
     const modal = document.getElementById('ms-photo-browser-modal');

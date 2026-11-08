@@ -1135,11 +1135,12 @@ function renderInventoryMobileActiveTasks(tasks) {
 
     function invFinderPhotoUrl(item) {
         const direct = String(item?.photoUrl || item?.photoURL || item?.imageUrl || item?.imageURL || '').trim();
-        if (direct) return direct;
+        const mp = (u) => (window.ibaItemPhotos ? window.ibaItemPhotos.map(u) : u); // 17.0.5 patch 169
+        if (direct) return mp(direct);
         let name = String(item?.photoName || item?.photo || item?.photoFile || item?.photoFileName || '').trim();
         if (!name) return '';
         name = name.replace(/^\/+/, '').replace(/\.(jpg|jpeg|png|webp)$/i, '');
-        return PHOTO_BASE_URL + encodeURIComponent(name) + '.jpg';
+        return mp(PHOTO_BASE_URL + encodeURIComponent(name) + '.jpg');
     }
 
     function invFinderProductId(item) {

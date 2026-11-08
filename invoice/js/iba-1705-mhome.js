@@ -91,15 +91,50 @@
     function apv() { try { return P() && P().approvals ? P().approvals() : { list: [], qs: [], urgent: 0 }; } catch (_) { return { list: [], qs: [], urgent: 0 }; } }
 
     // ---- pieces ---------------------------------------------------------
+    // 17.0.5 patch 170: For Approval invoices can be approved on the phone -> open Approve
+    function isApvTask(t) { return !!t && (t.kind === 'invoice' || (t.po && /invoice/i.test(t.type || ''))) && norm(t.status) === 'for approval'; }
     function taskCard(t, i, src) {
         const isInv = t.kind === 'invoice' || (t.po && /invoice/i.test(t.type || ''));
-        return '<button type="button" class="iba-mh-card" data-mh-open="' + esc(src) + ':' + i + '">' +
+        const apv = isApvTask(t);
+        return '<button type="button" class="iba-mh-card' + (apv ? ' is-apv' : '') + '" ' + (apv ? 'data-mh-apv' : 'data-mh-open') + '="' + esc(src) + ':' + i + '">' +
             '<span class="iba-mh-po">' + (t.po ? 'PO ' + esc(t.po) : esc(t.type || 'Job') + (t.ref ? ' ' + esc(t.ref) : '')) + '</span>' +
             '<span class="iba-mh-val">' + esc(money(t.amount)) + '</span>' +
             '<span class="iba-mh-ven">' + esc(t.vendor || (isInv ? '' : t.type) || '—') + '</span>' +
             '<span class="iba-mh-age">' + esc(ago(t.at)) + '</span>' +
             '<span class="iba-mh-foot">' + chip(t.status) + (t.site ? '<span class="iba-mh-site">Site ' + esc(siteCode(t.site)) + '</span>' : '') +
-            '<span class="iba-mh-pc"><i class="fa-solid fa-desktop"></i> do it on PC</span></span></button>';
+            (apv ? '<span class="iba-mh-pc is-apv"><i class="fa-solid fa-check"></i> approve here</span>' : '<span class="iba-mh-pc"><i class="fa-solid fa-desktop"></i> do it on PC</span>') + '</span></button>';
+    }
+    function goApprove(t) {
+        const ph = P();
+        if (!ph) return;
+        ph.setSide('invoice'); ph.setTab('approve');
+        const A = window.ibaApprovals;
+        let n = 0;
+        const find = () => {
+            const a = ph.approvals && ph.approvals();
+            if (!a || a.loading) return null;
+            const ref = norm(t.ref || t.inv || t.invoice_no || '');
+            return a.list.find((x) => String(x.key || '') === String(t.key || '')) ||
+                a.list.find((x) => String(x.po || '') === String(t.po || '') && (!ref || norm(x.invNumber) === ref)) ||
+                a.list.find((x) => String(x.po || '') === String(t.po || '')) || (a.list.length ? false : null);
+        };
+        const step = () => {
+            const it = find();
+            if (it === null && ++n < 25) { setTimeout(step, 300); return; }
+            if (!it) return;
+            const urg = A && A.isUrgent && A.isUrgent(it) ? 'urgent' : 'normal';
+            const tab = document.querySelector('#iba-phone [data-act="inv-urg"][data-urg="' + urg + '"]');
+            if (tab && !tab.classList.contains('is-on')) tab.click();
+            setTimeout(() => {
+                const btn = document.querySelector('#iba-phone [data-act="inv-approve"][data-key="' + (window.CSS && CSS.escape ? CSS.escape(it.key) : it.key) + '"]');
+                const card = btn && btn.closest('.iba-ph-card');
+                if (!card) return;
+                try { card.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+                card.classList.add('is-flash');
+                setTimeout(() => card.classList.remove('is-flash'), 2400);
+            }, 120);
+        };
+        setTimeout(step, 150);
     }
     function invCard(w, i, src, label) {
         return '<button type="button" class="iba-mh-card" data-mh-open="' + esc(src) + ':' + i + '">' +
@@ -127,14 +162,16 @@
         const n = a.list.length + a.qs.length;
         const stk = P() && P().inventoryWaiting ? P().inventoryWaiting() : 0;
         const first = myName().split(/[\s.]+/)[0] || '';
-        let h = '<div class="iba-mh-hi"><b>' + esc(greet() + (first ? ', ' + first : '')) + '</b><span>' + esc(new Date().toDateString().slice(0, 10)) + '</span></div>';
-        if (n) h += '<button type="button" class="iba-mh-apv" data-mh-go="approve"><b>' + n + '</b><span>waiting for your approval</span>' +
+        // 17.0.5 patch 162 (martin): Home kept clean - no greeting, no waiting rows, no search box.
+        // The date sits in the top bar; the Approve tab badge shows what is waiting.
+        let h = '';
+        if (false && n) h += '<button type="button" class="iba-mh-apv" data-mh-go="approve"><b>' + n + '</b><span>waiting for your approval</span>' +
             (a.urgent ? '<i class="iba-mh-urg">' + a.urgent + ' urgent</i>' : '') + '<i class="fa-solid fa-chevron-right"></i></button>';
-        if (stk) h += '<button type="button" class="iba-mh-apv is-stk" data-mh-go="inventory"><b>' + stk + '</b><span>inventory waiting for you</span><i class="fa-solid fa-chevron-right"></i></button>';
-        h += '<form class="iba-mh-find" data-mh-find autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
+        if (false && stk) h += '<button type="button" class="iba-mh-apv is-stk" data-mh-go="inventory"><b>' + stk + '</b><span>inventory waiting for you</span><i class="fa-solid fa-chevron-right"></i></button>';
+        if (false) h += '<form class="iba-mh-find" data-mh-find autocomplete="off"><i class="fa-solid fa-magnifying-glass"></i>' +
             '<input type="search" id="iba-mh-q" placeholder="Where is my invoice? PO or vendor" enterkeyhint="search" value="' + esc(st.q) + '">' +
             (st.q ? '<button type="button" class="iba-mh-x" data-mh-clear aria-label="Clear">×</button>' : '') + '</form>';
-        h += '<div class="iba-mh-found" id="iba-mh-found">' + foundHtml() + '</div>';
+        if (false) h += '<div class="iba-mh-found" id="iba-mh-found">' + foundHtml() + '</div>';
         h += '<div class="iba-mh-counts">' +
             cnt('task', c.task, 'Active task') + cnt('job', c.job, 'Active job') + cnt('ret', c.ret, 'Returned') + cnt('acc', c.acc, 'Accounts') + '</div>';
         h += '<div class="iba-mh-head"><b>My tasks</b>' + (t.length ? '<span>' + t.length + '</span>' : '') + '</div>';
@@ -167,7 +204,7 @@
         return '<button type="button" class="iba-mh-cnt is-' + k + '" data-mh-list="' + k + '"><b>' + n + '</b><span>' + esc(label) + '</span></button>';
     }
     const LISTS = {
-        task: { title: 'Active task', note: 'Your tasks. Tap one to see it; do it on the PC.', get: tasks, card: (x, i) => taskCard(x, i, 'task'), none: 'No tasks for you right now.' },
+        task: { title: 'Active task', note: 'Tap one to see it. For Approval opens Approve.', get: tasks, card: (x, i) => taskCard(x, i, 'task'), none: 'No tasks for you right now.' },
         job: { title: 'Active job', note: 'Inventory jobs waiting for you. Do them on the PC.', get: jobs, card: jobCard, none: 'No inventory jobs for you.' },
         ret: { title: 'Returned', note: 'Invoices you sent with "Tell me when they act" that someone acted on.', get: rets, card: (x, i) => invCard(x, i, 'ret', x.sent ? '<span class="iba-mh-site">' + esc(x.sent) + ' →</span>' : ''), none: 'Nothing came back yet.' },
         acc: { title: 'Accounts', note: 'Invoices you follow (Notify me) that reached Accounts. Accounts pay on Saturday and Tuesday.', get: accs, card: (x, i) => invCard(x, i, 'acc'), none: 'None of the invoices you follow reached Accounts yet.' }
@@ -177,8 +214,8 @@
         const all = L.get();
         const f = k === 'task' && st.status ? norm(st.status) : '';
         const l = all.map((x, i) => [x, i]).filter((p) => !f || norm(String(p[0].status || 'Other').trim() || 'Other') === f);
-        return back('Home') + '<div class="iba-mh-head is-big"><b>' + esc(f ? st.status : L.title) + '</b><span>' + l.length + '</span></div>' +
-            '<p class="iba-mh-note is-top">' + esc(L.note) + '</p>' +
+        // p163: the note sits in the title bar, small and italic (no extra card)
+        return back('Home') + '<div class="iba-mh-head is-big"><b>' + esc(f ? st.status : L.title) + '</b><em class="iba-mh-hnote">' + esc(L.note) + '</em><span>' + l.length + '</span></div>' +
             (l.length ? '<div class="iba-mh-cards">' + l.map((p) => L.card(p[0], p[1])).join('') + '</div>' : empty(L.none));
     }
     function foundHtml() {
@@ -240,7 +277,7 @@
         return back('Back') + '<div class="iba-mh-inv"><div class="iba-mh-ivtop"><b>PO ' + esc(p.po || v.po) + '</b>' + (p.site ? '<span>Site ' + esc(siteCode(p.site)) + '</span>' : '') + '</div>' +
             '<div class="iba-mh-ivven">' + esc(p.vendor || '') + '</div>' +
             '<div class="iba-mh-facts">' + fact('Invoice', it.invoice_no || '—') + fact('Value', it.value ? 'QAR ' + it.value : '—', 1) +
-            fact('Invoice date', shortDate(it.invoice_date) || '—') + fact('With', [it.with, it.side_status || it.status].filter(Boolean).join(' · ') || '—', 1, 'is-gold') + '</div></div>' +
+            fact('Invoice date', shortDate(it.invoice_date) || '—') + fact('With', [it.with, it.side_status || it.status].filter(Boolean).join(' · ') || '—', 1, 'is-gold') + (it.release ? fact('Release date', shortDate(it.release)) : '') + '</div></div>' +
             '<div class="iba-mh-files">' + (it.pdf ? '<a href="' + esc(it.pdf) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i> View invoice</a>' : '<span class="is-off">No invoice file</span>') +
             (it.srv ? '<a href="' + esc(it.srv) + '" target="_blank" rel="noopener"><i class="fa-regular fa-file-lines"></i> SRV</a>' : '<span class="is-off">SRV (not yet)</span>') + '</div>' +
             '<div class="iba-mh-head"><b>Where it is</b></div>' + stepsHtml(it) +
@@ -377,6 +414,7 @@
         if (st.view === 'list' && LISTS[st.list]) h = listHtml(st.list);
         else if (st.view === 'inv') h = invHtml();
         else { st.view = 'home'; h = homeHtml(); }
+        look();
         const sig = st.view + '|' + h;
         if (pane.__mhSig === sig) return;
         // never repaint under the person's typing
@@ -398,6 +436,17 @@
         if (!p.__mhWired) {
             p.__mhWired = true;
             p.addEventListener('click', onClick);
+            // p162: leaving the Active job list by the switch or the Home tab goes back to Home
+            document.addEventListener('click', (e) => {
+                const t = e.target && e.target.closest && e.target.closest('#iba-ph-switch [data-side], #iba-ph-tabs [data-tab="home"]');
+                if (!t) return;
+                // p163: the bottom Home button always goes back to Home (from any list or invoice)
+                const homeBtn = t.matches('[data-tab="home"]');
+                if ((homeBtn && st.view !== 'home') || (st.view === 'list' && st.list === 'job')) {
+                    st.view = 'home'; st.list = ''; st.status = ''; st.inv = null; st.back = []; pane.__mhSig = '';
+                    setTimeout(paint, 0);
+                }
+            }, true);
             p.addEventListener('submit', (e) => {
                 if (!e.target.closest('[data-mh-find]')) return;
                 e.preventDefault();
@@ -410,6 +459,18 @@
         pane.__mhSig = '';
         paint();
     }
+    // 17.0.5 patch 162: Active job is inventory work, so its list shows in the
+    // pink Inventory look (switch on Inventory). Back / Home / Invoice return.
+    function look() {
+        try {
+            const root = document.getElementById('iba-phone');
+            if (!root || !pane || !pane.classList.contains('is-on')) return;
+            const real = (P() && P().state) ? P().state().side : 'invoice';
+            const side = (st.view === 'list' && st.list === 'job') ? 'inventory' : real;
+            root.setAttribute('data-side', side);
+            root.querySelectorAll('.iba-ph-switch [data-side]').forEach((b) => b.classList.toggle('is-on', b.getAttribute('data-side') === side));
+        } catch (_) {}
+    }
     function onClick(e) {
         const t = e.target;
         let b;
@@ -421,6 +482,14 @@
             return;
         }
         if ((b = t.closest('[data-mh-list]'))) { st.back = [{ view: 'home' }]; st.view = 'list'; st.list = b.getAttribute('data-mh-list'); st.status = b.getAttribute('data-mh-status') || ''; paint(); return; }
+        if ((b = t.closest('[data-mh-apv]'))) {
+            const x = b.getAttribute('data-mh-apv').split(':');
+            const L = LISTS[x[0]];
+            const item = L && L.get ? L.get()[Number(x[1])] : null;
+            st.view = 'home'; st.list = ''; st.status = ''; st.inv = null; st.back = []; pane.__mhSig = '';
+            if (item) goApprove(item);
+            return;
+        }
         if ((b = t.closest('[data-mh-open]'))) { const x = b.getAttribute('data-mh-open').split(':'); openFrom(x[0], Number(x[1])); return; }
         if ((b = t.closest('[data-mh-found]'))) {
             const x = b.getAttribute('data-mh-found').split(':').map(Number);

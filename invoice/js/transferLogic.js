@@ -1813,7 +1813,8 @@ function tfNormalizeMaterialPhotoName(value) {
 function tfBuildMaterialPhotoUrlFromName(photoName) {
     const cleanName = tfNormalizeMaterialPhotoName(photoName);
     if (!cleanName) return '';
-    return `${TRF_MATERIAL_PHOTO_BASE_URL}${encodeURIComponent(cleanName)}${TRF_MATERIAL_PHOTO_DEFAULT_EXT}`;
+    const u = `${TRF_MATERIAL_PHOTO_BASE_URL}${encodeURIComponent(cleanName)}${TRF_MATERIAL_PHOTO_DEFAULT_EXT}`;
+    return window.ibaItemPhotos ? window.ibaItemPhotos.map(u) : u; // 17.0.5 patch 169
 }
 
 function tfEscapeAttr(value) {
@@ -1852,7 +1853,7 @@ function tfGetProductPhotoUrlFromChoice(choice) {
     if (photoName) return tfBuildMaterialPhotoUrlFromName(photoName);
 
     const legacyUrl = tfNormalizePhotoUrl(cp.photoUrl || cp.photoLink || '');
-    if (legacyUrl) return legacyUrl;
+    if (legacyUrl) return window.ibaItemPhotos ? window.ibaItemPhotos.map(legacyUrl) : legacyUrl;
 
     return '';
 }

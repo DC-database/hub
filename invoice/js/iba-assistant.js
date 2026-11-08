@@ -1692,8 +1692,14 @@
         let holder = String(inv.attention || '').trim();
         if (!holder && st === 4) holder = 'Accounts';
         const lastOf = (name) => { for (let i = hist.length - 1; i >= 0; i--) if (norm(hist[i].status) === name) return hist[i].at; return 0; };
-        const paidAt = lastOf('paid');
-        const accAt = lastOf('with accounts');
+        // 17.0.5 patch 165: use the dates typed on the invoice (Release / Paid date), not the day the record was updated
+        const typed = (v) => { const iso = v ? dayOfISO(v) : ''; return iso ? Date.parse(iso + 'T12:00:00+03:00') || 0 : 0; };
+        const accTyped = typed(inv.withAccountsReleaseDate) || ((st === 4 && !side) ? typed(inv.releaseDate) : 0);
+        const paidTyped = typed(inv.paidDate || inv.actualPaidDate) || ((st === 5 && !side) ? typed(inv.releaseDate) : 0);
+        const paidAt = paidTyped || lastOf('paid');
+        const accAt = accTyped || lastOf('with accounts');
+        if (st === 4 && !side && accTyped) since = accTyped;
+        if (st === 5 && !side && paidTyped) since = paidTyped;
         const enteredAt = (hist[0] && hist[0].at) || Number(inv.createdAt) || 0;
         // 15.0.0 patch 11: a step the invoice went past is counted as done
         // (it already moved on), so nothing is marked as skipped any more.
@@ -1703,10 +1709,12 @@
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
+            // 17.0.5 patch 164: Release Date (same field as Invoice Records)
+            release: fmtDate(inv.releaseDate || inv.ReleaseDate || inv.release_date || '') || undefined,
             with_accounts_on: accAt ? fmtDate(accAt) : undefined, paid_on: paidAt ? fmtDate(paidAt) : undefined,
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
             steps: hist.slice(-6).map((h, i, a) => { const t = stepTo(h, i === a.length - 1 && norm(h.status) === norm(status), inv);
-                return { status: h.status, by: h.by || undefined, date: fmtDate(h.at), to: t ? t.to : undefined, to_plain: t && t.plain ? true : undefined, to_tail: t && t.tail ? t.tail : undefined }; }),
+                return { status: h.status, by: h.by || undefined, date: fmtDate((i === a.length - 1 && norm(h.status) === 'paid' && paidTyped) ? paidTyped : (i === a.length - 1 && norm(h.status) === 'with accounts' && accTyped) ? accTyped : h.at), to: t ? t.to : undefined, to_plain: t && t.plain ? true : undefined, to_tail: t && t.tail ? t.tail : undefined }; }),
             _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0,
             // 17.0.5 patch 16: when the invoice came in (newest first in the list)
             _r: Date.parse(inv.invoiceDate || '') || Number(enteredAt) || Number(inv.createdAt) || 0,
@@ -6121,6 +6129,7 @@
         const rows = [
             ['Invoice no.', it.invoice_no],
             ['Invoice date', it.invoice_date],
+            ['Release date', it.release],
             ['Value', it.value],
             ['Status in the system', it.side_status || it.status],
             ['Received / entered', it.entered],

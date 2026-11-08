@@ -81,7 +81,8 @@
     function m2(n) { return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
     function btnHtml(po, poVal) {
         if (!canSee() || !po) return '';
-        return '<button type="button" class="iba-fin-btn" data-fin-open="' + esc(po) + '" data-fin-poval="' + esc(poVal || '') + '" aria-expanded="false"><i class="fa-solid fa-building-columns"></i> Finance</button>';
+        // 17.0.5 patch 167: starts hidden; shown only when Finance has a record for this PO
+        return '<button type="button" class="iba-fin-btn" data-fin-check style="display:none !important" data-fin-open="' + esc(po) + '" data-fin-poval="' + esc(poVal || '') + '" aria-expanded="false"><i class="fa-solid fa-building-columns"></i> Finance</button>';
     }
     function sheetHtml(po, list, poValText) {
         var top = '<div class="iba-fin-sh-head"><span class="iba-trk-lbl">FINANCE · PO ' + esc(po) + '</span></div>';
@@ -120,5 +121,20 @@
         };
         go();
     }, true);
+    // 17.0.5 patch 167: no Finance record for the PO -> no Finance button (people clicked it and found nothing)
+    var ckT = null;
+    function checkBtns() {
+        ckT = null;
+        document.querySelectorAll('button[data-fin-check]:not([data-fin-checked])').forEach(function (b) {
+            b.setAttribute('data-fin-checked', '1');
+            forPo(b.getAttribute('data-fin-open')).then(function (list) {
+                if (list && list.length) b.style.removeProperty('display');
+            }, function () { b.style.removeProperty('display'); });
+        });
+    }
+    try {
+        new MutationObserver(function () { if (!ckT) ckT = setTimeout(checkBtns, 150); })
+            .observe(document.documentElement, { childList: true, subtree: true });
+    } catch (_) {}
     window.ibaFinPay = { btnHtml: btnHtml, sheetHtml: sheetHtml, canSee: canSee, canUse: canUse, forPo: forPo, match: match, placeholder: placeholder, isoOf: isoOf, fill: fill };
 })();
