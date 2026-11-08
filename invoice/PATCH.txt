@@ -1,3 +1,17 @@
+17.0.5 patch 175 (08-Nov-2026) - Receive a delivery by scan (phones and tablets)
+  - NEW js/iba-1705-receive.js: scan the barcode on the transfer paper (Chrome on Android) or type the TRF number / ESN code.
+    Reads only the In Transit lines (indexed remarks query). Only the receiver on the transfer or Super Admin can receive.
+    Swipe right = arrived, swipe left = none came, tap = type how many came, "Receive all". Short items: "Not loaded" puts the
+    missing qty back into the source site stock, "Damaged / lost" does not (lossFlag on the line). Same stock routine and save as the PC.
+  - Phone Inventory bottom bar: new "Receive" button (js/iba-phone.js). Assistant skill + app icon "Receive delivery" on touch devices (js/iba-assistant.js).
+  - Tablet "Desktop view" turned OFF (index.html IBA_TABLET_DESKTOP_OFF, js/iba-1705-view.js): tablets use the phone screens.
+  - CSS at the end of css/iba-1705-fit.css.
+  Files: index.html, js/iba-1705-receive.js, js/iba-phone.js, js/iba-assistant.js, js/iba-1705-view.js, css/iba-1705-fit.css, PATCH.txt
+
+17.0.5 patch 174 (08-Nov-2026)
+- Settings > background photos: opening Settings always asks GitHub for the photo list again (before: saved list kept 6 hours, so a newly uploaded photo took hours to show). GitHub itself may still need 1-5 minutes after an upload.
+Files: index.html, js/iba-shell.js
+
 17.0.5 patch 173 (08-Nov-2026)
 - Assistant Print (tracking and every assistant report): top shows only the logo + "date · Printed by". The company name block, the big title (e.g. "Invoice tracking · <vendor>") and the company name at the bottom are gone; the vendor is still in the box under it.
 Files: index.html, js/iba-print.js
