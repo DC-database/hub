@@ -120,11 +120,12 @@
     const meta = (o.meta || []).filter(function (m) { return m && m.value !== "" && m.value != null; });
     const printedBy = whoAmI();
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>" + esc(o.title || "Report") + "</title><style>" + CSS + "</style></head><body>" +
-      '<div class="hd"><img src="' + LOGO + '" alt="" onerror="this.remove()"><div class="co"><b>' + esc(COMPANY) + "</b><span>" + esc(o.subtitle || "") + "</span></div>" +
-      '<div class="ti"><b>' + esc(o.title || "Report") + "</b><span>" + esc(o.generated || "") + (printedBy ? " · Printed by " + esc(printedBy) : "") + "</span></div></div>" +
+      // 17.0.5 patch 173 (martin): the logo already carries the company name - no name block, no big title
+      '<div class="hd"><img src="' + LOGO + '" alt="" onerror="this.remove()"><div class="co"></div>' +
+      '<div class="ti"><span>' + esc(o.generated || "") + (printedBy ? " · Printed by " + esc(printedBy) : "") + "</span></div></div>" +
       summaryHtml(meta, counts, o) +
       "<table>" + head + "<tbody>" + body + "</tbody></table>" +
-      '<div class="ft"><span>' + esc(o.note || "") + "</span><span>" + esc(COMPANY) + "</span></div>" +
+      (o.note ? '<div class="ft"><span>' + esc(o.note) + "</span></div>" : "") + // p173: no company name at the bottom either
       "</body></html>";
   }
 

@@ -1811,6 +1811,29 @@
             const vp = vendorPOs(vendor, map);
             list = vp.list;
             if (!list.length && vp.sugg.length) return { mode: 'suggest', message: 'No vendor called "' + vendor + '". Did you mean:', suggestions: vp.sugg, query: { site: site, year: year } };
+            // 17.0.5 patch 171: a short name can fit several vendors ("arabian tra" = Arabian Trading
+            // Agencies AND Arabian Trad. and Contractor of Elevators). Ask which one, never mix them.
+            if (list.length && !(q && q.all)) {
+                const groups = {};
+                list.forEach((x) => {
+                    const r = x.rec || {};
+                    const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '').trim();
+                    const key = vendorWords(raw).join(' ') || vnorm(raw);
+                    if (!groups[key]) groups[key] = { key: key, n: 0, names: {} };
+                    groups[key].n++; groups[key].names[raw] = (groups[key].names[raw] || 0) + 1;
+                });
+                const keys = Object.keys(groups);
+                if (keys.length > 1) {
+                    const want = vendorWords(vendor).join(' ');
+                    if (groups[want]) {
+                        list = list.filter((x) => { const r = x.rec || {}; const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '').trim(); return (vendorWords(raw).join(' ') || vnorm(raw)) === want; });
+                    } else {
+                        const opts = keys.map((k) => groups[k]).sort((a2, b2) => b2.n - a2.n).slice(0, 10)
+                            .map((g) => Object.keys(g.names).sort((a2, b2) => g.names[b2] - g.names[a2])[0]);
+                        return { mode: 'suggest', message: '"' + vendor + '" fits ' + keys.length + ' vendors. Which one?', suggestions: opts, query: { site: site, year: year }, all_of: vendor };
+                    }
+                }
+            }
         }
         list = list.map(poInfo);
         if (poQ) {
@@ -1885,7 +1908,7 @@
         return { mode: 'pos', vendor: vendorLabel, total: year ? posOut.length : list.length, shown: posOut.length, more: list.length > shown.length ? list.length - shown.length : undefined, checked: shown.length,
             by_site: bySite || undefined,
             year_rule: year ? 'Invoices with invoice date or paid date in ' + year : undefined,
-            query: { po: poQ, vendor: vendor, site: site, year: year }, pos: posOut };
+            query: { po: poQ, vendor: vendor, site: site, year: year, all: (q && q.all) ? 1 : undefined }, pos: posOut };
     }
     // 17.0.5 patch 22: which of a vendor's POs still have an unpaid invoice,
     // and when its newest invoice came in. Uses the invoice list this page
@@ -4442,7 +4465,9 @@
         if (b.dataset.track) {
             let q = {};
             try { q = JSON.parse(b.dataset.track); } catch (_) {}
-            const out = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
+            // 17.0.5 patch 171: phone results live in #iba-aph-out (site chips did nothing there)
+            const hostT = b.closest('#iba-ai-track-out, #iba-aph-out');
+            const out = hostT || (inWide ? wideMore() : null);
             return runTrack(q, out);
         }
         if (b.dataset.rep) return onReport(b);
@@ -4461,7 +4486,7 @@
         if (b.dataset.trfFind) {
             let q = {};
             try { q = JSON.parse(b.dataset.trfFind); } catch (_) {}
-            const host = b.closest('#iba-ai-track-out') ? $('iba-ai-track-out') : (inWide ? wideMore() : null);
+            const host = b.closest('#iba-ai-track-out, #iba-aph-out') || (inWide ? wideMore() : null);
             return runTransferFind(q, host);
         }
         if (b.dataset.trkOpen) { e.preventDefault(); return openReceipt(b); }
@@ -5837,7 +5862,8 @@
         if (!r || r.mode === 'error') return '<div class="iba-ai-card-head is-bad"><i class="fa-solid fa-circle-exclamation"></i> ' + esc((r && r.message) || 'Something went wrong.') + '</div>';
         if (r.mode === 'none') return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.message) + '</div>';
         if (r.mode === 'suggest') return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.message) + '</div><div class="iba-ai-chiprow">' +
-            r.suggestions.map((v) => '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: v }) + '">' + esc(v) + '</button>').join('') + '</div>';
+            r.suggestions.map((v) => '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: v }) + '">' + esc(v) + '</button>').join('') +
+            (r.all_of ? '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: r.all_of, all: 1 }) + '"><i class="fa-solid fa-layer-group"></i> All of them together</button>' : '') + '</div>';
         if (r.mode === 'summary') {
             const base = r.query || {};
             const years = Object.keys(r.by_year || {}).sort().reverse();
@@ -5924,7 +5950,7 @@
             const base = r.query || {};
             const sites = Object.keys(r.by_site).sort();
             h += '<div class="iba-ai-sub">Not in the newest? Look in a site</div><div class="iba-ai-chiprow">' + sites.map((st) =>
-                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
+                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor, all: base.all }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
         }
         return h;
     }
@@ -6105,7 +6131,7 @@
             const base = r.query || {};
             const sites = Object.keys(r.by_site).sort();
             h += '<div class="iba-ai-sub">Not in the newest? Look in a site</div><div class="iba-ai-chiprow">' + sites.map((st) =>
-                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
+                '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr({ vendor: base.vendor || r.vendor, all: base.all }, { site: siteNo(st) }) + '">' + esc(st || '?') + ' <b>' + esc(r.by_site[st]) + '</b></button>').join('') + '</div>';
         }
         return h;
     }

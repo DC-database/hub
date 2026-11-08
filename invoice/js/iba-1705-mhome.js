@@ -20,7 +20,7 @@
     const STEPS = ['Received', 'Entered', 'SRV', 'Approval', 'With Accounts', 'Paid'];
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const norm = (v) => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
-    const st = { view: 'home', list: '', status: '', inv: null, find: null, q: '', busy: false, back: [] };
+    const st = { view: 'home', list: '', status: '', open: '', inv: null, find: null, q: '', busy: false, back: [] };
     let pane = null;
 
     function me() { try { return (typeof currentApprover !== 'undefined' && currentApprover) || null; } catch (_) { return null; } }
@@ -174,9 +174,7 @@
         if (false) h += '<div class="iba-mh-found" id="iba-mh-found">' + foundHtml() + '</div>';
         h += '<div class="iba-mh-counts">' +
             cnt('task', c.task, 'Active task') + cnt('job', c.job, 'Active job') + cnt('ret', c.ret, 'Returned') + cnt('acc', c.acc, 'Accounts') + '</div>';
-        h += '<div class="iba-mh-head"><b>My tasks</b>' + (t.length ? '<span>' + t.length + '</span>' : '') + '</div>';
-        h += t.length ? groupsHtml(t) : empty('No tasks for you right now.');
-        h += '<p class="iba-mh-note">Tasks are done on the PC. Here you can see them, open the invoice and ask.</p>';
+        // 17.0.5 patch 172 (martin): Home = the 4 counters only. The tasks are in Active task (grouped).
         return h;
     }
     // 17.0.5 patch 158: My tasks grouped by status (martin). Groups in order of
@@ -209,7 +207,28 @@
         ret: { title: 'Returned', note: 'Invoices you sent with "Tell me when they act" that someone acted on.', get: rets, card: (x, i) => invCard(x, i, 'ret', x.sent ? '<span class="iba-mh-site">' + esc(x.sent) + ' →</span>' : ''), none: 'Nothing came back yet.' },
         acc: { title: 'Accounts', note: 'Invoices you follow (Notify me) that reached Accounts. Accounts pay on Saturday and Tuesday.', get: accs, card: (x, i) => invCard(x, i, 'acc'), none: 'None of the invoices you follow reached Accounts yet.' }
     };
+    // 17.0.5 patch 172: Active task / Active job = status groups, closed; tap opens in place (one at a time)
+    function grpLabel(k, x) { return String((k === 'job' ? (x.step || x.type) : x.status) || 'Other').trim() || 'Other'; }
+    function accordionHtml(k) {
+        const L = LISTS[k];
+        const all = L.get();
+        const groups = [], byKey = {};
+        all.forEach((x, i) => {
+            const label = grpLabel(k, x), key = norm(label);
+            if (!byKey[key]) { byKey[key] = { key: key, label: label, items: [] }; groups.push(byKey[key]); }
+            byKey[key].items.push([x, i]);
+        });
+        groups.sort((a, b) => ((b.key === 'for approval') - (a.key === 'for approval')) || (b.items.length - a.items.length) || a.label.localeCompare(b.label));
+        return back('Home') + '<div class="iba-mh-head is-big"><b>' + esc(L.title) + '</b><em class="iba-mh-hnote">Tap a group to open it.</em><span>' + all.length + '</span></div>' +
+            (groups.length ? '<div class="iba-mh-acc">' + groups.map((g) => {
+                const on = st.open === g.key;
+                return '<div class="iba-mh-grp is-' + tone(g.label) + (on ? ' is-open' : '') + '">' +
+                    '<button type="button" class="iba-mh-gh" data-mh-grp="' + esc(g.key) + '" aria-expanded="' + on + '"><i class="iba-mh-dot"></i><b>' + esc(g.label) + '</b><span class="iba-mh-gn">' + g.items.length + '</span><i class="fa-solid fa-chevron-right iba-mh-gch"></i></button>' +
+                    (on ? '<div class="iba-mh-gcards">' + g.items.map((p) => L.card(p[0], p[1])).join('') + '</div>' : '') + '</div>';
+            }).join('') + '</div>' : empty(L.none));
+    }
     function listHtml(k) {
+        if ((k === 'task' || k === 'job') && !st.status) return accordionHtml(k);
         const L = LISTS[k];
         const all = L.get();
         const f = k === 'task' && st.status ? norm(st.status) : '';
@@ -443,7 +462,7 @@
                 // p163: the bottom Home button always goes back to Home (from any list or invoice)
                 const homeBtn = t.matches('[data-tab="home"]');
                 if ((homeBtn && st.view !== 'home') || (st.view === 'list' && st.list === 'job')) {
-                    st.view = 'home'; st.list = ''; st.status = ''; st.inv = null; st.back = []; pane.__mhSig = '';
+                    st.view = 'home'; st.list = ''; st.status = ''; st.open = ''; st.inv = null; st.back = []; pane.__mhSig = '';
                     setTimeout(paint, 0);
                 }
             }, true);
@@ -481,12 +500,13 @@
             if (g === 'inventory' && P()) { P().setSide('inventory'); P().setTab('approve'); }
             return;
         }
-        if ((b = t.closest('[data-mh-list]'))) { st.back = [{ view: 'home' }]; st.view = 'list'; st.list = b.getAttribute('data-mh-list'); st.status = b.getAttribute('data-mh-status') || ''; paint(); return; }
+        if ((b = t.closest('[data-mh-list]'))) { st.open = ''; st.back = [{ view: 'home' }]; st.view = 'list'; st.list = b.getAttribute('data-mh-list'); st.status = b.getAttribute('data-mh-status') || ''; paint(); return; }
+        if ((b = t.closest('[data-mh-grp]'))) { const g = b.getAttribute('data-mh-grp'); st.open = st.open === g ? '' : g; pane.__mhSig = ''; paint(); return; }
         if ((b = t.closest('[data-mh-apv]'))) {
             const x = b.getAttribute('data-mh-apv').split(':');
             const L = LISTS[x[0]];
             const item = L && L.get ? L.get()[Number(x[1])] : null;
-            st.view = 'home'; st.list = ''; st.status = ''; st.inv = null; st.back = []; pane.__mhSig = '';
+            st.view = 'home'; st.list = ''; st.status = ''; st.open = ''; st.inv = null; st.back = []; pane.__mhSig = '';
             if (item) goApprove(item);
             return;
         }
