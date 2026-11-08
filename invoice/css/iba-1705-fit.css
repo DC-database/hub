@@ -1844,4 +1844,13 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   /* p170: For Approval task cards open Approve; the card found there flashes */
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-pc.is-apv { color: #F7BE45 !important; font-weight: 700 !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-card.is-flash { outline: 2px solid #F7BE45 !important; outline-offset: 2px !important; box-shadow: 0 0 0 6px rgba(247,190,69,.25), 0 8px 22px rgba(0,0,0,.22) !important; transition: outline-color .3s, box-shadow .3s !important; }
+  /* p172: Active task / Active job groups open in place */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-acc { display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gh { cursor: pointer !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gh .iba-mh-gch { margin-left: 4px !important; color: #B9C7D6 !important; transition: transform .2s !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-open .iba-mh-gch { transform: rotate(90deg) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-open > .iba-mh-gh { border-bottom: 1px solid rgba(255,255,255,.14) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards { display: grid !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards > .iba-mh-card { background: transparent !important; border: 0 !important; border-top: 1px solid rgba(255,255,255,.09) !important; border-radius: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards > .iba-mh-card:first-child { border-top: 0 !important; }
 }
