@@ -1628,4 +1628,206 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body.iba-phone #iba-ai-panel .iba-aph-back { display: inline-flex !important; align-items: center !important; gap: 8px !important; align-self: flex-start !important; min-height: 46px !important; margin: 0 0 10px !important; padding: 0 16px !important; border-radius: 12px !important;
     border: 1px solid rgba(255, 255, 255, .2) !important; background: rgba(255, 255, 255, .08) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 16px !important; font-weight: 800 !important; cursor: pointer !important; }
   html body:not(.iba-phone) #iba-ai-panel .iba-aph-back { display: none !important; }
+
+  /* 17.0.5 patch 155: Notes to Accounts window (js/iba-1705-n2a.js), same look as Month to Payments */
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-box { width: min(1040px, 100%) !important; display: flex !important; flex-direction: column !important; max-height: min(86vh, 900px) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-watch-x { width: 36px !important; height: 36px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .16) !important; background: transparent !important; color: #EEF3F8 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-hint { margin: 10px 18px 0 !important; font-size: 13px !important; line-height: 1.45 !important; color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-pick { display: flex !important; flex-wrap: wrap !important; gap: 12px !important; margin: 12px 18px 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-pick label { display: flex !important; flex-direction: column !important; gap: 4px !important; font-size: 11px !important; font-weight: 700 !important; letter-spacing: .08em !important; color: #9FB3C2 !important; text-transform: uppercase !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-pick select { min-width: 130px !important; height: 40px !important; padding: 0 10px !important; border-radius: 10px !important; border: 1px solid rgba(255, 255, 255, .18) !important; background: #0F1D2B !important; color: #EEF3F8 !important; font: inherit !important; font-size: 15px !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-out { margin: 12px 18px 0 !important; min-height: 60px !important; overflow: auto !important; flex: 1 1 auto !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum > div { display: flex !important; flex-direction: column !important; gap: 2px !important; padding: 10px 12px !important; border-radius: 12px !important; background: rgba(255, 255, 255, .05) !important; border: 1px solid rgba(255, 255, 255, .1) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum b { font-size: 22px !important; color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum .is-amt b { color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum span { font-size: 12px !important; color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list table { width: 100% !important; border-collapse: collapse !important; font-size: 13px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list th { position: sticky !important; top: 0 !important; background: #12263A !important; text-align: left !important; font-size: 11px !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: #9FB3C2 !important; padding: 7px 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list td { padding: 7px 8px !important; border-top: 1px solid rgba(255, 255, 255, .07) !important; color: #EEF3F8 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list td:nth-child(4) { color: #E3C98A !important; font-weight: 700 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list :is(th, td).is-n { text-align: right !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-note { margin: 8px 0 0 !important; font-size: 12.5px !important; color: #EBD8A8 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-empty { margin: 10px 0 !important; font-size: 14px !important; color: #D6E0EA !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-acts { display: flex !important; justify-content: flex-end !important; gap: 10px !important; padding: 14px 18px 16px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-acts button[disabled] { opacity: .5 !important; cursor: not-allowed !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-find { display: flex !important; align-items: center !important; gap: 8px !important; margin: 0 0 10px !important; padding: 0 6px 0 12px !important; height: 44px !important; border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, .16) !important; background: rgba(6, 14, 24, .5) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-find > i { color: #9FB3C2 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-find input { flex: 1 !important; min-width: 0 !important; height: 100% !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: #fff !important; font-size: 14px !important; outline: none !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sel { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; margin: 0 0 6px !important; font-size: 13px !important; color: #EBD8A8 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sel label { display: inline-flex !important; align-items: center !important; gap: 8px !important; color: #fff !important; font-weight: 700 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) table { width: 100% !important; border-collapse: collapse !important; font-size: 13px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) th { position: sticky !important; top: 0 !important; background: #12263A !important; text-align: left !important; font-size: 11px !important; text-transform: uppercase !important; letter-spacing: .05em !important; color: #E3C98A !important; padding: 7px 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) td { padding: 7px 8px !important; border-top: 1px solid rgba(255, 255, 255, .07) !important; color: #EEF3F8 !important; vertical-align: middle !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) :is(th, td).is-n { text-align: right !important; white-space: nowrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) input[type="checkbox"], .iba-n2a-sel input { width: 18px !important; height: 18px !important; accent-color: #4FD1C5 !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list td.is-note { font-weight: 700 !important; color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list td.is-ven { color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) em { font-style: normal !important; font-size: 11px !important; font-weight: 800 !important; padding: 2px 7px !important; border-radius: 99px !important; background: rgba(227, 201, 138, .16) !important; color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum .is-warn b { color: #F5B851 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-sum { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-g { margin: 0 0 12px !important; padding: 12px !important; border-radius: 14px !important; border: 1px solid rgba(255, 255, 255, .12) !important; background: rgba(255, 255, 255, .04) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-g.is-warn { border-color: rgba(245, 184, 81, .55) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-gh { display: flex !important; flex-wrap: wrap !important; align-items: flex-end !important; justify-content: space-between !important; gap: 10px !important; margin: 0 0 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-gh b { display: block !important; font-size: 15px !important; color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-gh small { font-size: 12.5px !important; color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-srv { display: flex !important; flex-direction: column !important; gap: 3px !important; min-width: min(340px, 100%) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-srv span { font-size: 11px !important; font-weight: 700 !important; text-transform: uppercase !important; letter-spacing: .05em !important; color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-srv input { height: 38px !important; padding: 0 10px !important; border-radius: 10px !important; border: 1px solid rgba(127, 227, 214, .5) !important; background: rgba(19, 138, 151, .15) !important; color: #fff !important; font-size: 14px !important; font-weight: 700 !important; font-family: ui-monospace, Consolas, monospace !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-warn { margin: 0 0 8px !important; padding: 8px 10px 8px 26px !important; border-radius: 10px !important; background: rgba(245, 184, 81, .12) !important; color: #F5D08A !important; font-size: 12.5px !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-g tr.is-old td { background: rgba(245, 184, 81, .10) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-g tr.is-bad td { background: rgba(239, 68, 68, .12) !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-g tr.is-bad em { background: rgba(239, 68, 68, .2) !important; color: #FCA5A5 !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-acts { align-items: center !important; flex-wrap: wrap !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-grow { flex: 1 1 auto !important; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-said:empty { display: none !important; }
+  html body .batch-invoice-card.iba-n2a-card { box-shadow: inset 4px 0 0 #b45309 !important; }
+
+  /* 17.0.5 patch 158: phone readable on ANY background photo (martin). One
+     see-through dark glass (light frost, 55% tint) behind every panel, card,
+     title and button group, plus a soft text shadow. Phone shell only. */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone { --g-bg: rgba(9,18,30,.55); --g-line: rgba(255,255,255,.15); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-head, .iba-ph-switch, .iba-ph-title, .iba-ph-urg, .iba-ph-bulk, .iba-ph-card, .iba-ph-empty, .iba-ph-search,
+      .iba-mh-hi, .iba-mh-apv, .iba-mh-find, .iba-mh-cnt, .iba-mh-head, .iba-mh-grp, .iba-mh-cards > .iba-mh-card, .iba-mh-note, .iba-mh-back,
+      .iba-mh-pobox, .iba-mh-sugg, .iba-mh-inv, .iba-mh-steps, .iba-mh-hist, .iba-mh-facts) {
+    background: var(--g-bg) !important; border: 1px solid var(--g-line) !important;
+    -webkit-backdrop-filter: blur(4px) saturate(1.2) !important; backdrop-filter: blur(4px) saturate(1.2) !important;
+    box-shadow: 0 8px 22px rgba(0,0,0,.22) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-main, .iba-ph-head, .iba-ph-switch) { text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(input, .iba-ph-sb, .iba-ph-acts button, .iba-ph-chip, .iba-mh-chip, .iba-ph-count) { text-shadow: none; }
+  /* top: name bar + Invoice/Inventory switch = one glass panel */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head { margin: 8px 10px 0 !important; padding: 10px 12px !important; border-radius: 20px 20px 0 0 !important; border-bottom: 0 !important; box-shadow: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head:has(+ .iba-ph-switch.hidden) { border-radius: 20px !important; border-bottom: 1px solid var(--g-line) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head :is(.iba-ph-who, .iba-ph-who *) { color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head :is(#iba-ph-pos, .iba-ph-who small) { color: #E3C98A !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head .iba-ph-icon { background: rgba(255,255,255,.1) !important; border: 1px solid rgba(255,255,255,.18) !important; color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch { margin: 0 10px !important; padding: 2px 10px 10px !important; border-radius: 0 0 20px 20px !important; border-top: 0 !important; display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch::before { content: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch button { min-height: 50px !important; border-radius: 13px !important; background: rgba(0,0,0,.32) !important; border: 1px solid rgba(255,255,255,.12) !important; color: #fff !important; font-weight: 800 !important; opacity: 1 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch button.is-on { background: linear-gradient(180deg, #1BA3B0, #0E7C88) !important; border-color: rgba(127,227,214,.6) !important; box-shadow: 0 4px 14px rgba(14,124,136,.45), inset 0 1px 0 rgba(255,255,255,.25) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch .iba-ph-count { background: #E3C98A !important; color: #2A1E00 !important; }
+  /* titles on the photo become glass bars */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-title { padding: 10px 14px !important; border-radius: 16px !important; margin-bottom: 4px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-title h2, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-hi b { color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-title span, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-hi span { color: #E3C98A !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-hi { padding: 10px 14px !important; border-radius: 16px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head { padding: 9px 14px !important; border-radius: 14px !important; align-items: center !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-head b { color: #E3C98A !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-note { padding: 8px 12px !important; border-radius: 12px !important; color: #DCE6F0 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-back { border-radius: 12px !important; color: #fff !important; padding: 8px 12px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-apv { border-color: rgba(227,201,138,.5) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-apv span { color: #E3C98A !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-cnt span, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-find input::placeholder { color: #E6EDF6 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-urg { padding: 5px !important; border-radius: 16px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-urg button { color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-card .iba-ph-ln, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-card .iba-ph-note { color: #DCE6F0 !important; }
+  /* My tasks grouped by status */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-groups { display: grid !important; gap: 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp { border-radius: 18px !important; overflow: hidden !important; display: grid !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp > .iba-mh-card { background: transparent !important; border: 0 !important; border-top: 1px solid rgba(255,255,255,.09) !important; border-radius: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gh { display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important; padding: 12px 14px !important; border: 0 !important; background: none !important; color: #fff !important; font: inherit !important; font-weight: 800 !important; font-size: 15.5px !important; text-align: left !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gh b { font-weight: 800 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-dot { width: 10px !important; height: 10px !important; border-radius: 99px !important; background: #94A3B8; flex: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-new .iba-mh-dot { background: #7DD3FC; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-srv .iba-mh-dot { background: #FCD34D; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-apv .iba-mh-dot { background: #E3C98A; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp:is(.is-acc, .is-paid) .iba-mh-dot { background: #86EFAC; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-grp.is-stop .iba-mh-dot { background: #FCA5A5; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gn { margin-left: auto !important; min-width: 28px !important; height: 28px !important; padding: 0 8px !important; border-radius: 99px !important; display: inline-grid !important; place-items: center !important; font-size: 14px !important; background: rgba(255,255,255,.14) !important; text-shadow: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gh .fa-chevron-right { color: #B9C6D3 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-more { border: 0 !important; border-top: 1px solid rgba(255,255,255,.09) !important; background: none !important; color: #7FE3D6 !important; font: inherit !important; font-weight: 700 !important; font-size: 14px !important; text-align: left !important; padding: 11px 14px !important; }
+  /* records empty state + Item Finder on the photo */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(#iba-ph-rec-host div:has(> h3), .inv-mobile-finder-head, .inv-mobile-finder-search, .inv-mobile-material-status:not(:empty)) {
+    background: var(--g-bg) !important; border: 1px solid var(--g-line) !important; border-radius: 16px !important;
+    -webkit-backdrop-filter: blur(4px) saturate(1.2) !important; backdrop-filter: blur(4px) saturate(1.2) !important; box-shadow: 0 8px 22px rgba(0,0,0,.22) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone #iba-ph-rec-host div:has(> h3) { padding: 18px 14px !important; margin-top: 4px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone #iba-ph-rec-host div:has(> h3) :is(h3, p) { color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-finder-head { padding: 10px 14px !important; margin-bottom: 8px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-finder-head :is(h1, h1 i) { color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-finder-head p { color: #E3C98A !important; margin: 2px 0 0 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-finder-search { padding: 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-material-status { padding: 8px 12px !important; margin-top: 8px !important; color: #E6EDF6 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .inv-mobile-finder-actions .secondary-btn { background: rgba(255,255,255,.14) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.22) !important; }
+  /* main phone buttons in Claude's clay orange (martin's thank-you). Phone only. */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch button.is-on, .iba-ph-btn.is-primary) {
+    background: linear-gradient(180deg, #E08B69, #C8623F) !important; border-color: rgba(255,214,196,.55) !important; color: #fff !important;
+    box-shadow: 0 4px 14px rgba(200,98,63,.45), inset 0 1px 0 rgba(255,255,255,.25) !important; text-shadow: 0 1px 2px rgba(80,25,8,.45) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-btn.is-primary:disabled { opacity: .55 !important; }
+  /* bold yellow text -> light clay orange to match (martin) */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-mh-ven, .iba-mh-ivven, .iba-mh-poven, .iba-mh-apv span, .iba-mh-apv b, .iba-mh-head b, .iba-ph-title span, .iba-mh-hi span, #iba-ph-pos, .iba-ph-mark, .iba-ph-item small, .iba-ph-item em, .iba-ph-item span, .inv-mobile-finder-head p) { color: #F4A584 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-mark { border-color: rgba(244,165,132,.55) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-apv { border-color: rgba(244,165,132,.5) !important; }
+
+  /* 17.0.5 patch 159: phone approve redesign (martin, sample https://claude.ai/artifact/WCDTmY1JfkFiKpYETjTUGE).
+     Side colour family on #iba-phone[data-side]: invoice yellow, inventory pink; pill switches;
+     open top bar; tracker road; compact Requested / Approve with up/down; smaller faded robot;
+     Claude-orange bottom bar; red outline Reject. Phone shell only. */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-ai-fab { transform: scale(.8) !important; transform-origin: bottom right !important; opacity: .4 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 { grid-template-columns: 1fr 1fr !important; align-items: end !important; padding: 8px 12px !important; column-gap: 12px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 :is(small, label) { margin: 0 0 3px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-req b { font-size: 46px !important; line-height: 74px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-step > div { display: grid !important; grid-template-columns: 1fr 44px !important; grid-template-rows: 32px 32px !important; gap: 10px 8px !important; align-items: center !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-step .iba-ph-qty-in { grid-column: 1 !important; grid-row: 1 / span 2 !important; width: 100% !important; height: 74px !important; font-size: 46px !important; font-weight: 900 !important; border: 0 !important; background: none !important; box-shadow: none !important; text-align: left !important; padding: 0 !important; color: #FF4FB8 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-step .iba-ph-sb { grid-column: 2 !important; width: 44px !important; height: 32px !important; border-radius: 9px !important; font-size: 14px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-step .iba-ph-sb[data-act=stk-plus] { grid-row: 1 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-step .iba-ph-sb[data-act=stk-minus] { grid-row: 2 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is([data-pane=invoice-approve], [data-pane=inventory-approve]) .iba-ph-title { display: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-bulk { padding: 6px 8px 6px 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-bulk .iba-ph-btn.is-small { min-height: 36px !important; height: 36px !important; padding: 0 12px !important; font-size: 13.5px !important; border-radius: 10px !important; width: auto !important; flex: none !important; margin-left: auto !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-bulk .iba-ph-bcnt { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 8px; margin-left: 8px; border-radius: 99px; background: #F4A584; color: #3A1405; font-size: 13.5px; font-weight: 800; text-shadow: none; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-item { background: rgba(255,255,255,.05) !important; border: 1px solid rgba(255,255,255,.12) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-route:not(.is-one) .iba-ph-end small { display: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-route:not(.is-one) .iba-ph-end b::before { content: "Site "; font-size: 13px; font-weight: 700; color: #B9C6D3; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk { display: grid; gap: 8px; padding: 6px 4px 2px; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-line { display: flex; align-items: center; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dot { width: 18px; height: 18px; border-radius: 99px; flex: none; display: grid; place-items: center; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dot.is-a { background: #E08B69; box-shadow: 0 0 0 4px rgba(224,139,105,.25); color: #fff; font-size: 9px; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dot.is-b { border: 2px solid rgba(255,255,255,.55); background: rgba(9,18,30,.6); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dash { flex: 1; height: 0; border-top: 2px dashed #E08B69; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dash.is-b { border-top-color: rgba(255,255,255,.35); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-truck { width: 40px; height: 40px; border-radius: 99px; flex: none; display: grid; place-items: center; background: linear-gradient(180deg,#E08B69,#C8623F); color: #fff; font-size: 17px; box-shadow: 0 4px 12px rgba(200,98,63,.45); margin: 0 4px; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-ends { display: flex; justify-content: space-between; gap: 12px; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-ends div { display: grid; gap: 1px; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-ends div:last-child { text-align: right; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-ends small { font-size: 12.5px; color: #B9C6D3; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-ends b { font-size: 17px; color: #fff; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch, .iba-ph-urg) { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 4px !important; padding: 5px !important; border-radius: 999px !important; background: rgba(8,12,18,.78) !important; border: 1px solid rgba(255,255,255,.1) !important; box-shadow: inset 0 1px 3px rgba(0,0,0,.5) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch { margin: 0 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch, .iba-ph-urg) button { min-height: 46px !important; border-radius: 999px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: #AEB8C4 !important; font-weight: 800 !important; text-shadow: none !important; transition: background .2s, color .2s !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch, .iba-ph-urg) button.is-on { color: #1A1206 !important; box-shadow: 0 4px 14px rgba(0,0,0,.35) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch button[data-side=invoice].is-on, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-urg button[data-urg=normal].is-on { background: #F5A524 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch button[data-side=inventory].is-on, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-urg button[data-urg=urgent].is-on { background: #FF6F8E !important; color: #2A0610 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch, .iba-ph-urg) button.is-on :is(i, b, .iba-ph-count) { color: inherit !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-switch, .iba-ph-urg) button.is-on :is(b, .iba-ph-count) { background: rgba(0,0,0,.18) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone { --acc: #F7BE45; --acc-line: rgba(247,190,69,.5); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone[data-side=inventory] { --acc: #FF86A3; --acc-line: rgba(255,134,163,.5); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-mh-ven, .iba-mh-ivven, .iba-mh-poven, .iba-mh-apv span, .iba-mh-apv b, .iba-mh-head b, .iba-ph-title span, .iba-mh-hi span, #iba-ph-pos, .iba-ph-mark, .iba-ph-item small, .iba-ph-item em, .iba-ph-item span, .inv-mobile-finder-head p, .iba-ph-qty3 small, .iba-ph-qty3 label, .iba-ph-bulk-text, .iba-ph-trk-ends small, .iba-ph-amount small) { color: var(--acc) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-item span.iba-ph-ith { color: var(--acc) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-mark, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-apv { border-color: var(--acc-line) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-bulk .iba-ph-bcnt { background: var(--acc) !important; color: #1A1206 !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button .iba-ph-tab-ic, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button .iba-ph-tab-ic i { color: #E8916D !important; -webkit-text-fill-color: #E8916D !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button.is-on:not(.is-mid) .iba-ph-tab-ic, html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button.is-on:not(.is-mid) .iba-ph-tab-ic i { color: #FFB59A !important; -webkit-text-fill-color: #FFB59A !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button.is-mid .iba-ph-tab-ic { background: linear-gradient(180deg, #E08B69, #C8623F) !important; box-shadow: 0 8px 18px rgba(200,98,63,.5) !important; filter: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs > button.is-mid .iba-ph-tab-ic i { color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone { --btn: linear-gradient(180deg, #F9C15A, #EE9F1C); --btn-fg: #1A1206; --btn-glow: rgba(238,159,28,.45); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone[data-side=inventory] { --btn: linear-gradient(180deg, #FF8AA6, #F05A7E); --btn-fg: #2A0610; --btn-glow: rgba(240,90,126,.45); }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone button.iba-ph-btn.is-primary.iba-ph-btn { background: var(--btn) !important; color: var(--btn-fg) !important; border-color: rgba(255,255,255,.35) !important; box-shadow: 0 4px 14px var(--btn-glow), inset 0 1px 0 rgba(255,255,255,.35) !important; text-shadow: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-btn.is-primary i { color: inherit !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone :is(.iba-ph-btn.is-ghost-danger, .iba-ph-btn[data-act=stk-reject]) { background: transparent !important; color: #FF5A5A !important; border: 1.5px solid #FF5A5A !important; box-shadow: none !important; text-shadow: none !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head .iba-ph-icon { background: transparent !important; border: 0 !important; box-shadow: none !important; color: #fff !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone header.iba-ph-head.iba-ph-head { background: transparent !important; border: 0 !important; border-bottom: 2px solid rgba(255,255,255,.55) !important; border-radius: 0 !important; box-shadow: 0 1px 0 rgba(0,0,0,.25) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; margin: 6px 14px 10px !important; padding: 6px 2px 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head :is(.iba-ph-who strong, .iba-ph-icon) { text-shadow: 0 1px 4px rgba(0,0,0,.85) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head #iba-ph-pos { text-shadow: 0 1px 4px rgba(0,0,0,.85) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-mark { border: 0 !important; background: transparent !important; box-shadow: none !important; width: auto !important; padding: 0 12px 0 0 !important; margin-right: 2px !important; border-right: 3px solid var(--acc) !important; border-radius: 0 !important; height: 36px !important; font-size: 17px !important; letter-spacing: .04em !important; text-shadow: 0 1px 4px rgba(0,0,0,.85) !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch { border-radius: 999px !important; margin: 0 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone header.iba-ph-head.iba-ph-head { background: linear-gradient(180deg, rgba(5,10,18,.72) 0%, rgba(5,10,18,.45) 70%, rgba(5,10,18,0) 100%) !important; margin: 0 !important; padding: 12px 16px 12px !important; border-bottom: 0 !important; box-shadow: none !important; position: relative !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone header.iba-ph-head.iba-ph-head::after { content: "" !important; position: absolute !important; left: 14px !important; right: 14px !important; bottom: 0 !important; height: 2px !important; background: rgba(255,255,255,.75) !important; box-shadow: 0 1px 3px rgba(0,0,0,.45) !important; border-radius: 2px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-switch { margin-top: 10px !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-head #iba-ph-pos { font-weight: 700 !important; } }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-ai-fab { transition: opacity .25s, transform .25s !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-ai-fab:is(:hover, :active, :focus-visible, .is-open), html body.iba-phone:not(#iba-g1):not(#iba-g2):has(#iba-ai-bubble:not([hidden])) #iba-ai-fab { opacity: 1 !important; }
+  /* 17.0.5 patch 160: the qty hint never pushes the numbers out of line (only errors show, small and red, on the APPROVE label line) */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 .iba-ph-step { position: relative !important; }
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-qty3 .iba-ph-step .iba-ph-qty-hint.iba-ph-qty-hint { position: absolute !important; top: 0 !important; left: auto !important; right: 0 !important; bottom: auto !important; margin: 0 !important; font-size: 12px !important; line-height: 16px !important; font-weight: 700 !important; color: #FF8A8A !important; text-align: right !important; }
 }
