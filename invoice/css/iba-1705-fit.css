@@ -1853,4 +1853,103 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards { display: grid !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards > .iba-mh-card { background: transparent !important; border: 0 !important; border-top: 1px solid rgba(255,255,255,.09) !important; border-radius: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
   html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-mh-gcards > .iba-mh-card:first-child { border-top: 0 !important; }
+
+  /* 17.0.5 patch 175: Receive a delivery by scan (js/iba-1705-receive.js) - pink inventory glass */
+  html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-tabs.is-six { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; }
+  html body:not(#iba-g1) #iba-rcv { position: fixed !important; inset: 0 !important; z-index: 2147482000 !important; display: none !important; flex-direction: column !important; color: #fff !important; font-family: inherit !important;
+    background: linear-gradient(180deg, rgba(5,10,18,.45), rgba(5,10,18,.62)), var(--ph-photo, none) center / cover no-repeat, #1b2836 !important; text-shadow: 0 1px 3px rgba(0,0,0,.6) !important; }
+  html body:not(#iba-g1) #iba-rcv.is-on { display: flex !important; }
+  html body:not(#iba-g1) #iba-rcv * { box-sizing: border-box !important; }
+  html body:not(#iba-g1) #iba-rcv button { font: inherit !important; cursor: pointer !important; -webkit-tap-highlight-color: transparent; }
+  html body:not(#iba-g1) #iba-rcv .rcv-top { display: flex !important; align-items: center !important; gap: 12px !important; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px !important; background: linear-gradient(180deg, rgba(5,10,18,.78), rgba(5,10,18,.3)) !important; border-bottom: 2px solid rgba(255,134,163,.7) !important; font-size: 16px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-x { background: rgba(9,18,30,.55) !important; color: #fff !important; border: 1px solid rgba(255,255,255,.25) !important; border-radius: 999px !important; padding: 8px 14px !important; font-weight: 700 !important; font-size: 14px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-body { flex: 1 !important; overflow: auto !important; padding: 12px 12px 16px !important; display: flex !important; flex-direction: column !important; gap: 10px !important; max-width: 640px !important; width: 100% !important; margin: 0 auto !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-foot { padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)) !important; background: linear-gradient(0deg, rgba(5,10,18,.92), rgba(5,10,18,.6)) !important; display: flex !important; flex-direction: column !important; gap: 8px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-foot > * { max-width: 616px; width: 100%; margin: 0 auto; }
+  html body:not(#iba-g1) #iba-rcv .rcv-foot[hidden] { display: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-glass { background: rgba(9,18,30,.55) !important; border: 1px solid rgba(255,255,255,.16) !important; border-radius: 18px !important; -webkit-backdrop-filter: blur(4px) !important; backdrop-filter: blur(4px) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-cam { position: relative !important; height: min(52vh, 380px) !important; border-radius: 18px !important; overflow: hidden !important; background: #0d1622 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-cam video { width: 100% !important; height: 100% !important; object-fit: cover !important; display: block !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-frame { position: absolute !important; inset: 22% 14% !important; border: 3px solid #FF86A3 !important; border-radius: 16px !important; box-shadow: 0 0 0 999px rgba(0,0,0,.35) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-laser { position: absolute !important; left: 16% !important; right: 16% !important; top: 50% !important; height: 2px !important; background: #FF86A3 !important; box-shadow: 0 0 12px #FF86A3 !important; animation: rcvLaser 1.6s ease-in-out infinite alternate !important; }
+  @keyframes rcvLaser { from { transform: translateY(-40px); } to { transform: translateY(40px); } }
+  html body:not(#iba-g1) #iba-rcv .rcv-camtip { position: absolute !important; bottom: 10px !important; left: 0 !important; right: 0 !important; text-align: center !important; font-size: 12px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nocam { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 6px !important; padding: 20px 16px !important; text-align: center !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nocam i { font-size: 34px !important; color: #FF86A3 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nocam span, html body:not(#iba-g1) #iba-rcv .rcv-small { color: #E3C98A !important; font-size: 12px !important; text-align: center !important; margin: 0 !important; line-height: 1.4 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-msg { padding: 10px 12px !important; border-radius: 14px !important; background: rgba(255,92,108,.18) !important; border: 1px solid rgba(255,92,108,.6) !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-type { display: flex !important; gap: 8px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-type input { flex: 1 !important; min-width: 0 !important; height: 48px !important; border-radius: 14px !important; border: 1px solid rgba(255,255,255,.35) !important; background: rgba(9,18,30,.55) !important; color: #fff !important; padding: 0 14px !important; font-size: 16px !important; font-family: ui-monospace, Consolas, monospace !important; text-transform: uppercase !important; outline: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-type input:focus { border-color: #FF86A3 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-btn, html body:not(#iba-g1) #iba-rcv .rcv-big { background: #FF86A3 !important; color: #2a0d14 !important; border: 0 !important; border-radius: 14px !important; font-weight: 800 !important; padding: 0 18px !important; min-height: 48px !important; text-shadow: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-big { width: 100% !important; font-size: 15px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-wide { width: 100% !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-ghost { width: 100% !important; min-height: 44px !important; border-radius: 14px !important; background: transparent !important; color: #fff !important; border: 1px solid rgba(255,255,255,.5) !important; font-weight: 700 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-row { display: flex !important; gap: 8px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-pill { flex: 1 !important; min-height: 42px !important; border-radius: 999px !important; border: 1px solid rgba(255,255,255,.25) !important; background: rgba(9,18,30,.55) !important; color: #fff !important; font-weight: 700 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-pill[hidden] { display: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-pill.is-on { background: #F7BE45 !important; color: #2a1d00 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-wait { padding: 18px !important; text-align: center !important; font-weight: 700 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-stop { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 8px !important; padding: 22px 16px !important; text-align: center !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-stop span { color: #E3C98A !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-ic { width: 54px !important; height: 54px !important; border-radius: 50% !important; border: 2px solid #F7BE45 !important; display: grid !important; place-items: center !important; font-size: 26px !important; color: #F7BE45 !important; font-weight: 900 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-c { font-family: ui-monospace, Consolas, monospace !important; color: #FF86A3 !important; font-size: 15px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-head { padding: 10px 12px !important; display: flex !important; flex-direction: column !important; gap: 6px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-r { display: flex !important; justify-content: space-between !important; align-items: center !important; gap: 8px !important; font-size: 12px !important; color: #E3C98A !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-r b:not(.rcv-c) { color: #fff !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-all { font-size: 12px !important; font-weight: 800 !important; color: #FF86A3 !important; background: transparent !important; border: 1px solid #FF86A3 !important; border-radius: 999px !important; padding: 6px 12px !important; min-height: 32px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-bar { height: 6px !important; border-radius: 9px !important; background: rgba(255,255,255,.15) !important; overflow: hidden !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-bar i { display: block !important; height: 100% !important; background: #3DDC97 !important; border-radius: 9px !important; transition: width .2s !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-list { overflow: hidden !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw { position: relative !important; overflow: hidden !important; border-top: 1px solid rgba(255,255,255,.09) !important; touch-action: pan-y !important; user-select: none !important; -webkit-user-select: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-list > :first-child { border-top: 0 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-bg { position: absolute !important; inset: 0 !important; display: none !important; align-items: center !important; padding: 0 16px !important; font-weight: 800 !important; font-size: 13px !important; text-shadow: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-bg-ok { background: #3DDC97 !important; color: #06281a !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-bg-no { background: #FF5C6C !important; color: #2b0508 !important; justify-content: flex-end !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.to-ok .rcv-bg-ok, html body:not(#iba-g1) #iba-rcv .rcv-sw.to-no .rcv-bg-no { display: flex !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-fg { position: relative !important; display: flex !important; align-items: center !important; gap: 10px !important; padding: 11px 12px !important; min-height: 46px !important; font-size: 14px !important; border-left: 4px solid transparent !important; background: transparent !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.to-ok .rcv-fg, html body:not(#iba-g1) #iba-rcv .rcv-sw.to-no .rcv-fg { background: rgba(9,18,30,.88) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-static { border-top: 1px solid rgba(255,255,255,.09) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-ok .rcv-fg { border-left-color: #3DDC97 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-part .rcv-fg { border-left-color: #F7BE45 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-part .rcv-q { color: #F7BE45 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-no .rcv-fg { border-left-color: #FF5C6C !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-no .rcv-nm { text-decoration: line-through !important; opacity: .65 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sw.is-no .rcv-q { color: #FF5C6C !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sn { min-width: 22px !important; height: 22px !important; border-radius: 6px !important; background: rgba(255,255,255,.14) !important; display: grid !important; place-items: center !important; font-size: 11px !important; font-weight: 800 !important; color: #E3C98A !important; flex: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nm { flex: 1 !important; min-width: 0 !important; font-weight: 600 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nm small { display: block !important; font-size: 11px !important; font-weight: 500 !important; color: #E3C98A !important; white-space: normal !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nm em { color: #F7BE45 !important; font-style: normal !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-nm em.rcv-red { color: #FF5C6C !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-q { font-family: ui-monospace, Consolas, monospace !important; font-weight: 800 !important; white-space: nowrap !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-q.rcv-plus { color: #3DDC97 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-qbox { padding: 10px 12px 12px 16px !important; background: rgba(247,190,69,.12) !important; border-left: 4px solid #F7BE45 !important; display: flex !important; flex-direction: column !important; gap: 8px !important; font-size: 12px !important; color: #E3C98A !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-qr { display: flex !important; align-items: center !important; gap: 10px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-qr input { flex: 1 !important; min-width: 0 !important; height: 46px !important; border-radius: 12px !important; border: 2px solid #F7BE45 !important; background: rgba(0,0,0,.35) !important; color: #fff !important; padding: 0 12px !important; font-size: 20px !important; font-weight: 800 !important; font-family: ui-monospace, Consolas, monospace !important; outline: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-of { font-size: 14px !important; font-weight: 700 !important; color: #fff !important; white-space: nowrap !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-chips { display: flex !important; gap: 6px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-chips button { flex: 1 !important; min-height: 40px !important; border-radius: 10px !important; border: 1px solid rgba(255,255,255,.35) !important; background: transparent !important; color: #fff !important; font-weight: 700 !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-chips button.is-ok { background: #F7BE45 !important; color: #2a1d00 !important; border-color: #F7BE45 !important; text-shadow: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-qerr { color: #FF8A95 !important; font-weight: 700 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-qerr:empty { display: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sum { display: flex !important; justify-content: space-between !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sum b { color: #FF86A3 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sheet { position: absolute !important; inset: 0 !important; display: flex !important; align-items: flex-end !important; justify-content: center !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sheet[hidden] { display: none !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-dim { position: absolute !important; inset: 0 !important; background: rgba(0,0,0,.4) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sbox { position: relative !important; width: calc(100% - 16px) !important; max-width: 560px !important; margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important; padding: 16px !important; border-radius: 22px !important; display: flex !important; flex-direction: column !important; gap: 10px !important; background: rgba(9,18,30,.9) !important; border: 1px solid rgba(255,255,255,.18) !important; max-height: 86vh !important; overflow: auto !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sbox h3 { margin: 0 !important; font-size: 17px !important; color: #fff !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-mis { display: flex !important; justify-content: space-between !important; gap: 10px !important; font-size: 13px !important; padding: 8px 10px !important; border-radius: 12px !important; background: rgba(255,255,255,.07) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-mis b { color: #F7BE45 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-opt { display: flex !important; gap: 10px !important; align-items: flex-start !important; text-align: left !important; padding: 10px 12px !important; border-radius: 14px !important; border: 1px solid rgba(255,255,255,.28) !important; background: transparent !important; color: #fff !important; font-size: 13px !important; line-height: 1.35 !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-opt.is-on { border-color: #FF86A3 !important; background: rgba(255,134,163,.13) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-opt small { display: block !important; color: #E3C98A !important; font-size: 11px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-rd { width: 18px !important; height: 18px !important; border-radius: 50% !important; border: 2px solid #fff !important; flex: none !important; margin-top: 1px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-opt.is-on .rcv-rd { border-color: #FF86A3 !important; background: radial-gradient(#FF86A3 45%, transparent 50%) !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-done { display: flex !important; flex-direction: column !important; align-items: center !important; gap: 6px !important; padding: 18px !important; text-align: center !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-done span { color: #E3C98A !important; font-size: 13px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-dt { font-size: 17px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-tick { width: 56px !important; height: 56px !important; border-radius: 50% !important; background: #3DDC97 !important; display: grid !important; place-items: center !important; color: #06281a !important; font-size: 28px !important; font-weight: 900 !important; text-shadow: none !important; }
+  html body.iba-rcv-open #iba-ai-panel, html body.iba-rcv-open .iba-ai-fab { visibility: hidden !important; }
+  #iba-ai-panel .iba-ai-apps > .is-c2 > i { background: linear-gradient(145deg, #FF9DB4, #D9567A) !important; }
 }
