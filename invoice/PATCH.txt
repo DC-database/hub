@@ -1,3 +1,17 @@
+17.0.5 patch 173 (08-Nov-2026)
+- Assistant Print (tracking and every assistant report): top shows only the logo + "date · Printed by". The company name block, the big title (e.g. "Invoice tracking · <vendor>") and the company name at the bottom are gone; the vendor is still in the box under it.
+Files: index.html, js/iba-print.js
+
+17.0.5 patch 172 (08-Nov-2026)
+- Phone Home = only the 4 counters (Active task, Active job, Returned, Accounts); the task cards under them are gone.
+- Active task / Active job page: tasks grouped by status in closed rows (For Approval first, then biggest group). Tap a group to open it in place; opening another closes the first. No extra page per status.
+Files: index.html, css/iba-1705-fit.css, js/iba-1705-mhome.js
+
+17.0.5 patch 171 (08-Nov-2026)
+- Phone tracker: site chips ("Not in the newest? Look in a site") and vendor chips now work on the phone (results stay in the phone result box; before they went to the hidden chat).
+- Vendor search: when a short name fits several vendors (e.g. "arabian tra" = Arabian Trading Agencies + Arabian Trad. and Contractor of Elevators) it asks "Which one?" with a chip per vendor + "All of them together", instead of silently mixing their POs. An exact vendor name goes straight to that vendor.
+Files: index.html, js/iba-assistant.js
+
 17.0.5 patch 170 (08-Nov-2026)
 - Phone Home / Active task: a "For Approval" invoice says "approve here" (not "do it on PC"). Tapping it opens Approve on the right Urgent/Normal tab and the invoice's card flashes (scrolled into view). Other tasks unchanged.
 - Active task note now: "Tap one to see it. For Approval opens Approve."
