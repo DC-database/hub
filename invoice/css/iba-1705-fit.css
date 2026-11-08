@@ -1997,3 +1997,22 @@ html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) .iba-ai-remme.is-cancelled .
   html body:not(#iba-g1) #iba-pn .t-dup, html body:not(#iba-g1) #iba-pn .t-wait { background: rgba(255,255,255,.1) !important; color: #c9d4df !important; }
   html body:not(#iba-g1) #iba-pn .t-ask { background: rgba(247,190,69,.15) !important; color: #F7BE45 !important; }
 }
+
+/* 17.0.5 patch 181: taller Receive-a-delivery rows (phone 60px, tablet 74px) */
+@layer iba-ui {
+html body:not(#iba-g1) #iba-rcv .rcv-fg { min-height: 60px !important; padding: 14px 14px !important; font-size: 15.5px !important; gap: 12px !important; }
+html body:not(#iba-g1) #iba-rcv .rcv-sn { min-width: 26px !important; height: 26px !important; font-size: 12.5px !important; border-radius: 8px !important; }
+html body:not(#iba-g1) #iba-rcv .rcv-q { font-size: 15.5px !important; }
+html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
+@media (min-width: 700px) {
+  html body:not(#iba-g1) #iba-rcv .rcv-body { max-width: 760px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-fg { min-height: 74px !important; padding: 18px 20px !important; font-size: 18px !important; gap: 16px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-sn { min-width: 32px !important; height: 32px !important; font-size: 14px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-q { font-size: 18px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-head { padding: 14px 18px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-r { font-size: 14px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-c { font-size: 18px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-all { font-size: 14px !important; padding: 8px 16px !important; min-height: 38px !important; }
+  html body:not(#iba-g1) #iba-rcv .rcv-small { font-size: 13.5px !important; }
+}
+}
