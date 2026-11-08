@@ -1,3 +1,13 @@
+17.0.5 patch 179 (08-Nov-2026) - Receive delivery: the paper ESN finds its transfer even when that line is received
+  - The paper barcode is the ESN of ONE line (the first). When that line was already received, the scan now reads that line by its ESN (REST, orderBy "esn", needs the Firebase index transfer_entries .indexOn "esn"; without it Firebase answers 400 and nothing is downloaded), takes its TRF number and opens the lines still on the way.
+  Files: index.html, js/iba-1705-receive.js, PATCH.txt
+
+17.0.5 patch 178 (08-Nov-2026) - Receive delivery: stronger lookup
+  - A scanned ESN not found in the In Transit list is now also looked up in the transfers this device already has (Active Task, inventory lists), then that one transfer is read by its TRF number (small indexed read).
+  - A line counts as on the way when remarks OR status says In Transit (older records keep an old remarks value).
+  - "Nothing on the way matches" now shows what was checked, to find the cause.
+  Files: index.html, js/iba-1705-receive.js, PATCH.txt
+
 17.0.5 patch 177 (08-Nov-2026) - Tablet: Invoice/Inventory switch centred
   - The switch had max-width 720px but a 10px left margin, so on tablets it sat to the left of the Home counters. Now centred (css/iba-1705-fit.css). Phones unchanged.
   Files: index.html, css/iba-1705-fit.css, PATCH.txt
