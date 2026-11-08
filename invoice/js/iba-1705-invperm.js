@@ -46,6 +46,8 @@
         { id: 'stock_check', label: 'Stock Check (align / approve site qty)', def: (u) => irwin(u) || logistic(u), how: 'Super Admin or Logistic' },
         { id: 'photo', label: 'Attach item photo', def: (u) => !!String(u.Name || '').trim(), how: 'Everyone signed in' },
         // 17.0.5 patch 142: who shows in the Approves list of Transfer / Usage / Restock / Return
+        // 17.0.5 patch 180: add / remove names in the Photo names list (js/iba-1705-photonames.js)
+        { id: 'photo_names', label: 'Photo names list (add / remove)', def: () => false, how: 'Super Admin only' },
         { id: 'approve_delivery', label: 'Approve deliveries (Approves list)', def: (u) => /^e\.?\s*ali$/i.test(String(u.Name || '').trim()), how: 'E.Ali only' }
     ];
     const byId = {};

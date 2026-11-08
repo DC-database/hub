@@ -3487,6 +3487,9 @@
         inv_status: { name: 'Where is my invoice?', icon: 'fa-magnifying-glass-location', desc: 'Type the PO number or the vendor name. Each invoice says in plain words where it is now, who has it, for how long and what comes next, with a Remind button. No AI used.',
             ask: () => [{ key: 'q', label: 'PO number or vendor name', placeholder: 'e.g. 66176 or Al Noor' }],
             build: (v) => /^\s*(po)?[\s#:-]*\d+\s*$/i.test(v.q) ? [{ tool: 'track_invoices', args: { po: v.q.replace(/\D+/g, '') } }] : [{ tool: 'track_invoices', args: { vendor: v.q } }] },
+        // 17.0.5 patch 180: Photo names list (Super Admin + ticked in Inventory permissions)
+        photo_names: { name: 'Photo names', icon: 'fa-images', desc: 'Add the file names of item photos you put in the OneDrive Photo folder (one, or a CSV list), search them, remove a typo. Browse Photo then offers them to everyone.',
+            check: () => !!(window.ibaPhotoNames && window.ibaPhotoNames.allowed()), ask: () => [], action: () => window.ibaPhotoNames.open() },
         // 17.0.5 patch 175: phones and tablets only (touch screen)
         receive_delivery: { name: 'Receive delivery', icon: 'fa-barcode', desc: 'Scan the barcode on the transfer paper (or type the TRF number), tick what arrived and confirm. Only what arrived goes into your site stock. Phones and tablets only.',
             check: () => !!(window.ibaReceive && window.ibaReceive.available()), ask: () => [], action: () => window.ibaReceive.open() },
@@ -6666,7 +6669,7 @@
     // 15.0.0 patch 27: skills as tap tiles (like the phone home):
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
-        inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
+        inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], photo_names: ['Item photo file names', '#F7BE45'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
@@ -6677,6 +6680,7 @@
     const SKILL_GROUPS = [
         ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month', 'notes_to_acc']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
+        ['Inventory', ['photo_names']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
         ['Admin tools', ['handover', 'dbcheck']]

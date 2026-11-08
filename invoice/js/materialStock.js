@@ -538,6 +538,13 @@ async function msGetMaterialPhotoLibraryNames() {
     // 17.0.5 patch 166: the list comes from the real OneDrive Photo folder (read only).
     // No Firebase and no PhotoIndex.csv. Fallback = names already used on stock items.
     window.__msPhotoFolderState = 'off';
+    // 17.0.5 patch 180: the Photo names list in Firebase (requisition-bf146 photoList)
+    try {
+        if (window.ibaPhotoNames) {
+            const fb = await window.ibaPhotoNames.load();
+            if (fb && fb.length) { window.__msPhotoFolderState = 'firebase'; return fb.slice(); }
+        }
+    } catch (_) {}
     // 17.0.5 patch 169: photos in the app's item-photo folder (list.json from shrink-photos.bat)
     try {
         if (window.ibaItemPhotos) {
