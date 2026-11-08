@@ -1,3 +1,51 @@
+17.0.5 patch 170 (08-Nov-2026)
+- Phone Home / Active task: a "For Approval" invoice says "approve here" (not "do it on PC"). Tapping it opens Approve on the right Urgent/Normal tab and the invoice's card flashes (scrolled into view). Other tasks unchanged.
+- Active task note now: "Tap one to see it. For Approval opens Approve."
+Files: index.html, css/iba-1705-fit.css, js/iba-1705-mhome.js
+
+17.0.5 patch 169 (08-Nov-2026)
+- Item photos can live in the app itself: an "item-photo" folder next to index.html (uploaded with the app). item-photo/list.json lists them.
+- Photo picker suggests every photo in item-photo/list.json. Every screen (stock list, picker preview, phone item finder, transfer preview) shows the item-photo copy when it is there, else the OneDrive photo as before. Saved data unchanged (photo name), so nothing to redo.
+- shrink-photos.bat/.ps1 now also writes item-photo\list.json. Run it again after adding photos, copy the item-photo folder next to index.html, upload.
+Files: index.html, js/iba-1705-itemphoto.js (new), js/materialStock.js, js/app-inventory.js, js/transferLogic.js, shrink-photos.ps1 (helper, not uploaded)
+
+17.0.5 patch 168 (08-Nov-2026)
+- Inventory photo picker: until the Microsoft link is set up, the photo list = PhotoIndex.csv in the GitHub hub repo (main). Every name in it is suggested as you type; "nail" = nail.jpg, other types keep their extension (e.g. bolt.png).
+- New make-photo-list.bat: double-click on the PC -> makes PhotoIndex.csv from the OneDrive "DC Files\Photo" folder (finds it via OneDrive; else put the path after PHOTO=). Then upload PhotoIndex.csv to the hub repo.
+Files: index.html, js/materialStock.js, make-photo-list.bat (new)
+
+17.0.5 patch 167 (08-Nov-2026)
+- Invoice tracking (PC + phone): the "Finance" button on the PO card shows only when Finance (payment-report) has a record for that PO. No record = no button. One small indexed read per PO (same read the button already did, now done when the card shows; kept for the session).
+Files: index.html, js/iba-1705-finpay.js
+
+17.0.5 patch 166 (08-Nov-2026)
+- Inventory photo picker reads the real OneDrive "DC Files/Photo" folder (Microsoft Graph, read only) and suggests every photo in it as you type.
+- No Firebase any more for photos: the material_photo_library read/write is gone; PhotoIndex.csv is not read.
+- Needs IT: an Azure app registration. Put its clientId + tenantId in index.html (window.IBA_MS_GRAPH). Each user signs in with Microsoft once (button in the picker). Until filled in, the picker lists names already used on stock items.
+- New: js/iba-1705-msphoto.js, js/vendor/msal-browser-2.38.3.min.js (Microsoft sign-in library, loaded only when the picker opens), msal-redirect.html (sign-in pop-up page).
+Files: index.html, js/materialStock.js, js/iba-1705-msphoto.js, js/vendor/msal-browser-2.38.3.min.js, msal-redirect.html
+
+17.0.5 patch 165 (08-Nov-2026)
+- Invoice tracking (PC + phone, receipt, list, invoice card): "With Accounts since", "Given to Accounts on", "Paid on" and the matching history line now use the dates typed on the invoice (With Accounts / Release Date, Paid Date), not the day the record was saved. Falls back to the history time only when no date is typed.
+Files: index.html, js/iba-assistant.js
+
+17.0.5 patch 164 (08-Nov-2026)
+- Phone invoice card: Invoice / Value / Invoice date / With sit straight on the card (no inner box).
+- Invoice tracking (PC + phone): receipt shows "Release date" (same Release Date as Invoice Records); phone invoice card shows it too when set.
+- css/iba-1705-fit.css: removed a stray "}" that closed the iba-ui layer early (rules after it were losing to older layered rules).
+Files: index.html, css/iba-1705-fit.css, js/iba-1705-mhome.js, js/iba-assistant.js
+
+17.0.5 patch 163 (08-Nov-2026)
+- Phone lists (Active task, Active job, a status list like New Entry): the short note now sits in the title bar, small and italic after a divider (no extra card).
+- Bottom Home button always goes back to Home from any list or invoice (before it did nothing in Active task / status lists).
+Files: index.html, css/iba-1705-fit.css, js/iba-1705-mhome.js
+
+17.0.5 patch 162 (08-Nov-2026)
+- Phone Home kept clean (martin): no greeting, no "Where is my invoice?" search, no "waiting for your approval" / "inventory waiting" rows. Home = 4 counters + My tasks. The Approve tab badge still shows what is waiting.
+- Today's date in the top bar, right of Irwin / Accounting after a thin divider (Sun / 08 Nov).
+- Active job opens in the pink Inventory look (switch on Inventory) because it is inventory work for the PC; Back, Home or Invoice return to the yellow invoice Home.
+Files: index.html, css/iba-1705-fit.css, js/iba-phone.js, js/iba-1705-mhome.js
+
 17.0.5 patch 161 (08-Nov-2026)
 - Phone inventory approve: the confirm pop-up after Approve no longer says "(lowered from X)" either. No "lowered from" anywhere now.
 Files: index.html, js/iba-phone.js
