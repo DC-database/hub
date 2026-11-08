@@ -1,3 +1,8 @@
+17.0.5 patch 181 (08-Nov-2026) - Taller rows in Receive a delivery
+- Phone: each item row about 60px tall, slightly bigger text and S.N. box (easier to swipe).
+- Tablet (700px and wider): rows 74px, bigger text/qty, list up to 760px wide, bigger header and Receive all.
+- Files: index.html, css/iba-1705-fit.css
+
 17.0.5 patch 180 (08-Nov-2026) - Photo names list in Firebase
 - New js/iba-1705-photonames.js: "Photo names" window (Material Stock > More tools, and assistant skill "Photo names").
   Add one name (ending found in OneDrive: .jpg/.jpeg/.png/.gif; asks if not found), search, remove a typo,
