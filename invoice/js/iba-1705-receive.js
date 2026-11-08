@@ -83,6 +83,50 @@
         return [];
     }
 
+    // p178: a line counts as on the way when remarks OR status says In Transit
+    // (older records can keep an old remarks value)
+    function onWay(t) {
+        if (!t) return false;
+        const r = String(t.remarks || '').trim(), s = String(t.status || '').trim();
+        if (r === 'In Transit') return true;
+        return s === 'In Transit' && !/completed|rejected|cancel/i.test(r);
+    }
+    // p178: lines already in this browser (Active Task, inventory lists): no download
+    function inMemory() {
+        const out = [];
+        const add = (a) => { if (Array.isArray(a)) a.forEach((t) => { if (t && typeof t === 'object' && (t.esn || t.controlNumber)) out.push(t); }); };
+        try { add(activeTransfersCache); } catch (_) {}
+        try { add(allTransferData); } catch (_) {}
+        try { add(inventorySystemEntries); } catch (_) {}
+        try { add(inventoryActiveTasks); } catch (_) {}
+        try { add(userActiveTasks); } catch (_) {}
+        try { add(transferProcessedTasks); } catch (_) {}
+        return out;
+    }
+    // p179: the paper barcode is the ESN of ONE line (the first). When that line is
+    // already received, find its transfer by the ESN itself. Plain REST read with
+    // orderBy "esn": with the Firebase index it returns only the matching line;
+    // without it Firebase answers 400 (nothing is downloaded).
+    async function byEsn(code) {
+        const k = key(code);
+        const m = k.match(/^[A-Z0-9]{12}/);
+        if (!m || !/[A-Z]/.test(m[0]) || !/\d/.test(m[0])) return { lines: [], state: 'skip' };
+        const d = db();
+        let base = '';
+        try { base = String((d && d.app && d.app.options && d.app.options.databaseURL) || '').replace(/\/$/, ''); } catch (_) {}
+        if (!base) return { lines: [], state: 'skip' };
+        const q = (s) => encodeURIComponent('"' + s + '"');
+        try {
+            const res = await fetch(base + '/transfer_entries.json?orderBy=' + q('esn') + '&startAt=' + q(m[0]) + '&endAt=' + q(m[0] + '\uf8ff') + '&limitToFirst=20', { cache: 'no-store' });
+            if (!res.ok) {
+                let t = ''; try { t = await res.text(); } catch (_) {}
+                return { lines: [], state: res.status === 400 && /index/i.test(t) ? 'noindex' : 'error' };
+            }
+            const j = await res.json();
+            const lines = Object.keys(j || {}).map((x) => Object.assign({}, j[x], { key: x }));
+            return { lines: lines, state: 'ok' };
+        } catch (_) { return { lines: [], state: 'error' }; }
+    }
     // ---------------------------------------------------------------- shell
     function root() {
         let r = document.getElementById(ID);
@@ -194,23 +238,43 @@
         st = { view: 'busy' };
         foot('');
         body('<div class="rcv-glass rcv-wait"><i class="fa-solid fa-spinner fa-spin"></i> Looking for ' + esc(code) + '…</div>');
+        const why = [];
         try {
             let list = await inTransit(false);
             let hit = list.find((t) => matches(t, code));
             if (!hit) { list = await inTransit(true); hit = list.find((t) => matches(t, code)); }
+            why.push(list.length + ' on the way');
+            // p178: not in the In Transit list -> look in what this browser already has,
+            // then read that one transfer by its number (small indexed read)
+            let byCtrl = null;
             if (!hit) {
-                const done = await lookupDone(code);
-                if (done.length) {
-                    const c = done.find((t) => /completed/i.test(t.remarks || '')) || done[0];
-                    const when = c.receivedAt ? new Date(c.receivedAt) : null;
-                    const by = c.receivedBy || '';
-                    const txt = /completed/i.test(c.remarks || '')
-                        ? 'Already received' + (by ? ' by ' + by : '') + (when ? ' on ' + when.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '') + '.'
-                        : 'This transfer is not on the way yet (now: ' + (c.remarks || c.status || '?') + ').';
-                    return showStop(ctrlOf(c) || code, txt, '');
+                let mem = inMemory().find((t) => matches(t, code));
+                why.push(mem ? 'found ' + (ctrlOf(mem) || 'a line') + ' in this device' : 'not in this device');
+                if (!mem) {
+                    const e = await byEsn(code);
+                    mem = e.lines.find((t) => matches(t, code)) || null;
+                    if (e.state === 'noindex') why.push('ESN index missing in Firebase');
+                    else if (e.state !== 'skip') why.push(mem ? 'ESN found ' + (ctrlOf(mem) || '') : 'ESN not found');
                 }
-                return showScan('Nothing on the way matches "' + code + '". Check the number and try again.');
+                const c = mem ? ctrlOf(mem) : code;
+                const all = await lookupDone(c);
+                why.push(all.length + ' line(s) by number');
+                if (all.length && (mem || all.some((t) => matches(t, code)) || matches(all[0], code))) {
+                    const way = all.filter(onWay);
+                    if (way.length) { byCtrl = way; hit = way.find((t) => matches(t, code)) || way[0]; }
+                    else {
+                        const c0 = all.find((t) => /completed/i.test(t.remarks || '') || /completed/i.test(t.status || '')) || all[0];
+                        const when = c0.receivedAt ? new Date(c0.receivedAt) : null;
+                        const by = c0.receivedBy || '';
+                        const txt = /completed/i.test((c0.remarks || '') + (c0.status || ''))
+                            ? 'Already received' + (by ? ' by ' + by : '') + (when ? ' on ' + when.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '') + '.'
+                            : 'This transfer is not on the way yet (now: ' + (c0.remarks || c0.status || '?') + ').';
+                        return showStop(ctrlOf(c0) || code, txt, '');
+                    }
+                }
             }
+            if (!hit) return showScan('Nothing on the way matches "' + code + '". Check the number and try again. (Checked: ' + why.join(' · ') + ')');
+            if (byCtrl) list = byCtrl;
             const ctrl = ctrlOf(hit);
             const lines = ctrl ? list.filter((t) => ctrlOf(t) === ctrl) : [hit];
             const rcv = receiverOf(hit);
@@ -367,7 +431,7 @@
                 // fresh read of this one line: still In Transit?
                 const snap = await d.ref('transfer_entries/' + k).once('value');
                 const now = snap.val();
-                if (!now || now.remarks !== 'In Transit') { x.skip = 'already ' + (now ? (now.remarks || now.status) : 'removed'); done.push(x); continue; }
+                if (!now || !onWay(now)) { x.skip = 'already ' + (now ? (now.remarks || now.status) : 'removed'); done.push(x); continue; }
                 const pID = now.productID || now.productId;
                 const dest = toOf(now), src = fromOf(now);
                 if (!pID || !dest) throw new Error(nameOf(now) + ': missing product or destination site.');
