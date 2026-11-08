@@ -1,3 +1,13 @@
+17.0.5 patch 180 (08-Nov-2026) - Photo names list in Firebase
+- New js/iba-1705-photonames.js: "Photo names" window (Material Stock > More tools, and assistant skill "Photo names").
+  Add one name (ending found in OneDrive: .jpg/.jpeg/.png/.gif; asks if not found), search, remove a typo,
+  upload a CSV (first column, one name per line) -> new / already in list / not in OneDrive -> "Add N names".
+- List lives in Firebase requisition-bf146 photoList/photo_names (no more PhotoIndex.csv on GitHub).
+- Browse Photo (attach photo to an item) reads this list first; the old CSV is only a fallback.
+- Who may change it: Super Admin always + people ticked in Settings > Inventory permissions "Photo names list".
+- Files: index.html, js/iba-1705-photonames.js (new), js/materialStock.js, js/iba-assistant.js,
+  js/iba-1705-invperm.js, js/iba-1705-msmenu.js, css/iba-1705-fit.css
+
 17.0.5 patch 179 (08-Nov-2026) - Receive delivery: the paper ESN finds its transfer even when that line is received
   - The paper barcode is the ESN of ONE line (the first). When that line was already received, the scan now reads that line by its ESN (REST, orderBy "esn", needs the Firebase index transfer_entries .indexOn "esn"; without it Firebase answers 400 and nothing is downloaded), takes its TRF number and opens the lines still on the way.
   Files: index.html, js/iba-1705-receive.js, PATCH.txt
