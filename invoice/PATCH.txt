@@ -1,3 +1,18 @@
+17.0.5 patch 188 (09-Nov-2026) - PO value = the HIGHER of POVALUE2 and the PO file (progress-po)
+- Tracker / invoice detail and Invoice Entry: always read the PO file value (one small read per PO, kept
+  10 minutes) and use it when it is HIGHER than POVALUE2 ("updated" tag in Invoice Entry). A lower PO file
+  value is no longer used.
+- Invoice Records (PC + phone): the first 30 POs of a search are checked together up front; POs whose
+  invoices add up to more than POVALUE2 are checked too (max 30 more). Higher value wins.
+- Files: index.html, PATCH.txt, js/app-invoice-records.js, js/app-invoice-entry-search.js, js/iba-assistant.js
+
+17.0.5 patch 187 (09-Nov-2026) - Invoice remarks in the tracker
+- Invoice detail ("Where is my invoice?" and phone Records): a "Remarks" box under the amount shows the
+  invoice Note (why it is on hold / pending ...), only until it reaches With Accounts. "URGENT" is taken
+  out of the text (the URGENT badge shows it). No note = no box.
+- Invoice rows: a small note icon on the status line when there is a remark.
+- Files: index.html, PATCH.txt, js/iba-assistant.js, js/app-mobile.js, js/iba-1705-pocard.js, css/iba-1705-fit.css
+
 17.0.5 patch 186 (09-Nov-2026) - "What happened" shows the whole history again
 - The invoice detail showed only the last 6 steps, so "Job Created (WorkDesk)" (Reception) dropped off
   when an invoice had more steps. Now the whole history shows (up to 20 steps).
