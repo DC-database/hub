@@ -35,7 +35,8 @@
     }
     function money(n) {
         if (n == null) return '';
-        try { return 'QAR ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (_) { return 'QAR ' + n; }
+        // 17.0.5 patch 183: no "QAR" (same as the PO card)
+        try { return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); } catch (_) { return String(n); }
     }
 
     // text that is a vendor search, not a PO number

@@ -927,6 +927,31 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
         const totalSRV = invoices.reduce((sum, inv) => sum + (parseFloat(inv.invValue) || 0), 0);
         const balance = poValue - totalSRV;
 
+        // 17.0.5 patch 183 (martin): the same PO card as "Where is my invoice?" (js/iba-1705-pocard.js)
+        if (window.ibaPoCard) {
+            const U = window.ibaPoCard;
+            const amt = (v) => canViewAmounts ? formatCurrency(parseFloat(v) || 0) : '---';
+            const pdf = (base, name) => imHasPdfName(name) ? base + encodeURIComponent(imPdfBase(name)) + '.pdf' : '';
+            const order = invoices.map((inv, i) => ({ inv, i, t: Date.parse(inv.invoiceDate || '') || 0 })).sort((a, b) => (a.t - b.t) || (a.i - b.i));
+            const rows = order.map((o, k) => {
+                const inv = o.inv, st = String(inv.status || 'N/A'), tone = U.toneOf(st);
+                const who = tone === 'paid' ? '' : tone === 'acc' ? 'Fin' : String(inv.attention || '').trim();
+                const since = tone === 'paid' ? (inv.paidDate || inv.actualPaidDate || inv.releaseDate || '') : tone === 'acc' ? (inv.withAccountsReleaseDate || inv.releaseDate || '') : (inv.releaseDate || '');
+                const pay = parseFloat(inv.amountPaid) || 0;
+                return U.row({ n: k + 1, no: inv.invNumber || 'N/A', amt: amt(pay || inv.invValue), invDate: inv.invoiceDate || '',
+                    links: [{ lbl: 'INV', href: pdf(PDF_BASE_PATH, inv.invName) }, { lbl: 'SRV', href: pdf(SRV_BASE_PATH, inv.srvName) }, { lbl: 'REPORT', href: pdf(REPORT_BASE_PATH, inv.reportName) }],
+                    status: st, tone, who, since,
+                    // 17.0.5 patch 185: tap -> the same full invoice detail as "Where is my invoice?"
+                    attrs: inv.key && window.ibaAssistant && window.ibaAssistant.openInvoice ? ' role="button" tabindex="0" data-rec-open="' + escapeHtml(String(poData.poNumber || '')) + '" data-rec-key="' + escapeHtml(String(inv.key)) + '"' : '' });
+            }).join('');
+            const siteStr = String(poData.site || '');
+            const siteCode = (siteStr.match(/^\s*(?:site\s*)?([A-Za-z]?\d+[A-Za-z]?)/i) || [])[1] || siteStr;
+            mobileContainer.insertAdjacentHTML('beforeend', '<article class="iba-mob-v2-po is-u' + (index === 0 ? ' is-first' : '') + '">' +
+                U.card({ po: poData.poNumber || 'N/A', vendor: poData.vendor || 'N/A', site: siteCode || 'N/A', siteName: siteCode && siteCode !== siteStr ? siteStr.replace(siteCode, '').replace(/^\s*[-–—:|,\/]+\s*/, '').trim() : '',
+                    poValue: amt(poValue), invoiced: amt(totalSRV), balance: amt(balance), count: invoices.length, rows,
+                    fin: window.ibaFinPay ? window.ibaFinPay.btnHtml(poData.poNumber, String(poValue || '')) : '' }) + '</article>');
+            return;
+        }
         const invoiceCards = invoices.map((inv) => {
             const invPDFName = imPdfBase(inv.invName);
             const srvPDFName = imPdfBase(inv.srvName);
@@ -1085,4 +1110,14 @@ document.addEventListener('click', function (event) {
     event.stopPropagation();
     if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     openMobileInvoiceRecordsRoute();
+}, true);
+
+// 17.0.5 patch 185: phone Invoice Records row -> full invoice detail (assistant receipt)
+document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!t || !t.closest || t.closest('.iba-u-lk')) return;
+    const row = t.closest('[data-rec-open]');
+    if (!row || !window.ibaAssistant || !window.ibaAssistant.openInvoice) return;
+    e.preventDefault();
+    window.ibaAssistant.openInvoice(row.getAttribute('data-rec-open'), row.getAttribute('data-rec-key'));
 }, true);

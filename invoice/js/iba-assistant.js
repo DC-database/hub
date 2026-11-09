@@ -1536,9 +1536,16 @@
     }
     function trkStepTo(s) {
         if (s.to) return ' → ' + (s.to_plain ? esc(s.to) : '<b class="iba-trk-to">' + esc(s.to) + '</b>') + esc(s.to_tail || '');
-        return s.by ? ' (by ' + esc(s.by) + ')' : '';
+        return ''; // 17.0.5 patch 184: never "(by who clicked)"
+    }
+    // 17.0.5 patch 183: one PO card everywhere (js/iba-1705-pocard.js)
+    function trkUCard(p, extra) {
+        const no = p.site ? (siteNo(p.site) || String(p.site)) : '';
+        return window.ibaPoCard.card(Object.assign({ po: p.po, vendor: p.vendor, site: no, siteName: p.site ? trkSiteName(p.site) : '',
+            poValue: p.po_value, invoiced: p.invoiced, balance: p.balance }, extra || {}));
     }
     function trkPoCard(p, withUpd) {
+        if (window.ibaPoCard) return trkUCard(p, { noPill: true });
         const no = p.site ? (siteNo(p.site) || String(p.site)) : '';
         const nm = p.site ? trkSiteName(p.site) : '';
         // 17.0.5 p98: phone = 2 x 2 grid: PO | SITE, then VENDOR | PO VALUE
@@ -1663,13 +1670,24 @@
     // next one to act), not who typed it. Under Review = the person who entered it.
     // New history rows carry `to` (iba-1705-histto.js); older rows only know the
     // current holder for the latest step.
+    // 17.0.5 patch 184 (martin): who HAS it after each step, never who clicked.
+    //   Under Review / For Summary / SRV Done = whoever made that update
+    //   CEO Approval = the CEO (Hamad), Report = Gio, With Accounts = Fin, Paid / Cancelled = nobody
+    //   everything else = the person in Attention at that time (nobody if it was empty;
+    //   rows saved before patch 96 don't know it, so only the latest step uses today's Attention)
+    function stepPerson(rx, fallback) {
+        try { const p = people().find((x) => rx.test(String(x.position || '')) || rx.test(String(x.value || ''))); if (p && p.value) return p.value; } catch (_) {}
+        return fallback;
+    }
     function stepTo(h, isNow, inv) {
         const s = norm(h.status);
-        if (/srv done/.test(s)) return { to: 'handing to office', plain: true };
-        if (/reception|^received$|^new entry$/.test(s)) return { to: 'Reception', plain: true };
+        if (/reception|^received$|^new entry$|^job created/.test(s)) return { to: 'Reception', plain: true };
         if (s === 'under review') return h.by ? { to: h.by, tail: ' (entered)' } : null;
-        if (s === 'with accounts') return { to: 'Accounts', plain: true };
-        if (s === 'paid') return null;
+        if (s === 'for summary' || s === 'srv done') return h.by ? { to: h.by } : null;
+        if (s === 'ceo approval') return { to: stepPerson(/^\s*ceo\s*$/i, 'CEO') };
+        if (s === 'report') { let g = ''; try { const p = people().find((x) => /^gio\b/i.test(String(x.value || ''))); g = p ? p.value : ''; } catch (_) {} return { to: g || 'Gio' }; }
+        if (s === 'with accounts') return { to: 'Fin' };
+        if (s === 'paid' || s === 'cancelled' || s === 'canceled') return null;
         if (h.to !== undefined) return h.to ? { to: h.to } : null;
         const a = isNow ? String(inv.attention || '').trim() : '';
         return a ? { to: a } : null;
@@ -1708,12 +1726,15 @@
             side_status: side || undefined, with: (st === 5 && !side) ? undefined : (holder || undefined),
             since: since ? fmtDate(since) : undefined, days: (since && !(st === 5 && !side)) ? daysSince(since) : undefined,
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
+            // 17.0.5 patch 183: the amount to pay (Amount Paid field: discounts, 50% advance ...)
+            pay: acc.amounts && num(inv.amountPaid) ? money(inv.amountPaid) : undefined,
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
             // 17.0.5 patch 164: Release Date (same field as Invoice Records)
             release: fmtDate(inv.releaseDate || inv.ReleaseDate || inv.release_date || '') || undefined,
             with_accounts_on: accAt ? fmtDate(accAt) : undefined, paid_on: paidAt ? fmtDate(paidAt) : undefined,
             _years: [dayOfISO(inv.invoiceDate), dayOfISO(paidAt), dayOfISO(enteredAt)].filter(Boolean).map((d) => d.slice(0, 4)),
-            steps: hist.slice(-6).map((h, i, a) => { const t = stepTo(h, i === a.length - 1 && norm(h.status) === norm(status), inv);
+            // 17.0.5 patch 186: whole history (was the last 6, so Reception dropped off)
+            steps: hist.slice(-20).map((h, i, a) => { const t = stepTo(h, i === a.length - 1 && norm(h.status) === norm(status), inv);
                 return { status: h.status, by: h.by || undefined, date: fmtDate((i === a.length - 1 && norm(h.status) === 'paid' && paidTyped) ? paidTyped : (i === a.length - 1 && norm(h.status) === 'with accounts' && accTyped) ? accTyped : h.at), to: t ? t.to : undefined, to_plain: t && t.plain ? true : undefined, to_tail: t && t.tail ? t.tail : undefined }; }),
             _t: Number(since) || Number(paidAt) || Number(accAt) || Number(enteredAt) || 0,
             // 17.0.5 patch 16: when the invoice came in (newest first in the list)
@@ -1888,7 +1909,7 @@
             // 17.0.5 patch 52: in progress first, With Accounts next, paid last (each newest first)
             items.sort((a, b) => (trkGrp(a) - trkGrp(b)) || ((b._r || 0) - (a._r || 0)) || ((b._t || 0) - (a._t || 0)));
             const last = items.reduce((m, i) => Math.max(m, i._r || 0), 0);
-            items.forEach((i) => { delete i._years; delete i._t; delete i._r; });
+            items.forEach((i) => { i.in_t = i._r || 0; delete i._years; delete i._t; delete i._r; });
             // 17.0.5 p57: invoices add up to more than the POVALUE2 value -> newer PO value from the PO file
             let poValue = p.poValue, poUpd = false;
             const invTotal = invs.reduce((n, inv) => n + num(inv.invValue), 0);
@@ -1896,7 +1917,9 @@
                 try { const a = (await window.ibaAddPo.amounts([p.po]) || {})[p.po]; if (a != null && Math.abs(a - (poValue || 0)) > 0.005) { poValue = a; poUpd = true; } } catch (_) {}
             }
             return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
-                po_value: acc.amounts && poValue ? money(poValue) : undefined, po_value_updated: poUpd || undefined, items: items, _last: last || p.when || 0,
+                po_value: acc.amounts && poValue ? money(poValue) : undefined,
+                invoiced: acc.amounts && (poValue || invTotal) ? money(invTotal) : undefined, balance: acc.amounts && poValue ? money(poValue - invTotal) : undefined,
+                po_value_updated: poUpd || undefined, items: items, _last: last || p.when || 0,
                 group: items.length ? Math.min.apply(null, items.map(trkGrp)) : 3 };
         }));
         // 17.0.5 patch 16: the PO with the newest invoice comes first
@@ -4275,7 +4298,8 @@
         if (all) all.hidden = chips.length <= CHIP_MAX;
     }
     function onPanelClick(e) {
-        const b = e.target.closest('button, a[data-ai-po]');
+        if (e.target.closest('.iba-u-lk')) return; // 17.0.5 patch 183: INV / SRV link inside an invoice row
+        const b = e.target.closest('button, a[data-ai-po], [data-trk-open]');
         if (!b) return;
         if (b.closest('#iba-ai-chips, #iba-ai-skills, .iba-ai-apps, .iba-ai-wide-apps')) bumpChip(chipKey(b));
         const act = b.dataset.ai;
@@ -5081,7 +5105,7 @@
               '<div class="iba-aph-now">' +
                 '<div class="iba-aph-f is-full is-title"><span>NOW</span><b>' + esc(ps.title) + '</b></div>' +
                 f('WITH', withTxt) + f('WAITING', waitTxt) +
-                (it.value ? '<div class="iba-aph-f is-full is-amt"><span>INVOICE VALUE (QAR)</span><b>' + esc(it.value) + '</b></div>' : '') +
+                ((it.pay || it.value) ? '<div class="iba-aph-f is-full is-amt"><span>AMOUNT TO PAY</span><b>' + esc(it.pay || it.value) + '</b></div>' : '') +
                 f('INVOICE NO.', esc(it.invoice_no || '') + (it.urgent ? ' ' + trkUrgBadge() : '')) + f('RECEIVED', esc(it.entered || '')) +
               '</div>' +
               '<div class="iba-trk-r-sec"><span class="iba-trk-lbl">WHERE IT IS</span><ol class="iba-trk-r-steps">' + segs + '</ol></div>' +
@@ -5928,7 +5952,7 @@
                     (it.stage_index < 5 && it.with && !noRemind(it) ? '<button type="button" class="iba-ai-mini" data-ai-remind="' + esc(JSON.stringify({ po: p.po, with: String(it.with).split(/\s*(?:,|;|\/|&|\band\b)\s*/i)[0], items: [{ no: it.invoice_no, status: it.status, with: it.with || '', days: it.days }] })) + '" title="Send a reminder about this invoice"><i class="fa-solid fa-bell"></i> Remind</button>' : '') +
                     (it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser())) ? '<button type="button" class="iba-ai-mini' + (it.urgent ? '' : ' is-danger') + '" data-urg-po="' + esc(p.po) + '" data-urg-key="' + esc(it.key) + '" data-urg-on="' + (it.urgent ? '0' : '1') + '"><i class="fa-solid fa-bolt"></i> ' + (it.urgent ? 'Remove urgent' : 'Mark urgent') + '</button>' : '') +
                     (it.steps && it.steps.length ? '<button type="button" class="iba-ai-mini iba-ai-trk-histbtn" data-trk-hist><i class="fa-solid fa-clock-rotate-left"></i> History</button>' +
-                        '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.to ? trkStepTo(x) : (x.by ? ' · ' + esc(x.by) : '')) + '</li>').join('') + '</ul>' : '') +
+                        '<ul class="iba-ai-trk-steps">' + it.steps.map((x) => '<li><b>' + esc(x.status) + '</b> · ' + esc(x.date) + (x.to ? trkStepTo(x) : '') + '</li>').join('') + '</ul>' : '') +
                     '</div>';
             };
             if (notYet.length) { h += grpHead('Not with Accounts yet', notYet.length); notYet.forEach(renderIt); }
@@ -6067,17 +6091,45 @@
             '<span class="iba-trk-v2st">' + esc(st) + '</span>' +
             '<span class="iba-trk-v2dt">' + esc(dt) + '</span></button>';
     }
+    function trkURow(it, pi, ii, n) {
+        const ps = plainStatus(it), tone0 = trkTone(it, ps);
+        const tone = tone0 === 'move' || tone0 === 'ipc' ? 'proc' : tone0;
+        const paid = tone === 'paid', acc = it.stage_index === 4 && !it.side_status;
+        let st;
+        if (paid) st = 'Paid';
+        else if (acc) st = 'With Accounts';
+        else if (it.side_status) st = it.side_status;
+        else if (it.kind === 'reception' || it.stage_index === 0) st = 'At Reception';
+        else st = it.status || ps.title;
+        const who0 = firstName2(it.with);
+        const who = paid ? '' : acc ? 'Fin' : (/^accounts$/i.test(who0) ? 'Fin' : who0);
+        const since = paid ? (it.paid_on || '') : acc ? (it.with_accounts_on || it.since || '') : (it.since || '');
+        return window.ibaPoCard.row({ n: n, no: it.invoice_no, amt: it.pay || it.value || '', invDate: it.invoice_date || (it.kind !== 'invoice' ? it.entered : ''),
+            links: [{ lbl: 'INV', href: it.pdf }, { lbl: 'SRV', href: it.srv }], status: st, tone: tone, who: who, since: since,
+            urgent: it.urgent ? ' ' + trkUrgBadge() : '', attrs: ' role="button" tabindex="0" data-trk-open="' + pi + ':' + ii + '"' });
+    }
     function trackListHtml(r) {
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?' + (r.vendor ? ' · ' + esc(r.vendor) : '') + '</div>';
         if (r.more) h += '<p class="iba-ai-foot">' + (r.year_rule ? 'Checked the ' + esc(r.checked) + ' newest POs; ' + esc(r.more) + ' older not checked. Add a site to narrow it down.'
             : 'Showing the ' + esc(r.shown || r.pos.length) + ' newest POs; ' + esc(r.more) + ' more. Type the PO number or add a site to see an older one.') + '</p>';
         if (r.year_rule) h += '<p class="iba-ai-foot">' + esc(r.year_rule) + '.</p>';
         const many = r.pos.some((p) => (p.items || []).length);
-        if (many) h += '<p class="iba-trk-hint">Tap an invoice to see it alone.</p>';
+        if (many) h += '<p class="iba-trk-hint">' + (window.ibaPoCard && r.pos.length > 1 ? 'Tap a PO to see its invoices, then an invoice for its details.' : 'Tap an invoice to see its details.') + '</p>';
         // 17.0.5 patch 52: in progress first, With Accounts next; fully paid POs
         // and POs with no invoice yet are folded (tap to show)
+        // 17.0.5 patch 183 (martin): one card per PO (js/iba-1705-pocard.js); "N Invoices" opens
+        // the list, oldest first; each row: no. + amount to pay / inv date + files / status, who, since
+        const openAll = r.pos.length === 1;
         const poHtml = (p, pi) => {
             const items = p.items || [];
+            if (window.ibaPoCard) {
+                const order = items.map((it, ii) => ({ it: it, ii: ii })).sort((x, y) => ((x.it.in_t || 0) - (y.it.in_t || 0)) || (x.ii - y.ii));
+                const rows = order.map((o, k) => trkURow(o.it, pi, o.ii, k + 1)).join('');
+                const inRecords = items.some((it) => it.kind === 'invoice');
+                const foot = (!items.length ? '<p class="iba-trk-none">No invoice received yet for this PO.</p>' : '') +
+                    (inRecords && !onMobileUi() ? '<div class="iba-trk-poacts"><button type="button" class="iba-ai-mini" data-ai-records="' + esc(p.po) + '"><i class="fa-solid fa-table-list"></i> Open in Invoice Records</button></div>' : '');
+                return '<div class="iba-trk-po is-u">' + trkUCard(p, { count: items.length, open: openAll, rows: rows, foot: foot, fin: window.ibaFinPay ? window.ibaFinPay.btnHtml(p.po, p.po_value || '') : '' }) + '</div>';
+            }
             const isPaid = (it) => trkGrp(it) === 2;
             const paid = items.filter(isPaid);
             const open = items.filter((it) => !isPaid(it));
@@ -6158,17 +6210,24 @@
             const cls = skipped.indexOf(i) !== -1 ? 'is-skip' : i < nowI || (paid && i === 5) ? 'is-done' : i === nowI ? 'is-now' : '';
             return '<li class="' + cls + '"><i></i><span>' + lbl + (i === nowI && !paid && it.days !== undefined ? '<small>now · ' + esc(trkDays(it)) + '</small>' : '') + '</span></li>';
         }).join('');
+        // 17.0.5 patch 183: Amount to pay (Value only when different), Currently with
+        // (With Accounts = Fin, none when paid), dates dd/Mmm/yy
+        const U = window.ibaPoCard;
+        const sl = (v) => (U && v ? U.slash(v) : v);
+        const holder = paid ? '' : (it.stage_index === 4 && !side) || /^accounts$/i.test(firstName2(it.with)) ? 'Fin' : firstName2(it.with);
         const rows = [
             ['Invoice no.', it.invoice_no],
-            ['Invoice date', it.invoice_date],
-            ['Release date', it.release],
-            ['Value', it.value],
+            ['Invoice date', sl(it.invoice_date)],
+            ['Release date', sl(it.release)],
+            ['Amount to pay', it.pay || it.value],
+            ['Invoice value', it.value], // 17.0.5 patch 185: both, so 1,000 invoice / 500 to pay is clear
             ['Status in the system', it.side_status || it.status],
-            ['Received / entered', it.entered],
-            ['With Accounts since', it.with_accounts_on],
-            ['Paid on', it.paid_on]
+            ['Currently with', holder],
+            ['Received / entered', sl(it.entered)],
+            ['With Accounts since', sl(it.with_accounts_on)],
+            ['Paid on', sl(it.paid_on)]
         ].filter((x) => x[1]);
-        const steps = (it.steps || []).slice().reverse();
+        const steps = (it.steps || []).slice().reverse().map((x) => Object.assign({}, x, { date: sl(x.date) }));
         const canRemind = !paid && it.with && !noRemind(it);
         const canUrg = it.kind === 'invoice' && it.key && (it.urgent ? (APPROVAL_RX.test(String(it.status || '')) && isSuper()) : (norm(it.status) === 'for approval' && isAdminUser()));
         // 17.0.5 patch 21: Notify me (until it reaches With Accounts)
@@ -6185,10 +6244,14 @@
                 '<span>' + esc(backLbl || 'Back to results') + (nOpen > 1 ? ' (' + nOpen + ')' : '') + '</span></div>' +
             '<div class="iba-trk-r-body is-' + tone + '">' +
               '<div class="iba-trk-r-left">' +
-                '<div class="iba-trk-r-hero"><span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
+                (U ? '<div class="iba-trk-r-hero is-u"><span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
+                  '<span class="iba-trk-r-title">' + esc(ps.title) + '</span>' +
+                  ((it.pay || it.value) ? '<span class="iba-trk-r-amtl">AMOUNT TO PAY</span><span class="iba-trk-r-amt">' + esc(it.pay || it.value) + '</span>' : '') +
+                  '<span class="iba-trk-r-inv"><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>'
+                : '<div class="iba-trk-r-hero"><span class="iba-trk-ic"><i class="fa-solid ' + ps.icon + '"></i></span>' +
                   '<span class="iba-trk-r-title">' + esc(ps.title) + '</span>' + (sub ? '<span class="iba-trk-r-sub">' + sub + '</span>' : '') +
                   (it.value ? '<span class="iba-trk-r-amt">QAR ' + esc(it.value) + '</span>' : '') +
-                  '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>' +
+                  '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>') +
                 '<div class="iba-trk-r-po">' + trkPoCard(p, false) + '</div>' +
               '</div>' +
               '<div class="iba-trk-r-right">' +
@@ -6209,7 +6272,37 @@
         if (!o) return false;
         const back = o.__from;
         o.remove();
+        // 17.0.5 patch 185: opened from phone Invoice Records -> back to Records
+        if (o.__closeAll) { setTimeout(() => toggle(false), 0); return true; }
         if (back && back.isConnected) { try { back.focus({ preventScroll: true }); } catch (_) {} }
+        return true;
+    }
+    // 17.0.5 patch 185 (martin): phone Invoice Records -> tap an invoice -> the same full detail
+    async function openInvoiceDetail(po, key, invNo) {
+        if (!allowed()) return false;
+        build(); toggle(true);
+        const panel = $('iba-ai-panel');
+        if (!panel) return false;
+        closeReceipt();
+        const o = document.createElement('div');
+        o.id = 'iba-trk-rcpt'; o.className = 'iba-trk-rcpt'; o.setAttribute('role', 'dialog');
+        o.__closeAll = true;
+        const top = '<div class="iba-trk-r-top"><button type="button" class="iba-trk-r-x" data-trk-close aria-label="Back to Records"><i class="fa-solid fa-xmark"></i></button><span>Back to Records</span></div>';
+        o.innerHTML = top + '<div class="iba-trk-r-body"><p class="iba-trk-hint"><i class="fa-solid fa-spinner fa-spin"></i> Opening invoice…</p></div>';
+        panel.appendChild(o);
+        let r = null;
+        try { r = await trackSearch({ po: String(po || '') }); } catch (_) { r = null; }
+        if (!o.isConnected) return true;
+        let p = null, it = null;
+        ((r && r.pos) || []).forEach((pp) => (pp.items || []).forEach((x) => {
+            if (it) return;
+            if ((key && x.key === key) || (!key && invNo && norm(x.invoice_no) === norm(invNo))) { p = pp; it = x; }
+        }));
+        if (!it) { o.innerHTML = top + '<div class="iba-trk-r-body"><p class="iba-trk-hint">' + esc((r && r.mode === 'error' && r.message) || 'Could not open this invoice.') + '</p></div>'; return true; }
+        o.setAttribute('aria-label', 'Invoice ' + it.invoice_no);
+        o.innerHTML = receiptHtml(p, it, 0, 'Back to Records');
+        try { if (window.ibaFinPay) window.ibaFinPay.fill(o); } catch (_) {}
+        o.__it = it;
         return true;
     }
     function openReceipt(btn) {
@@ -7429,6 +7522,7 @@
         runSkill: (n) => runSkill(n),
         tools: () => toolDefs().map((t) => t.name),
         _run: runTool,
+        openInvoice: (po, key, invNo) => openInvoiceDetail(po, key, invNo),
         _card: (c) => addCard(c),
         _state: state
     };

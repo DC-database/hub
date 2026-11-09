@@ -232,7 +232,8 @@
         if (side === 'invoice') {
             const n = state.inv.list.length + state.qs.length;
             const t = [{ id: 'home', icon: 'fa-house', label: 'Home' }];
-            if (n || state.invSeen) t.push({ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: n });
+            // 17.0.5 patch 182 (martin): Approve stays in the bar for approvers even at 0 (badge only when > 0)
+            if (n || state.invSeen || canRecords()) t.push({ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: n });
             if (canRecords()) t.push({ id: 'records', icon: 'fa-folder-open', label: 'Records' });
             return t;
         }

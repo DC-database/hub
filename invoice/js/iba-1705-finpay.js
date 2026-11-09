@@ -84,6 +84,24 @@
         // 17.0.5 patch 167: starts hidden; shown only when Finance has a record for this PO
         return '<button type="button" class="iba-fin-btn" data-fin-check style="display:none !important" data-fin-open="' + esc(po) + '" data-fin-poval="' + esc(poVal || '') + '" aria-expanded="false"><i class="fa-solid fa-building-columns"></i> Finance</button>';
     }
+    // 17.0.5 patch 183 (martin): same look as the PO card: a 2nd row of 3 figures, a short
+    // "check with Accounts" notice, then the payments in the invoice-row style
+    var NOTE = '<div class="iba-u-note"><i class="fa-solid fa-circle-info"></i><span>For reference only. This may not be up to date. For exact amounts, please check with Accounts.</span></div>';
+    function sheetU(po, list) {
+        var U = window.ibaPoCard;
+        if (!list.length) return '<p class="iba-fin-none">No record in Finance for PO ' + esc(po) + ' yet.</p>';
+        var cert = 0, pay = 0, paid = 0;
+        list.forEach(function (p) { cert += p.certified; pay += p.amount; if (p.datePaid) paid += p.amount; });
+        var f = function (l, v, c) { return '<div class="' + (c || '') + '"><span class="iba-u-lbl">' + l + '</span><b>' + v + '</b></div>'; };
+        var rows = list.slice().sort(function (a, b) { return (a.datePaid || '9999').localeCompare(b.datePaid || '9999') || (Number(a.pvn) || 0) - (Number(b.pvn) || 0); });
+        return '<div class="iba-u-fig is-fin">' + f('Certified', m2(cert)) + f('Paid', m2(paid), 'is-ok') + f('Not paid yet', m2(pay - paid), 'is-bal') + '</div>' + NOTE +
+            '<div class="iba-u-list is-fin"><div class="iba-u-lh"><span>Payment · cheque</span><span>Amount · retention</span></div>' +
+            rows.map(function (p, i) {
+                return U.row({ n: i + 1, no: p.pvn ? 'PVN ' + p.pvn : 'Payment', amt: m2(p.amount), status: p.datePaid ? 'Paid' : 'Certified, not paid yet', tone: p.datePaid ? 'paid' : 'apv', since: p.datePaid || '' })
+                    .replace('<span class="iba-u-d"></span><span class="iba-u-links"></span>', '<span class="iba-u-d">Cheque <b>' + esc(p.cheque || '—') + '</b></span><span class="iba-u-d is-r">Retention <b>' + m2(p.retention) + '</b></span>');
+            }).join('') + '</div>' +
+            (rows.some(function (p) { return p.note; }) ? '<p class="iba-fin-foot">' + esc(rows.filter(function (p) { return p.note; }).map(function (p) { return p.note; }).slice(0, 3).join(' · ')) + '</p>' : '');
+    }
     function sheetHtml(po, list, poValText) {
         var top = '<div class="iba-fin-sh-head"><span class="iba-trk-lbl">FINANCE · PO ' + esc(po) + '</span></div>';
         var pv = 0;
@@ -105,18 +123,19 @@
         var b = e.target.closest && e.target.closest('[data-fin-open]');
         if (!b) return;
         e.preventDefault(); e.stopPropagation();
-        var host = b.closest('.iba-trk-pc-wrap, .iba-trk-pm, .iba-trk-r-po, .iba-trk-pohead') || b.parentNode;
+        var ucard = b.closest('.iba-u-po');
+        var host = (ucard && ucard.querySelector(':scope > .iba-u-fig')) || (ucard && ucard.querySelector(':scope > .iba-u-top')) || b.closest('.iba-trk-pc-wrap, .iba-trk-pm, .iba-trk-r-po, .iba-trk-pohead') || b.parentNode;
         var sh = host.parentNode && host.parentNode.querySelector(':scope > .iba-fin-sheet[data-fin-for="' + b.getAttribute('data-fin-open') + '"]');
         if (sh) { var open = sh.hidden; sh.hidden = !open; b.setAttribute('aria-expanded', open ? 'true' : 'false'); return; }
         sh = document.createElement('div');
-        sh.className = 'iba-fin-sheet';
+        sh.className = 'iba-fin-sheet' + (ucard ? ' is-u' : '');
         sh.setAttribute('data-fin-for', b.getAttribute('data-fin-open'));
         sh.innerHTML = '<p class="iba-fin-none"><i class="fa-solid fa-spinner fa-spin"></i> Checking Finance…</p>';
         host.parentNode.insertBefore(sh, host.nextSibling);
         b.setAttribute('aria-expanded', 'true');
         var po = b.getAttribute('data-fin-open'), pv = b.getAttribute('data-fin-poval');
         var go = function () {
-            forPo(po).then(function (list) { sh.innerHTML = sheetHtml(po, list, pv); })
+            forPo(po).then(function (list) { sh.innerHTML = (ucard && window.ibaPoCard) ? sheetU(po, list) : sheetHtml(po, list, pv); })
                 .catch(function () { sh.innerHTML = '<p class="iba-fin-none">Couldn\'t reach Finance. <button type="button" class="iba-trk-btn" data-fin-retry>Try again</button></p>'; var r = sh.querySelector('[data-fin-retry]'); if (r) r.addEventListener('click', function (ev) { ev.stopPropagation(); sh.innerHTML = '<p class="iba-fin-none"><i class="fa-solid fa-spinner fa-spin"></i> Checking Finance…</p>'; go(); }); });
         };
         go();
