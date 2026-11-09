@@ -2985,7 +2985,8 @@ window.msFillStockDetail = function (row) {
                 ? `<a href="#" role="button" class="ms-hist-trn" data-trn-key="${msEscapeHtml(t.key)}" title="Print this transaction (current status)"><i class="fa-solid fa-print"></i> ${msEscapeHtml(trn)}</a>`
                 : '<span class="ms-hist-trn-txt">-</span>';
             // 17.0.5 patch 81: the latest 10 show, the rest open with "Show all"
-            historyRows += `<tr${histIndex >= 10 ? ' class="ms-hist-old"' : ''}><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${msHistQty(t, isCompleted)}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}</td></tr>`;
+            // 17.0.5 patch 189: Super Admin "Delete & undo" on completed rows (js/iba-1705-txundo.js)
+            historyRows += `<tr${histIndex >= 10 ? ' class="ms-hist-old"' : ''}><td>${msEscapeHtml(date)}</td><td>${trnCell}</td><td class="ms-hist-type">${msEscapeHtml(type)}</td><td>${route}</td><td class="ms-hist-qty">${msHistQty(t, isCompleted)}</td><td>${msEscapeHtml(t.enteredBy || 'System')}</td><td>${msEscapeHtml(t.remarks || '')}</td><td class="ms-hist-action">${actionBtn}${window.ibaTxUndo ? window.ibaTxUndo.btn(t) : ''}</td></tr>`;
         });
     }
 

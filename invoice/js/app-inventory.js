@@ -621,6 +621,8 @@ function renderInventoryJobRecordsTable(entries) {
         if (isAdmin) {
             actions += `<button type="button" class="delete-btn transfer-delete-btn" data-key="${entry.key}" style="padding:2px 6px; font-size:0.7rem; border-radius:4px;">Del</button>`;
         }
+        // 17.0.5 patch 189: Super Admin "Delete & undo" on a completed transaction
+        if (window.ibaTxUndo) actions += window.ibaTxUndo.btn(entry, true);
 
         return `
             <td class="inv-control-cell">${controlCell}</td>
