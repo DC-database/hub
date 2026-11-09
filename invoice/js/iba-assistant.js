@@ -1692,6 +1692,8 @@
         const a = isNow ? String(inv.attention || '').trim() : '';
         return a ? { to: a } : null;
     }
+    function trkNoteText(v) { return String(v || '').replace(/\bURGENT\b\s*[·:|\-–—]*\s*/gi, '').replace(/^[\s·:|\-–—]+/, '').trim(); }
+    function trkShowNote(it) { return !!(it && it.note) && !(it.stage_index >= 4 && !it.side_status); }
     function trackInvoice(inv, acc) {
         const status = String(inv.status || '').trim() || 'Under Review';
         const hist = historyList(inv);
@@ -1728,6 +1730,8 @@
             value: acc.amounts && inv.invValue ? money(inv.invValue) : undefined,
             // 17.0.5 patch 183: the amount to pay (Amount Paid field: discounts, 50% advance ...)
             pay: acc.amounts && num(inv.amountPaid) ? money(inv.amountPaid) : undefined,
+            // 17.0.5 patch 187: the invoice Note = the reason it is held (shown until With Accounts)
+            note: trkNoteText(inv.note) || undefined,
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
             // 17.0.5 patch 164: Release Date (same field as Invoice Records)
             release: fmtDate(inv.releaseDate || inv.ReleaseDate || inv.release_date || '') || undefined,
@@ -1913,8 +1917,9 @@
             // 17.0.5 p57: invoices add up to more than the POVALUE2 value -> newer PO value from the PO file
             let poValue = p.poValue, poUpd = false;
             const invTotal = invs.reduce((n, inv) => n + num(inv.invValue), 0);
-            if (acc.amounts && invTotal - (poValue || 0) > 0.01 && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
-                try { const a = (await window.ibaAddPo.amounts([p.po]) || {})[p.po]; if (a != null && Math.abs(a - (poValue || 0)) > 0.005) { poValue = a; poUpd = true; } } catch (_) {}
+            // 17.0.5 patch 188 (martin): PO value = the HIGHER of POVALUE2 and the PO file (progress-po)
+            if (acc.amounts && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
+                try { const a = (await window.ibaAddPo.amounts([p.po]) || {})[p.po]; if (a != null && a - (poValue || 0) > 0.005) { poValue = a; poUpd = true; } } catch (_) {}
             }
             return { po: p.po, vendor: p.vendor || (invs[0] && invs[0].vendorName) || '', site: p.siteLabel || undefined, year: p.year || undefined,
                 po_value: acc.amounts && poValue ? money(poValue) : undefined,
@@ -6106,7 +6111,7 @@
         const since = paid ? (it.paid_on || '') : acc ? (it.with_accounts_on || it.since || '') : (it.since || '');
         return window.ibaPoCard.row({ n: n, no: it.invoice_no, amt: it.pay || it.value || '', invDate: it.invoice_date || (it.kind !== 'invoice' ? it.entered : ''),
             links: [{ lbl: 'INV', href: it.pdf }, { lbl: 'SRV', href: it.srv }], status: st, tone: tone, who: who, since: since,
-            urgent: it.urgent ? ' ' + trkUrgBadge() : '', attrs: ' role="button" tabindex="0" data-trk-open="' + pi + ':' + ii + '"' });
+            urgent: it.urgent ? ' ' + trkUrgBadge() : '', mark: trkShowNote(it) ? '<i class="fa-regular fa-note-sticky iba-u-notei" title="Has a remark"></i>' : '', attrs: ' role="button" tabindex="0" data-trk-open="' + pi + ':' + ii + '"' });
     }
     function trackListHtml(r) {
         let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-magnifying-glass-location"></i> Where is my invoice?' + (r.vendor ? ' · ' + esc(r.vendor) : '') + '</div>';
@@ -6252,6 +6257,7 @@
                   '<span class="iba-trk-r-title">' + esc(ps.title) + '</span>' + (sub ? '<span class="iba-trk-r-sub">' + sub + '</span>' : '') +
                   (it.value ? '<span class="iba-trk-r-amt">QAR ' + esc(it.value) + '</span>' : '') +
                   '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>') +
+                (trkShowNote(it) ? '<div class="iba-u-remark"><span class="iba-u-lbl"><i class="fa-regular fa-note-sticky"></i> Remarks</span><p>' + esc(it.note) + '</p></div>' : '') +
                 '<div class="iba-trk-r-po">' + trkPoCard(p, false) + '</div>' +
               '</div>' +
               '<div class="iba-trk-r-right">' +

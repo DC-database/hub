@@ -941,6 +941,7 @@ function renderMobileInvoiceRecordsCards(reportData, canViewAmounts) {
                 return U.row({ n: k + 1, no: inv.invNumber || 'N/A', amt: amt(pay || inv.invValue), invDate: inv.invoiceDate || '',
                     links: [{ lbl: 'INV', href: pdf(PDF_BASE_PATH, inv.invName) }, { lbl: 'SRV', href: pdf(SRV_BASE_PATH, inv.srvName) }, { lbl: 'REPORT', href: pdf(REPORT_BASE_PATH, inv.reportName) }],
                     status: st, tone, who, since,
+                    mark: String(inv.note || '').replace(/\bURGENT\b[\s·:|\-–—]*/gi, '').trim() && tone !== 'acc' && tone !== 'paid' ? '<i class="fa-regular fa-note-sticky iba-u-notei" title="Has a remark"></i>' : '',
                     // 17.0.5 patch 185: tap -> the same full invoice detail as "Where is my invoice?"
                     attrs: inv.key && window.ibaAssistant && window.ibaAssistant.openInvoice ? ' role="button" tabindex="0" data-rec-open="' + escapeHtml(String(poData.poNumber || '')) + '" data-rec-key="' + escapeHtml(String(inv.key)) + '"' : '' });
             }).join('');

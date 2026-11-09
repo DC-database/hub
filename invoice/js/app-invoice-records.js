@@ -1319,6 +1319,12 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
         // (negative balance) is checked once in the PO file (progress-po, one
         // small indexed read, kept 10 minutes); the newer PO value is used.
         let poFileChecks = 0;
+        // 17.0.5 patch 188 (martin): the PO value is the HIGHER of POVALUE2 and the PO file
+        // (progress-po). The first 30 POs are read together up front (kept 10 minutes).
+        let preAmt = {};
+        if (window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function' && filteredPONumbers.length) {
+            try { preAmt = (await Promise.race([window.ibaAddPo.amounts(filteredPONumbers.slice(0, 30)), new Promise((r) => setTimeout(() => r({}), 6000))])) || {}; } catch (_) { preAmt = {}; }
+        }
 
         for (const poNumber of filteredPONumbers) {
             let poDetails = allPOs[poNumber] || {};
@@ -1356,15 +1362,14 @@ async function populateInvoiceReporting(searchTerm = '', options = {}) {
             invoices.forEach(inv => totalInvSum += parseFloat(inv.invValue) || 0);
 
             let poVal = parseFloat(poDetails.Amount) || 0;
-            if (totalInvSum - poVal > 0.01 && poFileChecks < 30 && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
+            let fileAmt = preAmt[poNumber];
+            if (fileAmt == null && totalInvSum - poVal > 0.01 && poFileChecks < 30 && window.ibaAddPo && typeof window.ibaAddPo.amounts === 'function') {
                 poFileChecks++;
-                try {
-                    const fileAmt = (await window.ibaAddPo.amounts([poNumber]) || {})[poNumber];
-                    if (fileAmt != null && Math.abs(fileAmt - poVal) > 0.005) {
-                        poDetails = Object.assign({}, poDetails, { Amount: fileAmt, __poFileAmt: true, __csvAmount: poDetails.Amount });
-                        poVal = fileAmt;
-                    }
-                } catch (_) {}
+                try { fileAmt = (await window.ibaAddPo.amounts([poNumber]) || {})[poNumber]; } catch (_) {}
+            }
+            if (fileAmt != null && fileAmt - poVal > 0.005) {
+                poDetails = Object.assign({}, poDetails, { Amount: fileAmt, __poFileAmt: true, __csvAmount: poDetails.Amount });
+                poVal = fileAmt;
             }
             let balance = poVal - totalInvSum;
             if (poVal === 0) balance = 0;

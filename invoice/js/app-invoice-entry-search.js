@@ -689,10 +689,11 @@ function imCheckPoValueFromPoFile(poNumber, poData) {
         if (!invs) { if (++tries < 20) setTimeout(wait, 250); return; }
         const total = Object.values(invs).reduce((n, inv) => n + (parseFloat(String((inv && inv.invValue) || 0).replace(/,/g, '')) || 0), 0);
         const poVal = parseFloat(String((poData && poData.Amount) || 0).replace(/,/g, '')) || 0;
-        if (!(total - poVal > 0.01)) return;
+        // 17.0.5 patch 188 (martin): always check the PO file; use it only when it is HIGHER
+        void total;
         window.ibaAddPo.amounts([poNumber]).then((m) => {
             const amt = m && m[poNumber];
-            if (amt == null || Math.abs(amt - poVal) < 0.005 || currentPO !== poNumber) return;
+            if (amt == null || amt - poVal < 0.005 || currentPO !== poNumber) return;
             const csv = poVal;
             document.querySelectorAll('.im-po-value').forEach(el => {
                 el.innerHTML = 'QAR ' + formatCurrency(amt) + ' <span class="iba-pofile-upd" title="Updated in the PO file (progress-po). POVALUE2 says QAR ' + formatCurrency(csv) + '">updated</span>';

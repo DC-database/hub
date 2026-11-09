@@ -51,7 +51,7 @@
         return '<div class="iba-u-inv"' + (r.attrs || '') + '>' +
             '<span class="iba-u-n">' + esc(r.n) + '</span><span class="iba-u-no">' + esc(r.no || '—') + '</span><span class="iba-u-amt">' + esc(noQar(r.amt || '')) + '</span>' +
             '<span class="iba-u-d">' + (r.invDate ? 'Inv date <b>' + esc(slash(r.invDate)) + '</b>' : '') + (r.urgent || '') + '</span><span class="iba-u-links">' + links + '</span>' +
-            '<span class="iba-u-stl"><i class="iba-u-dot is-' + tone + '"></i><span class="iba-u-stn is-' + tone + '">' + esc(r.status || '') + '</span><span>' + tail + '</span></span></div>';
+            '<span class="iba-u-stl"><i class="iba-u-dot is-' + tone + '"></i><span class="iba-u-stn is-' + tone + '">' + esc(r.status || '') + '</span><span>' + tail + '</span>' + (r.mark || '') + '</span></div>';
     }
     // open / close a card's invoice list (Finance pill and links have their own job)
     document.addEventListener('click', function (e) {
