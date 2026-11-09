@@ -1,3 +1,38 @@
+17.0.5 patch 194 (09-Nov-2026)
+- Settings > Shell Backgrounds, video and rain box: the buttons and video pickers stayed locked (nothing happened on click)
+  when the Settings page was built before the Super Admin sign-in. They now unlock as soon as you are signed in.
+Files: index.html, PATCH.txt, js/iba-1705-rain.js
+
+17.0.5 patch 193 (09-Nov-2026)
+- Moving background VIDEO per page: Settings > Shell Backgrounds, each page (Welcome / WorkDesk / Inventory /
+  Invoice Management) has a video picker (Still photo or one of the videos). Rain can be added on top.
+  Saved for everyone (Firebase system_settings/shell_backgrounds/videoPages).
+- Videos live in the app's video\ folder. martin's 5 videos were shrunk for the web (720p, no sound):
+  V-Beach-01 4.5 MB, V-Beach-02 8.0 MB, V-Bus-01 1.0 MB, V-City-01 1.0 MB, V-City-02 1.5 MB.
+  Originals (41-324 MB, 4K) are too big for GitHub/web and are kept in backup-before-17.0.5-p193\video\.
+- Only the open page's video is downloaded; the photo shows until it plays (and if a file is missing).
+  Phones and "less motion" computers keep the still photo. Video pauses when the tab is hidden.
+- Rain button "Off (still photo)" now says "No rain".
+Files: index.html, PATCH.txt, js/iba-1705-rain.js, css/iba-1705-fit.css, video/ (5 mp4 files)
+
+17.0.5 patch 192 (09-Nov-2026)
+- Moving background (rain) is now chosen PER PAGE in Settings > Shell Backgrounds (Super Admin):
+  Welcome screen / WorkDesk / Inventory / Invoice Management, each Off (still photo) / Light rain / Heavy rain.
+  One Save for all four, applies for everyone (Firebase system_settings/shell_backgrounds/rainPages).
+- Rain switches on/off by itself when you move between pages. Welcome screen (login) can rain too.
+- The old single setting from patch 191 still works until you Save the new one (Welcome stays still).
+- Phones still keep the still photo.
+Files: index.html, js/iba-1705-rain.js, css/iba-1705-fit.css
+
+17.0.5 patch 191 (09-Nov-2026) - Moving background: rain (desktop)
+- New js/iba-1705-rain.js: rain drawn by code over the background photo (no video file to download).
+- Settings > Shell Backgrounds (Super Admin): "Moving background: rain" = Off (still photo) / Light / Heavy.
+  Pressing an option shows it at once on this screen; Save applies it for everyone
+  (Firebase system_settings/shell_backgrounds/rain). Default Off, so nothing changes until it is saved.
+- Desktop only: phones, tablet phone view and Z Flip cover keep the still photo. Pauses when the tab is
+  hidden, stays off when the computer is set to reduce motion. About 30 frames a second.
+- Files: index.html, PATCH.txt, js/iba-1705-rain.js (new), css/iba-1705-fit.css
+
 17.0.5 patch 190 (09-Nov-2026) - Delete & undo: Material Stock updates at once
 - After Delete & undo, the deleted transaction is dropped from the Movement History in memory and the open
   item is filled again, so history, the "Movement history says ..." check and Align match without a page refresh.
