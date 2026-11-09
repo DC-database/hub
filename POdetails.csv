@@ -1429,7 +1429,7 @@ PO #,Class Description
 26439,Site Consumables
 26440,HSE
 26441,Site Consumables
-26442,0
+26442,
 26443,Water Supply
 26444,Granite & Marble
 26445,Switchgear
@@ -39888,7 +39888,7 @@ PO #,Class Description
 65909,Vehicle & Equipment
 65910,Consumables
 65911,Parts
-65912,
+65912,Concrete
 65913,Consumables
 65914,Charge
 65915,Site Consumables
@@ -41096,9 +41096,8 @@ PO #,Class Description
 67143,Charge
 67144,Parts
 67146,Water Supply
-67147,
 67148,Water Supply
-67149,
+67149,Miscellaneous
 67150,Water Supply
 67151,Water Supply
 67152,Water Supply
@@ -41113,18 +41112,76 @@ PO #,Class Description
 67161,Site Consumables
 67162,Shuttering Carpentry Sundries
 67163,Site Miscellaneous items
-67164,
+67164,Tyres
 67165,Granite & Marble
 67166,Block
-67167,
+67167,Cables & Wires
 67168,Parts
 67169,Vehicle & Equipment
-67170,
-67171,
+67170,Block Work Sundries
+67171,HSE
 67172,Consumables
 67173,Site Consumables
-67174,
+67174,Metal Works
 67175,Parts
 67176,Parts
-67177,
+67177,Site Consumables
 67178,
+67179,Finishing Sundries
+67180,Softscape (Landscape)
+67181,Refreshments
+67182,Finishing
+67183,Parts
+67184,
+67185,Other Expenses
+67186,
+67187,Waterproofing Sundries
+67188,HSE
+67189,Sand
+67190,Sand
+67191,Charge
+67192,Vehicle & Equipment
+67193,Vehicle & Equipment
+67194,Consumables
+67195,
+67196,Plumbing & Drainage Sundries
+67197,Diesel & Petrol
+67198,Shuttering Carpentry Sundries
+67199,Plant
+67200,Plumbing & Drainage Sundries
+67201,Site Consumables
+67202,Vehicle & Equipment
+67203,Parts
+67204,
+67205,Consumables
+67206,Administrative Fees
+67207,Administrative Fees
+67208,HSE
+67209,Insurance Fees
+67210,Administrative Fees
+67211,Administrative Fees
+67212,Administrative Fees
+67213,Administrative Fees
+67214,Administrative Fees
+67215,Administrative Fees
+67216,Administrative Fees
+67217,Finishing
+67218,
+67219,Vehicle & Equipment
+67220,
+67221,Parts
+67222,Refreshments
+67223,Refreshments
+67224,
+67225,
+67226,
+67227,
+67228,
+67229,Sand
+67230,Diesel & Petrol
+67231,Site Related Fees
+67232,HSE
+67233,Other Expenses
+67234,
+67235,
+67236,
