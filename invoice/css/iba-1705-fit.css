@@ -2091,3 +2091,10 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
 @layer iba-ui {
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-inv[data-rec-open] { cursor: pointer !important; }
 }
+/* 17.0.5 patch 187: invoice remarks (the Note) until With Accounts */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-remark { display: flex !important; flex-direction: column !important; gap: 6px !important; padding: 12px 14px !important; border-radius: 14px !important; background: rgba(247,190,69,.08) !important; border: 1px solid rgba(247,190,69,.4) !important; text-align: left !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-remark .iba-u-lbl { color: #F7BE45 !important; -webkit-text-fill-color: #F7BE45 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-remark p { margin: 0 !important; font-size: 14px !important; line-height: 1.5 !important; white-space: pre-wrap !important; overflow-wrap: anywhere !important; color: #F3E7C6 !important; -webkit-text-fill-color: #F3E7C6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-notei { margin-left: 2px !important; font-size: 12.5px !important; color: #F7BE45 !important; -webkit-text-fill-color: #F7BE45 !important; }
+}
