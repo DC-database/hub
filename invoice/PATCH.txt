@@ -1,3 +1,44 @@
+17.0.5 patch 186 (09-Nov-2026) - "What happened" shows the whole history again
+- The invoice detail showed only the last 6 steps, so "Job Created (WorkDesk)" (Reception) dropped off
+  when an invoice had more steps. Now the whole history shows (up to 20 steps).
+- "Job Created (WorkDesk)" shows "-> Reception".
+- Files: index.html, PATCH.txt, js/iba-assistant.js
+
+17.0.5 patch 185 (09-Nov-2026) - Phone Records: tap an invoice for the full detail
+- Phone Invoice Records: tapping an invoice row opens the same full detail as "Where is my invoice?"
+  (status + amount to pay, PO card, where it is, details, what happened, buttons). X goes back to Records.
+- Invoice detail always shows BOTH "Amount to pay" and "Invoice value" (e.g. invoice 1,000, paying 500 advance).
+- Files: index.html, PATCH.txt, js/iba-assistant.js, js/app-mobile.js, css/iba-1705-fit.css
+
+17.0.5 patch 184 (09-Nov-2026) - "What happened" shows who HAS the invoice, never who clicked
+- No more "(by Irwin)". Each step shows who has the invoice after it:
+  Under Review, For Summary, SRV Done = whoever made that update; CEO Approval = the CEO (Hamad);
+  Report = Gio; With Accounts = Fin; Paid, Cancelled = nobody;
+  every other status (In Process, For Approval, Approved, No Need SRV, On Hold, Report Approval ...) =
+  the person in Attention at that time, nobody if Attention was empty.
+- Steps saved before patch 96 don't know the Attention of that time, so they show no name.
+- Files: index.html, PATCH.txt, js/iba-assistant.js
+
+17.0.5 patch 183 (09-Nov-2026) - One PO tracker style everywhere
+- New js/iba-1705-pocard.js: one PO card for "Where is my invoice?" (assistant PC + phone), the invoice detail,
+  phone Invoice Records and Finance. Card = PO No. big, "N Invoices" pill (tap to open), Vendor, Site,
+  PO value | Invoiced | Balance (no "QAR", no boxes). Deep navy card, thin border.
+- Invoice rows, oldest first: no. + amount to pay (Amount Paid field, else invoice value) /
+  Inv date dd/Mmm/yy + INV / SRV links / colour dot + status, who has it, since when
+  (With Accounts = Fin, Paid = paid date only).
+- Invoice detail: top = status + "Amount to pay" (was invoice value, showed 0.00); PO part = same card;
+  details table: "Amount to pay" (Invoice value only if different), new "Currently with" row
+  (Fin when With Accounts, none when Paid), dates dd/Mmm/yy. Steps, history, buttons unchanged.
+- Finance button sits next to "N Invoices"; opens inside the card: Certified | Paid | Not paid yet,
+  a notice "For reference only ... check with Accounts", then payments in the same row style.
+- Invoice Entry vendor search: PO value without "QAR".
+- Files: index.html, PATCH.txt, js/iba-1705-pocard.js (new), js/iba-assistant.js, js/iba-1705-finpay.js,
+  js/app-mobile.js, js/iba-17-p2.js, css/iba-1705-fit.css
+
+17.0.5 patch 182 (09-Nov-2026) - Phone Approve button always there
+- Phone bottom bar keeps the Approve button for approvers (Admin, Super Admin, vacation stand-in) even when nothing is waiting. Red number only when something waits; tapping it at 0 shows "Nothing is waiting for your approval."
+- Files: index.html, js/iba-phone.js
+
 17.0.5 patch 181 (08-Nov-2026) - Taller rows in Receive a delivery
 - Phone: each item row about 60px tall, slightly bigger text and S.N. box (easier to swipe).
 - Tablet (700px and wider): rows 74px, bigger text/qty, list up to 760px wide, bigger header and Receive all.
