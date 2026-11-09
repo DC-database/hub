@@ -1,3 +1,19 @@
+17.0.5 patch 190 (09-Nov-2026) - Delete & undo: Material Stock updates at once
+- After Delete & undo, the deleted transaction is dropped from the Movement History in memory and the open
+  item is filled again, so history, the "Movement history says ..." check and Align match without a page refresh.
+- Files: index.html, PATCH.txt, js/iba-1705-txundo.js
+
+17.0.5 patch 189 (09-Nov-2026) - Super Admin "Delete & undo" for a completed inventory transaction
+- New js/iba-1705-txundo.js. Red "Delete & undo" button (Super Admin only) on COMPLETED transactions:
+  Material Stock > open an item > Movement History, and Inventory Job Records (each item row).
+- Pop-up shows the exact stock change per site (e.g. Restock STK-0123 Telehandler: Main Store 2 -> 1),
+  optional reason, then Delete & undo / Cancel.
+- Undo: Restock -received at To; Usage +used at From; Transfer +approved at From, -received at To;
+  Return the opposite of what it did. Takes back first, then gives back; stops cleanly on an error.
+- Never blocks: if a site no longer holds enough, it warns and takes what is there (goes to 0).
+- The record is removed from transfer_entries; a full copy + changes + who/when/why goes to stock_adjustments.
+- Files: index.html, PATCH.txt, js/iba-1705-txundo.js (new), js/materialStock.js, js/app-inventory.js, css/iba-1705-fit.css
+
 17.0.5 patch 188 (09-Nov-2026) - PO value = the HIGHER of POVALUE2 and the PO file (progress-po)
 - Tracker / invoice detail and Invoice Entry: always read the PO file value (one small read per PO, kept
   10 minutes) and use it when it is HIGHER than POVALUE2 ("updated" tag in Invoice Entry). A lower PO file
