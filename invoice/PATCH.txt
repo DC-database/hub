@@ -1,3 +1,8 @@
+17.0.5 patch 195 (09-Nov-2026)
+- Material Stock buttons: Restock, Usage and the refresh icon are darker. Transfer is now solid BLUE with a small gap,
+  so sites do not click Restock by mistake. More tools is purple (admin tools).
+Files: index.html, PATCH.txt, css/iba-1705-fit.css
+
 17.0.5 patch 194 (09-Nov-2026)
 - Settings > Shell Backgrounds, video and rain box: the buttons and video pickers stayed locked (nothing happened on click)
   when the Settings page was built before the Super Admin sign-in. They now unlock as soon as you are signed in.
