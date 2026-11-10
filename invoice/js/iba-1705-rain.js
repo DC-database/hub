@@ -15,8 +15,31 @@
   var PATH = 'system_settings/shell_backgrounds';
   var KEY = 'iba-rain-pages-v1', VKEY = 'iba-bg-video-v1';
   var VIDEO_BASE = 'video/';
-  // martin's files in Project_01\video (add new names here)
+  // 17.0.5 patch 196: the list comes from GitHub (hub/invoice/video, .mp4 only), saved 6 h in this browser,
+  // like the photos. Built-in names below are only used until GitHub answers.
   var VIDEOS = ['V-Beach-01', 'V-Beach-02', 'V-Bus-01', 'V-City-01', 'V-City-02'];
+  var VIDEO_API = 'https://api.github.com/repos/DC-database/hub/contents/invoice/video?ref=main';
+  var VLIST = 'iba-bg-video-list-v1', VLIST_TTL = 6 * 3600 * 1000;
+  function okName(v) { return /^[A-Za-z0-9 ._-]{1,80}$/.test(v) ? v : ''; }
+  try { var vl = JSON.parse(localStorage.getItem(VLIST) || 'null'); if (vl && Array.isArray(vl.files) && vl.files.length) VIDEOS = vl.files; } catch (_) {}
+  function loadVideoList() {
+    var vl = null; try { vl = JSON.parse(localStorage.getItem(VLIST) || 'null'); } catch (_) {}
+    if (vl && Date.now() - (vl.at || 0) < VLIST_TTL) return;
+    if (typeof fetch !== 'function') return;
+    fetch(VIDEO_API, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('GitHub ' + r.status); return r.json(); })
+      .then(function (items) {
+        if (!Array.isArray(items)) return;
+        var files = items.filter(function (it) { return it && it.type === 'file' && /\.mp4$/i.test(String(it.name || '')); })
+          .map(function (it) { return okName(String(it.name).replace(/\.mp4$/i, '')); }).filter(Boolean)
+          .sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); });
+        if (!files.length) return;
+        VIDEOS = files;
+        try { localStorage.setItem(VLIST, JSON.stringify({ at: Date.now(), files: files })); } catch (_) {}
+        fillSelects(); paint();
+      })
+      .catch(function () {});
+  }
   var LEVELS = { off: 0, light: 110, heavy: 260 };
   var PAGES = [['login', 'Welcome screen', 'fa-door-open'], ['workdesk', 'WorkDesk', 'fa-briefcase'], ['inventory', 'Inventory', 'fa-boxes-stacked'], ['invoice', 'Invoice Management', 'fa-file-invoice']];
   function lv(v) { v = String(v || '').toLowerCase(); return LEVELS.hasOwnProperty(v) ? v : 'off'; }
@@ -26,7 +49,7 @@
   var saved = norm({});
   try { var ls = JSON.parse(localStorage.getItem(KEY) || 'null'); if (ls) saved = norm(ls); } catch (_) {}
   var shown = copy(saved);
-  function vnorm(o) { var r = {}; PAGES.forEach(function (p) { var v = String((o && o[p[0]]) || '').replace(/\.mp4$/i, ''); r[p[0]] = VIDEOS.indexOf(v) >= 0 ? v : ''; }); return r; }
+  function vnorm(o) { var r = {}; PAGES.forEach(function (p) { var v = String((o && o[p[0]]) || '').replace(/\.mp4$/i, ''); r[p[0]] = okName(v); }); return r; }
   function vsame(a, b) { return PAGES.every(function (p) { return a[p[0]] === b[p[0]]; }); }
   var vsaved = vnorm({});
   try { var lv2 = JSON.parse(localStorage.getItem(VKEY) || 'null'); if (lv2) vsaved = vnorm(lv2); } catch (_) {}
@@ -122,7 +145,7 @@
       vd.addEventListener('error', function () { vd.style.opacity = '0'; }); // missing file: the photo stays
       host.insertBefore(vd, host.firstChild);
     }
-    var src = VIDEO_BASE + n + '.mp4';
+    var src = VIDEO_BASE + encodeURIComponent(n) + '.mp4';
     if (vd.getAttribute('src') !== src) { vd.style.opacity = '0'; vd.setAttribute('src', src); }
     if (document.hidden) { try { vd.pause(); } catch (_) {} }
     else if (vd.paused) { var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {}); }
@@ -158,6 +181,7 @@
     saved = fromServer(); vsaved = vnorm(videoVal);
     try { localStorage.setItem(KEY, JSON.stringify(saved)); localStorage.setItem(VKEY, JSON.stringify(vsaved)); } catch (_) {}
     if (!dirty) { shown = copy(saved); vshown = vnorm(vsaved); }
+    fillSelects();
     paint(); update();
   }
   var watching = false;
@@ -189,11 +213,11 @@
         return '<div class="iba-rain-row" data-rain-page="' + p[0] + '"><span class="iba-rain-pg"><i class="fa-solid ' + p[2] + '"></i> ' + p[1] + '</span>' +
           '<div class="iba-rain-opts" role="radiogroup" aria-label="Rain on ' + p[1] + '">' +
           ['off', 'light', 'heavy'].map(function (k) { return '<button type="button" class="secondary-btn" role="radio" data-rain="' + k + '">' + (k === 'off' ? 'No rain' : k === 'light' ? 'Light rain' : 'Heavy rain') + '</button>'; }).join('') +
-          '</div><label class="iba-rain-vid"><i class="fa-solid fa-film"></i> <select data-vid-page="' + p[0] + '" aria-label="Video on ' + p[1] + '"><option value="">Still photo</option>' +
-          VIDEOS.map(function (v) { return '<option value="' + v + '">Video ' + v.replace(/^V-/, '') + '</option>'; }).join('') + '</select></label></div>';
+          '</div><label class="iba-rain-vid"><i class="fa-solid fa-film"></i> <select data-vid-page="' + p[0] + '" aria-label="Video on ' + p[1] + '"></select></label></div>';
       }).join('') +
       '<div class="iba-dim-acts"><span class="iba-dim-note"></span><button type="button" class="primary-btn iba-bg-save" data-rain-save>Save</button></div>';
     host.appendChild(el);
+    fillSelects(); loadVideoList();
     el.addEventListener('click', function (e) {
       if (!isSuper()) return;
       var b = e.target.closest('[data-rain]');
@@ -206,6 +230,16 @@
       vshown[sl.getAttribute('data-vid-page')] = sl.value; paint(); update();
     });
     paint();
+  }
+  function esc(t) { return String(t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fillSelects() {
+    var el = box(); if (!el) return;
+    el.querySelectorAll('[data-vid-page]').forEach(function (sl) {
+      var pg = sl.getAttribute('data-vid-page'), names = VIDEOS.slice();
+      [vshown[pg], vsaved[pg]].forEach(function (n) { if (n && names.indexOf(n) < 0) names.push(n); }); // keep a saved one even if not listed
+      sl.innerHTML = '<option value="">Still photo</option>' + names.map(function (v) { return '<option value="' + esc(v) + '">Video ' + esc(v.replace(/^V-/, '')) + '</option>'; }).join('');
+      sl.value = vshown[pg] || '';
+    });
   }
   function say(t, bad) { var n = box() && box().querySelector('.iba-dim-note'); if (n) { n.textContent = t || ''; n.classList.toggle('is-bad', !!bad); } }
   function paint() {
@@ -232,7 +266,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.ibaRain = {
     get: function () { return { page: page(), saved: copy(saved), shown: copy(shown), video: vnorm(vshown), videoSaved: vnorm(vsaved) }; },
-    video: function (pg, v) { if (vshown.hasOwnProperty(pg)) { var n = String(v || '').replace(/\.mp4$/i, ''); vshown[pg] = VIDEOS.indexOf(n) >= 0 ? n : ''; paint(); update(); } },
+    video: function (pg, v) { if (vshown.hasOwnProperty(pg)) { vshown[pg] = okName(String(v || '').replace(/\.mp4$/i, '')); fillSelects(); paint(); update(); } },
     set: function (pg, v) { if (v === undefined) { v = pg; pg = page(); } if (shown.hasOwnProperty(pg)) { shown[pg] = lv(v); paint(); update(); } }
   };
 })();
