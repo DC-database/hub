@@ -1,3 +1,10 @@
+17.0.5 patch 196 (10-Nov-2026)
+- Background videos redone SHARPER: 1080p (was 720p, looked a bit pixelated), 4 to 25 MB each, no sound.
+- 5 new videos: V-Train-01, V-Bus-02, V-Car-02, V-Rain-01, V-Rain-02 (.mov turned into .mp4).
+- The video dropdown now reads the GitHub video folder (hub/invoice/video, .mp4 only) by itself, like the photos
+  (refreshed every 6 hours). Upload a new .mp4 there and it shows in Settings, no code change needed.
+Files: index.html, PATCH.txt, js/iba-1705-rain.js, video\ (10 mp4, all replaced)
+
 17.0.5 patch 195 (09-Nov-2026)
 - Material Stock buttons: Restock, Usage and the refresh icon are darker. Transfer is now solid BLUE with a small gap,
   so sites do not click Restock by mistake. More tools is purple (admin tools).
