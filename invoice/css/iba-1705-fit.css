@@ -2316,3 +2316,9 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
 #iba-ss .iba-ss-date { margin-top: 10px; font-size: clamp(16px, 1.6vw, 24px); font-weight: 400; opacity: .9; }
 #iba-ss .iba-ss-hint { position: absolute; right: 4vw; bottom: 5vh; color: rgba(255, 255, 255, .55); font-size: 13px; }
 
+
+/* 17.0.5 patch 211: pinned side panel hid the Actions column (10) of inventory Work History (old iba-shell.css rule), so the Fix transfer wrench was invisible. Keep Actions for inventory records. */
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table:has(> tbody.inv-job-records-body) th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table:has(> tbody.inv-job-records-body) td:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-job-records-body) th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-job-records-body) td:nth-child(10) { display: table-cell !important; }
