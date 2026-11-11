@@ -545,7 +545,7 @@ function renderInventoryJobRecordsTable(entries) {
             <tr>
                 <th>Control ID</th><th>Product Name</th><th>Site Route</th>
                 <th>Ordered Qty</th><th>Delivered Qty</th><th>Shipping Date</th>
-                <th>Arrival Date</th><th>Contact</th><th>Actions</th>
+                <th>Arrival Date</th><th>Contact</th><th>Status</th><th>Actions</th>
             </tr>`;
     }
 
@@ -557,7 +557,7 @@ function renderInventoryJobRecordsTable(entries) {
         if (countDisplay) countDisplay.textContent = `(Total Records: 0)`;
         if (typeof wdUiUpdateMiniMetrics === 'function') wdUiUpdateMiniMetrics('job-records-summary-strip', [], 'Inventory Records');
         paintInventoryWorkHistoryTxnSwitch(0, 0);
-        reportingTableBody.innerHTML = '<tr><td colspan="9"><div class="wd-modern-empty-row"><i class="fa-solid fa-box-open"></i><strong>No inventory records found</strong><span>Select another inventory category or search term.</span></div></td></tr>';
+        reportingTableBody.innerHTML = '<tr><td colspan="10"><div class="wd-modern-empty-row"><i class="fa-solid fa-box-open"></i><strong>No inventory records found</strong><span>Select another inventory category or search term.</span></div></td></tr>';
         return;
     }
 
@@ -631,6 +631,8 @@ function renderInventoryJobRecordsTable(entries) {
         // 17.0.5 patch 189: Super Admin "Delete & undo" on a completed transaction
         if (window.ibaTxUndo) actions += window.ibaTxUndo.btn(entry, true);
 
+        // 17.0.5 patch 208 (martin): Status column (Pending Source / Pending Admin / In Transit ...)
+        const st = getInventoryRecordStatusText(entry);
         return `
             <td class="inv-control-cell">${controlCell}</td>
             <td class="inv-product-cell">${esc(entry.productName || '')}</td>
@@ -640,6 +642,7 @@ function renderInventoryJobRecordsTable(entries) {
             <td>${esc(entry.shippingDate || '')}</td>
             <td>${esc(entry.arrivalDate || '')}</td>
             <td>${esc(entry.contactName || '')}</td>
+            <td class="inv-status-cell">${st ? `<span class="iba-wh-st">${esc(st)}</span>` : ''}</td>
             <td class="inv-actions-cell">
                 <div class="inv-row-actions">${actions}</div>
             </td>
@@ -649,7 +652,7 @@ function renderInventoryJobRecordsTable(entries) {
     if (!visibleGroups.length) {
         if (tableHead) tableHead.style.display = 'none';
         const label = txnMode === 'multi' ? 'multi' : 'single';
-        reportingTableBody.innerHTML = `<tr><td colspan="9"><div class="wd-modern-empty-row"><i class="fa-solid fa-box-open"></i><strong>No ${label} records</strong><span>Nothing in this tab is a ${label} transaction.</span></div></td></tr>`;
+        reportingTableBody.innerHTML = `<tr><td colspan="10"><div class="wd-modern-empty-row"><i class="fa-solid fa-box-open"></i><strong>No ${label} records</strong><span>Nothing in this tab is a ${label} transaction.</span></div></td></tr>`;
         return;
     }
 
@@ -685,6 +688,12 @@ function renderInventoryJobRecordsTable(entries) {
         const firstShippingDate = items.map(x => x.shippingDate || '').find(Boolean) || '';
         const firstArrivalDate = items.map(x => x.arrivalDate || '').find(Boolean) || '';
         const firstContact = items.map(x => x.contactName || '').find(Boolean) || '';
+        // 17.0.5 patch 208: one status for the whole transaction, or each status with its count when items differ
+        const stCount = new Map();
+        items.forEach((x) => { const t = getInventoryRecordStatusText(x) || '-'; stCount.set(t, (stCount.get(t) || 0) + 1); });
+        const groupStatusHtml = stCount.size === 1
+            ? `<span class="iba-wh-st">${esc([...stCount.keys()][0])}</span>`
+            : [...stCount.entries()].map(([t, n]) => `<span class="iba-wh-st">${esc(t)} (${n})</span>`).join(' ');
 
         groupRow.innerHTML = `
             <td class="inv-group-id-cell">
@@ -702,6 +711,7 @@ function renderInventoryJobRecordsTable(entries) {
             <td>${esc(firstShippingDate)}</td>
             <td>${esc(firstArrivalDate)}</td>
             <td>${esc(firstContact)}</td>
+            <td class="inv-status-cell">${groupStatusHtml}</td>
             <td class="inv-group-actions-cell">
                 <span class="inv-expand-hint">Click to expand</span>
             </td>

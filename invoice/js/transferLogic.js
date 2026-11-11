@@ -1445,6 +1445,16 @@ window.handlePrintWaybill = async function(entry) {
     let badgeText = isApproved ? "AUTHORIZED" : "PENDING APPROVAL";
     let badgeColor = isApproved ? "#00748C" : "#dc3545";
 
+    // 17.0.5 patch 208 (martin): a draft says which step it is waiting for, and who
+    const waitStep = (() => {
+        if (isApproved || isRejected) return null;
+        const st = String(primaryState || '').toLowerCase();
+        if (/source/.test(st)) return { badge: 'WAITING: SOURCE', line: 'WAITING FOR SOURCE TO CONFIRM', who: primary.sourceContact || primary.attention || '' };
+        if (/admin/.test(st)) return { badge: 'WAITING: APPROVAL', line: 'WAITING FOR APPROVAL', who: primary.approver || primary.attention || '' };
+        if (/confirm/.test(st)) return { badge: 'WAITING: CONFIRMATION', line: 'WAITING FOR CONFIRMATION', who: primary.attention || '' };
+        return null;
+    })();
+    if (waitStep) badgeText = waitStep.badge;
     if(isCompleted) { badgeText = "COMPLETED"; badgeColor = "#28a745"; }
     if(isRejected) { title = `${titleBase} (REJECTED)`; badgeText = "REJECTED"; badgeColor = "#D32F2F"; }
 
@@ -1516,7 +1526,9 @@ window.handlePrintWaybill = async function(entry) {
     } else if (isRejected) {
         approverSectionHTML = `<div style="text-align: center; padding: 15px;"><div style="display: inline-block; border: 3px solid #D32F2F; color: #D32F2F; font-weight: bold; font-size: 18px; padding: 5px 15px; text-transform: uppercase; transform: rotate(-5deg); opacity: 0.8;">REJECTED</div></div>`;
     } else {
-        approverSectionHTML = `<div style="text-align: center; font-weight: bold; color: #dc3545; padding: 20px;">PENDING APPROVAL</div>`;
+        approverSectionHTML = waitStep
+            ? `<div style="text-align: center; font-weight: bold; color: #dc3545; padding: 14px 10px;">${waitStep.line}${waitStep.who ? `<div style="margin-top:6px;font-size:13px;color:#111;font-weight:700;">${String(waitStep.who).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</div>` : ''}</div>`
+            : `<div style="text-align: center; font-weight: bold; color: #dc3545; padding: 20px;">PENDING APPROVAL</div>`;
     }
 
     let receiverSectionHTML = '';
