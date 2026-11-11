@@ -230,10 +230,10 @@
         if (btn) btn.disabled = false;
         unsure(w);
         draw(w);
-        const proc = out.filter((r) => r.kind === 'proc');
+        const proc = out.filter((r) => (r.kind === 'proc' || r.kind === 'none'));
         w.__proc = proc;
-        res.innerHTML = out.map((r) => '<span class="iba-pull-chip ' + (r.ok ? 'is-ok' : (r.why === 'already on the list' ? 'is-same' : (r.kind === 'proc' ? 'is-proc' : 'is-bad'))) + '"><b>' + esc(r.po) + '</b> ' +
-            esc(r.ok ? 'added' : r.why) + (r.kind === 'proc' ? ' <button type="button" class="iba-pull-req" data-pull-req="' + esc(r.po) + '" title="WhatsApp to Reception asking for the original PO"><i class="fa-brands fa-whatsapp"></i> Request original PO</button>' : '') + '</span>').join('') +
+        res.innerHTML = out.map((r) => '<span class="iba-pull-chip ' + (r.ok ? 'is-ok' : (r.why === 'already on the list' ? 'is-same' : ((r.kind === 'proc' || r.kind === 'none') ? 'is-proc' : 'is-bad'))) + '"><b>' + esc(r.po) + '</b> ' +
+            esc(r.ok ? 'added' : r.why) + ((r.kind === 'proc' || r.kind === 'none') ? ' <button type="button" class="iba-pull-req" data-pull-req="' + esc(r.po) + '" title="WhatsApp to Reception asking for the original PO"><i class="fa-brands fa-whatsapp"></i> Request original PO</button>' : '') + '</span>').join('') +
             (proc.length > 1 ? '<button type="button" class="iba-pull-req is-all" data-pull-reqall><i class="fa-brands fa-whatsapp"></i> Request all (' + proc.length + ')</button>' : '');
         if (q) { q.value = ''; q.focus(); }
     }
@@ -407,7 +407,11 @@
                 const val = await lookup(p);
                 if (activeOf(val)) continue;
                 const c = await classify(p, val);
-                if (c.kind === 'proc') proc.push({ po: p, vendor: c.vendor || '', site: c.site || '' });
+                // 17.0.5 patch 215: a PO that is not in the PO file at all (never filed) is asked for too
+                if (c.kind === 'proc' || c.kind === 'none') {
+                    let pd = {}; try { pd = (typeof allPOData !== 'undefined' && allPOData && allPOData[p]) || {}; } catch (_) {}
+                    proc.push({ po: p, vendor: c.vendor || pd['Supplier Name'] || pd.Supplier || '', site: c.site || pd['Project ID'] || '' });
+                }
             } catch (_) {}
         }
         if (proc.length) offerReq(proc);
@@ -422,7 +426,7 @@
         const one = items.length === 1;
         w.innerHTML = '<div class="iba-pb-box" role="alertdialog" aria-modal="true" aria-labelledby="iba-procreq-t" style="width:min(540px,100%)">' +
             '<div class="iba-pb-head"><b id="iba-procreq-t"><i class="fa-solid fa-folder-open"></i> Original PO not in your file yet</b></div>' +
-            '<div class="iba-pb-sub"><p>' + (one ? 'This PO is' : 'These POs are') + ' still with Procurement (never filed):</p><ul class="iba-hf-list">' +
+            '<div class="iba-pb-sub"><p>' + (one ? 'This PO is' : 'These POs are') + ' not in your PO file yet (never filed):</p><ul class="iba-hf-list">' +
             items.map((x) => '<li><b>PO ' + esc(x.po) + '</b>' + (x.vendor ? ' · ' + esc(x.vendor) : '') + (x.site ? ' · Site ' + esc(x.site) : '') + '</li>').join('') +
             '</ul><p>Ask Hafiz (Reception) to send the original' + (one ? '' : 's') + '? WhatsApp opens with the message ready, you press Send.</p></div>' +
             '<div class="iba-pb-foot"><span></span><button type="button" data-no>Later</button>' +
