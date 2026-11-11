@@ -2188,6 +2188,44 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
 @layer iba-ui {
   /* patch 207: Job Records / Work History "Pick a category" line on its own row under the tabs */
   html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-reporting.iba-empty > .iba-empty-hint.iba-eh-jobs { order: 3 !important; flex: 1 1 100% !important; width: 100% !important; max-width: none !important; box-sizing: border-box !important; }
+  /* patch 208: Work History status column */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-reporting td.inv-status-cell { white-space: normal !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-reporting td.inv-status-cell .iba-wh-st { display: inline-block; margin: 1px 2px; padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06); color: #EBD8A8 !important; -webkit-text-fill-color: #EBD8A8 !important; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  /* patch 209: Fix transfer (Super Admin) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-pb-box.iba-tx-box { width: min(920px, 96vw) !important; max-width: 96vw !important; max-height: 90vh; overflow: auto; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-pb-head { display: flex; align-items: center; justify-content: space-between; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-x { background: transparent !important; border: 0 !important; color: inherit !important; font-size: 18px; box-shadow: none !important; cursor: pointer; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-pb-sub > p { color: #DCE7EE !important; -webkit-text-fill-color: #DCE7EE !important; margin: 4px 0 10px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-find { display: flex; gap: 8px; margin-bottom: 12px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-find input, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix select { height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.2) !important; background: rgba(9,11,14,.75) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-size: 13.5px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-find input { flex: 1 1 auto; min-width: 0; text-transform: uppercase; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix select { width: 100% !important; min-width: 0; height: 38px !important; min-height: 0 !important; padding: 0 30px 0 10px !important; margin: 0 !important; line-height: normal !important; box-sizing: border-box !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix select:disabled { opacity: .55; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix select option { background: #111418; color: #EEF3F8; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-btn { height: 36px !important; min-height: 0 !important; padding: 0 14px !important; border-radius: 99px !important; border: 1px solid rgba(255,255,255,.25) !important; background: rgba(255,255,255,.07) !important; color: #EEF3F8 !important; -webkit-text-fill-color: #EEF3F8 !important; font-weight: 700; cursor: pointer; box-shadow: none !important; display: inline-flex !important; align-items: center; gap: 6px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-btn.is-go { background: #0f766e !important; border-color: #14b8a6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-btn:disabled { opacity: .5; cursor: default; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-top small, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines small { color: #A9B6C2; display: block; font-size: 11.5px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-cid { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 17px; color: #fff; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-pill { display: inline-block; padding: 2px 9px; border-radius: 99px; border: 1px solid rgba(255,255,255,.22); font-size: 11.5px; font-weight: 700; color: #DCE7EE; margin-left: 4px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-pill.is-step { color: #EBD8A8; border-color: rgba(227,201,138,.45); }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-note { margin: 8px 0 10px; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; font-size: 12.5px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-bad { color: #ff9b9b !important; -webkit-text-fill-color: #ff9b9b !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-ok { color: #7FE3D6; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-f label { -webkit-text-fill-color: #E3C98A !important; opacity: 1 !important; display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #E3C98A !important; margin-bottom: 4px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-f label em { text-transform: none; letter-spacing: 0; font-weight: 500; -webkit-text-fill-color: #A9B6C2 !important; color: #A9B6C2; font-style: normal; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines { margin-top: 12px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; overflow: auto; max-height: 40vh; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines th { position: sticky; top: 0; background: #0E1013 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; text-align: left; padding: 7px 8px; z-index: 1; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines td { padding: 6px 8px; border-top: 1px solid rgba(255,255,255,.08); vertical-align: middle; color: #EEF3F8; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines .r { text-align: right; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-lines select { height: 34px !important; min-width: 170px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-msg { font-size: 12.5px; color: #EBD8A8; flex: 1 1 260px; }
+  @media (max-width: 640px) { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-trfix .iba-tx-grid { grid-template-columns: 1fr; } }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-reporting .iba-tx-rowbtn { width: 26px; height: 24px; min-height: 0 !important; padding: 0 !important; margin-right: 5px; border-radius: 6px !important; border: 1px solid rgba(227,201,138,.45) !important; background: rgba(227,201,138,.1) !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; font-size: 11px; display: inline-flex !important; align-items: center; justify-content: center; cursor: pointer; box-shadow: none !important; vertical-align: middle; }
   .iba-empty-hint { display: none; }
   html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) :is(#wd-activetask, #inv-active-job).iba-empty > .iba-empty-hint.iba-eh-tasks,
   html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-reporting.iba-empty > .iba-empty-hint.iba-eh-jobs,
