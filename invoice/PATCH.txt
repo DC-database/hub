@@ -1,3 +1,115 @@
+17.0.5 patch 207 (11-Nov-2026)
+- Job Records / Work History: the line "Pick a category above or type a search to load records." now
+  sits on its own row under the tabs (it was next to the search box, above the tabs).
+Files: index.html, PATCH.txt, js/iba-1705-empty.js, css/iba-1705-fit.css
+
+17.0.5 patch 206 (11-Nov-2026)
+- Job Records opens empty: it no longer downloads the records and picks the Invoice tab on open.
+  The standard tabs show (Invoice, IPC Application, ... Other) with one short line "Pick a category
+  above or type a search to load records."; records load after a tab click or a search (same as
+  Work History). Less Firebase download on every open.
+- Work History: after picking a tab (Transfer, Restock ...) nothing is listed until Active Jobs or
+  Completed is clicked (counts show on the two buttons). A typed search shows both.
+- Glass: panels, cards and pop-ups are see-through like the header and side panel (dark background at
+  55% of its old strength, blur at most 10px) instead of frosted. In css/iba-1705-black.css.
+Files: index.html, PATCH.txt, js/app-workdesk-reporting.js, js/app-inventory.js,
+       js/app-navigation-settings.js, js/iba-1705-empty.js, css/iba-1705-black.css
+
+17.0.5 patch 205 (11-Nov-2026)
+- Black look and "no side stripe" now also work when the app is opened as a file on the PC.
+  Patches 199 and 204 changed the colours from a script, and browsers do not let a script read
+  style sheets of a page opened from a folder, so nothing changed there. Now the same changes are
+  plain style files loaded last: css/iba-1705-black.css (navy -> neutral black, ~390 rules) and
+  css/iba-1705-nostripe.css (coloured left line removed, ~110 rules). Made from the app's own style
+  sheets; print untouched. The scripts stay for styles added while the page runs.
+- Work History opens empty (no Transfer list on open): records load only after a tab click or a
+  search, like Job Records. Less Firebase download.
+- Material Stock: table and its header hidden until a Family tab is clicked or a search is typed;
+  one short line "Pick a Family tab above or type a search to see materials." instead.
+- Invoice Entry pop-up: IPC / F / FIVE are now tiny I / F / 5 buttons on the Invoice No. title line,
+  so the Invoice No. box has its full width (same buttons, same clicks; hover shows what each does).
+Files: index.html, PATCH.txt, css/iba-1705-black.css (new), css/iba-1705-nostripe.css (new),
+       css/iba-1705-fit.css, css/iba-1705-ie.css, js/iba-1705-empty.js, js/iba-1705-ie.js,
+       js/app-navigation-settings.js
+
+17.0.5 patch 204 (11-Nov-2026)
+- No coloured side stripe on cards and rows (Dashboard status cards, Batch Entry cards, task rows,
+  assistant cards, highlight rows...). The thick left line was a common "template" look; the card now
+  keeps its normal thin border. Print is not touched. Done once on the app's own style sheets by
+  js/iba-1705-nostripe.js. Test switches (this browser): localStorage iba-stripe-mode = 'b' gives a soft
+  colour outline instead; iba-stripe-off = '1' brings the stripe back.
+Files: index.html, PATCH.txt, js/iba-1705-nostripe.js (new)
+
+17.0.5 patch 203 (11-Nov-2026)
+- Assistant side panel folds back to the robot 7 s after the mouse leaves it (PC; not the big window,
+  not while it works, while you type in it, or while a receipt / pop-up is open). Nothing is cleared.
+  Delay = MINIMIZE_MS in js/iba-1705-idle.js.
+- Screensaver (PC): Settings > Screensaver. Everyone has their own On/Off (off by default, this browser).
+  Super Admin picks the video and the idle minutes (default 5) for everyone + Preview
+  (system_settings/screensaver). Full screen video + clock; mouse move / click / key closes it and that
+  first click or key does nothing else. Not while typing or with a pop-up open.
+- Dashboard: Weekly report button removed (assistant skill "Weekly report" does it); Refresh and Check all
+  moved to Settings > Dashboard tools.
+- Same look for buttons: Batch Entry "Notes to Accounts" joins the Search Note / Clear group; "Not in
+  records yet - add as new invoice" is no longer teal.
+Files: index.html, PATCH.txt, css/iba-1705-fit.css, js/iba-1705-idle.js (new), js/iba-1705-dashtools.js (new)
+
+17.0.5 patch 202 (11-Nov-2026)
+- Batch Entry > Search PO: when the PO has no invoices yet, a button "Not in records yet - add as new
+  invoice" adds a new card for that PO (same as typing the PO and pressing + New PO): site/vendor from
+  POVALUE2, else the PO file; a PO missing everywhere opens the existing Add PO form (Super Admin).
+  The search window closes and the cursor goes to the new card's Inv No. Any status can be picked;
+  Save fills the invoice name (Site-PO-InvID-Vendor) as before.
+Files: index.html, PATCH.txt, css/iba-1705-fit.css, js/iba-1705-batchnew.js (new)
+
+17.0.5 patch 201 (11-Nov-2026)
+- Material Stock > More tools > Ticked items > "Empty merged items" (Super Admin): a table of every
+  card that was merged into another one (Item ID, Name, Merged into, Merged on, By, Stock) to review,
+  then Delete one by one or tick / Select all > Delete ticked. Each delete asks "Yes, delete" first.
+  Only the empty card is removed; its movement history is kept (Delete Selected wipes history, this
+  does not). Cards with stock again are greyed and cannot be deleted (checked again live before
+  deleting). Undo a merge still works later (it rebuilds the card from the merge log).
+Files: index.html, PATCH.txt, css/iba-1705-fit.css, js/iba-1705-msmenu.js, js/iba-1705-mclean.js (new)
+
+17.0.5 patch 200 (11-Nov-2026)
+- Invoice Entry pop-up, design A (martin picked): PO strip on top (PO no., vendor, site, PO value /
+  Invoiced / Balance), four boxes Invoice / Status & who has it (quick status pills, the side panel is
+  gone) / Files (Invoice, SRV, Report: Open + Upload) / Notes; header has Entry ID, Prev/Next and
+  "Search another PO"; footer: Delete + "Last update: who · when" left, Clear / Back / Close / Add or
+  Update right. Fields and buttons are moved, not rebuilt (same ids and clicks). Add / Update / Delete
+  now follow the app's own show/hide (before, all showed at once).
+- Tab key: Invoice No > Inv Date > Value > Amount to pay > Release > Status > Attention > Note > Details
+  (Shift+Tab back; skips copy/upload/open buttons, the ticks and the parts of a date).
+- Batch Entry: Tab goes field to field in each card as it looks on screen (row 1 then row 2), then to
+  the next card; skips the small quick buttons and the trash button.
+Files: index.html, PATCH.txt, css/iba-1705-ie.css (new), js/iba-1705-ie.js (new)
+
+17.0.5 patch 199 (11-Nov-2026)
+- One black glass look everywhere (martin): tables, pop-ups and cards used a navy-blue glass while the
+  header and side panels are neutral black. New js/iba-1705-black.js turns every dark navy background
+  in the app's style sheets into the same tone of black (same see-through amount). Text, borders,
+  teal/gold/blue buttons, status colours and print are untouched. Test switch-off:
+  localStorage 'iba-black-off' = '1' then reload.
+Files: index.html, PATCH.txt, js/iba-1705-black.js (new)
+
+17.0.5 patch 198 (11-Nov-2026)
+- Empty areas are hidden until there is something to show (PC only, hidden not removed), new js/iba-1705-empty.js:
+  * WorkDesk Active Task / Inventory Active Job: with no tasks at all, the search, Clear, filters, date tabs,
+    summary and table are hidden and one short line "Nothing to do right now." shows instead.
+  * Invoice Records: search card and filters stay; the result sheet and grand total show only after a search.
+  * Invoice Entry page: PO details strip shows only after a PO is searched.
+  * Job Records: tabs and search stay; table and summary show only after a tab or search loads records.
+  * Summary Note: Prev Summary + Print moved to the left panel above Full refresh (Print greyed until a
+    summary is generated); the PDF area is hidden until a summary is generated.
+- Invoice tracking history: Approved and SRV Done steps show no name (iba-assistant.js stepTo).
+Files: index.html, PATCH.txt, css/iba-1705-fit.css, js/iba-1705-empty.js (new), js/iba-assistant.js
+
+17.0.5 patch 197 (10-Nov-2026)
+- Small copy icon next to the invoice number: WorkDesk Active Task (Ref column; copies only, does not open the PDF)
+  and the Invoice Entry pop-up (inside the Invoice No. box). Green tick = copied. (js/iba-1705-copyinv.js)
+- Material Stock photo card: Open Photo / Browse Photo / Remove Photo now one matching dark set; Remove has a red outline.
+Files: index.html, PATCH.txt, js/iba-1705-copyinv.js (new), css/iba-1705-fit.css
+
 17.0.5 patch 196 (10-Nov-2026)
 - Background videos redone SHARPER: 1080p (was 720p, looked a bit pixelated), 4 to 25 MB each, no sound.
 - 5 new videos: V-Train-01, V-Bus-02, V-Car-02, V-Rain-01, V-Rain-02 (.mov turned into .mp4).
