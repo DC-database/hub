@@ -1,3 +1,26 @@
+17.0.5 patch 209 (11-Nov-2026)
+- Super Admin "Fix transfer": open any Transfer / Restock / Return / Usage by its Control ID and
+  correct who and where without signing in to the other person's account.
+  Opens from the wrench button on each Work History row (single and multi), from Material Stock >
+  More tools > Fix transfer, or window.ibaTrFix.open('TRF-1125').
+  - Before stock moves (Pending, Pending Source, Pending Admin, Pending Confirmation): source contact,
+    approver, receiver, to site and the from site of each line can change.
+  - Approved / In Transit (stock already left the source): only receiver and to site.
+  - Completed / Received / Rejected: read only.
+  The waiting person follows the change, so the job moves to the right person's Active Job at once.
+  Save asks "Yes, save N lines" first; every changed line gets a history row
+  "Corrected by Super Admin" with old -> new. Reads only the lines of that Control ID.
+Files: index.html, PATCH.txt, js/iba-1705-trfix.js (new), js/iba-1705-msmenu.js, css/iba-1705-fit.css
+
+17.0.5 patch 208 (11-Nov-2026)
+- Work History: new Status column (Pending Source / Pending Admin / In Transit / Completed ...) for
+  single and multi transactions. A multi row shows the one status of all its items, or each status
+  with its count when the items differ, e.g. "Pending Source (1) In Transit (1)".
+- Draft transfer print: instead of the general "PENDING APPROVAL" it says which step it is waiting for
+  and who: badge "WAITING: SOURCE" / "WAITING: APPROVAL" / "WAITING: CONFIRMATION", and in box 4
+  "WAITING FOR SOURCE TO CONFIRM" + the source contact name (or approver name for Pending Admin).
+Files: index.html, PATCH.txt, js/app-inventory.js, js/transferLogic.js, css/iba-1705-fit.css
+
 17.0.5 patch 207 (11-Nov-2026)
 - Job Records / Work History: the line "Pick a category above or type a search to load records." now
   sits on its own row under the tabs (it was next to the search box, above the tabs).
