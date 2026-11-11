@@ -1,0 +1,114 @@
+/* 17.0.5 patch 205 (martin): no coloured side stripe on cards and rows - plain CSS version.
+   Made from the app's own style sheets (same rules as js/iba-1705-nostripe.js) so it works even where
+   the browser does not let scripts read style sheets (page opened as a file). Loaded last. Print untouched. */
+/* style.css */ .im-sidebar-item.status-approved { border-left-width: 0 !important; }
+/* style.css */ .cache-status { border-left-width: 0 !important; }
+/* style.css */ .stock-child-row { border-left-width: 0 !important; }
+/* style.css */ #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required input, #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required select, #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required textarea { border-left-width: 0 !important; }
+/* style.css */ .nav-pulse-active { border-left-width: 0 !important; }
+/* style.css */ .im-sidebar-item.status-approved { border-left-width: 0 !important; }
+/* style.css */ #im-nav li a[data-section="im-invoice-entry"] { border-left-width: 0 !important; }
+/* style.css */ #im-nav li a[data-section="im-invoice-entry"].active { border-left-width: 0 !important; }
+/* style.css */ .highlight-open-balance { border-left-width: 0 !important; }
+/* style.css */ .highlight-fully-paid { border-left-width: 0 !important; }
+/* style.css */ .highlight-negative-balance { border-left-width: 0 !important; }
+/* style.css */ .wd-modern-table tbody tr.wd-modern-row td:first-child { border-left-width: 0 !important; }
+/* style.css */ #wd-activetask .wd-inventory-modern-table tbody tr.controlid-group-child td:first-child { border-left-width: 0 !important; }
+/* style.css */ #wd-activetask .wd-inventory-single-row td:first-child { border-left-width: 0 !important; }
+/* style.css */ #im-payments table tbody td:first-child, #im-existing-invoices-container table tbody td:first-child { border-left-width: 0 !important; }
+/* style.css */ @media (min-width: 769px) { .highlight-negative-balance { border-left-width: 0 !important; } }
+/* style.css */ @media (min-width: 769px) { .highlight-open-balance { border-left-width: 0 !important; } }
+/* style.css */ @media (min-width: 769px) { .highlight-partial { border-left-width: 0 !important; } }
+/* style.css */ @media (min-width: 769px) { .highlight-fully-paid { border-left-width: 0 !important; } }
+/* style.css */ @media (min-width: 769px) { .workdesk-navigation a.nav-pulse-active, .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(195, 80, 47, 0.28) !important; } }
+/* style.css */ @media (min-width: 769px) { #workdesk-view .workdesk-navigation a.nav-pulse-active, #workdesk-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(195, 80, 47, 0.38) !important; } }
+/* style.css */ @media (min-width: 769px) { body.inventory-mode #workdesk-view .workdesk-navigation a.nav-pulse-active, body.inventory-mode #workdesk-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(122, 75, 43, 0.32) !important; } }
+/* style.css */ #invoice-management-view .wd-back-button, #invoice-management-view .workdesk-navigation a, #invoice-management-view .workdesk-footer-nav a { border-left-width: 1px !important; border-left-color: transparent !important; }
+/* style.css */ #invoice-management-view #im-nav li a[data-section="im-invoice-entry"] { border-left-width: 1px !important; border-left-color: transparent !important; }
+/* style.css */ #invoice-management-view .workdesk-navigation a.nav-pulse-active, #invoice-management-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(245, 158, 11, 0.36) !important; }
+/* style.css */ .im-sidebar-item { border-left-width: 1px !important; border-left-color: transparent !important; }
+/* style.css */ body.inventory-mode #workdesk-view .wd-back-button, body.inventory-mode #workdesk-view .workdesk-navigation a, body.inventory-mode #workdesk-view .workdesk-footer-nav a, #inventory-view .wd-back-button, #inventory-view .workdesk-navigation a, #inventory-view .workdesk-footer-nav a { border-left-width: 1px !important; border-left-color: transparent !important; }
+/* style.css */ body.inventory-mode #workdesk-view .workdesk-navigation a.nav-pulse-active, body.inventory-mode #workdesk-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(255, 46, 46, 0.34) !important; }
+/* style.css */ body:not(.inventory-mode) #workdesk-view .wd-back-button, body:not(.inventory-mode) #workdesk-view .workdesk-navigation a, body:not(.inventory-mode) #workdesk-view .workdesk-footer-nav a, body:not(.inventory-mode) #workdesk-view #wd-sidebar-add-job-btn { border-left-width: 1px !important; border-left-color: transparent !important; }
+/* style.css */ @media (min-width: 769px) { body:not(.inventory-mode) #workdesk-view .workdesk-navigation a.nav-pulse-active, body:not(.inventory-mode) #workdesk-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(195, 80, 47, 0.38) !important; } }
+/* style.css */ body.inventory-mode #workdesk-view .workdesk-navigation a.nav-pulse-active, body.inventory-mode #workdesk-view .workdesk-footer-nav a.nav-pulse-active { border-left-width: 1px !important; border-left-color: rgba(77, 0, 0, 0.34) !important; }
+/* style.css */ @media (min-width: 769px) { body #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > input, body #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > select, body #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required > textarea, body #im-invoice-entry-modal #im-new-invoice-form .form-group.is-required .choices__inner { border-left-width: 0 !important; } }
+/* style.css */ #wd-dashboard .wd-note-current-note { border-left-width: 0 !important; }
+/* style.css */ body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is-selected td:first-child { box-shadow: none !important; }
+/* style.css */ body #im-batch-search-modal #im-batch-modal-results tr.batch-modal-result-row.is-selected td:first-child { box-shadow: none !important; }
+/* style.css */ body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active, body:not(.inventory-mode) #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a { box-shadow: 0 8px 20px rgba(0, 32, 73, 0.2) !important; }
+/* style.css */ body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active, body.inventory-mode #workdesk-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a, #inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active, #inventory-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a { box-shadow: 0 8px 20px rgba(34, 100, 132, 0.2) !important; }
+/* style.css */ #invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) a.active, #invoice-management-view :is(.workdesk-navigation, .workdesk-footer-nav) li.active > a, #invoice-management-view .im-nav-group.is-open > .im-nav-group-toggle { box-shadow: rgba(20, 41, 63, 0.2) 0px 8px 20px !important; }
+/* style.css */ #invoice-management-view #im-help .im-help-meta { border-left-width: 1px !important; border-left-color: rgb(217, 226, 236) !important; }
+/* style.css */ #invoice-management-view #im-help .im-help-meta { border-left-width: 1px !important; border-left-color: rgb(219, 227, 232) !important; }
+/* style.css */ #im-help #im-help-meta:not([style*="display:none"]):not([style*="display: none"]) { border-left-width: 1px !important; border-left-color: rgb(216, 225, 230) !important; }
+/* transfer_stock.css */ .inv-job-records-body tr.inv-job-group-row td:first-child, .inv-job-records-body tr.inv-job-single-row td:first-child { border-left-width: 0 !important; }
+/* transfer_stock.css */ .inv-job-records-body tr.inv-job-child-row td:first-child { border-left-width: 0 !important; }
+/* transfer_stock.css */ @media (max-width: 768px) { .inv-job-records-body tr.inv-job-group-row td:first-child, .inv-job-records-body tr.inv-job-single-row td:first-child, .inv-job-records-body tr.inv-job-child-row td:first-child { border-left-width: 1px !important; border-left-color: rgb(229, 237, 245) !important; } }
+/* transfer_stock.css */ #wd-material-stock #ms-table tbody tr.ms-parent-row td:first-child { border-left-width: 0 !important; }
+/* mobile.css */ @media (max-width: 900px) { #im-reporting-mobile-view .im-invoice-item { border-left-width: 1px !important; border-left-color: rgba(13, 126, 133, 0.17) !important; } }
+/* mobile.css */ @media (max-width: 900px) { .im-po-balance-card { border-left-width: 1px !important; border-left-color: rgb(226, 232, 240) !important; } }
+/* mobile.css */ body.im-mobile-reporting-mode #im-reporting .im-po-balance-card, body.iba-mobile-ui #im-reporting .im-po-balance-card, body.im-mobile-reporting-mode #im-reporting .im-po-balance-card.status-close, body.im-mobile-reporting-mode #im-reporting .im-po-balance-card.status-open, body.im-mobile-reporting-mode #im-reporting .im-po-balance-card.status-new, body.im-mobile-reporting-mode #im-reporting .im-po-balance-card.status-pending { border-left-width: 1px !important; border-left-color: rgb(226, 232, 240) !important; }
+/* mobile.css */ .im-invoice-item { border-left-width: 1px !important; border-left-color: rgb(225, 232, 240) !important; }
+/* invoice-desktop.css */ @media (min-width: 769px) { #im-entry-sidebar .im-sidebar-item { border-left-width: 1px !important; border-left-color: rgba(216, 250, 233, 0.36) !important; } }
+/* inventory-desktop.css */ @media (min-width: 769px) { #ms-table tbody tr.ms-parent-row:hover, #ms-table tbody tr:hover { box-shadow: none !important; } }
+/* inventory-desktop.css */ @media (min-width: 769px) { body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row, body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row) { box-shadow: none !important; } }
+/* inventory-desktop.css */ @media (min-width: 769px) { body.inventory-mode #workdesk-view #ms-table tbody tr.ms-parent-row:hover, body.inventory-mode #workdesk-view #ms-table tbody tr:not(.stock-child-row):hover { box-shadow: 0 8px 18px rgba(18,48,67,0.05) !important; } }
+/* inventory-desktop.css */ @media (min-width: 769px) { body.inventory-mode #workdesk-view #ms-table .stock-child-row, body.inventory-mode #workdesk-view #ms-table tr.stock-child-row { box-shadow: none !important; } }
+/* inventory-mobile.css */ @media (max-width: 768px) { #ms-table tbody tr:hover { box-shadow: none !important; } }
+/* inventory-mobile.css */ @media (max-width: 900px) { body.inventory-mode #active-task-mobile-view .mobile-task-card, body.inventory-mode #active-task-mobile-view .wd-task-card, #inventory-view #active-task-mobile-view .mobile-task-card, #inventory-view #active-task-mobile-view .wd-task-card { border-left-width: 1px !important; border-left-color: rgba(34, 100, 132, 0.14) !important; } }
+/* inventory-mobile.css */ @media (max-width: 768px) { body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card, #active-task-mobile-view.inventory-mobile-active-task .mobile-task-card, #active-task-mobile-view .inventory-mobile-task-card { border-left-width: 1px !important; border-left-color: rgba(34, 100, 132, 0.2) !important; } }
+/* inventory-mobile.css */ @media (max-width: 768px) { body.inventory-mobile-task-active #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header, #active-task-mobile-view.inventory-mobile-active-task .inventory-transfer-mobile-header, #active-task-mobile-view .inventory-mobile-task-card .inventory-transfer-mobile-header { border-left-width: 0 !important; } }
+/* patch-11.9.2.css */ @media (min-width: 769px) { body:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #workdesk-nav.workdesk-navigation > ul > li.wd-nav-activetask > a.active.nav-pulse-active { box-shadow: 0 8px 20px rgba(0, 32, 73, 0.20) !important; } }
+/* invoice-mobile.css */ @media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-invoice-item { border-left-width: 1px !important; border-left-color: rgb(49, 95, 136) !important; } }
+/* invoice-mobile.css */ @media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-invoice-list > li { border-left-width: 1px !important; border-left-color: rgb(49, 95, 145) !important; } }
+/* iba-shell.css */ .iba-dash-mini.is-active { box-shadow: none !important; }
+/* iba-1298.css */ html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr.inv-job-child-row td:first-child { box-shadow: none !important; }
+/* iba-invoice-entry.css */ html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .nested-invoice-row td:first-child { box-shadow: none !important; }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-material-stock .ms-row-frost { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-activetask#wd-activetask table.wd-active-modern-table tr.wd-row-urgent > td:first-child { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area, #im-content-area#im-content-area#im-content-area) table tbody tr:not(.stock-child-row):not(:has(> td[colspan])):is(:hover, :focus-within) > td:first-child { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area) :is(#ms-table tbody tr.ms-parent-row:has(+ tr.stock-child-row:not(.hidden)), #job-records-table tbody tr.inv-job-group-row.is-open, #inv-active-job-table-body tr.controlid-group-header.open) > td:first-child { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting .master-grid-row:hover { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting .invoice-card.expanded > .master-grid-row { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table tbody tr:hover > td:first-child { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-dashboard .wd-active-status-card { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-dashboard .wd-active-status-card.active { box-shadow: 0 0 0 1px var(--c) !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin] { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin]:hover, body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin]:focus-within { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-po-closeout #im-po-closeout-list > div { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-po-closeout #im-po-closeout-list > div:has(span[style*="fff7ed"]) { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on :is(#workdesk-content-area, #im-content-area) .choices__list--dropdown .choices__item.is-highlighted, body.iba-shell-on :is(#workdesk-content-area, #im-content-area) .choices__list[aria-expanded] .choices__item.is-highlighted { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .invoice-card > .master-grid-row:hover { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .invoice-card.expanded { box-shadow: none !important; } } }
+/* iba-ui.css */ @media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet .invoice-card.expanded > .master-grid-row { box-shadow: none !important; } } }
+/* iba-ui.css */ @layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-cork-note :is(.wd-note-current-note, .wd-note-current-status) { border-left-width: 0 !important; } }
+/* iba-ui-popups.css */ @layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) .choices__item.is-highlighted { box-shadow: none !important; } } }
+/* iba-ui-popups.css */ @layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:has(input[type="checkbox"]:checked) > td:first-child { box-shadow: none !important; } } }
+/* iba-ui-popups.css */ @layer iba-ui { @media screen { #iba-attention-menu .iba-attn-opt { border-left-width: 0 !important; } } }
+/* iba-assistant.css */ @layer iba-ui { .iba-ai-card { border-left-width: 1px !important; border-left-color: rgba(255, 255, 255, 0.09) !important; } }
+/* iba-assistant.css */ @layer iba-ui { #iba-ai-panel .iba-ai-rows li.is-urgent { box-shadow: none !important; } }
+/* iba-assistant.css */ @layer iba-ui { #iba-ai-panel .iba-aph-tasks li.is-urgent { border-left-width: 0 !important; } }
+/* iba-assistant.css */ @layer iba-ui { #iba-ai-panel .iba-ai-ttab li.is-urgent { box-shadow: none !important; } }
+/* iba-ui-tables.css */ @layer iba-ui { html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row > td:first-child { box-shadow: none !important; } }
+/* iba-ui-tables.css */ @layer iba-ui { html body.iba-shell-on #inv-active-job table tbody tr.wd-mj-row.open > td:first-child { box-shadow: none !important; } }
+/* iba-ui-tables.css */ @layer iba-ui { html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr.controlid-group-child > td:first-child { box-shadow: none !important; } }
+/* iba-ui-tables.css */ @layer iba-ui { html body.iba-shell-on :is(#wd-activetask, #inv-active-job):is(#wd-activetask, #inv-active-job) table tbody tr.wd-row-focus > td:first-child { box-shadow: rgb(250, 204, 21) 0px 2px 0px inset, rgb(250, 204, 21) 0px -2px 0px inset !important; } }
+/* iba-phone.css */ body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-po.is-expanded { box-shadow: rgba(0, 0, 0, 0.28) 0px 10px 26px !important; }
+/* iba-phone.css */ body.iba-phone #iba-phone #im-reporting-mobile-view .iba-mob-v2-invoice-list > li.iba-mob-invoice-item { border-left-width: 1px !important; border-left-color: rgba(255, 255, 255, 0.1) !important; }
+/* iba-1702-glass.css */ @layer iba-ui { html body.iba-shell-on #im-batch-entry#im-batch-entry .batch-invoice-card[data-ui-skin] { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 14px 34px rgba(0, 0, 0, 0.28) !important; } }
+/* iba-1702-glass.css */ @layer iba-ui { html body.iba-shell-on #im-batch-entry#im-batch-entry .batch-invoice-card[data-ui-skin]:hover, html body.iba-shell-on #im-batch-entry#im-batch-entry .batch-invoice-card[data-ui-skin]:focus-within { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 16px 38px rgba(0, 0, 0, 0.32) !important; } }
+/* iba-1702-p10.css */ @layer iba-ui { body.iba-phone #iba-ai-panel .is-aph-brief { border-left-width: 1px !important; border-left-color: rgba(232, 217, 182, 0.22) !important; } }
+/* iba-1702-p10.css */ @layer iba-ui { body.iba-phone #iba-ai-panel .iba-aph-tasks li.is-urgent { border-left-width: 0 !important; } }
+/* iba-1702-p10.css */ @layer iba-ui { html body.iba-shell-on:not(#iba-p12a):not(#iba-p12b) #job-records-table > tbody > tr.iba-opo-row-back > td:first-child { box-shadow: none !important; } }
+/* iba-1703-p14.css */ @layer iba-ui { #iba-ai-panel .iba-ai-ttab li.is-picked, #iba-ai-panel #iba-ai-wide-body .iba-ai-ttab li.is-picked, #iba-ai-panel #iba-ai-wide-body .iba-ai-ttab li.is-picked.is-urgent { box-shadow: none !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-po > .iba-trk-pohead { border-left-width: 0 !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body #iba-ai-panel .iba-cs-sec { border-left-width: 0 !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel ul.iba-aph-tasks.is-cards > li.is-urgent > .iba-aph-tcard { border-left-width: 0 !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-c { border-left-width: 1px !important; border-left-color: rgba(255, 255, 255, 0.12) !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-ai-panel .iba-cs-g { border-left-width: 1px !important; border-left-color: rgba(255, 255, 255, 0.12) !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body.iba-ie-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-entry-sidebar li.im-sidebar-item.iba-ie-job { border-left-width: 0 !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body.iba-phone #iba-phone .iba-ph-road::after { border-left-width: 7px !important; border-left-color: transparent !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body .batch-invoice-card.iba-n2a-card { box-shadow: none !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-fg { border-left-width: 0 !important; } }
+/* iba-1705-fit.css */ @layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-qbox { border-left-width: 0 !important; } }

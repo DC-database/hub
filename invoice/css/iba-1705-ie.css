@@ -1,0 +1,114 @@
+/* 17.0.5 patch 200: Invoice Entry pop-up, design A (js/iba-1705-ie.js adds .iba-ie-a). */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a {
+    --ie-line: rgba(255, 255, 255, .12);
+    --ie-teal: #5ED6C4; --ie-gold: #E3C98A; --ie-mut: #A3B1BC; --ie-txt: #F4F1EA;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a > .modal-container {
+    width: min(1080px, calc(100vw - 32px)) !important; max-width: min(1080px, calc(100vw - 32px)) !important;
+    max-height: calc(100vh - 32px) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important;
+  }
+  /* header */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .modal-header {
+    display: flex !important; align-items: center !important; gap: 12px !important; padding: 14px 20px !important; flex-wrap: wrap;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .modal-header > div:first-child { flex: 1 1 auto; min-width: 0; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-tag {
+    font: 600 12px/1 ui-monospace, Consolas, monospace !important; padding: 5px 8px; border-radius: 7px; white-space: nowrap;
+    background: rgba(94, 214, 196, .12) !important; color: var(--ie-teal) !important; -webkit-text-fill-color: var(--ie-teal) !important; border: 1px solid rgba(94, 214, 196, .35);
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-search { display: flex !important; align-items: center; gap: 6px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-search input { width: 200px !important; height: 36px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-search button { height: 36px !important; width: 38px !important; min-width: 38px !important; }
+  /* body: no side panel any more */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .im-entry-quick-panel { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .im-entry-body-shell { display: block !important; flex: 1 1 auto; min-height: 0; overflow: auto !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .im-entry-main-pane { padding: 0 !important; max-height: none !important; overflow: visible !important; width: auto !important; }
+  /* PO strip */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; gap: 22px; align-items: center; padding: 14px 20px;
+    background: rgba(94, 214, 196, .06) !important; border-bottom: 1px solid var(--ie-line);
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po .l { display: block; margin-bottom: 3px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ie-mut) !important; -webkit-text-fill-color: var(--ie-mut) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po .im-po-no { font: 700 22px/1 ui-monospace, Consolas, monospace !important; color: var(--ie-txt) !important; -webkit-text-fill-color: var(--ie-txt) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po .im-po-vendor { display: block; font-weight: 700; font-size: 15px; color: var(--ie-gold) !important; -webkit-text-fill-color: var(--ie-gold) !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-site { margin-top: 3px; font-size: 12px; color: var(--ie-mut) !important; -webkit-text-fill-color: var(--ie-mut) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-site .im-po-site { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fig b { font-size: 15px; color: var(--ie-txt) !important; -webkit-text-fill-color: var(--ie-txt) !important; white-space: nowrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fig.is-bal b { color: var(--ie-teal) !important; -webkit-text-fill-color: var(--ie-teal) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fig.is-bal b.is-neg { color: #F87171 !important; -webkit-text-fill-color: #F87171 !important; }
+  /* four boxes */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .form-grid-compact.iba-ie-grid {
+    display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; padding: 18px 20px !important; margin: 0 !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-sec {
+    min-width: 0; border: 1px solid var(--ie-line); border-radius: 14px; padding: 14px 14px 12px; background: rgba(255, 255, 255, .025) !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-sec > h4 {
+    margin: 0 0 12px !important; font-size: 11.5px !important; letter-spacing: .09em; text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+    color: var(--ie-teal) !important; -webkit-text-fill-color: var(--ie-teal) !important; background: none !important; border: 0 !important; padding: 0 !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fields { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-sec.is-files .iba-ie-fields,
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-sec.is-notes .iba-ie-fields { grid-template-columns: minmax(0, 1fr) !important; display: grid !important; gap: 10px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fields .form-group { margin: 0 !important; min-width: 0; flex: none !important; width: auto !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-fields .form-group > label { margin-bottom: 5px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #im-inv-no { font-weight: 700 !important; font-size: 15px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #im-inv-value { font-weight: 700 !important; font-size: 15px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #im-inv-entry-id { color: var(--ie-mut) !important; -webkit-text-fill-color: var(--ie-mut) !important; }
+  /* quick status pills */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-pills { display: flex !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; margin-top: 12px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-pills .im-quick-status-btn {
+    width: auto !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; padding: 6px 10px !important; margin: 0 !important; border-radius: 999px !important;
+    font-size: 12px !important; font-weight: 600 !important; border: 1px solid var(--ie-line) !important; background: rgba(255, 255, 255, .04) !important; color: #CFE0E8 !important; -webkit-text-fill-color: #CFE0E8 !important; box-shadow: none !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-pills .im-quick-status-btn:hover { border-color: rgba(94, 214, 196, .55) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-pills .im-quick-status-btn.is-active { background: rgba(94, 214, 196, .18) !important; border-color: rgba(94, 214, 196, .7) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-pills .im-quick-status-final { border-color: rgba(227, 201, 138, .6) !important; color: var(--ie-gold) !important; -webkit-text-fill-color: var(--ie-gold) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-hint,
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-last { font-size: 12px; color: var(--ie-mut) !important; -webkit-text-fill-color: var(--ie-mut) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-hint { margin-top: 8px; }
+  /* files: label | name | Open | Upload */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file { display: grid !important; grid-template-columns: 64px minmax(0, 1fr) !important; align-items: center !important; gap: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file > label { margin: 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row { display: flex !important; gap: 8px !important; align-items: center; min-width: 0; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row input { flex: 1 1 auto; min-width: 0; width: auto !important; height: 36px !important; font-size: 12.5px !important; border-radius: 9px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row button {
+    flex: none; height: 36px !important; min-height: 36px !important; padding: 0 11px !important; border-radius: 9px !important; display: inline-flex !important; align-items: center; gap: 6px;
+    font-size: 12px !important; font-weight: 600 !important; border: 1px solid var(--ie-line) !important; background: rgba(255, 255, 255, .04) !important; color: #CFE0E8 !important; -webkit-text-fill-color: #CFE0E8 !important; margin: 0 !important; width: auto !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row button:not(.iba-ie-open) { border-color: rgba(94, 214, 196, .5) !important; color: var(--ie-teal) !important; -webkit-text-fill-color: var(--ie-teal) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row button i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-file-row button.iba-ie-open:disabled { opacity: .4; cursor: default; }
+  /* footer */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-ft {
+    display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; flex-wrap: wrap; padding: 14px 20px !important;
+    border-top: 1px solid var(--ie-line) !important; background: rgba(0, 0, 0, .18) !important; flex: none;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-ft > :is(.im-footer-po-summary, .im-footer-close-area) { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a :is(.iba-ie-ft-l, .iba-ie-ft-r) { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a :is(.iba-ie-ft-l, .iba-ie-ft-r) > button {
+    height: 40px !important; min-height: 40px !important; padding: 0 16px !important; border-radius: 11px !important; font-weight: 700 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; margin: 0 !important; width: auto !important;
+    border: 1px solid var(--ie-line) !important; background: rgba(255, 255, 255, .05) !important; color: var(--ie-txt) !important; -webkit-text-fill-color: var(--ie-txt) !important; box-shadow: none !important;
+  }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a :is(.iba-ie-ft-l, .iba-ie-ft-r) > button i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #im-delete-invoice-btn { background: transparent !important; border-color: rgba(239, 68, 68, .55) !important; color: #F87171 !important; -webkit-text-fill-color: #F87171 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a :is(#im-add-invoice-button, #im-update-invoice-button) {
+    background: linear-gradient(180deg, #16A394, #0D7E85) !important; border-color: #5ED6C4 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; padding: 0 22px !important;
+  }
+  /* the footer buttons follow the app's own show/hide (Add vs Update, Delete only when editing ...) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a :is(.iba-ie-ft-l, .iba-ie-ft-r) > button.hidden:not([data-iba-recv]) { display: none !important; }
+  /* smaller screens: one column */
+  @media (max-width: 900px) {
+    html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .form-grid-compact.iba-ie-grid { grid-template-columns: minmax(0, 1fr) !important; }
+    html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a .iba-ie-po > .iba-ie-po-v { grid-column: span 2; }
+  }
+
+  /* patch 205: I / F / 5 quick buttons on the Invoice No. title line */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a label[for="im-inv-no"] { display: flex !important; align-items: center !important; gap: 6px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a label[for="im-inv-no"]::after { order: 1; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #smart-quick-fill-group.iba-ie-qf { order: 2; margin-left: auto !important; display: inline-flex !important; gap: 4px !important; flex: 0 0 auto !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #smart-quick-fill-group.iba-ie-qf > button { width: 22px !important; min-width: 22px !important; height: 20px !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; font-size: 11px !important; font-weight: 800 !important; line-height: 1 !important; letter-spacing: 0 !important; text-transform: none !important; border-radius: 5px !important; border: 1px solid rgba(255,255,255,.22) !important; background: rgba(255,255,255,.07) !important; color: #e9eef2 !important; -webkit-text-fill-color: #e9eef2 !important; box-shadow: none !important; cursor: pointer !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry-modal.iba-ie-a #smart-quick-fill-group.iba-ie-qf > button:hover { background: rgba(255,255,255,.16) !important; border-color: rgba(255,255,255,.4) !important; }
+}

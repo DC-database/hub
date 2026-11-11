@@ -2159,3 +2159,122 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .iba-msm-more:hover,
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .iba-msm.is-open .iba-msm-more { background: #33205A !important; }
 }
+/* 17.0.5 patch 197: copy icon (js/iba-1705-copyinv.js) + Material Stock photo buttons all one style */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy {
+    display: inline-flex !important; align-items: center !important; justify-content: center !important; width: 22px !important; height: 22px !important; min-width: 0 !important; min-height: 0 !important;
+    padding: 0 !important; margin: 0 0 0 6px !important; border: 0 !important; border-radius: 6px !important; background: transparent !important; box-shadow: none !important;
+    color: #7FD6DE !important; -webkit-text-fill-color: #7FD6DE !important; font-size: 12px !important; cursor: pointer !important; vertical-align: middle !important; opacity: .75 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy:hover { opacity: 1 !important; background: rgba(127, 214, 222, 0.16) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy.is-done { opacity: 1 !important; color: #4ADE80 !important; -webkit-text-fill-color: #4ADE80 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body .iba-cpy-wrap { position: relative; display: block; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy-wrap > input { padding-right: 34px !important; width: 100% !important; box-sizing: border-box !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5) .iba-cpy-wrap > .iba-cpy.is-field { position: absolute !important; right: 6px !important; top: 50% !important; transform: translateY(-50%) !important; margin: 0 !important; width: 26px !important; height: 26px !important; font-size: 13px !important; }
+
+  /* Material Stock photo card: Open / Browse / Remove look like one set (Open Photo was a big solid teal link) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > :is(a, button).secondary-btn {
+    display: inline-flex !important; align-items: center !important; gap: 7px !important; height: 34px !important; padding: 0 12px !important; border-radius: 10px !important;
+    font-size: 12.5px !important; font-weight: 700 !important; line-height: 1 !important; text-decoration: none !important; white-space: nowrap !important;
+    background: #0A2229 !important; background-color: #0A2229 !important; border: 1px solid rgba(23, 160, 174, 0.45) !important; box-shadow: none !important;
+    color: #E6F4F6 !important; -webkit-text-fill-color: #E6F4F6 !important; transform: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > :is(a, button).secondary-btn:hover { background: #0F3440 !important; background-color: #0F3440 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > :is(a, button).secondary-btn i { color: #7FD6DE !important; -webkit-text-fill-color: #7FD6DE !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > .ms-clear-photo-btn.secondary-btn { border-color: rgba(239, 68, 68, 0.5) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > .ms-clear-photo-btn.secondary-btn i { color: #F87171 !important; -webkit-text-fill-color: #F87171 !important; }
+}
+
+/* 17.0.5 patch 198: hide empty areas until there is something to show (js/iba-1705-empty.js, PC only) */
+@layer iba-ui {
+  /* patch 207: Job Records / Work History "Pick a category" line on its own row under the tabs */
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-reporting.iba-empty > .iba-empty-hint.iba-eh-jobs { order: 3 !important; flex: 1 1 100% !important; width: 100% !important; max-width: none !important; box-sizing: border-box !important; }
+  .iba-empty-hint { display: none; }
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) :is(#wd-activetask, #inv-active-job).iba-empty > .iba-empty-hint.iba-eh-tasks,
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-reporting.iba-empty > .iba-empty-hint.iba-eh-jobs,
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock.iba-empty .iba-empty-hint.iba-eh-stock {
+    display: flex !important; align-items: center; gap: 10px; margin: 14px 0 0; padding: 14px 18px; border-radius: 12px;
+    background: rgba(8, 12, 22, .42) !important; border: 1px solid rgba(255,255,255,.10); color: #CFE3EA !important; -webkit-text-fill-color: #CFE3EA !important; font-size: 14px; }
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) .iba-empty-hint i { color: #5EEAD4 !important; -webkit-text-fill-color: #5EEAD4 !important; }
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-activetask.iba-empty > :is(.wd-premium-searchbar, #active-task-filters, #active-task-date-tabs, #active-task-summary-strip, .form-buttons-container, #financeBatchControls, .table-wrapper),
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #inv-active-job.iba-empty > :is(.inv-job-searchbar, #inv-active-job-filters, #inv-active-job-date-tabs, #inv-active-job-summary-strip, .table-wrapper),
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting.iba-empty :is(.iba-records-sheet, #im-reporting-grand-total-container),
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-invoice-entry.iba-empty #im-modal-po-details,
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-reporting.iba-empty :is(#job-records-summary-strip, #reporting-printable-area),
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock.iba-empty .ms-premium-tablewrap,
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-summary-note.iba-sn-empty .iba-summary-pdf-pane { display: none !important; }
+  /* Summary Note left panel: Prev Summary + Print above Full refresh */
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-summary-note .iba-sn-tools { grid-column: 1 / -1 !important; display: flex; gap: 8px; margin: 0 0 8px; }
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-summary-note .iba-sn-tools > button { flex: 1 1 0; min-width: 0; justify-content: center; display: inline-flex !important; align-items: center; gap: 8px; padding: 9px 10px !important; font-size: .85rem !important; border-radius: 10px !important; }
+  html body.iba-empty-on:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-summary-note .iba-sn-tools > button.iba-sn-off { opacity: .42 !important; cursor: not-allowed !important; filter: grayscale(.6); }
+}
+
+/* 17.0.5 patch 201: Empty merged items window (same look as Undo a merge) */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2) #iba-mclean .iba-pb-box.iba-um-box { width: min(980px, 96vw) !important; max-width: 96vw !important; }
+  html body #iba-mclean .iba-pb-head { display: flex; align-items: center; justify-content: space-between; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-mclean .iba-um-x { background: transparent !important; border: 0 !important; color: inherit !important; font-size: 18px; box-shadow: none !important; cursor: pointer; }
+  html body #iba-mclean .iba-um-scroll { max-height: 60vh; overflow: auto; border: 1px solid rgba(255, 255, 255, .14); border-radius: 10px; margin-top: 8px; }
+  html body #iba-mclean .iba-um-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  html body #iba-mclean .iba-um-table th { position: sticky; top: 0; background: rgba(12, 24, 40, .96); color: #E3C98A; text-align: left; padding: 7px 8px; }
+  html body #iba-mclean .iba-um-table td { padding: 7px 8px; border-top: 1px solid rgba(255, 255, 255, .08); vertical-align: top; color: #eef3f8; }
+  html body #iba-mclean .iba-um-table tr.is-done td { opacity: .5; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-mclean .iba-um-btn { height: 30px !important; min-height: 0 !important; padding: 0 12px !important; border-radius: 99px !important; border: 1px solid rgba(255, 155, 155, .7) !important; background: rgba(220, 53, 69, .25) !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 12px !important; white-space: nowrap; cursor: pointer; display: inline-flex !important; align-items: center; gap: 6px; }
+  html body #iba-mclean .iba-um-done { color: #7FE3D6; font-size: 11.5px; white-space: nowrap; }
+  html body #iba-mclean .iba-um-bad { color: #ff9b9b; }
+  html body #iba-mclean .iba-um-ok { color: #7FE3D6; }
+  html body #iba-mclean .iba-um-msg { margin-top: 8px; min-height: 1em; }
+  html body #iba-mclean .iba-um-names { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(227, 201, 138, .08); border: 1px solid rgba(227, 201, 138, .35); }
+  html body #iba-mclean .iba-um-names p { margin: 0 0 8px; color: #EBD8A8; }
+  html body #iba-mclean .iba-um-namerow { display: grid; grid-template-columns: 120px minmax(0, 1fr) 110px; gap: 8px; align-items: center; margin-top: 6px; }
+  html body #iba-mclean .iba-um-namerow input { height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .18); background: #0E1D2D; color: #EEF3F8; -webkit-text-fill-color: #EEF3F8; font-size: 14px; min-width: 0; }
+  html body #iba-mclean .iba-um-namerow input:focus { outline: 0; border-color: #E3C98A; }
+  html body #iba-mclean .iba-um-table td.r, html body #iba-mclean .iba-um-table th.r { text-align: right; }
+  html body #iba-mclean .iba-mc-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-mclean .iba-pb-sub > p, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-mclean .iba-mc-all { color: #DCE7EE !important; -webkit-text-fill-color: #DCE7EE !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-mclean .iba-pb-sub > p b { color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-mclean .iba-um-table thead th { background: #0E1013 !important; background-color: #0E1013 !important; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body #iba-mclean .iba-mc-all { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  html body:not(#iba-no1):not(#iba-no2) #iba-mclean .iba-um-btn:disabled { opacity: .45; cursor: default; }
+}
+/* 17.0.5 patch 202/203: Batch Entry Search PO - "Not in records yet - add as new invoice" (same look as the other buttons) */
+@layer iba-ui {
+  html body #im-batch-search-modal .iba-bn-wrap { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 10px 0 4px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #im-batch-search-modal .iba-bn-btn {
+    height: 40px !important; padding: 0 16px !important; border-radius: 11px !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; width: auto !important;
+    font-weight: 700 !important; background: rgba(255, 255, 255, .05) !important; border: 1px solid rgba(255, 255, 255, .16) !important; color: #E6EDF6 !important; -webkit-text-fill-color: #E6EDF6 !important; box-shadow: none !important; cursor: pointer; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #im-batch-search-modal .iba-bn-btn:hover { background: rgba(255, 255, 255, .10) !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #im-batch-search-modal .iba-bn-btn i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #im-batch-search-modal .iba-bn-wrap small { color: #A3B1BC !important; -webkit-text-fill-color: #A3B1BC !important; font-size: 12px; }
+}
+
+/* 17.0.5 patch 203: Dashboard tools in Settings, Weekly report button gone (skill does it), screensaver */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-wr-btn { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-dash-tools .iba-dt-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-dash-tools .iba-dt-btns > button { height: 40px !important; padding: 0 16px !important; border-radius: 11px !important; width: auto !important; margin: 0 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-dash-tools .iba-dt-btns > :is(button.hidden, #iba-wr-btn) { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-dash-tools .iba-dt-note { margin: 10px 0 0 !important; font-size: 12.5px; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-toggle { height: 40px !important; padding: 0 16px !important; border-radius: 11px !important; width: auto !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-toggle.is-on { border-color: rgba(94, 214, 196, .7) !important; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-toggle.is-on i { color: inherit !important; -webkit-text-fill-color: inherit !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-admin { margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .10); display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-admin[hidden] { display: none !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-admin-t { grid-column: 1 / -1; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: #E3C98A !important; -webkit-text-fill-color: #E3C98A !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-admin label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: #A3B1BC !important; -webkit-text-fill-color: #A3B1BC !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-admin select { height: 38px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-acts { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-acts > button { height: 38px !important; padding: 0 16px !important; width: auto !important; margin: 0 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-note { font-size: 12.5px; color: #7FE3D6 !important; -webkit-text-fill-color: #7FE3D6 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6) #iba-ss-settings .iba-ss-note.is-bad { color: #F87171 !important; -webkit-text-fill-color: #F87171 !important; }
+}
+/* screensaver layer (outside the layer so nothing in the app can sit above it) */
+#iba-ss { position: fixed; inset: 0; z-index: 2147483600; background: #000; opacity: 0; transition: opacity .25s ease; cursor: none; overflow: hidden; }
+#iba-ss.is-in { opacity: 1; }
+#iba-ss video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .8s ease; }
+#iba-ss video.is-on { opacity: 1; }
+#iba-ss .iba-ss-clock { position: absolute; left: 6vw; bottom: 9vh; color: #fff; text-shadow: 0 2px 18px rgba(0, 0, 0, .55); font-family: inherit; }
+#iba-ss .iba-ss-time { font-size: clamp(64px, 9vw, 150px); font-weight: 200; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+#iba-ss .iba-ss-time small { font-size: .28em; font-weight: 400; margin-left: .25em; letter-spacing: .04em; }
+#iba-ss .iba-ss-date { margin-top: 10px; font-size: clamp(16px, 1.6vw, 24px); font-weight: 400; opacity: .9; }
+#iba-ss .iba-ss-hint { position: absolute; right: 4vw; bottom: 5vh; color: rgba(255, 255, 255, .55); font-size: 13px; }
+

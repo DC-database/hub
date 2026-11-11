@@ -1,0 +1,454 @@
+/* 17.0.5 patch 205 (martin): one black glass look - plain CSS version of js/iba-1705-black.js.
+   Patch 206: glass panels (anything with a backdrop blur) as see-through as the header/side panel:
+   dark backgrounds at 55% of their old strength, blur max 10px.
+   Every dark NAVY background in the app's style sheets turned into the same tone of neutral black
+   (same see-through amount). Works even where scripts may not read style sheets. Loaded last. */
+#wd-paid-history-modal { background-color: rgba(10, 43, 42, 0.32); }
+.wd-paid-history-header { background-image: linear-gradient(105deg, rgb(17, 19, 22) 0%, rgb(10, 93, 105) 64%, rgb(20, 118, 104) 100%); }
+.im-pocket-transfer-table thead th { background-color: rgb(20, 22, 25); }
+.celebration-sound-hint { background-color: rgba(0, 0, 0, 0.19); }
+.animated-card { backdrop-filter: blur(10px) saturate(140%); }
+.im-chart-card { background-color: rgb(16, 18, 21) !important; }
+.dashboard-chart-header select option { background-color: rgb(16, 18, 21); }
+.modal-overlay { background-color: rgba(6, 8, 11, 0.25); }
+.modal-container { backdrop-filter: blur(10px) saturate(135%); }
+.modal > .modal-content { backdrop-filter: blur(10px) saturate(135%); }
+@media (max-width: 768px) { .mobile-login-container { background-image: linear-gradient(135deg, rgb(16, 18, 21) 0%, rgb(0, 116, 140) 100%); } }
+@media (max-width: 768px) { .mobile-login-form-wrapper { backdrop-filter: blur(10px) saturate(140%); } }
+.ms-expand-btn { background-color: rgb(16, 18, 21); }
+#im-new-invoice-form h2#im-form-title { background-color: rgb(16, 18, 21) !important; }
+#im-batch-entry-table th:nth-child(-n+4) { background-color: rgb(16, 18, 21); }
+#im-batch-add-po-button { background-color: rgb(16, 18, 21); }
+.inventory-group-row { background-color: rgba(16, 18, 21, 0.06); }
+.inventory-group-row:hover { background-color: rgba(16, 18, 21, 0.1); }
+.live-chat-fab { background-image: linear-gradient(135deg, rgba(21, 23, 26, 0.52), rgba(16, 185, 129, 0.85)); }
+.live-chat-panel { backdrop-filter: blur(10px) saturate(140%); }
+.live-chat-header { background-color: rgba(21, 23, 26, 0.85); }
+.live-chat-user-avatar { background-color: rgba(21, 23, 26, 0.15); }
+.live-chat-me { background-color: rgba(21, 23, 26, 0.12); }
+.live-chat-msg.me .live-chat-msg-bubble { background-color: rgba(21, 23, 26, 0.14); }
+.live-chat-inputbar button { background-color: rgba(21, 23, 26, 0.85); }
+.live-chat-inputbar button:hover { background-color: rgba(21, 23, 26, 0.95); }
+#login-view .desktop-only-login.cyber-login-card { background-image: radial-gradient(circle at 25% 18%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0) 48%), radial-gradient(circle at 80% 75%, rgba(0, 255, 220, 0.12), rgba(0, 0, 0, 0) 55%), linear-gradient(135deg, rgba(12, 14, 20, 0.3), rgba(12, 14, 20, 0.18)); backdrop-filter: blur(10px) saturate(170%); }
+#dashboard-view .cyber-dashboard-card { background-image: radial-gradient(circle at 22% 18%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 48%), radial-gradient(circle at 78% 72%, rgba(0, 255, 220, 0.1), rgba(0, 0, 0, 0) 56%), linear-gradient(135deg, rgba(10, 12, 18, 0.3), rgba(10, 12, 18, 0.22)); backdrop-filter: blur(10px) saturate(160%); }
+.im-help-tab-btn.active { background-color: rgb(9, 11, 14); }
+.icon-wrapper { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(0, 116, 140)); }
+.balance-row { background-color: rgb(16, 18, 21) !important; }
+.summary-wrapper { background-image: linear-gradient(135deg, rgb(16, 18, 21) 0%, rgb(0, 116, 140) 100%) !important; }
+#im-batch-entry-table th { background-color: rgb(16, 18, 21) !important; }
+#im-invoice-entry-modal .modal-content::-webkit-scrollbar-thumb { background-color: rgba(9, 11, 14, 0.22); }
+#im-invoice-entry-modal .modal-content::-webkit-scrollbar-thumb { background-color: rgba(9, 11, 14, 0.22); }
+.wd-control-center-hero { background-image: radial-gradient(circle at right top, rgba(195, 80, 47, 0.18), transparent 36%), radial-gradient(circle at 12% 0%, rgba(24, 119, 154, 0.2), transparent 34%), linear-gradient(135deg, rgb(13, 15, 18) 0%, rgb(20, 22, 25) 48%, rgb(248, 250, 252) 49%, rgb(255, 255, 255) 100%); }
+.wd-active-status-card.tone-default::after, .wd-active-status-card.tone-default .wd-status-icon { background-color: rgb(21, 23, 26); }
+.wd-task-board-head { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(17, 102, 132)); }
+@media (max-width: 900px) { .wd-control-center-hero { background-image: radial-gradient(circle at right top, rgba(195, 80, 47, 0.16), transparent 40%), linear-gradient(135deg, rgb(13, 15, 18) 0%, rgb(20, 22, 25) 100%); } }
+.wd-page-hero-active { background-image: radial-gradient(circle at 90% 20%, rgba(250, 204, 21, 0.16), transparent 30%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(21, 23, 26) 54%, rgb(255, 255, 255) 55%, rgb(248, 250, 252) 100%); }
+.wd-page-hero-records { background-image: radial-gradient(circle at 90% 20%, rgba(124, 58, 237, 0.15), transparent 30%), linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(15, 95, 120) 54%, rgb(255, 255, 255) 55%, rgb(248, 250, 252) 100%); }
+.wd-premium-tabs button.active, #wd-reporting .report-tabs button.active, #wd-activetask .report-tabs button.active { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)) !important; }
+.wd-mini-icon { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)); }
+.wd-action-process { background-image: linear-gradient(135deg, rgb(15, 109, 141), rgb(17, 19, 22)) !important; }
+#active-task-mobile-view .mobile-card-header { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)) !important; }
+@media (max-width: 980px) { .wd-page-hero { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(21, 23, 26)) !important; } }
+#wd-activetask .wd-page-eyebrow, #wd-reporting .wd-page-eyebrow { background-color: rgba(5, 7, 10, 0.18); }
+.wd-page-hero-records-inventory { background-image: radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.16), transparent 31%), linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(4, 116, 129) 54%, rgb(255, 255, 255) 55%, rgb(248, 250, 252) 100%) !important; }
+#wd-material-stock .wd-page-eyebrow { background-color: rgba(5, 7, 10, 0.18); }
+#wd-activetask .wd-inventory-batch-status span { background-color: rgb(21, 23, 26); }
+.im-dashboard-hero { background-image: radial-gradient(circle at 88% 20%, rgba(250, 204, 21, 0.18), transparent 32%), radial-gradient(circle at 10% 0%, rgba(34, 211, 238, 0.2), transparent 36%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 49%, rgb(248, 250, 252) 50%, rgb(255, 255, 255) 100%); }
+.im-dashboard-action-tile i { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)); }
+.im-dashboard-standby-card i, .im-dashboard-error-state i, .im-dashboard-chart-empty i { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)); }
+@media (max-width: 768px) { .im-dashboard-hero { background-image: radial-gradient(circle at 90% 10%, rgba(250, 204, 21, 0.18), transparent 32%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 100%); } }
+.im-dashboard-hero h1 { background-image: linear-gradient(135deg, rgba(5, 7, 10, 0.82), rgba(17, 19, 22, 0.64)) !important; }
+#im-invoice-entry > h1, #im-payments > h1, #im-batch-entry > .header-top, #im-summary-note > div:first-of-type, #im-reporting > .header { background-image: radial-gradient(circle at 89% 18%, rgba(250, 204, 21, 0.16), transparent 32%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 54%, rgb(255, 255, 255) 55%, rgb(248, 250, 252) 100%) !important; }
+#im-batch-entry > .header-top h1, #im-summary-note > div:first-of-type h1, #im-reporting > .header h1 { background-image: linear-gradient(135deg, rgba(5, 7, 10, 0.82), rgba(17, 19, 22, 0.64)) !important; }
+#im-invoice-entry-modal .modal-header { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(20, 22, 25)) !important; }
+@media (max-width: 980px) { #im-invoice-entry > h1, #im-payments > h1, #im-batch-entry > .header-top, #im-summary-note > div:first-of-type, #im-reporting > .header { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(20, 22, 25)) !important; } }
+#im-dashboard .im-dashboard-hero, #im-dashboard .im-dashboard-standby-hero { background-image: radial-gradient(circle at 92% 10%, rgba(250, 204, 21, 0.22), transparent 31%), radial-gradient(circle at 7% 0%, rgba(34, 211, 238, 0.18), transparent 35%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(15, 17, 20) 45%, rgb(20, 22, 25) 100%) !important; }
+#im-dashboard .im-dashboard-hero h1 { background-color: rgba(5, 7, 10, 0.9) !important; }
+#im-dashboard .im-dashboard-hero, #im-dashboard .im-dashboard-standby-hero { background-image: radial-gradient(circle at 92% 12%, rgba(250, 204, 21, 0.16), transparent 30%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 72%, rgb(255, 255, 255) 73%, rgb(248, 250, 252) 100%) !important; }
+@media (max-width: 768px) { #im-dashboard .im-dashboard-hero, #im-dashboard .im-dashboard-standby-hero { background-image: linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 100%) !important; } }
+#im-reporting-form .primary-btn { background-image: linear-gradient(135deg, rgb(15, 109, 141), rgb(20, 22, 25)) !important; }
+#im-reporting .grid-header { background-image: linear-gradient(135deg, rgb(13, 15, 18), rgb(15, 95, 120)) !important; }
+#im-reporting-grand-total-container .summary-wrapper, #im-reporting .summary-wrapper { background-image: linear-gradient(135deg, rgb(13, 15, 18), rgb(15, 95, 120)) !important; }
+body #im-add-payment-modal:not(.hidden) { background-color: rgba(5, 7, 10, 0.22) !important; }
+.modal-overlay:not(.hidden) { background-color: rgba(5, 7, 10, 0.23) !important; }
+.modal-overlay .modal-container .download-btn, .modal > .modal-content .download-btn { background-image: linear-gradient(135deg, rgb(15, 109, 141), rgb(20, 22, 25)) !important; }
+.batch-card-header { background-image: linear-gradient(135deg, rgb(13, 15, 18), rgb(15, 95, 120)) !important; }
+#history-modal .history-premium-table thead th { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(20, 22, 25)) !important; }
+@media (min-width: 769px) { .workdesk-sidebar { background-image: radial-gradient(circle at left top, rgba(245, 200, 76, 0.14), transparent 34%), linear-gradient(rgb(12, 14, 17) 0%, rgb(16, 18, 21) 52%, rgb(9, 11, 14) 100%) !important; } }
+@media (min-width: 769px) { #invoice-management-view .history-btn { background-image: linear-gradient(135deg, rgb(21, 23, 26), rgb(9, 11, 14)) !important; } }
+@media (min-width: 769px) { #im-modal-po-details, #im-po-details-container-duplicate { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(15, 120, 148)) !important; } }
+@media (min-width: 769px) { #im-entry-sidebar { background-image: radial-gradient(circle at right top, rgba(245, 200, 76, 0.14), transparent 30%), linear-gradient(rgb(12, 14, 17) 0%, rgb(16, 18, 21) 55%, rgb(9, 11, 14) 100%) !important; } }
+@media (min-width: 769px) { #im-reporting .grid-header { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(21, 23, 26)) !important; } }
+@media (min-width: 769px) { #im-reporting-grand-total-container .summary-wrapper { background-image: linear-gradient(135deg, rgb(14, 16, 19), rgb(15, 120, 148)) !important; } }
+@media (min-width: 769px) { #im-batch-entry > .header-top { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(15, 120, 148)) !important; } }
+@media (min-width: 769px) { #im-batch-table-body .batch-card-header { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(15, 120, 148)) !important; } }
+@media (min-width: 769px) { #im-modal-po-details, #im-po-details-container-duplicate { background-image: linear-gradient(135deg, rgb(13, 15, 18) 0%, rgb(8, 112, 138) 58%, rgb(15, 120, 148) 100%) !important; } }
+@media screen and (min-width: 769px) { .modal-overlay:not(.hidden) { background-color: rgba(5, 7, 10, 0.24) !important; } }
+@media screen and (min-width: 769px) { .modal-overlay .modal-container .modal-header, .modal > .modal-content .modal-header { background-image: radial-gradient(circle at 92% 18%, rgba(255, 213, 79, 0.18), transparent 30%), linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(11, 85, 112) 100%) !important; } }
+@media screen and (min-width: 769px) { .modal-overlay .modal-container table thead, .modal-overlay .modal-container table thead tr, .modal-overlay .modal-container table thead th { background-image: linear-gradient(135deg, rgb(14, 16, 19), rgb(11, 85, 112)) !important; } }
+#dashboard-view .cyber-dashboard-card { background-image: radial-gradient(circle at 12% 12%, rgba(251, 191, 36, 0.16), transparent 34%), radial-gradient(circle at 90% 18%, rgba(45, 212, 191, 0.14), transparent 32%), linear-gradient(135deg, rgba(7, 9, 12, 0.92), rgba(13, 15, 18, 0.86) 48%, rgba(10, 12, 15, 0.92)); }
+#dashboard-view #dashboard-username::before { background-color: rgba(9, 11, 14, 0.56); }
+.welcome-premium-hero { background-image: linear-gradient(135deg, rgba(9, 11, 14, 0.62), rgba(9, 11, 14, 0.22)), radial-gradient(circle at right top, rgba(250, 204, 21, 0.14), transparent 42%); }
+.welcome-status-row span { background-color: rgba(3, 5, 8, 0.28); }
+.welcome-module-icon { background-color: rgba(3, 5, 8, 0.34); }
+.welcome-module-open { background-color: rgba(3, 5, 8, 0.28); }
+.welcome-quote-row { background-color: rgba(3, 5, 8, 0.3); }
+@media screen and (min-width: 769px) { #standard-job-modal .modal-header { background-image: radial-gradient(circle at 92% 12%, rgba(251, 191, 36, 0.18), transparent 30%), linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(11, 85, 112) 100%) !important; } }
+#welcome-panel-sub.welcome-panel-time { background-color: rgba(3, 5, 8, 0.24) !important; }
+@media screen { #transfer-job-modal .modal-header, #transfer-approval-modal .modal-header, #ms-new-material-modal .modal-header, #ms-photo-browser-modal .modal-header, #ms-add-stock-modal .modal-header, #ms-report-modal .modal-header, #ms-requestlist-modal .modal-header { background-image: radial-gradient(circle at 92% 8%, rgba(251, 191, 36, 0.18), transparent 28%), linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(11, 85, 112) 100%) !important; } }
+@media screen { #transfer-job-modal thead, #transfer-job-modal thead tr, #ms-requestlist-modal thead, #ms-requestlist-modal thead tr, #ms-report-modal thead, #ms-report-modal thead tr, #tf-batch-table thead, #tf-batch-table thead tr { background-color: rgb(14, 16, 19) !important; } }
+#standard-job-modal .modal-footer > .modal-close-btn, #standard-job-modal .modal-footer button[onclick*="closeStandardJobModal"] { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(18, 20, 23)) !important; }
+#im-batch-search-modal .modal-header, #im-attention-picker-modal .modal-header, #im-add-payment-modal .modal-header, #im-manual-po-modal .modal-header, #im-finance-report-modal .modal-header, #process-report-modal .modal-header { background-image: radial-gradient(circle at right top, rgba(56, 189, 248, 0.22), transparent 34%), linear-gradient(135deg, rgb(15, 17, 20) 0%, rgb(19, 21, 24) 54%, rgb(11, 13, 16) 100%) !important; }
+#im-batch-search-modal th, #im-add-payment-modal th, #im-finance-report-modal th { background-color: rgb(17, 19, 22) !important; }
+#workdesk-view #wd-sidebar-add-job-btn { background-image: linear-gradient(135deg, rgba(14, 165, 233, 0.28), rgba(14, 16, 19, 0.18)) !important; }
+#workdesk-view #wd-activetask #active-task-filters.report-tabs button.active, #wd-activetask #active-task-filters.report-tabs button.active { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(21, 23, 26)) !important; }
+#workdesk-view #wd-activetask .wd-action-process, #wd-activetask .wd-action-process { background-image: linear-gradient(135deg, rgb(7, 89, 133), rgb(11, 13, 16)) !important; }
+@media (min-width: 721px) { #dashboard-view .welcome-header-clock { background-color: rgba(8, 10, 13, 0.42) !important; } }
+@media (min-width: 721px) { #dashboard-view .welcome-header-clock { background-color: rgba(8, 10, 13, 0.3) !important; } }
+@media (min-width: 721px) { #dashboard-view .welcome-header-clock { background-color: rgba(8, 10, 13, 0.26) !important; } }
+#wd-settings .settings-hero { background-image: radial-gradient(circle at right top, rgba(212, 175, 55, 0.28), transparent 34%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(16, 18, 21) 54%, rgb(7, 9, 12) 100%); }
+#wd-settings .settings-card-icon { background-image: linear-gradient(135deg, rgba(16, 18, 21, 0.1), rgba(212, 175, 55, 0.18)); }
+#wd-settings .settings-vacation-panel { background-image: linear-gradient(rgba(16, 18, 21, 0.043), rgba(212, 175, 55, 0.07)); }
+#wd-settings .main-settings-actions button, #wd-settings #celebration-save-btn { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(11, 95, 138)); }
+@media (min-width: 901px) { #im-reporting > .header { background-image: radial-gradient(circle at 12% 0%, rgba(247, 201, 72, 0.22), transparent 30%), linear-gradient(135deg, rgb(11, 13, 16) 0%, rgb(20, 22, 25) 54%, rgb(15, 109, 141) 100%) !important; } }
+@media (min-width: 901px) { #im-reporting-grand-total-container .summary-wrapper, #im-reporting .summary-wrapper { background-image: linear-gradient(135deg, rgb(11, 13, 16), rgb(20, 22, 25)) !important; } }
+#wd-dashboard .wd-cork-board-head { background-color: rgba(69, 38, 18, 0.29); }
+#history-modal.history-scope-workdesk .history-modal-header, #history-modal.history-scope-workdesk .modal-header { background-image: radial-gradient(circle at 92% 14%, rgba(56, 189, 248, 0.18), transparent 32%), linear-gradient(135deg, rgb(7, 89, 133) 0%, rgb(3, 105, 161) 58%, rgb(9, 11, 14) 100%) !important; }
+#history-modal.history-scope-inventory .history-modal-header, #history-modal.history-scope-inventory .modal-header { background-image: radial-gradient(circle at 92% 14%, rgba(168, 85, 247, 0.16), transparent 32%), linear-gradient(135deg, rgb(76, 29, 149) 0%, rgb(109, 40, 217) 58%, rgb(14, 16, 19) 100%) !important; }
+.wd-forward-modal-backdrop { background-color: rgba(9, 11, 14, 0.29); }
+.wd-forward-modal-x { background-color: rgba(9, 11, 14, 0.07); }
+.wd-forward-modal-x:hover { background-color: rgba(9, 11, 14, 0.12); }
+body #im-batch-search-modal.modal-overlay:not(.hidden) { background-color: rgba(9, 11, 14, 0.06) !important; }
+@media screen and (min-width: 769px) { body #im-batch-search-modal.modal-overlay:not(.hidden) { background-color: rgba(9, 11, 14, 0.06) !important; } }
+.iba-system-update-notice { background-image: linear-gradient(135deg, rgba(12, 14, 17, 0.98), rgba(14, 80, 72, 0.98)); }
+.iba-domain-migration-overlay { background-color: rgba(6, 8, 11, 0.42); }
+.iba-domain-migration-dialog { background-image: radial-gradient(circle at 88% 2%, rgba(255, 205, 91, 0.19), transparent 35%), linear-gradient(145deg, rgb(14, 16, 19) 0%, rgb(7, 82, 76) 100%); }
+.iba-domain-migration-countdown { background-image: linear-gradient(135deg, rgba(12, 14, 17, 0.97), rgba(7, 84, 75, 0.97)); }
+#wd-dashboard .wd-active-status-card.tone-payment::after, #wd-dashboard .wd-active-status-card.tone-payment .wd-status-icon { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(15, 76, 117)) !important; }
+#wd-dashboard .wd-payment-pocket-board-head { background-image: linear-gradient(135deg, rgb(16, 18, 21) 0%, rgb(15, 76, 117) 62%, rgb(23, 107, 135) 100%) !important; }
+#wd-dashboard .wd-payment-pocket-month-tab.active { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(15, 76, 117)); }
+#wd-dashboard .wd-process-grid .wd-active-status-card .wd-status-icon { background-color: rgba(10, 12, 15, 0.28) !important; }
+#invoice-management-view #im-help .im-help-tab-btn.active { background-color: rgb(17, 19, 22) !important; }
+#invoice-management-view #im-help #im-help-clear-btn, #invoice-management-view #im-help #im-help-faq-clear-btn { background-color: rgb(17, 19, 22) !important; }
+#invoice-management-view #im-help #im-help-back-btn { background-color: rgb(17, 19, 22) !important; }
+#wd-dashboard .wd-process-grid .wd-status-icon { background-color: rgba(10, 12, 15, 0.27) !important; }
+#transfer-job-modal .modal-container, #standard-job-modal .modal-container, #ms-new-material-modal .modal-container, #im-batch-search-modal .modal-container, #im-invoice-entry-modal .modal-container, #im-add-payment-modal .modal-container { backdrop-filter: blur(10px) saturate(140%); }
+#transfer-job-modal .modal-header, #im-batch-search-modal .modal-header, #im-invoice-entry-modal .modal-header, #im-add-payment-modal .modal-header, #ms-new-material-modal .modal-header, #standard-job-modal .modal-header { background-image: linear-gradient(rgba(16, 18, 21, 0.45), rgba(16, 18, 21, 0.3)) !important; }
+#tf-batch-table th { background-color: rgb(16, 18, 21) !important; }
+#wd-material-stock #ms-add-new-btn { background-image: linear-gradient(135deg, rgb(15, 109, 141), rgb(17, 19, 22)) !important; }
+@media (max-width: 900px) { #im-reporting-mobile-view .im-invoice-list-header { background-color: rgb(13, 15, 18) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .im-tx-action-btn.srv-pdf-btn { background-color: rgb(13, 15, 18) !important; } }
+body.im-mobile-reporting-mode #im-mobile-search-modal:not(.hidden) { background-color: rgba(9, 11, 14, 0.55) !important; }
+body.im-mobile-reporting-mode #im-reporting .im-po-balance-card::before, body.iba-mobile-ui #im-reporting .im-po-balance-card::before { background-image: linear-gradient(90deg, rgba(16, 18, 21, 0.08), rgba(0, 116, 140, 0.03)); }
+.im-invoice-list-header { background-color: rgb(16, 18, 21) !important; }
+@media (max-width: 900px) { body.inventory-mode .inv-mobile-barcode-scanner { background-color: rgba(6, 8, 11, 0.72); } }
+@media (max-width: 900px) { body.inventory-mode .inv-mobile-barcode-head { background-color: rgb(14, 16, 19); } }
+@media (max-width: 900px) { body.inventory-mode .inv-mobile-barcode-video-wrap { background-color: rgb(3, 5, 8); } }
+.inventory-request-convert-backdrop { background-color: rgba(9, 11, 14, 0.58); }
+.inv-stage-btn.active { background-color: rgb(16, 18, 21); }
+@media (max-width: 900px) { .inv-mobile-qr-label-actions button:nth-child(2) { background-image: linear-gradient(135deg, rgb(21, 23, 26), rgb(13, 15, 18)); } }
+@media (min-width: 769px) { #invoice-management-view#invoice-management-view #im-batch-entry table thead :is(tr, th), #im-batch-search-modal#im-batch-search-modal table.batch-existing-invoices-table thead :is(tr, th) { background-color: var(--iba-im-navy, rgb(13, 15, 18)) !important; } }
+@media (max-width: 768px) { #workdesk-view .wd-mobile-header, #workdesk-view .mobile-page-header, #workdesk-view .wd-page-hero { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(22, 24, 27) 60%, rgb(13, 110, 150)) !important; } }
+@media (max-width: 768px) { .wd-themed-modal .modal-header, #standard-job-modal .modal-header, #modify-task-modal .modal-header, #calendar-task-modal .modal-header { background-image: linear-gradient(135deg, rgb(16, 18, 21), rgb(13, 110, 150)) !important; } }
+@media (max-width: 900px) { body.iba-mobile-ui:not(.inventory-mode) #workdesk-view #workdesk-nav a.active::before { background-color: rgb(22, 24, 27) !important; } }
+@media (max-width: 768px) { #inventory-view .wd-mobile-header, #inventory-view .mobile-page-header, #inventory-view .wd-page-hero, #inventory-view .inventory-hero, body.inventory-mode .wd-page-hero, body.inventory-mode .inventory-request-review-head { background-image: radial-gradient(circle at 96% 0%, rgba(255, 255, 255, 0.16), transparent 30%), linear-gradient(135deg, rgb(14, 16, 19), rgb(34, 100, 132) 60%, rgb(102, 192, 184)) !important; } }
+@media (max-width: 768px) { .inventory-themed-modal .modal-header, #ms-report-modal .modal-header, #ms-requestlist-modal .modal-header, #ms-new-material-modal .modal-header, #ms-photo-browser-modal .modal-header, #ms-add-stock-modal .modal-header, #transfer-job-modal .modal-header, #transfer-approval-modal .modal-header { background-image: linear-gradient(135deg, rgb(14, 16, 19), rgb(34, 100, 132) 60%, rgb(102, 192, 184)) !important; } }
+@media (max-width: 768px) { body.inventory-mode #wd-reporting #report-tabs.report-tabs button.active, body.inventory-mode #report-tabs.report-tabs button.active, body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active, body.inventory-mode #active-task-filters.report-tabs button.active, #ms-category-tabs .ms-family-chip.active, #ms-category-tabs.report-tabs button.active { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 62%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { body.inventory-mode #wd-activetask #active-task-mobile-header, body.inventory-mode #active-task-mobile-header { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 62%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { body.inventory-mode #wd-activetask #active-task-filters.report-tabs button.active, body.inventory-mode #active-task-filters.report-tabs button.active, body.inventory-mode #active-task-filters.report-tabs button.blink-tab { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 62%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { body.inventory-mode #active-task-mobile-view .mobile-card-header, body.inventory-mode #active-task-mobile-view .wd-task-card-header, body.inventory-mode #active-task-mobile-view .m-card-header { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 62%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { #active-task-filters.inventory-task-filters-maroon > button.active, #active-task-filters.inventory-task-filters-maroon button.active, #active-task-filters.inventory-task-filters-maroon > button[disabled], #active-task-filters.inventory-task-filters-maroon button[disabled], #wd-activetask #active-task-filters.inventory-task-filters-maroon > button.active, #wd-activetask #active-task-filters.inventory-task-filters-maroon button.active, #wd-activetask #active-task-filters.inventory-task-filters-maroon > button[disabled], #wd-activetask #active-task-filters.inventory-task-filters-maroon button[disabled] { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 65%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.active, body.inventory-mobile-task-active #wd-activetask #active-task-filters.report-tabs button.blink-tab, #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button.active, #wd-activetask.inventory-mobile-active-task #active-task-filters.report-tabs button.blink-tab, #active-task-filters.inventory-mobile-active-task.report-tabs button.active, #active-task-filters.inventory-mobile-active-task.report-tabs button.blink-tab { background-image: linear-gradient(135deg, rgb(14, 16, 19) 0%, rgb(34, 100, 132) 62%, rgb(102, 192, 184) 100%) !important; } }
+@media (max-width: 768px) { body.invoice-mobile-task-active #active-task-mobile-view.invoice-mobile-active-task .mobile-card-header, #active-task-mobile-view.invoice-mobile-active-task .mobile-card-header, #active-task-mobile-view .invoice-mobile-task-card .mobile-card-header { background-image: linear-gradient(135deg, rgb(17, 19, 22), rgb(15, 109, 141)) !important; } }
+#wd-dashboard .wd-paid-po-history-table th { background-color: rgb(16, 18, 21); }
+@media (max-width: 900px) { #invoice-management-view #im-reporting { background-color: rgb(11, 13, 16) !important; } }
+@media (max-width: 900px) { #invoice-management-view #im-reporting-mobile-view { background-image: linear-gradient(rgb(13, 15, 18) 0px, rgb(11, 13, 16) 150px, rgb(9, 11, 14) 100%) !important; } }
+@media (max-width: 900px) { #im-mobile-inline-search-panel { background-color: rgb(13, 15, 18) !important; } }
+@media (max-width: 900px) { #im-mobile-inline-search-panel .im-mobile-inline-collapsed-summary { background-color: rgb(10, 12, 15) !important; } }
+@media (max-width: 900px) { #im-mobile-inline-search-panel .im-mobile-inline-actions .secondary-btn { background-color: rgb(20, 22, 25) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-po-card { background-color: rgb(14, 16, 19) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-po-card:hover, #im-reporting-mobile-view .iba-mob-po-card:focus, #im-reporting-mobile-view .iba-mob-po-card:focus-visible, #im-reporting-mobile-view .iba-mob-po-card:active { background-color: rgb(20, 22, 25) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-po-count { background-color: rgb(15, 17, 20) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-metrics > div { background-color: rgb(10, 12, 15) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-metrics .iba-mob-balance { background-color: rgb(10, 12, 15) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-invoice-item { background-color: rgb(14, 16, 19) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-invoice-item:hover, #im-reporting-mobile-view .iba-mob-invoice-item:focus, #im-reporting-mobile-view .iba-mob-invoice-item:active { background-color: rgb(20, 22, 25) !important; } }
+@media (max-width: 900px) { #invoice-management-view #im-nav { background-color: rgb(9, 11, 14) !important; } }
+@media (max-width: 900px) { #invoice-management-view .mobile-module-switcher-wrap { background-color: rgb(9, 11, 14) !important; } }
+@media (max-width: 900px) { #invoice-management-view #im-reporting-mobile-view .iba-mob-v2-search-panel, #invoice-management-view #im-reporting-mobile-view .iba-mob-v2-search-card { background-color: rgb(11, 13, 16) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-po-card { background-color: rgb(11, 13, 16) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-po-card:hover, #im-reporting-mobile-view .iba-mob-v2-po-card:focus, #im-reporting-mobile-view .iba-mob-v2-po-card:focus-visible, #im-reporting-mobile-view .iba-mob-v2-po-card:active { background-color: rgb(16, 18, 21) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-po-count { background-color: rgb(16, 18, 21) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-metrics > div { background-color: rgb(9, 11, 14) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-invoice-list > li { background-color: rgb(11, 13, 16) !important; } }
+@media (max-width: 900px) { #im-reporting-mobile-view .iba-mob-v2-invoice-list > li:hover, #im-reporting-mobile-view .iba-mob-v2-invoice-list > li:active { background-color: rgb(16, 18, 21) !important; } }
+#inv-active-job th { background-color: rgb(14, 16, 19); }
+#iba-approval-action-modal { background-color: rgba(6, 8, 11, 0.32); }
+#iba-approval-action-modal .iba-approval-head { background-color: rgb(15, 17, 20); }
+.iba-approval-print-btn { background-color: rgb(15, 17, 20) !important; }
+@media screen { #iba-approval-print-root .iba-approval-print-toolbar { background-color: rgb(15, 17, 20); } }
+.general-important-announcement.gia-main-popup { backdrop-filter: blur(10px) saturate(135%) !important; }
+html, html body:not(.iba-shell-on), html body.login-background:not(.iba-shell-on) { background-color: rgb(7, 9, 12) !important; }
+html body:not(.iba-shell-on) #iba-bg-layer { background-color: rgb(7, 9, 12) !important; }
+html body.iba-shell-on, html body.iba-shell-on #iba-bg-layer { background-color: rgb(7, 9, 12) !important; }
+html body.iba-shell-on #workdesk-view :is(.wd-dashboard-card, .wd-person-task-card, .wd-active-status-card, .wd-task-card, .task-card, .summary-card, .metric-card, .settings-card, .calendar-container, .wd-dashboard-mini-empty) { backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on #wd-settings .settings-hero { backdrop-filter: blur(10px) !important; }
+.iba-open-sample.is-b { background-color: rgb(14, 16, 19); }
+.iba-open-sample.is-c { background-image: linear-gradient(90deg, rgb(16, 18, 21), rgb(215, 161, 90) 50%, rgb(14, 16, 19)); }
+#iba-login-opening.iba-open-b { background-image: radial-gradient(circle at 50% 45%, rgb(19, 21, 24), rgb(7, 18, 22) 70%); }
+#iba-login-opening.iba-open-c { background-color: rgb(7, 9, 12); }
+html body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-container { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal .modal-container { background-color: rgba(7, 9, 12, 0.55) !important; }
+.iba-dash-rail[data-iba-dash-rail="01"] { background-image: linear-gradient(90deg, rgba(16, 18, 21, 0.92), rgba(16, 18, 21, 0.35)) !important; }
+html body.iba-shell-on #inv-active-job table tbody td:last-child :is(button, a) { background-color: rgba(14, 16, 19, 0.92) !important; }
+html body.iba-shell-on #wd-activetask#wd-activetask table tbody tr::before, html body.iba-shell-on #inv-active-job#inv-active-job table tbody tr::before, html body.iba-shell-on #wd-reporting#wd-reporting table tbody tr::before, html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard#wd-dashboard .wd-payment-pocket-table tbody tr::before { background-color: rgba(6, 16, 24, 0.23) !important; }
+.iba-open-sample.is-f { background-image: radial-gradient(circle, rgb(16, 18, 21), rgb(5, 11, 18) 70%); }
+#iba-login-opening.iba-op-f { background-image: radial-gradient(75% 60%, rgb(12, 14, 17) 0%, rgb(5, 11, 18) 72%); }
+.iba-open-sample.is-g { background-image: linear-gradient(rgb(15, 17, 20) 0%, rgb(20, 22, 25) 55%, rgb(138, 90, 60) 100%); }
+#iba-login-opening.iba-op.iba-op-g { background-color: rgb(8, 10, 13); }
+#iba-login-opening.iba-op-g .sb-sky { background-image: linear-gradient(rgb(8, 10, 13) 0%, rgb(16, 18, 21) 40%, rgb(77, 63, 94) 66%, rgb(180, 112, 74) 88%, rgb(216, 144, 86) 100%); }
+.iba-wr-launch { background-color: rgba(5, 11, 18, 0.33); }
+.iba-wr-card { background-color: rgb(10, 12, 15); }
+html body.iba-shell-on.inventory-mode #workdesk-view #inv-active-job table tbody td:last-child :is(button, a) { background-color: rgba(14, 16, 19, 0.92) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting .report-tabs-container #report-tabs button, html body.iba-shell-on.inventory-mode #workdesk-view #inventory-job-records-stage-switch .inv-stage-btn { background-color: rgba(14, 16, 19, 0.55) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td .history-btn, html body.iba-shell-on.inventory-mode #workdesk-view #wd-reporting table tbody td .wd-action-history { background-color: rgba(14, 16, 19, 0.92) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view table tbody tr:hover td, html body.iba-shell-on #workdesk-view#workdesk-view #wd-dashboard table tbody tr:hover td, html body.iba-shell-on #workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td, html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting table tbody tr:hover td, html body.iba-shell-on #workdesk-view#workdesk-view #inv-active-job table tbody tr:hover td, html body.iba-shell-on #workdesk-view#workdesk-view #wd-reporting .wd-modern-table tbody tr.wd-modern-row:hover td, html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting .inv-job-records-body tr:hover td { background-color: rgba(6, 8, 11, 0.32) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #inv-wh-folder .inv-wh-body, html body.iba-shell-on #workdesk-view #inv-wh-folder .inv-wh-body { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder .wd-jr-body, html body.iba-shell-on #workdesk-view #wd-jr-folder .wd-jr-body { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-jr-folder #wd-job-records-stage-switch .wd-jr-stage-count { background-color: rgb(12, 14, 17) !important; }
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask #active-task-filters.report-tabs button { backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button .wd-at-count, html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button.active .wd-at-count, html body.iba-shell-on:not(.inventory-mode) #wd-activetask #active-task-filters button:not(.active) .wd-at-count, html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button.active .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button:not(.active) .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view #wd-activetask #active-task-filters.report-tabs button.blink-tab .notification-badge { background-color: rgb(12, 14, 17) !important; }
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-date-pill, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="srv"] .wd-at-date-pill, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view #wd-activetask .wd-at-queue[data-tone="entry"] .wd-at-date-pill { backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button.active .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button:not(.active) .notification-badge, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask #active-task-filters button.blink-tab:not(.active) .notification-badge { background-color: rgb(12, 14, 17) !important; }
+html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .history-btn, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .wd-action-history, html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .history-btn, html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-reporting #job-records-table tbody tr:hover .wd-action-history, html body.iba-shell-on:not(.inventory-mode) #workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-activetask table tbody tr:hover td:last-child :is(button, a) { background-color: rgba(14, 16, 19, 0.92) !important; }
+#iba-aj-stage, #iba-aj-stage.iba-aj-tone-transfer, #iba-aj-stage.iba-aj-tone-restock, #iba-aj-stage.iba-aj-tone-return, #iba-aj-stage.iba-aj-tone-usage { backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row td, html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock #ms-table tbody tr.ms-parent-row:hover td { backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view#workdesk-view #wd-material-stock .ms-glass-panel { backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body #ms-photo-browser-modal#ms-photo-browser-modal { background-color: rgba(6, 8, 11, 0.28) !important; }
+html body #ms-photo-browser-modal#ms-photo-browser-modal > .modal-container, html body #ms-photo-browser-modal#ms-photo-browser-modal > .ms-photo-browser-container { backdrop-filter: blur(10px) saturate(140%) !important; }
+html body #transfer-job-modal#transfer-job-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #transfer-job-modal#transfer-job-modal#transfer-job-modal.inventory-themed-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #ms-new-material-modal#ms-new-material-modal#ms-new-material-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #ms-requestlist-modal#ms-requestlist-modal#ms-requestlist-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #ms-report-modal#ms-report-modal#ms-report-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #history-modal#history-modal#history-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #transfer-approval-modal#transfer-approval-modal#transfer-approval-modal > .modal-container { backdrop-filter: blur(10px) !important; }
+html body #modify-task-modal#modify-task-modal#modify-task-modal > .modal-container, html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal .iba-srv-card { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body #iba-srv-confirm-modal#iba-srv-confirm-modal#iba-srv-confirm-modal { background-color: rgba(6, 8, 11, 0.35) !important; }
+html body #wd-paid-history-modal#wd-paid-history-modal { background-color: rgba(6, 8, 11, 0.19) !important; }
+html body #wd-paid-history-modal#wd-paid-history-modal .wd-paid-history-window { background-color: rgba(9, 11, 14, 0.21) !important; backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on.inventory-mode #workdesk-view#workdesk-view #wd-reporting #inv-wh-txn-switch { backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-po-search-container .search-bar-local { backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-modal-po-details#im-modal-po-details.im-po-details-compact { backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-entry-sidebar#im-entry-sidebar { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container { background-color: rgba(10, 16, 24, 0.23) !important; backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #btn-open-report-drive, html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-invoice, html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal #im-btn-view-srv { background-color: rgba(12, 20, 18, 0.23) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before { backdrop-filter: blur(10px) saturate(1.25) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container::before { background-color: rgba(10, 16, 24, 0.3) !important; backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td { backdrop-filter: blur(10px) saturate(1.25) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-existing-invoices-container tbody tr:hover td:first-child::before { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal.modal-overlay::before { background-color: rgba(6, 12, 10, 0.23) !important; backdrop-filter: blur(10px) saturate(1.1) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container { background-color: rgba(10, 16, 24, 0.23) !important; backdrop-filter: blur(10px) saturate(1.15) !important; }
+html body.iba-shell-on #im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal#im-invoice-entry-modal .modal-container { backdrop-filter: blur(10px) saturate(1.2) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .grid-header { background-color: rgb(13, 15, 18) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table thead th { background-color: rgb(13, 15, 18) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting .im-nested-invoice-table thead th { background-color: rgb(13, 15, 18) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table thead th { background-color: rgb(13, 15, 18) !important; }
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-glass { background-color: rgba(10, 28, 26, 0.25) !important; backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #im-reporting#im-reporting .iba-records-sheet { background-color: rgba(10, 28, 26, 0.23) !important; backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-nested-invoice-table thead th { background-color: rgba(6, 8, 11, 0.72) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-content .im-records-summary { backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view#invoice-management-view #im-reporting#im-reporting #im-reporting-grand-total-container .summary-wrapper { background-color: rgba(10, 28, 26, 0.23) !important; backdrop-filter: blur(10px) !important; }
+html body.iba-shell-on #im-reporting#im-reporting .master-grid-row::before, html body.iba-shell-on #im-reporting#im-reporting .im-nested-invoice-table tbody tr::before { background-color: rgba(6, 16, 24, 0.25) !important; }
+@layer iba-ui { :root { --ui-night: rgb(9, 11, 14); --ui-panel: rgba(9, 11, 14, 0.5); --ui-panel-strong: rgba(8, 10, 13, 0.52); --ui-head: rgb(13, 15, 18); --ui-field: rgba(9, 11, 14, 0.82); --ui-field-hover: rgba(14, 16, 19, 0.88); --ui-blur: blur(10px) saturate(1.15); } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-material-stock #ms-table tr.stock-child-row > td.ms-glass-detail { background-color: rgba(5, 7, 10, 0.28) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-activetask #active-task-filters, body.iba-shell-on #inv-active-job #iba-aj-folder, body.iba-shell-on #im-po-closeout #im-po-closeout-tabs { background-color: rgba(9, 11, 14, 0.25) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-dashboard .wd-active-status-card { background-color: rgba(9, 11, 14, 0.39) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-batch-entry .batch-invoice-card[data-ui-skin] :is(input.batch-input, select.batch-input, .batch-attention-btn) { background-color: rgba(6, 8, 11, 0.55) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-summary-note :is(#summary-note-previous-input, #summary-note-current-input, #summary-note-status-input, #summary-note-srv-input, #summary-note-custom-notes-input) { background-color: rgba(6, 8, 11, 0.55) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #invoice-management-view #im-entry-sidebar#im-entry-sidebar { background-color: rgba(7, 9, 12, 0.44) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #im-payments #im-payments-table :is(.im-payment-amount-input, .im-payment-paid-date-input) { background-color: rgba(6, 8, 11, 0.55) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings :is(input[type="text"], input[type="email"], input[type="password"], input[type="tel"], input[type="url"], input[type="date"], input[type="datetime-local"], input[type="number"], input:not([type]), select, textarea) { background-color: rgba(6, 8, 11, 0.55) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings .iba-open-sample.is-a { background-color: rgb(6, 8, 11) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings .iba-open-sample.is-b { background-image: radial-gradient(circle, rgb(17, 19, 22), rgb(10, 21, 25) 72%) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings .iba-open-sample.is-d { background-color: rgb(8, 10, 13) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings .iba-open-sample.is-e { background-image: linear-gradient(rgb(7, 9, 12) 0%, rgb(12, 14, 17) 55%, rgb(17, 19, 22) 100%) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-settings .iba-open-sample.is-e::after { background-image: linear-gradient(0deg, rgb(15, 17, 20) 0px, rgb(15, 17, 20) 40%, transparent 40%), linear-gradient(0deg, rgb(18, 20, 23) 0px, rgb(18, 20, 23) 70%, transparent 70%), linear-gradient(0deg, rgb(15, 17, 20) 0px, rgb(15, 17, 20) 52%, transparent 52%), linear-gradient(0deg, rgb(19, 21, 24) 0px, rgb(19, 21, 24) 92%, transparent 92%), linear-gradient(0deg, rgb(15, 17, 20) 0px, rgb(15, 17, 20) 62%, transparent 62%), linear-gradient(0deg, rgb(18, 20, 23) 0px, rgb(18, 20, 23) 80%, transparent 80%), linear-gradient(0deg, rgb(15, 17, 20) 0px, rgb(15, 17, 20) 45%, transparent 45%) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on :is(#workdesk-content-area, #im-content-area) .choices__list--dropdown, body.iba-shell-on :is(#workdesk-content-area, #im-content-area) .choices__list[aria-expanded] { background-color: rgb(9, 11, 14) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-activetask#wd-activetask #active-task-date-tabs:has(.wd-at-queue) { background-color: rgba(7, 9, 12, 0.95) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on.iba-add-job-page #standard-job-modal > .modal-container { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; background-color: rgb(13, 15, 18) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on.iba-add-job-page #standard-job-modal select option { background-color: rgb(13, 15, 18) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on.iba-add-job-page #standard-job-modal .modal-footer { background-color: rgb(11, 13, 16) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on .vendor-suggest-box { background-color: rgb(13, 15, 18) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #iba-shell-bg-settings .iba-bg-preview.is-none { background-image: linear-gradient(135deg, rgb(7, 9, 12) 0%, rgb(16, 18, 21) 100%) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #iba-live-counts .iba-live-pill { background-color: rgba(8, 10, 13, 0.88) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #iba-live-counts .iba-live-pill:hover { background-color: rgba(14, 16, 19, 0.95) !important; } } }
+#iba-login-opening.iba-op { background-color: rgb(7, 9, 12); }
+#iba-login-opening.iba-op-a { background-image: radial-gradient(70% 55% at 50% 46%, rgb(12, 14, 17) 0%, rgb(6, 8, 11) 70%); }
+#iba-login-opening.iba-op-b { background-image: radial-gradient(circle at 50% 46%, rgb(17, 19, 22) 0%, rgb(10, 21, 25) 68%); }
+#iba-login-opening.iba-op-c { background-color: rgb(7, 9, 12); }
+#iba-login-opening.iba-op-c .iba-op-photo { background-color: rgb(7, 9, 12); }
+#iba-login-opening.iba-op-d { background-color: rgb(8, 10, 13); }
+#iba-login-opening.iba-op-e { background-image: linear-gradient(rgb(7, 9, 12) 0%, rgb(12, 14, 17) 55%, rgb(17, 19, 22) 100%); }
+#iba-login-opening.iba-op-e .iba-op-tower { background-image: repeating-linear-gradient(transparent 0px, transparent 14px, rgba(227, 201, 138, 0.16) 14px, rgba(227, 201, 138, 0.16) 16px), linear-gradient(rgb(19, 21, 24), rgb(10, 12, 15)); }
+@layer iba-ui { @media (max-width: 768px) { #login-view .mobile-login-container .mobile-login-form-wrapper { background-image: linear-gradient(rgba(14, 16, 19, 0.47) 0%, rgba(9, 11, 14, 0.5) 100%) !important; backdrop-filter: blur(10px) saturate(1.1) !important; } } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard :is(.wd-cork-board, .wd-cork-notes-board, .wd-personal-cork-board) { background-image: radial-gradient(circle, rgba(255, 255, 255, 0.055) 1px, transparent 1.6px), linear-gradient(rgba(13, 15, 18, 0.58) 0%, rgba(8, 10, 13, 0.62) 100%) !important; } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-cork-note { background-color: rgb(15, 17, 20) !important; } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-date-tab { background-color: rgba(10, 12, 15, 0.72) !important; } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-date-tab:hover { background-color: rgba(17, 19, 22, 0.85) !important; } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-cork-site-card { background-color: rgba(10, 12, 15, 0.78) !important; } }
+@layer iba-ui { html body.iba-shell-on #wd-dashboard .wd-cork-site-card:hover { background-color: rgba(17, 19, 22, 0.9) !important; } }
+@layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal):not(.hidden) { background-color: rgba(4, 12, 22, 0.35) !important; } } }
+@layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal) > .modal-container { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; background-color: rgb(13, 15, 18) !important; } } }
+@layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal) > .modal-container select option { background-color: rgb(13, 15, 18) !important; } } }
+@layer iba-ui { @media screen { .modal-overlay:not(#standard-job-modal) :is(.choices__list--dropdown, .choices__list[aria-expanded]) { background-color: rgb(9, 11, 14) !important; } } }
+@layer iba-ui { @media screen { #ms-stock-check-modal { background-color: rgba(4, 12, 22, 0.35) !important; } } }
+@layer iba-ui { @media screen { #ms-stock-check-modal > div { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; } } }
+@layer iba-ui { @media screen { #iba-srv-confirm-modal { background-color: rgba(4, 12, 22, 0.35) !important; } } }
+@layer iba-ui { @media screen { #iba-srv-confirm-modal .iba-srv-card { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; } } }
+@layer iba-ui { @media screen { #wd-paid-history-modal { background-color: rgba(4, 12, 22, 0.35) !important; } } }
+@layer iba-ui { @media screen { #wd-paid-history-modal .wd-paid-history-window { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; background-color: rgb(13, 15, 18) !important; } } }
+@layer iba-ui { @media screen { #iba-approval-print-root { background-color: rgba(4, 12, 22, 0.47) !important; } } }
+@layer iba-ui { @media screen { #iba-approval-print-root .iba-approval-print-toolbar { background-color: rgb(13, 15, 18) !important; } } }
+@layer iba-ui { @media screen { #iba-attention-menu.iba-attn-menu { background-color: rgb(13, 15, 18) !important; } } }
+@layer iba-ui { @media screen { #iba-attention-menu .iba-attn-search { background-color: rgb(15, 17, 20) !important; } } }
+@layer iba-ui { #iba-task-check-toast { background-color: rgba(7, 9, 12, 0.94); } }
+@layer iba-ui { .iba-ai-fab { background-image: radial-gradient(circle at 30% 25%, rgb(31, 91, 110) 0%, rgb(15, 17, 20) 55%, rgb(10, 12, 15) 100%) !important; } }
+@layer iba-ui { .iba-ai-bubble { background-image: linear-gradient(rgb(18, 20, 23) 0%, rgb(13, 15, 18) 100%) !important; } }
+@layer iba-ui { .iba-ai-panel { background-image: linear-gradient(rgb(16, 18, 21) 0%, rgb(11, 13, 16) 100%) !important; } }
+@layer iba-ui { .iba-ai-card { background-color: rgba(6, 8, 11, 0.45) !important; } }
+@layer iba-ui { .iba-ai-field select option { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { .iba-ai-recent-body select { background-color: rgba(6, 8, 11, 0.6) !important; } }
+@layer iba-ui { .iba-ai-skill-new input, .iba-ai-skill-new select { background-color: rgba(6, 8, 11, 0.6) !important; } }
+@layer iba-ui { .iba-ai-skill-ask select { background-color: rgba(6, 8, 11, 0.6) !important; } }
+@layer iba-ui { .iba-aph-hero { background-image: radial-gradient(120% 140% at 0% 0%, rgba(94, 214, 196, 0.22) 0%, rgba(94, 214, 196, 0) 55%), linear-gradient(135deg, rgb(21, 23, 26) 0%, rgb(15, 17, 20) 100%) !important; } }
+@layer iba-ui { body.iba-phone .iba-ai-fab.iba-ai-fab, body.iba-phone .iba-ai-fab.iba-ai-fab.is-bot { background-image: radial-gradient(circle at 34% 28%, rgb(62, 138, 160) 0%, rgb(22, 24, 27) 45%, rgb(11, 13, 16) 100%) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-ai-urg-reason input, #iba-ai-panel .iba-ai-urg-mini input { background-color: rgba(6, 8, 11, 0.6) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-ai-wide-bar { background-color: rgba(6, 8, 11, 0.35) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-ai-skill-find { background-color: rgba(6, 8, 11, 0.6) !important; } }
+@layer iba-ui { #iba-ai-panel.iba-ai-panel.is-wide { background-image: radial-gradient(120% 80% at 0% 0%, rgba(94, 214, 196, 0.1) 0%, rgba(94, 214, 196, 0) 55%), radial-gradient(90% 70% at 100% 100%, rgba(227, 201, 138, 0.08) 0%, rgba(227, 201, 138, 0) 60%), linear-gradient(160deg, rgba(16, 18, 21, 0.36) 0%, rgba(7, 9, 12, 0.43) 100%) !important; backdrop-filter: blur(10px) saturate(1.35) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-head { background-color: rgba(7, 9, 12, 0.35) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card { backdrop-filter: blur(10px) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-trk-steps { background-color: rgba(6, 8, 11, 0.35) !important; } }
+@layer iba-ui { #iba-ai-panel.iba-ai-panel.is-wide { background-image: linear-gradient(160deg, rgba(14, 16, 19, 0.21) 0%, rgba(6, 8, 11, 0.26) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-head { background-color: rgba(6, 8, 11, 0.3) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-wide-body .iba-ai-card { background-image: linear-gradient(rgba(7, 9, 12, 0.42) 0%, rgba(7, 9, 12, 0.3) 100%) !important; } }
+@layer iba-ui { #iba-ai-panel.is-wide .iba-ai-wide-body :is(.iba-ai-stats > div, .iba-ai-trk-item, .iba-ai-trk-po-head, .iba-ai-co-tile) { background-color: rgba(6, 8, 11, 0.38) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-ai-ttab-site { background-color: rgba(11, 13, 16, 0.28) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-ai-urg-table thead th { background-color: rgba(12, 14, 17, 0.92) !important; } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-dashboard#wd-dashboard :is(#wd-payment-pocket-site-filter, #wd-payment-pocket-year-filter, #wd-paid-history-year-filter, #wd-paid-history-site-filter) option { background-color: rgb(13, 15, 18) !important; } } }
+@media screen and (min-width: 901px) { @layer iba-ui { body.iba-shell-on #wd-dashboard#wd-dashboard .wd-payment-pocket-month-tab { background-color: rgba(8, 10, 13, 0.9) !important; } } }
+.iba-apd { background-color: rgba(4, 12, 22, 0.34); }
+.iba-apd-box { background-image: linear-gradient(rgba(13, 15, 18, 0.97), rgba(8, 10, 13, 0.98)); }
+.iba-apv-toast-body { background-color: rgba(8, 10, 13, 0.96); }
+body.iba-phone { background-color: rgb(7, 9, 12) !important; }
+#iba-phone .iba-ph-bulk { background-color: rgba(9, 11, 14, 0.52); backdrop-filter: blur(10px); }
+#iba-phone .iba-ph-tabs { background-color: rgba(6, 8, 11, 0.96); }
+#iba-phone .iba-ph-sheet { background-color: rgba(3, 9, 16, 0.33); }
+#iba-phone .iba-ph-sheet-box { background-image: linear-gradient(rgb(15, 17, 20), rgb(11, 13, 16)); }
+#iba-phone .iba-ph-busy > div { background-color: rgb(13, 15, 18); }
+#iba-phone .iba-ph-search-row2 select option { background-color: rgb(13, 15, 18); }
+body.iba-phone #iba-phone #wd-inv-mobile-material-finder select option { background-color: rgb(13, 15, 18); }
+@layer iba-ui { html body .modal-overlay:not(#standard-job-modal) > .modal-container.modal-container { background-image: linear-gradient(rgba(16, 18, 21, 0.28) 0%, rgba(11, 13, 16, 0.33) 100%) !important; backdrop-filter: blur(10px) saturate(1.35) !important; } }
+@layer iba-ui { html body .iba-apd .iba-apd-box { background-image: linear-gradient(rgba(16, 18, 21, 0.28), rgba(11, 13, 16, 0.33)) !important; backdrop-filter: blur(10px) saturate(1.35) !important; } }
+#iba-pb-btn { background-color: rgba(11, 13, 16, 0.4); backdrop-filter: blur(10px) saturate(1.3); }
+#iba-pb-btn.is-flash::after { background-color: rgba(11, 13, 16, 0.92); }
+.iba-pb-box { background-image: linear-gradient(rgba(16, 18, 21, 0.29), rgba(11, 13, 16, 0.34)); backdrop-filter: blur(10px) saturate(1.35); }
+.iba-pb-table select { background-color: rgba(9, 11, 14, 0.82); }
+@layer iba-ui { html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal > .modal-container, html body #transfer-job-modal#transfer-job-modal#transfer-job-modal > .modal-container.modal-container, html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-card { background-image: linear-gradient(160deg, rgba(14, 16, 19, 0.21) 0%, rgba(6, 8, 11, 0.26) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on.iba-add-job-page #standard-job-modal#standard-job-modal > .modal-container > .modal-header, html body #transfer-job-modal#transfer-job-modal#transfer-job-modal > .modal-container > .modal-header { background-color: rgba(6, 8, 11, 0.22) !important; } }
+@layer iba-ui { html body #wd-forward-task-modal#wd-forward-task-modal .wd-forward-modal-head { background-color: rgba(6, 8, 11, 0.22) !important; } }
+@layer iba-ui { html body #wd-forward-task-modal#wd-forward-task-modal select option { background-color: rgb(13, 15, 18) !important; } }
+.iba-shell-left .iba-analog-clock[data-face="square"], .iba-shell-left .iba-analog-clock[data-face="digital"] { background-image: linear-gradient(155deg, rgba(255, 255, 255, 0.16) 0%, rgba(10, 12, 15, 0.55) 45%, rgba(6, 10, 20, 0.75) 100%); }
+.iba-clock-picker { background-image: linear-gradient(160deg, rgba(14, 16, 19, 0.3), rgba(6, 8, 11, 0.39)); backdrop-filter: blur(10px) saturate(1.4); }
+#iba-ac .iba-ac-box { background-image: linear-gradient(160deg, rgba(14, 16, 19, 0.34), rgba(6, 8, 11, 0.41)); backdrop-filter: blur(10px) saturate(1.4); }
+#iba-ac .iba-ac-table th { background-color: rgba(9, 11, 14, 0.96); }
+@layer iba-ui { html body.iba-shell-on #im-batch-entry#im-batch-entry .batch-invoice-card[data-ui-skin] { background-image: linear-gradient(160deg, rgba(17, 19, 22, 0.25) 0%, rgba(7, 9, 12, 0.32) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on #im-batch-entry#im-batch-entry #im-batch-global-controls { background-image: linear-gradient(160deg, rgba(17, 19, 22, 0.23) 0%, rgba(7, 9, 12, 0.3) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on #im-reporting#im-reporting#im-reporting :is(#im-reporting-form, .summary-wrapper, .im-records-summary) { background-image: linear-gradient(160deg, rgba(17, 19, 22, 0.23) 0%, rgba(7, 9, 12, 0.3) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on #im-reporting#im-reporting#im-reporting .iba-records-sheet { background-image: linear-gradient(170deg, rgba(17, 19, 22, 0.25) 0%, rgba(7, 9, 12, 0.33) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on #im-reporting#im-reporting#im-reporting .iba-records-sheet .grid-header { background-color: rgba(12, 14, 17, 0.43) !important; backdrop-filter: blur(10px) saturate(1.3) !important; } }
+@layer iba-ui { html body.iba-shell-on #im-reporting#im-reporting#im-reporting .im-nested-invoice-table :is(thead th, thead td) { background-color: rgba(12, 14, 17, 0.6) !important; } }
+@layer iba-ui { html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) :is(#wd-reporting #reporting-printable-area > .table-wrapper, #wd-activetask > .table-wrapper, #inv-active-job > .table-wrapper, #wd-material-stock .ms-premium-tablewrap, #im-existing-invoices-container > .table-wrapper, #im-payments .im-payment-cart-table-wrap, #wd-dashboard .wd-payment-pocket-table-wrap, #wd-dashboard .wd-paid-po-history-table-wrap, #inv-active-job #iba-aj-folder, #im-po-closeout #im-po-closeout-tabs, #im-invoice-entry #im-modal-po-details) { background-image: linear-gradient(170deg, rgba(17, 19, 22, 0.25) 0%, rgba(7, 9, 12, 0.33) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) #im-po-closeout #im-po-closeout-list > div { background-image: linear-gradient(160deg, rgba(17, 19, 22, 0.24) 0%, rgba(7, 9, 12, 0.31) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b):not(#iba-p10c):not(#iba-p10d) :is(#workdesk-view, #invoice-management-view, #inventory-view, .modal-overlay, #ms-stock-check-modal) table:not(td table) > thead > tr > th { background-color: rgba(12, 14, 17, 0.44) !important; backdrop-filter: blur(10px) saturate(1.3) !important; } }
+@layer iba-ui { html body.iba-shell-on:not(#iba-p10a):not(#iba-p10b) #im-existing-invoices-container tfoot td { background-color: rgba(12, 14, 17, 0.55) !important; } }
+@layer iba-ui { html body:not(#iba-p10a):not(#iba-p10b) :is(#transfer-job-modal, #im-invoice-entry-modal) .choices__list--dropdown { background-color: rgba(10, 12, 15, 0.96) !important; } }
+@layer iba-ui { #iba-ai-panel.iba-ai-panel:not(.is-wide) { background-image: radial-gradient(120% 60% at 0% 0%, rgba(94, 214, 196, 0.1) 0%, rgba(94, 214, 196, 0) 55%), linear-gradient(170deg, rgba(16, 18, 21, 0.34) 0%, rgba(7, 9, 12, 0.41) 100%) !important; backdrop-filter: blur(10px) saturate(1.35) !important; } }
+@layer iba-ui { #iba-ai-panel.iba-ai-panel:not(.is-wide) .iba-ai-head { background-color: rgba(7, 9, 12, 0.3) !important; } }
+@layer iba-ui { body.iba-phone #iba-ai-panel.iba-ai-panel { background-image: radial-gradient(120% 50% at 0% 0%, rgba(94, 214, 196, 0.1) 0%, rgba(94, 214, 196, 0) 55%), linear-gradient(175deg, rgba(14, 16, 19, 0.7) 0%, rgba(6, 8, 11, 0.82) 100%) !important; } }
+@layer iba-ui { body.iba-phone #iba-ai-panel .is-aph-brief { backdrop-filter: blur(10px) !important; } }
+@layer iba-ui { html body #iba-jr-bulk { background-image: linear-gradient(170deg, rgba(17, 19, 22, 0.25) 0%, rgba(7, 9, 12, 0.33) 100%) !important; backdrop-filter: blur(10px) saturate(1.4) !important; } }
+@layer iba-ui { #iba-ai-panel #iba-ai-wide-more > .iba-ai-more-close { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body #iba-esn .iba-esn-box { backdrop-filter: blur(10px) saturate(1.4); background-image: linear-gradient(160deg, rgba(14, 16, 19, 0.36), rgba(6, 8, 11, 0.43)) !important; } }
+@layer iba-ui { html body #iba-esn .iba-esn-place option { background-color: rgb(12, 14, 17); } }
+@layer iba-ui { html body #iba-esn .iba-esn-table th { background-color: rgba(12, 14, 17, 0.85) !important; } }
+@layer iba-ui { html body #iba-esn .iba-lpo-card { background-color: rgba(6, 8, 11, 0.42); } }
+@layer iba-ui { html body #iba-esn .iba-lpo-grid select option { background-color: rgb(7, 9, 12); } }
+@layer iba-ui { html body .iba-fit-note:not(#iba-fit-x):not(#iba-fit-y):not(#iba-fit-z) > .iba-fit-more { background-color: rgba(6, 8, 11, 0.8) !important; } }
+@layer iba-ui { #iba-job-cancel-pop .iba-jc-box { background-color: rgba(8, 10, 13, 0.72) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-s-it { background-color: rgba(6, 8, 11, 0.45) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-chips > span { background-color: rgb(14, 16, 19) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-chips > span.is-site { background-color: rgb(18, 20, 23) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-row:hover { background-color: rgb(15, 17, 20) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-rcpt { background-color: rgb(7, 9, 12) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-trk-r-steps li > i { background-color: rgb(18, 20, 23) !important; } }
+@layer iba-ui { html body #wd-activetask #iba-pb-all.iba-pb-all-btn { background-color: rgba(9, 11, 14, 0.82) !important; } }
+@layer iba-ui { #iba-reply-pop textarea, #iba-reply-pop input { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body .iba-msm-panel { background-color: rgba(10, 12, 15, 0.97); } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7) .iba-msm-panel { background-color: rgb(10, 12, 15) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-po { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-kids .iba-trk-row { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-fold.is-accfold > summary, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-ai-panel .iba-trk-more.is-accfold > summary { background-color: rgba(11, 13, 16, 0.55) !important; } }
+@layer iba-ui { html body #iba-msm .iba-msm-table th { background-color: rgba(8, 10, 13, 0.96); } }
+@layer iba-ui { html body #ms-page-bar.ms-page-bar { background-color: rgba(8, 10, 13, 0.55); } }
+@layer iba-ui { html body #iba-unmerge .iba-um-table th { background-color: rgba(8, 10, 13, 0.96); } }
+@layer iba-ui { html body #iba-ai-panel .iba-aph-dt-acts { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { html body #iba-ai-skills.is-apps .iba-ai-tile-admin { background-color: rgb(7, 9, 12) !important; } }
+@layer iba-ui { html body #iba-unmerge .iba-um-namerow input { background-color: rgb(9, 11, 14); } }
+@layer iba-ui { #iba-ai-panel .iba-aph-next { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { #iba-ai-panel .iba-aph-hist { background-color: rgb(10, 12, 15) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-pick select { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-pm-pop .iba-pm-list th { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body.iba-ie-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-po-search-container .iba-ie-grp { background-color: rgba(11, 13, 16, 0.55) !important; } }
+@layer iba-ui { html body.iba-ie-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-modal-po-details { background-color: rgba(8, 10, 13, 0.5) !important; } }
+@layer iba-ui { html body.iba-ie-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-modal-po-details .po-compact-grid > .iba-ie-rec .im-po-record { background-color: rgba(11, 13, 16, 0.55) !important; } }
+@layer iba-ui { html body.iba-ie-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-modal-po-details .po-compact-grid > .iba-ie-rec #im-po-collect-btn#im-po-collect-btn { background-color: rgba(11, 13, 16, 0.55) !important; } }
+@layer iba-ui { html body.iba-bt-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-batch-entry #iba-bt-panel { background-color: rgba(8, 10, 13, 0.55) !important; } }
+@layer iba-ui { html body.iba-bt-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-batch-entry #iba-bt-panel .search-bar-local { background-color: rgba(7, 9, 12, 0.6) !important; } }
+@layer iba-ui { html body.iba-bt-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-batch-entry #iba-bt-panel .iba-bt-grp { background-color: rgba(11, 13, 16, 0.55) !important; } }
+@layer iba-ui { html body.iba-bt-v2:not(.iba-mobile-ui):not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #im-batch-entry #im-batch-table-body .batch-invoice-card { background-color: rgba(10, 12, 15, 0.55) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-find { background-color: rgba(7, 9, 12, 0.75) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-cnt { background-color: rgba(11, 13, 16, 0.65) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-card { background-color: rgba(11, 13, 16, 0.65) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-pobox { background-color: rgba(11, 13, 16, 0.65) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-sugg button { background-color: rgba(11, 13, 16, 0.65) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-inv { background-color: rgba(11, 13, 16, 0.7) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-mh-files > * { background-color: rgba(11, 13, 16, 0.65) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #standard-job-modal.iba-ni-on .iba-ni-st { background-color: rgba(6, 8, 11, 0.45) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #standard-job-modal.iba-ni-on #iba-ni :is(input, textarea, select):is(:focus, :hover, :active, :not(:placeholder-shown)) { background-color: rgba(6, 8, 11, 0.85) !important; } }
+@layer iba-ui { html body.iba-phone #iba-phone .iba-ph-road > span { background-color: rgb(10, 12, 15) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-pick select { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop .iba-n2a-list th { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2) #iba-n2a-pop :is(.iba-n2a-list, .iba-n2a-g) th { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body.iba-phone:not(#iba-g1):not(#iba-g2) #iba-phone .iba-ph-trk-dot.is-b { background-color: rgba(6, 8, 11, 0.6); } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-x { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-glass { background-color: rgba(6, 8, 11, 0.3) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-cam { background-color: rgb(7, 9, 12) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-type input { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-pill { background-color: rgba(6, 8, 11, 0.55) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-sw.to-ok .rcv-fg, html body:not(#iba-g1) #iba-rcv .rcv-sw.to-no .rcv-fg { background-color: rgba(6, 8, 11, 0.88) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-rcv .rcv-sbox { background-color: rgba(6, 8, 11, 0.9) !important; } }
+@layer iba-ui { html body:not(#iba-g1) #iba-pn .pn-win { background-color: rgba(6, 8, 11, 0.45) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-u-po { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) .iba-txundo-box { background-color: rgba(12, 14, 17, 0.96) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-stock-action-btn, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock #ms-refresh-btn { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-stock-action-btn:hover, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock #ms-refresh-btn:hover { background-color: rgb(14, 16, 19) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .iba-msm-more { background-color: rgb(12, 14, 17) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .iba-msm-more:hover, html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .iba-msm.is-open .iba-msm-more { background-color: rgb(18, 20, 23) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > :is(a, button).secondary-btn { background-color: rgb(9, 11, 14) !important; } }
+@layer iba-ui { html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #wd-material-stock .ms-photo-actions > :is(a, button).secondary-btn:hover { background-color: rgb(14, 16, 19) !important; } }
+@layer iba-ui { html body #iba-mclean .iba-um-table th { background-color: rgba(8, 10, 13, 0.96); } }
+@layer iba-ui { html body #iba-mclean .iba-um-namerow input { background-color: rgb(9, 11, 14); } }
+#iba-vendor-po-menu { background-color: rgba(8, 10, 13, 0.53); backdrop-filter: blur(10px); }
