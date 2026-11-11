@@ -1683,7 +1683,9 @@
         const s = norm(h.status);
         if (/reception|^received$|^new entry$|^job created/.test(s)) return { to: 'Reception', plain: true };
         if (s === 'under review') return h.by ? { to: h.by, tail: ' (entered)' } : null;
-        if (s === 'for summary' || s === 'srv done') return h.by ? { to: h.by } : null;
+        // 17.0.5 patch 198 (martin): Approved and SRV Done show no name (the clicker is not the holder)
+        if (s === 'approved' || s === 'srv done') return null;
+        if (s === 'for summary') return h.by ? { to: h.by } : null;
         if (s === 'ceo approval') return { to: stepPerson(/^\s*ceo\s*$/i, 'CEO') };
         if (s === 'report') { let g = ''; try { const p = people().find((x) => /^gio\b/i.test(String(x.value || ''))); g = p ? p.value : ''; } catch (_) {} return { to: g || 'Gio' }; }
         if (s === 'with accounts') return { to: 'Fin' };

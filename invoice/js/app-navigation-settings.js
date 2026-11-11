@@ -627,8 +627,11 @@ async function showWorkdeskSection(sectionId, newSearchTerm = null) {
         }
         if (reportingTableBody) reportingTableBody.innerHTML = '';
         if (typeof isInventoryContext === 'function' && isInventoryContext()) {
-            currentReportFilter = (Array.isArray(window.INVENTORY_TYPES) && window.INVENTORY_TYPES[0]) ? window.INVENTORY_TYPES[0] : 'Transfer';
-            await handleReportingSearch({ userAction: true, reason: 'tab' });
+            // 17.0.5 patch 205 (martin): Work History opens empty like Job Records; records load
+            // only after a tab click or a search (no Transfer list on open, less Firebase download).
+            currentReportFilter = null;
+            window.inventoryJobRecordsStageFilter = ''; // patch 206: Active / Completed not picked yet
+            await handleReportingSearch({ userAction: false, reason: 'open' });
         } else {
             await handleReportingSearch({ userAction: false, reason: 'open' });
         }

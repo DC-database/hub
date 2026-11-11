@@ -109,8 +109,9 @@ function getJobRecordsBaseEntriesForCurrentContext() {
 // Purpose: Keep open jobs separate from closed/completed jobs inside Inventory Job Records.
 // =================================================================================================
 function getInventoryJobRecordsStageFilter() {
-    const val = (window.inventoryJobRecordsStageFilter || 'Active').toString();
-    return val === 'Completed' ? 'Completed' : 'Active';
+    // 17.0.5 patch 206 (martin): no stage picked yet = '' (nothing listed until Active Jobs or Completed is clicked)
+    const val = (window.inventoryJobRecordsStageFilter || '').toString();
+    return val === 'Completed' ? 'Completed' : (val === 'Active' ? 'Active' : '');
 }
 
 function setInventoryJobRecordsStageFilter(stage) {
@@ -513,7 +514,13 @@ function filterAndRenderInventoryJobRecords(baseEntries = null) {
     ensureInventoryJobRecordsStageSwitch(stageCounts);
 
     const stage = getInventoryJobRecordsStageFilter();
-    filteredEntries = filteredEntries.filter(entry => {
+    // 17.0.5 patch 206: no stage picked and no search -> show nothing yet (a search shows both)
+    if (!stage && !searchText) {
+        if (reportingTableBody) reportingTableBody.innerHTML = '<tr><td colspan="9"><div class="wd-modern-empty-row wd-select-category-state" data-iba-hint="Pick Active Jobs or Completed to see the records."><i class="fa-solid fa-hand-pointer"></i><strong>Pick Active Jobs or Completed</strong></div></td></tr>';
+        const cd = document.getElementById('job-records-count-display'); if (cd) cd.textContent = '';
+        return;
+    }
+    if (stage) filteredEntries = filteredEntries.filter(entry => {
         const completed = isInventoryRecordCompletedOrClosed(entry);
         return stage === 'Completed' ? completed : !completed;
     });

@@ -24,7 +24,7 @@
         ['Reports', [['iba-ss-btn', 'One site, print or CSV'], ['ms-open-report-modal-btn', 'All stock'], ['ms-open-requestlist-btn', 'What sites need']]],
         ['Materials', [['ms-add-new-btn', 'Add a new item'], ['ms-stock-check-btn', 'Fix counts that do not match'], ['iba-pn-btn', 'Photo file names for item photos']]],
         ['Titles and files', [['ms-upload-csv-btn', 'Add items from a CSV'], ['ms-upload-titles-btn', 'Rename items from a CSV'], ['ms-download-titles-btn', 'Titles as CSV'], ['ms-template-btn', 'Empty CSV to fill']]],
-        ['Ticked items', [['ms-merge-selected-btn', 'Join the ticked items into one'], ['ms-merge-undo-btn', 'Recent merges, undo one made by mistake']]]
+        ['Ticked items', [['ms-merge-selected-btn', 'Join the ticked items into one'], ['ms-merge-undo-btn', 'Recent merges, undo one made by mistake'], ['ms-merge-clean-btn', 'Review and delete the empty cards a merge left']]]
     ];
     let wrap = null, panel = null, more = null;
 

@@ -243,9 +243,8 @@ function wdReportRenderLazyShell() {
     wdReportUpdateJobRecordsPrintHeader([]);
     const tabsContainer = document.getElementById('report-tabs');
     const defaultTypes = wdReportDefaultJobTypes();
-    if (tabsContainer && !wdReportIsInventoryMode()) {
-        tabsContainer.innerHTML = '';
-    } else if (tabsContainer) {
+    if (tabsContainer) {
+        // 17.0.5 patch 206: Job Records shows its standard tabs too (nothing loaded until a click)
         tabsContainer.innerHTML = defaultTypes.map(jobType => {
             const activeClass = (jobType === currentReportFilter) ? 'active' : '';
             return `<button class="${activeClass}" data-job-type="${jobType}">${jobType}</button>`;
@@ -757,8 +756,9 @@ async function handleReportingSearch(options = {}) {
     const reason = String(options && options.reason || '').toLowerCase();
     const searchTextNow = String(reportingSearchInput?.value || '').trim();
     const hasSelectedTab = !!(currentReportFilter && currentReportFilter !== 'All');
-    const shouldLoad = (!wdReportIsInventoryMode() && reason === 'open')
-        || (userAction && (reason === 'tab' || reason === 'search' || searchTextNow || hasSelectedTab));
+    // 17.0.5 patch 206 (martin): Job Records no longer loads (and picks the Invoice tab) on open;
+    // like Work History it waits for a tab click or a search.
+    const shouldLoad = (userAction && (reason === 'tab' || reason === 'search' || searchTextNow || hasSelectedTab));
 
     if (!wdReportCanOpenCurrentRecords()) {
         wdReportRenderNoAccessState();
