@@ -8095,23 +8095,13 @@ try {
 
             // D1: Transfer Edit
             if (['Transfer', 'Restock', 'Return', 'Usage'].includes(entryData.for)) {
-                if (entryData.remarks === 'Pending' || entryData.remarks === 'Pending Source' || entryData.remarks === 'Pending Admin') {
-                    if (confirm("Edit this Pending Request?")) {
-                        const jobEntryLink = workdeskNav.querySelector('a[data-section="wd-jobentry"]');
-                        if (jobEntryLink) jobEntryLink.click();
-
-                        // Use the correct loader from transferLogic.js
-                        setTimeout(() => {
-                            if (typeof openTransferModal === 'function') {
-                                // We map the entry data to the form manually if needed,
-                                // or better yet, rely on the ID to fetch fresh data inside the modal logic if you implemented an edit loader.
-                                // For now, let's just open the modal in the correct mode.
-                                // Ideally, you should add a specific 'edit' loader function in transferLogic.js,
-                                // but opening the modal is the first step.
-                                alert("Edit feature for Transfers is currently read-only in this version. Please delete and re-create if changes are needed.");
-                            }
-                        }, 200);
-                    }
+                // 17.0.5 patch 210: Super Admin opens "Fix transfer"; others get a plain note (no dead "Edit" step).
+                const trCid = String(entryData.controlNumber || entryData.controlId || entryData.ref || '').trim();
+                const trSuper = (typeof imIsCurrentUserSuperAdmin === 'function') && imIsCurrentUserSuperAdmin();
+                if (trSuper && trCid && window.ibaTrFix && typeof window.ibaTrFix.open === 'function') {
+                    window.ibaTrFix.open(trCid);
+                } else if (entryData.remarks === 'Pending' || entryData.remarks === 'Pending Source' || entryData.remarks === 'Pending Admin') {
+                    alert("A transfer can't be edited here. Ask the Super Admin to correct the people or sites, or cancel it and make a new one.");
                 }
                 return;
             }

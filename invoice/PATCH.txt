@@ -1,3 +1,27 @@
+17.0.5 patch 214 (11-Nov-2026)
+- Clean-up only: removed the unused source-contact auto-fill code from the transfer window (no change in behaviour).
+Files: index.html, js/iba-1705-invguide.js, PATCH.txt
+
+17.0.5 patch 213 (11-Nov-2026)
+- Transfer window: the Source contact is never filled in automatically (any person may be picked; undoes that part of p212).
+- Source SITE: if the item has stock at only one site, that site is picked for you. With stock at several sites, the user picks (it used to pick the biggest one by itself).
+Files: index.html, js/iba-1705-invguide.js, PATCH.txt
+
+17.0.5 patch 212 (11-Nov-2026)
+- Transfer windows: pressing the Go/Save button with something missing now says it in red, e.g. "Missing source contact. Please complete this first." and jumps to that box (was a silent grey button).
+- Source contact: pressing Enter no longer picks the first (highlighted) person by itself; type a name first.
+- Source contact is filled in automatically only when exactly ONE person is based at the source site; with several people it stays blank and must be picked.
+Files: index.html, js/iba-1705-invguide.js, js/transferLogic.js, PATCH.txt
+
+17.0.5 patch 211 (11-Nov-2026)
+- Work History (inventory): the Actions column (with the Fix transfer wrench) now shows when the side panel is pinned. An old rule hid it.
+Files: index.html, css/iba-1705-fit.css, PATCH.txt
+
+17.0.5 patch 210 (11-Nov-2026)
+- Clicking a transfer row in Job Records no longer shows the old "Edit feature for Transfers is read-only" message.
+  Super Admin: the click opens Fix transfer for that TRF. Others (pending transfers): a plain note to ask the Super Admin or cancel and make a new one.
+Files: index.html, app.js, PATCH.txt
+
 17.0.5 patch 209 (11-Nov-2026)
 - Super Admin "Fix transfer": open any Transfer / Restock / Return / Usage by its Control ID and
   correct who and where without signing in to the other person's account.
