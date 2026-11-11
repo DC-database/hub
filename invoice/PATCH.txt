@@ -1,3 +1,7 @@
+17.0.5 patch 215 (11-Nov-2026)
+- "Request original PO" (WhatsApp to Hafiz) now also comes after adding a new invoice on a PO that is NOT in the PO file at all (before: only when the PO file had it but never filed). Same in the PO pull-out box.
+Files: index.html, js/iba-1705-release.js, PATCH.txt
+
 17.0.5 patch 214 (11-Nov-2026)
 - Clean-up only: removed the unused source-contact auto-fill code from the transfer window (no change in behaviour).
 Files: index.html, js/iba-1705-invguide.js, PATCH.txt
