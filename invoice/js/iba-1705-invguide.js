@@ -309,7 +309,7 @@
             }).join('') + '</div></div>' +
             '<div class="foot"><button type="button" class="btn" data-close>Cancel</button>' +
             '<span class="next">' + (ready ? (itemCount() + ' item' + (itemCount() === 1 ? '' : 's') + ' will go to the confirm window.') : nowIx === 0 ? (S.cur ? 'Next: <b>' + (hasFrom() && !S.cur.from ? 'the source' : 'the quantity') + '</b>' : 'Next: <b>pick an item</b>') : 'Next: <b>' + esc(LABEL[missing] || '') + '</b>') + '</span>' +
-            '<button type="button" class="btn main" data-go' + (ready ? '' : ' disabled') + '>' + esc(c.go) + ' →</button></div>';
+            '<button type="button" class="btn main' + (ready ? '' : ' off') + '" data-go' + (ready ? '' : ' aria-disabled="true" data-miss="' + esc(nowIx === 0 ? (S.cur ? (hasFrom() && !S.cur.from ? 'from' : 'qty') : 'mat') : missing) + '"') + '>' + esc(c.go) + ' →</button></div>';
         const g = nowIx === 0 ? (S.cur ? root.getElementById(hasFrom() && !S.cur.from ? 'i-from' : 'i-qty') : root.getElementById('i-mat')) : (missing && root.getElementById(FIELD[missing]));
         if (g) g.classList.add('glow');
         focus(focusId);
@@ -467,7 +467,7 @@
         const q = inp.value.trim().toLowerCase();
         const list = peopleFor(k).filter((p) => !q || p.label.toLowerCase().indexOf(q) !== -1).slice(0, 40);
         box.hidden = false;
-        box.innerHTML = list.length ? list.map((p, i) => '<button type="button" class="opt' + (i === 0 ? ' act' : '') + '" data-person="' + esc(p.value) + '" data-for="' + k + '"><span class="ot"><b>' + esc(p.value) + '</b><small>' + esc(p.label.slice(p.value.length).replace(/^ - /, '')) + (p.site ? ' · ' + esc(p.site) : '') + '</small></span></button>').join('') : (k === 'appr' ? '<div class="none">Nobody found. Approvers are set in Settings &gt; Inventory permissions (Approve deliveries).</div>' : '<div class="none">Nobody found.</div>');
+        box.innerHTML = list.length ? list.map((p, i) => '<button type="button" class="opt' + (i === 0 && (q || k !== 'give') ? ' act' : '') + '" data-person="' + esc(p.value) + '" data-for="' + k + '"><span class="ot"><b>' + esc(p.value) + '</b><small>' + esc(p.label.slice(p.value.length).replace(/^ - /, '')) + (p.site ? ' · ' + esc(p.site) : '') + '</small></span></button>').join('') : (k === 'appr' ? '<div class="none">Nobody found. Approvers are set in Settings &gt; Inventory permissions (Approve deliveries).</div>' : '<div class="none">Nobody found.</div>');
     }
     function closeLists(except) { root.querySelectorAll('.res').forEach((b) => { if (b !== except) b.hidden = true; }); }
 
@@ -484,9 +484,9 @@
         cur.loading = false;
         if (hasFrom()) {
             const keys = Object.keys(m.sites || {}).filter((k) => freeAt(m, k) > 0).sort((a, b) => freeAt(m, b) - freeAt(m, a));
-            cur.from = keys[0] || '';
+            cur.from = keys.length === 1 ? keys[0] : ''; // 17.0.5 patch 213: only one site has it -> picked for you; several -> the user picks
         }
-        render('i-qty');
+        render(hasFrom() && !cur.from ? 'i-from' : 'i-qty');
     }
     function addCur() {
         if (!canAdd()) return;
@@ -496,6 +496,15 @@
         S.toast = '✓ ' + esc(c.qty + ' ' + (c.m.unit || '') + ' ' + c.m.name) + ' loaded on the truck (' + S.rows.length + '). Search the next item, or go on.';
         S.cur = null;
         render('i-mat');
+    }
+    // 17.0.5 patch 212: Go pressed with something missing -> say what (red), glow + focus that box
+    function missNote(k) {
+        const name = k === 'give' ? 'source contact' : k === 'mat' ? 'item' : k === 'from' ? 'source site' : k === 'qty' ? 'quantity' : String(LABEL[k] || 'field').replace(/^the /, '');
+        const sp = root.querySelector('.foot .next');
+        if (sp) sp.innerHTML = '<b class="iba-ig-miss">Missing ' + esc(name) + '. Please complete this first.</b>';
+        const id = k === 'mat' ? 'i-mat' : k === 'from' ? 'i-from' : k === 'qty' ? 'i-qty' : FIELD[k];
+        const f = id && root.getElementById(id);
+        if (f) { f.classList.add('glow'); try { f.scrollIntoView({ block: 'center' }); f.focus(); } catch (_) {} }
     }
     function goOut() {
         if (S.cur && canAdd()) { S.cur.at = Date.now(); S.rows.push(S.cur); S.cur = null; }
@@ -804,7 +813,7 @@
             return;
         }
         if (e.key !== 'Enter') return;
-        if (list) { const a = list.querySelector('.opt.act') || list.querySelector('.opt'); if (a) { e.preventDefault(); a.click(); } return; }
+        if (list) { const a = list.querySelector('.opt.act') || (t.getAttribute('data-pk') === 'give' ? null : list.querySelector('.opt')); if (a) { e.preventDefault(); a.click(); } else if (t.getAttribute('data-pk') === 'give') { e.preventDefault(); } return; }
         if (t.id === 'i-qty') { e.preventDefault(); if (canAdd()) addCur(); }
     }
     function onInput(e) {
@@ -866,7 +875,7 @@
             if (S.cur && canAdd()) S.rows.push(S.cur);
             S.cur = S.rows.splice(i, 1)[0]; delete S.cur.short; S.toast = ''; S.mode = 'pick'; render('i-qty'); return;
         }
-        if (b.hasAttribute('data-go')) { if (S.mode !== 'out') goOut(); return; }
+        if (b.hasAttribute('data-go')) { if (b.getAttribute('aria-disabled') === 'true') { missNote(b.getAttribute('data-miss')); return; } if (S.mode !== 'out') goOut(); return; }
         if (b.hasAttribute('data-back') || b.hasAttribute('data-more')) { S.mode = 'pick'; render(b.hasAttribute('data-more') ? 'i-mat' : ''); return; }
         if (b.hasAttribute('data-add')) { addCur(); return; }
         if (b.hasAttribute('data-cur-x')) { S.cur = null; render('i-mat'); return; }
@@ -1029,6 +1038,8 @@ input, select, textarea { background-color: rgba(6,14,24,.42); border-color: rgb
 .btn.main, .addm { border-color: rgba(127,227,214,.6); background: linear-gradient(180deg, rgba(64,196,206,.34), rgba(19,138,151,.20)); color: #fff; }
 .btn.main:hover:not(:disabled), .addm:hover:not(:disabled) { background: linear-gradient(180deg, rgba(64,196,206,.46), rgba(19,138,151,.30)); }
 .btn.main:disabled { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: var(--mute); opacity: .55; }
+.btn.main.off { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: var(--mute); opacity: .55; cursor: not-allowed; }
+.iba-ig-miss { color: #ff8a80; font-weight: 700; }
 .btn.sm { height: 30px; min-height: 30px; padding: 0 10px; font-size: 12.5px; }
 .x, .ib { border-color: rgba(255,255,255,.2); background: rgba(255,255,255,.08); color: #fff; }
 .x:hover, .ib:hover { background: rgba(255,255,255,.14); }

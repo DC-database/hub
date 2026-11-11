@@ -1138,6 +1138,7 @@ async function saveTransferEntry(e) {
     };
 
     if (type === 'Transfer') {
+        if (!sourceContact) { fail("Missing source contact. Please complete this first."); try { const sc = document.getElementById('tf-source-contact'); if (sc) sc.scrollIntoView({ block: 'center' }); } catch (_) {} return; }
         if (!globalFromLoc || !toLoc || !sourceContact || !approver || !receiver) {
             fail("Please fill in Source, Destination, Source Contact, Approver, and Receiver.");
             return;
