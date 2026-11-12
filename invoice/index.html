@@ -34,7 +34,7 @@
 <!-- 17.0.5 patch 2: a tablet can ask for the desktop view (button on the
      phone screen, js/iba-1705-view.js): the page is then laid out 980 px
      (or the screen width if wider) and scaled to the screen, like the browser's "Desktop site". -->
-<script src="js/iba-1705-storage.js?v=17.0.5-p43"></script>
+<script src="js/iba-1705-storage.js?v=18.0.0"></script>
 <script>
   (function () {
     try {
@@ -83,7 +83,7 @@
      (file:///) cannot use it and showed red errors in the console. -->
 <script>
   if (/^https?:$/.test(location.protocol)) {
-    document.write('<link rel="manifest" href="manifest.json?v=17.0.5-p64"/>');
+    document.write('<link rel="manifest" href="manifest.json?v=18.0.0"/>');
   }
 </script>
 <meta name="theme-color" content="#0b1724"/>
@@ -220,32 +220,32 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
     </script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" rel="stylesheet">
-<link href="style.css?v=12.7.8" rel="stylesheet"/>
-<link href="css/patch-12.0.10.css?v=12.0.10" rel="stylesheet"/>
-<link href="css/transfer_stock.css?v=10.5.7" rel="stylesheet"/>
-<link href="css/mobile.css?v=11.8.7" rel="stylesheet"/>
+<link href="style.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-12.0.10.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/transfer_stock.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/mobile.css?v=18.0.0" rel="stylesheet"/>
 <!-- 9.0.1 module split: page-specific desktop/mobile override layers -->
-<link href="css/workdesk-desktop.css?v=9.2.7" rel="stylesheet"/>
-<link href="css/invoice-desktop.css?v=11.8.7" rel="stylesheet"/>
-<link href="css/inventory-desktop.css?v=11.8.3" rel="stylesheet"/>
-<link href="css/workdesk-mobile.css?v=9.2.7" rel="stylesheet"/>
-<link href="css/inventory-mobile.css?v=11.8.1" rel="stylesheet"/>
-<link href="css/workdesk-mobile-active-task.css?v=10.0.6" rel="stylesheet"/>
-<link href="css/patch-11.8.8.css?v=11.8.8" rel="stylesheet"/>
-<link href="css/patch-11.8.9.css?v=11.8.9" rel="stylesheet"/>
-<link href="css/patch-11.9.0.css?v=11.9.0" rel="stylesheet"/>
-<link href="css/patch-11.9.1.css?v=11.9.1" rel="stylesheet"/>
-<link href="css/patch-11.9.2.css?v=11.9.2" rel="stylesheet"/>
-<link href="css/patch-11.9.3.css?v=11.9.3" rel="stylesheet"/>
-<link href="css/patch-11.9.4.css?v=11.9.4" rel="stylesheet"/>
-<link href="css/patch-11.9.8.css?v=11.9.8" rel="stylesheet"/>
-<link href="css/patch-11.9.11.css?v=11.9.11" rel="stylesheet"/>
-<link href="css/patch-11.9.12.css?v=11.9.12" rel="stylesheet"/>
+<link href="css/workdesk-desktop.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/invoice-desktop.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/inventory-desktop.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/workdesk-mobile.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/inventory-mobile.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/workdesk-mobile-active-task.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.8.8.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.8.9.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.0.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.1.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.2.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.3.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.4.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.8.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.11.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-11.9.12.css?v=18.0.0" rel="stylesheet"/>
 <!-- 12.1.9: Invoice Records mobile UI owns the isolated mobile layer. -->
-<link href="css/invoice-mobile.css?v=12.1.9" rel="stylesheet"/>
-<link href="css/inv-active-job.css?v=12.9.5a" rel="stylesheet"/>
+<link href="css/invoice-mobile.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/inv-active-job.css?v=18.0.0" rel="stylesheet"/>
 
-<script src="js/app-tab-guard.js?v=15.0.0-p25"></script>
+<script src="js/app-tab-guard.js?v=18.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -268,7 +268,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
             }
         }
     </style>
-</link>    <link rel="stylesheet" href="css/app-approval-print.css?v=15.0.0-p32">
+</link>    <link rel="stylesheet" href="css/app-approval-print.css?v=18.0.0">
 
 <style id="summary-note-print-fix-12-6-4">
 @media print {
@@ -447,35 +447,35 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 }
 </style>
 
-<link href="css/patch-12.8.4.css?v=12.8.4.1" rel="stylesheet"/>
-<link href="css/patch-12.8.4-announcement.css?v=12.8.4" rel="stylesheet"/>
-<link href="css/iba-shell.css?v=17.0.5-p154" rel="stylesheet"/>
-<link href="css/inv-pages.css?v=12.9.8a" rel="stylesheet"/>
-<link href="css/wd-jr-folder.css?v=12.9.6r" rel="stylesheet"/>
-<link href="css/wd-at-personal.css?v=12.9.7a" rel="stylesheet"/>
-<link href="css/wd-row-fade.css?v=12.9.7d" rel="stylesheet"/>
-<link href="css/iba-1298.css?v=12.9.9u" rel="stylesheet"/>
-<link href="css/iba-invoice-entry.css?v=13.0.0an" rel="stylesheet"/>
-<link href="css/iba-14-patch.css?v=15.0.0" rel="stylesheet"/>
-<link href="css/iba-ui.css?v=15.0.0-p36" rel="stylesheet"/>
-<link href="css/iba-ui-popups.css?v=15.0.0-p2" rel="stylesheet"/>
-<link href="css/iba-assistant.css?v=17.0.2-p9" rel="stylesheet"/>
-<link href="css/iba-ui-tables.css?v=15.0.0-p18" rel="stylesheet"/>
-<link href="css/iba-approvals.css?v=15.0.0" rel="stylesheet"/>
-<link href="css/iba-phone.css?v=15.0.0-p13" rel="stylesheet"/>
-<link href="css/iba-p45.css?v=17.0.2" rel="stylesheet"/>
-<link href="css/iba-17.css?v=17.0.5-p26" rel="stylesheet"/>
-<link href="css/iba-17-p27.css?v=17.0.0-p28" rel="stylesheet"/>
-<link href="css/iba-1702-glass.css?v=17.0.2-p6" rel="stylesheet"/>
-<link href="css/iba-1702-p10.css?v=17.0.3-p13" rel="stylesheet"/>
-<link href="css/iba-1703-p14.css?v=17.0.4-p2" rel="stylesheet"/>
-<link href="css/iba-1702-esn.css?v=17.0.3-c" rel="stylesheet"/>
-<link href="css/iba-lpo-mail.css?v=17.0.4-p12" rel="stylesheet"/>
-<link href="css/iba-1703-desk.css?v=17.0.3-p12" rel="stylesheet"/>
-<link href="css/iba-1705-fit.css?v=17.0.5-p218" rel="stylesheet"/>
-<link href="css/iba-1705-ie.css?v=17.0.5-p205" rel="stylesheet"/>
-<script src="js/iba-1705-black.js?v=17.0.5-p199"></script>
-<script src="js/iba-1705-nostripe.js?v=17.0.5-p204"></script>
+<link href="css/patch-12.8.4.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/patch-12.8.4-announcement.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-shell.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/inv-pages.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/wd-jr-folder.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/wd-at-personal.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/wd-row-fade.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1298.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-invoice-entry.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-14-patch.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-ui.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-ui-popups.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-assistant.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-ui-tables.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-approvals.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-phone.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-p45.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-17.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-17-p27.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1702-glass.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1702-p10.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1703-p14.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1702-esn.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-lpo-mail.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1703-desk.css?v=18.0.0" rel="stylesheet"/>
+<link href="css/iba-1705-fit.css?v=18.0.0-p5" rel="stylesheet"/>
+<link href="css/iba-1705-ie.css?v=18.0.0" rel="stylesheet"/>
+<script src="js/iba-1705-black.js?v=18.0.0"></script>
+<script src="js/iba-1705-nostripe.js?v=18.0.0"></script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1724%22/%3E%3Ctext x=%2232%22 y=%2243%22 font-family=%22Arial,sans-serif%22 font-size=%2226%22 font-weight=%22700%22 text-anchor=%22middle%22 fill=%22%235ed6c4%22%3EIBA%3C/text%3E%3C/svg%3E"/>
 </head>
 <body class="login-background">
@@ -3768,7 +3768,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-<script src="js/app-test-mode.js?v=11.0.9"></script>
+<script src="js/app-test-mode.js?v=18.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <!-- Help Center dependencies (client-side PDF indexing + fuzzy search) -->
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
@@ -3779,8 +3779,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
       }
     </script>
-<script src="js/iba-1705-invcopy.js?v=17.0.5-p129"></script>
-<script src="js/inventory-pocket.js?v=17.0.3-p11"></script>
+<script src="js/iba-1705-invcopy.js?v=18.0.0"></script>
+<script src="js/inventory-pocket.js?v=18.0.0"></script>
 <script>
   // 17.0.5 patch 166: inventory photo picker reads the OneDrive Photo folder (Microsoft Graph, read only).
   // Fill in clientId + tenantId from IT's Azure app registration. Empty = picker uses names already on stock items.
@@ -3788,145 +3788,148 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
   // 17.0.5 patch 168: until then the photo list = PhotoIndex.csv (run make-photo-list.bat, upload the CSV to the hub repo)
   window.MS_MATERIAL_PHOTO_INDEX_URL = 'https://raw.githubusercontent.com/DC-database/hub/refs/heads/main/PhotoIndex.csv';
 </script>
-<script src="js/iba-1705-itemphoto.js?v=17.0.5-p169"></script>
-<script src="js/materialStock.js?v=17.0.5-p189"></script>
-<script src="js/iba-1705-msphoto.js?v=17.0.5-p166"></script>
-<script src="js/iba-1705-msmigrate.js?v=17.0.5-p80"></script>
-<script src="js/iba-1705-unmerge.js?v=17.0.5-p86"></script>
-<script src="js/transferLogic.js?v=17.0.5-p212"></script>
-<script src="js/app-audio.js?v=15.0.0-p13"></script>
-<script src="js/app-core.js?v=8.2.3"></script>
-<script src="js/iba-1705-day.js?v=17.0.5-p157"></script>
-<script src="js/app-inventory.js?v=17.0.5-p208"></script>
-<script src="js/app-invoice.js?v=15.0.0-p32"></script>
-<script src="js/app-mobile.js?v=17.0.5-p187"></script>
-<script src="js/app-finance.js?v=17.0.0-p7"></script>
-<script src="js/app-chat.js?v=15.0.0-p41"></script>
-<script src="js/app-celebration.js?v=8.2.3"></script>
-<script src="js/app-utils.js?v=8.2.3"></script>
-<script src="js/app-vacation.js?v=8.2.3"></script>
-<script src="js/app-dom-refs.js?v=12.9.1"></script>
-<script src="app.js?v=17.0.5-p210"></script>
-<script src="js/iba-approvals.js?v=17.0.5-p150"></script>
-<script src="js/app-time-clock.js?v=17.0.4-p7"></script>
-<script src="js/app-domain-migration-notice.js?v=11.6.0"></script>
-<script src="js/iba-page-surfaces.js?v=15.0.0"></script>
-<script src="js/app-navigation-settings.js?v=17.0.5-p206"></script>
-<script src="js/app-data-cache.js?v=17.0.5-p18"></script>
-<script src="js/app-job-vendor.js?v=8.2.3"></script>
-<script src="js/app-workdesk-job-entry.js?v=12.9.9a"></script>
-<script src="js/app-standard-job.js?v=17.0.4-p8"></script>
-<script src="js/app-invoice-dashboard.js?v=11.8.7"></script>
-<script src="js/app-payments.js?v=17.0.5-p105"></script>
-<script src="js/app-invoice-records.js?v=17.0.5-p188"></script>
-<script src="js/app-po-closeout.js?v=15.0.0-p23"></script>
-<script src="js/app-active-tasks.js?v=17.0.5-p29"></script>
-<script src="js/app-workdesk-dashboard.js?v=17.0.5-p157"></script>
-<script src="js/app-general-announcement.js?v=17.0.4-p7"></script>
-<script src="js/app-workdesk-reporting.js?v=17.0.5-p206"></script>
-<script src="js/app-reporting-actions.js?v=9.9.0"></script>
-<script src="js/app-report-workflow.js?v=8.2.3"></script>
-<script src="js/app-ui-shortcuts.js?v=11.8.8"></script>
-<script src="js/app-modal-navigation-clear.js?v=15.0.0"></script>
-<script src="js/app-invoice-entry-search.js?v=17.0.5-p188"></script>
-<script src="js/app-attention-validation.js?v=17.0.5-p16"></script>
-<script src="js/iba-attention-picker.js?v=17.0.0-p15"></script>
-<script src="js/app-batch-entry-ui.js?v=17.0.5-p123"></script>
-<script src="js/iba-1705-batchval.js?v=17.0.5-p56"></script>
-<script src="js/iba-ui-skin.js?v=15.0.0"></script>
-<script src="js/app-im-event-wiring.js?v=17.0.0-p7"></script>
-<script src="js/app-history-transfer.js?v=15.0.0-p32"></script>
-<script src="js/iba-1705-histfix.js?v=17.0.5-p63"></script>
-<script src="js/iba-1705-pdfwin.js?v=17.0.5-p84"></script>
-<script src="js/iba-1705-money.js?v=17.0.5-p67"></script>
-<script src="js/app-help.js?v=11.8.8"></script>
-<script src="js/iba-entry-po-mirror.js?v=15.0.0"></script>
+<script src="js/iba-1705-itemphoto.js?v=18.0.0"></script>
+<script src="js/materialStock.js?v=18.0.0"></script>
+<script src="js/iba-1705-msphoto.js?v=18.0.0"></script>
+<script src="js/iba-1705-msmigrate.js?v=18.0.0"></script>
+<script src="js/iba-1705-unmerge.js?v=18.0.0"></script>
+<script src="js/transferLogic.js?v=18.0.0"></script>
+<script src="js/app-audio.js?v=18.0.0"></script>
+<script src="js/app-core.js?v=18.0.0"></script>
+<script src="js/iba-1705-day.js?v=18.0.0"></script>
+<script src="js/app-inventory.js?v=18.0.0"></script>
+<script src="js/app-invoice.js?v=18.0.0"></script>
+<script src="js/app-mobile.js?v=18.0.0"></script>
+<script src="js/app-finance.js?v=18.0.0"></script>
+<script src="js/app-chat.js?v=18.0.0"></script>
+<script src="js/app-celebration.js?v=18.0.0"></script>
+<script src="js/app-utils.js?v=18.0.0"></script>
+<script src="js/app-vacation.js?v=18.0.0"></script>
+<script src="js/app-dom-refs.js?v=18.0.0"></script>
+<script src="app.js?v=18.0.0"></script>
+<script src="js/iba-approvals.js?v=18.0.0"></script>
+<script src="js/app-time-clock.js?v=18.0.0"></script>
+<script src="js/app-domain-migration-notice.js?v=18.0.0"></script>
+<script src="js/iba-page-surfaces.js?v=18.0.0"></script>
+<script src="js/app-navigation-settings.js?v=18.0.0"></script>
+<script src="js/app-data-cache.js?v=18.0.0"></script>
+<script src="js/app-job-vendor.js?v=18.0.0"></script>
+<script src="js/app-workdesk-job-entry.js?v=18.0.0"></script>
+<script src="js/app-standard-job.js?v=18.0.0"></script>
+<script src="js/app-invoice-dashboard.js?v=18.0.0"></script>
+<script src="js/app-payments.js?v=18.0.0"></script>
+<script src="js/app-invoice-records.js?v=18.0.0"></script>
+<script src="js/app-po-closeout.js?v=18.0.0"></script>
+<script src="js/app-active-tasks.js?v=18.0.0"></script>
+<script src="js/app-workdesk-dashboard.js?v=18.0.0"></script>
+<script src="js/app-general-announcement.js?v=18.0.0"></script>
+<script src="js/app-workdesk-reporting.js?v=18.0.0"></script>
+<script src="js/app-reporting-actions.js?v=18.0.0"></script>
+<script src="js/app-report-workflow.js?v=18.0.0"></script>
+<script src="js/app-ui-shortcuts.js?v=18.0.0"></script>
+<script src="js/app-modal-navigation-clear.js?v=18.0.0"></script>
+<script src="js/app-invoice-entry-search.js?v=18.0.0"></script>
+<script src="js/app-attention-validation.js?v=18.0.0"></script>
+<script src="js/iba-attention-picker.js?v=18.0.0"></script>
+<script src="js/app-batch-entry-ui.js?v=18.0.0"></script>
+<script src="js/iba-1705-batchval.js?v=18.0.0"></script>
+<script src="js/iba-ui-skin.js?v=18.0.0"></script>
+<script src="js/app-im-event-wiring.js?v=18.0.0"></script>
+<script src="js/app-history-transfer.js?v=18.0.0"></script>
+<script src="js/iba-1705-histfix.js?v=18.0.0"></script>
+<script src="js/iba-1705-pdfwin.js?v=18.0.0"></script>
+<script src="js/iba-1705-money.js?v=18.0.0"></script>
+<script src="js/app-help.js?v=18.0.0"></script>
+<script src="js/iba-entry-po-mirror.js?v=18.0.0"></script>
 <script>
-      window.IBA_SYSTEM_VERSION = '17.0.5';
-      window.IBA_PATCH = '218'; window.IBA_PATCH_DATE = '12-Nov-2026'; // bump on every upload (Settings > System Version)
+      window.IBA_SYSTEM_VERSION = '18.0.0';
+      window.IBA_PATCH = '5'; window.IBA_PATCH_DATE = '12-Nov-2026'; // bump on every upload (Settings > System Version)
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
-<script src="js/iba-inv-active-job.js?v=15.0.0"></script>
-<script src="js/iba-shell.js?v=17.0.5-p174"></script>
-<script src="js/iba-phone.js?v=17.0.5-p182"></script>
-<script src="js/iba-live-counts.js?v=17.0.5-p92"></script>
-<script src="js/iba-task-check.js?v=17.0.0-p7"></script>
-<script src="js/iba-print.js?v=17.0.5-p173"></script>
-<script src="js/iba-bg-dim.js?v=17.0.5-p154"></script>
-<script src="js/iba-1705-rain.js?v=17.0.5-p218"></script>
-<script src="js/iba-1705-copyinv.js?v=17.0.5-p197"></script>
-<script src="js/iba-1705-empty.js?v=17.0.5-p207"></script>
-<script src="js/iba-1705-ie.js?v=17.0.5-p205"></script>
-<script src="js/iba-1705-mclean.js?v=17.0.5-p201"></script>
-<script src="js/iba-1705-batchnew.js?v=17.0.5-p202"></script>
-<script src="js/iba-1705-idle.js?v=17.0.5-p217"></script>
-<script src="js/iba-1705-dashtools.js?v=17.0.5-p203"></script>
-<script src="js/iba-assistant.js?v=17.0.5-p198"></script>
-<script src="js/iba-status-options.js?v=15.0.0-p45"></script>
-<script src="js/iba-job-po-fill.js?v=17.0.5-p50"></script>
-<script src="js/iba-17-p1.js?v=17.0.0-p1"></script>
-<script src="js/iba-17-p2.js?v=17.0.5-p183"></script>
-<script src="js/iba-print-basket.js?v=17.0.5-p26"></script>
-<script src="js/iba-task-tidy.js?v=17.0.0-p6"></script>
-<script src="js/iba-17-p7.js?v=17.0.5-p30"></script>
-<script src="js/iba-17-p13.js?v=17.0.0-p13"></script>
-<script src="js/iba-17-p16.js?v=17.0.2-p2"></script>
-<script src="js/iba-17-p21.js?v=17.0.4-p7"></script>
-<script src="js/iba-1705-invperm.js?v=17.0.5-p180"></script>
-<script src="js/iba-17-p24.js?v=17.0.5-p44"></script>
-<script src="js/iba-17-p27.js?v=17.0.5-p130"></script>
-<script src="js/iba-1705-snbatch.js?v=17.0.5-p136"></script>
-<script src="js/iba-1705-notesync.js?v=17.0.5-p136"></script>
-<script src="js/iba-1702-urgent.js?v=17.0.2"></script>
-<script src="js/iba-1702-reception-batch.js?v=17.0.5-p50"></script>
-<script src="js/iba-1702-clear.js?v=17.0.5-p22"></script>
-<script src="js/iba-1702-opo.js?v=17.0.5-p115"></script>
-<script src="js/iba-1702-esn.js?v=17.0.5-p17"></script>
-<script src="js/iba-lpo-mail.js?v=17.0.5-p1"></script>
-<script src="js/iba-1705-view.js?v=17.0.5-p175"></script>
-<script src="js/iba-1705-fit.js?v=17.0.5-p48"></script>
-<script src="js/iba-1705-search.js?v=17.0.5-p81"></script>
-<script src="js/iba-1705-inbatch.js?v=17.0.5-p4"></script>
-<script src="js/iba-1705-cancel.js?v=17.0.5-p5"></script>
-<script src="js/iba-1705-away.js?v=17.0.5-p14"></script>
-<script src="js/iba-1705-srvpick.js?v=17.0.5-p28"></script>
-<script src="js/iba-1705-reply.js?v=17.0.5-p33"></script>
-<script src="js/iba-1705-modalfit.js?v=17.0.5-p36"></script>
-<script src="js/iba-1705-release.js?v=17.0.5-p215"></script>
-<script src="js/iba-1705-ajbm.js?v=17.0.5-p216"></script>
-<script src="js/iba-1705-addpo.js?v=17.0.5-p57"></script>
-<script src="js/iba-1705-sitestock.js?v=17.0.5-p46b"></script>
-<script src="js/iba-1705-msmenu.js?v=17.0.5-p209"></script>
-<script src="js/iba-1705-trfix.js?v=17.0.5-p209"></script>
-<script src="js/iba-1705-place.js?v=17.0.5-p19b"></script>
-<script src="js/iba-1705-recv.js?v=17.0.5-p20"></script>
-<script src="js/iba-1705-watch.js?v=17.0.5-p117"></script>
-<script src="js/iba-1705-ret.js?v=17.0.5-p149"></script>
-<script src="js/iba-1705-urgtick.js?v=17.0.5-p150"></script>
-<script src="js/iba-1705-histto.js?v=17.0.5-p96"></script>
-<script src="js/iba-1705-pocard.js?v=17.0.5-p187"></script>
-<script src="js/iba-1705-txundo.js?v=17.0.5-p190"></script>
-<script src="js/iba-1705-finpay.js?v=17.0.5-p183"></script>
-<script src="js/iba-1705-paymonth.js?v=17.0.5-p105"></script>
-<script src="js/iba-1705-n2a.js?v=17.0.5-p155"></script>
-<script src="js/iba-1705-keep.js?v=17.0.5-p114"></script>
-<script src="js/iba-1705-ieui.js?v=17.0.5-p157"></script>
-<script src="js/iba-1705-batchui.js?v=17.0.5-p116"></script>
-<script src="js/iba-1705-mhome.js?v=17.0.5-p172"></script>
-<script src="js/iba-1705-receive.js?v=17.0.5-p179"></script>
-<script src="js/iba-1705-photonames.js?v=17.0.5-p180"></script>
-<script src="js/iba-1705-newinv.js?v=17.0.5-p128"></script>
-<script src="js/iba-1705-invguide.js?v=17.0.5-p214"></script>
-<script src="js/iba-1705-ver.js?v=17.0.5-p27"></script>
-<script src="js/iba-1703-desk.js?v=17.0.3-p12"></script>
-<script src="js/iba-1703-p4.js?v=17.0.3-p5"></script>
-<script src="js/iba-weekly-report.js?v=15.0.0-p37"></script>
-<script src="js/iba-vacation-handover.js?v=17.0.0-p18"></script>
-<script src="js/iba-session-lock.js?v=15.0.0-p25"></script>
-<script src="js/app-version-checker.js?v=17.0.4"></script>
-<script src="js/iba-silent-update.js?v=17.0.4"></script>
-</div>    <script src="js/app-approval-print.js?v=15.0.0-p9"></script>
-<link href="css/iba-1705-black.css?v=17.0.5-p206" rel="stylesheet"/>
-<link href="css/iba-1705-nostripe.css?v=17.0.5-p205" rel="stylesheet"/>
+<script src="js/iba-inv-active-job.js?v=18.0.0"></script>
+<script src="js/iba-shell.js?v=18.0.0"></script>
+<script src="js/iba-phone.js?v=18.0.0"></script>
+<script src="js/iba-live-counts.js?v=18.0.0"></script>
+<script src="js/iba-task-check.js?v=18.0.0"></script>
+<script src="js/iba-print.js?v=18.0.0"></script>
+<script src="js/iba-bg-dim.js?v=18.0.0"></script>
+<script src="js/iba-1705-rain.js?v=18.0.0"></script>
+<script src="js/iba-1705-copyinv.js?v=18.0.0"></script>
+<script src="js/iba-1705-empty.js?v=18.0.0"></script>
+<script src="js/iba-1705-ie.js?v=18.0.0"></script>
+<script src="js/iba-1705-mclean.js?v=18.0.0"></script>
+<script src="js/iba-1705-batchnew.js?v=18.0.0"></script>
+<script src="js/iba-1705-idle.js?v=18.0.0"></script>
+<script src="js/iba-1705-dashtools.js?v=18.0.0"></script>
+<script src="js/iba-assistant.js?v=18.0.0-p5"></script>
+<script src="js/iba-status-options.js?v=18.0.0"></script>
+<script src="js/iba-job-po-fill.js?v=18.0.0"></script>
+<script src="js/iba-17-p1.js?v=18.0.0"></script>
+<script src="js/iba-1800-fuzzy.js?v=18.0.0-p5"></script>
+<script src="js/iba-17-p2.js?v=18.0.0-p5"></script>
+<script src="js/iba-print-basket.js?v=18.0.0"></script>
+<script src="js/iba-task-tidy.js?v=18.0.0"></script>
+<script src="js/iba-17-p7.js?v=18.0.0"></script>
+<script src="js/iba-17-p13.js?v=18.0.0"></script>
+<script src="js/iba-17-p16.js?v=18.0.0"></script>
+<script src="js/iba-17-p21.js?v=18.0.0"></script>
+<script src="js/iba-1705-invperm.js?v=18.0.0"></script>
+<script src="js/iba-17-p24.js?v=18.0.0"></script>
+<script src="js/iba-17-p27.js?v=18.0.0"></script>
+<script src="js/iba-1705-snbatch.js?v=18.0.0"></script>
+<script src="js/iba-1705-notesync.js?v=18.0.0"></script>
+<script src="js/iba-1702-urgent.js?v=18.0.0"></script>
+<script src="js/iba-1702-reception-batch.js?v=18.0.0"></script>
+<script src="js/iba-1702-clear.js?v=18.0.0"></script>
+<script src="js/iba-1702-opo.js?v=18.0.0"></script>
+<script src="js/iba-1702-esn.js?v=18.0.0"></script>
+<script src="js/iba-lpo-mail.js?v=18.0.0"></script>
+<script src="js/iba-1800-skillaccess.js?v=18.0.0-p5"></script>
+<script src="js/iba-1705-view.js?v=18.0.0"></script>
+<script src="js/iba-1705-fit.js?v=18.0.0"></script>
+<script src="js/iba-1705-search.js?v=18.0.0"></script>
+<script src="js/iba-1705-inbatch.js?v=18.0.0"></script>
+<script src="js/iba-1705-cancel.js?v=18.0.0"></script>
+<script src="js/iba-1705-away.js?v=18.0.0"></script>
+<script src="js/iba-1705-srvpick.js?v=18.0.0"></script>
+<script src="js/iba-1705-reply.js?v=18.0.0"></script>
+<script src="js/iba-1705-modalfit.js?v=18.0.0"></script>
+<script src="js/iba-1705-release.js?v=18.0.0"></script>
+<script src="js/iba-1705-ajbm.js?v=18.0.0"></script>
+<script src="js/iba-1705-tblfit.js?v=18.0.0-p4"></script>
+<script src="js/iba-1705-addpo.js?v=18.0.0"></script>
+<script src="js/iba-1705-sitestock.js?v=18.0.0"></script>
+<script src="js/iba-1705-msmenu.js?v=18.0.0"></script>
+<script src="js/iba-1705-trfix.js?v=18.0.0"></script>
+<script src="js/iba-1705-place.js?v=18.0.0"></script>
+<script src="js/iba-1705-recv.js?v=18.0.0"></script>
+<script src="js/iba-1705-watch.js?v=18.0.0"></script>
+<script src="js/iba-1705-ret.js?v=18.0.0"></script>
+<script src="js/iba-1705-urgtick.js?v=18.0.0"></script>
+<script src="js/iba-1705-histto.js?v=18.0.0"></script>
+<script src="js/iba-1705-pocard.js?v=18.0.0"></script>
+<script src="js/iba-1705-txundo.js?v=18.0.0"></script>
+<script src="js/iba-1705-finpay.js?v=18.0.0"></script>
+<script src="js/iba-1705-paymonth.js?v=18.0.0"></script>
+<script src="js/iba-1705-n2a.js?v=18.0.0"></script>
+<script src="js/iba-1705-keep.js?v=18.0.0"></script>
+<script src="js/iba-1705-ieui.js?v=18.0.0"></script>
+<script src="js/iba-1705-batchui.js?v=18.0.0"></script>
+<script src="js/iba-1705-mhome.js?v=18.0.0"></script>
+<script src="js/iba-1705-receive.js?v=18.0.0"></script>
+<script src="js/iba-1705-photonames.js?v=18.0.0"></script>
+<script src="js/iba-1705-newinv.js?v=18.0.0"></script>
+<script src="js/iba-1705-invguide.js?v=18.0.0"></script>
+<script src="js/iba-1705-ver.js?v=18.0.0"></script>
+<script src="js/iba-1703-desk.js?v=18.0.0"></script>
+<script src="js/iba-1703-p4.js?v=18.0.0"></script>
+<script src="js/iba-weekly-report.js?v=18.0.0"></script>
+<script src="js/iba-vacation-handover.js?v=18.0.0"></script>
+<script src="js/iba-session-lock.js?v=18.0.0"></script>
+<script src="js/app-version-checker.js?v=18.0.0"></script>
+<script src="js/iba-silent-update.js?v=18.0.0"></script>
+</div>    <script src="js/app-approval-print.js?v=18.0.0"></script>
+<link href="css/iba-1705-black.css?v=18.0.0-p5" rel="stylesheet"/>
+<link href="css/iba-1705-nostripe.css?v=18.0.0" rel="stylesheet"/>
 </body>
 </html>
