@@ -2121,6 +2121,12 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
 @layer iba-ui {
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings .iba-rain-opts { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; margin: 10px 0 !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings .iba-rain-opts [data-rain].is-on { background: rgba(94,214,196,.22) !important; border-color: rgba(94,214,196,.7) !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  /* 17.0.5 patch 218: thunder buttons (gold when on, faded when the page has no rain) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings .iba-thunder-opts [data-thunder].is-on { background: rgba(232,197,71,.20) !important; border-color: rgba(232,197,71,.75) !important; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings .iba-thunder-opts [data-thunder] i { color: #e8c547 !important; -webkit-text-fill-color: #e8c547 !important; margin-right: 4px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings .iba-thunder-opts [data-thunder]:disabled { opacity: .4 !important; cursor: not-allowed !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings [data-thunder-test] { margin-right: 8px !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #iba-shell-bg-settings [data-thunder-test][hidden] { display: none !important; }
 }
 /* 17.0.5 patch 192: rain per page rows */
 @layer iba-ui {
