@@ -22,9 +22,12 @@
   var VLIST = 'iba-bg-video-list-v1', VLIST_TTL = 6 * 3600 * 1000;
   function okName(v) { return /^[A-Za-z0-9 ._-]{1,80}$/.test(v) ? v : ''; }
   try { var vl = JSON.parse(localStorage.getItem(VLIST) || 'null'); if (vl && Array.isArray(vl.files) && vl.files.length) VIDEOS = vl.files; } catch (_) {}
-  function loadVideoList() {
+  var vlBusy = false;
+  function loadVideoList(fresh) {
     var vl = null; try { vl = JSON.parse(localStorage.getItem(VLIST) || 'null'); } catch (_) {}
-    if (vl && Date.now() - (vl.at || 0) < VLIST_TTL) return;
+    // patch 217: opening the video list (Super Admin) re-checks GitHub if the copy is over 1 min old
+    if (vl && Date.now() - (vl.at || 0) < (fresh ? 60 * 1000 : VLIST_TTL)) return;
+    if (vlBusy) return; vlBusy = true;
     if (typeof fetch !== 'function') return;
     fetch(VIDEO_API, { headers: { 'Accept': 'application/vnd.github+json' }, cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw new Error('GitHub ' + r.status); return r.json(); })
@@ -37,8 +40,10 @@
         VIDEOS = files;
         try { localStorage.setItem(VLIST, JSON.stringify({ at: Date.now(), files: files })); } catch (_) {}
         fillSelects(); paint();
+        try { window.dispatchEvent(new CustomEvent('iba:video-list')); } catch (_) {}
       })
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { vlBusy = false; });
   }
   var LEVELS = { off: 0, light: 110, heavy: 260 };
   var PAGES = [['login', 'Welcome screen', 'fa-door-open'], ['workdesk', 'WorkDesk', 'fa-briefcase'], ['inventory', 'Inventory', 'fa-boxes-stacked'], ['invoice', 'Invoice Management', 'fa-file-invoice']];
@@ -224,6 +229,8 @@
       if (b) { var r = b.closest('[data-rain-page]'); if (r) { shown[r.getAttribute('data-rain-page')] = lv(b.getAttribute('data-rain')); paint(); update(); } return; }
       if (e.target.closest('[data-rain-save]')) save();
     });
+    el.addEventListener('pointerdown', function (e) { if (isSuper() && e.target.closest('[data-vid-page]')) loadVideoList(true); }, true);
+    el.addEventListener('focusin', function (e) { if (isSuper() && e.target.closest('[data-vid-page]')) loadVideoList(true); });
     el.addEventListener('change', function (e) {
       var sl = e.target.closest('[data-vid-page]'); if (!sl) return;
       if (!isSuper()) { paint(); return; }
@@ -265,6 +272,7 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.ibaRain = {
+    refreshVideos: function () { loadVideoList(true); },
     get: function () { return { page: page(), saved: copy(saved), shown: copy(shown), video: vnorm(vshown), videoSaved: vnorm(vsaved) }; },
     video: function (pg, v) { if (vshown.hasOwnProperty(pg)) { vshown[pg] = okName(String(v || '').replace(/\.mp4$/i, '')); fillSelects(); paint(); update(); } },
     set: function (pg, v) { if (v === undefined) { v = pg; pg = page(); } if (shown.hasOwnProperty(pg)) { shown[pg] = lv(v); paint(); update(); } }

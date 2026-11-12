@@ -144,6 +144,7 @@
         show();
     }, 5000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) activity(); });
+    window.addEventListener('iba:video-list', () => paint());
 
     // ---- Settings card (everyone: On/Off; Super Admin: video, minutes, Preview, Save) ----
     function card() { return $('iba-ss-settings'); }
@@ -169,6 +170,8 @@
             if (e.target.closest('[data-ss-preview]')) { const sel = el.querySelector('[data-ss-video]'); setTimeout(() => show({ video: sel ? sel.value : cfg.video }), 150); return; }
             if (e.target.closest('[data-ss-save]')) save();
         });
+        el.addEventListener('change', (e) => { const x = e.target.closest('[data-ss-video],[data-ss-min]'); if (x) { x.dataset.picked = '1'; note('Not saved yet. Press Save to use it for everyone.'); } });
+        el.addEventListener('pointerdown', (e) => { if (isSuper() && e.target.closest('[data-ss-video]') && window.ibaRain && typeof window.ibaRain.refreshVideos === 'function') window.ibaRain.refreshVideos(); }, true);
         paint();
         return true;
     }
@@ -184,8 +187,11 @@
         if (key !== painted) {
             painted = key;
             const sv = el.querySelector('[data-ss-video]');
-            if (sv) { sv.innerHTML = '<option value="">No video (clock only)</option>' + videos().map((v) => '<option value="' + esc(v) + '">' + esc(v.replace(/^V-/, '')) + '</option>').join(''); sv.value = cfg.video; }
-            const sm = el.querySelector('[data-ss-min]'); if (sm) sm.value = String(cfg.minutes);
+            // patch 217: a new video list must not undo an unsaved pick
+            const keepV = sv && sv.dataset.picked === '1' ? sv.value : null;
+            const sm = el.querySelector('[data-ss-min]'), keepM = sm && sm.dataset.picked === '1' ? sm.value : null;
+            if (sv) { sv.innerHTML = '<option value="">No video (clock only)</option>' + videos().map((v) => '<option value="' + esc(v) + '">' + esc(v.replace(/^V-/, '')) + '</option>').join(''); sv.value = keepV != null ? keepV : cfg.video; }
+            if (sm) sm.value = keepM != null ? keepM : String(cfg.minutes);
         }
     }
     function note(t, bad) { const n = card() && card().querySelector('[data-ss-note]'); if (n) { n.textContent = t || ''; n.classList.toggle('is-bad', !!bad); } }
@@ -195,7 +201,7 @@
         if (!d) { note('Could not reach Firebase. Try again.', true); return; }
         const next = norm({ video: el.querySelector('[data-ss-video]').value, minutes: Number(el.querySelector('[data-ss-min]').value) });
         note('Saving...');
-        d.ref(SS_PATH).set({ video: next.video, minutes: next.minutes }).then(() => { cfg = next; try { localStorage.setItem(SS_CFG, JSON.stringify(cfg)); } catch (_) {} painted = ''; paint(); note('Saved for everyone.'); },
+        d.ref(SS_PATH).set({ video: next.video, minutes: next.minutes }).then(() => { cfg = next; el.querySelectorAll('[data-picked]').forEach((x) => { delete x.dataset.picked; }); try { localStorage.setItem(SS_CFG, JSON.stringify(cfg)); } catch (_) {} painted = ''; paint(); note('Saved for everyone.'); },
             () => note('Firebase did not accept it. Nothing was changed.', true));
     }
     function boot() { let n = 0; (function again() { if (!build() && n++ < 60) setTimeout(again, 750); })(); setInterval(paint, 3000); }
