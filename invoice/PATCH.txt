@@ -1,3 +1,10 @@
+17.0.5 patch 218 (12-Nov-2026)
+- Thunder (martin): Settings > Shell Backgrounds has No thunder / Light thunder / Heavy thunder per page, next to the rain. Thunder comes with rain (greyed out when the page has No rain). Saved for everyone with Save (system_settings/shell_backgrounds/thunderPages).
+  Light = normal thunder: soft flash in the clouds every 20-40 s, sometimes a faint far bolt. Heavy = big strike: bright double flash + clear bolt with branches every 8-15 s. Silent. It only lights the background, never the pages.
+  "Show a strike" button (Super Admin) to see it right away.
+- Rain + thunder now also on phones (fewer drops, lighter frame rate), behind the phone cards. Not on the Z Flip cover screen. Videos stay PC only.
+Files: index.html, PATCH.txt, js/iba-1705-rain.js, css/iba-1705-fit.css
+
 17.0.5 patch 217 (12-Nov-2026)
 - Settings video lists (Moving background + Screensaver): opening a video dropdown as Super Admin now re-checks the GitHub video folder (if the saved list is over 1 minute old), so newly uploaded videos show up without waiting 6 hours.
 - Screensaver: a new video list or a Firebase update no longer resets an unsaved pick; shows "Not saved yet. Press Save to use it for everyone."
