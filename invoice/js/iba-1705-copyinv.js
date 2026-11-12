@@ -1,6 +1,7 @@
 /* 17.0.5 patch 197 (martin): small copy icon next to the invoice number
  *   - WorkDesk Active Task: inside the Ref chip of each row (copies without opening the PDF)
  *   - Invoice Entry pop-up: at the right end of the "Invoice No." box
+ *   - 18.0.0 (martin): Invoice Entry "Existing Invoices" table, after each Inv No. (copies, does not open the invoice)
  * Tap = copied, the icon turns into a green tick for 1.2 s. */
 (function () {
     'use strict';
@@ -26,6 +27,8 @@
         });
     }
     function textFor(b) {
+        var cell = b.closest('td[data-cpy-cell]');
+        if (cell) { var k = cell.cloneNode(true); k.querySelectorAll('.iba-cpy').forEach(function (x) { x.remove(); }); return k.textContent; }
         var chip = b.closest('.wd-ref-chip');
         if (chip) { var c = chip.cloneNode(true); c.querySelectorAll('.iba-cpy').forEach(function (x) { x.remove(); }); return c.textContent; }
         var w = b.closest('.iba-cpy-wrap'); var inp = w && w.querySelector('input');
@@ -51,6 +54,12 @@
             if (!String(chip.textContent || '').trim()) return;
             chip.appendChild(btn('is-chip'));
         });
+        document.querySelectorAll('#im-invoices-table-body > tr > td:nth-child(2)').forEach(function (td) {
+            if (td.querySelector('.iba-cpy') || td.querySelector('input,select,textarea')) return;
+            if (!String(td.textContent || '').trim()) return;
+            td.setAttribute('data-cpy-cell', '');
+            td.appendChild(btn('is-cell'));
+        });
         var inp = document.getElementById('im-inv-no');
         if (inp && !inp.parentElement.classList.contains('iba-cpy-wrap')) {
             var w = document.createElement('span'); w.className = 'iba-cpy-wrap';
@@ -63,6 +72,8 @@
         decorate();
         var tb = document.getElementById('active-task-table-body');
         try { new MutationObserver(soon).observe(tb || document.body, { childList: true, subtree: true }); } catch (_) {}
+        var ib = document.getElementById('im-invoices-table-body');
+        try { if (ib) new MutationObserver(soon).observe(ib, { childList: true, subtree: true }); } catch (_) {}
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
     window.ibaCopyInv = { decorate: decorate };

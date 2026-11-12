@@ -293,7 +293,7 @@
     // reminds and messages. Everything else (brief, Batch Entry, new invoice,
     // reports, downloads) is on the computer.
     // 15.0.0 patch 27: invoices by PO or vendor only (no search by status)
-    const PHONE_ALLOW = ['track_invoices', 'invoice_activity', 'find_po', 'track_transfer', 'find_transfers', 'find_person'];
+    const PHONE_ALLOW = ['track_invoices', 'invoice_activity', 'find_po', 'track_transfer', 'find_transfers', 'find_person', 'find_anything'];
     const PHONE_TPL = ['inv_status', 'transfer', 'person', 'receive_delivery'];
     function phoneOk(name) { return !onPhone() || PHONE_ALLOW.indexOf(name) !== -1; }
     const PHONE_NO = 'On the phone the assistant searches, tracks, reminds and messages (and shows Now brief). Batch Entry, new invoices, reports and downloads are on the computer.';
@@ -457,6 +457,9 @@
                   position: { type: 'string', description: 'Position(s), several separated by commas, e.g. "Site DC, Storekeeper"' } } } },
             { name: 'track_transfer', description: 'Inventory / Material: where a Transfer, Restock, Return or Usage request is now and WHO MUST ACT NEXT, by its control number (TRF-0361, STK-0012, USE-0040, RET-0007; digits alone also work). Gives each item, its step (Transfer: 1 source site confirms and sends -> 2 admin authorizes -> 3 receiver confirms receipt), the person who must act, since when, problems (e.g. no person set, name not a user) and the recent steps.',
               parameters: { type: 'object', properties: { control: { type: 'string', description: 'Control number(s), e.g. "TRF-0361"; several separated by commas.' } }, required: ['control'] } },
+            // 18.0.0 patch 5: one word anywhere (transfers + invoice texts + close vendor spellings)
+            { name: 'find_anything', description: 'Search ONE word or short phrase everywhere at once: transfers (items, vehicles, machines), invoice descriptions / notes / file names, and vendor names written with a wrong or heard spelling (e.g. "fenar" -> Finar Trading). Use it when the user gives a word without saying where to look, or when a vendor name finds nothing.',
+              parameters: { type: 'object', properties: { text: { type: 'string', description: 'The word(s) to look for, e.g. "telehandler" or "fenar"' } }, required: ['text'] } },
             { name: 'find_transfers', description: 'Inventory / Material: find Transfer, Restock, Return or Usage requests by what they say - a vehicle or equipment number (e.g. 36588), an item or machine (e.g. wheel loader, Komatsu), a product, a person or a site. Lists each matching control number with its items, the matching text, its step and who has it now. It looks through the transfers already loaded; when it says older ones were not searched, tell the user to press "Search all transfers" on the card (or call again with all=true only if the user asked to search everything).',
               parameters: { type: 'object', properties: {
                   text: { type: 'string', description: 'Words to look for, e.g. "36588" or "wheel loader"' },
@@ -1439,6 +1442,85 @@
         }
     }
 
+    // 18.0.0 patch 5 (martin, mock-up https://claude.ai/artifact/TQ4cSMBiPznAbZDAUBmQyc): ANY WORD.
+    // "telehandle" finds it in transfers AND in invoices (description / note / file name / vendor) at once,
+    // and a vendor typed with a wrong spelling offers the close names. No AI and no big download: transfers
+    // as the Track tab reads them, invoices from the copy already saved in this browser.
+    const ANY_FIELDS = ['details', 'note', 'invName', 'srvName', 'vendorName', 'invNumber', 'ref', 'description', 'remarks'];
+    async function anyFind(text) {
+        const q = String(text || '').trim();
+        const acc = access();
+        const out = { text: q, transfers: [], trf_total: 0, invoices: [], inv_total: 0, vendors: [], vendor_n: {}, inv_saved: true };
+        if (q.length < 3) return out;
+        const qn = norm(q);
+        const qw = qn.split(/\s+/).filter((w) => w.length >= 2);
+        // vendors: exact ones are answered by Track already, here only the close spellings
+        try { await ensureBase(); const vp = vendorPOs(q, poMap()); if (!vp.list.length) { out.vendors = vp.sugg; out.vendor_n = vp.suggN || {}; } } catch (_) {}
+        // transfers
+        try { const tr = await transferFind({ text: q }); if (tr && !tr.error) { out.transfers = (tr.items || []).slice(0, 5); out.trf_total = tr.total || out.transfers.length; } } catch (_) {}
+        // invoices (saved copy / list in memory only)
+        let all = null;
+        try { if (window.__invoiceEntriesFullLoaded === true && typeof allInvoiceData !== 'undefined' && allInvoiceData) all = allInvoiceData; } catch (_) {}
+        if (!all) { try { all = await withTimeout(savedInvoiceCopy(), 4000, 'Saved invoices'); } catch (_) { all = null; } }
+        if (!all) { out.inv_saved = false; return out; }
+        const map = poMap();
+        const hits = [];
+        Object.keys(all).forEach((po) => {
+            const invs = all[po];
+            if (!invs || typeof invs !== 'object') return;
+            const rec = map[String(po).toUpperCase()] || map[po] || null;
+            const site = rec ? siteNo(rec['Project ID'] || rec.Project || '') : '';
+            if (!acc.allSites && acc.sites.indexOf(site) === -1) return;
+            Object.keys(invs).forEach((k) => {
+                const inv = invs[k];
+                if (!inv || typeof inv !== 'object') return;
+                let field = '', val = '';
+                const blob = ANY_FIELDS.map((fk) => { const v = String(inv[fk] == null ? '' : inv[fk]); return v; }).join(' \u0001 ');
+                const low = blob.toLowerCase();
+                if (!qw.every((w) => low.indexOf(w) !== -1)) return;
+                for (const fk of ANY_FIELDS) { const v = String(inv[fk] == null ? '' : inv[fk]); if (v && v.toLowerCase().indexOf(qw[0]) !== -1) { field = fk; val = v; break; } }
+                const at = Date.parse(inv.invoiceDate || '') || Number(inv.createdAt) || 0;
+                hits.push({ po: String(po).toUpperCase(), key: k, vendor: String(inv.vendorName || (rec && (rec['Supplier Name'] || rec.Supplier)) || ''), inv_no: String(inv.invNumber || inv.invEntryID || ''),
+                    status: String(inv.status || ''), site: rec ? String(rec['Project ID'] || rec.Project || '') : '', amount: acc.amounts && inv.invValue ? money(inv.invValue) : '',
+                    match: field === 'vendorName' || field === 'invNumber' ? '' : val.length > 90 ? val.slice(0, 88) + '…' : val, _t: at });
+            });
+        });
+        hits.sort((a, b) => (norm(a.status) === 'paid') - (norm(b.status) === 'paid') || b._t - a._t);
+        out.inv_total = hits.length;
+        out.invoices = hits.slice(0, 8).map((h) => { h.date = h._t ? fmtDate(h._t) : ''; delete h._t; return h; });
+        return out;
+    }
+    function anyFindHtml(x) {
+        const n = (x.trf_total || 0) + (x.inv_total || 0);
+        const row = (btn, title, status, sub, match) => '<li>' + btn + '<span class="iba-ai-grow">' + esc(title) + (status ? ' <span class="iba-ai-any-st">' + esc(status) + '</span>' : '') +
+            (match ? '<small class="iba-ai-trf-match">' + esc(match) + '</small>' : '') + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></li>';
+        const nv = (x.vendors || []).length;
+        let h = '<div class="iba-ai-card-head"><i class="fa-solid fa-wand-magic-sparkles"></i> ' + (n ? 'I found "' + esc(x.text) + '" in ' + n + ' place' + (n === 1 ? '' : 's') : nv ? 'No vendor called "' + esc(x.text) + '". Did you mean:' : 'Nothing mentions "' + esc(x.text) + '"') + '</div>';
+        if (nv) {
+            h += (n ? '<div class="iba-ai-sub">No vendor called "' + esc(x.text) + '". Did you mean</div>' : '') + '<div class="iba-ai-chiprow">' + x.vendors.map((v) => { const c = (x.vendor_n || {})[v];
+                return '<button type="button" class="iba-ai-chip" data-track="' + esc(JSON.stringify({ vendor: v })) + '"' + (c && c.also && c.also.length ? ' title="Also written: ' + esc(c.also.join(' / ')) + ' (counted together)"' : '') + '>' + esc(v) +
+                    (c ? ' <small class="iba-ai-sugg-n">' + c.n + ' PO' + (c.n === 1 ? '' : 's') + '</small>' : '') + '</button>'; }).join('') + '</div>';
+        }
+        if (x.transfers && x.transfers.length) {
+            h += '<div class="iba-ai-sub">Transfers' + (x.trf_total > x.transfers.length ? ' · first ' + x.transfers.length + ' of ' + x.trf_total : '') + '</div><ul class="iba-ai-rows">' + x.transfers.map((r) =>
+                row('<button type="button" class="iba-ai-chip iba-ai-trf-no" data-trf="' + esc(r.control) + '" title="Who has it now">' + esc(r.control) + '</button>',
+                    [r.type, r.products].filter(Boolean).join(' · '), r.open ? r.status : r.status, [(r.from || r.to) ? (r.from || '?') + ' → ' + (r.to || '?') : '', r.created, r.open && r.waiting_for ? 'with ' + r.waiting_for : ''].filter(Boolean).join(' · '), r.match)).join('') + '</ul>';
+        }
+        if (x.invoices && x.invoices.length) {
+            h += '<div class="iba-ai-sub">Invoices' + (x.inv_total > x.invoices.length ? ' · newest ' + x.invoices.length + ' of ' + x.inv_total : '') + '</div><ul class="iba-ai-rows">' + x.invoices.map((r) =>
+                row(poLink(r.po), r.vendor || ('PO ' + r.po), r.status, [r.inv_no ? 'Inv ' + r.inv_no : '', r.site, r.date, r.amount ? 'QAR ' + r.amount : ''].filter(Boolean).join(' · '), r.match)).join('') + '</ul>';
+        } else if (!x.inv_saved) {
+            h += '<p class="iba-ai-foot">Invoices were not searched: this browser has no saved copy of the invoice list yet (open Invoice Records once).</p>';
+        }
+        if (n) h += '<p class="iba-ai-foot">Click a number to open it: a transfer shows who must act now, a PO shows its invoices.</p>';
+        else if (nv) h += '<p class="iba-ai-foot">Tap a name to see its POs (open ones first, newest first).</p>';
+        return h;
+    }
+    async function toolAnyFind(args) {
+        const r = await anyFind((args && (args.text || args.q)) || '');
+        return { result: { transfers: r.transfers.length, invoices: r.inv_total, vendors_close: r.vendors }, card: { kind: 'any_find', data: r } };
+    }
+
     // 15.0.0 patch 7: Track tab - two buttons side by side instead of a list:
     // Invoices (PO, vendor) and Inventory (Transfer, Usage, Restock, Return).
     const TRACK_KIND_KEY = 'iba-ai-track-kind-v1';
@@ -1790,10 +1872,16 @@
                 value: acc.amounts && e.amount ? money(e.amount) : undefined, steps: [] };
         });
     }
+    // 18.0.0 patch 5: the same company written differently counts as one ("Finar Trdg WLL" =
+    // "Finar Trading W.L.L.", js/iba-1800-fuzzy.js), and a wrong / heard spelling ("fenar") gets the
+    // close names to pick from (sounds alike, one letter off), each with its number of POs.
+    function vkey(raw) { return window.ibaFuzzy ? window.ibaFuzzy.key(raw) : (vendorWords(raw).join(' ') || vnorm(raw)); }
     function vendorPOs(vendor, map) {
+        const F = window.ibaFuzzy;
         const words = vendorWords(vendor);
-        const scores = {};
+        const cwords = F ? F.words(vendor) : words;
         const list = [];
+        const names = {};
         Object.keys(map || {}).forEach((k) => {
             const r = map[k] || {};
             const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '');
@@ -1801,12 +1889,22 @@
             if (!name || !words.length) return;
             const compact = name.replace(/ /g, '');
             const hit = (w) => name.includes(w) || compact.includes(w);
-            if (words.every(hit)) { list.push({ po: String(k).toUpperCase(), rec: r }); return; }
-            const sc = words.filter((w) => hit(w) || (w.length >= 4 && name.split(' ').some((nw) => nw.startsWith(w.slice(0, 4))))).length;
-            if (sc) scores[raw] = Math.max(scores[raw] || 0, sc);
+            let ok = words.every(hit);
+            if (!ok && F && cwords.length) { const cn = F.words(raw).join(' '); const cc = cn.replace(/ /g, ''); ok = cwords.every((w) => cn.includes(w) || cc.includes(w)); }
+            if (ok) { list.push({ po: String(k).toUpperCase(), rec: r }); return; }
+            names[raw.trim()] = (names[raw.trim()] || 0) + 1;
         });
-        const sugg = list.length ? [] : Object.keys(scores).sort((a, b) => scores[b] - scores[a] || a.localeCompare(b)).slice(0, 6);
-        return { list: list, sugg: sugg };
+        let sugg = [], suggN = {};
+        if (!list.length) {
+            if (F) {
+                F.suggest(vendor, Object.keys(names).map((n) => ({ name: n, n: names[n] })), 6).forEach((x) => { sugg.push(x.name); suggN[x.name] = { n: x.n, also: x.also }; });
+            } else {
+                const scores = {};
+                Object.keys(names).forEach((raw) => { const nm = vnorm(raw); const sc = words.filter((w) => w.length >= 4 && nm.split(' ').some((nw) => nw.startsWith(w.slice(0, 4)))).length; if (sc) scores[raw] = sc; });
+                sugg = Object.keys(scores).sort((a, b) => scores[b] - scores[a] || a.localeCompare(b)).slice(0, 6);
+            }
+        }
+        return { list: list, sugg: sugg, suggN: suggN };
     }
     function poInfo(p) {
         const r = p.rec || {};
@@ -1837,7 +1935,7 @@
         } else {
             const vp = vendorPOs(vendor, map);
             list = vp.list;
-            if (!list.length && vp.sugg.length) return { mode: 'suggest', message: 'No vendor called "' + vendor + '". Did you mean:', suggestions: vp.sugg, query: { site: site, year: year } };
+            if (!list.length && vp.sugg.length) return { mode: 'suggest', message: 'No vendor called "' + vendor + '". Did you mean:', suggestions: vp.sugg, sugg_n: vp.suggN, query: { site: site, year: year } };
             // 17.0.5 patch 171: a short name can fit several vendors ("arabian tra" = Arabian Trading
             // Agencies AND Arabian Trad. and Contractor of Elevators). Ask which one, never mix them.
             if (list.length && !(q && q.all)) {
@@ -1845,19 +1943,20 @@
                 list.forEach((x) => {
                     const r = x.rec || {};
                     const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '').trim();
-                    const key = vendorWords(raw).join(' ') || vnorm(raw);
+                    const key = vkey(raw);
                     if (!groups[key]) groups[key] = { key: key, n: 0, names: {} };
                     groups[key].n++; groups[key].names[raw] = (groups[key].names[raw] || 0) + 1;
                 });
                 const keys = Object.keys(groups);
                 if (keys.length > 1) {
-                    const want = vendorWords(vendor).join(' ');
+                    const want = vkey(vendor);
                     if (groups[want]) {
-                        list = list.filter((x) => { const r = x.rec || {}; const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '').trim(); return (vendorWords(raw).join(' ') || vnorm(raw)) === want; });
+                        list = list.filter((x) => { const r = x.rec || {}; const raw = String(r['Supplier Name'] || r['Supplier Name:'] || r.Supplier || '').trim(); return vkey(raw) === want; });
                     } else {
-                        const opts = keys.map((k) => groups[k]).sort((a2, b2) => b2.n - a2.n).slice(0, 10)
-                            .map((g) => Object.keys(g.names).sort((a2, b2) => g.names[b2] - g.names[a2])[0]);
-                        return { mode: 'suggest', message: '"' + vendor + '" fits ' + keys.length + ' vendors. Which one?', suggestions: opts, query: { site: site, year: year }, all_of: vendor };
+                        const gs = keys.map((k) => groups[k]).sort((a2, b2) => b2.n - a2.n).slice(0, 10);
+                        const opts = [], optN = {};
+                        gs.forEach((g) => { const ns = Object.keys(g.names).sort((a2, b2) => g.names[b2] - g.names[a2]); opts.push(ns[0]); optN[ns[0]] = { n: g.n, also: ns.slice(1) }; });
+                        return { mode: 'suggest', message: '"' + vendor + '" fits ' + keys.length + ' vendors. Which one?', suggestions: opts, sugg_n: optN, query: { site: site, year: year }, all_of: vendor };
                     }
                 }
             }
@@ -3009,6 +3108,7 @@
         invoice_activity: toolActivity,
         track_transfer: toolTransfer,
         find_transfers: toolTransferFind,
+        find_anything: toolAnyFind,
         download_invoices: toolExport,
         ceo_sort: toolCeoSort
     };
@@ -3050,6 +3150,8 @@
             'A colleague\'s number, email, site or position, or "who is X" -> find_person (it shows a button to message them in IBA).',
             isSuper() ? 'A file / download / Excel / CSV / full list of invoices in a status (also Under Review, With Accounts, Paid, which invoices_by_status leaves out) -> download_invoices; then say the file is ready on the card.' : '',
             'Which tool: received / entered / encoded / came in / submitted to Reception -> job_records (do not pass entered_by unless the user names a person or role; the answer already shows who entered each). The user\'s own waiting items (my tasks, with me, assigned to me) -> list_my_tasks. Where an invoice is now and its steps -> track_invoices. Who handled / who last managed -> invoice_activity. Invoices in a status (For SRV, On Hold, For IPC, approvals) -> invoices_by_status. "Invoices for IPC process" -> call job_records with type ipc and open_only true AND invoices_by_status with status For IPC, then answer in two groups (IPC jobs still in WorkDesk / invoices in Invoice Entry waiting for IPC).',
+            // 18.0.0 patch 5: guess the closest name instead of answering "not found"
+            'Names are often typed fast or heard over the phone: if a vendor, person or item name finds nothing, do NOT just say it was not found - call find_anything (or track_invoices / find_person with the closest spelling) and say which name you used, e.g. "I think you mean Finar Trading". Never mix two different companies.',
             'Inventory (Material): a Transfer moves stock between sites in 3 steps: the source site contact confirms and sends (Pending Source), the admin/approver authorizes (Pending Admin; stock leaves the source), the receiver at the destination confirms receipt (In Transit; stock is added), then Completed. Restock and Return: approver then receiver. Usage: approver then the requester confirms actual usage (Pending Confirmation). For any control number like TRF-0361 / STK- / USE- / RET-, or "who has / who must confirm this transfer", call track_transfer and name the person who must act, the step, and since when; mention any problems it reports. PO numbers and vehicle numbers can look the same (5 digits): a bare number is a PO for invoice questions; when the user says vehicle, Vh, plate, equipment, machine, loader, truck, material or transfer with the number, it is NOT a PO - use find_transfers; if it is unclear, ask which one they mean. To find requests by what they contain (a vehicle/equipment number like 36588, a machine like "wheel loader", an item, a person) call find_transfers with those words, then name the matching control numbers and who has each.',
             'For dates, pass the user\'s words in the "when" field (e.g. "last thursday", "past week", "2026"); the system works out the exact dates.',
             'Be warm, brief and practical. Reply in the language the user writes in.',
@@ -3458,6 +3560,9 @@
             ask: () => [{ key: 'site', label: 'Site', placeholder: 'e.g. 170', suggest: () => window.ibaSiteStock ? window.ibaSiteStock.siteOptions() : [] },
                 { key: 'words', label: 'Product (leave empty for all items)', placeholder: 'e.g. plywood', optional: true, suggest: (v) => window.ibaSiteStock ? window.ibaSiteStock.productOptions(v.site) : [] }],
             run: async (v) => { if (window.ibaSiteStock) window.ibaSiteStock.open(v.site, v.words); return null; } },
+        // 18.0.0 patch 5: who may use each skill (js/iba-1800-skillaccess.js)
+        skill_access: { name: 'Skill access', icon: 'fa-user-lock', superOnly: true, desc: 'Choose who can use each assistant skill: as built, everyone, or only some positions / named people. Saved for everyone.',
+            ask: () => [], action: () => { if (window.ibaSkillAccess) window.ibaSkillAccess.open(); } },
         access_check: { name: 'Access check', icon: 'fa-user-shield', superOnly: true, desc: 'Every user with the pages and buttons the system gives them (Invoice Management, Entry, Records, Payments, Dashboard, Financial Report, Stock, skills), and anything a non-Super-Admin should not have. Nothing is saved.',
             ask: () => [], action: () => { if (typeof window.ibaAccessCheck === 'function') window.ibaAccessCheck(); } },
         new_job: { name: 'Add new job', icon: 'fa-file-circle-plus', desc: 'Pick what the job is for and type the PO: the Add New Job form opens with vendor, vendor ID and site filled from the PO list. Check it and press Add. No AI used.',
@@ -3564,6 +3669,26 @@
                     : v.st === 'approvals' ? ['For Approval', 'CEO Approval'] : [v.st || 'Under Review'];
                 return [{ tool: 'add_to_batch', args: { today_statuses: st } }];
             } },
+        // 17.0.5 patch 219 (martin): start the screensaver now (everyone, PC) and open Empty merged items (Super Admin)
+        screensaver: { name: 'Screensaver now', icon: 'fa-tv', desc: 'Starts the screensaver right away, without waiting for the minutes. Move the mouse or press a key to come back.',
+            check: () => !!window.ibaIdle && typeof window.ibaIdle.show === 'function',
+            ask: () => [], run: async () => {
+                if (!window.ibaIdle || typeof window.ibaIdle.show !== 'function') throw new Error('The screensaver is not loaded on this page.');
+                setTimeout(() => { try { window.ibaIdle.show(); } catch (_) {} }, 700);
+                return 'Screensaver on. Move the mouse or press a key to come back.';
+            } },
+        merge_clean: { name: 'Empty merged items', icon: 'fa-broom', superOnly: true, desc: 'Opens the Empty merged items window of Material Stock: the zero cards left behind by a merge, to review and delete. Only the empty card is removed, movement history stays.',
+            ask: () => [], run: async () => {
+                if (!window.ibaMergeClean || typeof window.ibaMergeClean.open !== 'function') throw new Error('This tool is not loaded on this page.');
+                const have = () => { try { return typeof allMaterialStockData !== 'undefined' && Array.isArray(allMaterialStockData) && allMaterialStockData.length > 0; } catch (_) { return false; } };
+                if (!have()) {
+                    try { if (typeof ibaOpenShellPage === 'function') ibaOpenShellPage('inv-material-stock'); } catch (_) {}
+                    for (let i = 0; i < 40 && !have(); i++) await new Promise((r) => setTimeout(r, 500));
+                    if (!have()) return 'Material Stock is still loading. Try again in a moment.';
+                }
+                window.ibaMergeClean.open();
+                return 'Empty merged items is open.';
+            } },
         // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
         reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv or the PO file yet are left out and listed. No AI used.',
             ask: () => [], run: async () => {
@@ -3626,7 +3751,34 @@
                 return [{ tool: 'recent_status_changes', args: a }];
             } }
     };
-    function tplAllowed(id) { const t = SKILL_TPL[id]; return !!t && (!t.superOnly || isSuper()) && (!t.check || !!t.check()) && (!t.adminOnly || isAdminUser()) && (!onPhone() || PHONE_TPL.indexOf(id) !== -1); }
+    // 18.0.0 patch 5: Skill access (Super Admin setting) can open a skill to everyone or to some
+    // positions / people, or close it to them. Locked skills keep their own rule (their page is Super Admin
+    // only, or the list is kept in Settings).
+    const SKILL_LOCK = {
+        batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        today_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        reception_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        notes_to_acc: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        recent: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        ceo_sort: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        merge_clean: 'Deleting merged items is Super Admin only (Material Stock rule), so this skill cannot be opened to others.',
+        handover: 'A system tool for the Super Admin only.',
+        dbcheck: 'A system tool for the Super Admin only.',
+        access_check: 'A system tool for the Super Admin only.',
+        skill_access: 'A system tool for the Super Admin only.',
+        lpo_mail: 'Set in Settings › "Who can send LPO emails" (the list stays there).'
+    };
+    function tplBuilt(id) { const t = SKILL_TPL[id] || {}; return t.superOnly ? 'Super Admin only' : t.adminOnly ? 'Admins + Super Admin' : id === 'site_stock' ? 'Site stock users' : 'Everyone'; }
+    function tplAllowed(id) {
+        const t = SKILL_TPL[id];
+        if (!t) return false;
+        if (onPhone() && PHONE_TPL.indexOf(id) === -1) return false;
+        if (!SKILL_LOCK[id] && window.ibaSkillAccess) {
+            const d = window.ibaSkillAccess.decide(id);
+            if (d !== null) return d && (id === 'site_stock' || !t.check || !!t.check());
+        }
+        return (!t.superOnly || isSuper()) && (!t.check || !!t.check()) && (!t.adminOnly || isAdminUser());
+    }
     let sgSeq = 0;
     function askTplValues(title, fields, prefill) {
         return new Promise((resolve) => {
@@ -3927,7 +4079,7 @@
         if (/(^|[\s,;])\d{5}$/.test(el.value)) el.value = el.value + ', ';
     }, true);
     async function runTemplate(id, title, prefill) {
-        if (!tplAllowed(id)) { showView('chat'); addNote('This skill is for the Super Admin only.'); return; }
+        if (!tplAllowed(id)) { showView('chat'); addNote('This skill is not open for you. The Super Admin can open it in Skill access.'); return; }
         if (state.busy) return;
         bumpSkillUse(id);
         const t = SKILL_TPL[id];
@@ -4137,9 +4289,7 @@
               '<button type="button" data-run-tpl="site_stock" data-tpl-chip><i class="fa-solid fa-warehouse"></i> Site stock</button>' +
               '<button type="button" data-run-tpl="po_pull" data-tpl-chip><i class="fa-solid fa-folder-minus"></i> PO pull-out list</button>' +
               '<button type="button" data-run-tpl="access_check" data-tpl-chip><i class="fa-solid fa-user-shield"></i> Access check</button>' +
-              '<button type="button" data-run-tpl="esn_printers" data-tpl-chip><i class="fa-solid fa-stamp"></i> Who can print ESN</button>' +
               '<button type="button" data-run-tpl="lpo_mail" data-tpl-chip><i class="fa-solid fa-envelope-open-text"></i> LPO emails</button>' +
-              '<button type="button" data-run-tpl="lpo_mailers" data-tpl-chip><i class="fa-solid fa-user-pen"></i> Who can send LPO emails</button>' +
               '<button type="button" data-ai="skills" class="iba-chip-all" title="Every skill you can use"><i class="fa-solid fa-bolt"></i> All skills</button>' +
             '</div>' +
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
@@ -4291,6 +4441,15 @@
         u[k] = (Number(u[k]) || 0) + 1;
         lsSet(chipUseKey(), u);
     }
+    // 18.0.0 patch 5: Skill access changed (by the Super Admin, live): show / hide the chips and tiles again
+    window.addEventListener('iba:skill-access', () => {
+        try {
+            document.querySelectorAll('#iba-ai-panel [data-tpl-chip]').forEach((el) => { el.hidden = !tplAllowed(el.dataset.runTpl); });
+            trimChips();
+            const sk = $('iba-ai-skills');
+            if (sk && sk.offsetParent) renderSkills();
+        } catch (_) {}
+    });
     function trimChips() {
         const row = $('iba-ai-chips');
         if (!row) return;
@@ -4894,6 +5053,15 @@
                 if (vendorPOs(t, poMap()).list.length) {
                     return localDo(text, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
                 }
+            }
+        }
+        // 18.0.0 patch 5: any word (an item, machine, vehicle no., a misspelt vendor): transfers + invoices +
+        // close vendor names, without AI. Nothing found -> the AI (or the no-key path) as before.
+        if (words <= 4 && t.length >= 3 && /[a-z0-9]/i.test(t) && !looksTransfer(t) && !/\b(hi|hello|hey|thanks?|thank you|good (morning|afternoon|evening)|help|brief|today|waiting|remind(er)?s?|my tasks?|pending|why|how|what|who|when|which|where|show|list|give|tell|can|could|please|yes|no|ok|okay)\b/i.test(t) && !resolvePerson(t).name) {
+            let found = null;
+            try { found = await anyFind(t); } catch (_) { found = null; }
+            if (found && (found.transfers.length || found.inv_total || found.vendors.length)) {
+                return localDo(text, async () => { addCard({ kind: 'any_find', data: found }); });
             }
         }
         if (ready()) return false;
@@ -5899,7 +6067,9 @@
         if (!r || r.mode === 'error') return '<div class="iba-ai-card-head is-bad"><i class="fa-solid fa-circle-exclamation"></i> ' + esc((r && r.message) || 'Something went wrong.') + '</div>';
         if (r.mode === 'none') return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.message) + '</div>';
         if (r.mode === 'suggest') return '<div class="iba-ai-card-head"><i class="fa-solid fa-route"></i> ' + esc(r.message) + '</div><div class="iba-ai-chiprow">' +
-            r.suggestions.map((v) => '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: v }) + '">' + esc(v) + '</button>').join('') +
+            r.suggestions.map((v) => { const x = (r.sugg_n || {})[v];
+                return '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: v }) + '"' + (x && x.also && x.also.length ? ' title="Also written: ' + esc(x.also.join(' / ')) + ' (counted together)"' : '') + '>' + esc(v) +
+                    (x ? ' <small class="iba-ai-sugg-n">' + x.n + ' PO' + (x.n === 1 ? '' : 's') + (x.also && x.also.length ? ' · +' + x.also.length + ' spelling' + (x.also.length === 1 ? '' : 's') : '') + '</small>' : '') + '</button>'; }).join('') +
             (r.all_of ? '<button type="button" class="iba-ai-chip" data-track="' + trackQueryAttr(r.query, { vendor: r.all_of, all: 1 }) + '"><i class="fa-solid fa-layer-group"></i> All of them together</button>' : '') + '</div>';
         if (r.mode === 'summary') {
             const base = r.query || {};
@@ -6638,6 +6808,8 @@
             d.innerHTML = transferHtml(x);
         } else if (card.kind === 'trf_find') {
             d.innerHTML = transferFindHtml(x);
+        } else if (card.kind === 'any_find') {
+            d.innerHTML = anyFindHtml(x);
         } else if (card.kind === 'reception') {
             const ppl = Object.keys(x.entered_by || {}).map((k) => esc(k) + ' ' + esc(x.entered_by[k])).join(' · ');
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-inbox"></i> Received at Reception · ' + esc(x.period) + '<span class="iba-ai-badge is-plain">' + esc(x.total) + '</span></div>' +
@@ -6771,21 +6943,46 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], photo_names: ['Item photo file names', '#F7BE45'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
+        screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
-        po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309']
+        po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309'],
+        // 18.0.0 patch 5: the skills that sat in "More" get their short line too
+        site_stock: ['All items of one site', '#0891b2'], ceo_sort: ['Single or Summary later', '#a855f7'], lpo_mail: ['One Outlook email per PO', '#2a78d6'],
+        po_pull: ['Originals out of the file', '#64748b'], access_check: ['Who can see which pages', '#475569'], skill_access: ['Who can use each skill', '#b8901f']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
+    // 18.0.0 patch 5 (martin, mock-up https://claude.ai/artifact/S77GZiTiZ2mSHCd7cnvium): groups in work
+    // order, A to Z inside each group (sorted when drawn), gold title + count + line, divider between groups.
+    // "Who can print ESN" / "Who can send LPO emails" are not tiles any more: they live in Settings.
     const SKILL_GROUPS = [
-        ['Quick work', ['new_invoice', 'new_requisition', 'new_job', 'new_delivery', 'remind_me', 'brief', 'reception_batch', 'today_batch', 'pay_month', 'notes_to_acc']],
+        ['Add new', ['new_invoice', 'new_job', 'new_requisition', 'new_delivery']],
+        ['My day', ['brief', 'remind_me', 'screensaver']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
-        ['Inventory', ['photo_names']],
+        ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
         ['Approvals', ['approvals_list', 'urgent']],
-        ['Reports and lists', ['po_report', 'sn_print_all', 'weekly', 'site_list', 'export', 'export_copy', 'recent', 'batch']],
-        ['Admin tools', ['handover', 'dbcheck']]
+        ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
+        ['Reports and lists', ['export_copy', 'export', 'po_report', 'sn_print_all', 'site_list', 'weekly']],
+        ['LPO and PO file', ['lpo_mail', 'po_pull']],
+        ['Admin tools', ['access_check', 'dbcheck', 'skill_access', 'handover']]
     ];
+    const SKILL_NO_TILE = ['esn_printers', 'lpo_mailers'];
+    // for Skill access: every skill with its group, built-in rule and lock
+    window.ibaAiSkillCatalog = function () {
+        const out = [], seen = new Set();
+        const byName = (a, b) => SKILL_TPL[a].name.localeCompare(SKILL_TPL[b].name);
+        const add = (g, id) => {
+            if (seen.has(id) || !SKILL_TPL[id] || SKILL_NO_TILE.indexOf(id) !== -1) return;
+            seen.add(id);
+            const lock = SKILL_LOCK[id] || '';
+            out.push({ id, name: SKILL_TPL[id].name, group: g, desc: SKILL_TPL[id].desc || '', built: tplBuilt(id), lock, lockShort: lock ? (id === 'lpo_mail' ? 'Settings list' : 'Super Admin') : '' });
+        };
+        SKILL_GROUPS.forEach((g) => g[1].filter((id) => SKILL_TPL[id]).sort(byName).forEach((id) => add(g[0], id)));
+        Object.keys(SKILL_TPL).filter((id) => !seen.has(id)).sort(byName).forEach((id) => add('More', id));
+        return out;
+    };
     function skillTile(attr, icon, name, sub, color, title, extra) {
         return '<div class="iba-ai-tile-wrap"><button type="button" class="iba-ai-tile" ' + attr + ' style="--c:' + color + '" title="' + esc(title || '') + '">' +
             '<i class="fa-solid ' + icon + '"></i><b>' + esc(name) + '</b><small>' + esc(sub) + '</small></button>' + (extra || '') + '</div>';
@@ -6795,21 +6992,25 @@
     function renderSkills() {
         const box = $('iba-ai-skills');
         const list = skills();
-        const tpls = Object.keys(SKILL_TPL).filter(tplAllowed);
+        const tpls = Object.keys(SKILL_TPL).filter(tplAllowed).filter((id) => SKILL_NO_TILE.indexOf(id) === -1);
         const asks = (s) => s.tpl ? (SKILL_TPL[s.tpl] ? SKILL_TPL[s.tpl].ask().map((p) => p.label) : []) : skillParams(s).map((p) => p.label);
         const tplTile = (id) => { const t = SKILL_TPL[id], l = SKILL_LOOK[id] || [t.desc, '#2a78d6'];
-            return skillTile('data-run-tpl="' + id + '" data-find="' + esc(norm(t.name + ' ' + l[0] + ' ' + t.desc)) + '"', t.icon, t.name, l[0], l[1], t.desc, t.superOnly || t.adminOnly ? '<span class="iba-ai-tile-admin" title="' + (t.superOnly ? 'Super Admin only' : 'Admins only') + '"><i class="fa-solid fa-shield-halved"></i></span>' : ''); };
+            const sa = window.ibaSkillAccess && !SKILL_LOCK[id] ? window.ibaSkillAccess.rule(id) : null;
+            const badge = sa ? (sa.who === 'all' ? '' : '<span class="iba-ai-tile-admin" title="Skill access: ' + esc(window.ibaSkillAccess.summary(sa)) + '"><i class="fa-solid fa-lock"></i></span>')
+                : t.superOnly || t.adminOnly ? '<span class="iba-ai-tile-admin" title="' + (t.superOnly ? 'Super Admin only' : 'Admins only') + '"><i class="fa-solid fa-shield-halved"></i></span>' : '';
+            return skillTile('data-run-tpl="' + id + '" data-find="' + esc(norm(t.name + ' ' + l[0] + ' ' + t.desc)) + '"', t.icon, t.name, l[0], l[1], t.desc, badge); };
         const use = lsGet(skillUseKey(), {}) || {};
         const top = tpls.filter((id) => (Number(use[id]) || 0) >= 2).sort((a, b) => use[b] - use[a]).slice(0, 4);
         const grouped = new Set();
-        const groups = SKILL_GROUPS.map((g) => { const ids = g[1].filter((id) => tpls.indexOf(id) !== -1); ids.forEach((id) => grouped.add(id)); return [g[0], ids]; });
-        const rest = tpls.filter((id) => !grouped.has(id));
+        const az = (a, b) => SKILL_TPL[a].name.localeCompare(SKILL_TPL[b].name);
+        const groups = SKILL_GROUPS.map((g) => { const ids = g[1].filter((id) => tpls.indexOf(id) !== -1).sort(az); ids.forEach((id) => grouped.add(id)); return [g[0], ids]; });
+        const rest = tpls.filter((id) => !grouped.has(id)).sort(az);
         if (rest.length) groups.push(['More', rest]);
         box.classList.add('is-apps'); // 17.0.5 patch 83: big app icons, one short name; details on hover
         box.innerHTML = phoneBackHtml() + '<h3><i class="fa-solid fa-bolt"></i> All skills</h3>' +
             '<label class="iba-ai-skill-find"><i class="fa-solid fa-magnifying-glass"></i><input type="search" id="iba-ai-skill-find" placeholder="Find a skill" autocomplete="off"></label>' +
             (top.length ? '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub"><i class="fa-solid fa-star"></i> Most used</div><div class="iba-ai-tiles">' + top.map(tplTile).join('') + '</div></div>' : '') +
-            groups.filter((g) => g[1].length).map((g) => '<div class="iba-ai-skill-group" data-group><div class="iba-ai-sub">' + esc(g[0]) + '</div><div class="iba-ai-tiles">' + g[1].map(tplTile).join('') + '</div></div>').join('') +
+            groups.filter((g) => g[1].length).map((g) => '<div class="iba-ai-skill-group is-sorted" data-group><div class="iba-ai-sub iba-ai-gh"><b>' + esc(g[0]) + '</b><em data-gcount>' + g[1].length + '</em><i></i></div><div class="iba-ai-tiles">' + g[1].map(tplTile).join('') + '</div></div>').join('') +
             '<p class="iba-ai-empty" id="iba-ai-skill-none" hidden>No skill matches that.</p>' +
             '<div class="iba-ai-sub">My skills</div>' +
             (list.length ? '<div class="iba-ai-tiles">' + list.map((s) => {
@@ -6834,6 +7035,7 @@
                 let n = 0;
                 g.querySelectorAll('[data-find]').forEach((t) => { const ok = !q || t.dataset.find.indexOf(q) !== -1; t.closest('.iba-ai-tile-wrap').hidden = !ok; if (ok) n++; });
                 g.hidden = !n; shown += n;
+                const gc = g.querySelector('[data-gcount]'); if (gc) gc.textContent = n;
             });
             const none = $('iba-ai-skill-none');
             if (none) none.hidden = !!shown || !q;

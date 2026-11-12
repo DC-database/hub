@@ -54,18 +54,44 @@
         const q = norm(text);
         const words = q.split(' ').filter((w) => w && SKIP.indexOf(w) === -1);
         if (!words.length) words.push(q);
-        const groups = {};
+        // 18.0.0 patch 5: one company = one group even when written differently ("Finar Trdg WLL" and
+        // "Finar Trading W.L.L."), and a wrong / heard spelling ("fenar") shows the close names
+        // (js/iba-1800-fuzzy.js). The group is named by its most used spelling.
+        const F = window.ibaFuzzy;
+        const cwords = F ? F.words(text) : [];
+        const byKey = {}, spell = {}, near = {};
         Object.keys(map || {}).forEach((po) => {
             const r = map[po] || {};
             const vendor = vendorOf(r);
             if (!vendor) return;
             const name = norm(vendor);
             const compact = name.replace(/ /g, '');
-            if (!words.every((w) => name.includes(w) || compact.includes(w))) return;
-            (groups[vendor] = groups[vendor] || []).push({ po: String(po).toUpperCase(), site: siteOf(r), value: valueOf(r) });
+            let ok = words.every((w) => name.includes(w) || compact.includes(w));
+            if (!ok && F && cwords.length) { const cn = F.words(vendor).join(' '); const cc = cn.replace(/ /g, ''); ok = cwords.every((w) => cn.includes(w) || cc.includes(w)); }
+            const k = F ? F.key(vendor) : vendor;
+            const row = { po: String(po).toUpperCase(), site: siteOf(r), value: valueOf(r) };
+            if (!ok) { if (F) (near[k] = near[k] || { rows: [], names: {} }).rows.push(row), near[k].names[vendor] = (near[k].names[vendor] || 0) + 1; return; }
+            (byKey[k] = byKey[k] || []).push(row);
+            (spell[k] = spell[k] || {})[vendor] = (spell[k][vendor] || 0) + 1;
+        });
+        let fuzzy = false;
+        if (!Object.keys(byKey).length && F) {
+            const best = Object.keys(near).map((k) => ({ k, s: Math.max.apply(null, Object.keys(near[k].names).map((nm) => F.score(text, nm))) })).filter((x) => x.s > 0)
+                .sort((a, b) => b.s - a.s).slice(0, 4);
+            best.forEach((x) => { byKey[x.k] = near[x.k].rows; spell[x.k] = near[x.k].names; });
+            fuzzy = best.length > 0;
+        }
+        const groups = {};
+        const also = {};
+        Object.keys(byKey).forEach((k) => {
+            const names = Object.keys(spell[k] || {}).sort((a, b) => spell[k][b] - spell[k][a]);
+            const label = names[0] || k;
+            groups[label] = byKey[k];
+            if (names.length > 1) also[label] = names.slice(1);
         });
         const first = words[0];
         const vendors = Object.keys(groups).sort((a, b) => {
+            if (fuzzy) return 0;
             const as = norm(a).indexOf(first) === 0 ? 0 : 1, bs = norm(b).indexOf(first) === 0 ? 0 : 1;
             return (as - bs) || a.localeCompare(b);
         });
@@ -83,7 +109,7 @@
             if (ready) vendors.forEach((v) => groups[v].sort((a, b) =>
                 ((rk[b.po].open ? 1 : 0) - (rk[a.po].open ? 1 : 0)) || ((rk[b.po].last || 0) - (rk[a.po].last || 0))));
         }
-        return { vendors, groups };
+        return { vendors, groups, also, fuzzy };
     }
 
     // ------------------------------------------------------------------
@@ -158,7 +184,8 @@
         found.vendors.forEach((v) => {
             const list = found.groups[v];
             if (count >= MAX_ROWS) return;
-            html += '<div class="iba-vpo-vendor">' + esc(v) + '<span>' + list.length + ' PO' + (list.length === 1 ? '' : 's') + '</span></div>';
+            const al = (found.also || {})[v];
+            html += '<div class="iba-vpo-vendor"' + (al ? ' title="Also written: ' + esc(al.join(' / ')) + '"' : '') + '>' + esc(v) + (al ? ' <small class="iba-vpo-also">+' + al.length + ' spelling' + (al.length === 1 ? '' : 's') + '</small>' : '') + '<span>' + list.length + ' PO' + (list.length === 1 ? '' : 's') + '</span></div>';
             list.forEach((p) => {
                 if (count >= MAX_ROWS) return;
                 html += '<button type="button" class="iba-vpo-opt" role="option" data-i="' + rows.length + '" data-po="' + esc(p.po) + '">' +
@@ -170,7 +197,7 @@
             });
         });
         const total = found.vendors.reduce((n, v) => n + found.groups[v].length, 0);
-        m.innerHTML = '<div class="iba-vpo-head">POs for vendor &ldquo;' + esc(text) + '&rdquo;</div>' +
+        m.innerHTML = '<div class="iba-vpo-head">' + (found.fuzzy ? 'No vendor called &ldquo;' + esc(text) + '&rdquo;. Did you mean:' : 'POs for vendor &ldquo;' + esc(text) + '&rdquo;') + '</div>' +
             (html || '<div class="iba-vpo-empty">No vendor matches &ldquo;' + esc(text) + '&rdquo;.</div>') +
             (total > count ? '<div class="iba-vpo-empty">Showing ' + count + ' of ' + total + ' POs. Type more of the name to narrow it.</div>' : '');
         active = -1;
