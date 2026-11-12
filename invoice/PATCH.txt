@@ -1,3 +1,17 @@
+17.0.5 patch 217 (12-Nov-2026)
+- Settings video lists (Moving background + Screensaver): opening a video dropdown as Super Admin now re-checks the GitHub video folder (if the saved list is over 1 minute old), so newly uploaded videos show up without waiting 6 hours.
+- Screensaver: a new video list or a Firebase update no longer resets an unsaved pick; shows "Not saved yet. Press Save to use it for everyone."
+- Picking a video still only previews on this screen; others see it only after Save (unchanged).
+Files: index.html, PATCH.txt, js/iba-1705-rain.js, js/iba-1705-idle.js
+
+17.0.5 patch 216 (12-Nov-2026)
+- Invoice Entry (Super Admin, and his vacation replacement only): the Active Jobs panel on the right opens / hides with a
+  vertical "Active Jobs" bookmark on its left edge (red count, grey 0). Open stays open until the bookmark is clicked;
+  the choice is remembered. Hidden = the page uses the full width. The old "Active Jobs" button is hidden for them.
+- Searching a PO that has a waiting job opens the panel by itself and that job glows gold.
+- Everyone else: no change.
+Files: index.html, js/iba-1705-ajbm.js (new), PATCH.txt
+
 17.0.5 patch 215 (11-Nov-2026)
 - "Request original PO" (WhatsApp to Hafiz) now also comes after adding a new invoice on a PO that is NOT in the PO file at all (before: only when the PO file had it but never filed). Same in the PO pull-out box.
 Files: index.html, js/iba-1705-release.js, PATCH.txt
