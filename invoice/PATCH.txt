@@ -3,6 +3,10 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 24 (14-Nov-2026)
+- Invoice Entry: the Active Jobs bookmark on the right is slimmer and shorter (21 px wide instead of 40, about 91 px tall instead of 165), label "Jobs" (mouse-over still says Active Jobs). Same place, same click.
+Files: index.html, PATCH.txt, js/iba-1705-ajbm.js
+
 18.0.0 patch 23 (14-Nov-2026)
 - Dashboard: the open total ("238 open invoices") moved from under the pie to a "Total open" row under the 3 figures.
 - Names: Preliminary is now "Ongoing", Approval Area is now "Mgmt Approval" (mouse-over: Under Management Approval, COO and CEO); the pie uses the same names.
