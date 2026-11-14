@@ -23,8 +23,8 @@
     const G = [
         // 18.0.0 patch 12 (martin): everything still with us is Work in progress (incl. Report and For Summary,
         // which come back to martin); only In Process + CEO Approval are Approval; Finance = With Accounts only.
-        { id: 'wip', n: '01', name: 'Ongoing', full: 'Preliminary / Work in Progress', sub: 'New Entry, For SRV, SRV Done, Pending, On Hold, IPC, For Approval, Report, For Summary', col: '#2fa7a0', st: [] },
-        { id: 'apv', n: '02', name: 'Approval', full: 'Approval Area', sub: 'In Process, CEO Approval', col: '#3b6fd8', st: ['in process', 'ceo approval'] },
+        { id: 'wip', n: '01', name: 'Ongoing', short: 'Ongoing', full: 'Preliminary / Work in Progress', sub: 'New Entry, For SRV, SRV Done, Pending, On Hold, IPC, For Approval, Report, For Summary', col: '#2fa7a0', st: [] },
+        { id: 'apv', n: '02', name: 'Mgmt Approval', short: 'Mgmt Approval', full: 'Under Management Approval', sub: 'COO (In Process) and CEO (CEO Approval)', col: '#3b6fd8', st: ['in process', 'ceo approval'] },
         { id: 'fin', n: '03', name: 'Fin', full: 'Finance', sub: 'With Accounts (last 7 days)', col: '#c9a44c', st: [] }
     ];
     const YEAR = 2026, DAYS7 = 7 * 86400000, KEEP = 3 * 60000;
@@ -364,23 +364,28 @@
             }
             h += `<g class="iba-d2-pc ${st}" style="--tx:${tx}px;--ty:${ty}px"><path class="iba-d2-slice" data-g="${g.id}" d="${path}" fill="${g.col}"><title>${esc(g.full)}</title></path>${txt}</g>`;
             const [ax, ay] = P(R + 8, m), [bx, by] = P(R + 32, m), right = Math.cos(m) >= 0;
-            labels.push({ g, st, tx, ty, ax, ay, bx, by, right, pct, inside: big });
+            labels.push({ g, st, tx, ty, ax, ay, bx, by: Math.sin(m) > .5 ? Math.max(by, ay + 18) : by, right, pct, inside: big }); // bottom labels: the line always shows above the name
             a = b;
         });
         // small pieces next to each other: push their labels apart so the text never overlaps
         [true, false].forEach((side) => {
             const L = labels.filter((l) => l.right === side).sort((p, q) => p.by - q.by);
             for (let i = 1; i < L.length; i++) if (L[i].by - L[i - 1].by < 52) L[i].by = L[i - 1].by + 52;
-            for (let i = L.length - 1; i >= 0; i--) if (L[i].by > 300) { L[i].by = 300; if (i > 0 && L[i].by - L[i - 1].by < 52) L[i - 1].by = L[i].by - 52; }
+            for (let i = L.length - 1; i >= 0; i--) if (L[i].by > 318) { L[i].by = 318; if (i > 0 && L[i].by - L[i - 1].by < 52) L[i - 1].by = L[i].by - 52; }
         });
         labels.forEach(({ g, st, tx, ty, ax, ay, bx, by, right, pct, inside }) => {
             const ex = right ? bx + 26 : bx - 26, lx = right ? ex + 6 : ex - 6, an = right ? 'start' : 'end';
-            h += `<g class="iba-d2-pc ${st}" style="--tx:${tx}px;--ty:${ty}px"><polyline points="${ax},${ay} ${bx},${by} ${ex},${by}" fill="none" stroke="#b8c2d1" stroke-width="1.2"/><circle cx="${ax}" cy="${ay}" r="2.6" fill="#b8c2d1"/>` +
+            h += `<g class="iba-d2-pc ${st}" style="--tx:${tx}px;--ty:${ty}px"><polyline points="${ax},${ay} ${bx},${by} ${ex},${by}" fill="none" stroke="#e8edf5" stroke-width="1.6" class="iba-d2-ld"/><circle cx="${ax}" cy="${ay}" r="3" fill="#e8edf5"/>` +
                 `<text x="${lx}" y="${by - 3}" text-anchor="${an}" class="iba-d2-tl">${esc(g.name)}</text>` +
                 (inside ? '' : `<text x="${lx}" y="${by + 13}" text-anchor="${an}" class="iba-d2-ts" fill="${g.col}">${esc(pct)}</text>`) + '</g>'; // details are in the 3 figures below
         });
-        h += `<text x="${cx}" y="${cy + R + 34}" text-anchor="middle" class="iba-d2-c1">${D.money ? esc(fmtM(tot)) : tot} <tspan class="iba-d2-c2">${D.money ? 'QAR open' : 'open invoices'}</tspan></text>`;
-        return `<svg viewBox="-75 -20 590 376" class="iba-d2-svg" role="img" aria-label="Open work by step">${h}</svg>`;
+        return `<svg viewBox="-75 -20 590 356" class="iba-d2-svg" role="img" aria-label="Open work by step">${h}</svg>`;
+    }
+    // 18.0.0 patch 23 (martin): the total of the 3 steps sits under them (was under the pie)
+    function totHtml(D) {
+        const n = D.groups.reduce((a, g) => a + g.n, 0); if (!n) return '';
+        const v = D.groups.reduce((a, g) => a + (g.v || 0), 0);
+        return `<div class="iba-d2-tot"><span class="lb">Total open</span><em>${D.money ? esc(Math.round(v).toLocaleString('en-US')) : n}</em><small>${D.money ? 'QAR · ' + n + ' inv.' : 'invoices'}</small></div>`;
     }
     function listHtml(D) {
         const g = D.groups.find((x) => x.id === sel); if (!g) return '';
@@ -460,9 +465,9 @@
             box.innerHTML = `<div class="iba-d2-head"><div><h2>Where the invoices are now</h2><p>Open work in 3 steps · ${new Date().getFullYear() === YEAR ? '2026' : YEAR}${loading ? ' · loading…' : ''}${err ? ' · <span class="bad">' + esc(err) + '</span>' : ''}</p></div>` +
                 `<div class="iba-d2-hb">${(D.money && paidN != null) ? `<span class="iba-d2-paidn">Paid in ${YEAR}: <b>${paidN.toLocaleString('en-US')}</b></span>` : ''}</div></div>` +
                 (TR ? `<div class="iba-d2-body has-tr"><div class="iba-d2-left"><div class="iba-d2-chart">${loading ? '<div class="iba-d2-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading open work…</div>' : donut(D)}${(loading || !D.groups.some((g) => g.n)) ? '' : '<p class="iba-d2-hint">Click a piece to see its invoices.</p>'}</div>` +
-                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}</div></div><div class="iba-d2-right">${qSwitch()}${TR}</div></div>`
+                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.short || g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}${totHtml(D)}</div></div><div class="iba-d2-right">${qSwitch()}${TR}</div></div>`
                     : `<div class="iba-d2-body"><div class="iba-d2-chart">${qSwitch()}${loading ? '<div class="iba-d2-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading open work…</div>' : donut(D)}${(loading || !D.groups.some((g) => g.n)) ? '' : '<p class="iba-d2-hint">Click a piece to see its invoices.</p>'}</div>` +
-                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}</div></div>`) +
+                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.short || g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}${totHtml(D)}</div></div>`) +
                 (sel ? `<div class="iba-d2-list">${listHtml(D)}</div>` : '') + oldHtml(D);
         } finally { painting = false; }
     }
