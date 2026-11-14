@@ -2669,3 +2669,13 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body.iba-bgpv-on #iba-bg-layer { z-index: 2147483600 !important; display: block !important; position: fixed !important; inset: 0 !important; background-size: cover !important; background-position: center !important; cursor: none !important; }
   html body.iba-bgpv-on, html body.iba-bgpv-on * { cursor: none !important; }
 }
+
+@layer iba-ui {
+  /* 18.0.0 patch 23 (martin): Total open under Preliminary / Approval / Finance; pie name lines brighter so they show on photos */
+  html body #iba-d2 .iba-d2-legend .iba-d2-tot { grid-column: 1 / -1 !important; display: flex !important; align-items: baseline !important; gap: 10px !important; margin-top: 8px !important; padding: 9px 4px 0 !important; border-top: 1px solid rgba(255,255,255,.28) !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-tot .lb { color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; filter: none !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-tot em { font-size: 21px !important; font-weight: 800 !important; font-style: normal !important; color: #ffffff !important; font-variant-numeric: tabular-nums !important; text-shadow: 0 1px 3px rgba(0,0,0,.75) !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-tot small { font-size: 11.5px !important; color: #d3dae5 !important; text-shadow: 0 1px 2px rgba(0,0,0,.75) !important; }
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-legend .iba-d2-tot em { font-size: 18px !important; }
+  html body #iba-d2 .iba-d2-svg .iba-d2-ld { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.8)) !important; }
+}
