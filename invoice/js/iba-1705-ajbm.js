@@ -50,8 +50,8 @@
         bm = document.createElement('button');
         bm.type = 'button';
         bm.id = 'iba-aj-bm';
-        bm.title = 'Show / hide Active Jobs';
-        bm.innerHTML = '<i class="fa-solid fa-list-check"></i><span>Active Jobs</span><em data-aj-n>0</em>';
+        bm.title = 'Show / hide Active Jobs'; // 18.0.0 patch 24 (martin): slimmer + shorter bookmark, label "Jobs"
+        bm.innerHTML = '<i class="fa-solid fa-list-check"></i><span>Jobs</span><em data-aj-n>0</em>';
         bm.addEventListener('click', (e) => { e.preventDefault(); toggle(!open); });
         document.body.appendChild(bm);
         return bm;
@@ -117,12 +117,12 @@
             'html body.iba-shell-on.iba-aj-closed ' + V + ' #im-entry-sidebar#im-entry-sidebar { transform: translateX(110%) !important; pointer-events: none !important; }' +
             'html body.iba-shell-on.iba-aj-closed ' + V + ' .workdesk-main.with-sidebar { padding-right: 0 !important; }' +
             'html body.iba-shell-on.iba-aj-closed ' + V + ' .workdesk-main.with-sidebar #im-content-area { padding-right: 0 !important; }' +
-            '#iba-aj-bm { position: fixed !important; top: calc(var(--iba-shell-header-h, 64px) + 70px) !important; right: var(--aj-r, 0px) !important; z-index: 10006 !important; width: 40px !important; min-width: 0 !important; height: auto !important; padding: 12px 0 !important; margin: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 9px !important; border-radius: 12px 0 0 12px !important; border: 1px solid rgba(232,197,71,.6) !important; border-right: 0 !important; background: rgba(12,14,17,.86) !important; color: #F3EAD3 !important; -webkit-text-fill-color: #F3EAD3 !important; font: 700 12.5px/1 inherit !important; cursor: pointer !important; box-shadow: -6px 6px 18px rgba(0,0,0,.35) !important; transition: right .28s ease, background .15s !important; }' +
+            '#iba-aj-bm { position: fixed !important; top: calc(var(--iba-shell-header-h, 64px) + 70px) !important; right: var(--aj-r, 0px) !important; z-index: 10006 !important; width: 21px !important; min-width: 0 !important; height: auto !important; padding: 8px 0 !important; margin: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 6px !important; border-radius: 9px 0 0 9px !important; border: 1px solid rgba(232,197,71,.6) !important; border-right: 0 !important; background: rgba(12,14,17,.86) !important; color: #F3EAD3 !important; -webkit-text-fill-color: #F3EAD3 !important; font: 700 10px/1 inherit !important; cursor: pointer !important; box-shadow: -6px 6px 18px rgba(0,0,0,.35) !important; transition: right .28s ease, background .15s !important; }' +
             '#iba-aj-bm[hidden] { display: none !important; }' +
             '#iba-aj-bm:hover { background: rgba(22,25,30,.95) !important; }' +
-            '#iba-aj-bm i { color: #e8c547 !important; -webkit-text-fill-color: #e8c547 !important; font-size: 13px !important; }' +
+            '#iba-aj-bm i { color: #e8c547 !important; -webkit-text-fill-color: #e8c547 !important; font-size: 10px !important; }' +
             '#iba-aj-bm span { writing-mode: vertical-rl !important; transform: rotate(180deg) !important; letter-spacing: .02em !important; }' +
-            '#iba-aj-bm em { font-style: normal !important; min-width: 20px !important; height: 20px !important; padding: 0 5px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: #e5484d !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 11px !important; }' +
+            '#iba-aj-bm em { font-style: normal !important; min-width: 15px !important; height: 15px !important; padding: 0 3px !important; border-radius: 999px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: #e5484d !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 9px !important; }' +
             '#iba-aj-bm.is-zero em { background: rgba(255,255,255,.14) !important; color: #9aa4b0 !important; -webkit-text-fill-color: #9aa4b0 !important; }' +
             'html body #im-entry-sidebar li.im-sidebar-item.iba-aj-glow { box-shadow: inset 0 0 0 2px #e8c547, 0 0 14px rgba(232,197,71,.45) !important; border-radius: 8px !important; background: rgba(232,197,71,.10) !important; }' +
             '}';
