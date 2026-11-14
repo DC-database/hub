@@ -2341,3 +2341,325 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body #iba-ai-panel .iba-ai-any-st { display: inline-block !important; margin-left: 6px !important; padding: 0 7px !important; border-radius: 999px !important; font-size: 11px !important; line-height: 18px !important; background: rgba(127, 227, 214, .14) !important; color: #7FE3D6 !important; border: 1px solid rgba(127, 227, 214, .35) !important; }
   html body #iba-vendor-po-menu .iba-vpo-also { opacity: .7; font-weight: 600; font-size: 11px; margin-left: 6px; }
 }
+
+@layer iba-ui {
+  /* 18.0.0 patch 10 (martin): an empty table shows only its icon + message, no column header row
+     (Active Task, Inventory Active Job, Job Records, Inventory records - any table whose only row is the empty note) */
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) table:has(> tbody > tr:only-child .wd-modern-empty-row) > thead { display: none !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 10: new Dashboard (js/iba-1800-dash.js). Glass panel, no blur. Old cards hidden while the chart is on. */
+  html body.iba-dash2-on #wd-dashboard > :is(.wd-active-dashboard-toolbar, #wd-active-dashboard-cards, #wd-active-dashboard-list) { display: none !important; }
+  html body #iba-d2.iba-d2 { --d2-line: rgba(255,255,255,.10); --d2-fg: #e9edf3; --d2-mute: #9aa6b8; --d2-soft: #c4ccd8; --d2-gold: #c9a44c;
+    display: grid !important; gap: 18px !important; margin: 14px 0 22px !important; padding: 20px 22px !important; border-radius: 14px !important;
+    background: linear-gradient(160deg, rgba(18,28,43,.62), rgba(10,15,24,.50)) !important; border: 1px solid var(--d2-line) !important;
+    box-shadow: 0 10px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.06) !important; color: var(--d2-fg) !important; backdrop-filter: none !important; }
+  html body #iba-d2 .iba-d2-head { display: flex !important; flex-wrap: wrap !important; justify-content: space-between !important; align-items: flex-end !important; gap: 10px !important; border-bottom: 1px solid var(--d2-line) !important; padding-bottom: 12px !important; }
+  html body #iba-d2 .iba-d2-head h2 { margin: 0 !important; font-size: 19px !important; font-weight: 700 !important; color: var(--d2-fg) !important; -webkit-text-fill-color: currentColor !important; background: none !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; text-decoration: none !important; }
+  html body #iba-d2 .iba-d2-head h2::after, html body #iba-d2 .iba-d2-head h2::before { content: none !important; display: none !important; }
+  html body #iba-d2 .iba-d2-head p { margin: 3px 0 0 !important; font-size: 12.5px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-head .bad { color: #ff8a80 !important; }
+  html body #iba-d2 .iba-d2-hb { display: flex !important; align-items: center !important; gap: 12px !important; flex-wrap: wrap !important; }
+  html body #iba-d2 .iba-d2-paidn { font-size: 13px !important; color: var(--d2-mute) !important; padding: 5px 12px !important; border: 1px solid rgba(63,174,122,.35) !important; border-radius: 999px !important; background: rgba(63,174,122,.10) !important; }
+  html body #iba-d2 .iba-d2-paidn b { color: #6fd3a3 !important; }
+  html body #iba-d2 .iba-d2-body { display: grid !important; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) !important; gap: 22px !important; align-items: center !important; }
+  @media (max-width: 1100px) { html body #iba-d2 .iba-d2-body { grid-template-columns: 1fr !important; } }
+  html body #iba-d2 .iba-d2-chart { min-width: 0 !important; text-align: center !important; }
+  html body #iba-d2 .iba-d2-svg { width: 100% !important; max-width: 620px !important; height: auto !important; display: block !important; margin: 0 auto !important; overflow: visible !important; }
+  html body #iba-d2 .iba-d2-slice { cursor: pointer !important; transition: opacity .15s, stroke-width .15s !important; }
+  html body #iba-d2 .iba-d2-slice:hover { opacity: .85 !important; }
+  html body #iba-d2 svg:has(.iba-d2-slice.is-sel) .iba-d2-slice:not(.is-sel) { opacity: .35 !important; }
+  html body #iba-d2 svg text { font-family: inherit !important; }
+  html body #iba-d2 .iba-d2-tl { fill: #e9edf3 !important; font-size: 14px !important; font-weight: 700 !important; }
+  html body #iba-d2 .iba-d2-ts { font-size: 12.5px !important; font-weight: 600 !important; }
+  html body #iba-d2 .iba-d2-ty { fill: #f0d27a !important; font-size: 12px !important; font-weight: 600 !important; }
+  html body #iba-d2 .iba-d2-c1 { fill: #ffffff !important; font-size: 30px !important; font-weight: 700 !important; }
+  html body #iba-d2 .iba-d2-c2 { fill: #9aa6b8 !important; font-size: 12px !important; letter-spacing: .06em !important; text-transform: uppercase !important; }
+  html body #iba-d2 .iba-d2-hint { margin: 2px 0 0 !important; font-size: 12px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-empty { padding: 60px 10px !important; color: var(--d2-mute) !important; font-size: 14px !important; }
+  html body #iba-d2 .iba-d2-legend { display: grid !important; gap: 10px !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-lg { all: unset; box-sizing: border-box !important; cursor: pointer !important; display: grid !important; grid-template-columns: 12px minmax(0,1fr) auto !important; gap: 12px !important; align-items: center !important;
+    padding: 12px 14px !important; border-radius: 10px !important; border: 1px solid var(--d2-line) !important; background: rgba(255,255,255,.03) !important; color: var(--d2-fg) !important; transition: background .15s, border-color .15s !important; }
+  html body #iba-d2 .iba-d2-lg:hover { background: rgba(255,255,255,.07) !important; }
+  html body #iba-d2 .iba-d2-lg.is-sel { border-color: rgba(201,164,76,.6) !important; background: rgba(201,164,76,.10) !important; }
+  html body #iba-d2 .iba-d2-lg > i { width: 12px !important; height: 12px !important; border-radius: 3px !important; }
+  html body #iba-d2 .iba-d2-lg span { display: grid !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-lg span b { font-size: 14px !important; font-weight: 600 !important; }
+  html body #iba-d2 .iba-d2-lg span small { font-size: 12px !important; color: var(--d2-mute) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  html body #iba-d2 .iba-d2-lg em { font-style: normal !important; text-align: right !important; font-weight: 700 !important; font-size: 14px !important; display: grid !important; }
+  html body #iba-d2 .iba-d2-lg em small { font-size: 11.5px !important; color: #f0d27a !important; font-weight: 600 !important; }
+  html body #iba-d2 .iba-d2-list, html body #iba-d2 .iba-d2-old { display: grid !important; gap: 10px !important; padding: 16px !important; border-radius: 12px !important; border: 1px solid var(--d2-line) !important; background: rgba(0,0,0,.18) !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-lh, html body #iba-d2 .iba-d2-oh { display: flex !important; flex-wrap: wrap !important; justify-content: space-between !important; align-items: center !important; gap: 8px 14px !important; }
+  html body #iba-d2 .iba-d2-lh b { font-size: 15px !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; }
+  html body #iba-d2 .iba-d2-lh b i { width: 10px !important; height: 10px !important; border-radius: 3px !important; display: inline-block !important; }
+  html body #iba-d2 .iba-d2-lh em { font-style: normal !important; color: #f0d27a !important; font-weight: 600 !important; }
+  html body #iba-d2 .iba-d2-lh > span { display: flex !important; gap: 14px !important; align-items: center !important; }
+  html body #iba-d2 .iba-d2-lh label { display: inline-flex !important; gap: 6px !important; align-items: center !important; font-size: 13px !important; cursor: pointer !important; color: var(--d2-soft) !important; }
+  html body #iba-d2 .iba-d2-lh button { all: unset; cursor: pointer !important; font-size: 12.5px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-oh b { font-size: 14.5px !important; color: #ffb4a8 !important; display: block !important; }
+  html body #iba-d2 .iba-d2-oh span { font-size: 12px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-old { border-color: rgba(217,83,79,.35) !important; }
+  html body #iba-d2 .iba-d2-tw { overflow-x: auto !important; max-height: 460px !important; overflow-y: auto !important; }
+  html body #iba-d2 table.iba-d2-t { width: 100% !important; border-collapse: collapse !important; font-size: 13px !important; background: transparent !important; }
+  html body #iba-d2 .iba-d2-t th, html body #iba-d2 .iba-d2-t td { padding: 8px 9px !important; border-bottom: 1px solid var(--d2-line) !important; text-align: left !important; white-space: nowrap !important; background: transparent !important; color: var(--d2-fg) !important; }
+  html body #iba-d2 .iba-d2-t th { position: sticky !important; top: 0 !important; background: #111a28 !important; color: var(--d2-mute) !important; font-weight: 600 !important; font-size: 11.5px !important; text-transform: uppercase !important; letter-spacing: .06em !important; }
+  html body #iba-d2 .iba-d2-t :is(td, th).n { text-align: right !important; font-variant-numeric: tabular-nums !important; }
+  html body #iba-d2 .iba-d2-t td.old { color: #ff8a80 !important; font-weight: 700 !important; }
+  html body #iba-d2 .iba-d2-t td.v { max-width: 240px !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  html body #iba-d2 .iba-d2-t tr.is-mine td { background: rgba(201,164,76,.08) !important; }
+  html body #iba-d2 .iba-d2-t tbody tr:hover td { background: rgba(255,255,255,.05) !important; }
+  html body #iba-d2 .iba-d2-yours { font-size: 11px !important; font-weight: 700 !important; color: #f0d27a !important; margin-left: 4px !important; }
+  html body #iba-d2 .iba-d2-tag { display: inline-block !important; font-size: 11.5px !important; padding: 2px 8px !important; border-radius: 4px !important; background: rgba(255,255,255,.07) !important; color: var(--d2-soft) !important; }
+  html body #iba-d2 :is(.iba-d2-note, .iba-d2-lock) { margin: 0 !important; font-size: 12.5px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-lock { display: inline-flex !important; gap: 6px !important; align-items: center !important; }
+  html body #iba-d2 .iba-d2-acts { display: flex !important; gap: 10px !important; }
+  html body #iba-d2 .iba-d2-paid { cursor: pointer !important; font-size: 12px !important; font-weight: 600 !important; padding: 4px 10px !important; border-radius: 6px !important; border: 1px solid rgba(63,174,122,.45) !important; background: rgba(63,174,122,.12) !important; color: #6fd3a3 !important; }
+  html body #iba-d2 .iba-d2-paid.is-sure { border-color: #e0b54a !important; background: rgba(224,181,74,.18) !important; color: #f0d27a !important; }
+  html body #iba-d2-settings-card .iba-d2-sw { display: flex !important; gap: 8px !important; align-items: center !important; margin: 10px 0 !important; cursor: pointer !important; }
+  html body #iba-d2-settings-card .iba-d2-msg { font-size: 12.5px !important; margin-left: 10px !important; opacity: .8 !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 11: With Accounts over 7 days - tick boxes + Mark Paid (N) */
+  html body #iba-d2 .iba-d2-ob { display: flex !important; gap: 10px !important; align-items: center !important; flex-wrap: wrap !important; }
+  html body #iba-d2 .iba-d2-t :is(th, td).ck { width: 30px !important; padding-right: 0 !important; }
+  html body #iba-d2 .iba-d2-t input[type=checkbox] { width: 16px !important; height: 16px !important; accent-color: #3fae7a !important; cursor: pointer !important; margin: 0 !important; }
+  html body #iba-d2 .iba-d2-t tr.is-pick td { background: rgba(63,174,122,.10) !important; }
+  html body #iba-d2 .iba-d2-paid.iba-d2-paidall { font-size: 13px !important; padding: 7px 14px !important; }
+  html body #iba-d2 .iba-d2-paid:disabled { opacity: .45 !important; cursor: default !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 14: monthly received vs paid (money people only) */
+  html body #iba-d2 .iba-d2-trend { display: grid !important; gap: 10px !important; padding: 16px !important; border-radius: 12px !important; border: 1px solid var(--d2-line) !important; background: rgba(0,0,0,.18) !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-trh { display: flex !important; flex-wrap: wrap !important; justify-content: space-between !important; align-items: flex-end !important; gap: 8px 16px !important; }
+  html body #iba-d2 .iba-d2-trh b { display: block !important; font-size: 15px !important; }
+  html body #iba-d2 .iba-d2-trh span { font-size: 12px !important; color: var(--d2-mute) !important; }
+  html body #iba-d2 .iba-d2-trk { display: inline-flex !important; gap: 8px !important; align-items: center !important; font-size: 12.5px !important; color: var(--d2-soft) !important; }
+  html body #iba-d2 .iba-d2-trk i { display: inline-block !important; width: 12px !important; height: 10px !important; border-radius: 2px !important; margin-left: 6px !important; }
+  html body #iba-d2 .iba-d2-trk i.b { background: #4a5668 !important; }
+  html body #iba-d2 .iba-d2-trk i.l { background: #c9a44c !important; height: 3px !important; }
+  html body #iba-d2 .iba-d2-trsvg { width: 100% !important; min-width: 520px !important; height: auto !important; display: block !important; }
+  html body #iba-d2 .iba-d2-trsvg .gl { stroke: rgba(255,255,255,.08) !important; stroke-width: 1 !important; }
+  html body #iba-d2 .iba-d2-trsvg .ax { fill: #8592a6 !important; font-size: 11.5px !important; }
+  html body #iba-d2 .iba-d2-trsvg .bar { fill: #4a5668 !important; }
+  html body #iba-d2 .iba-d2-trsvg .bar:hover { fill: #5d6b80 !important; }
+  html body #iba-d2 .iba-d2-trsvg .ln { fill: none !important; stroke: #c9a44c !important; stroke-width: 2.5 !important; stroke-linejoin: round !important; }
+  html body #iba-d2 .iba-d2-trsvg .dot { fill: #c9a44c !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 14: 3 bars per month (martin picked B) with value + name on each bar */
+  html body #iba-d2 .iba-d2-trsvg .wa { fill: #2fa7a0 !important; }
+  html body #iba-d2 .iba-d2-trsvg .pd { fill: #c9a44c !important; }
+  html body #iba-d2 .iba-d2-trsvg rect:hover { opacity: .85 !important; }
+  html body #iba-d2 .iba-d2-trsvg .vl { font-size: 11px !important; font-weight: 700 !important; fill: #c4ccd8 !important; }
+  html body #iba-d2 .iba-d2-trsvg .vl.wa { fill: #6fd6cb !important; }
+  html body #iba-d2 .iba-d2-trsvg .vl.pd { fill: #f0d27a !important; }
+  html body #iba-d2 .iba-d2-trsvg .bn { font-size: 10.5px !important; font-weight: 600 !important; fill: rgba(255,255,255,.88) !important; letter-spacing: .02em !important; }
+  html body #iba-d2 .iba-d2-trk i.w { background: #2fa7a0 !important; }
+  html body #iba-d2 .iba-d2-trk i.l { height: 10px !important; }
+  html body #iba-d2 .iba-d2-trsvg { min-width: 760px !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 15 (martin): no big outer card around the Dashboard, the pieces sit on the background */
+  html body #iba-d2.iba-d2 { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important; }
+  html body #iba-d2 .iba-d2-head { border-bottom: 0 !important; padding-bottom: 0 !important; }
+  html body #iba-d2 .iba-d2-head h2, html body #iba-d2 svg text { text-shadow: 0 1px 3px rgba(0,0,0,.55) !important; }
+  html body #iba-d2 .iba-d2-head p, html body #iba-d2 .iba-d2-hint { text-shadow: 0 1px 2px rgba(0,0,0,.6) !important; }
+  html body #iba-d2 .iba-d2-lg { background: rgba(10,15,24,.55) !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 16 (martin): the Dashboard pieces were too see-through to read on bright videos ->
+     frosted glass like the side panel + stronger text */
+  html body #iba-d2 :is(.iba-d2-head, .iba-d2-chart, .iba-d2-lg, .iba-d2-list, .iba-d2-old, .iba-d2-trend) {
+    background: rgba(8,12,20,.62) !important; border: 1px solid rgba(255,255,255,.12) !important; border-radius: 14px !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important; -webkit-backdrop-filter: blur(14px) saturate(1.15) !important;
+    box-shadow: 0 8px 26px rgba(0,0,0,.28) !important; }
+  html body #iba-d2 .iba-d2-head { padding: 14px 18px !important; }
+  html body #iba-d2 .iba-d2-chart { padding: 10px 12px 12px !important; }
+  html body #iba-d2 .iba-d2-lg:hover { background: rgba(20,28,42,.75) !important; }
+  html body #iba-d2 .iba-d2-lg.is-sel { background: rgba(60,48,18,.72) !important; border-color: rgba(201,164,76,.7) !important; }
+  html body #iba-d2 .iba-d2-lg span b { font-size: 15px !important; color: #ffffff !important; }
+  html body #iba-d2 .iba-d2-lg span small, html body #iba-d2 .iba-d2-head p, html body #iba-d2 .iba-d2-hint, html body #iba-d2 :is(.iba-d2-note, .iba-d2-lock), html body #iba-d2 .iba-d2-oh span { color: #d3dae5 !important; }
+  html body #iba-d2 .iba-d2-lg em { font-size: 16px !important; color: #ffffff !important; }
+  html body #iba-d2 .iba-d2-t td { color: #f2f5f9 !important; }
+  html body #iba-d2 .iba-d2-t th { background: rgba(14,21,33,.96) !important; color: #c9d2de !important; }
+  html body #iba-d2 svg text { paint-order: stroke !important; stroke: rgba(5,8,14,.75) !important; stroke-width: 3.5px !important; stroke-linejoin: round !important; }
+  html body #iba-d2 .iba-d2-tl { font-size: 15px !important; }
+  html body #iba-d2 .iba-d2-ts { font-size: 13.5px !important; font-weight: 700 !important; }
+  html body #iba-d2 .iba-d2-ty { font-size: 13px !important; }
+  html body #iba-d2 .iba-d2-c1 { font-size: 34px !important; }
+  html body #iba-d2 .iba-d2-c2 { fill: #d3dae5 !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 17 (martin): Dashboard lighter. Title has no box, only a line under it;
+     pie chart sits on the background; Paid count = dark side-panel glass; cards + tables lighter glass */
+  html body #iba-d2 :is(.iba-d2-head, .iba-d2-chart) { background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  html body #iba-d2 .iba-d2-head { padding: 0 2px 12px !important; border-bottom: 1px solid rgba(255,255,255,.38) !important; }
+  html body #iba-d2 .iba-d2-chart { padding: 0 !important; }
+  html body #iba-d2 .iba-d2-paidn { background: rgba(8,12,20,.6) !important; border: 1px solid rgba(255,255,255,.16) !important; color: #e6ecf3 !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important; -webkit-backdrop-filter: blur(14px) saturate(1.15) !important; box-shadow: 0 6px 18px rgba(0,0,0,.25) !important; padding: 7px 14px !important; }
+  html body #iba-d2 :is(.iba-d2-list, .iba-d2-old, .iba-d2-trend) { background: rgba(8,12,20,.40) !important; }
+  /* the 3 steps (Preliminary / Approval / Finance): no card, a line under each */
+  html body #iba-d2 .iba-d2-lg { background: none !important; border: 0 !important; border-bottom: 1px solid rgba(255,255,255,.30) !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  html body #iba-d2 .iba-d2-lg:hover { background: rgba(255,255,255,.06) !important; }
+  html body #iba-d2 .iba-d2-lg.is-sel { background: none !important; border-bottom: 2px solid rgba(224,181,74,.95) !important; }
+  html body #iba-d2 .iba-d2-lg span b, html body #iba-d2 .iba-d2-lg em { text-shadow: 0 1px 3px rgba(0,0,0,.7) !important; }
+  html body #iba-d2 .iba-d2-lg span small { text-shadow: 0 1px 2px rgba(0,0,0,.75) !important; }
+  html body:not(#iba-at1):not(#iba-at2):not(#iba-at3):not(#iba-at4):not(#iba-at5):not(#iba-at6) #iba-d2 table:not(td table) > thead > tr > th { background: rgba(255,255,255,.07) !important; background-image: none !important; box-shadow: none !important; color: #ffffff !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  html body:not(#iba-at1):not(#iba-at2):not(#iba-at3):not(#iba-at4):not(#iba-at5):not(#iba-at6) #iba-d2 table:not(td table) > thead > tr { background: transparent !important; background-image: none !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 17 (martin): Active Task top card (dates / filters) and the result table header were too dark -> lighter glass */
+  html body:not(#iba-at1):not(#iba-at2):not(#iba-at3):not(#iba-at4) #wd-activetask :is(#active-task-filters, #active-task-date-tabs) {
+    background-color: rgba(8,12,20,.30) !important; background-image: none !important; border-color: rgba(255,255,255,.16) !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important; -webkit-backdrop-filter: blur(14px) saturate(1.15) !important; }
+  html body:not(#iba-at1):not(#iba-at2):not(#iba-at3):not(#iba-at4) #wd-activetask table thead tr { background: transparent !important; background-image: none !important; }
+  html body:not(#iba-at1):not(#iba-at2):not(#iba-at3):not(#iba-at4):not(#iba-at5):not(#iba-at6) #wd-activetask table:not(td table) > thead > tr > th {
+    background-color: rgba(8,12,20,.34) !important; background-image: none !important; box-shadow: none !important; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,.7) !important;
+    backdrop-filter: blur(14px) saturate(1.15) !important; -webkit-backdrop-filter: blur(14px) saturate(1.15) !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 17: thinner dark outline on the Dashboard chart text */
+  html body #iba-d2 svg text { stroke: rgba(5,8,14,.6) !important; stroke-width: 2.2px !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 18 (martin): thicker separation lines under the Dashboard title and the 3 steps */
+  html body #iba-d2 .iba-d2-head { border-bottom: 2px solid rgba(255,255,255,.55) !important; }
+  html body #iba-d2 .iba-d2-lg { border-bottom: 2px solid rgba(255,255,255,.45) !important; }
+  html body #iba-d2 .iba-d2-lg.is-sel { border-bottom: 3px solid rgba(224,181,74,1) !important; }
+}
+
+@layer iba-ui {
+  /* 18.0.0 patch 19 (martin): one row - chart with the 3 steps under it on the left, monthly bars on the right */
+  html body #iba-d2 .iba-d2-body.has-tr { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.65fr) !important; align-items: start !important; }
+  html body #iba-d2 .iba-d2-left, html body #iba-d2 .iba-d2-right { display: grid !important; gap: 10px !important; min-width: 0 !important; }
+  html body #iba-d2 .iba-d2-left .iba-d2-legend { gap: 2px !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trend { margin: 0 !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg { min-width: 600px !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trend { overflow-x: auto !important; }
+  @media (max-width: 1100px) { html body #iba-d2 .iba-d2-body.has-tr { grid-template-columns: 1fr !important; } }
+}
+@layer iba-ui {
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg .ax { font-size: 14px !important; fill: #dfe6ef !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg .vl { font-size: 13px !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg .bn { font-size: 12px !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 19 (martin): glass bars, bar names without the dark outline */
+  html body #iba-d2 .iba-d2-trsvg .bn { stroke: none !important; stroke-width: 0 !important; fill: rgba(255,255,255,.92) !important; }
+  html body #iba-d2 .iba-d2-trsvg rect.bar { fill: rgba(150,165,190,.30) !important; stroke: rgba(200,212,230,.75) !important; stroke-width: 1.2px !important; }
+  html body #iba-d2 .iba-d2-trsvg rect.wa { fill: rgba(47,167,160,.38) !important; stroke: rgba(111,214,203,.9) !important; stroke-width: 1.2px !important; }
+  html body #iba-d2 .iba-d2-trsvg rect.pd { fill: rgba(201,164,76,.38) !important; stroke: rgba(240,210,122,.9) !important; stroke-width: 1.2px !important; }
+  html body #iba-d2 .iba-d2-trsvg rect:hover { opacity: 1 !important; fill-opacity: .8 !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 19 (martin): the 3 steps show only their name; the status list shows on mouse-over (tooltip) */
+  html body #iba-d2 .iba-d2-lg > span > small { display: none !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 19 (martin): full pie with % inside, total under it */
+  html body #iba-d2 .iba-d2-slice { stroke: rgba(10,14,22,.55) !important; stroke-width: 1.5px !important; fill-opacity: .88 !important; cursor: pointer !important; transition: transform .15s !important; }
+  html body #iba-d2 .iba-d2-slice:hover, html body #iba-d2 .iba-d2-slice.is-sel { fill-opacity: 1 !important; }
+  html body #iba-d2 .iba-d2-pin { fill: #ffffff !important; font-size: 21px !important; font-weight: 800 !important; pointer-events: none !important; }
+  html body #iba-d2 .iba-d2-c1 { font-size: 26px !important; }
+  html body #iba-d2 .iba-d2-c1 .iba-d2-c2 { font-size: 13px !important; font-weight: 600 !important; }
+}
+@layer iba-ui {
+  html body #iba-d2 .iba-d2-pis { fill: #ffffff !important; font-size: 13px !important; font-weight: 700 !important; pointer-events: none !important; }
+  html body #iba-d2 .iba-d2-pin, html body #iba-d2 .iba-d2-pis { stroke: rgba(5,8,14,.45) !important; stroke-width: 2px !important; }
+}
+@layer iba-ui {
+  html body #iba-d2 .iba-d2-trsvg rect[data-d2-wam] { cursor: pointer !important; }
+  html body #iba-d2 .iba-d2-trsvg rect.wa.is-on { fill: rgba(47,167,160,.85) !important; stroke: #ffffff !important; stroke-width: 2px !important; }
+}
+@layer iba-ui {
+  /* patch 19: the bar chart lines up with the bottom of the 3 steps */
+  html body #iba-d2 .iba-d2-body.has-tr { align-items: end !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 20 (martin): Dashboard without the title row (title, line, Paid in 2026) and without the blue line above it */
+  html body #iba-d2 .iba-d2-head { display: none !important; }
+  html body #workdesk-content-area:has(> #wd-dashboard:not(.hidden))::before { display: none !important; content: none !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 21 (martin): no "Click a piece" hint, no card behind the bar chart, a divider line between pie and bars */
+  html body #iba-d2 .iba-d2-hint { display: none !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trend { background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+    padding: 0 0 0 24px !important; border-left: 2px solid rgba(255,255,255,.45) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trh b, html body #iba-d2 .iba-d2-right .iba-d2-trk { text-shadow: 0 1px 3px rgba(0,0,0,.75) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trk { color: #ffffff !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg :is(.ax, .vl) { paint-order: stroke !important; stroke: rgba(5,8,14,.6) !important; stroke-width: 2.2px !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg .gl { stroke: rgba(255,255,255,.18) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-note { text-shadow: 0 1px 2px rgba(0,0,0,.7) !important; }
+  /* side panel pinned (less room): the 3 steps stay on one line, a bit smaller */
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-lg span b { font-size: 13.5px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-lg span { min-width: 0 !important; }
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-lg em { font-size: 14px !important; white-space: nowrap !important; }
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-body.has-tr { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr) !important; gap: 18px !important; }
+}
+@layer iba-ui {
+  /* bars sit straight on the background now: a little more fill so they stay readable */
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg rect.bar { fill: rgba(170,185,210,.48) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg rect.wa { fill: rgba(47,167,160,.62) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg rect.pd { fill: rgba(201,164,76,.62) !important; }
+  html body #iba-d2 .iba-d2-right .iba-d2-trsvg .bn { paint-order: stroke !important; stroke: rgba(5,8,14,.35) !important; stroke-width: 1.5px !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 21 (martin): Preliminary / Approval / Finance as one row of figures (label, big number, small line), thin dividers */
+  html body #iba-d2 .iba-d2-legend { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0 !important; border-top: 2px solid rgba(255,255,255,.45) !important; border-bottom: 2px solid rgba(255,255,255,.45) !important; padding: 10px 0 !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 3px !important; padding: 4px 16px !important; min-width: 0 !important;
+    border: 0 !important; border-left: 1px solid rgba(255,255,255,.28) !important; border-radius: 0 !important; background: none !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg:first-child { border-left: 0 !important; padding-left: 4px !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg:hover { background: rgba(255,255,255,.06) !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg.is-sel { background: rgba(224,181,74,.12) !important; box-shadow: inset 0 -3px 0 rgba(224,181,74,1) !important; }
+  html body #iba-d2 .iba-d2-legend .lb { font-size: 11.5px !important; font-weight: 800 !important; letter-spacing: .08em !important; text-transform: uppercase !important; filter: brightness(1.35) !important; text-shadow: 0 1px 3px rgba(0,0,0,.75) !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg em { font-size: 21px !important; font-weight: 800 !important; color: #ffffff !important; display: block !important; text-align: left !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important; font-variant-numeric: tabular-nums !important; text-shadow: 0 1px 3px rgba(0,0,0,.75) !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg > small { display: block !important; font-size: 11.5px !important; color: #d3dae5 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 100% !important; text-shadow: 0 1px 2px rgba(0,0,0,.75) !important; }
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg > small b { color: #f0d27a !important; font-weight: 600 !important; }
+  html body.iba-sidebar-pinned #iba-d2 .iba-d2-legend .iba-d2-lg em { font-size: 18px !important; }
+}
+@layer iba-ui {
+  /* Show QAR switch (money people only), off by default */
+  html body #iba-d2 .iba-d2-qsw { justify-self: end !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; font-size: 12.5px !important; font-weight: 600 !important; color: #ffffff !important; cursor: pointer !important; text-shadow: 0 1px 3px rgba(0,0,0,.75) !important; user-select: none !important; }
+  html body #iba-d2 .iba-d2-qsw input { position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; pointer-events: none !important; }
+  html body #iba-d2 .iba-d2-qsw span { position: relative !important; width: 34px !important; height: 18px !important; border-radius: 999px !important; background: rgba(255,255,255,.22) !important; border: 1px solid rgba(255,255,255,.35) !important; transition: background .15s !important; }
+  html body #iba-d2 .iba-d2-qsw span::after { content: "" !important; position: absolute !important; top: 2px !important; left: 2px !important; width: 12px !important; height: 12px !important; border-radius: 50% !important; background: #ffffff !important; transition: transform .15s !important; }
+  html body #iba-d2 .iba-d2-qsw input:checked + span { background: rgba(224,181,74,.9) !important; border-color: rgba(240,210,122,1) !important; }
+  html body #iba-d2 .iba-d2-qsw input:checked + span::after { transform: translateX(16px) !important; }
+  html body #iba-d2 .iba-d2-qsw input:focus-visible + span { outline: 2px solid #f0d27a !important; outline-offset: 2px !important; }
+}
+@layer iba-ui {
+  html body #iba-d2 .iba-d2-legend .iba-d2-lg span.lb { color: var(--c) !important; -webkit-text-fill-color: var(--c) !important; }
+}
+@layer iba-ui {
+  /* pie "cut": the chosen piece lifts out, the others fade away (and come back when it is closed) */
+  html body #iba-d2 .iba-d2-pc { transform-box: view-box !important; }
+  html body #iba-d2 .iba-d2-pc.is-sel { transform: translate(var(--tx), var(--ty)) !important; }
+  html body #iba-d2 .iba-d2-pc.is-sel .iba-d2-slice { fill-opacity: 1 !important; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)) !important; }
+  html body #iba-d2 .iba-d2-pc.gone { opacity: 0 !important; pointer-events: none !important; }
+  html body #iba-d2 .iba-d2-pc.lift { animation: iba-d2-lift .55s cubic-bezier(.2,.8,.2,1) both !important; }
+  html body #iba-d2 .iba-d2-pc.out { animation: iba-d2-out .5s ease both !important; }
+  html body #iba-d2 .iba-d2-pc.back { animation: iba-d2-back .5s ease both !important; }
+  html body #iba-d2 .iba-d2-pc.drop { animation: iba-d2-drop .45s ease both !important; }
+  @keyframes iba-d2-lift { from { transform: translate(0, 0); } to { transform: translate(var(--tx), var(--ty)); } }
+  @keyframes iba-d2-drop { from { transform: translate(var(--tx), var(--ty)); } to { transform: translate(0, 0); } }
+  @keyframes iba-d2-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.94); } }
+  @keyframes iba-d2-back { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+  html body #iba-d2 .iba-d2-pc.out, html body #iba-d2 .iba-d2-pc.back { transform-origin: 220px 150px !important; }
+  @media (prefers-reduced-motion: reduce) { html body #iba-d2 .iba-d2-pc { animation: none !important; } }
+  /* Show QAR switch sits at the top right, above the bar chart legend */
+  html body #iba-d2 .iba-d2-right > .iba-d2-qsw { justify-self: end !important; margin-bottom: -4px !important; }
+}
+@layer iba-ui {
+  /* 18.0.0 patch 21 (martin): no blue line at the top of any page (old style, took space) */
+  html body #workdesk-content-area::before, html body #im-content-area::before { display: none !important; content: none !important; }
+}
