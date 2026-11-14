@@ -3,6 +3,12 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 23 (14-Nov-2026)
+- Dashboard: the open total ("238 open invoices") moved from under the pie to a "Total open" row under the 3 figures.
+- Names: Preliminary is now "Ongoing", Approval Area is now "Mgmt Approval" (mouse-over: Under Management Approval, COO and CEO); the pie uses the same names.
+- Pie name lines are brighter and a name at the bottom always sits below its line (the Approval line was hidden behind its name).
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
 18.0.0 patch 22 (14-Nov-2026)
 - Dashboard has its own background: Settings > Background has a Dashboard photo row and Settings > Moving background has a Dashboard row (weather + video). Until it is saved, the Dashboard shows the WorkDesk choice.
 - Moving background > Preview now shows that page's chosen background (photo, video and weather, even if not saved yet) on the full screen with nothing on top. Move the mouse, click or press Escape to go back to Settings, then Save or try another one.
