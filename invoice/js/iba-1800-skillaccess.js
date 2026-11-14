@@ -68,6 +68,17 @@
         const bits = (r.pos || []).concat((r.ppl || []).map((p) => p.name));
         return bits.length ? bits.join(', ') : 'Only the Super Admin';
     }
+    // 18.0.0 patch 7 (martin): the skill list shows a short label, not every name (the row got wide).
+    // One pick = its name; more = "3 positions" / "2 positions + 1 person". Full names on hover and in the right side.
+    function label(r) {
+        if (!r) return '';
+        if (r.who === 'all') return 'Everyone';
+        const np = (r.pos || []).length, nm = (r.ppl || []).length;
+        if (!np && !nm) return 'Only the Super Admin';
+        if (np + nm === 1) return summary(r);
+        const a = np ? np + (np === 1 ? ' position' : ' positions') : '', b = nm ? nm + (nm === 1 ? ' person' : ' people') : '';
+        return a && b ? a + ' + ' + b : (a || b);
+    }
 
     // ---- the window ----
     function css() {
@@ -104,7 +115,13 @@
         document.head.appendChild(st);
     }
     // catalog comes from the assistant: [{id, name, group, built, lock}]
-    function catalog() { try { return typeof window.ibaAiSkillCatalog === 'function' ? window.ibaAiSkillCatalog() : []; } catch (_) { return []; } }
+    // patch 10: other pages can add their own entries (e.g. Dashboard QAR) via window.ibaSkillAccessExtra
+    function catalog() {
+        let out = [];
+        try { out = typeof window.ibaAiSkillCatalog === 'function' ? window.ibaAiSkillCatalog() : []; } catch (_) { out = []; }
+        try { (window.ibaSkillAccessExtra || []).forEach((x) => { if (x && x.id && !out.some((o) => o.id === x.id)) out.push(Object.assign({ lock: '', lockShort: '', desc: '' }, x)); }); } catch (_) {}
+        return out;
+    }
 
     async function open(firstId) {
         if (!isSuper()) { alert('Skill access is for the Super Admin only.'); return; }
@@ -130,13 +147,14 @@
         W.w.querySelector('.iba-esn-box').classList.add('iba-sa-box');
         const L = W.w.querySelector('[data-sa-list]'), E = W.w.querySelector('[data-sa-ed]');
         const changed = (id) => JSON.stringify(draft[id] || null) !== JSON.stringify(rule(id) || null);
-        function short(s) { if (s.lock) return '🔒 ' + s.lockShort; const r = draft[s.id]; return r ? summary(r) : s.built; }
+        function short(s) { if (s.lock) return '🔒 ' + s.lockShort; const r = draft[s.id]; return r ? label(r) : s.built; }
+        function full(s) { if (s.lock) return ''; const r = draft[s.id]; return r && r.who === 'only' ? summary(r) : ''; }
         function drawList() {
             let g = '', h = '<input type="search" class="iba-sa-find" data-sa-find placeholder="Find a skill" value="' + esc(q) + '">';
             list.forEach((s) => {
                 if (q && norm(s.name).indexOf(norm(q)) === -1) return;
                 if (s.group !== g) { g = s.group; h += '<div class="iba-sa-gt">' + esc(g) + '</div>'; }
-                h += '<button type="button" class="iba-sa-sk' + (s.id === cur ? ' is-on' : '') + (s.lock ? ' is-lock' : '') + (changed(s.id) ? ' is-changed' : '') + '" data-sa-sk="' + s.id + '"><span>' + esc(s.name) + '</span><em>' + esc(short(s)) + '</em></button>';
+                h += '<button type="button" class="iba-sa-sk' + (s.id === cur ? ' is-on' : '') + (s.lock ? ' is-lock' : '') + (changed(s.id) ? ' is-changed' : '') + '" data-sa-sk="' + s.id + '"' + (full(s) ? ' title="' + esc(full(s)) + '"' : '') + '><span>' + esc(s.name) + '</span><em>' + esc(short(s)) + '</em></button>';
             });
             L.innerHTML = h;
             const fi = L.querySelector('[data-sa-find]');
