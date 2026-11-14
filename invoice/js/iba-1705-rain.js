@@ -56,17 +56,17 @@
       .then(function () { vlBusy = false; });
   }
   var LEVELS = { off: 0, light: 110, heavy: 260 };
-  var PAGES = [['login', 'Welcome screen', 'fa-door-open'], ['workdesk', 'WorkDesk', 'fa-briefcase'], ['inventory', 'Inventory', 'fa-boxes-stacked'], ['invoice', 'Invoice Management', 'fa-file-invoice'], ['phone', 'Phone', 'fa-mobile-screen-button']];
+  var PAGES = [['login', 'Welcome screen', 'fa-door-open'], ['workdesk', 'WorkDesk', 'fa-briefcase'], ['dashboard', 'Dashboard', 'fa-chart-pie'], ['inventory', 'Inventory', 'fa-boxes-stacked'], ['invoice', 'Invoice Management', 'fa-file-invoice'], ['phone', 'Phone', 'fa-mobile-screen-button']];
   // 18.0.0 patch 8 (martin): phones have their OWN rain / thunder choice (row "Phone"). Older saves without it
   // keep what phones showed before (the Invoice Management choice) until the Super Admin saves.
   function lv(v) { v = String(v || '').toLowerCase(); return LEVELS.hasOwnProperty(v) ? v : 'off'; }
-  function norm(o) { var r = {}; PAGES.forEach(function (p) { r[p[0]] = lv(o && o[p[0]]); }); if (o && !Object.prototype.hasOwnProperty.call(o, 'phone')) r.phone = lv(o.invoice); return r; }
+  function norm(o) { var r = {}; PAGES.forEach(function (p) { r[p[0]] = lv(o && o[p[0]]); }); if (o && !Object.prototype.hasOwnProperty.call(o, 'phone')) r.phone = lv(o.invoice); if (!o || !Object.prototype.hasOwnProperty.call(o, 'dashboard')) r.dashboard = r.workdesk; return r; }
   function same(a, b) { return PAGES.every(function (p) { return a[p[0]] === b[p[0]]; }); }
   function copy(o) { return norm(o); }
   var saved = norm({});
   try { var ls = JSON.parse(localStorage.getItem(KEY) || 'null'); if (ls) saved = norm(ls); } catch (_) {}
   var shown = copy(saved);
-  function vnorm(o) { var r = {}; PAGES.forEach(function (p) { var v = String((o && o[p[0]]) || '').replace(/\.mp4$/i, ''); r[p[0]] = okName(v); }); return r; }
+  function vnorm(o) { var r = {}; PAGES.forEach(function (p) { var v = String((o && o[p[0]]) || '').replace(/\.mp4$/i, ''); r[p[0]] = okName(v); }); if (!o || !Object.prototype.hasOwnProperty.call(o, 'dashboard')) r.dashboard = r.workdesk; return r; }
   function vsame(a, b) { return PAGES.every(function (p) { return a[p[0]] === b[p[0]]; }); }
   var vsaved = vnorm({});
   try { var lv2 = JSON.parse(localStorage.getItem(VKEY) || 'null'); if (lv2) vsaved = vnorm(lv2); } catch (_) {}
@@ -74,7 +74,7 @@
   // 18.0.0 patch 11: weather kind per page
   var KINDS = [['rain', 'Rain'], ['snow', 'Snow'], ['sand', 'Sandstorm'], ['summer', 'Summer'], ['meteor', 'Meteors'], ['twister', 'Twister']];
   function wk(v) { v = String(v || '').toLowerCase(); return KINDS.some(function (k) { return k[0] === v; }) ? v : 'rain'; }
-  function wnorm(o) { var r = {}; PAGES.forEach(function (p) { r[p[0]] = wk(o && o[p[0]]); }); if (o && !Object.prototype.hasOwnProperty.call(o, 'phone')) r.phone = wk(o.invoice); return r; }
+  function wnorm(o) { var r = {}; PAGES.forEach(function (p) { r[p[0]] = wk(o && o[p[0]]); }); if (o && !Object.prototype.hasOwnProperty.call(o, 'phone')) r.phone = wk(o.invoice); if (!o || !Object.prototype.hasOwnProperty.call(o, 'dashboard')) r.dashboard = r.workdesk; return r; }
   var WKEY = 'iba-weather-pages-v1', wsaved = wnorm({}), weatherVal = null;
   try { var lw = JSON.parse(localStorage.getItem(WKEY) || 'null'); if (lw) wsaved = wnorm(lw); } catch (_) {}
   var wshown = wnorm(wsaved);
@@ -95,6 +95,9 @@
     if (m === 'inventory') return 'inventory';
     if (m === 'invoice' || m === 'invoice-management') return 'invoice';
     if (m === 'login' || m === 'home') return 'login';
+    // 18.0.0 patch 22 (martin): the Dashboard has its own background / weather (until saved it follows WorkDesk)
+    var dsec = document.getElementById('wd-dashboard');
+    if (dsec && !dsec.classList.contains('hidden') && dsec.offsetParent !== null) return 'dashboard';
     return 'workdesk';
   }
   // 18.0.0 patch 13 (martin): Preview button on each row shows that row's weather on this screen for 20 s
@@ -292,7 +295,7 @@
   // background): the old video now keeps playing until the new one really plays, then the new one fades
   // in OVER it (no photo gap). The last 3 videos stay loaded (paused), so going back is instant.
   var vd = null, pool = {}, poolOrder = [];
-  function vWanted() { var n = vshown[page()]; return n && !reduced() && !onPhone() && document.getElementById('iba-bg-layer') ? n : ''; }
+  function vWanted() { var n = vshown[cur()]; return n && !reduced() && !onPhone() && document.getElementById('iba-bg-layer') ? n : ''; }
   function vids(host) { return Array.prototype.filter.call(host.children, function (c) { return c.tagName === 'VIDEO'; }); }
   function onTop(host, el) { var vs = vids(host); var last = vs[vs.length - 1]; if (last !== el) host.insertBefore(el, last ? last.nextSibling : host.firstChild); }
   function hideOthers() { Object.keys(pool).forEach(function (k) { var o = pool[k]; if (o && o !== vd) { o.style.opacity = '0'; try { o.pause(); } catch (_) {} o.removeAttribute('id'); } }); }
@@ -459,15 +462,52 @@
     if (!same(shown, saved) || !vsame(vshown, vsaved) || !same(tshown, tsaved) || !vsame(wshown, wsaved)) say('Not saved yet. Only this screen shows it (on this page).');
     else if ((el.querySelector('.iba-dim-note').textContent || '').indexOf('Not saved') === 0) say('');
   }
+  // 18.0.0 patch 22 (martin): Preview = full screen. The page's chosen (unsaved) photo + video + weather fill the
+  // screen with nothing on top; moving the mouse, a click/tap or Escape goes back to Settings to Save or try another.
+  var pvBack = null;
+  function pvPhoto(pg) {
+    var g = pg === 'phone' ? 'phone-invoice' : pg;
+    var row = document.querySelector('.iba-bg-row[data-iba-bg-group="' + g + '"]');
+    if (row && row.dataset.dirty === '1' && row.dataset.pending) return row.dataset.pending;
+    try { return window.ibaShellBackgroundFor ? window.ibaShellBackgroundFor(g) : ''; } catch (_) { return ''; }
+  }
+  function pvEnd() {
+    clearTimeout(pvTimer);
+    if (!pv) return;
+    pv = null;
+    document.removeEventListener('mousemove', pvMove, true); document.removeEventListener('keydown', pvKey, true);
+    document.removeEventListener('pointerdown', pvDown, true); document.removeEventListener('touchstart', pvDown, true);
+    var L = document.getElementById('iba-bg-layer');
+    if (L && pvBack) { L.style.backgroundImage = pvBack.img; L.style.display = pvBack.disp; }
+    pvBack = null;
+    document.body.classList.remove('iba-bgpv-on');
+    paint(); update(); say('');
+  }
+  var pvStart = 0, pvXY = null;
+  function pvMove(e) {
+    if (Date.now() - pvStart < 900) { pvXY = [e.clientX, e.clientY]; return; }
+    if (pvXY && Math.abs(e.clientX - pvXY[0]) + Math.abs(e.clientY - pvXY[1]) < 8) return;
+    pvEnd();
+  }
+  function pvKey(e) { if (e.key === 'Escape' || Date.now() - pvStart > 900) { e.preventDefault(); e.stopPropagation(); pvEnd(); } }
+  function pvDown(e) { if (Date.now() - pvStart < 400) return; e.preventDefault(); e.stopPropagation(); pvEnd(); }
   function preview(pg) {
     clearTimeout(pvTimer);
-    if (pv === pg) { pv = null; paint(); update(); say(''); return; }
-    if ((shown[pg] || 'off') === 'off') { pv = null; paint(); update(); say('Pick Light or Heavy for this row first, then Preview.'); return; }
-    pv = pg; paint(); update();
-    var nm = (KINDS.filter(function (k) { return k[0] === kind(); })[0] || ['', ''])[1];
-    say('Preview: ' + nm + ' (' + level() + ')' + (tlevel() !== 'off' ? ' with ' + tlevel() + ' thunder' : '') + ' for 20 seconds. Only on this screen, nothing is saved.');
-    if (tlevel() !== 'off') setTimeout(function () { if (pv === pg) strike(); }, 600);
-    pvTimer = setTimeout(function () { if (pv === pg) { pv = null; paint(); update(); say(''); } }, 20000);
+    if (pv) pvEnd();
+    var L = document.getElementById('iba-bg-layer');
+    if (!L) return;
+    pv = pg;
+    pvBack = { img: L.style.backgroundImage, disp: L.style.display };
+    var ph = pvPhoto(pg);
+    if (ph) L.style.backgroundImage = 'url("' + ph + '")';
+    L.style.display = 'block';
+    document.body.classList.add('iba-bgpv-on');
+    pvStart = Date.now(); pvXY = null;
+    document.addEventListener('mousemove', pvMove, true); document.addEventListener('keydown', pvKey, true);
+    document.addEventListener('pointerdown', pvDown, true); document.addEventListener('touchstart', pvDown, true);
+    paint(); update();
+    if (tlevel() !== 'off') setTimeout(function () { if (pv === pg) strike(); }, 900);
+    pvTimer = setTimeout(function () { if (pv === pg) pvEnd(); }, 60000); // safety: back after 1 minute
   }
   function save() {
     var d = mainDb(); if (!d) { say('Could not reach Firebase. Try again.', true); return; }

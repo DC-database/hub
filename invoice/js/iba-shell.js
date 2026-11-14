@@ -11,14 +11,14 @@
   const PHOTO_LIST_CACHE = "iba-photo-list-v2"; // v2 (patch 154): photos renamed, forget the old list
   const PHOTO_LIST_TTL = 6 * 60 * 60 * 1000;
   const PHOTO_NONE = "none";
-  const GROUPS = ["workdesk", "inventory", "invoice", "login"];
+  const GROUPS = ["workdesk", "dashboard", "inventory", "invoice", "login"];
   // phone workspace backgrounds (patch 7): one per side, shared like the rest
   // 17.0.0 patch 21: "phone-cover" = small cover screens (Z Flip 7 / 8),
   // its own photo so that view is easy to tell apart (Fold / Duo keep the
   // normal phone photos)
   const PHONE_GROUPS = ["phone-invoice", "phone-inventory", "phone-cover"];
   const ALL_BG_GROUPS = GROUPS.concat(PHONE_GROUPS);
-  const PHONE_FOLLOWS = { "phone-invoice": "invoice", "phone-inventory": "inventory" };
+  const PHONE_FOLLOWS = { "phone-invoice": "invoice", "phone-inventory": "inventory", "dashboard": "workdesk" }; // 18.0.0 patch 22: Dashboard follows WorkDesk until it has its own photo
   const BG_SETTINGS_PATH = "system_settings/shell_backgrounds";
   const DEFAULTS = {
     workdesk: PHOTO_BASE + "D-Road.jpg",
@@ -97,8 +97,19 @@
     if (m === "inventory") return "inventory";
     if (m === "invoice" || m === "invoice-management") return "invoice";
     if (m === "login" || m === "home") return "login";
+    const dsec = document.getElementById("wd-dashboard"); // 18.0.0 patch 22 (martin): Dashboard = its own background
+    if (dsec && !dsec.classList.contains("hidden") && dsec.offsetParent !== null) return "dashboard";
     return "workdesk";
   }
+  // Dashboard and the other WorkDesk pages are in the same module: repaint the photo when switching between them
+  let lastPaintGroup = "";
+  setInterval(function () {
+    if (!document.body || !document.body.classList.contains("iba-shell-on")) { lastPaintGroup = ""; return; }
+    const g = currentGroup();
+    if (g === lastPaintGroup) return;
+    const was = lastPaintGroup; lastPaintGroup = g;
+    if (was && (g === "dashboard" || was === "dashboard")) paintLayer(storedBg(g));
+  }, 300);
 
   function paintLayer(src) {
     const layer = $("iba-bg-layer");
