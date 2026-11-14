@@ -2663,3 +2663,9 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   /* 18.0.0 patch 21 (martin): no blue line at the top of any page (old style, took space) */
   html body #workdesk-content-area::before, html body #im-content-area::before { display: none !important; content: none !important; }
 }
+
+/* 18.0.0 patch 22 (martin): Settings > Moving background > Preview = the chosen background full screen, nothing on top */
+@layer iba-ui {
+  html body.iba-bgpv-on #iba-bg-layer { z-index: 2147483600 !important; display: block !important; position: fixed !important; inset: 0 !important; background-size: cover !important; background-position: center !important; cursor: none !important; }
+  html body.iba-bgpv-on, html body.iba-bgpv-on * { cursor: none !important; }
+}
