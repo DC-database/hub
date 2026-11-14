@@ -3,6 +3,94 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 21 (14-Nov-2026)
+- Dashboard: amounts hidden by default (counts only). Money people get a "Show QAR" switch at the top right; it is off again after every reload (people may look at the screen).
+- Preliminary / Approval / Finance shown as one row of figures (coloured label, big number, small line, thin dividers); the status list shows on mouse-over.
+- Click a pie piece: it slides out and the other pieces fade away (only that slice stays), its invoices list opens below; click again / Close brings the pie back.
+- Bar chart without card, divider line between pie and bars; "Click a piece" text removed; "With Accounts over 7 days" box removed (the With Accounts list now opens only by clicking a teal bar, Close hides it).
+- Side panel pinned: figures stay on one line.
+- All pages: the blue line at the top of the page is gone (Workdesk, Invoice Management, Inventory, Settings).
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
+18.0.0 patch 20 (14-Nov-2026)
+- Dashboard: title row removed ("Where the invoices are now", its line and "Paid in 2026") and the blue line above it (only on the Dashboard), so the pie and bars have more room. Pie label "App" is "Approval" again.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
+18.0.0 patch 19 (14-Nov-2026)
+- Dashboard in one row (money people): full pie on the left (no hole, bigger, %, amount and invoice count inside the pieces, short names Ongoing / App / Fin outside, total under it) with Preliminary / Approval / Finance under it; monthly bars "Invoice Flow 2026" on the right, lined up at the bottom. People without money keep pie left, 3 steps right.
+- The 3 steps show only their names; the status list shows on mouse-over.
+- Bars are glass (see-through, bright edge); names inside bars have no dark outline.
+- Super Admin: click a teal With Accounts bar = that month's With Accounts invoices with tick boxes + Mark Paid (from the payment pocket, no extra download). "All over 7 days" goes back. Received / Paid bars are not clickable.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
+18.0.0 patch 18 (14-Nov-2026)
+- Dashboard: thicker separation lines under the title and under Preliminary / Approval / Finance (the clicked one gets a thicker gold line).
+- New monthly chart "Received, With Accounts and Paid · 2026" under the Dashboard (only Super Admin, Finance / Accounts and CEO): 3 bars per month, grey Received (invoice date), teal With Accounts still waiting (month given to Accounts), gold Paid (Paid date), number on top + name inside each bar.
+- First time: Super Admin presses "Fill" once (reads the invoice list one time). After that it only reads the invoices that changed (from the change list every save already writes), at most every 10 minutes.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
+18.0.0 patch 17 (14-Nov-2026)
+- Dashboard cleaner and lighter: no boxes behind the title, chart and the 3 steps (Preliminary / Approval / Finance), only a thin line under each (the clicked step gets a gold line). "Paid in 2026" sits in dark glass like the side panel. Chart labels have a thinner dark outline. Lists and table headers are lighter glass.
+- Active Task: the top card and the table header are lighter glass (were solid dark).
+Files: index.html, PATCH.txt, css/iba-1705-fit.css
+
+18.0.0 patch 16 (14-Nov-2026)
+- Dashboard easier to read on bright / moving backgrounds: title, chart, the 3 rows, lists and the With Accounts box are frosted glass (blur like the side panel), text is whiter and bigger, chart labels have a dark outline.
+Files: index.html, PATCH.txt, css/iba-1705-fit.css
+
+18.0.0 patch 15 (14-Nov-2026)
+- Dashboard: the big outer card around everything is gone; title, chart, legend and boxes sit straight on the background.
+- Chart labels of small pieces no longer sit on top of each other (they push apart); a tiny piece shows "<1%".
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, css/iba-1705-fit.css
+
+18.0.0 patch 14 (14-Nov-2026)
+- Dashboard: the Refresh button is gone from the chart (it updates itself every few minutes). If someone needs the newest numbers right away: Settings > Dashboard > "Refresh Dashboard numbers" (every user on PC; the Super Admin also keeps "Show old Dashboard cards" and "Who sees QAR" there).
+Files: index.html, PATCH.txt, js/iba-1800-dash.js
+
+18.0.0 patch 13 (14-Nov-2026)
+- Settings > Moving background: "Show a strike" replaced by a Preview button on every row. It shows that row's weather (and a strike when Rain + thunder) on your screen for 20 seconds, click again to stop. Nothing is saved.
+Files: index.html, PATCH.txt, js/iba-1705-rain.js
+
+18.0.0 patch 12 (14-Nov-2026)
+- QAR on the Dashboard: only Super Admin, Finance / Accounts / Accounting and CEO positions see money (totals, amounts, Paid in 2026). Everyone else sees invoice counts only. Skill access > "Dashboard: QAR amounts" can still add or remove people.
+- Dashboard groups (martin): 01 Work in progress = everything still with us (New Entry, For SRV, SRV Done, Pending, On Hold, IPC, For Approval, Report, For Summary...). 02 Approval = only In Process and CEO Approval. 03 Finance = only With Accounts from the last 7 days.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js
+
+18.0.0 patch 11 (14-Nov-2026)
+- Dashboard Finance = Report + With Accounts given in the last 7 days (was 60). Accounts pay Saturday and Tuesday, so that is what really waits for payment.
+- Super Admin box "With Accounts over 7 days (2026)": tick boxes on every row + tick-all in the header, one "Mark Paid (N)" button (asks "Sure?" once). Each invoice gets its own Paid date (With Accounts date + 1 day, Friday moves to Saturday); a Paid date column shows it before you click.
+- 01 Preliminary now also counts Reception New Entry jobs (2026 only), from the Job Records already loaded / saved copy, else the same small query the old Dashboard used.
+- Weather per page: Settings > Moving background, each page (and Phone) picks Rain, Snow, Sandstorm, Summer (sun glare + tumbleweed), Meteors (fireball that explodes when it lands) or Twister (small, faint, far away), with Off / Light / Heavy. Thunder only with Rain. Old saves stay Rain.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, js/iba-1705-rain.js, css/iba-1705-fit.css
+
+18.0.0 patch 10 (14-Nov-2026)
+- New Dashboard (PC): one donut chart of the open work in 3 groups (01 Work in progress, 02 Approval, 03 Finance = Report + With Accounts from the last 60 days, 2026 only). Arrow labels show count, % and "N yours". Click a piece or a legend row = its invoices, yours first with "Yours"; Admin / Super Admin see all rows with an "Only mine" tick, everyone else sees only their own rows.
+- QAR amounts only for the Super Admin and the people picked in Skill access > "Dashboard: QAR amounts" (Settings > Dashboard > Who sees QAR). They also see "Paid in 2026: N".
+- Super Admin: "With Accounts over 60 days (2026)" box with Mark Paid (same routine as the pocket: With Accounts date + 1 day, Friday moves to Saturday; asks "Sure?").
+- Old 01/02/03 cards and My personal tasks are hidden and no longer recount every 30 s. Settings > Dashboard > "Show old Dashboard cards" brings them back for everyone.
+- Data: reads only the small open-task list once per Dashboard visit (kept 3 min), no full invoice download, nothing from 2025.
+- Empty tables (Active Task, Inventory Active Job, Job Records, inventory records) hide the column header row and show only the icon + message.
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, js/iba-1800-skillaccess.js, css/iba-1705-fit.css
+
+18.0.0 patch 9 (14-Nov-2026)
+- Menu bookmark fix: the tab sat inside the open menu (it used 248 px when the real menu was wider). It now measures the menu every time it opens (click or edge hover) and sits on its real edge. js/iba-1800-menubm.js
+Files: index.html, PATCH.txt, js/iba-1800-menubm.js
+
+18.0.0 patch 8 (14-Nov-2026)
+- Fix: rain and thunder did not show on pages with a video (patch 6 put the video on top of the rain). Videos sit under the rain again.
+- Phones have their own rain / thunder choice: new "Phone" row in Settings > Moving background (all phone pages; no video on phones). Until you Save, phones keep the Invoice Management choice they had before.
+Files: index.html, PATCH.txt, js/iba-1705-rain.js
+
+18.0.0 patch 7 (14-Nov-2026)
+- Skill access list: a skill set to "Only these" shows a short label (one pick = its name; more = "3 positions" or "2 positions + 1 person") instead of every name, so the row stays narrow. Full names on hover and in the right side when you click it. js/iba-1800-skillaccess.js
+Files: index.html, PATCH.txt, js/iba-1800-skillaccess.js
+
+18.0.0 patch 6 (14-Nov-2026)  - menu bookmark, new pin, smooth background change
+- Menu bookmark (martin picked sample A, mock-up JCu6j): when the left menu is not pinned, a slim see-through gold tab sits half-way down the left edge. Hover = a bit wider + "Menu"; click = the menu slides out and the tab rides on its edge (click again or outside to close). Not on the phone, gone when pinned. The old grey edge strip is see-through now (still opens on hover). js/iba-1800-menubm.js (new)
+- New pin button: red pushpin tilted + "Pin" when not pinned; gold pin standing up + "Pinned" when pinned. js/iba-1800-menubm.js
+- Moving background: changing page no longer flashes the still photo. The old video keeps playing until the new one plays, then the new one fades in over it; the last 3 videos stay loaded, so going back is instant. Page change is noticed at once (was up to 1 s). js/iba-1705-rain.js
+Files: index.html, PATCH.txt, js/iba-1800-menubm.js, js/iba-1705-rain.js
+
 18.0.0 patch 5 (12-Nov-2026)  - one patch: Material Stock fix + skills + smart search
 - Material Stock: smooth again. In the dark theme every cell of every row had its own glass blur, so "All" meant thousands of blurs redrawn on every video frame / scroll step (only this page did that). Removed; the table panel stays glass. css/iba-1705-black.css
 - All skills sorted (mock-up S77GZ): groups in work order Add new, My day, Find and track, Batch and payments, Approvals, Inventory, Reports and lists, LPO and PO file, Admin tools; A-Z inside; gold title + count + line, divider between groups; no "More" group. js/iba-assistant.js, css/iba-1705-fit.css
