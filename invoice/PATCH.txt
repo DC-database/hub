@@ -3,6 +3,11 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 22 (14-Nov-2026)
+- Dashboard has its own background: Settings > Background has a Dashboard photo row and Settings > Moving background has a Dashboard row (weather + video). Until it is saved, the Dashboard shows the WorkDesk choice.
+- Moving background > Preview now shows that page's chosen background (photo, video and weather, even if not saved yet) on the full screen with nothing on top. Move the mouse, click or press Escape to go back to Settings, then Save or try another one.
+Files: index.html, PATCH.txt, js/iba-shell.js, js/iba-1705-rain.js, css/iba-1705-fit.css
+
 18.0.0 patch 21 (14-Nov-2026)
 - Dashboard: amounts hidden by default (counts only). Money people get a "Show QAR" switch at the top right; it is off again after every reload (people may look at the screen).
 - Preliminary / Approval / Finance shown as one row of figures (coloured label, big number, small line, thin dividers); the status list shows on mouse-over.
