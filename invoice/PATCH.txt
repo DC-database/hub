@@ -3,6 +3,14 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 36 (15-Nov-2026)
+- IRIS built-in answers (spoken or typed, no AI key): her name ("what is your name / what does IRIS stand for / who are you" = Intelligent Records and Invoice System), time and date (Doha), "anything pending I must do?" (the brief, said in words), "send a message to Imran saying ..." (opens the chat with the text typed in, YOU press Send), a colleague's mobile / email in any word order ("Hafiz email", "email of Hafiz", "reception number"), small talk (how are you, thanks, good morning, who am I / what is my name), jokes, maths (plus, minus, times, divide, square root, percent, power, brackets) and unit conversion (mm/cm/m/km/inch/feet/yard/mile, g/kg/lb/ton, sqm/sqft, litre/gallon).
+- Forgiving words: common typos and short forms are understood (wat, da, numbr, emial, fone, mobil, plz, u, r ...).
+- IRIS sounds (made by the browser): soft chime when she hears "Iris", a ding when something runs, a low tone when she can't. On/off: Assistant Settings > Look and voice > IRIS sounds (on by default).
+- Wake word catches more ways the browser writes "Iris" (Irish, Ires, Aris, Eye ris ...). If she heard words without her name, the bar / orb shows what she heard for 4 s.
+- Noisy room: a sentence starting with "Iris" is acted on when it ends with please / go / over / now / thanks, or when the words stop changing for 1.5 s (no need to wait for silence).
+Files: index.html, PATCH.txt, js/iba-assistant.js, js/iba-1800-talk.js, js/iba-1800-kokoro.js
+
 18.0.0 patch 35 (15-Nov-2026)
 - While Talk mode is on, the IRIS orb takes the robot's place (same spot, also if the robot was moved); the robot hides. Click the orb to open the assistant; hover for Mute / End. Talk mode off (or the assistant open) = the robot is back.
 Files: index.html, PATCH.txt, js/iba-1800-orb.js, css/iba-1705-fit.css
