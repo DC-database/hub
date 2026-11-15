@@ -3,6 +3,10 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 35 (15-Nov-2026)
+- While Talk mode is on, the IRIS orb takes the robot's place (same spot, also if the robot was moved); the robot hides. Click the orb to open the assistant; hover for Mute / End. Talk mode off (or the assistant open) = the robot is back.
+Files: index.html, PATCH.txt, js/iba-1800-orb.js, css/iba-1705-fit.css
+
 18.0.0 patch 34 (15-Nov-2026)
 - IRIS orb (design D): while Talk mode is on, a liquid ball of light inside an electric ring (bottom right, above every window). Colours: listening teal/blue, thinking gold/teal/violet, speaking warm gold, muted grey. Hover for Mute / End. The screen edge lights up only while she hears you, thinks or speaks (fades while she waits). "Hearing you" follows the real mic level (level meter on this PC only, nothing recorded or sent). PC only.
 - Typed commands in the assistant chat work without the AI key: "clear the batch", "tick 62812", "press Check notes", "change status to With Accounts"... Always a "IRIS: proceed?" card first: press Proceed (or say "proceed" when Talk mode is on) or Cancel.
