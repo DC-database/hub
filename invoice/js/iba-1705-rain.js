@@ -106,7 +106,9 @@
   function level() { return shown[cur()] || 'off'; }
   function kind() { return wshown[cur()] || 'rain'; }
   function tlevel() { return (level() === 'off' || kind() !== 'rain') ? 'off' : (tshown[cur()] || 'off'); }
-  function reduced() { try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } }
+  // 18.0.0 patch 32: a person's own "Still photo" switch (js/iba-1800-still.js) = no video, no weather, unless a Super Admin preview runs
+  function stillMe() { try { return !pv && !!(window.ibaStill && window.ibaStill.on()); } catch (_) { return false; } }
+  function reduced() { if (stillMe()) return true; try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } }
   function onPhone() {
     var b = document.body; if (!b) return true;
     if (b.classList.contains('iba-mobile-ui') || b.classList.contains('iba-phone')) return true;
@@ -336,6 +338,9 @@
       onTop(host, vd);                       // new one above the old one, the old keeps playing under it
       vd.style.opacity = '0';
       if (!vd.paused && vd.readyState >= 3) { vd.style.opacity = '1'; setTimeout(function () { if (el === vd) hideOthers(); }, 850); }
+      // 18.0.0 patch 26 (martin saw the Inventory video on Invoice): if the new one does not start within 6 s,
+      // stop showing the old page's video anyway (the page photo shows until the new video plays)
+      setTimeout(function () { if (el === vd && el.style.opacity !== '1') hideOthers(); }, 6000);
     }
     if (document.hidden) { Object.keys(pool).forEach(function (k) { try { pool[k].pause(); } catch (_) {} }); }
     else if (vd.paused) { var pr = vd.play(); if (pr && pr.catch) pr.catch(function () {}); }
@@ -522,6 +527,7 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.ibaRain = {
+    refresh: function () { update(); },
     refreshVideos: function () { loadVideoList(true); },
     strike: function (k) { if (fl && cv) strike(k === 'heavy' || k === 'light' ? k : undefined); },
     thunder: function (pg, v) { if (v === undefined) { v = pg; pg = page(); } if (tshown.hasOwnProperty(pg)) { tshown[pg] = lv(v); paint(); update(); } },

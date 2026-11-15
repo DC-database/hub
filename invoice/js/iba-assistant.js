@@ -3168,6 +3168,8 @@
             'If something is not found, say so plainly and suggest the next step.',
             'To answer where an invoice is, who has it or what happened to it, use track_invoices. If it returns counts by year and site, ask the user to choose before going further.',
             isSuper() ? '' : 'This user can only look things up: never offer to create, change or open invoices for them.'
+            // 18.0.0 patch 29: Talk mode (IRIS, js/iba-1800-talk.js) = answers are spoken aloud
+            (window.ibaTalk && window.ibaTalk.on && window.ibaTalk.on()) ? 'TALK MODE: the user is talking to you by voice and your answer is read aloud. Your name is Iris. Answer in 1 to 3 short, friendly spoken sentences, no tables, no lists, no markdown, round big amounts (about 84 thousand riyals). Details go on the cards on screen; just say what you found or did.' : ''
         ].filter(Boolean).join('\n');
     }
 
@@ -3266,6 +3268,7 @@
         // 15.0.0 patch 47: answered without the AI (key or no key): a PO
         // number, a report / skill word; with no key also a name or vendor
         if (!(opts && opts.silentUser) && await localAnswer(text)) return;
+        if (opts && opts.noAI) return 'no-ai'; // 18.0.0 patch 32: IRIS Talk mode never uses the AI
         if (!ready() && /\b(brief|waiting|today|remind(?:er)?s?|my tasks?|pending)\b/i.test(text)) {
             addUser(text);
             return openBrief();
@@ -3304,7 +3307,7 @@
                 const answer = tidyAnswer(String(m.content || '').trim(), cardShown) || (steps.length ? 'Done. The details are on the card above.' : '…');
                 state.lastTurn = { prompt: text, steps: steps.slice(), answer: answer };
                 addBot(answer, { canSave: steps.length > 0, prompt: text, steps: steps.slice() });
-                if (look().voice) speak(answer);
+                if (look().voice || (window.ibaTalk && window.ibaTalk.on && window.ibaTalk.on())) speak(answer);
                 state.history.push({ role: 'user', content: text }, { role: 'assistant', content: answer });
                 if (state.history.length > 2 * HISTORY_KEEP) state.history = state.history.slice(-2 * HISTORY_KEEP);
                 if (minimize) peek(answer);
@@ -3554,6 +3557,19 @@
         // 17.0.5 patch 68: forgot +Del? type POs into the pull-out list (cart)
         po_pull: { name: 'PO pull-out list', icon: 'fa-folder-minus', superOnly: true, desc: 'Original POs to take out of your paper file: added with +Del / the folder button, or type PO numbers in the box. Optional Given to name makes an Original PO job (PO Revision). Tick Pulled, then Proceed: ticked POs become Inactive and the list is cleared.',
             ask: () => [], action: () => { if (window.ibaPoFile) window.ibaPoFile.openList({ add: true }); } }, // 17.0.5 patch 116: one skill (Add PO to pull-out list merged in)
+        // 18.0.0 patch 28 (martin): everyone; hidden by default, kept per person on this PC (js/iba-1800-dash.js)
+        dash_charts: { name: 'Hide / show Dashboard charts', icon: 'fa-chart-pie', check: () => !!window.ibaDash2,
+            desc: 'Hide or show the pie and the Invoice Flow bars on your Dashboard (only on this PC). Amounts (QAR) still show only for money people.',
+            ask: () => [], action: () => {
+                const v = window.ibaDash2.toggleCharts();
+                try { if (typeof window.ibaOpenShellPage === 'function') window.ibaOpenShellPage('dashboard'); } catch (_) {}
+                try { if (typeof window.ibaToast === 'function') window.ibaToast(v ? 'Dashboard charts are shown.' : 'Dashboard charts are hidden.'); } catch (_) {}
+            } },
+        // 18.0.0 patch 28 (martin): print the Dashboard pie + Invoice Flow as an A4 report; money people choose counts or QAR
+        dash_print: { name: 'Print Dashboard report', icon: 'fa-print', check: () => !!(window.ibaDash2 && window.ibaDash2.printReport),
+            desc: 'Prints the Dashboard pie (open invoices by step) and the Invoice Flow by month on one A4 page. Money people choose counts only or with QAR; everyone else gets counts.',
+            ask: () => (window.ibaDash2 && window.ibaDash2.money && window.ibaDash2.money()) ? [{ key: 'mode', label: 'What to print', type: 'select', options: [['count', 'Counts only'], ['qar', 'With QAR']] }] : [],
+            run: async (v) => { await window.ibaDash2.printReport(!!v && v.mode === 'qar'); return null; } },
         // 17.0.5 patch 40: current stock of one site (js/iba-1705-sitestock.js), Super Admin + E.Ali
         site_stock: { name: 'Site stock', icon: 'fa-warehouse', check: () => !!(window.ibaSiteStock && window.ibaSiteStock.allowed()),
             desc: 'Current stock of one site: all items, or one product (e.g. site 170 + plywood). Items with 0 are left out. Print PDF or Download CSV. No AI used.',
@@ -4295,6 +4311,7 @@
             '<form class="iba-ai-input" id="iba-ai-form" autocomplete="off">' +
               '<textarea id="iba-ai-text" rows="1" placeholder="Ask, or tell me what to do…"></textarea>' +
               (SR ? '<button type="button" id="iba-ai-mic" title="Speak your question (Chrome / Edge)"><i class="fa-solid fa-microphone"></i></button>' : '') +
+              (SR ? '<button type="button" id="iba-ai-talk" title="Talk mode: say &quot;Iris, …&quot; and IRIS answers out loud"><i class="fa-solid fa-headset"></i></button>' : '') +
               '<button type="submit" id="iba-ai-send" title="Send (Enter)"><i class="fa-solid fa-paper-plane"></i></button>' +
             '</form>' +
             // 17.0.5 patch 9: phone bottom bar like a mobile app; Track is the
@@ -6951,7 +6968,7 @@
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309'],
         // 18.0.0 patch 5: the skills that sat in "More" get their short line too
         site_stock: ['All items of one site', '#0891b2'], ceo_sort: ['Single or Summary later', '#a855f7'], lpo_mail: ['One Outlook email per PO', '#2a78d6'],
-        po_pull: ['Originals out of the file', '#64748b'], access_check: ['Who can see which pages', '#475569'], skill_access: ['Who can use each skill', '#b8901f']
+        po_pull: ['Originals out of the file', '#64748b'], dash_charts: ['Pie and bars on or off', '#2fa7a0'], dash_print: ['Pie and flow on A4', '#3b6fd8'], access_check: ['Who can see which pages', '#475569'], skill_access: ['Who can use each skill', '#b8901f']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
     // 18.0.0 patch 5 (martin, mock-up https://claude.ai/artifact/S77GZiTiZ2mSHCd7cnvium): groups in work
@@ -6959,12 +6976,12 @@
     // "Who can print ESN" / "Who can send LPO emails" are not tiles any more: they live in Settings.
     const SKILL_GROUPS = [
         ['Add new', ['new_invoice', 'new_job', 'new_requisition', 'new_delivery']],
-        ['My day', ['brief', 'remind_me', 'screensaver']],
+        ['My day', ['brief', 'remind_me', 'screensaver', 'dash_charts']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
         ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
-        ['Reports and lists', ['export_copy', 'export', 'po_report', 'sn_print_all', 'site_list', 'weekly']],
+        ['Reports and lists', ['export_copy', 'export', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
         ['LPO and PO file', ['lpo_mail', 'po_pull']],
         ['Admin tools', ['access_check', 'dbcheck', 'skill_access', 'handover']]
     ];
@@ -7131,11 +7148,12 @@
             '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-bot"' + (look().bot ? ' checked' : '') + '/> Animated assistant (the little engineer robot in the corner)</label>' +
             '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-tips"' + (look().tips ? ' checked' : '') + '/> Speech bubbles ("Hi, I\'m here if you need me" and tips)</label>' +
             (canSpeak() ? '<label class="iba-ai-check"><input type="checkbox" id="iba-ai-look-voice"' + (look().voice ? ' checked' : '') + '/> Read answers and the brief aloud</label>' +
-                '<button type="button" class="iba-ai-btn" id="iba-ai-voice-test"><i class="fa-solid fa-volume-high"></i> Test voice</button>' : '<p class="iba-ai-help small">This browser cannot speak. Chrome or Edge can.</p>') +
+                '<button type="button" class="iba-ai-btn" id="iba-ai-voice-test"><i class="fa-solid fa-volume-high"></i> Test voice</button><div id="iba-kokoro-set"></div>' : '<p class="iba-ai-help small">This browser cannot speak. Chrome or Edge can.</p>') +
             '<p class="iba-ai-help small"><i class="fa-solid fa-lock"></i> This key is yours: it stays only in this browser, for your account. It is not saved in the system or in Firebase, and nobody else uses it. ' +
             'The assistant reads only what a job needs and never saves, approves or deletes anything by itself.</p>' +
             // 17.0.5 patch 33: the phone has no Settings page, so the version is shown here too
             (window.IBA_SYSTEM_VERSION ? '<p class="iba-ai-help small iba-ai-ver"><i class="fa-solid fa-code-branch"></i> Version ' + esc(window.IBA_SYSTEM_VERSION) + (window.IBA_PATCH ? ' · patch ' + esc(window.IBA_PATCH) : '') + (window.IBA_PATCH_DATE ? ' · updated ' + esc(window.IBA_PATCH_DATE) : '') + '</p>' : '');
+        try { if (window.ibaKokoro) window.ibaKokoro.paintSettings(); } catch (_) {}
         const lb = $('iba-ai-look-bot'), lv = $('iba-ai-look-voice'), vt = $('iba-ai-voice-test');
         if (lb) lb.addEventListener('change', () => { setLook({ bot: lb.checked }); paintFab($('iba-ai-fab')); });
         const lt = $('iba-ai-look-tips');
@@ -7560,6 +7578,15 @@
         if (!canSpeak()) return;
         const t = plainForSpeech(text);
         if (!t) return;
+        // 18.0.0 patch 31: Kokoro natural voice when the person switched it on (js/iba-1800-kokoro.js); normal voice if it can't
+        if (window.ibaKokoro && window.ibaKokoro.wanted()) {
+            try { window.speechSynthesis.cancel(); } catch (_) {}
+            window.ibaKokoro.speak(t, () => setTalking(true), () => setTalking(false)).then((ok) => { if (!ok) browserSpeak(t); }).catch(() => browserSpeak(t));
+            return;
+        }
+        browserSpeak(t);
+    }
+    function browserSpeak(t) {
         try {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(t);
@@ -7571,7 +7598,7 @@
             window.speechSynthesis.speak(u);
         } catch (_) { setTalking(false); }
     }
-    function stopSpeak() { try { if (canSpeak()) window.speechSynthesis.cancel(); } catch (_) {} setTalking(false); }
+    function stopSpeak() { try { if (canSpeak()) window.speechSynthesis.cancel(); } catch (_) {} try { if (window.ibaKokoro) window.ibaKokoro.stop(); } catch (_) {} setTalking(false); }
     function briefSpeech(x) {
         const r = x.result || {};
         const tasks = x.tasks || [];
@@ -7592,6 +7619,13 @@
     // asking by voice (Chrome / Edge speech recognition)
     const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
     let rec = null;
+    function micError(code) {
+        if (code === 'not-allowed' || code === 'service-not-allowed') return 'The microphone is blocked for this site. Allow it in the browser address bar, then try again.';
+        if (code === 'audio-capture') return 'No microphone found. Plug in your mic or earphones, check Windows Sound > Input, then try again.';
+        if (code === 'no-speech') return "I didn't hear anything. Check that the right microphone is picked in Chrome (Settings > Privacy > Site settings > Microphone) and speak a bit closer.";
+        if (code === 'network') return 'Speech needs the internet (Chrome sends it to Google to turn it into text). Check the connection and try again.';
+        return '';
+    }
     function listen(btn) {
         if (!SR) return;
         if (rec) { try { rec.stop(); } catch (_) {} return; }
@@ -7605,7 +7639,8 @@
                 const t = e.results && e.results[0] && e.results[0][0] ? e.results[0][0].transcript : '';
                 if (t) { const ta = $('iba-ai-text'); ta.value = t; ask(t); ta.value = ''; }
             };
-            rec.onerror = (e) => { if (e && e.error === 'not-allowed') addNote('The microphone is blocked for this site. Allow it in the browser address bar, then try again.'); };
+            // 18.0.0 patch 29: say why instead of failing silently
+            rec.onerror = (e) => { const m = micError(e && e.error); if (m) addNote(m); };
             rec.onend = () => { btn.classList.remove('is-listening'); rec = null; };
             rec.start();
         } catch (_) { btn.classList.remove('is-listening'); rec = null; }
@@ -7733,6 +7768,13 @@
         tools: () => toolDefs().map((t) => t.name),
         _run: runTool,
         openInvoice: (po, key, invNo) => openInvoiceDetail(po, key, invNo),
+        // 18.0.0 patch 29: for Talk mode (js/iba-1800-talk.js)
+        speak: (t) => speak(t), stopSpeak: () => stopSpeak(), talking: () => talking || !!(canSpeak() && window.speechSynthesis.speaking),
+        busy: () => !!state.busy, note: (t) => addNote(t), micError: (c) => micError(c),
+        // 18.0.0 patch 30: Talk mode runs skills by voice without the AI
+        skillList: () => Object.keys(SKILL_TPL).filter((id) => { try { return tplAllowed(id); } catch (_) { return false; } }).map((id) => ({ id: id, name: SKILL_TPL[id].name, tile: (SKILL_LOOK[id] || [''])[0], asks: !SKILL_TPL[id].action && !!(SKILL_TPL[id].ask && SKILL_TPL[id].ask().length) })),
+        askLocal: (t) => { if (!allowed()) return 'no-ai'; build(); toggle(true); return ask(t, { noAI: true }); },
+        runTpl: (id) => { if (!allowed()) return; build(); toggle(true); return runTemplate(id); },
         _card: (c) => addCard(c),
         _state: state
     };

@@ -473,5 +473,5 @@
     }
     hookNewInvoice();
 
-    window.ibaPoFile = { activeOf, isActive, lookup, addToList, openList, markButton, today, classify, requestOriginal, offerReq, queueReq };
+    window.ibaPoFile = { activeOf, isActive, lookup, addToList, addOne, openList, markButton, today, classify, requestOriginal, offerReq, queueReq };
 })();

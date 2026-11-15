@@ -78,6 +78,8 @@
     function addArchiveButton(card, po) {
         const head = card.querySelector('.batch-card-header [title="PO Number"] > div:last-child') || card.querySelector('.batch-card-header [title="PO Number"]');
         if (!head || card.querySelector('.iba-rb-del')) return;
+        // 18.0.0 patch 25: one +Del per PO in the whole batch (iba-1800-batchdel.js may have put it on another card)
+        if (Array.from(document.querySelectorAll('#im-batch-table-body .batch-invoice-card')).some((c) => c !== card && c.dataset.po === card.dataset.po && c.querySelector('.iba-rb-del'))) return;
         const b = document.createElement('button');
         b.type = 'button';
         // im-po-collect-btn: imAddToDeletionCollection marks it "Added to List"

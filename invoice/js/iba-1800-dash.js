@@ -25,7 +25,7 @@
         // which come back to martin); only In Process + CEO Approval are Approval; Finance = With Accounts only.
         { id: 'wip', n: '01', name: 'Ongoing', short: 'Ongoing', full: 'Preliminary / Work in Progress', sub: 'New Entry, For SRV, SRV Done, Pending, On Hold, IPC, For Approval, Report, For Summary', col: '#2fa7a0', st: [] },
         { id: 'apv', n: '02', name: 'Mgmt Approval', short: 'Mgmt Approval', full: 'Under Management Approval', sub: 'COO (In Process) and CEO (CEO Approval)', col: '#3b6fd8', st: ['in process', 'ceo approval'] },
-        { id: 'fin', n: '03', name: 'Fin', full: 'Finance', sub: 'With Accounts (last 7 days)', col: '#c9a44c', st: [] }
+        { id: 'fin', n: '03', name: 'Finance', full: 'Finance', sub: 'With Accounts (last 7 days)', col: '#c9a44c', st: [] }
     ];
     const YEAR = 2026, DAYS7 = 7 * 86400000, KEEP = 3 * 60000;
     const $ = (id) => document.getElementById(id);
@@ -43,6 +43,14 @@
     function moneyByPosition() { const u = me(); const pos = norm(u && (u.Position || u.position)); return /\b(finance|accounts?|accounting|ceo)\b/.test(pos); }
     // 18.0.0 patch 21 (martin): amounts hidden by default (counts only); money people can switch QAR on
     let showQ = false; // not saved: every reload starts hidden (people may look at the screen)
+    // 18.0.0 patch 28 (martin): every person can hide / show the charts (assistant skill "Hide / show Dashboard
+    // charts"). Hidden by default; the choice is kept per person on this PC. Hidden = nothing is read for them.
+    function chartKey() { const u = me(); let k = u && u.key; if (!k) { try { k = localStorage.getItem('approverKey'); } catch (_) {} } return 'iba-d2-charts-v1:' + String(k || 'me'); }
+    function chartsOn() { try { return localStorage.getItem(chartKey()) === '1'; } catch (_) { return false; } }
+    function setCharts(v) { try { localStorage.setItem(chartKey(), v ? '1' : '0'); } catch (_) {} }
+    // 18.0.0 patch 28: Charts On/Off is a real switch (same look as Show QAR), always top right; saved per person on this PC
+    function cSwitch() { const on = chartsOn(); return `<label class="iba-d2-qsw iba-d2-csw" title="Dashboard charts on or off (saved on this PC)"><input type="checkbox" data-d2-charts${on ? ' checked' : ''}><span></span>Charts</label>`; }
+    function hiddenHtml() { return '<div class="iba-d2-hid"><span><i class="fa-solid fa-eye-slash"></i> Charts are off.</span><div class="iba-d2-tools">' + cSwitch() + '</div></div>'; }
     function qSwitch() { return money() ? `<label class="iba-d2-qsw"><input type="checkbox" data-d2-qar${showQ ? ' checked' : ''}><span></span>Show QAR</label>` : ''; }
     function money() {
         if (isSuper()) return true;
@@ -457,6 +465,7 @@
     }
     function paint() {
         const box = $('iba-d2'); if (!box || painting) return;
+        if (!chartsOn()) { box.innerHTML = hiddenHtml(); return; }
         painting = true;
         try {
             const D = data();
@@ -465,8 +474,8 @@
             box.innerHTML = `<div class="iba-d2-head"><div><h2>Where the invoices are now</h2><p>Open work in 3 steps · ${new Date().getFullYear() === YEAR ? '2026' : YEAR}${loading ? ' · loading…' : ''}${err ? ' · <span class="bad">' + esc(err) + '</span>' : ''}</p></div>` +
                 `<div class="iba-d2-hb">${(D.money && paidN != null) ? `<span class="iba-d2-paidn">Paid in ${YEAR}: <b>${paidN.toLocaleString('en-US')}</b></span>` : ''}</div></div>` +
                 (TR ? `<div class="iba-d2-body has-tr"><div class="iba-d2-left"><div class="iba-d2-chart">${loading ? '<div class="iba-d2-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading open work…</div>' : donut(D)}${(loading || !D.groups.some((g) => g.n)) ? '' : '<p class="iba-d2-hint">Click a piece to see its invoices.</p>'}</div>` +
-                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.short || g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}${totHtml(D)}</div></div><div class="iba-d2-right">${qSwitch()}${TR}</div></div>`
-                    : `<div class="iba-d2-body"><div class="iba-d2-chart">${qSwitch()}${loading ? '<div class="iba-d2-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading open work…</div>' : donut(D)}${(loading || !D.groups.some((g) => g.n)) ? '' : '<p class="iba-d2-hint">Click a piece to see its invoices.</p>'}</div>` +
+                `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.short || g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}${totHtml(D)}</div></div><div class="iba-d2-right"><div class="iba-d2-tools">${qSwitch()}${cSwitch()}</div>${TR}</div></div>`
+                    : `<div class="iba-d2-body"><div class="iba-d2-chart"><div class="iba-d2-tools">${qSwitch()}${cSwitch()}</div>${loading ? '<div class="iba-d2-empty"><i class="fa-solid fa-spinner fa-spin"></i> Loading open work…</div>' : donut(D)}${(loading || !D.groups.some((g) => g.n)) ? '' : '<p class="iba-d2-hint">Click a piece to see its invoices.</p>'}</div>` +
                 `<div class="iba-d2-legend">${D.groups.map((g) => `<button type="button" class="iba-d2-lg${sel === g.id ? ' is-sel' : ''}" data-g="${g.id}" title="${esc(g.full + ': ' + g.sub)}"><span class="lb" style="--c:${g.col}">${esc(g.short || g.full.split(' /')[0])}</span><em>${D.money ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${D.money ? 'QAR · ' + g.n + ' inv.' : 'invoices'}${g.yours ? ` · <b>★ ${g.yours}</b>` : ''}</small></button>`).join('')}${totHtml(D)}</div></div>`) +
                 (sel ? `<div class="iba-d2-list">${listHtml(D)}</div>` : '') + oldHtml(D);
         } finally { painting = false; }
@@ -483,6 +492,7 @@
                 const el = e.target;
                 if (el.matches('[data-d2-mine]')) { onlyMine = el.checked; paint(); return; }
                 if (el.matches('[data-d2-qar]')) { showQ = el.checked; paint(); return; }
+                if (el.matches('[data-d2-charts]')) { setCharts(el.checked); sel = null; if (el.checked) apply(false); else paint(); return; }
                 if (el.matches('[data-d2-pick]')) { const k = el.getAttribute('data-d2-pick'); if (el.checked) picked.add(k); else picked.delete(k); pickUi(); return; }
                 if (el.matches('[data-d2-pickall]')) { picked.clear(); if (el.checked) waList().forEach((x) => picked.add(x.key)); pickUi(); }
             });
@@ -498,6 +508,8 @@
         }
         const gEl = t.closest('[data-g]');
         if (gEl) { const id = gEl.getAttribute('data-g'); sel = sel === id ? null : id; paint(); if (sel) { const l = document.querySelector('#iba-d2 .iba-d2-list'); if (l) l.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } return; }
+        if (t.closest('[data-d2-showc]')) { setCharts(true); apply(false); return; }
+        if (t.closest('[data-d2-hidec]')) { setCharts(false); paint(); return; }
         if (t.closest('[data-d2-close]')) { sel = null; paint(); return; }
         if (t.closest('[data-d2-old]')) { oldOpen = !oldOpen; paint(); return; }
         const go = t.closest('[data-d2-go]'); if (go) { call('ibaOpenShellPage', go.getAttribute('data-d2-go')); return; }
@@ -514,6 +526,7 @@
         }
         lastOn = true;
         if (!mount()) return;
+        if (!chartsOn()) { paint(); return; }
         hookPocket();
         paint();
         await Promise.all([loadRows(!!force), readFin(), readPaid(), readTrend()]);
@@ -562,5 +575,56 @@
     }, 700);
     window.addEventListener('iba:skill-access', () => { if (shown() && on()) { readPaid().then(paint); paint(); } });
     hook(); watch();
-    window.ibaDash2 = { apply, paint, syncTrend: () => { lastSync = 0; return readTrend().then(() => syncTrend()); }, data: () => data(), rows: () => rows, reload: () => loadRows(true).then(paint) };
+
+    // 18.0.0 patch 28 (martin): skill "Print Dashboard report" = one A4 landscape page (pie + 3 steps + total,
+    // and for money people the Invoice Flow bars + month table). withQ only works for money people.
+    // Uses the same small reads as the Dashboard (nothing extra); prints from a hidden frame.
+    async function printReport(withQ) {
+        const q = !!withQ && money();
+        await Promise.all([loadRows(false), readFin(), readPaid(), readTrend()]).catch(() => {});
+        const keepQ = showQ, keepSel = sel, keepWam = wam;
+        showQ = q; sel = null; wam = null; pieSel = null;
+        let D, pie, bars, tbl = '';
+        try {
+            D = data(); pie = donut(D); bars = money() && trend ? trendHtml() : '';
+        } finally { showQ = keepQ; sel = keepSel; wam = keepWam; }
+        const tot = D.groups.reduce((a, g) => a + g.n, 0), totV = D.groups.reduce((a, g) => a + (g.v || 0), 0);
+        const steps = D.groups.map((g) => `<div class="st"><b style="color:${g.col}">${esc(g.short || g.full.split(' /')[0])}</b><em>${q ? esc(Math.round(g.v).toLocaleString('en-US')) : g.n}</em><small>${q ? 'QAR · ' + g.n + ' inv.' : 'invoices'}</small><i>${esc(g.full)}: ${esc(g.sub)}</i></div>`).join('') +
+            `<div class="st tt"><b>Total open</b><em>${q ? esc(Math.round(totV).toLocaleString('en-US')) : tot}</em><small>${q ? 'QAR · ' + tot + ' inv.' : 'invoices'}</small></div>`;
+        if (bars) {
+            const MN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const now = new Date(), last = now.getFullYear() === YEAR ? now.getMonth() + 1 : 12;
+            let r = '', a = [0, 0, 0];
+            for (let k = 1; k <= last; k++) { const c = trend[String(k).padStart(2, '0')] || {}; a[0] += c.r || 0; a[1] += c.w || 0; a[2] += c.p || 0; r += `<tr><td>${MN[k - 1]}</td><td>${c.r || 0}</td><td>${c.w || 0}</td><td>${c.p || 0}</td></tr>`; }
+            tbl = `<table><thead><tr><th>${YEAR}</th><th>Received</th><th>With Accounts</th><th>Paid</th></tr></thead><tbody>${r}</tbody><tfoot><tr><td>Total</td><td>${a[0]}</td><td>${a[1]}</td><td>${a[2]}</td></tr></tfoot></table>`;
+        }
+        const who = (me() && me().Name) || '';
+        const d = new Date(), when = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const css = `@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{margin:0;font:12px/1.35 Arial,Helvetica,sans-serif;color:#1d2733;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h1{font-size:18px;margin:0}.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1d2733;padding-bottom:6px;margin-bottom:10px}.hd span{color:#5b6775;font-size:11px}
+.wrap{display:grid;grid-template-columns:${bars ? '0.9fr 1.5fr' : '1fr 1fr'};gap:16px;align-items:start}.pie svg{width:100%;height:auto;max-height:92mm;overflow:visible;margin-top:16px}.iba-d2-note,.iba-d2-acts{display:none}
+.steps{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px;margin-top:6px}.st{border-top:1px solid #c9d1db;padding-top:5px}.st b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}.st em{font-style:normal;font-size:20px;font-weight:800;display:block}.st small{color:#5b6775}.st i{display:block;color:#7a8592;font-size:9.5px}.st.tt{border-top:2px solid #1d2733}
+.trend svg{width:100%;height:auto}.trend .iba-d2-trh b{font-size:14px}.iba-d2-trk{color:#5b6775;font-size:11px;margin-left:8px}.iba-d2-trk i{display:inline-block;width:9px;height:9px;margin:0 3px 0 8px;border-radius:2px}.iba-d2-trk i.b{background:#9aa8bb}.iba-d2-trk i.w{background:#2fa7a0}.iba-d2-trk i.l{background:#c9a44c}
+.iba-d2-trh{display:flex;align-items:center}.gl{stroke:#dde3ea}.ax{fill:#5b6775;font-size:13px}rect.bar{fill:#9aa8bb}rect.wa{fill:#2fa7a0}rect.pd{fill:#c9a44c}.vl{fill:#1d2733;font-size:12px;font-weight:700}.bn{fill:#fff;font-size:11px;font-weight:700}
+.iba-d2-pin{fill:#fff;font-size:22px;font-weight:800}.iba-d2-pis{fill:#fff;font-size:12px;font-weight:700}.iba-d2-tl{fill:#1d2733;font-size:15px;font-weight:700}.iba-d2-ts{font-size:13px;font-weight:700}.iba-d2-pc{animation:none!important;opacity:1!important;transform:none!important}polyline{stroke:#5b6775}circle{fill:#5b6775}.iba-d2-slice{stroke:#fff;stroke-width:1.5}
+table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px}th,td{border:1px solid #c9d1db;padding:3px 6px;text-align:right}th:first-child,td:first-child{text-align:left}thead th{background:#1d2733;color:#fff}tfoot td{font-weight:800;background:#eef2f6}
+.ft{margin-top:8px;color:#7a8592;font-size:10px}`;
+        const html = `<!doctype html><html><head><meta charset="utf-8"><title>Dashboard report</title><style>${css}</style></head><body>` +
+            `<div class="hd"><h1>Open work${q ? ' (with QAR)' : ''} · ${YEAR}</h1><span>Printed ${esc(when)}${who ? ' by ' + esc(who) : ''}</span></div>` +
+            `<div class="wrap"><div class="pie">${pie}<div class="steps">${steps}</div></div>${bars ? `<div class="trend">${bars}${tbl}</div>` : ''}</div>` +
+            `<div class="ft">Ongoing = Preliminary / work in progress · Mgmt Approval = Under Management Approval (COO and CEO) · Finance = With Accounts (last 7 days).</div></body></html>`;
+        let f = document.getElementById('iba-d2-printframe');
+        if (f) f.remove();
+        f = document.createElement('iframe');
+        f.id = 'iba-d2-printframe';
+        f.setAttribute('aria-hidden', 'true');
+        f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+        document.body.appendChild(f);
+        f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+        window.__ibaD2PrintHtml = html; // for checks
+        setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (_) {} }, 350);
+        return true;
+    }
+    function toggleCharts() { const v = !chartsOn(); setCharts(v); sel = null; if (shown() && on()) apply(false); return v; }
+    window.ibaDash2 = { toggleCharts, chartsOn, printReport, money, apply, paint, syncTrend: () => { lastSync = 0; return readTrend().then(() => syncTrend()); }, data: () => data(), rows: () => rows, reload: () => loadRows(true).then(paint) };
 })();

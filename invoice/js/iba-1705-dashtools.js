@@ -44,6 +44,7 @@
         const b = $('iba-n2a-btn'), s = $('im-batch-search-by-note-button');
         const g = s && s.parentElement;
         if (!b || !g || !g.classList.contains('iba-bt-grp') || b.parentElement === g) return;
+        if (b.closest('#iba-bb-menu')) return; // 18.0.0 patch 26: lives in Batch Entry's More menu now (was moved back and forth = flicker)
         b.removeAttribute('style');
         g.insertBefore(b, g.firstChild);
     }

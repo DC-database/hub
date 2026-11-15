@@ -202,13 +202,11 @@ async function handleAddPOToBatch() {
 
     const batchTableBody = document.getElementById('im-batch-table-body');
     const existingRows = batchTableBody.querySelectorAll(`.batch-invoice-card[data-po="${poNumber}"]`);
-    let isExistingInvoice = false;
-    existingRows.forEach(row => { if (!row.dataset.key) isExistingInvoice = true; });
-    
-    if (isExistingInvoice) {
-        alert(`A new invoice for PO ${poNumber} is already in the batch list.`);
-        return;
-    }
+    // 18.0.0 patch 25 (martin): one PO can get 2, 3 ... new invoices in the same batch.
+    // Each new card takes the next number (INV-03, INV-04 ...); Save still checks Firebase and renumbers if needed.
+    let newCardsOnPO = 0;
+    existingRows.forEach(row => { if (!row.dataset.key) newCardsOnPO += 1; });
+    if (newCardsOnPO && !confirm(`PO ${poNumber} already has ${newCardsOnPO} new invoice${newCardsOnPO > 1 ? 's' : ''} in this batch.\n\nAre you adding another new invoice on this PO?\n\nOK = add another new invoice\nCancel = no, it is the same one`)) return;
 
     try {
         // 10.4.2: Batch Entry uses lightweight CSV/GitHub PO data first,
@@ -277,7 +275,7 @@ async function handleAddPOToBatch() {
                 }
             });
         }
-        const nextInvId = `INV-${String(maxInvIdNum + 1).padStart(2, '0')}`;
+        const nextInvId = `INV-${String(maxInvIdNum + 1 + newCardsOnPO).padStart(2, '0')}`;
 
         const site = normalizeNameText(poData['Project ID'] || poData['Project ID:'] || 'N/A');
         const vendor = normalizeNameText(poData['Supplier Name'] || poData['Supplier Name:'] || poData['Supplier'] || poData['Supplier:'] || 'N/A');
@@ -297,7 +295,7 @@ async function handleAddPOToBatch() {
                 
                 <div title="PO Number" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
                     ${(typeof window.poCloseoutReadyDotHTML === 'function' && window.poCloseoutReadyDotHTML(poNumber)) ? `<div style="margin-bottom:4px;line-height:0;">${window.poCloseoutReadyDotHTML(poNumber)}</div>` : ''}
-                    <div><i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #ffd5bf !important; font-size: 0.75rem !important;">(New)</span></div>
+                    <div><i class="fa-solid fa-hashtag"></i> ${poNumber} <span style="color: #ffd5bf !important; font-size: 0.75rem !important;">(New · ${nextInvId})</span></div>
                 </div>
 
                 <div title="Site" style="color: #ffffff !important; font-weight: 800 !important; font-size: 1.05rem !important; white-space: nowrap !important; margin-bottom: 6px !important; flex: 0 0 auto !important;">
