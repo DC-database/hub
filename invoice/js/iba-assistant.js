@@ -5055,11 +5055,18 @@
         try { await fn(); } catch (err) { addError(err); } finally { state.busy = false; setBusy(false); }
         return true;
     }
+    const NOT_YOURS = 'Sorry, this is not part of your access areas.';
     async function localAnswer(text) {
         const t = text.replace(/[?!.]+$/, '').trim();
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
         const words = t.split(/\s+/).filter(Boolean).length;
+        // 18.0.0 patch 34 (martin): typed window commands (clear the batch, tick, press, change ... to ...) run
+        // without the AI after Proceed (button or "proceed" to IRIS)
+        if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.typed === 'function') {
+            let ok = false; try { ok = window.ibaTalk.typed(text, () => { showView('chat'); addUser(text); }); } catch (_) {}
+            if (ok) return true;
+        }
         // 18.0.0 patch 33 (martin): a typed skill name ("notes to accounts", "open note to accounts skill") opens
         // that skill here, no AI (same matching as IRIS). Two close matches = both buttons to pick from.
         if (words <= 7 && /^(?:(?:show|open|list)\s+(?:me\s+)?)?(?:all\s+|my\s+)?(?:the\s+)?skills$|^what can you do$/i.test(t)) {
@@ -5067,10 +5074,14 @@
         }
         if (words <= 6 && !onPhone() && window.ibaTalk && typeof window.ibaTalk.pageOf === 'function' && typeof window.ibaOpenShellPage === 'function') {
             let pg = null; try { pg = window.ibaTalk.pageOf(t); } catch (_) {}
-            if (pg) { showView('chat'); addUser(text); addNote('Opening ' + pg.name + '.'); try { window.ibaOpenShellPage(pg.key); } catch (_) {} return true; }
+            if (pg) { showView('chat'); addUser(text);
+                if (typeof window.ibaShellPageAllowed === 'function' && !window.ibaShellPageAllowed(pg.key)) { addNote(NOT_YOURS); return true; }
+                addNote('Opening ' + pg.name + '.'); try { window.ibaOpenShellPage(pg.key); } catch (_) {} return true; }
         }
         if (words <= 7 && !/\d/.test(t) && !/\b(why|how|when|who|what is|explain)\b/i.test(t) && window.ibaTalk && typeof window.ibaTalk.match === 'function') {
-            let r = []; try { r = window.ibaTalk.match(t) || []; } catch (_) {}
+            let r = []; try { r = window.ibaTalk.match(t, true) || []; } catch (_) {}
+            if (r.length && r[0].k.denied && (r.length === 1 || r[0].w > r[1].w * 1.3) && (/\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t) || r[0].h >= 2)) { showView('chat'); addUser(text); addNote(NOT_YOURS); return true; }
+            r = r.filter((x) => !x.k.denied);
             const said = /\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t);
             if (r.length && (r.length === 1 || r[0].w > r[1].w * 1.3) && (said || r[0].h >= 2)) {
                 showView('chat'); addUser(text); runTemplate(r[0].k.id); return true;
@@ -7810,6 +7821,10 @@
         speak: (t) => speak(t), stopSpeak: () => stopSpeak(), talking: () => talking || !!(canSpeak() && window.speechSynthesis.speaking),
         busy: () => !!state.busy, note: (t) => addNote(t), micError: (c) => micError(c),
         // 18.0.0 patch 30: Talk mode runs skills by voice without the AI
+        // 18.0.0 patch 34: skills that exist but are closed for this person (Super only / Admin only / Skill access off)
+        deniedSkills: () => Object.keys(SKILL_TPL).filter((id) => { try { const t = SKILL_TPL[id]; if (tplAllowed(id) || (onPhone() && PHONE_TPL.indexOf(id) === -1)) return false;
+            if (!SKILL_LOCK[id] && window.ibaSkillAccess && window.ibaSkillAccess.decide(id) === false) return true; return (t.superOnly && !isSuper()) || (t.adminOnly && !isAdminUser()); } catch (_) { return false; } })
+            .map((id) => ({ id: id, name: SKILL_TPL[id].name, tile: (SKILL_LOOK[id] || [''])[0], denied: true })),
         skillList: () => Object.keys(SKILL_TPL).filter((id) => { try { return tplAllowed(id); } catch (_) { return false; } }).map((id) => ({ id: id, name: SKILL_TPL[id].name, tile: (SKILL_LOOK[id] || [''])[0], asks: !SKILL_TPL[id].action && !!(SKILL_TPL[id].ask && SKILL_TPL[id].ask().length) })),
         askLocal: (t) => { if (!allowed()) return 'no-ai'; build(); toggle(true); return ask(t, { noAI: true }); },
         runTpl: (id) => { if (!allowed()) return; build(); toggle(true); return runTemplate(id); },

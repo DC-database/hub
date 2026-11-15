@@ -1912,6 +1912,8 @@
   }
 
   window.ibaOpenShellPage = openPage;
+  // 18.0.0 patch 34: IRIS asks before opening, so she can say "not part of your access areas"
+  window.ibaShellPageAllowed = function (key) { try { const a = shellAccessMap(); return !(Object.prototype.hasOwnProperty.call(a, key) && !a[key]); } catch (_) { return true; } };
   window.ibaShowShell = showShell;
   window.ibaApplyShellBackground = applyBackground;
   // patch 7: the phone workspace asks for its side's photo ("none" = plain)

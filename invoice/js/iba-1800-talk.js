@@ -15,7 +15,7 @@
     const $ = (id) => document.getElementById(id);
     const WAKE = /^\s*(?:(?:hi|hey|hello|ok|okay|oh)[\s,.]+)?(?:iris|irish|iriss?|i ?ris|irus)\b['’s]*[\s,.:;!?-]*/i;
     const RISKY = /\b(?:approve|reject|delete|remove|cancel|send|forward)\b|\bmark\b.*\bpaid\b/i;
-    const YES = /^\s*(?:yes|yeah|yep|yup|ok|okay|sure|go ahead|do it|confirm|correct)\b/i;
+    const YES = /^\s*(?:yes|yeah|yep|yup|ok|okay|sure|go ahead|do it|confirm|correct|proceed|continue)\b/i;
     const NO = /^\s*(?:no|nope|cancel|stop|don'?t|do not|never ?mind)\b/i;
     const HELLO = /^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening)|how are you|are you there)\b[\s\w]{0,20}[?.!]*\s*$/i;
     const IDLE_OFF = 15 * 60000, FOLLOW = 8000;
@@ -31,7 +31,8 @@
     }
     function talking() { try { return !!(A().talking && A().talking()); } catch (_) { return false; } }
     function busy() { try { return !!(A().busy && A().busy()); } catch (_) { return false; } }
-    function say(t) { lastSaid = t; try { if (A().speak) A().speak(t); } catch (_) {} }
+    let typedMode = false; // 18.0.0 patch 34: a typed command answers in the chat (speaks only while Talk mode is on)
+    function say(t) { lastSaid = t; if (typedMode) { note('IRIS: ' + t); if (!on) return; } try { if (A().speak) A().speak(t); } catch (_) {} }
     function note(t) { try { if (A().note) A().note(t); } catch (_) {} }
 
     function bar() {
@@ -70,7 +71,7 @@
         const pnl = $('iba-ai-panel'), pl = on ? pill() : $('iba-talk-pill');
         if (pl) {
             pl.hidden = !on || !(pnl && !pnl.hidden ? false : true);
-            pl.className = 'is-' + s;
+            pl.className = 'is-' + s + (pl.querySelector('.iba-orb-cv') ? ' has-orb' : '');
             const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = { listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '';
             const pm = pl.querySelector('[data-talk-mute]'); if (pm) { pm.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i>' : '<i class="fa-solid fa-microphone-slash"></i>'; pm.title = muted ? 'Unmute' : 'Mute'; }
         }
@@ -148,9 +149,10 @@
     const ALIAS = { brief: 'today morning waiting tasks work day', approvals_list: 'approvals approve approval waiting management pending sign', inv_status: 'where invoice track tracking status find', dash_charts: 'charts chart pie bars graph hide dashboard', dash_print: 'print dashboard report pie chart graph', site_stock: 'stock site inventory balance', po_pull: 'pull pulled out file original deletion', remind_me: 'remind reminder remember', new_invoice: 'new add invoice', new_job: 'new add job entry', person: 'colleague phone number contact who', transfer: 'transfer trf find', sn_print_all: 'print summary notes note', urgent: 'urgent rush mark', screensaver: 'screensaver screen saver', weekly: 'weekly week report', po_report: 'po report purchase order', batch: 'batch add', xl_wa: 'download excel csv list copy paste accounts srv', xl_ur: 'download excel csv list copy paste review invoice', new_delivery: 'delivery deliver restock return usage', receive_delivery: 'receive received delivery', site_team: 'site team people', site_list: 'site list status', lpo_mail: 'lpo email emails mail', access_check: 'access check pages', skill_access: 'skill skills access', notes_to_acc: 'notes accounts', today_batch: 'today batch', recent: 'recent changes batch', new_requisition: 'new add requisition req' };
     const stem = (w) => w.replace(/'s$/, '').replace(/(?:ies)$/, 'y').replace(/(?<=\w{3})s$/, '');
     const toks = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ']+/g, ' ').split(/\s+/).filter((w) => w.length > 1).map(stem).filter((w) => !STOP.has(w));
-    function match(q) {
+    function match(q, withDenied) {
         let list = [];
         try { list = (A().skillList && A().skillList()) || []; } catch (_) {}
+        if (withDenied) { try { list = list.concat((A().deniedSkills && A().deniedSkills()) || []); } catch (_) {} }
         q = String(q || '').replace(/^\s*(?:please\s+)?(?:can you\s+)?(?:open|run|start|show|use)?\s*(?:the\s+|my\s+)?skills?\s+(?:for|of|called|named|to)\s+/i, '');
         q = q.replace(/\s+skills?\s*$/i, ''); // p33: "open note to accounts skill"
         const Q = toks(q);
@@ -160,6 +162,7 @@
         return sets.map((x) => { let h = 0, w = 0; Q.forEach((q1) => { if (x.T.has(q1)) { h++; w += (x.N.has(q1) ? 2 : 1) / df[q1]; } }); if (x.N.size > 1 && Array.from(x.N).every((n) => Q.includes(n))) w += 2; /* p33: the whole skill name was said */ return { k: x.k, h, w }; })
             .filter((x) => x.h && (x.h >= 2 || x.w >= 0.5)).sort((a, b) => (b.w - a.w) || (b.h - a.h));
     }
+    const NOT_YOURS = 'Sorry, this is not part of your access areas.';
     let choice = null; // [skill, skill] while she asks "A or B?"
     const spoken = (n) => String(n || '').replace(/\?$/, '').replace(/\s*\/\s*/g, ' or ');
     async function openSkill(k) {
@@ -338,7 +341,16 @@
         f.focus(); nativeSet(f, v); try { f.blur(); } catch (_) {}
         say(label + ' is now ' + (/^-?\d+(?:\.\d+)?$/.test(v) ? Number(v).toLocaleString('en-US') : v) + '.');
     }
+    // 18.0.0 patch 34: "clear the list / clear the batch (in batch entry)" = Batch Entry's red eraser button
+    function clearBatchBtn() { const b = document.getElementById('im-batch-clear-button'); return b && vis(b) ? b : null; }
+    const CLEAR_RE = /^\s*(?:please\s+)?(?:clear|empty|reset|remove all(?: the)?(?: cards| rows)?(?: from)?)\s+(?:all\s+)?(?:the\s+)?(?:list|batch|cards?|rows?|batch entry|batch list)\b/i;
     async function voiceControl(q, sure) {
+        if (CLEAR_RE.test(q) && (/batch/i.test(q) || clearBatchBtn())) {
+            const b = clearBatchBtn();
+            if (!b) { say('Open Batch Entry first, then ask me to clear it.'); return true; }
+            if (!sure) { pendingAct = () => { b.click(); say('Done, the batch is cleared. Nothing saved was touched.'); }; pending = 'clear the batch'; note('IRIS: Clear every card in Batch Entry? Say yes or no.'); say('Clear every card in Batch Entry? Say yes or no.'); paint(); return true; }
+            b.click(); say('Done, the batch is cleared. Nothing saved was touched.'); return true;
+        }
         let m = q.match(/^\s*(?:please\s+)?(tick|untick|uncheck|unselect|deselect|untik|select|check)\s+(.+)$/i);
         if (m) {
             const verb = m[1].toLowerCase(), rest = m[2];
@@ -379,9 +391,12 @@
             say('Here are all your skills on the screen. Say the name of one, like: Iris, notes to accounts.'); return;
         }
         const pg = pageOf(q);
+        if (pg && typeof window.ibaShellPageAllowed === 'function' && !window.ibaShellPageAllowed(pg.key)) { say(NOT_YOURS); return; }
         if (pg && typeof window.ibaOpenShellPage === 'function') { say('Opening ' + pg.name + '.'); try { await window.ibaOpenShellPage(pg.key); } catch (_) {} return; }
         if (!/\b\d{4,6}\b|\b(?:trf|stk|use|ret)\b/i.test(q)) { // a PO / transfer number is answered by the assistant without the AI
-            const r = match(q);
+            const all = match(q, true);
+            if (all.length && all[0].k.denied && (all.length === 1 || all[0].w > all[1].w * 1.3)) { say(NOT_YOURS); return; }
+            const r = all.filter((x) => !x.k.denied);
             if (r.length && (r.length === 1 || r[0].w > r[1].w * 1.3)) return openSkill(r[0].k);
             if (r.length > 1) { choice = [r[0].k, r[1].k]; const t = 'Did you mean ' + spoken(r[0].k.name) + ', or ' + spoken(r[1].k.name) + '?'; note('IRIS: ' + t); say(t); paint(); return; }
         }
@@ -442,5 +457,43 @@
         if (muted) stopRec(); else { lastCmd = Date.now(); start(); }
         paint();
     }, true);
-    window.ibaTalk = { on: () => on, set: setOn, hear, stage, match, pageOf, _vc: voiceControl, _root: frontRoot };
+    // 18.0.0 patch 34 (martin): window commands TYPED in the chat ("clear the batch", "tick 62812", "press Check notes",
+    // "change status to With Accounts") run here without the AI, but ALWAYS after Proceed (button, or say "proceed").
+    const CMD_RE = /^\s*(?:please\s+)?(?:tick|untick|uncheck|unselect|deselect|select|check|press|click|hit|tap|push|change|set|put|make|update|edit|clear|empty|reset|remove all)\b/i;
+    function isCmd(q) {
+        if (CLEAR_RE.test(q)) return true;
+        if (!CMD_RE.test(q)) return false;
+        if (/^\s*(?:please\s+)?(?:change|set|put|make|update|edit)\b/i.test(q) && !/\s(?:to|as|into|=|is)\s/i.test(q)) return false; // "set a reminder" etc.
+        if (/^\s*(?:please\s+)?check\b/i.test(q) && !/^\s*(?:please\s+)?check\s+(?:all|everything|row|line|number|\d)/i.test(q)) return false; // "check po 62812" = a question
+        return true;
+    }
+    async function runTyped(q) {
+        typedMode = true;
+        try { await voiceControl(q, true); } catch (err) { console.warn('[iris] typed', err); say('Sorry, I could not do that here.'); }
+        finally { typedMode = false; }
+    }
+    function typed(text, before) {
+        const q = String(text || '').replace(WAKE, '').replace(/\s+in\s+(?:the\s+)?batch(?:\s+entry)?\s*$/i, ' batch').replace(/[.!]+$/, '').trim();
+        if (!q || !isCmd(q)) return false;
+        try { before && before(); } catch (_) {}
+        const log = $('iba-ai-log'); if (!log) return false;
+        const d = document.createElement('div');
+        d.className = 'iba-ai-card is-action iba-iris-confirm';
+        d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-circle-question"></i> IRIS: proceed?</div>' +
+            '<p class="iba-ai-foot">' + q.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]) + '</p>' +
+            '<p class="iba-ai-foot"><button type="button" class="iba-ai-mini is-main" data-iris-go><i class="fa-solid fa-check"></i> Proceed</button> ' +
+            '<button type="button" class="iba-ai-mini" data-iris-no><i class="fa-solid fa-xmark"></i> Cancel</button></p>';
+        let done = false;
+        const finish = (go) => {
+            if (done) return; done = true;
+            d.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+            if (pending === 'typed') { pending = null; pendingAct = null; paint(); }
+            if (go) runTyped(q); else note('IRIS: Okay, cancelled.');
+        };
+        d.addEventListener('click', (e) => { if (e.target.closest('[data-iris-go]')) finish(true); else if (e.target.closest('[data-iris-no]')) finish(false); });
+        log.appendChild(d); try { d.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+        if (on) { pending = 'typed'; pendingAct = () => finish(true); say('Proceed? Say proceed, or no.'); paint(); }
+        return true;
+    }
+    window.ibaTalk = { on: () => on, set: setOn, hear, stage, match, pageOf, typed, _vc: voiceControl, _root: frontRoot };
 })();
