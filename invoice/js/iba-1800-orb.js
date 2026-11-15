@@ -82,6 +82,7 @@
             const old = pill.querySelector('.iba-talk-orb'); if (old) old.remove();
             cv = document.createElement('canvas'); cv.className = 'iba-orb-cv'; cv.width = 132; cv.height = 132;
             pill.insertBefore(cv, pill.firstChild); pill.classList.add('has-orb');
+            if (!pill.__orbClick) { pill.__orbClick = true; pill.addEventListener('click', openFromOrb); }
         }
         if (!edge) { edge = document.createElement('div'); edge.id = 'iba-orb-edge'; edge.innerHTML = '<i class="is-blur"></i><i></i>'; edge.setAttribute('aria-hidden', 'true'); document.body.appendChild(edge); }
         return pill;
@@ -90,7 +91,7 @@
         raf = 0;
         const T = window.ibaTalk; let S = 'off';
         try { S = T && T.stage ? T.stage() : 'off'; } catch (_) {}
-        if (S === 'off' || phone()) { micWant = false; micOff(); if (edge) edge.style.opacity = '0'; return; } // stops until Talk mode is on again
+        if (S === 'off' || phone()) { micWant = false; micOff(); if (edge) edge.style.opacity = '0'; if (document.body) document.body.classList.remove('iba-orb-on'); return; } // stops until Talk mode is on again
         micWant = S !== 'muted'; if (micWant) micOn(); else micOff();
         const pill = ensure();
         t += 0.016;
@@ -113,8 +114,26 @@
             const P = PAL[shown] || PAL.listen; ['--c1', '--c2', '--c3', '--c4'].forEach((k, i) => edge.style.setProperty(k, P[i]));
             edge.style.setProperty('--sp', (S === 'think' || S === 'ask') ? '1.6s' : '8s');
         }
-        if (pill) { pill.classList.add('has-orb'); pill.classList.toggle('is-hear', shown === 'hear'); }
+        if (pill) { pill.classList.add('has-orb'); pill.classList.toggle('is-hear', shown === 'hear'); place(pill); }
         raf = requestAnimationFrame(frame);
+    }
+    // 18.0.0 patch 35 (martin): while Talk mode is on the orb takes the robot's place (same spot, the robot hides);
+    // click the orb = open the assistant. Talk mode off (or assistant open) = the robot is back.
+    function place(pill) {
+        const fab = $('iba-ai-fab');
+        const show = !pill.hidden && fab && fab.getClientRects().length;
+        document.body.classList.toggle('iba-orb-on', !!show);
+        if (!show) { pill.style.removeProperty('left'); pill.style.removeProperty('top'); return; }
+        const f = fab.getBoundingClientRect(), p = pill.getBoundingClientRect();
+        const cx = f.left + f.width / 2, cy = f.top + f.height / 2;
+        const left = Math.max(4, Math.round(cx - (p.width - 33))), top = Math.round(cy - p.height / 2);
+        pill.style.setProperty('left', left + 'px', 'important'); pill.style.setProperty('top', top + 'px', 'important');
+        pill.style.setProperty('right', 'auto', 'important'); pill.style.setProperty('bottom', 'auto', 'important');
+    }
+    function openFromOrb(e) {
+        const c = e.target && e.target.closest && e.target.closest('.iba-orb-cv, b, [data-pill-st]');
+        if (!c) return;
+        try { if (window.ibaAssistant && window.ibaAssistant.open) window.ibaAssistant.open(); } catch (_) {}
     }
     function kick() { if (!raf) raf = requestAnimationFrame(frame); }
     // Talk mode on/off is a click on the headset or a voice command: check a few times a second while idle
