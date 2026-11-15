@@ -3,6 +3,17 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 37 (15-Nov-2026)
+- IRIS "save": "Iris, save all the entries in batch entry please" / "save" / "submit" presses the Save button
+  of the open window (Batch Entry = Save All Invoices). Always asks yes/no first (typed: Proceed card).
+- IRIS "mark pulled" in the PO pull-out list: "mark all pulled", "mark PO 57376 pulled", "mark row 3 not pulled",
+  "mark Khalifa Steel pulled". Asks yes/no first, then presses only the rows that need to change. Then say "press Proceed".
+- IRIS maths and conversions understand numbers said as words ("one plus one", "convert one inch to cm",
+  "twenty five times two", "two point five"); says "1 inch" not "1 inches".
+- IRIS pill (and Talk bar) shows your words live while she hears them; a mic problem (e.g. "network") shows there too
+  and in the Console as [iris] mic.
+- File: js/iba-1800-talk.js
+
 18.0.0 patch 36 (15-Nov-2026)
 - IRIS built-in answers (spoken or typed, no AI key): her name ("what is your name / what does IRIS stand for / who are you" = Intelligent Records and Invoice System), time and date (Doha), "anything pending I must do?" (the brief, said in words), "send a message to Imran saying ..." (opens the chat with the text typed in, YOU press Send), a colleague's mobile / email in any word order ("Hafiz email", "email of Hafiz", "reception number"), small talk (how are you, thanks, good morning, who am I / what is my name), jokes, maths (plus, minus, times, divide, square root, percent, power, brackets) and unit conversion (mm/cm/m/km/inch/feet/yard/mile, g/kg/lb/ton, sqm/sqft, litre/gallon).
 - Forgiving words: common typos and short forms are understood (wat, da, numbr, emial, fone, mobil, plz, u, r ...).
