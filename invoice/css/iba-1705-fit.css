@@ -2818,3 +2818,24 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body #iba-still-card .iba-still-lbl { font-weight: 600 !important; }
   html body #iba-still-card .iba-still-lbl i { margin-right: 4px !important; opacity: .85 !important; }
 }
+
+/* 18.0.0 patch 34: IRIS orb (design D) - liquid orb in an electric ring + screen edge glow while active */
+@property --iba-orb-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes ibaOrbSpin { to { --iba-orb-a: 360deg; } }
+@layer iba-ui {
+  html body #iba-talk-pill.has-orb { background: transparent !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; gap: 8px !important; flex-direction: row !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  html body #iba-talk-pill.has-orb button { order: 0 !important; } html body #iba-talk-pill.has-orb b { order: 1 !important; } html body #iba-talk-pill.has-orb [data-pill-st] { order: 2 !important; } html body #iba-talk-pill.has-orb .iba-orb-cv { order: 3 !important; }
+  html body #iba-talk-pill.has-orb .iba-orb-cv { width: 66px !important; height: 66px !important; display: block !important; cursor: default !important; flex: 0 0 auto !important; }
+  html body #iba-talk-pill.has-orb b { font-size: 11px !important; letter-spacing: .18em !important; color: #f3d77a !important; -webkit-text-fill-color: #f3d77a !important; text-shadow: 0 1px 4px #000 !important; }
+  html body #iba-talk-pill.has-orb [data-pill-st] { font-size: 12.5px !important; color: #dfe7ee !important; text-shadow: 0 1px 4px #000 !important; }
+  html body #iba-talk-pill.has-orb button { opacity: 0 !important; transition: opacity .15s !important; background: rgba(10,13,17,.75) !important; }
+  html body #iba-talk-pill.has-orb:hover button, html body #iba-talk-pill.has-orb:focus-within button { opacity: 1 !important; }
+  html body #iba-orb-edge { position: fixed !important; inset: 0 !important; pointer-events: none !important; z-index: 2147483100 !important; opacity: 0; transition: opacity .5s ease !important; }
+  html body #iba-orb-edge i { position: absolute !important; inset: 0 !important; padding: var(--w, 2px) !important;
+    background: conic-gradient(from var(--iba-orb-a), var(--c1, #2fd3c2), var(--c2, #3a7bd5), var(--c3, #7be3ff), var(--c4, #2fd3c2), var(--c1, #2fd3c2)) !important;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important; -webkit-mask-composite: xor !important; mask-composite: exclude !important;
+    animation: ibaOrbSpin var(--sp, 8s) linear infinite !important; }
+  html body #iba-orb-edge i.is-blur { filter: blur(10px) !important; padding: calc(var(--w, 2px) * 2.2) !important; opacity: .8 !important; }
+  html body:is(.iba-mobile-ui, .iba-phone) #iba-orb-edge { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { html body #iba-orb-edge i { animation: none !important; } }
+}
