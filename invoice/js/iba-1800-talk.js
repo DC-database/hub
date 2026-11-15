@@ -79,6 +79,13 @@
     }
     // patch 36: what she heard without her name is shown for 4 s, so you can see if "Iris" was heard as another word
     let heardTxt = '', heardUntil = 0;
+    // patch 37 (martin): show the words live in the pill/bar while she hears them, so you can see she heard you right
+    let liveTxt = '', liveUntil = 0, liveT = 0;
+    function liveShow(t) {
+        t = String(t || '').replace(/\s+/g, ' ').trim(); if (!t) return;
+        liveTxt = t.length > 56 ? '…' + t.slice(-55) : t; liveUntil = Date.now() + 3500; paint();
+        clearTimeout(liveT); liveT = setTimeout(paint, 3600);
+    }
     function heardShow(t) { heardTxt = String(t).trim().slice(0, 60); heardUntil = Date.now() + 4000; paint(); setTimeout(paint, 4100); }
     function stage() { if (!on) return 'off'; if (muted) return 'muted'; if (pending || choice) return 'ask'; if (busy()) return 'think'; if (talking()) return 'speak'; return 'listen'; }
     const TXT = { listen: 'Listening… start with “Iris”', think: 'Thinking…', speak: 'Speaking… say “Iris” to interrupt', muted: 'Muted: not listening', ask: 'Waiting for your answer…', off: '' };
@@ -103,7 +110,7 @@
         if (pl) {
             pl.hidden = !on || !(pnl && !pnl.hidden ? false : true);
             pl.className = 'is-' + s + (pl.querySelector('.iba-orb-cv') ? ' has-orb' : '');
-            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = (s === 'listen' && Date.now() < heardUntil) ? 'heard “' + heardTxt + '” · start with Iris' : ({ listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '');
+            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = (Date.now() < liveUntil && s !== 'speak') ? '“' + liveTxt + '”' : (s === 'listen' && Date.now() < heardUntil) ? 'heard “' + heardTxt + '” · start with Iris' : ({ listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '');
             const pm = pl.querySelector('[data-talk-mute]'); if (pm) { pm.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i>' : '<i class="fa-solid fa-microphone-slash"></i>'; pm.title = muted ? 'Unmute' : 'Mute'; }
         }
         const t = $('iba-ai-talk');
@@ -112,7 +119,7 @@
         if (!b) return;
         b.hidden = !on;
         b.className = 'is-' + s;
-        const st = b.querySelector('[data-talk-st]'); if (st) st.textContent = s === 'listen' && Date.now() < follow ? 'Listening… go ahead' : (s === 'listen' && Date.now() < heardUntil) ? 'I heard “' + heardTxt + '”. Start with “Iris”.' : TXT[s];
+        const st = b.querySelector('[data-talk-st]'); if (st) st.textContent = (Date.now() < liveUntil && s !== 'speak') ? 'You: “' + liveTxt + '”' : s === 'listen' && Date.now() < follow ? 'Listening… go ahead' : (s === 'listen' && Date.now() < heardUntil) ? 'I heard “' + heardTxt + '”. Start with “Iris”.' : TXT[s];
         const m = b.querySelector('[data-talk-mute]'); if (m) m.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i> Unmute' : '<i class="fa-solid fa-microphone-slash"></i> Mute';
     }
 
@@ -150,6 +157,7 @@
                 fails = 0;
                 for (let i = e.resultIndex; i < e.results.length; i++) {
                     const r = e.results[i]; const t = (r[0] && r[0].transcript) || '';
+                    if (!talking()) liveShow(t);
                     if (!r.isFinal) {
                         if (talking() && WAKE.test(t)) { try { A().stopSpeak(); } catch (_) {} } // barge in
                         early(t); continue;
@@ -163,6 +171,7 @@
             rec.onerror = (e) => {
                 const c = e && e.error;
                 if (c === 'no-speech' || c === 'aborted') return;
+                liveShow('mic problem: ' + c); try { console.warn('[iris] mic', c); } catch (_) {}
                 const m = A().micError ? A().micError(c) : '';
                 if (m) note(m);
                 if (c === 'not-allowed' || c === 'service-not-allowed' || c === 'audio-capture') setOn(false);
@@ -403,6 +412,42 @@
     // 18.0.0 patch 34: "clear the list / clear the batch (in batch entry)" = Batch Entry's red eraser button
     function clearBatchBtn() { const b = document.getElementById('im-batch-clear-button'); return b && vis(b) ? b : null; }
     const CLEAR_RE = /^\s*(?:please\s+)?(?:clear|empty|reset|remove all(?: the)?(?: cards| rows)?(?: from)?)\s+(?:all\s+)?(?:the\s+)?(?:list|batch|cards?|rows?|batch entry|batch list)\b/i;
+    // patch 37 (martin): PO pull-out list "mark all pulled" / "mark PO 57376 pulled" / "mark row 3 not pulled".
+    // Each Pulled is a toggle button (data-pull-tick), so we press only the rows that need to change.
+    const PULL_RE = /^\s*(?:please\s+)?(un-?mark|mark|tick|untick|set|make|put|turn)\s+(.+?)\s+(?:as\s+|to\s+|is\s+)?(not\s+|un)?pull(?:ed)?(?:\s*out)?\b.*$/i;
+    function pullWin() { const w = document.querySelector('#iba-esn.iba-pull'); return w && vis(w) ? w : null; }
+    function pullRows(w) {
+        return Array.from(w.querySelectorAll('.iba-pull-out tbody tr')).map((tr, i) => {
+            const b = tr.querySelector('[data-pull-tick]'), td = tr.children;
+            return { i: i + 1, key: b && b.getAttribute('data-pull-tick'), on: tr.classList.contains('is-pulled'), po: clean((td[1] || {}).textContent || ''), sup: clean((td[2] || {}).textContent || '').toLowerCase() };
+        }).filter((r) => r.key);
+    }
+    function markPulled(m, sure) {
+        const w = pullWin(); if (!w) return false;
+        const want = !(m[3] || /^un/i.test(m[1]));
+        let what = m[2].replace(/\b(?:in|on|from)\s+(?:the\s+)?(?:po\s+)?(?:pull-?\s?out\s+)?list\b/ig, '').replace(/\b(?:the|of|them|entries|entry|pos?|items?)\b/ig, ' ').trim();
+        const rows = pullRows(w);
+        if (!rows.length) { say('The pull-out list is empty.'); return true; }
+        let pick;
+        if (!what || /^(?:all|every\s*thing|everything|every\s*one|all\s+of)$/i.test(what) || /^all\b/i.test(what)) pick = rows;
+        else {
+            const nums = what.match(/\d+/g) || [];
+            const byRow = /\b(?:row|line|number)\b/i.test(what);
+            if (nums.length) pick = rows.filter((r) => nums.some((n) => byRow ? String(r.i) === n : (r.po === n || r.po.endsWith(n) || (n.length <= 2 && String(r.i) === n))));
+            else { const t = what.toLowerCase(); pick = rows.filter((r) => r.sup && (r.sup.includes(t) || t.split(/\s+/).every((x) => r.sup.includes(x)))); }
+        }
+        if (!pick.length) { say('I can’t find ' + what + ' in the pull-out list.'); return true; }
+        const todo = pick.filter((r) => r.on !== want);
+        const word = want ? 'Pulled' : 'not pulled';
+        if (!todo.length) { say(pick.length === 1 ? 'PO ' + pick[0].po + ' is already ' + word + '.' : 'They are already ' + word + '.'); return true; }
+        const run = async () => {
+            for (const r of todo) { const b = w.querySelector('[data-pull-tick="' + CSS.escape(r.key) + '"]'); if (b) { b.click(); await wait(60); } }
+            say('Done, ' + todo.length + (todo.length === 1 ? ' PO' : ' POs') + ' marked ' + word + '. Press Proceed when you are ready.');
+        };
+        const ask = 'Mark ' + (todo.length === 1 ? 'PO ' + todo[0].po : todo.length + ' POs') + ' as ' + word + '?';
+        if (!sure) { pendingAct = run; pending = 'mark ' + word; note('IRIS: ' + ask + ' Say yes or no.'); say(ask + ' Say yes or no.'); paint(); return true; }
+        run(); return true;
+    }
     async function voiceControl(q, sure) {
         if (CLEAR_RE.test(q) && (/batch/i.test(q) || clearBatchBtn())) {
             const b = clearBatchBtn();
@@ -410,11 +455,19 @@
             if (!sure) { pendingAct = () => { b.click(); say('Done, the batch is cleared. Nothing saved was touched.'); }; pending = 'clear the batch'; note('IRIS: Clear every card in Batch Entry? Say yes or no.'); say('Clear every card in Batch Entry? Say yes or no.'); paint(); return true; }
             b.click(); say('Done, the batch is cleared. Nothing saved was touched.'); return true;
         }
-        let m = q.match(/^\s*(?:please\s+)?(tick|untick|uncheck|unselect|deselect|untik|select|check)\s+(.+)$/i);
+        let m = q.match(PULL_RE);
+        if (m && markPulled(m, sure)) return true;
+        m = q.match(/^\s*(?:please\s+)?(tick|untick|uncheck|unselect|deselect|untik|select|check)\s+(.+)$/i);
         if (m) {
             const verb = m[1].toLowerCase(), rest = m[2];
             if (verb === 'check' && !/^\s*(?:all|everything|row|line|number|\d)/i.test(rest)) return false; // "check notes" is a button
             tickRows(rest, !/^un|^de/.test(verb)); return true;
+        }
+        // patch 37 (martin): "save all 9 entries in batch entry please" / "save" / "submit" = press the Save button here
+        m = q.match(/^\s*(?:please\s+)?(save|submit|update)\b(.*)$/i);
+        if (m && !/\s(?:to|as|into)\s/i.test(m[2])) {
+            const all = /\b(?:all|every|everything|entries|invoices|cards|batch)\b/i.test(m[2]);
+            press(m[1].toLowerCase() + (all ? ' all' : ''), sure); return true;
         }
         m = q.match(/^\s*(?:please\s+)?(?:press|click|hit|tap|push)\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+button)?\s*$/i);
         if (m) { press(m[1], sure); return true; }
@@ -529,7 +582,24 @@
     const MSG_RE2 = /^(?:please\s+)?(?:message|tell)\s+([a-z][a-z .']{1,30}?)\s*(?:,|:|\bsaying\b|\bthat\b)\s*(.+)$/i;
     const TZ = 'Asia/Qatar';
     // patch 36: maths ("1 plus 1", "25 times 4 divided by 2", "square root of 81", "20 percent of 500", "2 to the power of 8")
+    // patch 37 (martin): Chrome sometimes writes the numbers as words ("one plus one", "twenty five times two")
+    const NW = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+        sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fourty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+    function numWords(t) {
+        return t.replace(/\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|point)(?:[\s-]+|$))+/g, (run) => {
+            const w = run.trim().split(/[\s-]+/); let total = 0, cur = 0, dec = '', inDec = false;
+            for (const x of w) {
+                if (x === 'point') { inDec = true; continue; }
+                if (inDec) { if (NW[x] !== undefined && NW[x] < 10) dec += NW[x]; continue; }
+                if (x === 'hundred') cur = (cur || 1) * 100;
+                else if (x === 'thousand' || x === 'million') { total += (cur || 1) * (x === 'thousand' ? 1e3 : 1e6); cur = 0; }
+                else cur += NW[x];
+            }
+            return ' ' + (total + cur) + (dec ? '.' + dec : '') + ' ';
+        });
+    }
     function mathOf(q) {
+        q = numWords(q.toLowerCase());
         let t = ' ' + q.toLowerCase().replace(/^(?:what(?:'s| is)|how much is|calculate|compute|solve)\s+/, '').replace(/,(?=\d{3})/g, '') + ' ';
         if (!/\d/.test(t)) return null;
         t = t.replace(/\b(?:the|is|equals?|equal to|answer(?: of| to)?|please|what|iris|calculate|of the)\b(?!\s*(?:root|power))/g, ' ');
@@ -558,7 +628,7 @@
     const unitOf = (w) => { w = String(w || '').toLowerCase().trim().replace(/\.$/, ''); if (UNITS[w]) return w; const s1 = w.replace(/(?:es|s)$/, ''); if (UNITS[s1]) return s1; const s2 = w.replace(/s$/, ''); return UNITS[s2] ? s2 : ''; };
     const UW = '(square (?:meters?|metres?|feet|foot)|[a-z]+)';
     function convOf(q) {
-        const t = q.toLowerCase().replace(/^(?:please\s+)?(?:convert|change)\s+/, '');
+        const t = numWords(q.toLowerCase()).replace(/\s+/g, ' ').trim().replace(/^(?:please\s+)?(?:convert|change)\s+/, '');
         let m = t.match(new RegExp('^(?:how many|how much)\\s+' + UW + '\\s+(?:in|is|are)\\s+(\\d+(?:\\.\\d+)?)\\s*' + UW + '$'));
         let n, a, b;
         if (m) { b = m[1]; n = m[2]; a = m[3]; }
@@ -567,7 +637,9 @@
         const v = Number(n) * UNITS[ua][1] / UNITS[ub][1];
         const nice = (x) => Number(x.toPrecision(6)).toLocaleString('en-US', { maximumFractionDigits: 4 });
         const nm = (u) => { if (UNITS[u][2]) return UNITS[u][2]; const k = Object.keys(UNITS).find((x) => UNITS[x][0] === UNITS[u][0] && UNITS[x][1] === UNITS[u][1] && UNITS[x][2]); return k ? UNITS[k][2] : u + 's'; };
-        return nice(Number(n)) + ' ' + nm(ua, Number(n)) + ' is ' + nice(v) + ' ' + nm(ub, v) + '.';
+        const one = { inches: 'inch', feet: 'foot', 'square feet': 'square foot' };
+        const nm1 = (u, x) => { const w = nm(u); return x === 1 ? (one[w] || w.replace(/s$/, '')) : w; };
+        return nice(Number(n)) + ' ' + nm1(ua, Number(n)) + ' is ' + nice(v) + ' ' + nm(ub, v) + '.';
     }
     const JOKES = ['Why did the invoice go to therapy? It had too many unresolved issues.', 'I told the printer a joke. It did not get it, so I sent it again, and again, and again.',
         'Why do accountants never get lost? They always follow the paper trail.', 'Why was the computer cold? It left its Windows open.',
@@ -646,7 +718,7 @@
     }
     // 18.0.0 patch 34 (martin): window commands TYPED in the chat ("clear the batch", "tick 62812", "press Check notes",
     // "change status to With Accounts") run here without the AI, but ALWAYS after Proceed (button, or say "proceed").
-    const CMD_RE = /^\s*(?:please\s+)?(?:tick|untick|uncheck|unselect|deselect|select|check|press|click|hit|tap|push|change|set|put|make|update|edit|clear|empty|reset|remove all)\b/i;
+    const CMD_RE = /^\s*(?:please\s+)?(?:save|submit|mark|unmark|un-mark|tick|untick|uncheck|unselect|deselect|select|check|press|click|hit|tap|push|change|set|put|make|update|edit|clear|empty|reset|remove all)\b/i;
     function isCmd(q) {
         if (CLEAR_RE.test(q)) return true;
         if (!CMD_RE.test(q)) return false;
