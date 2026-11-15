@@ -2839,3 +2839,9 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:is(.iba-mobile-ui, .iba-phone) #iba-orb-edge { display: none !important; }
   @media (prefers-reduced-motion: reduce) { html body #iba-orb-edge i { animation: none !important; } }
 }
+
+/* 18.0.0 patch 35: the IRIS orb takes the robot's place while Talk mode is on (robot hidden, orb clickable) */
+@layer iba-ui {
+  html body.iba-orb-on #iba-ai-fab { visibility: hidden !important; pointer-events: none !important; }
+  html body #iba-talk-pill.has-orb .iba-orb-cv, html body #iba-talk-pill.has-orb b, html body #iba-talk-pill.has-orb [data-pill-st] { cursor: pointer !important; }
+}
