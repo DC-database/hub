@@ -2992,6 +2992,7 @@
     // ------------------------------------------------------------------
     const EXPORT_WHEN = [['any', 'Any time (all now in this status)'], ['2h', 'Last 2 hours'], ['today', 'Today'], ['yesterday', 'Yesterday'],
         ['week', 'This week (from Saturday)'], ['month', 'This month'], ['30d', 'Last 30 days']];
+    const XL_WHEN = [['am', 'Morning (until 12:00)'], ['pm', 'Afternoon (from 12:00)'], ['yam', 'Yesterday morning'], ['ypm', 'Yesterday afternoon']];
     function exportStatusOpts() {
         const base = ['Under Review', 'With Accounts', 'Paid', 'SRV Done', 'For SRV', 'For Approval', 'CEO Approval', 'In Process', 'For Summary', 'Report', 'Report Approval', 'Report Approved', 'On Hold', 'Pending', 'Unresolved', 'IPC Application'];
         const seen = new Set();
@@ -3001,6 +3002,11 @@
         const w = norm(when || 'any'), now = Date.now();
         if (!w || w === 'any' || w === 'all') return null;
         if (w === '2h') return { from: now - 2 * 3600000, to: now, label: 'last 2 hours' };
+        // 18.0.0 patch 33: morning (until 12:00) / afternoon (from 12:00), Doha time, today
+        if (w === 'am') return { from: qMidnight(0), to: Math.min(now, qMidnight(0) + 12 * 3600000), label: 'this morning' };
+        if (w === 'pm') return { from: qMidnight(0) + 12 * 3600000, to: now, label: 'this afternoon' };
+        if (w === 'yam') return { from: qMidnight(-1), to: qMidnight(-1) + 12 * 3600000, label: 'yesterday morning' };
+        if (w === 'ypm') return { from: qMidnight(-1) + 12 * 3600000, to: qMidnight(0), label: 'yesterday afternoon' };
         if (w === 'today') return { from: qMidnight(0), to: now, label: 'today' };
         if (w === 'yesterday') return { from: qMidnight(-1), to: qMidnight(0), label: 'yesterday' };
         if (w === 'week') { const back = (qDay().getUTCDay() + 1) % 7; return { from: qMidnight(-back), to: now, label: 'this week' }; }
@@ -3011,6 +3017,11 @@
         return null;
     }
     async function exportLoadInvoices() {
+        // 18.0.0 patch 33 (martin): "Copy invoice list · With Accounts · Today" found 0 because it used the list
+        // loaded earlier on the page without the changes since then. Now: that list + only the changed POs.
+        if (typeof window.ibaInvoiceEntriesLoad === 'function') {
+            try { const r = await window.ibaInvoiceEntriesLoad(); if (r && r.data) return r; } catch (_) {}
+        }
         try {
             if (window.__invoiceEntriesFullLoaded === true && typeof allInvoiceData !== 'undefined' && allInvoiceData && Object.keys(allInvoiceData).length) {
                 return { data: allInvoiceData, info: { mode: 'memory', bytes: 0 } };
@@ -3069,6 +3080,15 @@
             });
         });
         rows.sort((x, y) => (x._at - y._at) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }));
+        // 18.0.0 patch 33 (martin): With Accounts / Under Review lists = one row per SRV / invoice name (the
+        // invoices of one Summary Note share one name: only the first is kept). Rows without a name all stay.
+        let sameName = 0;
+        if (a.unique) {
+            const seen = new Set();
+            const keep = [];
+            rows.forEach((r) => { const n = norm(r.file); if (n && seen.has(n)) { sameName++; return; } if (n) seen.add(n); keep.push(r); });
+            rows.length = 0; keep.forEach((r) => rows.push(r));
+        }
         // 15.0.0 patch 41: only what is needed to rename the scanned files.
         // "Inv name / SRV name / Report name" is the one name that changes with the
         // status: Report steps -> report name, With Accounts / SRV Done / Paid ->
@@ -3088,6 +3108,7 @@
         const fname = 'IBA_' + wants.map((w) => w.replace(/[^a-z0-9]+/g, '_')).join('_') + (win ? '_' + norm(win.label).replace(/[^a-z0-9]+/g, '_') : '') + '_' + todayISO() + '.csv';
         const result = { found: rows.length, pos: pos, total_value: money(total), label: label, source: src,
             first: rows.slice(0, 15).map((r) => ({ po: r.po, invoice_no: r.invoice_no, vendor: r.vendor, value: money(r.value), since: r.since, with: r.attention })) };
+        if (sameName) result.same_name = sameName + ' more invoice(s) share a name already listed: one row per name.';
         if (!rows.length) result.note = 'No invoice is in that status' + (win ? ' for that time' : '') + '.';
         return { result: result, card: { kind: 'export', data: Object.assign({}, result, { csv: csv, tsv: tsv, copy: !!a.copy, file: fname, rows: rows.slice(0, 8) }) } };
     }
@@ -3748,15 +3769,14 @@
         // 15.0.0 patch 43: which Firebase indexes exist (missing ones make filtered reads download whole lists)
         dbcheck: { name: 'Database check', icon: 'fa-database', superOnly: true, desc: 'Checks the Firebase indexes the system relies on to keep downloads small, and shows the rule to add for any that are missing. Each check reads about 1 KB.',
             ask: () => [], run: async () => { await dbCheckCard(); return null; } },
-        // 17.0.5 patch 122: same list, copied (no header) to paste into Excel
-        export_copy: { name: 'Copy invoice list', icon: 'fa-copy', superOnly: true, desc: 'Same as Download invoice list, but one press copies the rows (same columns, no header) so you click a cell in Excel and press Ctrl+V. No file to open.',
-            ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
-                { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
-            build: (v) => [{ tool: 'download_invoices', args: { status: v.status, when: v.when, copy: true } }] },
-        export: { name: 'Download invoice list', icon: 'fa-file-csv', superOnly: true, desc: 'Asks for a status (Under Review, With Accounts, Paid, ...) and a period, then gives a CSV file for Excel. Uses the saved copy: little or no download.',
-            ask: () => [{ key: 'status', label: 'Status', type: 'select', options: exportStatusOpts() },
-                { key: 'when', label: 'Reached that status', type: 'select', options: EXPORT_WHEN }],
-            build: (v) => [{ tool: 'download_invoices', args: { status: v.status, when: v.when } }] },
+        // 18.0.0 patch 33 (martin): the two lists he copies to Excel, by half day. Replace "Copy invoice list" and
+        // "Download invoice list". One row per SRV / invoice name. Copy + Download CSV.
+        xl_wa: { name: 'With Accounts list', icon: 'fa-file-excel', superOnly: true, desc: 'Invoices that became With Accounts this morning (until 12:00) or this afternoon. Copy for Excel or Download CSV, with the SRV name. One row per SRV name.',
+            ask: () => [{ key: 'when', label: 'When', type: 'select', options: XL_WHEN }],
+            build: (v) => [{ tool: 'download_invoices', args: { status: 'With Accounts', when: v.when || 'am', copy: true, unique: true } }] },
+        xl_ur: { name: 'Under Review list', icon: 'fa-file-excel', superOnly: true, desc: 'Invoices that became Under Review this morning (until 12:00) or this afternoon. Copy for Excel or Download CSV, with the invoice name. One row per invoice name.',
+            ask: () => [{ key: 'when', label: 'When', type: 'select', options: XL_WHEN }],
+            build: (v) => [{ tool: 'download_invoices', args: { status: 'Under Review', when: v.when || 'am', copy: true, unique: true } }] },
         recent: { name: 'Recent changes to Batch', icon: 'fa-clock-rotate-left', superOnly: true, desc: 'Invoices moved to a status in a time window (e.g. CEO Approval this morning), into Batch Entry.',
             ask: () => [{ key: 'status', label: 'Status', type: 'select', options: statusOptsWith('Pick a status').slice(1) },
                 { key: 'when', label: 'When', type: 'select', options: WHEN_OPTS },
@@ -4995,13 +5015,13 @@
     }
 
     // 15.0.0 patch 47: what can be answered without the AI
-    const QUICK_ALL = ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent', 'new_job', 'new_delivery', 'transfer', 'person', 'brief'];
+    const QUICK_ALL = ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'xl_wa', 'xl_ur', 'recent', 'new_job', 'new_delivery', 'transfer', 'person', 'brief'];
     const INTENTS = [
         // 17.0.5 patch 6
         [/\bwhere\b.*\b(inv|invoice|my)\b|\b(track|status)\b.*\binv|\binvoice status\b/i, ['inv_status', 'po_report']],
-        [/\b(reports?|list|lists|summary|print|statement)\b/i, ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'export', 'recent']],
-        [/\b(copy|paste)\b/i, ['export_copy', 'export']],
-        [/\b(download|csv|excel|export)\b/i, ['export', 'export_copy', 'po_report', 'inv_status']],
+        [/\b(reports?|list|lists|summary|print|statement)\b/i, ['po_report', 'inv_status', 'approvals_list', 'site_list', 'weekly', 'xl_wa', 'xl_ur', 'recent']],
+        [/\b(copy|paste)\b/i, ['xl_wa', 'xl_ur']],
+        [/\b(download|csv|excel|export)\b/i, ['xl_wa', 'xl_ur', 'po_report', 'inv_status']],
         [/\b(urgent|rush)\b/i, ['urgent', 'approvals_list']],
         [/\b(approvals?|approve|ceo|coo)\b/i, ['approvals_list', 'urgent', 'inv_status']],
         [/\b(new|add)\s+invoice\b/i, ['new_invoice']],
@@ -5040,6 +5060,23 @@
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
         const words = t.split(/\s+/).filter(Boolean).length;
+        // 18.0.0 patch 33 (martin): a typed skill name ("notes to accounts", "open note to accounts skill") opens
+        // that skill here, no AI (same matching as IRIS). Two close matches = both buttons to pick from.
+        if (words <= 7 && /^(?:(?:show|open|list)\s+(?:me\s+)?)?(?:all\s+|my\s+)?(?:the\s+)?skills$|^what can you do$/i.test(t)) {
+            showView('chat'); addUser(text); const b = document.querySelector('#iba-ai-panel [data-ai="skills"]'); if (b) b.click(); return true;
+        }
+        if (words <= 6 && !onPhone() && window.ibaTalk && typeof window.ibaTalk.pageOf === 'function' && typeof window.ibaOpenShellPage === 'function') {
+            let pg = null; try { pg = window.ibaTalk.pageOf(t); } catch (_) {}
+            if (pg) { showView('chat'); addUser(text); addNote('Opening ' + pg.name + '.'); try { window.ibaOpenShellPage(pg.key); } catch (_) {} return true; }
+        }
+        if (words <= 7 && !/\d/.test(t) && !/\b(why|how|when|who|what is|explain)\b/i.test(t) && window.ibaTalk && typeof window.ibaTalk.match === 'function') {
+            let r = []; try { r = window.ibaTalk.match(t) || []; } catch (_) {}
+            const said = /\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t);
+            if (r.length && (r.length === 1 || r[0].w > r[1].w * 1.3) && (said || r[0].h >= 2)) {
+                showView('chat'); addUser(text); runTemplate(r[0].k.id); return true;
+            }
+            if (r.length > 1 && said) { showView('chat'); addUser(text); if (quickPicks([r[0].k.id, r[1].k.id])) return true; }
+        }
         // a PO number, alone or as "po 62921" / "status of po 62921"
         const po = (t.match(/^(?:(?:status|track|check|where is|show)(?:\s+(?:of|the|for))?\s+)?(?:po|p\.o\.?)?[\s#:-]*(\d{4,7})$/i) || [])[1];
         if (po && words <= 6 && !onPhone()) {
@@ -6900,6 +6937,7 @@
                     '<button type="button" class="iba-ai-mini' + (x.copy ? ' is-main' : '') + '" data-export-copy><i class="fa-regular fa-copy"></i> Copy for Excel (' + esc(x.found) + ')</button> ' +
                     (href ? '<a class="iba-ai-mini' + (x.copy ? '' : ' is-main') + '" href="' + esc(href) + '" download="' + esc(x.file) + '"><i class="fa-solid fa-download"></i> Download CSV</a>' : '') +
                     '<span class="iba-ai-export-said" data-export-said></span></p>' : '') +
+                (x.same_name ? '<p class="iba-ai-foot">' + esc(x.same_name) + '</p>' : '') +
                 '<p class="iba-ai-foot">Data: ' + esc(x.source) + '</p>';
             d.__tsv = x.tsv || '';
         } else if (card.kind === 'batch') {
@@ -6963,7 +7001,7 @@
         screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
-        export: ['CSV for Excel', '#15803d'], export_copy: ['Copy, paste in Excel', '#15803d'], recent: ['Moved lately, into Batch', '#0e7490'],
+        xl_wa: ['Morning / afternoon, copy or CSV', '#15803d'], xl_ur: ['Morning / afternoon, copy or CSV', '#0f766e'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309'],
         // 18.0.0 patch 5: the skills that sat in "More" get their short line too
@@ -6981,7 +7019,7 @@
         ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
         ['Approvals', ['approvals_list', 'urgent']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
-        ['Reports and lists', ['export_copy', 'export', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
+        ['Reports and lists', ['xl_wa', 'xl_ur', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
         ['LPO and PO file', ['lpo_mail', 'po_pull']],
         ['Admin tools', ['access_check', 'dbcheck', 'skill_access', 'handover']]
     ];

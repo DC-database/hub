@@ -117,7 +117,13 @@
     function hear(text) {
         const t = String(text || '').trim();
         if (!t || !on || muted) return;
-        if (choice && !WAKE.test(t) && !echo(t)) { pick(t); return; }
+        // 18.0.0 patch 33 (martin): the answer to "Did you mean A, or B?" is one of her own words, so the echo
+        // filter used to throw it away. Now only her whole question coming back is ignored; "Iris, B" works too.
+        if (choice) {
+            const rest = t.replace(WAKE, '').trim();
+            if (rest && !choiceEcho(rest)) { pick(rest); return; }
+            if (!rest || !WAKE.test(t)) return;
+        }
         if (pending) {
             if (YES.test(t)) { const q = pending, act = pendingAct; pending = null; pendingAct = null; paint(); if (act) act(); else run(q, true); return; }
             if (NO.test(t)) { pending = null; pendingAct = null; say('Okay, I won’t do it.'); paint(); return; }
@@ -139,18 +145,19 @@
     }
     // 18.0.0 patch 30 (martin): skills first, matched on this PC (no AI, never runs out); the AI only when nothing fits
     const STOP = new Set('please can could would you me my mine the a an to for of and or on in at it this that these those is are be do does show open run start give get let lets want need i id im we our some all just now quickly quick go see check tell about with up what whats which today todays tomorrow no yes ok okay'.split(' '));
-    const ALIAS = { brief: 'today morning waiting tasks work day', approvals_list: 'approvals approve approval waiting management pending sign', inv_status: 'where invoice track tracking status find', dash_charts: 'charts chart pie bars graph hide dashboard', dash_print: 'print dashboard report pie chart graph', site_stock: 'stock site inventory balance', po_pull: 'pull pulled out file original deletion', remind_me: 'remind reminder remember', new_invoice: 'new add invoice', new_job: 'new add job entry', person: 'colleague phone number contact who', transfer: 'transfer trf find', sn_print_all: 'print summary notes note', urgent: 'urgent rush mark', screensaver: 'screensaver screen saver', weekly: 'weekly week report', po_report: 'po report purchase order', batch: 'batch add', export: 'download excel csv list', export_copy: 'copy list paste', new_delivery: 'delivery deliver restock return usage', receive_delivery: 'receive received delivery', site_team: 'site team people', site_list: 'site list status', lpo_mail: 'lpo email emails mail', access_check: 'access check pages', skill_access: 'skill skills access', notes_to_acc: 'notes accounts', today_batch: 'today batch', recent: 'recent changes batch', new_requisition: 'new add requisition req' };
+    const ALIAS = { brief: 'today morning waiting tasks work day', approvals_list: 'approvals approve approval waiting management pending sign', inv_status: 'where invoice track tracking status find', dash_charts: 'charts chart pie bars graph hide dashboard', dash_print: 'print dashboard report pie chart graph', site_stock: 'stock site inventory balance', po_pull: 'pull pulled out file original deletion', remind_me: 'remind reminder remember', new_invoice: 'new add invoice', new_job: 'new add job entry', person: 'colleague phone number contact who', transfer: 'transfer trf find', sn_print_all: 'print summary notes note', urgent: 'urgent rush mark', screensaver: 'screensaver screen saver', weekly: 'weekly week report', po_report: 'po report purchase order', batch: 'batch add', xl_wa: 'download excel csv list copy paste accounts srv', xl_ur: 'download excel csv list copy paste review invoice', new_delivery: 'delivery deliver restock return usage', receive_delivery: 'receive received delivery', site_team: 'site team people', site_list: 'site list status', lpo_mail: 'lpo email emails mail', access_check: 'access check pages', skill_access: 'skill skills access', notes_to_acc: 'notes accounts', today_batch: 'today batch', recent: 'recent changes batch', new_requisition: 'new add requisition req' };
     const stem = (w) => w.replace(/'s$/, '').replace(/(?:ies)$/, 'y').replace(/(?<=\w{3})s$/, '');
     const toks = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ']+/g, ' ').split(/\s+/).filter((w) => w.length > 1).map(stem).filter((w) => !STOP.has(w));
     function match(q) {
         let list = [];
         try { list = (A().skillList && A().skillList()) || []; } catch (_) {}
         q = String(q || '').replace(/^\s*(?:please\s+)?(?:can you\s+)?(?:open|run|start|show|use)?\s*(?:the\s+|my\s+)?skills?\s+(?:for|of|called|named|to)\s+/i, '');
+        q = q.replace(/\s+skills?\s*$/i, ''); // p33: "open note to accounts skill"
         const Q = toks(q);
         if (!Q.length || !list.length) return [];
         const sets = list.map((k) => ({ k, N: new Set(toks(k.name)), T: new Set(toks(k.name + ' ' + (k.tile || '') + ' ' + (ALIAS[k.id] || ''))) }));
         const df = {}; sets.forEach((x) => x.T.forEach((w) => { df[w] = (df[w] || 0) + 1; }));
-        return sets.map((x) => { let h = 0, w = 0; Q.forEach((q1) => { if (x.T.has(q1)) { h++; w += (x.N.has(q1) ? 2 : 1) / df[q1]; } }); return { k: x.k, h, w }; })
+        return sets.map((x) => { let h = 0, w = 0; Q.forEach((q1) => { if (x.T.has(q1)) { h++; w += (x.N.has(q1) ? 2 : 1) / df[q1]; } }); if (x.N.size > 1 && Array.from(x.N).every((n) => Q.includes(n))) w += 2; /* p33: the whole skill name was said */ return { k: x.k, h, w }; })
             .filter((x) => x.h && (x.h >= 2 || x.w >= 0.5)).sort((a, b) => (b.w - a.w) || (b.h - a.h));
     }
     let choice = null; // [skill, skill] while she asks "A or B?"
@@ -159,13 +166,27 @@
         say('Opening ' + spoken(k.name) + '.' + (k.asks ? ' Please fill in the boxes on screen.' : ''));
         try { await A().runTpl(k.id); } catch (_) {}
     }
+    function choiceEcho(t) { // her own "Did you mean A, or B?" heard back: it holds both names (or "did you mean")
+        if (/did you mean/i.test(t)) return true;
+        const [a, b] = choice; const w = new Set(words(t));
+        const has = (k) => words(k.name).filter((x) => x.length > 2).every((x) => w.has(x));
+        return has(a) && has(b);
+    }
+    let pickTries = 0;
     function pick(t) {
-        const [a, b] = choice; choice = null; paint();
+        const [a, b] = choice;
+        const nm = (k) => words(k.name).filter((x) => x.length > 2);
+        const w = new Set(words(t));
+        const full = [a, b].filter((k) => nm(k).length && nm(k).every((x) => w.has(x) || w.has(x.replace(/s$/, '')) || w.has(x + 's')));
+        full.sort((x, y) => nm(y).length - nm(x).length);
+        if (full.length === 1 || (full.length === 2 && nm(full[0]).length > nm(full[1]).length)) { choice = null; pickTries = 0; paint(); return openSkill(full[0]); }
+        choice = null; paint();
         if (/\b(first|one|1|a|former)\b/i.test(t)) return openSkill(a);
         if (/\b(second|two|2|b|last|latter|other)\b/i.test(t)) return openSkill(b);
         const r = match(t).filter((x) => x.k.id === a.id || x.k.id === b.id);
-        if (r.length) return openSkill(r[0].k);
-        say('Okay, never mind.');
+        if (r.length && (r.length === 1 || r[0].w > r[1].w * 1.3)) { pickTries = 0; return openSkill(r[0].k); }
+        if (/\b(?:no|none|neither|never ?mind|cancel|stop)\b/i.test(t) || ++pickTries > 1) { pickTries = 0; say('Okay, never mind.'); return; }
+        choice = [a, b]; const q = 'Sorry, say first for ' + spoken(a.name) + ', or second for ' + spoken(b.name) + '.'; note('IRIS: ' + q); say(q); paint();
     }
     // ---------------------------------------------------------------------------------------------
     // 18.0.0 patch 31 (martin): voice control in the window in front (works in every pop-up / page):
@@ -421,5 +442,5 @@
         if (muted) stopRec(); else { lastCmd = Date.now(); start(); }
         paint();
     }, true);
-    window.ibaTalk = { on: () => on, set: setOn, hear, stage, match, _vc: voiceControl, _root: frontRoot };
+    window.ibaTalk = { on: () => on, set: setOn, hear, stage, match, pageOf, _vc: voiceControl, _root: frontRoot };
 })();
