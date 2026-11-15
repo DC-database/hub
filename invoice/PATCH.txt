@@ -3,6 +3,13 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 33 (15-Nov-2026)
+- New skills "With Accounts list" and "Under Review list" (Super Admin) replace "Copy invoice list" and "Download invoice list": pick This morning (until 12:00) / This afternoon (from 12:00) / Yesterday morning / Yesterday afternoon; card has Copy for Excel AND Download CSV, same columns as before. One row per name: invoices sharing one SRV name / invoice name (e.g. one Summary Note) give one row (the first); the card says how many were left out. With Accounts = SRV name, Under Review = invoice name.
+- Fix: the invoice lists used the list loaded earlier on the page and missed invoices saved after that (With Accounts today showed 0). Now they read the POs changed since then (small read).
+- Typing works like IRIS (no AI key needed): a skill name ("notes to accounts", "open note to accounts skill") opens it, a page name ("open invoice entry") opens the page, "all skills" opens the list. Real questions still go to the AI.
+- IRIS: answering "Did you mean A, or B?" with the name now works (her echo filter threw it away); "Iris, B", "first", "second" also work; if she does not catch it she asks once more. Saying a skill's full name opens it without asking. The word "skills" no longer picks "Skill access".
+Files: index.html, PATCH.txt, js/iba-assistant.js, js/iba-1800-talk.js
+
 18.0.0 patch 32 (15-Nov-2026)
 - IRIS Talk mode never uses the paid AI: she only runs skills, opens pages and does the window actions she knows. Anything else: "Sorry, I don't have a skill for that. Say: Iris, all skills".
 - "Iris, all skills" / "what can you do" opens the skills list.
