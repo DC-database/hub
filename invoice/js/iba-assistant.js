@@ -5061,6 +5061,11 @@
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
         const words = t.split(/\s+/).filter(Boolean).length;
+        // 18.0.0 patch 36 (martin): built-in answers (name, time, date, pending, message to ...) without the AI
+        if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.builtin === 'function') {
+            let ok = false; try { ok = await window.ibaTalk.builtin(text, () => { showView('chat'); addUser(text); }); } catch (_) {}
+            if (ok) return true;
+        }
         // 18.0.0 patch 34 (martin): typed window commands (clear the batch, tick, press, change ... to ...) run
         // without the AI after Proceed (button or "proceed" to IRIS)
         if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.typed === 'function') {
@@ -7821,6 +7826,44 @@
         speak: (t) => speak(t), stopSpeak: () => stopSpeak(), talking: () => talking || !!(canSpeak() && window.speechSynthesis.speaking),
         busy: () => !!state.busy, note: (t) => addNote(t), micError: (c) => micError(c),
         // 18.0.0 patch 30: Talk mode runs skills by voice without the AI
+        // 18.0.0 patch 36 (martin): built-in answers for IRIS (no AI): the brief said in words, a message to a colleague
+        pendingSay: async () => {
+            if (!allowed()) return '';
+            build(); toggle(true); showView('chat');
+            await runDirect('get_brief', {});
+            const cards = document.querySelectorAll('#iba-ai-log .iba-ai-card.is-brief');
+            const last = cards[cards.length - 1];
+            const data = last && briefStore.get(last.getAttribute('data-brief-id'));
+            return data ? briefSpeech(data) : 'Your brief is on the screen.';
+        },
+        myFirstName: () => firstName(),
+        contactOf: async (name) => {
+            if (!allowed()) return { none: true };
+            const r = await runTool('find_person', { name: name });
+            const ps = (r && r.card && r.card.data && r.card.data.people) || [];
+            if (r && r.card) { build(); toggle(true); showView('chat'); addCard(r.card); }
+            return ps.length === 1 && !r.card.data.close ? { one: ps[0] } : ps.length ? { many: ps.length } : { none: true };
+        },
+        messageTo: async (name, text) => {
+            if (!allowed()) return { none: true };
+            const r = await runTool('find_person', { name: name });
+            const ps = (r && r.card && r.card.data && r.card.data.people) || [];
+            const meA = me() || {};
+            const others = ps.filter((p) => p && p.key && !(meA.key && String(p.key) === String(meA.key)));
+            if (others.length === 1 && !(r.card.data.close)) {
+                const p = others[0];
+                try {
+                    if (typeof dmState !== 'undefined' && dmState && !dmState.initialized && typeof initDirectMessages === 'function') initDirectMessages();
+                    if (typeof dmOpenThread === 'function') dmOpenThread(p.key, p.name);
+                } catch (_) { return { none: true }; }
+                if (text) {
+                    for (let i = 0; i < 20; i++) { const inp = $('dm-input'); if (inp && inp.getClientRects().length) { inp.value = text; inp.dispatchEvent(new Event('input', { bubbles: true })); try { inp.focus(); } catch (_) {} break; } await wait(150); }
+                }
+                return { one: p.name, typed: !!text };
+            }
+            if (r && r.card) { build(); toggle(true); showView('chat'); addCard(r.card); }
+            return others.length ? { many: others.length } : { none: true };
+        },
         // 18.0.0 patch 34: skills that exist but are closed for this person (Super only / Admin only / Skill access off)
         deniedSkills: () => Object.keys(SKILL_TPL).filter((id) => { try { const t = SKILL_TPL[id]; if (tplAllowed(id) || (onPhone() && PHONE_TPL.indexOf(id) === -1)) return false;
             if (!SKILL_LOCK[id] && window.ibaSkillAccess && window.ibaSkillAccess.decide(id) === false) return true; return (t.superOnly && !isSuper()) || (t.adminOnly && !isAdminUser()); } catch (_) { return false; } })

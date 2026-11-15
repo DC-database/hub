@@ -13,11 +13,12 @@
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const A = () => window.ibaAssistant || {};
     const $ = (id) => document.getElementById(id);
-    const WAKE = /^\s*(?:(?:hi|hey|hello|ok|okay|oh)[\s,.]+)?(?:iris|irish|iriss?|i ?ris|irus)\b['’s]*[\s,.:;!?-]*/i;
+    // patch 36: more ways the browser writes her name (Irish, Ires, Aris, Eye Ris, I race, Iriz ...)
+    const WAKE = /^\s*(?:(?:hi|hey|hello|ok|okay|oh|so|and|yes)[\s,.]+){0,2}(?:iris|irish|iriss?|irises|i ?ris|irus|ires|iras|aris|iriz|irie|eye ?ris|eyes|i race|i rise|iris's)\b['’s]*[\s,.:;!?-]*/i;
     const RISKY = /\b(?:approve|reject|delete|remove|cancel|send|forward)\b|\bmark\b.*\bpaid\b/i;
     const YES = /^\s*(?:yes|yeah|yep|yup|ok|okay|sure|go ahead|do it|confirm|correct|proceed|continue)\b/i;
     const NO = /^\s*(?:no|nope|cancel|stop|don'?t|do not|never ?mind)\b/i;
-    const HELLO = /^\s*(?:hi|hello|hey|good (?:morning|afternoon|evening)|how are you|are you there)\b[\s\w]{0,20}[?.!]*\s*$/i;
+    const HELLO = /^\s*(?:hi|hello|hey|are you there)\b[\s\w]{0,20}[?.!]*\s*$/i;
     const IDLE_OFF = 15 * 60000, FOLLOW = 8000;
     let pendingAct = null;
     let on = false, muted = false, rec = null, pending = null, follow = 0, lastCmd = 0, wasTalking = false, lastSaid = '', poll = 0, fails = 0;
@@ -31,8 +32,35 @@
     }
     function talking() { try { return !!(A().talking && A().talking()); } catch (_) { return false; } }
     function busy() { try { return !!(A().busy && A().busy()); } catch (_) { return false; } }
+    // 18.0.0 patch 36 (martin): IRIS sounds, made by the browser (no files): wake = soft rising chime when she hears
+    // "Iris", done = light ding when something runs, oops = gentle low tone when she can't. On/off per person
+    // (Assistant Settings > Look and voice), on by default.
+    const SND_KEY = () => { let k = ''; try { k = localStorage.getItem('approverKey') || ''; } catch (_) {} return 'iba-iris-sound-v1:' + (k || 'me'); };
+    function soundOn() { try { return localStorage.getItem(SND_KEY()) !== '0'; } catch (_) { return true; } }
+    let sctx = null;
+    function chime(kind) {
+        if (!soundOn()) return;
+        try {
+            const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+            if (!sctx) sctx = new C(); if (sctx.state === 'suspended') sctx.resume().catch(() => {});
+            const t0 = sctx.currentTime + 0.01;
+            const note = (f, at, dur, type, vol, f2) => {
+                const o = sctx.createOscillator(), g = sctx.createGain();
+                o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0 + at); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + at + dur);
+                g.gain.setValueAtTime(0.0001, t0 + at); g.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + at + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+                o.connect(g); g.connect(sctx.destination); o.start(t0 + at); o.stop(t0 + at + dur + 0.02);
+            };
+            if (kind === 'wake') { note(660, 0, 0.16, 'sine', 0.10); note(990, 0.09, 0.22, 'sine', 0.10); note(1980, 0.09, 0.18, 'sine', 0.025); }
+            else if (kind === 'done') { note(1320, 0, 0.35, 'sine', 0.09); note(2640, 0, 0.18, 'sine', 0.025); note(1760, 0.07, 0.3, 'sine', 0.05); }
+            else if (kind === 'oops') { note(392, 0, 0.18, 'triangle', 0.09, 370); note(294, 0.13, 0.26, 'triangle', 0.09, 277); }
+        } catch (_) {}
+    }
+    function chimeFor(t) {
+        if (/^(?:sorry|i can.t|there is no|open batch entry first|which |did you mean|please say|i see two|i found \d+ people)/i.test(t)) chime('oops');
+        else if (/^(?:opening|done|ticked|unticked|pressed|the chat with|your message to|here are all)|\bis now\b/i.test(t)) chime('done');
+    }
     let typedMode = false; // 18.0.0 patch 34: a typed command answers in the chat (speaks only while Talk mode is on)
-    function say(t) { lastSaid = t; if (typedMode) { note('IRIS: ' + t); if (!on) return; } try { if (A().speak) A().speak(t); } catch (_) {} }
+    function say(t) { lastSaid = t; chimeFor(String(t || '')); if (typedMode) { note('IRIS: ' + t); if (!on) return; } try { if (A().speak) A().speak(t); } catch (_) {} }
     function note(t) { try { if (A().note) A().note(t); } catch (_) {} }
 
     function bar() {
@@ -49,6 +77,9 @@
         }
         return b;
     }
+    // patch 36: what she heard without her name is shown for 4 s, so you can see if "Iris" was heard as another word
+    let heardTxt = '', heardUntil = 0;
+    function heardShow(t) { heardTxt = String(t).trim().slice(0, 60); heardUntil = Date.now() + 4000; paint(); setTimeout(paint, 4100); }
     function stage() { if (!on) return 'off'; if (muted) return 'muted'; if (pending || choice) return 'ask'; if (busy()) return 'think'; if (talking()) return 'speak'; return 'listen'; }
     const TXT = { listen: 'Listening… start with “Iris”', think: 'Thinking…', speak: 'Speaking… say “Iris” to interrupt', muted: 'Muted: not listening', ask: 'Waiting for your answer…', off: '' };
     // 18.0.0 patch 31: small IRIS pill above every window, so you can see she is on without opening the assistant
@@ -72,7 +103,7 @@
         if (pl) {
             pl.hidden = !on || !(pnl && !pnl.hidden ? false : true);
             pl.className = 'is-' + s + (pl.querySelector('.iba-orb-cv') ? ' has-orb' : '');
-            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = { listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '';
+            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = (s === 'listen' && Date.now() < heardUntil) ? 'heard “' + heardTxt + '” · start with Iris' : ({ listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '');
             const pm = pl.querySelector('[data-talk-mute]'); if (pm) { pm.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i>' : '<i class="fa-solid fa-microphone-slash"></i>'; pm.title = muted ? 'Unmute' : 'Mute'; }
         }
         const t = $('iba-ai-talk');
@@ -81,10 +112,32 @@
         if (!b) return;
         b.hidden = !on;
         b.className = 'is-' + s;
-        const st = b.querySelector('[data-talk-st]'); if (st) st.textContent = s === 'listen' && Date.now() < follow ? 'Listening… go ahead' : TXT[s];
+        const st = b.querySelector('[data-talk-st]'); if (st) st.textContent = s === 'listen' && Date.now() < follow ? 'Listening… go ahead' : (s === 'listen' && Date.now() < heardUntil) ? 'I heard “' + heardTxt + '”. Start with “Iris”.' : TXT[s];
         const m = b.querySelector('[data-talk-mute]'); if (m) m.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i> Unmute' : '<i class="fa-solid fa-microphone-slash"></i> Mute';
     }
 
+    // 18.0.0 patch 36 (martin): noisy room = the browser waits for silence that never comes. So a sentence that
+    // starts with "Iris" (or answers her) is acted on early: when it ends with an end word (please, go, over, now,
+    // thanks) or when the words stop changing for 1.5 s. The rest of that sentence is then ignored.
+    const END_W = /[\s,.]+(?:please|go|over|now|thanks|thank you|okay go|that's all)[\s.!?]*$/i;
+    let stallT = 0, stallTxt = '', doneEarly = '';
+    const norm2 = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+    function wanted(t) { return WAKE.test(t) || !!pending || !!choice || (Date.now() < follow && !talking()); }
+    function fire(t) {
+        clearTimeout(stallT); stallT = 0;
+        const said = String(t || '').replace(END_W, '').trim();
+        if (!said) return;
+        doneEarly = norm2(t);
+        hear(said);
+        try { if (rec) rec.abort(); } catch (_) {} // start fresh: the noise after it is not added to this sentence
+    }
+    function early(t) {
+        if (!t || talking() || !wanted(t)) return;
+        const rest = t.replace(WAKE, '').trim();
+        if (WAKE.test(t) && !rest) return; // only her name so far
+        if (END_W.test(' ' + t)) { fire(t); return; }
+        if (t !== stallTxt) { stallTxt = t; clearTimeout(stallT); stallT = setTimeout(() => { if (stallTxt === t) fire(t); }, 1500); }
+    }
     function start() {
         if (!on || muted || rec || !SR) return;
         try {
@@ -97,7 +150,13 @@
                 fails = 0;
                 for (let i = e.resultIndex; i < e.results.length; i++) {
                     const r = e.results[i]; const t = (r[0] && r[0].transcript) || '';
-                    if (!r.isFinal) { if (talking() && WAKE.test(t)) { try { A().stopSpeak(); } catch (_) {} } continue; } // barge in
+                    if (!r.isFinal) {
+                        if (talking() && WAKE.test(t)) { try { A().stopSpeak(); } catch (_) {} } // barge in
+                        early(t); continue;
+                    }
+                    clearTimeout(stallT); stallT = 0;
+                    if (doneEarly && norm2(t).startsWith(doneEarly)) { doneEarly = ''; continue; } // already handled
+                    doneEarly = '';
                     hear(t);
                 }
             };
@@ -131,9 +190,9 @@
         }
         const m = t.match(WAKE);
         let q;
-        if (m) q = t.slice(m[0].length).trim();
+        if (m) { q = t.slice(m[0].length).trim(); chime('wake'); }
         else if (Date.now() < follow && !talking() && !echo(t)) q = t;
-        else return;
+        else { if (!talking() && !echo(t)) heardShow(t); return; }
         if (!m && /^(?:no|nope|ok|okay|yes|yeah|good|great|nice|cool|nothing|fine|alright|thanks?|thank you)\b[\s\w]{0,12}$/i.test(q)) { if (/thank/i.test(q)) say('You’re welcome.'); follow = 0; return; }
         if (talking()) { try { A().stopSpeak(); } catch (_) {} }
         lastCmd = Date.now();
@@ -383,6 +442,7 @@
         return best;
     }
     async function run(q, sure) {
+        try { if (await builtin(q)) return; } catch (err) { console.warn('[iris] built-in', err); }
         try { if (await voiceControl(q, sure)) return; } catch (err) { console.warn('[iris] voice control', err); say('Sorry, I could not do that here.'); return; }
         if (!sure && RISKY.test(q)) { pending = q; note('IRIS: You said “' + q + '”. Should I go ahead? Say yes or no.'); say('You said: ' + q.replace(/[.?!]+$/, '') + '. Should I go ahead? Say yes or no.'); paint(); return; }
         for (let i = 0; i < 60 && busy(); i++) await new Promise((r) => setTimeout(r, 500));
@@ -457,6 +517,133 @@
         if (muted) stopRec(); else { lastCmd = Date.now(); start(); }
         paint();
     }, true);
+    // 18.0.0 patch 36 (martin): built-in answers, spoken or typed, no AI:
+    //   her name ("what is your name", "what does IRIS mean / stand for", "who are you"), the time, the date,
+    //   "anything pending I must do?" (the brief, said in words), "send a message to Imran saying ..." (opens the
+    //   message window with the text typed in; YOU press Send).
+    const NAME_RE = /\b(?:what(?:'s| is) your name|your name|who are you|what are you|introduce yourself|(?:iris|irish) (?:mean|means|stand|stands)|what (?:does|do|is) (?:iris|irish)\b|what (?:does|do) (?:the )?(?:name|it) (?:mean|stand))/i;
+    const TIME_RE = /^(?:(?:what(?:'s| is)?|tell me) (?:the )?time(?: is it)?(?: now)?|what time is it(?: now)?|time now|the time)\s*$/i;
+    const DATE_RE = /^(?:(?:what(?:'s| is)?|tell me) (?:the )?(?:date|day)(?: today| is it| is today)?|what day is (?:it|today)(?: today)?|today'?s date|what is today)\s*$/i;
+    const PEND_RE = /\b(?:pending|anything (?:for me|(?:that )?i (?:must|need to|have to|should) do)|what (?:do|should|must) i (?:do|work on)|what(?:'s| is) waiting(?: for me)?|my (?:tasks|to ?do|work) (?:today|now)|do i have (?:any )?(?:tasks|work))\b/i;
+    const MSG_RE = /^(?:please\s+)?(?:send|write)\s+(?:a\s+)?(?:message|msg|text|note|chat)\s+to\s+(.+?)(?:\s*(?:,|:|\bsaying\b|\bthat\b|\babout\b)\s*(.+))?$/i;
+    const MSG_RE2 = /^(?:please\s+)?(?:message|tell)\s+([a-z][a-z .']{1,30}?)\s*(?:,|:|\bsaying\b|\bthat\b)\s*(.+)$/i;
+    const TZ = 'Asia/Qatar';
+    // patch 36: maths ("1 plus 1", "25 times 4 divided by 2", "square root of 81", "20 percent of 500", "2 to the power of 8")
+    function mathOf(q) {
+        let t = ' ' + q.toLowerCase().replace(/^(?:what(?:'s| is)|how much is|calculate|compute|solve)\s+/, '').replace(/,(?=\d{3})/g, '') + ' ';
+        if (!/\d/.test(t)) return null;
+        t = t.replace(/\b(?:the|is|equals?|equal to|answer(?: of| to)?|please|what|iris|calculate|of the)\b(?!\s*(?:root|power))/g, ' ');
+        t = t.replace(/\bsquare ?root of\b|\bsqrt\b|√/g, ' r ').replace(/\bcube ?root of\b/g, ' c ')
+            .replace(/(\d+(?:\.\d+)?)\s*(?:percent|%)\s*of\b/g, '($1/100)*').replace(/(\d+(?:\.\d+)?)\s*(?:percent|%)/g, '($1/100)')
+            .replace(/\bsquared\b/g, '^2').replace(/\bcubed\b/g, '^3').replace(/\bto the power of\b|\bpower of\b|\bto the\b|\*\*/g, '^')
+            .replace(/\bplus\b|\band\b/g, '+').replace(/\bminus\b|\bless\b|\btake away\b/g, '-').replace(/\btimes\b|\bmultiplied by\b|\bmultiply by\b|(?<=\d)\s*x\s*(?=\d)|×/g, '*')
+            .replace(/\bdivided by\b|\bdivide by\b|\bover\b|÷/g, '/').replace(/\bopen bracket\b/g, '(').replace(/\bclose bracket\b/g, ')').replace(/[=?]/g, ' ');
+        if (/[a-bd-qs-z]/.test(t.replace(/\b[rc]\b/g, ''))) return null; // other words left: not maths
+        const tk = t.match(/\d+(?:\.\d+)?|[-+*/^()rc]/g); if (!tk || !tk.some((x) => /[-+*/^rc]/.test(x))) return null;
+        let i = 0;
+        const peek = () => tk[i], next = () => tk[i++];
+        function prim() { const x = next(); if (x === '(') { const v = expr(); if (next() !== ')') throw 0; return v; } if (x === '-') return -prim(); if (x === 'r') return Math.sqrt(pow()); if (x === 'c') return Math.cbrt(pow()); if (x !== undefined && /^\d/.test(x)) return parseFloat(x); throw 0; }
+        function pow() { const b = prim(); if (peek() === '^') { next(); return Math.pow(b, pow()); } return b; }
+        function term() { let v = pow(); while (peek() === '*' || peek() === '/') { const o = next(), w = pow(); v = o === '*' ? v * w : v / w; } return v; }
+        function expr() { let v = term(); while (peek() === '+' || peek() === '-') { const o = next(), w = term(); v = o === '+' ? v + w : v - w; } return v; }
+        try { const v = expr(); if (i !== tk.length || !isFinite(v)) return null; return Math.round(v * 1e6) / 1e6; } catch (_) { return null; }
+    }
+    // patch 36: units ("convert 10 inches to meters", "5 feet in cm", "how many cm in 3 inches", "20 kg to pounds")
+    const UNITS = { mm: ['l', 0.001, 'millimetres'], millimeter: ['l', 0.001], millimetre: ['l', 0.001], cm: ['l', 0.01, 'centimetres'], centimeter: ['l', 0.01], centimetre: ['l', 0.01],
+        m: ['l', 1, 'metres'], meter: ['l', 1], metre: ['l', 1], km: ['l', 1000, 'kilometres'], kilometer: ['l', 1000], kilometre: ['l', 1000],
+        in: ['l', 0.0254, 'inches'], inch: ['l', 0.0254], inche: ['l', 0.0254], ft: ['l', 0.3048, 'feet'], foot: ['l', 0.3048], feet: ['l', 0.3048], yard: ['l', 0.9144, 'yards'], yd: ['l', 0.9144], mile: ['l', 1609.344, 'miles'],
+        g: ['w', 0.001, 'grams'], gram: ['w', 0.001], kg: ['w', 1, 'kilograms'], kilo: ['w', 1], kilogram: ['w', 1], lb: ['w', 0.45359237, 'pounds'], pound: ['w', 0.45359237], ton: ['w', 1000, 'tonnes'], tonne: ['w', 1000],
+        sqm: ['a', 1, 'square metres'], 'square meter': ['a', 1], 'square metre': ['a', 1], sqft: ['a', 0.09290304, 'square feet'], 'square foot': ['a', 0.09290304], 'square feet': ['a', 0.09290304],
+        l: ['v', 1, 'litres'], liter: ['v', 1], litre: ['v', 1], gallon: ['v', 3.785411784, 'gallons'], ml: ['v', 0.001, 'millilitres'] };
+    const unitOf = (w) => { w = String(w || '').toLowerCase().trim().replace(/\.$/, ''); if (UNITS[w]) return w; const s1 = w.replace(/(?:es|s)$/, ''); if (UNITS[s1]) return s1; const s2 = w.replace(/s$/, ''); return UNITS[s2] ? s2 : ''; };
+    const UW = '(square (?:meters?|metres?|feet|foot)|[a-z]+)';
+    function convOf(q) {
+        const t = q.toLowerCase().replace(/^(?:please\s+)?(?:convert|change)\s+/, '');
+        let m = t.match(new RegExp('^(?:how many|how much)\\s+' + UW + '\\s+(?:in|is|are)\\s+(\\d+(?:\\.\\d+)?)\\s*' + UW + '$'));
+        let n, a, b;
+        if (m) { b = m[1]; n = m[2]; a = m[3]; }
+        else { m = t.match(new RegExp('^(\\d+(?:\\.\\d+)?)\\s*' + UW + '\\s+(?:to|in|into|as|is how many|in how many)\\s+' + UW + '$')); if (!m) return null; n = m[1]; a = m[2]; b = m[3]; }
+        const ua = unitOf(a), ub = unitOf(b); if (!ua || !ub || UNITS[ua][0] !== UNITS[ub][0]) return null;
+        const v = Number(n) * UNITS[ua][1] / UNITS[ub][1];
+        const nice = (x) => Number(x.toPrecision(6)).toLocaleString('en-US', { maximumFractionDigits: 4 });
+        const nm = (u) => { if (UNITS[u][2]) return UNITS[u][2]; const k = Object.keys(UNITS).find((x) => UNITS[x][0] === UNITS[u][0] && UNITS[x][1] === UNITS[u][1] && UNITS[x][2]); return k ? UNITS[k][2] : u + 's'; };
+        return nice(Number(n)) + ' ' + nm(ua, Number(n)) + ' is ' + nice(v) + ' ' + nm(ub, v) + '.';
+    }
+    const JOKES = ['Why did the invoice go to therapy? It had too many unresolved issues.', 'I told the printer a joke. It did not get it, so I sent it again, and again, and again.',
+        'Why do accountants never get lost? They always follow the paper trail.', 'Why was the computer cold? It left its Windows open.',
+        'What does a PO say to an invoice? I think we are a match.', 'Why did the spreadsheet break up with the calculator? It felt it was being taken for granted, one cell at a time.',
+        'Why did the stapler get promoted? It held everything together.', 'My password is the last three digits of pi. Do not tell anyone: one, four, one.',
+        'Why do programmers prefer dark mode? Because light attracts bugs.', 'Why was the batch entry so calm? It knew how to handle things one card at a time.'];
+    let jokeN = Math.floor(Math.random() * JOKES.length);
+    const SMALL = [
+        [/^(?:how are you|how are you doing|how(?:'s| is) it going|how do you do|are you ok(?:ay)?)\b/i, () => 'I am doing great, thank you for asking! How can I help you today?'],
+        [/^(?:i am|i'm) (?:fine|good|great|ok(?:ay)?|well)\b/i, () => 'Good to hear! Tell me what you need.'],
+        [/^(?:what are you doing|what's up|whats up|wassup)\b/i, () => 'Just here, listening and ready to help.'],
+        [/^(?:good (?:morning|afternoon|evening|night))\b/i, (q) => { const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: TZ })); return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (myFirst() ? ', ' + myFirst() : '') + '!' + (/night/i.test(q) ? ' Have a good rest.' : ''); }],
+        [/^(?:thank you|thanks|thank u|thx)\b/i, () => 'You are welcome!'],
+        [/^(?:you are|you're) (?:great|good|smart|amazing|awesome|the best|nice|cool|funny)\b/i, () => 'Thank you! You are not bad yourself.'],
+        [/^(?:i love you|love you)\b/i, () => 'That is sweet. I am happy to work with you every day.'],
+        [/^(?:are you (?:a )?(?:human|real|robot|ai))\b/i, () => 'I am an assistant built into your IBA system, not a human. But I am here every day.'],
+        [/^(?:who (?:made|built|created) you)\b/i, () => 'I was built for the IBA system, to help with invoices, approvals and the daily work.'],
+        [/^(?:how old are you)\b/i, () => 'I am very new. I started working with you this month.'],
+        [/^(?:sorry)\b/i, () => 'No problem at all.'],
+        [/\b(?:joke|make me laugh|something funny)\b/i, () => { jokeN = (jokeN + 1) % JOKES.length; return JOKES[jokeN]; }],
+        [/^(?:what(?:'s| is) my name|who am i|do you know (?:me|my name))\b/i, () => myFirst() ? 'You are ' + myFull() + '.' : 'I don’t know who is signed in yet.']
+    ];
+    function myFull() { try { const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : null; return String((u && (u.Name || u.name)) || '').trim(); } catch (_) { return ''; } }
+    function myFirst() { return myFull().split(/\s+/)[0] || ''; }
+    // patch 36: forgiving words (typos and short forms) before the built-ins look at it
+    const FIX = [[/\b(?:wat|wht|whta|waht|wut|whats|what's|wats)\b/g, 'what is'], [/\b(?:da|teh|th|d)\b/g, 'the'], [/\b(?:iz|si)\b/g, 'is'],
+        [/\b(?:nmber|numbr|nuber|numer|nmbr|numbar)\b/g, 'number'], [/\b(?:emial|emai|emil|mail|e-mail|eamil|emal)\b/g, 'email'],
+        [/\b(?:mobil|mobail|mobiel|moblie|mob|cell|cellphone|cp)\b/g, 'mobile'], [/\b(?:phon|fone|fon|telephone|tel)\b/g, 'phone'],
+        [/\b(?:pls|plz|pliz|plese)\b/g, 'please'], [/\b(?:u)\b/g, 'you'], [/\b(?:r)\b/g, 'are'], [/\b(?:ur|yor)\b/g, 'your'], [/\b(?:whatsap|watsapp|wattsapp|watsap)\b/g, 'whatsapp'],
+        [/\b(?:minas|mines|minis)\b/g, 'minus'], [/\b(?:pluss|pls one)\b/g, 'plus'], [/\b(?:devide|divid|dived|devided|divded)\b/g, 'divide'], [/\b(?:tims|time)\b(?=\s*\d)/g, 'times'],
+        [/\b(?:swuare|sqaure|squre|sqare|suare)\b/g, 'square'], [/\b(?:rooth|rut|rot)\b/g, 'root'], [/\b(?:inchs|inchis|inces|ince|inche)\b/g, 'inches'], [/\b(?:metre|metr|mter|meeter)s?\b/g, 'meters'],
+        [/\b(?:jok|jokes|joek)\b/g, 'joke'], [/\b(?:nam|nmae|naem)\b/g, 'name'], [/\b(?:tim)\b/g, 'time'], [/\b(?:thx|tnx|thanx|thanks?s)\b/g, 'thanks']];
+    function fixWords(q) { let t = ' ' + String(q || '').toLowerCase() + ' '; FIX.forEach(([re, w]) => { t = t.replace(re, w); }); return t.replace(/\s+/g, ' ').trim(); }
+    const CONTACT_W = /\b(?:mobile|phone|number|contact|email|whatsapp)\b/;
+    const FILL = new Set('what is the of his her their give me tell show find get i need want please can you could and or s whats number mobile phone contact email whatsapp address a an for to know details detail info'.split(' '));
+    async function builtin(text, before) {
+        const q = fixWords(String(text || '').replace(WAKE, '').replace(/[?.!]+$/, '').trim());
+        if (!q) return false;
+        const go = () => { try { before && before(); } catch (_) {} };
+        const wasTyped = !!before;
+        const run1 = async (fn) => { go(); if (wasTyped) typedMode = true; try { await fn(); } finally { if (wasTyped) typedMode = false; } return true; };
+        if (NAME_RE.test(q) && q.split(/\s+/).length <= 9) return run1(async () => say('I am IRIS, Intelligent Records and Invoice System, your IBA assistant.'));
+        if (TIME_RE.test(q)) return run1(async () => say('It is ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ }) + '.'));
+        if (DATE_RE.test(q)) return run1(async () => say('Today is ' + new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }) + '.'));
+        if (PEND_RE.test(q) && q.split(/\s+/).length <= 10 && !/\b\d{4,}\b/.test(q) && !/\b(?:approv\w*|invoices?|vendors?|po|transfers?|payments?|site)\b/i.test(q)) return run1(async () => { let t = ''; try { t = A().pendingSay ? await A().pendingSay() : ''; } catch (_) {} say(t || 'Your brief is on the screen.'); });
+        for (const [re, fn] of SMALL) { if (re.test(q) && q.split(/\s+/).length <= 8) return run1(async () => say(fn(q))); }
+        const cv = convOf(q); if (cv) return run1(async () => say(cv));
+        const mv = mathOf(q); if (mv !== null && mv !== undefined) return run1(async () => say('That is ' + mv.toLocaleString('en-US', { maximumFractionDigits: 6 }) + '.'));
+        const cw = CONTACT_W.test(q) && !/\d{3,}/.test(q) && !/\b(?:po|invoice|vendor|supplier|my|your)\b/.test(q) && q.split(/\s+/).length <= 10
+            ? q.replace(/'s\b/g, ' ').split(/[^a-z.']+/).filter((w) => w && !FILL.has(w) && !/^(?:mr|ms|mrs|engr|eng)\.?$/.test(w)).join(' ').trim() : '';
+        if (cw) {
+            const who = cw;
+            const wantMail = /email/.test(q), wantTel = /mobile|phone|number|whatsapp|contact/.test(q);
+            return run1(async () => {
+                let r = {}; try { r = A().contactOf ? await A().contactOf(who) : {}; } catch (_) {}
+                if (r.one) {
+                    const p = r.one, bits = [];
+                    if ((wantTel || !wantMail) && p.mobile) bits.push('mobile ' + (typedMode ? String(p.mobile).trim() : String(p.mobile).replace(/\D+/g, '').split('').join(' ')));
+                    if ((wantMail || !wantTel) && p.email) bits.push('email ' + p.email);
+                    say(bits.length ? p.name + ': ' + bits.join(', and ') + '. It is on the screen too.' : 'I found ' + p.name + ', but there is no ' + (wantMail ? 'email' : 'number') + ' saved.');
+                } else if (r.many) say('I found ' + r.many + ' people for ' + who + '. They are on the screen.');
+                else say('I can’t find ' + who + ' in the user list.');
+            });
+        }
+        const m = q.match(MSG_RE) || q.match(MSG_RE2);
+        if (m && m[1]) {
+            const who = m[1].replace(/\s+(?:please|now)$/i, '').trim(), msg = (m[2] || '').trim();
+            return run1(async () => {
+                let r = {}; try { r = A().messageTo ? await A().messageTo(who, msg) : {}; } catch (_) {}
+                if (r.one) say(r.typed ? 'Your message to ' + r.one + ' is ready. Check it and press Send.' : 'The chat with ' + r.one + ' is open. Type your message and press Send.');
+                else if (r.many) say('I found ' + r.many + ' people for ' + who + '. Press Message on the right one.');
+                else say('I can’t find ' + who + ' in the user list.');
+            });
+        }
+        return false;
+    }
     // 18.0.0 patch 34 (martin): window commands TYPED in the chat ("clear the batch", "tick 62812", "press Check notes",
     // "change status to With Accounts") run here without the AI, but ALWAYS after Proceed (button, or say "proceed").
     const CMD_RE = /^\s*(?:please\s+)?(?:tick|untick|uncheck|unselect|deselect|select|check|press|click|hit|tap|push|change|set|put|make|update|edit|clear|empty|reset|remove all)\b/i;
@@ -495,5 +682,6 @@
         if (on) { pending = 'typed'; pendingAct = () => finish(true); say('Proceed? Say proceed, or no.'); paint(); }
         return true;
     }
-    window.ibaTalk = { on: () => on, set: setOn, hear, stage, match, pageOf, typed, _vc: voiceControl, _root: frontRoot };
+    document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-snd') { try { localStorage.setItem(SND_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} if (e.target.checked) chime('done'); } });
+    window.ibaTalk = { _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
 })();

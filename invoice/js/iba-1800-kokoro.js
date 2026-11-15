@@ -104,7 +104,8 @@
             '<div class="iba-kok-row"><label class="iba-ai-field"><span>Voice</span><select id="iba-kok-voice">' + VOICES.map((v) => '<option value="' + v[0] + '"' + (v[0] === c.voice ? ' selected' : '') + '>' + v[1] + '</option>').join('') + '</select></label>' +
             '<label class="iba-ai-field"><span>Speed</span><select id="iba-kok-speed">' + SPEEDS.map((v) => '<option value="' + v[0] + '"' + (Number(v[0]) === c.speed ? ' selected' : '') + '>' + v[1] + '</option>').join('') + '</select></label>' +
             '<button type="button" class="iba-ai-btn" id="iba-kok-play"><i class="fa-solid fa-play"></i> Play sample</button></div>' +
-            '<p class="iba-ai-help small" id="iba-kok-status"></p>';
+            '<p class="iba-ai-help small" id="iba-kok-status"></p>' +
+            '<label class="iba-ai-check"><input type="checkbox" id="iba-iris-snd"' + ((window.ibaTalk && window.ibaTalk.soundOn && !window.ibaTalk.soundOn()) ? '' : ' checked') + '/> IRIS sounds (a soft chime when she hears "Iris", a ding when done)</label>';
         paintStatus();
         if (c.on && state === 'idle') load();
     }
