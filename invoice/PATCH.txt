@@ -3,6 +3,53 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 32 (15-Nov-2026)
+- IRIS Talk mode never uses the paid AI: she only runs skills, opens pages and does the window actions she knows. Anything else: "Sorry, I don't have a skill for that. Say: Iris, all skills".
+- "Iris, all skills" / "what can you do" opens the skills list.
+- Pages by voice: "Iris, open invoice entry" (Batch Entry, Dashboard, Active Task, Settings... 15 pages).
+- Settings > My background: personal On/Off switch (Super Admin + Accounts / Accounting positions; change per person in Skill access "Background: Moving / Still switch"). On = moving background and effects as set for everyone. Off = still photo on every page, no video, rain or thunder. Only that person's screen on that PC; they cannot change the chosen video, photo or weather.
+Files: index.html, PATCH.txt, js/iba-assistant.js, js/iba-1800-talk.js, js/iba-1705-rain.js, js/iba-1800-still.js (new), css/iba-1705-fit.css
+
+18.0.0 patch 31 (15-Nov-2026)
+- IRIS voice control in the window in front (any pop-up or page): "Iris, tick Khalifa Steel" / "tick row 3" / "untick all"; "Iris, press Check notes" (Add, Save, Update, Proceed, Approve, Reject, Submit, Delete, Send, Clear... ask yes or no first); "Iris, change the invoice value to 1000" / "set status to With Accounts" / "change attention to Imran" (she says the new value back, never saves by herself). Two matches = she asks which one.
+- Kokoro natural voice (Assistant > Settings > Look and voice): off by default, PC only, per person; downloads once (~90 MB, free, runs on this PC); 5 voices, speed, Play sample. Used for Talk mode, Listen and the brief. If it cannot load, the normal voice is used.
+- IRIS pill at the bottom right above every window while Talk mode is on and the assistant is closed (listening / thinking / speaking / muted + Mute + End), so you don't have to open the assistant (a click outside a pop-up closes that pop-up).
+- Small talk like "ok", "thanks" right after she speaks is no longer sent as a question.
+Files: index.html, PATCH.txt, js/iba-assistant.js, js/iba-1800-talk.js, js/iba-1800-kokoro.js (new), css/iba-1705-fit.css
+
+18.0.0 patch 30 (15-Nov-2026)
+- IRIS Talk mode runs skills FIRST, matched on this PC (no AI, never runs out): "Iris, notes to accounts", "Iris, show my approvals", "Iris, print the dashboard report"... One clear match = she opens it ("Opening ..."; "please fill in the boxes" when it needs details). Two close matches = "Did you mean A, or B?" (answer "the first one" / "the second one" / the name). PO or transfer numbers use the existing lookup (no AI). Only when no skill fits does the question go to the AI. Only skills you are allowed to use. "Open skill(s) for ..." at the start is ignored.
+Files: index.html, PATCH.txt, js/iba-1800-talk.js, js/iba-assistant.js
+
+18.0.0 patch 29 (15-Nov-2026)
+- Assistant Talk mode "IRIS" (PC only, off until you press the new headset button next to the mic; not kept after a reload). IRIS listens all the time but only answers sentences that start with "Iris" ("Hi Iris" / "Irish" also work); 8 s after she speaks you can answer without the name. Answers are spoken (AI told to keep it to 1-3 short sentences; cards still on screen). Asks yes or no first for approve / reject / delete / remove / cancel / send / forward / mark paid. "Iris, stop" = quiet, "Iris, goodbye" = off, "Iris..." while she talks interrupts. Bar above the text box: Listening / Thinking / Speaking + Mute + End. Turns off after 15 min with no question.
+- Mic button (and Talk mode) now say why when they fail: no microphone found, nothing heard, no internet for speech, mic blocked.
+Files: index.html, PATCH.txt, js/iba-assistant.js, js/iba-1800-talk.js (new), css/iba-1705-fit.css
+
+18.0.0 patch 28 (15-Nov-2026)
+- Dashboard charts (pie + Invoice Flow bars) are OFF by default for each person. A "Charts" on/off switch (same look as Show QAR) sits top right in the same spot whether on or off; the choice is kept per person on this PC.
+- New skill "Hide / show Dashboard charts" (My day): flips the same switch. Everyone; limit it in Skill access if needed.
+- New skill "Print Dashboard report" (Reports and lists): one A4 landscape page with the pie, the 3 steps and the total. Money people choose Counts only or With QAR and also get the Invoice Flow bars + month table. No extra reads.
+- Pie label "Fin" now says "Finance".
+Files: index.html, PATCH.txt, js/iba-1800-dash.js, js/iba-assistant.js, css/iba-1705-fit.css
+
+18.0.0 patch 27 (15-Nov-2026)
+- Batch Entry: "Notes to Accounts" shows again in the More menu (patch 26 hid it there by mistake). "Search PO" button fits its box again (it was squeezed to an icon width). "Add in-file POs to pull-out list" shows in More only when a PO in the batch is in your file.
+Files: index.html, PATCH.txt, css/iba-1705-fit.css
+
+18.0.0 patch 26 (15-Nov-2026)
+- Batch Entry fixes after patch 25: Notes to Accounts / Search PO no longer flicker (two scripts kept moving Notes to Accounts back and forth; it now stays in More). Save all is one green button (no box around it). Urgent and Tell me sit together at the end of the "For all" row with short names.
+- Moving background: if a page's video does not start within 6 s, the previous page's video stops showing (the page photo shows instead), so the Inventory video can no longer stay on Invoice pages.
+Files: index.html, PATCH.txt, js/iba-1800-batchbar.js, js/iba-1705-dashtools.js, js/iba-1705-rain.js, css/iba-1705-fit.css
+
+18.0.0 patch 25 (15-Nov-2026)
+- Batch Entry: one PO can get several new invoices in the same batch. Adding a PO that already has a new card asks first ("Are you adding another new invoice?"). Each new card shows its number "(New · INV-04)"; numbers continue after the last invoice of the PO (Save still checks Firebase). Save refuses two new rows of one PO with the same invoice no.
+- +Del (original PO in the file) on the first card of each PO only (Super Admin), any way the card was added. More > "Add in-file POs to pull-out list (N)" adds them all in one click; More shows a red number.
+- Top area in 2 thin rows: PO / Status / Note switch + one search box, New PO, count, Clear, More, Save all N; row 2 "For all N": Status, Attention, Note, CA / IP / WA / SUM, Urgent for all, Tell me for all. More menu: Notes to Accounts, pull-out list, New entries from Reception.
+- Refresh Data hidden (it emptied the batch). Clear now asks first when cards are in the batch.
+- Return bell on each card is the same height as REPORT / FOR SRV / APP / SUM.
+Files: index.html, PATCH.txt, app.js, js/app-batch-entry-ui.js, js/iba-1705-release.js, js/iba-1702-reception-batch.js, js/iba-1800-batchdel.js (new), js/iba-1800-batchbar.js (new), css/iba-1705-fit.css
+
 18.0.0 patch 24 (14-Nov-2026)
 - Invoice Entry: the Active Jobs bookmark on the right is slimmer and shorter (21 px wide instead of 40, about 91 px tall instead of 165), label "Jobs" (mouse-over still says Active Jobs). Same place, same click.
 Files: index.html, PATCH.txt, js/iba-1705-ajbm.js

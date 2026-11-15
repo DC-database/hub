@@ -5658,6 +5658,24 @@ async function imBatchSaveRun() {
         return id;
     };
 
+    // 18.0.0 patch 25: several new invoices on one PO are fine, but not with the same invoice no.
+    {
+        const seenNo = {}, twice = [];
+        rows.forEach((row) => {
+            if (row.dataset.key) return;
+            const el = row.querySelector('[name="invNumber"]');
+            const no = String((el && el.value) || '').trim().toUpperCase();
+            if (!no) return;
+            const k = row.dataset.po + '|' + no;
+            if (seenNo[k]) twice.push(`PO ${row.dataset.po}: invoice no. ${no}`); else seenNo[k] = 1;
+        });
+        if (twice.length) {
+            imBatchSaveProgress('');
+            alert(`Nothing was saved.\n\nThe same invoice no. is on two new rows of one PO:\n- ${twice.join('\n- ')}\n\nChange one of them, then Save again.`);
+            return;
+        }
+    }
+
     let imBatchRowNo = 0;
     for (const row of rows) {
         imBatchRowNo += 1;
