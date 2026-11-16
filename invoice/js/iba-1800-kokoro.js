@@ -21,16 +21,48 @@
     let tts = null, loadP = null, state = 'idle', pct = 0, why = '', failedAt = 0;
     function status() {
         if (state === 'ready') return 'Ready. The natural voice is on this ' + (phone() ? 'phone' : 'PC') + '.';
-        if (state === 'loading') return 'Downloading the voice… ' + (pct ? pct + '%' : '') + ' (only the first time, about 90 MB). Until it is ready the normal voice speaks.';
+        if (state === 'loading') return (pct && pct < 99 ? 'Getting the voice ready… ' + pct + '%' : 'Getting the voice ready…') + ' (downloads only the first time, about 90 MB; after that it loads from this ' + (phone() ? 'phone' : 'PC') + ' in a few seconds). Until it is ready the normal voice speaks.';
         if (state === 'failed') return 'Could not load the natural voice (' + why + '). The normal voice is used.';
         return 'Not downloaded yet. It downloads once (about 90 MB) when you switch it on.';
     }
-    function paintStatus() { ['iba-kok-status', 'iph-kok-status'].forEach((id) => { const s = $(id); if (s) s.textContent = status(); }); }
+    function paintStatus() { ['iba-kok-status', 'iph-kok-status'].forEach((id) => { const s = $(id); if (s) s.textContent = status(); }); try { document.dispatchEvent(new CustomEvent('iba-kokoro-state', { detail: state })); } catch (_) {} }
+    // 18.0.0 patch 52 (martin: the screen froze while she spoke): the voice runs in a background worker, so the page,
+    // the orb and the buttons stay smooth while it loads or makes a sentence. If a worker cannot start, the old way is used.
+    const WSRC = "let tts=null;const LIB=" + JSON.stringify(LIB) + ",MODEL=" + JSON.stringify(MODEL) + ";" +
+        "self.onmessage=async(e)=>{const d=e.data||{};" +
+        "if(d.type==='load'){try{const mod=await import(LIB);tts=await mod.KokoroTTS.from_pretrained(MODEL,{dtype:'q8',device:'wasm',progress_callback:(p)=>{if(p&&p.status==='progress'&&p.total)self.postMessage({type:'progress',file:p.file,loaded:p.loaded||0,total:p.total});}});self.postMessage({type:'ready'});}catch(err){self.postMessage({type:'error',msg:String((err&&err.message)||err)});}}" +
+        "else if(d.type==='gen'){try{const a=await tts.generate(d.text,{voice:d.voice,speed:d.speed});const buf=a.audio;self.postMessage({type:'audio',id:d.id,audio:buf,rate:a.sampling_rate},[buf.buffer]);}catch(err){self.postMessage({type:'genErr',id:d.id,msg:String((err&&err.message)||err)});}}};";
+    let worker = null, wid = 0; const wait = {};
+    function startWorker() {
+        try { return new Worker(URL.createObjectURL(new Blob([WSRC], { type: 'text/javascript' })), { type: 'module' }); }
+        catch (e) { console.warn('[kokoro] no worker', e); return null; }
+    }
+    function loadInWorker() {
+        return new Promise((res, rej) => {
+            const w = startWorker(); if (!w) return rej(new Error('noworker'));
+            const seen = {};
+            w.onmessage = (e) => {
+                const d = e.data || {};
+                if (d.type === 'progress') {
+                    seen[d.file] = [d.loaded, d.total];
+                    let a = 0, b = 0; Object.values(seen).forEach((x) => { a += x[0]; b += x[1]; });
+                    const n = Math.min(99, Math.round(a / b * 100)); if (n !== pct) { pct = n; paintStatus(); }
+                } else if (d.type === 'ready') { worker = w; res({ generate: genInWorker }); }
+                else if (d.type === 'error') { try { w.terminate(); } catch (_) {} rej(new Error(d.msg)); }
+                else if (d.type === 'audio' || d.type === 'genErr') { const p = wait[d.id]; if (!p) return; delete wait[d.id]; if (d.type === 'audio') p[0]({ audio: d.audio, sampling_rate: d.rate }); else p[1](new Error(d.msg)); }
+            };
+            w.onerror = (e) => { try { w.terminate(); } catch (_) {} rej(new Error('worker failed ' + ((e && e.message) || ''))); };
+            w.postMessage({ type: 'load' });
+        });
+    }
+    function genInWorker(text, o) { return new Promise((res, rej) => { const id = ++wid; wait[id] = [res, rej]; worker.postMessage({ type: 'gen', id, text, voice: o.voice, speed: o.speed }); }); }
     function load(force) {
         if (loadP) return loadP;
         if (!force && state === 'failed' && Date.now() - failedAt < 10 * 60000) return Promise.resolve(null);
         state = 'loading'; pct = 0; paintStatus();
         loadP = (async () => {
+            try { const w = await loadInWorker(); tts = w; state = 'ready'; paintStatus(); return w; }
+            catch (e) { const m = String((e && e.message) || e); if (!/noworker|worker failed/i.test(m)) throw e; console.warn('[kokoro] worker way failed, using the page', e); }
             const mod = await import(/* webpackIgnore: true */ LIB);
             const seen = {};
             const t = await mod.KokoroTTS.from_pretrained(MODEL, {
@@ -127,5 +159,5 @@
     document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#iba-kok-play')) { e.preventDefault(); audioCtx(); if (!cfg().on) { setCfg({ on: true }); const cb = $('iba-kok-on'); if (cb) cb.checked = true; } sample(); } });
     // pre-load in the background for people who switched it on (only after the page is idle)
     setTimeout(() => { if (cfg().on && !blocked()) load(); }, 8000);
-    window.ibaKokoro = { wanted: () => cfg().on && !blocked(), ready: () => state === 'ready', speak, stop, load, paintSettings, status, cfg, setCfg, sample, VOICES, SPEEDS, unlock: () => audioCtx() };
+    window.ibaKokoro = { state: () => state, inWorker: () => !!worker, wanted: () => cfg().on && !blocked(), ready: () => state === 'ready', speak, stop, load, paintSettings, status, cfg, setCfg, sample, VOICES, SPEEDS, unlock: () => audioCtx() };
 })();

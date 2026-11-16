@@ -84,7 +84,7 @@
         w.id = 'iba-irisph'; w.hidden = true;
         w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', 'IRIS');
         w.innerHTML = '<div class="iph-top"><b>IRIS</b><span class="iph-chip">Super Admin</span><button type="button" class="iph-x iph-i iph-g" data-iph-set aria-label="Voice settings"><i class="fa-solid fa-gear"></i></button><button type="button" class="iph-x" data-iph-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
-            '<div class="iph-orb"><canvas width="380" height="380"></canvas><div class="iph-st" data-iph-st>Tap the mic and talk</div></div>' +
+            '<div class="iph-orb"><canvas width="380" height="380"></canvas><div class="iph-st" data-iph-st>Tap the mic and talk</div><div class="iph-warm" data-iph-warm hidden><i></i> Natural voice warming up…</div></div>' +
             '<div class="iph-log" data-iph-log></div>' +
             '<form class="iph-type" data-iph-form hidden><input type="text" data-iph-in placeholder="Type to IRIS…" autocomplete="off" enterkeyhint="send"><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>' +
             '<div class="iph-bar"><button type="button" class="iph-sm" data-iph-kb aria-label="Keyboard"><i class="fa-solid fa-keyboard"></i></button>' +
@@ -115,8 +115,12 @@
         });
         orbStart(w.querySelector('canvas'));
         paintHf();
+        paintWarm();
         return w;
     }
+    // 18.0.0 patch 52: small "warming up" line while Kokoro loads back after a refresh (the phone voice speaks meanwhile)
+    function paintWarm() { const el = document.querySelector('#iba-irisph [data-iph-warm]'); if (!el) return; const K = window.ibaKokoro; el.hidden = !(K && K.wanted() && K.state && K.state() === 'loading'); }
+    document.addEventListener('iba-kokoro-state', paintWarm);
     function open() {
         if (!isSuper()) return;
         const w = build(); w.hidden = false; document.body.classList.add('iba-irisph-on');
@@ -171,7 +175,11 @@
         const K = window.ibaKokoro;
         if (K && K.wanted && K.wanted()) {
             try { K.stop(); } catch (_) {}
-            K.speak(said, null, done).then((ok) => { if (!ok && my === sayRun) browserSay(); }).catch(() => { if (my === sayRun) browserSay(); });
+            // patch 52 (martin: 30 s before she answered): if the natural voice has not started in 3.5 s, the phone voice says it
+            let began = false, fell = false;
+            const fall = () => { if (fell || began || my !== sayRun) return; fell = true; try { K.stop(); } catch (_) {} browserSay(); };
+            const lim = setTimeout(fall, 3500);
+            K.speak(said, () => { began = true; clearTimeout(lim); }, done).then((ok) => { clearTimeout(lim); if (!ok) fall(); }).catch(() => { clearTimeout(lim); fall(); });
             return;
         }
         browserSay();
