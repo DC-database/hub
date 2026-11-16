@@ -179,7 +179,7 @@
         up = { remarks: 'Cancelled', status: 'Cancelled', attention: '', cancelledBy: me(), cancelledAt: TS, cancelReason: 'Old job (tidy)', updatedAt: TS, updatedBy: me(), dateResponded: today, statusChangedAt: TS, statusQueueAt: TS, tidiedAt: TS };
         action = 'Cancelled'; note = 'Tidy old jobs: cancelled (old job, invoice not found in Invoice Entry).';
       } else {
-        up = { remarks: 'Removed', status: 'Completed', archived: true, removedBy: me(), removedAt: TS, removedReason: 'Old job (tidy)', updatedAt: TS, updatedBy: me(), dateResponded: today, statusChangedAt: TS, statusQueueAt: TS, tidiedAt: TS };
+        up = { remarks: 'Removed', status: 'Completed', archived: true, removedBy: me(), removedAt: TS, removedReason: 'Old job (tidy)', removedPrevRemarks: String(j.remarks || ''), removedPrevStatus: String(j.status || ''), removedPrevArchived: !!j.archived, updatedAt: TS, updatedBy: me(), dateResponded: today, statusChangedAt: TS, statusQueueAt: TS, tidiedAt: TS };
         action = 'Removed'; note = 'Tidy old jobs: removed (old job, invoice not found in Invoice Entry).';
       }
       try {
@@ -208,21 +208,112 @@
     state = { date: defDate(), found: null, lost: null, msg: '', checked: 0, busy: false };
     paint();
   }
-  // a small button next to Clear on Job Records (Super Admin, PC)
+  // ======================================================================
+  // 18.0.0 patch 57 (martin): Recycle Bin. Removed WorkDesk jobs (by IRIS voice, Tidy old jobs, "Remove reception
+  // entry") are listed with who/when; Restore puts a job back, Delete forever erases it. Tabs Invoice / Inventory
+  // come in the next patch (their delete buttons still erase straight away).
+  // ======================================================================
+  var bin = null;
+  function removedJobs() {
+    var list = [];
+    try { list = Array.isArray(allSystemEntries) ? allSystemEntries : []; } catch (_) {}
+    return list.filter(function (e) { return e && e.key && (!e.source || e.source === 'job_entry') && /^removed$/i.test(String(e.remarks || '').trim()); })
+      .sort(function (a, b) { return (Number(b.removedAt) || 0) - (Number(a.removedAt) || 0); });
+  }
+  function fmtAt(t) { t = Number(t); if (!t) return ''; var d = new Date(t); return (typeof formatDate === 'function' ? formatDate(d) : d.toDateString()) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+  function binPaint() {
+    var w = document.getElementById('iba-bin-pop');
+    if (!w) {
+      w = document.createElement('div'); w.id = 'iba-bin-pop'; w.className = 'iba-pb-layer'; document.body.appendChild(w);
+      w.addEventListener('click', binClick);
+      w.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !bin.busy) { e.stopPropagation(); binClose(); } });
+    }
+    var rows = removedJobs(), s = bin;
+    var tabs = '<div class="iba-bin-tabs"><button type="button" class="is-on">WorkDesk (' + rows.length + ')</button><button type="button" disabled title="Coming in the next update">Invoice · soon</button><button type="button" disabled title="Coming in the next update">Inventory · soon</button></div>';
+    var body = rows.length ? '<div class="iba-tidy-tblwrap"><table class="iba-tidy-tbl"><thead><tr><th>Type</th><th>PO</th><th>Ref</th><th>Vendor</th><th class="r">Amount</th><th>Entered</th><th>Removed by</th><th>When</th><th>Why</th><th></th></tr></thead><tbody>' +
+      rows.map(function (e) {
+        var ask = s.ask === e.key;
+        return '<tr><td>' + esc(e.for || 'Job') + '</td><td class="m">' + esc(e.po || '') + '</td><td>' + esc(e.ref || '—') + '</td><td>' + esc(e.vendorName || '') + '</td><td class="r">' + money(e.amount) + '</td><td>' + esc(e.date || '') + '</td><td>' + esc(e.removedBy || e.updatedBy || '') + '</td><td>' + esc(fmtAt(e.removedAt)) + '</td><td><small>' + esc(e.removedReason || '') + '</small></td>' +
+          '<td class="iba-bin-act">' + (ask
+            ? '<span class="iba-tidy-warn">Erase for good?</span> <button type="button" data-bin-del2="' + esc(e.key) + '" class="is-danger">Yes, delete</button> <button type="button" data-bin-no>No</button>'
+            : '<button type="button" data-bin-res="' + esc(e.key) + '"' + (s.busy ? ' disabled' : '') + '><i class="fa-solid fa-rotate-left"></i> Restore</button> <button type="button" data-bin-del="' + esc(e.key) + '" class="is-danger"' + (s.busy ? ' disabled' : '') + '><i class="fa-solid fa-trash"></i> Delete forever</button>') + '</td></tr>';
+      }).join('') + '</tbody></table></div>'
+      : '<div class="iba-pb-sub">The bin is empty. Removed jobs show here (if Job Records is not loaded yet, open it first).</div>';
+    w.innerHTML = '<div class="iba-pb-box iba-tidy-box" role="dialog" aria-modal="true"><div class="iba-pb-head"><b><i class="fa-solid fa-trash-can-arrow-up"></i> Recycle Bin</b><button type="button" data-bin-x aria-label="Close">✕</button></div>' + tabs +
+      (s.msg ? '<div class="iba-pb-sub iba-tidy-msg">' + s.msg + '</div>' : '') + body + '<div class="iba-pb-foot"><span><small>Restore puts a job back where it was. Delete forever cannot be undone.</small></span><button type="button" data-bin-x>Close</button></div></div>';
+  }
+  function binClose() { var w = document.getElementById('iba-bin-pop'); if (w) w.remove(); bin = null; }
+  function findJob(key) { var r = removedJobs(); for (var i = 0; i < r.length; i++) if (r[i].key === key) return r[i]; return null; }
+  async function binClick(e) {
+    var w = document.getElementById('iba-bin-pop');
+    if (e.target === w) { if (!bin.busy) binClose(); return; }
+    var b = e.target.closest('button'); if (!b || b.disabled) return;
+    if (b.hasAttribute('data-bin-x')) return binClose();
+    if (b.hasAttribute('data-bin-no')) { bin.ask = ''; return binPaint(); }
+    if (b.hasAttribute('data-bin-del')) { bin.ask = b.getAttribute('data-bin-del'); return binPaint(); }
+    var d = mainDb(); if (!d) return;
+    var TS = firebase.database.ServerValue.TIMESTAMP;
+    if (b.hasAttribute('data-bin-res')) {
+      var j = findJob(b.getAttribute('data-bin-res')); if (!j) return;
+      var back = String(j.removedPrevRemarks || '').trim();
+      if (!back || /^removed$/i.test(back)) back = /^invoice$/i.test(String(j.for || '')) ? 'Under Review' : 'Pending';
+      var up = { remarks: back, status: String(j.removedPrevStatus || '') || null, archived: j.removedPrevArchived === true ? true : null, removedBy: null, removedAt: null, removedReason: null,
+        removedPrevRemarks: null, removedPrevStatus: null, removedPrevArchived: null, restoredBy: me(), restoredAt: TS, updatedAt: TS, updatedBy: me(), statusChangedAt: TS, statusQueueAt: TS };
+      bin.busy = true; binPaint();
+      try {
+        await d.ref('job_entries/' + j.key).update(up);
+        try { await d.ref('job_entries/' + j.key + '/history').push({ action: 'Restored', by: me(), timestamp: TS, note: 'Restored from the Recycle Bin (back to ' + back + ').' }); } catch (_) {}
+        var local = Object.assign({}, j, { remarks: back, status: up.status || '', archived: up.archived === true, restoredBy: me(), restoredAt: Date.now(), updatedAt: Date.now() });
+        ['removedBy', 'removedAt', 'removedReason', 'removedPrevRemarks', 'removedPrevStatus', 'removedPrevArchived'].forEach(function (k) { delete local[k]; delete j[k]; });
+        Object.assign(j, local);
+        try { if (typeof wdUpsertLocalWorkdeskJobEntryCache === 'function') wdUpsertLocalWorkdeskJobEntryCache(j.key, local); if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await Promise.resolve(wdWriteWorkdeskJobRecentMarker(j.key, local, 'updated')).catch(function () {}); } catch (_) {}
+        bin.msg = 'Restored: ' + esc((j.for || 'Job') + (j.po ? ' · PO ' + j.po : '')) + ', back to <b>' + esc(back) + '</b>.';
+      } catch (err) { bin.msg = '<b class="iba-tidy-warn">Not restored:</b> ' + esc((err && err.message) || err); }
+      bin.busy = false; binPaint();
+      try { if (typeof handleReportingSearch === 'function') handleReportingSearch({ reason: 'bin' }); } catch (_) {}
+      return;
+    }
+    if (b.hasAttribute('data-bin-del2')) {
+      var k = b.getAttribute('data-bin-del2'), j2 = findJob(k); if (!j2) return;
+      bin.busy = true; bin.ask = ''; binPaint();
+      try {
+        await d.ref('job_entries/' + k).remove();
+        try { if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await wdWriteWorkdeskJobRecentMarker(k, j2, 'deleted'); } catch (_) {}
+        try { if (typeof wdRemoveLocalWorkdeskJobEntryCache === 'function') wdRemoveLocalWorkdeskJobEntryCache(k); } catch (_) {}
+        try { var i = allSystemEntries.indexOf(j2); if (i >= 0) allSystemEntries.splice(i, 1); } catch (_) {}
+        bin.msg = 'Deleted forever: ' + esc((j2.for || 'Job') + (j2.po ? ' · PO ' + j2.po : '')) + '.';
+      } catch (err) { bin.msg = '<b class="iba-tidy-warn">Not deleted:</b> ' + esc((err && err.message) || err); }
+      bin.busy = false; binPaint();
+      try { if (typeof handleReportingSearch === 'function') handleReportingSearch({ reason: 'bin' }); } catch (_) {}
+    }
+  }
+  function openBin() { if (!isSuper()) return; bin = { ask: '', msg: '', busy: false }; binPaint(); }
+
+  // small buttons next to Clear on Job Records (Super Admin, PC)
   function addButton() {
     var clear = document.getElementById('reporting-clear-button');
-    var b = document.getElementById('iba-tidy-btn');
+    var b = document.getElementById('iba-tidy-btn'), r = document.getElementById('iba-bin-btn');
     var inv = false; try { inv = typeof wdReportIsInventoryMode === 'function' && wdReportIsInventoryMode(); } catch (_) {}
     var want = clear && isSuper() && !phone() && !inv;
-    if (!want) { if (b) b.remove(); return; }
-    if (b) return;
-    b = document.createElement('button');
-    b.type = 'button'; b.id = 'iba-tidy-btn'; b.className = 'secondary-btn wd-clear-chip';
-    b.title = 'Close old Invoice jobs that are already in Invoice Entry';
-    b.innerHTML = '<i class="fa-solid fa-broom"></i> Tidy old jobs';
-    b.addEventListener('click', open);
-    clear.insertAdjacentElement('afterend', b);
+    if (!want) { if (b) b.remove(); if (r) r.remove(); return; }
+    if (!b) {
+      b = document.createElement('button');
+      b.type = 'button'; b.id = 'iba-tidy-btn'; b.className = 'secondary-btn wd-clear-chip';
+      b.title = 'Close old Invoice jobs that are already in Invoice Entry';
+      b.innerHTML = '<i class="fa-solid fa-broom"></i> Tidy old jobs';
+      b.addEventListener('click', open);
+      clear.insertAdjacentElement('afterend', b);
+    }
+    if (!r) {
+      r = document.createElement('button');
+      r.type = 'button'; r.id = 'iba-bin-btn'; r.className = 'secondary-btn wd-clear-chip';
+      r.title = 'Removed jobs: restore or delete forever';
+      r.innerHTML = '<i class="fa-solid fa-trash-can-arrow-up"></i> Recycle Bin';
+      r.addEventListener('click', openBin);
+      b.insertAdjacentElement('afterend', r);
+    }
   }
+  window.ibaRecycleBin = openBin;
   setInterval(addButton, 2500);
   window.ibaTidyJobs = open;
   window.ibaTidyJobs._when = when;

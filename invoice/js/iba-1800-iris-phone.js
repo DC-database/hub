@@ -164,7 +164,7 @@
             if (my !== sayRun) return;
             speaking = false; st(IDLE());
             if ($('iba-irisph').hidden) return;
-            if (thenListen) followUntil = Date.now() + 9000;
+            if (thenListen) followUntil = Date.now() + 20000; // patch 57: 20 s to answer (was 9)
             if (thenListen && (auto || hf)) setTimeout(() => listen('follow'), 250);
             else if (hf) setTimeout(() => listen('hf'), 300);
         };
@@ -292,23 +292,91 @@
         if (!vendor) {
             try { const r = await window.ibaAssistant._run('find_po', { po: po }); const x = r && r.result; if (x) { vendor = x.vendor || ''; site = site || x.site || ''; } } catch (_) {}
         }
-        return { po, vendor, site, invs };
+        let jobs = [];
+        try { jobs = await jobsOfPO(po); } catch (_) {}
+        return { po, vendor, site, invs, jobs };
     }
+    // patch 57 (martin, PO 64804): WorkDesk jobs of this PO that are not invoices yet (e.g. IPC with the QS).
+    // One indexed REST read (job_entries by "po"). If the index is missing Firebase answers 400, never the whole list.
+    const JOB_DONE = /^(?:converted to invoice|cancelled|canceled|removed|completed|closed|done|paid)$/i;
+    function mainDbI() { try { return (typeof db !== 'undefined' && db) ? db : null; } catch (_) { return null; } }
+    async function jobsOfPO(po) {
+        const d = mainDbI(); let base = '';
+        try { base = String(d.app.options.databaseURL || '').replace(/\/$/, ''); } catch (_) {}
+        if (!base) return [];
+        const get = async (val) => { const r = await fetch(base + '/job_entries.json?orderBy=' + encodeURIComponent('"po"') + '&equalTo=' + encodeURIComponent(val), { cache: 'no-store' }); return r.ok ? ((await r.json()) || {}) : {}; };
+        let v = await get('"' + po + '"');
+        if (!Object.keys(v).length && /^\d+$/.test(po)) v = await get(po);
+        return Object.keys(v).map((k) => Object.assign({ key: k }, v[k])).filter((j) => j && !j.archived && !j.convertedToInvoice && !JOB_DONE.test(String(j.remarks || j.status || '').trim()))
+            .map((j) => ({ key: j.key, job: true, type: String(j.for || 'Job'), no: String(j.ref || j.for || 'job'), amount: num(j.amount), status: String(j.remarks || j.status || 'Pending'), attention: String(j.attention || ''), date: String(j.date || ''), raw: j }));
+    }
+    function jobLine(j) { return j.type + (j.no && j.no !== j.type ? ' ' + j.no : '') + ', ' + j.status + (j.attention ? ' with ' + j.attention : '') + (j.amount ? ', QAR ' + money(j.amount) : ''); }
     const openOnes = () => (ctx ? ctx.invs.filter((i) => !CLOSED.test(i.status)) : []);
     function invLine(i) { return i.no + ', ' + i.status + ', QAR ' + money(i.amount); }
     function invCard(list) {
         return '<div class="iph-card"><div class="iph-po">' + esc(ctx.po) + '</div><div class="iph-v">' + esc([ctx.vendor, ctx.site].filter(Boolean).join(' · ')) + '</div>' +
-            list.map((i) => '<div class="iph-row"><span>' + esc(i.no) + '</span><em class="iph-s ' + (CLOSED.test(i.status) ? 'is-done' : '') + '">' + esc(i.status) + '</em><b>' + esc(money(i.amount)) + '</b></div>').join('') + '</div>';
+            list.map((i) => '<div class="iph-row"><span>' + esc(i.no) + '</span><em class="iph-s ' + (CLOSED.test(i.status) ? 'is-done' : '') + '">' + esc(i.status) + '</em><b>' + esc(money(i.amount)) + '</b></div>').join('') +
+            (ctx.jobs && ctx.jobs.length ? '<div class="iph-jobs-h">Still in WorkDesk</div>' + ctx.jobs.map((j) => '<div class="iph-row is-job"><span>' + esc(j.type + (j.no && j.no !== j.type ? ' · ' + j.no : '')) + '</span><em class="iph-s">' + esc(j.status) + (j.attention ? ' · ' + esc(j.attention) : '') + '</em><b>' + (j.amount ? esc(money(j.amount)) : '') + '</b></div>').join('') : '') + '</div>';
     }
     async function lookup(po) {
         st('thinking'); pend = null;
         try { ctx = await loadPO(po); } catch (e) { irisSay('I could not read PO ' + po + ': ' + ((e && e.message) || e)); return; }
-        if (!ctx.invs.length) { irisSay('PO ' + po + (ctx.vendor ? ', ' + ctx.vendor + ',' : '') + ' has no invoices yet.', { listen: false }); return; }
+        const jobs = ctx.jobs || [];
+        const jobSay = jobs.length ? (jobs.length === 1 ? ' 1 more is still in WorkDesk: ' + jobLine(jobs[0]) + '.' : ' ' + jobs.length + ' more are still in WorkDesk: ' + jobs.slice(0, 3).map(jobLine).join('; ') + '.') : '';
+        if (!ctx.invs.length && !jobs.length) { irisSay('PO ' + po + (ctx.vendor ? ', ' + ctx.vendor + ',' : '') + ' has no invoices yet.', { listen: false }); return; }
+        if (!ctx.invs.length) { pend = { type: 'what' }; irisSay('PO ' + po + (ctx.vendor ? ', ' + ctx.vendor + ',' : '') + ' has no invoices in Invoice Entry yet.' + jobSay + ' What do you want to do?', { html: invCard([]), opts: ['What can you do?'] }); return; }
         const by = {}; ctx.invs.forEach((i) => { by[i.status] = (by[i.status] || 0) + 1; });
         const parts = Object.keys(by).map((s) => by[s] + ' ' + s);
         pend = { type: 'what' };
-        irisSay('PO ' + po + (ctx.vendor ? ', ' + ctx.vendor + ',' : '') + ' has ' + ctx.invs.length + (ctx.invs.length === 1 ? ' invoice: ' : ' invoices: ') + parts.join(', ') + '. What do you want to do?',
+        irisSay('PO ' + po + (ctx.vendor ? ', ' + ctx.vendor + ',' : '') + ' has ' + ctx.invs.length + (ctx.invs.length === 1 ? ' invoice: ' : ' invoices: ') + parts.join(', ') + '.' + jobSay + ' What do you want to do?',
             { html: invCard(ctx.invs.slice(0, 8)), opts: ['What can you do?'] });
+    }
+    // patch 57 (martin): "check invoice 2", "invoice 11", "the second invoice", "the IPC job"
+    function oneOf(text) {
+        const t = norm(text), all = ctx.invs.concat(ctx.jobs || []);
+        const typeHit = (ctx.jobs || []).filter((j) => { const ty = norm(j.type); return ty && new RegExp('\\b' + ty + '\\b').test(t); });
+        if (typeHit.length === 1 && /\bjob\b|\bworkdesk\b|\bipc\b|\bpr\b|\bcredit\b|\boriginal\b/.test(t)) return typeHit[0];
+        if (/\b(?:workdesk|the job|that job)\b/.test(t) && (ctx.jobs || []).length === 1) return ctx.jobs[0];
+        const ordW = { first: 1, '1st': 1, second: 2, '2nd': 2, third: 3, '3rd': 3, fourth: 4, '4th': 4, fifth: 5, '5th': 5, last: all.length };
+        const om = t.match(/\b(first|1st|second|2nd|third|3rd|fourth|4th|fifth|5th|last)\b/); if (om && all[ordW[om[1]] - 1]) return all[ordW[om[1]] - 1];
+        const nm = t.match(/\b(?:invoice|inv|number|no|job)\s*(\d{1,3})\b/) || t.match(/^(?:check|show|open|what about|about|status of)?\s*(\d{1,3})$/);
+        if (nm) {
+            const n = Number(nm[1]);
+            const tail = ctx.invs.filter((i) => { const m = String(i.no).match(/(\d+)\D*$/); return m && Number(m[1]) === n; });
+            if (tail.length === 1) return tail[0];
+            if (all[n - 1]) return all[n - 1];
+        }
+        const full = t.match(/\d{4,}/); if (full) { const h = ctx.invs.filter((i) => norm(i.no).replace(/ /g, '').includes(full[0])); if (h.length === 1) return h[0]; }
+        return null;
+    }
+    function tellOne(x) {
+        if (x.job) { irisSay(x.type + (x.no && x.no !== x.type ? ' ' + x.no : '') + ' on PO ' + ctx.po + ' is still in WorkDesk, not in Invoice Entry yet. Status ' + x.status + (x.attention ? ', with ' + x.attention : '') + (x.amount ? ', QAR ' + money(x.amount) : '') + (x.date ? ', entered ' + x.date : '') + '.', { listen: false }); return; }
+        irisSay(x.no + ' on PO ' + ctx.po + ': ' + x.status + ', QAR ' + money(x.amount) + (x.attention ? ', attention ' + x.attention : '') + (x.date ? ', invoice date ' + x.date : '') + '.' + (x.status === 'With Accounts' ? ' Waiting for a payment day.' : ''), { listen: false });
+    }
+    // patch 57 (martin): remove a WorkDesk job by voice. Never a real delete: it goes to the Recycle Bin (Restore there).
+    function startRemove(text) {
+        const jobs = (ctx && ctx.jobs) || [];
+        if (!ctx) { irisSay('Which PO? Say the PO number first, then: remove the job.'); return; }
+        if (!jobs.length) { irisSay('PO ' + ctx.po + ' has no open WorkDesk job to remove. Invoices are not removed by voice.', { listen: false }); return; }
+        let j = oneOf(text); if (j && !j.job) j = null;
+        if (!j && jobs.length === 1) j = jobs[0];
+        if (!j) { pend = { type: 'which-job' }; irisSay('Which job: ' + jobs.map((x, i) => (i + 1) + ', ' + jobLine(x)).join('; ') + '?', { opts: jobs.map((x) => x.type + (x.no && x.no !== x.type ? ' ' + x.no : '')) }); return; }
+        pend = { type: 'remove', job: j };
+        irisSay('Remove ' + jobLine(j) + ', entered ' + (j.date || '?') + ', from PO ' + ctx.po + '? It goes to the Recycle Bin. Say: yes remove. Or no.', { opts: ['Yes remove', 'No'] });
+    }
+    async function doRemove(j) {
+        const d = mainDbI(); if (!d) { irisSay('Not signed in.', { listen: false }); return; }
+        st('saving');
+        const TS = firebase.database.ServerValue.TIMESTAMP, by = me() || 'IRIS';
+        const up = { remarks: 'Removed', status: 'Completed', archived: true, removedBy: by, removedAt: TS, removedReason: 'By IRIS on phone',
+            removedPrevRemarks: String(j.raw.remarks || ''), removedPrevStatus: String(j.raw.status || ''), removedPrevArchived: !!j.raw.archived, updatedAt: TS, updatedBy: by, statusChangedAt: TS, statusQueueAt: TS };
+        try {
+            await d.ref('job_entries/' + j.key).update(up);
+            try { await d.ref('job_entries/' + j.key + '/history').push({ action: 'Removed', by, timestamp: TS, note: 'Removed by IRIS on phone (Recycle Bin, can be restored).' }); } catch (_) {}
+            try { const local = Object.assign({}, j.raw, up, { key: j.key, source: 'job_entry', updatedAt: Date.now(), removedAt: Date.now() }); if (typeof wdUpsertLocalWorkdeskJobEntryCache === 'function') wdUpsertLocalWorkdeskJobEntryCache(j.key, local); if (typeof wdWriteWorkdeskJobRecentMarker === 'function') await Promise.resolve(wdWriteWorkdeskJobRecentMarker(j.key, local, 'updated')).catch(() => {}); } catch (_) {}
+            ctx.jobs = (ctx.jobs || []).filter((x) => x.key !== j.key);
+            irisSay('Removed. It is in the Recycle Bin on the PC if you need it back.', { listen: false });
+        } catch (e) { irisSay('Sorry, it was not removed: ' + ((e && e.message) || e), { listen: false }); }
     }
 
     // ---------- picking invoices ----------
@@ -515,6 +583,13 @@
             if (/^(?:no|nope|don t|dont|not now|wait)\b/.test(q)) { pend = null; return p.no(); }
             irisSay('Please say yes or no.', { opts: ['Yes', 'No'] }); return;
         }
+        // patch 57: removing a job needs "yes remove" (a plain "yes" heard by mistake is not enough)
+        if (p && p.type === 'remove') {
+            if (/^(?:no|nope|don t|dont|not now|wait|cancel|stop)\b/.test(q)) { pend = null; irisSay('Okay, nothing removed.', { listen: false }); return; }
+            if (/\bremove\b/.test(q)) { pend = null; return doRemove(p.job); }
+            irisSay('To remove it say: yes remove. Or say no.', { opts: ['Yes remove', 'No'] }); return;
+        }
+        if (p && p.type === 'which-job') { const j = ctx && oneOf(t); if (j && j.job) { pend = null; return startRemove(t); } }
         if (p && p.type === 'which') {
             const got = pick(t.replace(/\bto\s+[a-z].*$/i, ''), p.list);
             const w = findWho(t) || (!got.length && !/\d/.test(q) ? (findPeople(t).length ? findPeople(t) : null) : null);
@@ -540,6 +615,15 @@
             const got = pick(t, openOnes()); if (got.length) { p.job.invs = got; irisSay(got.map((i) => i.no).join(' and ') + '. Which status: For Approval, For SRV, or In Process?', { opts: ['For Approval', 'For SRV', 'In Process'] }); return; }
         }
 
+        // patch 57: remove a WorkDesk job by voice (Recycle Bin), and "check invoice 2 / the second invoice / the IPC job"
+        if (/\b(?:remove|delete|erase|trash)\b/.test(q) && !/\b(?:remind\w*|note)\b/.test(q)) {
+            if (/\b(?:invoice|invoices|inv)\b/.test(q) && !/\b(?:job|workdesk)\b/.test(q)) { irisSay('Invoices are not removed by voice. Do it on the PC in Invoice Entry. I can remove WorkDesk jobs: say remove the job.', { listen: false }); return; }
+            if (/\b(?:job|jobs|workdesk|entry|record|ipc|pr|credit note|original po|reception)\b/.test(q) || (ctx && (ctx.jobs || []).length)) return startRemove(t);
+        }
+        if (ctx && (/\b(?:check|show|open|what about|about|status of|tell me|where is|how about|read)\b/.test(q) || /^(?:the\s+)?(?:invoice|inv|job)\s*\d{1,3}$/.test(q) || /^(?:and\s+)?(?:the\s+)?(?:first|second|third|fourth|fifth|last|1st|2nd|3rd|4th|5th)\s+(?:invoice|inv|one|job)\b/.test(q)) && /\b(?:invoice|inv|job|first|second|third|fourth|fifth|last|workdesk)\b/.test(q) && !/\b\d{4,6}\b/.test(q.replace(/\b(?:invoice|inv)\s*\d+/g, ''))) {
+            const x = oneOf(t); if (x) return tellOne(x);
+            if (/\d/.test(q)) { irisSay('I can’t find that one on PO ' + ctx.po + '. There are: ' + ctx.invs.concat(ctx.jobs || []).map((i, n) => (n + 1) + ', ' + (i.job ? jobLine(i) : invLine(i))).join('; ') + '.', { listen: false }); return; }
+        }
         // 18.0.0 patch 51: maths, units, width x height (before the PO check, so "1000 times 2000" is not a PO)
         try { const c = window.ibaTalk && window.ibaTalk.calc ? window.ibaTalk.calc(t) : null; if (c) { irisSay(c, { listen: false }); return; } } catch (_) {}
         // a PO number
@@ -553,7 +637,7 @@
         }
         // numbered menu answers
         const nm = q.match(/^(?:number\s*|option\s*)?(one|1|first|two|2|second|three|3|third|four|4|fourth|for)\b(.*)$/);
-        if (nm && ctx && (!p || p.type === 'menu' || p.type === 'what')) {
+        if (nm && ctx && (!p || p.type === 'menu' || p.type === 'what') && !statusOf(t) && !/\b(?:invoice|inv|job|one|workdesk)\b/.test(nm[2] || '')) {
             const n = { one: 1, 1: 1, first: 1, two: 2, 2: 2, second: 2, three: 3, 3: 3, third: 3, four: 4, 4: 4, fourth: 4, for: 4 }[nm[1]];
             const rest = nm[2] || '';
             if (n === 1) return startStatus(rest || '');
@@ -569,6 +653,8 @@
         if (/\b(?:remind|reminder|whatsapp|whats app|message)\b/.test(q)) return startRemind(t);
         if (/\b(?:mark|set|change|make|put|move|turn|switch|update)\b/.test(q) && /\b(?:to|as|into)\s+(?:be\s+)?paid\b|\bmark (?:it |them |all )?(?:as )?paid\b/.test(q)) { irisSay('Paid is marked by Accounts when they pay, so I can’t set it here.', { listen: false }); return; }
         if (/\b(?:mark|set|change|make|put|move|send|give|forward|turn|switch|update)\b/.test(q) && statusOf(t)) return startStatus(t);
+        // patch 57: a status said alone right after a PO ("for SRV", "on hold to Ali") = change it
+        if (ctx && statusOf(t) && q.split(' ').length <= 5 && !/\b(?:show|list|pending|all|which|what|how many)\b/.test(q)) return startStatus(t);
         if (/\b(?:pending|open|not paid|unpaid|waiting)\b/.test(q) && ctx) return pendingList();
         if (/\b(?:note|later|at the office|in the office|on the pc|on pc|tomorrow)\b/.test(q) && ctx) return noteForPC(t);
         if (p && p.type === 'which') { askWhich(p.list, p.then); return; }

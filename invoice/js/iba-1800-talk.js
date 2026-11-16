@@ -618,7 +618,7 @@
     const HEARD = [[/\b(?:impressive|impressed|impress|improcess|in progress|in-progress|inprocess|in processed|in precess|in proces|in prosess|in the process|imprecise|impressively|impression|impressing|im process|in proses|in prices|in princess|in processes)\b/gi, 'In Process'],
         [/\b(?:for|four|4|fore)\s+(?:a\s+)?(?:approval|approve all|a proval|aproval|approvals|a pro val|upproval|approver)\b/gi, 'For Approval'],
         [/\b(?:for|four|4|fore)\s+(?:s\.?\s*r\.?\s*v\.?|s r v|sr v|s rv|srb|srp|srv's|s are v|esrv|service|survey|s rb)\b/gi, 'For SRV'],
-        [/\b(?:s r v|s\. r\. v\.?|s are v|esrv|s rv|sr v)\b/gi, 'SRV'],
+        [/\b(?:s r v|s\. r\. v\.?|s are v|esrv|s rv|sr v|srp|s r p|s\.r\.p\.?|srb|s r b)\b/gi, 'SRV'], // patch 57: "SRP" (martin)
         [/\bwith (?:account|a count|the accounts|accountant|accountants)\b/gi, 'With Accounts'],
         [/\bon (?:whole|old|hole|holed|hold up)\b/gi, 'On Hold'],
         [/\bunder (?:rev you|review|reviews|re view|rivew)\b/gi, 'Under Review'],

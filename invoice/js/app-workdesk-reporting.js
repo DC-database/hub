@@ -740,6 +740,8 @@ function filterAndRenderReport(baseEntries = null) {
     } else if (selectedJobType) {
         // 18.0.0 patch 56 (martin): a job marked Cancelled (any type) leaves its own tab and shows in the Cancel tab
         const canc = (e) => /^(?:cancelled|canceled)$/i.test(String(e.remarks || e.status || '').trim());
+        // patch 57: removed jobs live in the Recycle Bin (Super Admin), not in the tabs; searching still finds them
+        filteredEntries = filteredEntries.filter(entry => !/^removed$/i.test(String(entry.remarks || '').trim()));
         filteredEntries = filteredEntries.filter(entry => selectedJobType === 'Cancel'
             ? (canc(entry) || wdReportDisplayJobType(entry.for || 'Other') === 'Cancel')
             : (!canc(entry) && wdReportDisplayJobType(entry.for || 'Other') === selectedJobType));
