@@ -3,6 +3,23 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 51 (16-Nov-2026)
+- IRIS maths and units, free (no AI), phone and PC: "multiply 100 by 100", "add 5 and 7", "subtract 3 from 10",
+  "divide 100 by 4", "average of 10, 20 and 30", percent, brackets. Units: length (mm cm m km inch ft yard mile,
+  linear/running meter), area (square of any length, m2, sqft, hectare, acre), volume (cubic, m3/cbm, litre, ml,
+  gallon), weight (mg g kg ton lb oz), temperature (C F K); mixed "5 feet 3 inches to cm". Width x height (x depth):
+  "20 ft by 10 ft", "width 2 meter height 3 meter in square feet", "3 by 2 by 0.5 meters", "20 linear meter at 1.2
+  meter wide to square meter" (without a width she asks for it). Phone: worked out before the PO check, so
+  "1000 times 2000" is not taken as a PO. window.ibaTalk.calc(q). Guide has the new examples.
+- Files: js/iba-1800-talk.js, js/iba-1800-iris-phone.js, js/iba-1800-iris-guide.js, index.html
+
+18.0.0 patch 50 (16-Nov-2026)
+- IRIS page (phone + IRIS app): gear button = IRIS voice settings. Natural voice (Kokoro) on/off, voice, speed,
+  Play sample, download status; phone voice picker + Try (used when the natural voice is off or not ready).
+  Kokoro is free and runs on the device: downloads once per device/browser (~90 MB, best on Wi-Fi); a PC that
+  already downloaded it reuses it. If the download fails the normal voice is used.
+- Files: js/iba-1800-kokoro.js, js/iba-1800-iris-phone.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 49 (16-Nov-2026)
 - Work History saved copy (like Job Records): transfer_entries is kept on the PC (IndexedDB iba_jobs_pocket,
   key transfer_entries@<db>). Each open downloads only: new transfers (by key), the OPEN ones (Pending Source,
