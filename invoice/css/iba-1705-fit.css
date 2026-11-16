@@ -2845,3 +2845,86 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body.iba-orb-on #iba-ai-fab { visibility: hidden !important; pointer-events: none !important; }
   html body #iba-talk-pill.has-orb .iba-orb-cv, html body #iba-talk-pill.has-orb b, html body #iba-talk-pill.has-orb [data-pill-st] { cursor: pointer !important; }
 }
+
+/* 18.0.0 patch 41: IRIS phone page (Super Admin, phone only) - js/iba-1800-iris-phone.js */
+@layer iba-ui {
+  html body #iba-irisph-fab { position: fixed !important; left: max(14px, env(safe-area-inset-left, 0px)) !important; bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important; z-index: 2147482000 !important;
+    display: flex !important; align-items: center !important; gap: 6px !important; padding: 6px 12px 6px 6px !important; border-radius: 999px !important; border: 1px solid rgba(47,211,194,.45) !important;
+    background: rgba(8,14,20,.82) !important; color: #eef3f8 !important; font: 600 12px/1 system-ui, sans-serif !important; letter-spacing: .12em !important; box-shadow: 0 0 18px rgba(47,211,194,.35) !important; }
+  html body #iba-irisph-fab[hidden] { display: none !important; }
+  html body #iba-irisph-fab span { width: 26px !important; height: 26px !important; border-radius: 50% !important; background: radial-gradient(circle at 35% 30%, #7be3ff, #2fd3c2 45%, #a77bff) !important; box-shadow: 0 0 10px #2fd3c2 !important; }
+  html body #iba-irisph { position: fixed !important; inset: 0 !important; z-index: 2147482600 !important; display: grid !important; grid-template-rows: auto auto 1fr auto auto !important;
+    background: radial-gradient(120% 60% at 50% 0, #10202a, #07090c 70%) !important; color: #eef3f8 !important; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif !important;
+    padding: env(safe-area-inset-top, 0px) max(0px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(0px, env(safe-area-inset-left, 0px)) !important; }
+  html body #iba-irisph[hidden] { display: none !important; }
+  html body #iba-irisph .iph-top { display: flex !important; align-items: center !important; gap: 10px !important; padding: 12px 16px 0 !important; }
+  html body #iba-irisph .iph-top b { letter-spacing: .14em !important; font-size: 15px !important; }
+  html body #iba-irisph .iph-chip { border: 1px solid rgba(255,255,255,.12) !important; border-radius: 999px !important; padding: 2px 9px !important; font-size: 11px !important; color: #e3c98a !important; }
+  html body #iba-irisph .iph-x { margin-left: auto !important; width: 38px !important; height: 38px !important; border-radius: 50% !important; border: 1px solid rgba(255,255,255,.12) !important; background: #0e1318 !important; color: #eef3f8 !important; display: grid !important; place-items: center !important; }
+  html body #iba-irisph .iph-orb { display: grid !important; justify-items: center !important; }
+  html body #iba-irisph .iph-orb canvas { width: min(170px, 42vw) !important; height: min(170px, 42vw) !important; }
+  html body #iba-irisph .iph-st { margin-top: -4px !important; min-height: 20px !important; font-size: 13px !important; color: #2fd3c2 !important; padding: 0 16px !important; text-align: center !important; }
+  html body #iba-irisph .iph-log { overflow: auto !important; min-height: 0 !important; padding: 8px 14px !important; display: flex !important; flex-direction: column !important; gap: 8px !important; scrollbar-width: none !important; }
+  html body #iba-irisph .iph-log::-webkit-scrollbar { display: none !important; }
+  html body #iba-irisph .iph-m { max-width: 88% !important; padding: 9px 12px !important; border-radius: 16px !important; font-size: 14.5px !important; word-wrap: break-word !important; }
+  html body #iba-irisph .iph-me { align-self: flex-end !important; background: #1d2a33 !important; border-bottom-right-radius: 5px !important; }
+  html body #iba-irisph .iph-ir { align-self: flex-start !important; background: linear-gradient(135deg, rgba(47,211,194,.16), rgba(224,181,74,.12)) !important; border: 1px solid rgba(224,181,74,.25) !important; border-bottom-left-radius: 5px !important; }
+  html body #iba-irisph .iph-ir small { display: block !important; color: #e0b54a !important; font-size: 11px !important; letter-spacing: .08em !important; margin-bottom: 2px !important; }
+  html body #iba-irisph .iph-card { margin-top: 7px !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 12px !important; padding: 8px 10px !important; background: rgba(0,0,0,.25) !important; font-size: 13px !important; display: grid !important; gap: 4px !important; }
+  html body #iba-irisph .iph-po { font: 700 17px ui-monospace, Menlo, Consolas, monospace !important; }
+  html body #iba-irisph .iph-v { color: #e0b54a !important; }
+  html body #iba-irisph .iph-row { display: grid !important; grid-template-columns: 1fr auto auto !important; gap: 8px !important; align-items: center !important; }
+  html body #iba-irisph .iph-row b { font-variant-numeric: tabular-nums !important; }
+  html body #iba-irisph .iph-s { font-style: normal !important; font-size: 11.5px !important; padding: 1px 8px !important; border-radius: 999px !important; background: rgba(47,211,194,.15) !important; color: #7be3ff !important; }
+  html body #iba-irisph .iph-s.is-done { background: rgba(255,255,255,.08) !important; color: #b9a978 !important; }
+  html body #iba-irisph .iph-opts { display: flex !important; flex-wrap: wrap !important; gap: 7px !important; margin-top: 8px !important; }
+  html body #iba-irisph .iph-opts button { display: inline-flex !important; align-items: center !important; gap: 6px !important; border: 1px solid #2fd3c2 !important; color: #2fd3c2 !important; background: transparent !important; border-radius: 999px !important; padding: 5px 13px !important; font: inherit !important; font-size: 13.5px !important; min-height: 34px !important; }
+  html body #iba-irisph .iph-opts button.is-wa { border-color: #25d366 !important; color: #25d366 !important; }
+  html body #iba-irisph .iph-type { display: flex !important; gap: 8px !important; padding: 6px 14px 0 !important; }
+  html body #iba-irisph .iph-type[hidden] { display: none !important; }
+  html body #iba-irisph .iph-type input { flex: 1 !important; min-width: 0 !important; height: 46px !important; border-radius: 23px !important; border: 1px solid rgba(255,255,255,.14) !important; background: #0e1318 !important; color: #eef3f8 !important; padding: 0 16px !important; font-size: 16px !important; }
+  html body #iba-irisph .iph-type button { width: 46px !important; height: 46px !important; border-radius: 50% !important; border: 0 !important; background: #2fd3c2 !important; color: #05202a !important; }
+  html body #iba-irisph .iph-bar { display: flex !important; align-items: center !important; justify-content: center !important; gap: 22px !important; padding: 12px 0 18px !important; }
+  html body #iba-irisph .iph-mic { width: 74px !important; height: 74px !important; border-radius: 50% !important; border: 0 !important; background: radial-gradient(circle at 35% 30%, #7be3ff, #2fd3c2 45%, #1b6f8a) !important; color: #05202a !important; font-size: 28px !important; box-shadow: 0 0 0 6px rgba(47,211,194,.15), 0 0 30px rgba(47,211,194,.45) !important; }
+  html body #iba-irisph .iph-mic.is-on { background: radial-gradient(circle at 35% 30%, #ffd98a, #e0b54a 45%, #8a5a12) !important; box-shadow: 0 0 0 12px rgba(224,181,74,.12), 0 0 40px rgba(224,181,74,.55) !important; }
+  html body #iba-irisph .iph-sm { width: 46px !important; height: 46px !important; border-radius: 50% !important; border: 1px solid rgba(255,255,255,.12) !important; background: #0e1318 !important; color: #eef3f8 !important; font-size: 17px !important; display: grid !important; place-items: center !important; }
+}
+
+/* 18.0.0 patch 43: "What can IRIS do?" guide + About IRIS - js/iba-1800-iris-guide.js */
+@layer iba-ui {
+  html body #iba-igd { position: fixed !important; inset: 0 !important; z-index: 2147482700 !important; display: grid !important; place-items: center !important; background: rgba(3,6,10,.45) !important; padding: 16px !important; }
+  html body #iba-igd[hidden] { display: none !important; }
+  html body #iba-igd .igd-box { width: min(760px, 100%) !important; max-height: min(86vh, 900px) !important; display: grid !important; grid-template-rows: auto 1fr !important; overflow: hidden !important;
+    border-radius: 20px !important; border: 1px solid rgba(255,255,255,.12) !important; background: linear-gradient(160deg, rgba(16,32,42,.92), rgba(7,9,12,.94)) !important; color: #eef3f8 !important;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(47,211,194,.12) inset !important; font: 14.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif !important; }
+  html body #iba-igd .igd-head { display: flex !important; align-items: center !important; gap: 6px !important; padding: 10px 10px 0 12px !important; border-bottom: 1px solid rgba(255,255,255,.08) !important; flex-wrap: wrap !important; }
+  html body #iba-igd .igd-tab { display: inline-flex !important; align-items: center !important; gap: 7px !important; border: 0 !important; background: transparent !important; color: #b9a978 !important; font: 600 14px system-ui, sans-serif !important;
+    padding: 10px 12px !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; cursor: pointer !important; }
+  html body #iba-igd .igd-tab.is-on { color: #eef3f8 !important; border-bottom-color: #2fd3c2 !important; }
+  html body #iba-igd .igd-x { margin-left: auto !important; width: 36px !important; height: 36px !important; border-radius: 50% !important; border: 1px solid rgba(255,255,255,.12) !important; background: rgba(0,0,0,.25) !important; color: #eef3f8 !important; display: grid !important; place-items: center !important; cursor: pointer !important; }
+  html body #iba-igd .igd-body { overflow: auto !important; padding: 14px 18px 20px !important; display: grid !important; gap: 14px !important; scrollbar-width: none !important; }
+  html body #iba-igd .igd-body::-webkit-scrollbar { display: none !important; }
+  html body #iba-igd .igd-sec h3 { margin: 0 0 2px !important; font-size: 15px !important; color: #e0b54a !important; display: flex !important; gap: 8px !important; align-items: center !important; }
+  html body #iba-igd .igd-sec p { margin: 0 0 7px !important; color: #EBD8A8 !important; font-size: 13.5px !important; }
+  html body #iba-igd .igd-ex { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+  html body #iba-igd .igd-ex button { display: inline-flex !important; border: 1px solid rgba(47,211,194,.45) !important; background: rgba(47,211,194,.08) !important; color: #bff4ee !important; border-radius: 999px !important; padding: 5px 12px !important; font: 13px system-ui, sans-serif !important; cursor: pointer !important; text-align: left !important; }
+  html body #iba-igd .igd-ex button:hover { background: rgba(47,211,194,.2) !important; }
+  html body #iba-igd .igd-tip { font-size: 13px !important; color: #cfd8e0 !important; padding: 4px 10px !important; border-left: 2px solid #e0b54a !important; background: rgba(224,181,74,.06) !important; border-radius: 4px !important; }
+  html body #iba-igd .igd-about { display: grid !important; justify-items: center !important; gap: 10px !important; text-align: center !important; padding: 6px 0 4px !important; }
+  html body #iba-igd .igd-logo { width: 96px !important; height: 96px !important; border-radius: 50% !important; display: grid !important; place-items: center !important; border: 2px solid rgba(123,227,255,.7) !important; box-shadow: 0 0 22px rgba(47,211,194,.55), inset 0 0 18px rgba(47,211,194,.35) !important; }
+  html body #iba-igd .igd-logo span { width: 58px !important; height: 58px !important; border-radius: 50% !important; background: radial-gradient(circle at 35% 30%, #fff8, #7be3ff 25%, #2fd3c2 50%, #a77bff 85%) !important; box-shadow: 0 0 20px #2fd3c2 !important; }
+  html body #iba-igd .igd-name { font: 800 30px/1 system-ui, sans-serif !important; letter-spacing: .32em !important; padding-left: .32em !important; }
+  html body #iba-igd .igd-full { color: #e0b54a !important; font-size: 14px !important; }
+  html body #iba-igd .igd-letters { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; gap: 8px !important; width: 100% !important; margin-top: 6px !important; }
+  html body #iba-igd .igd-letters > div { display: flex !important; gap: 10px !important; align-items: flex-start !important; text-align: left !important; padding: 10px !important; border-radius: 12px !important; border: 1px solid rgba(255,255,255,.1) !important; background: rgba(0,0,0,.22) !important; }
+  html body #iba-igd .igd-letters b { font: 800 26px/1 system-ui, sans-serif !important; color: #2fd3c2 !important; min-width: 22px !important; }
+  html body #iba-igd .igd-letters strong { display: block !important; font-size: 14px !important; }
+  html body #iba-igd .igd-letters span { display: block !important; font-size: 12.5px !important; color: #EBD8A8 !important; }
+  html body #iba-igd .igd-brief { max-width: 60ch !important; color: #dfe7ee !important; font-size: 14px !important; margin: 4px 0 !important; }
+  html body #iba-igd .igd-meta { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important; gap: 6px 14px !important; width: 100% !important; text-align: left !important; border-top: 1px solid rgba(255,255,255,.08) !important; padding-top: 10px !important; }
+  html body #iba-igd .igd-meta span { display: block !important; font-size: 11.5px !important; color: #b9a978 !important; text-transform: uppercase !important; letter-spacing: .06em !important; }
+  html body #iba-igd .igd-meta b { font-size: 13px !important; font-weight: 600 !important; }
+  html body #iba-talk-pill [data-iris-guide] { font-size: 11px !important; }
+  html body #iba-irisph .iph-i { margin-left: auto !important; }
+  html body #iba-irisph .iph-i + .iph-x { margin-left: 0 !important; }
+}
