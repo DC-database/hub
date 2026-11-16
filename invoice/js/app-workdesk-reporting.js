@@ -696,6 +696,7 @@ function filterAndRenderReport(baseEntries = null) {
     else sessionStorage.setItem('reportingSearch', searchText);
 
     const selectedJobType = (currentReportFilter && currentReportFilter !== 'All') ? currentReportFilter : null;
+    let convHidden = 0;
     const restrictSearchToSelectedTab = !!(searchText && selectedJobType && wdReportHasManualTabFilter());
 
     if (restrictSearchToSelectedTab) {
@@ -738,6 +739,13 @@ function filterAndRenderReport(baseEntries = null) {
         }
     } else if (selectedJobType) {
         filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === selectedJobType);
+        // 18.0.0 patch 45 (martin): the Invoice tab shows only what is still pending. Entries already
+        // Converted to Invoice are hidden here; searching a PO / vendor / ref still finds them.
+        if (selectedJobType === 'Invoice' && typeof wdIsConvertedInvoiceJobEntry === 'function') {
+            const before = filteredEntries.length;
+            filteredEntries = filteredEntries.filter(entry => !wdIsConvertedInvoiceJobEntry(entry));
+            convHidden = before - filteredEntries.length;
+        }
         wdReportSetActiveTab(selectedJobType);
     } else {
         wdReportSetActiveTab(selectedJobType);
@@ -746,6 +754,20 @@ function filterAndRenderReport(baseEntries = null) {
     ensureWorkdeskJobRecordsStageSwitch();
 
     renderReportingTable(filteredEntries);
+    wdJrConvertedNote(convHidden);
+}
+
+// 18.0.0 patch 45: one quiet line above the table saying how many converted entries the Invoice tab hides
+function wdJrConvertedNote(n) {
+    try {
+        const area = document.getElementById('reporting-printable-area');
+        if (!area || !area.parentNode) return;
+        let el = document.getElementById('wd-jr-conv-note');
+        if (!n) { if (el) el.hidden = true; return; }
+        if (!el) { el = document.createElement('div'); el.id = 'wd-jr-conv-note'; el.className = 'wd-jr-conv-note'; area.parentNode.insertBefore(el, area); }
+        el.textContent = n + ' already converted to invoice ' + (n === 1 ? 'is' : 'are') + ' not shown. Search a PO, vendor or invoice number to find ' + (n === 1 ? 'it' : 'them') + '.';
+        el.hidden = false;
+    } catch (_) {}
 }
 
 // ==========================================================================

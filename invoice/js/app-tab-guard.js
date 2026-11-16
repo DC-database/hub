@@ -8,8 +8,10 @@
 
   const VERSION = '11.0.9';
   const TAB_ID_KEY = 'IBA_SINGLE_TAB_ID_V1';
-  const ACTIVE_KEY = 'IBA_SINGLE_ACTIVE_TAB_V1';
-  const CHANNEL_NAME = 'IBA_SINGLE_TAB_GUARD_V1';
+  // 18.0.0 patch 48: the IRIS app window has its own lane, so it never blocks (or is blocked by) the IBA window
+  const LANE = window.IBA_IRIS_APP ? '_IRIS' : '';
+  const ACTIVE_KEY = 'IBA_SINGLE_ACTIVE_TAB_V1' + LANE;
+  const CHANNEL_NAME = 'IBA_SINGLE_TAB_GUARD_V1' + LANE;
   const HEARTBEAT_MS = 2000;
   const STALE_MS = 9000;
   const APP_NAME = 'IBA System';

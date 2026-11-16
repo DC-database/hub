@@ -2266,6 +2266,116 @@ async function ibaJobsPocketLoad(forceFull) {
     }
 }
 try { window.ibaJobsPocketLoad = ibaJobsPocketLoad; } catch (_) {}
+
+// ==========================================================================
+// 18.0.0 patch 49 (martin): Work History saved copy for transfer_entries (inventory database).
+// Before: every Work History load downloaded the WHOLE transfer_entries list.
+// Now: the list is kept in this browser (IndexedDB) and each load downloads only
+//   - the transfers added since the last visit (orderByKey, always indexed),
+//   - the OPEN transfers (by step: Pending Source ... In Transit, needs the "remarks" index),
+//   - and, one by one, the ones that were open last time but are not open now (they finished).
+// A finished transfer is not checked again until the daily full refresh.
+// Accuracy guards - the full list is downloaded again when:
+//   - there is no saved copy / the browser cannot store it / anything fails
+//   - the saved copy is older than 24 hours (one full refresh a day)
+//   - the "remarks" index is missing in the inventory database rules
+//   - more than 300 records would need a one-by-one check
+// ==========================================================================
+const IBA_TRF_POCKET_STORE = 'p';
+const IBA_TRF_POCKET_MAX_AGE = 24 * 60 * 60 * 1000;
+const IBA_TRF_OPEN_STEPS = ['Pending Source', 'Pending Admin', 'Pending', 'Pending Confirmation', 'Approved', 'In Transit', 'Bounced'];
+function ibaTrfDb() { return (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase(); }
+function ibaTrfPocketKey(d) {
+    try { return 'transfer_entries@' + String((d && d.app && d.app.options && d.app.options.databaseURL) || 'inv'); } catch (_) { return 'transfer_entries@inv'; }
+}
+async function ibaTrfPocketGet(key) {
+    const d = await ibaJobsPocketOpen();
+    return new Promise((resolve) => {
+        try { const r = d.transaction(IBA_TRF_POCKET_STORE, 'readonly').objectStore(IBA_TRF_POCKET_STORE).get(key); r.onsuccess = () => resolve(r.result || null); r.onerror = () => resolve(null); }
+        catch (_) { resolve(null); }
+    });
+}
+async function ibaTrfPocketPut(key, v) {
+    try {
+        const d = await ibaJobsPocketOpen();
+        await new Promise((resolve) => {
+            try { const tx = d.transaction(IBA_TRF_POCKET_STORE, 'readwrite'); tx.objectStore(IBA_TRF_POCKET_STORE).put(v, key); tx.oncomplete = () => resolve(true); tx.onerror = () => resolve(false); tx.onabort = () => resolve(false); }
+            catch (_) { resolve(false); }
+        });
+    } catch (_) {}
+}
+function ibaTrfIsOpen(v) {
+    const st = String((v && (v.remarks || v.status || v.transferStatus || v.jobStatus)) || '').trim().toLowerCase();
+    if (!st) return true;
+    return !/complete|received|final|closed|rejected|cancell?ed/.test(st);
+}
+// same check (and saved answer) as js/iba-live-counts.js: is transfer_entries indexed on "remarks"?
+async function ibaTrfRemarksIndexed(d) {
+    try {
+        const raw = JSON.parse(localStorage.getItem('iba-live-inv-index-v1') || 'null');
+        if (raw && typeof raw.ok === 'boolean' && Date.now() - Number(raw.at || 0) < (raw.ok ? 7 : 0.25) * 864e5) return raw.ok;
+    } catch (_) {}
+    try {
+        const base = String((d.app && d.app.options && d.app.options.databaseURL) || '').replace(/\/$/, '');
+        if (!base) return false;
+        const res = await fetch(base + '/transfer_entries.json?orderBy=' + encodeURIComponent('"remarks"') + '&equalTo=' + encodeURIComponent('"__iba_index_check__"') + '&limitToFirst=1', { cache: 'no-store' });
+        const ok = !!res.ok;
+        if (ok || res.status === 400) { try { localStorage.setItem('iba-live-inv-index-v1', JSON.stringify({ ok: ok, at: Date.now() })); } catch (_) {} }
+        return ok;
+    } catch (_) { return false; }
+}
+async function ibaTransfersPocketLoad(forceFull) {
+    const d = ibaTrfDb();
+    const key = ibaTrfPocketKey(d);
+    const t0 = Date.now();
+    const lastKeyOf = (data) => { const ks = Object.keys(data || {}); ks.sort(); return ks.length ? ks[ks.length - 1] : ''; };
+    const full = async (why) => {
+        const snap = await d.ref('transfer_entries').once('value');
+        const data = (snap && typeof snap.val === 'function' ? snap.val() : null) || {};
+        window.__ibaTrfPocketLast = { mode: 'full', why: why, changed: 0, at: Date.now() };
+        ibaTrfPocketPut(key, { fullAt: t0, syncAt: t0, data: data });
+        return snap && typeof snap.val === 'function' ? snap : ibaJobsAsSnapshot(data);
+    };
+    try {
+        if (forceFull) return await full('forced');
+        let pocket = null;
+        try { pocket = await ibaTrfPocketGet(key); } catch (_) { pocket = null; }
+        if (!pocket || !pocket.data || typeof pocket.data !== 'object') return await full('no saved copy');
+        if (!(t0 - Number(pocket.fullAt || 0) < IBA_TRF_POCKET_MAX_AGE)) return await full('saved copy older than 24 h');
+        if (!(await ibaTrfRemarksIndexed(d))) return await full('no remarks index');
+        const data = pocket.data;
+        const wasOpen = Object.keys(data).filter((k) => ibaTrfIsOpen(data[k]));
+        const lastKey = lastKeyOf(data);
+        const [newSnap, ...openSnaps] = await Promise.all([
+            lastKey ? d.ref('transfer_entries').orderByKey().startAt(lastKey).once('value') : d.ref('transfer_entries').once('value'),
+            ...IBA_TRF_OPEN_STEPS.map((st) => d.ref('transfer_entries').orderByChild('remarks').equalTo(st).once('value'))
+        ]);
+        const fresh = {};
+        const add = (snap) => { const v = (snap && snap.val()) || {}; Object.keys(v).forEach((k) => { fresh[k] = v[k]; }); };
+        add(newSnap); openSnaps.forEach(add);
+        const recheck = wasOpen.filter((k) => !(k in fresh));
+        if (recheck.length > 300) return await full('many to check');
+        for (let i = 0; i < recheck.length; i += 25) {
+            const part = recheck.slice(i, i + 25);
+            const got = await Promise.all(part.map((k) => d.ref('transfer_entries/' + k).once('value').then((sn) => ({ k: k, v: sn.val() }))));
+            got.forEach((g) => { fresh[g.k] = g.v; });
+        }
+        let changed = 0;
+        Object.keys(fresh).forEach((k) => {
+            const v = fresh[k];
+            if (v === null || v === undefined) { if (k in data) { delete data[k]; changed++; } return; }
+            if (JSON.stringify(data[k]) !== JSON.stringify(v)) changed++;
+            data[k] = v;
+        });
+        window.__ibaTrfPocketLast = { mode: 'saved', why: '', changed: changed, rechecked: recheck.length, open: openSnaps.reduce((n, sn) => n + Object.keys((sn && sn.val()) || {}).length, 0), at: Date.now() };
+        ibaTrfPocketPut(key, { fullAt: pocket.fullAt, syncAt: t0, data: data });
+        return ibaJobsAsSnapshot(data);
+    } catch (err) {
+        console.warn('Work History saved copy not usable, full download:', err);
+        return await full('error');
+    }
+}
+try { window.ibaTransfersPocketLoad = ibaTransfersPocketLoad; } catch (_) {}
 // Some Job Records (e.g. for = "Invoice") from the saved copy, brought up to date,
 // but only when a saved copy under 24 h old already exists - otherwise null and
 // the caller keeps its own small targeted query (no full download for it).
@@ -2382,7 +2492,8 @@ async function ensureAllEntriesFetched(forceRefresh = false, options = {}) {
         // 15.0.0 patch 43: saved copy on disk + only the Job Records changed since
         // (falls back to the full download whenever anything is uncertain)
         shouldLoadJobEntries ? ibaJobsPocketLoad(options.allowImmediateForce === true) : Promise.resolve(null),
-        shouldLoadTransferEntries ? ((typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase()).ref('transfer_entries').once('value') : Promise.resolve(null)
+        // 18.0.0 patch 49: saved copy + only new / open / just-finished transfers (falls back to the full download)
+        shouldLoadTransferEntries ? ibaTransfersPocketLoad(options.allowImmediateForce === true) : Promise.resolve(null)
     ]);
 
     const jobEntriesData = jobEntriesSnapshot && typeof jobEntriesSnapshot.val === 'function' ? (jobEntriesSnapshot.val() || {}) : null;

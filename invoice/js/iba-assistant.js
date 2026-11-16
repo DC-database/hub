@@ -5056,11 +5056,40 @@
         return true;
     }
     const NOT_YOURS = 'Sorry, this is not part of your access areas.';
+    // 18.0.0 patch 45: which list a short question asks for -> [[tool, args], ...] or null
+    const LIST_WORD = /\b(?:pending|open|show|list|check|all|what|which|any|waiting|outstanding|how many|give me|find|look for|see)\b/i;
+    const LIST_JOBS = [['IPC Application', /\bipc ?app(?:lication)?s?\b/], ['IPC Processed', /\bipc (?:processed|done)\b/], ['PR', /\bp ?r ?s?\b(?! ?\d)|\bpurchase requests?\b/],
+        ['Credit Note', /\bcredit ?notes?\b/], ['Cancel', /\bcancel(?:led|ed)? (?:jobs?|entries|entry|records?)\b|\bcancels\b|\bcancel tab\b/], ['Original PO', /\boriginal p ?o ?s?\b/],
+        ['Other', /\bother (?:jobs?|entries|entry|records?)\b/]];
+    function listAsk(t0) {
+        const q = norm(t0);
+        if (!LIST_WORD.test(q) || /\b\d{4,7}\b/.test(q)) return null;
+        for (const j of LIST_JOBS) if (j[1].test(q)) return [['job_records', { type: j[0].toLowerCase(), open_only: true }]];
+        // plain "IPC" (with QS / pending): the invoices For IPC + the open IPC Application jobs the QS works on
+        if (/\bipcs?\b/.test(q)) return [['invoices_by_status', { status: 'For IPC' }], ['job_records', { type: 'ipc application', open_only: true }]];
+        const skip = /^(?:pending|report|under review|with accounts|paid|srv done|ipc application)$/;
+        const sts = exportStatusOpts().map((x) => x[0]).concat(['For IPC']).filter((x) => !skip.test(norm(x))).sort((a, b) => b.length - a.length);
+        const hit = sts.find((x) => new RegExp('\\b' + norm(x).replace(/ /g, '\\s*') + '\\b').test(q));
+        if (hit && /\binvoices?\b|\bstatus\b|^(?:pending|open|show|list|check|all|what|which|any)\b/.test(q)) return [['invoices_by_status', { status: hit }]];
+        return null;
+    }
     async function localAnswer(text) {
         const t = text.replace(/[?!.]+$/, '').trim();
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
         const words = t.split(/\s+/).filter(Boolean).length;
+        // 18.0.0 patch 45 (martin): lists without the AI. "pending for IPC", "show For SRV", "what is On Hold",
+        // and the reception job types (IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other).
+        const lst = !onPhone() && words <= 16 ? listAsk(t) : null;
+        if (lst) {
+            return localDo(text, async () => {
+                for (const job of lst) {
+                    const out = await runTool(job[0], job[1]);
+                    if (out.card) addCard(out.card);
+                    else if (out.result && out.result.error) addNote(out.result.error);
+                }
+            });
+        }
         // 18.0.0 patch 36 (martin): built-in answers (name, time, date, pending, message to ...) without the AI
         if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.builtin === 'function') {
             let ok = false; try { ok = await window.ibaTalk.builtin(text, () => { showView('chat'); addUser(text); }); } catch (_) {}
@@ -7837,6 +7866,13 @@
             const data = last && briefStore.get(last.getAttribute('data-brief-id'));
             return data ? briefSpeech(data) : 'Your brief is on the screen.';
         },
+        // 18.0.0 patch 44: the brief in words for the phone IRIS page (read-only, does not open the assistant)
+        briefWords: async () => {
+            if (!myName()) return '';
+            for (let i = 0; i < 8; i++) { const w = waiting(); if (w && w.running) break; await wait(1250); }
+            const o = await toolBrief();
+            return o && o.card ? briefSpeech(o.card.data) : '';
+        },
         myFirstName: () => firstName(),
         contactOf: async (name) => {
             if (!allowed()) return { none: true };
@@ -7870,6 +7906,7 @@
             if (!SKILL_LOCK[id] && window.ibaSkillAccess && window.ibaSkillAccess.decide(id) === false) return true; return (t.superOnly && !isSuper()) || (t.adminOnly && !isAdminUser()); } catch (_) { return false; } })
             .map((id) => ({ id: id, name: SKILL_TPL[id].name, tile: (SKILL_LOOK[id] || [''])[0], denied: true })),
         skillList: () => Object.keys(SKILL_TPL).filter((id) => { try { return tplAllowed(id); } catch (_) { return false; } }).map((id) => ({ id: id, name: SKILL_TPL[id].name, tile: (SKILL_LOOK[id] || [''])[0], asks: !SKILL_TPL[id].action && !!(SKILL_TPL[id].ask && SKILL_TPL[id].ask().length) })),
+        isList: (t) => { try { return !!listAsk(String(t || '').replace(/^\s*iris[\s,]*/i, '')); } catch (_) { return false; } }, // patch 45
         askLocal: (t) => { if (!allowed()) return 'no-ai'; build(); toggle(true); return ask(t, { noAI: true }); },
         runTpl: (id) => { if (!allowed()) return; build(); toggle(true); return runTemplate(id); },
         _card: (c) => addCard(c),

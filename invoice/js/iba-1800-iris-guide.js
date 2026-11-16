@@ -21,7 +21,10 @@
             'Iris, save all the entries', 'Iris, press Check notes', 'Iris, tick row 3', 'Iris, tick all', 'Iris, clear the batch',
             'Iris, change status to With Accounts', 'Iris, mark all pulled', 'Iris, mark PO 57376 not pulled']],
         ['Invoices and POs', 'fa-file-invoice', 'On the phone IRIS page (Super Admin) I can also change a status for you.', [
-            'PO 12345', 'What can you do', 'Mark the biggest For Approval to Imran', 'The SRV done one', 'Remind Gio', 'Save a note for the office']],
+            'PO 12345', 'Brief me', 'What do you have for me', 'What can you do', 'Mark the biggest For Approval to Imran', 'The SRV done one', 'Remind Gio', 'Save a note for the office']],
+        ['Lists', 'fa-table-list', 'Invoices in a status and open reception jobs. No AI key needed.', [
+            'Iris, pending for IPC', 'Iris, show For SRV invoices', 'Iris, what is On Hold', 'Iris, invoices in CEO Approval', 'Iris, pending IPC Application',
+            'Iris, open IPC Processed', 'Iris, show PR', 'Iris, open credit notes', 'Iris, pending original PO', 'Iris, show cancel jobs', 'Iris, show other jobs']],
         ['Quick answers', 'fa-bolt', 'No AI key needed for these.', [
             'Iris, what is today', 'Iris, is there anything pending for me', 'Iris, what is Hafiz mobile number', 'Iris, send a message to Hafiz saying I am on my way',
             'Iris, 25 times 4', 'Iris, square root of 144', 'Iris, 15 percent of 2000', 'Iris, convert 10 inches to cm', 'Iris, 20 kg to pounds']],

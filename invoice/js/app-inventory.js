@@ -511,7 +511,26 @@ function filterAndRenderInventoryJobRecords(baseEntries = null) {
         return acc;
     }, { active: 0, completed: 0 });
 
+    // 18.0.0 patch 46 (martin): Work History shows only ACTIVE jobs; completed ones appear only in a search
+    // (one plain list, tagged Completed). To bring the Active / Completed tabs back, set
+    // IBA_WH_COMPLETED_TAB = true below (one switch, nothing else changes).
+    const IBA_WH_COMPLETED_TAB = (window.IBA_WH_COMPLETED_TAB === true);
+    if (!IBA_WH_COMPLETED_TAB) {
+        ensureInventoryJobRecordsStageSwitch(stageCounts); // keeps the tab folder layout; the switch itself is hidden
+        try { const sw = document.getElementById('inventory-job-records-stage-switch'); if (sw) { sw.hidden = true; sw.style.setProperty('display', 'none', 'important'); } } catch (_) {}
+        const tabPicked = !!(currentReportFilter && currentReportFilter !== 'All');
+        if (!tabPicked && !searchText) {
+            if (reportingTableBody) reportingTableBody.innerHTML = '<tr><td colspan="9"><div class="wd-modern-empty-row wd-select-category-state" data-iba-hint="Pick Transfer, Restock, Return or Usage, or search."><i class="fa-solid fa-hand-pointer"></i><strong>Pick a tab, or search</strong></div></td></tr>';
+            const cd = document.getElementById('job-records-count-display'); if (cd) cd.textContent = '';
+            return;
+        }
+        if (!searchText) filteredEntries = filteredEntries.filter(entry => !isInventoryRecordCompletedOrClosed(entry));
+        renderInventoryJobRecordsTable(filteredEntries);
+        return;
+    }
+
     ensureInventoryJobRecordsStageSwitch(stageCounts);
+    try { const sw = document.getElementById('inventory-job-records-stage-switch'); if (sw) { sw.hidden = false; sw.style.removeProperty('display'); } } catch (_) {}
 
     const stage = getInventoryJobRecordsStageFilter();
     // 17.0.5 patch 206: no stage picked and no search -> show nothing yet (a search shows both)
@@ -642,7 +661,7 @@ function renderInventoryJobRecordsTable(entries) {
             <td>${esc(entry.shippingDate || '')}</td>
             <td>${esc(entry.arrivalDate || '')}</td>
             <td>${esc(entry.contactName || '')}</td>
-            <td class="inv-status-cell">${st ? `<span class="iba-wh-st">${esc(st)}</span>` : ''}</td>
+            <td class="inv-status-cell">${st ? `<span class="iba-wh-st${isInventoryRecordCompletedOrClosed(entry) ? ' is-done' : ''}">${esc(st)}</span>` : ''}</td>
             <td class="inv-actions-cell">
                 <div class="inv-row-actions">${actions}</div>
             </td>

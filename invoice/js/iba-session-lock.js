@@ -138,7 +138,7 @@
 
     function tick() {
         if (stopped) return;
-        const ok = signedIn() && !onPhone() && tabActive();
+        const ok = signedIn() && !onPhone() && tabActive() && !window.IBA_IRIS_APP; // patch 48: the IRIS app window does not count
         if (ok && !claimed && !ref) { claim(); return; }
         if (claimed && (!signedIn() || (me() && me().key !== myKey))) release();
     }

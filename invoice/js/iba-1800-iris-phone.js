@@ -38,6 +38,12 @@
     let ctx = null;          // { po, vendor, site, invs: [{key, no, amount, status, attention, date}] }
     let pend = null;         // what she is waiting for
     let rec = null, listening = false, auto = false, speaking = false;
+    // patch 44 (martin): hands-free. While her page is open and the screen is on she keeps listening, and answers only
+    // "Iris …" or "Hi … please" (so other voices in the room are ignored), plus a short reply right after she asked something.
+    const HF_KEY = 'iba-irisph-hf-v1';
+    let hf = false, followUntil = 0;
+    try { hf = localStorage.getItem(HF_KEY) === '1'; } catch (_) {}
+    const IDLE = () => (hf ? 'Hands-free: say “Iris …” or “Hi … please”' : 'Tap the mic and talk');
 
     // ---------- people ----------
     function people() {
@@ -83,11 +89,13 @@
             '<form class="iph-type" data-iph-form hidden><input type="text" data-iph-in placeholder="Type to IRIS…" autocomplete="off" enterkeyhint="send"><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>' +
             '<div class="iph-bar"><button type="button" class="iph-sm" data-iph-kb aria-label="Keyboard"><i class="fa-solid fa-keyboard"></i></button>' +
             '<button type="button" class="iph-mic" data-iph-mic aria-label="Talk"><i class="fa-solid fa-microphone"></i></button>' +
-            '<button type="button" class="iph-sm" data-iph-menu aria-label="What can you do?"><i class="fa-solid fa-list-ol"></i></button></div>';
+            '<button type="button" class="iph-sm" data-iph-menu aria-label="What can you do?"><i class="fa-solid fa-list-ol"></i></button>' +
+            '<button type="button" class="iph-sm iph-hf" data-iph-hf aria-label="Hands-free"><i class="fa-solid fa-ear-listen"></i><span>Hands-free</span></button></div>';
         document.body.appendChild(w);
         w.addEventListener('click', (e) => {
             if (e.target.closest('[data-iph-x]')) return close();
-            if (e.target.closest('[data-iph-mic]')) return listening ? stopListen() : listen();
+            if (e.target.closest('[data-iph-mic]')) return listening && !hfWait() ? stopListen() : (stopListen(), listen('tap'));
+            if (e.target.closest('[data-iph-hf]')) return setHf(!hf);
             if (e.target.closest('[data-iph-kb]')) { const f = w.querySelector('[data-iph-form]'); f.hidden = !f.hidden; if (!f.hidden) f.querySelector('input').focus(); return; }
             if (e.target.closest('[data-iph-menu]')) return handle('what can you do');
             const opt = e.target.closest('[data-iph-say]'); if (opt) return handle(opt.getAttribute('data-iph-say'));
@@ -95,6 +103,7 @@
         });
         w.querySelector('[data-iph-form]').addEventListener('submit', (e) => { e.preventDefault(); const i = w.querySelector('[data-iph-in]'); const t = i.value.trim(); i.value = ''; if (t) { stopListen(); handle(t); } });
         orbStart(w.querySelector('canvas'));
+        paintHf();
         return w;
     }
     function open() {
@@ -102,8 +111,9 @@
         const w = build(); w.hidden = false; document.body.classList.add('iba-irisph-on');
         const log = w.querySelector('[data-iph-log]');
         if (!log.children.length) irisSay('Hi' + (first() ? ' ' + first() : '') + '! Tell me a PO number, or ask what I can do.', { opts: ['What can you do?'] });
+        else if (hf) setTimeout(() => listen('hf'), 400);
     }
-    function close() { stopListen(); auto = false; try { speechSynthesis.cancel(); } catch (_) {} const w = $('iba-irisph'); if (w) w.hidden = true; document.body.classList.remove('iba-irisph-on'); }
+    function close() { if (window.IBA_IRIS_APP && isSuper()) return; stopListen(); auto = false; try { speechSynthesis.cancel(); } catch (_) {} const w = $('iba-irisph'); if (w) w.hidden = true; document.body.classList.remove('iba-irisph-on'); }
     function st(t) { const e = document.querySelector('#iba-irisph [data-iph-st]'); if (e) e.textContent = t; }
     function addMsg(cls, html) {
         const log = document.querySelector('#iba-irisph [data-iph-log]'); if (!log) return;
@@ -125,31 +135,76 @@
             const u = new SpeechSynthesisUtterance(String(text).replace(/\bPO\b/g, 'P O').replace(/\bSRV\b/g, 'S R V').replace(/\bINV-?/g, 'invoice '));
             u.lang = 'en-GB'; u.rate = 1.02;
             speaking = true; st('speaking');
-            u.onend = u.onerror = () => { speaking = false; st('Tap the mic and talk'); if (thenListen && auto && !$('iba-irisph').hidden) setTimeout(listen, 250); };
+            u.onend = u.onerror = () => {
+                speaking = false; st(IDLE());
+                if ($('iba-irisph').hidden) return;
+                if (thenListen) followUntil = Date.now() + 9000;
+                if (thenListen && (auto || hf)) setTimeout(() => listen('follow'), 250);
+                else if (hf) setTimeout(() => listen('hf'), 300);
+            };
             speechSynthesis.speak(u);
         } catch (_) { speaking = false; }
     }
 
     // ---------- listening (tap to talk; after a question she listens again by herself) ----------
-    function listen() {
+    // mode: 'tap' (mic pressed: anything goes), 'follow' (she just asked: a short reply is fine), 'hf' (hands-free: wake words only)
+    let lmode = 'tap', micErr = 0, ignAt = 0;
+    function hfWait() { return listening && lmode === 'hf'; }
+    function wakeOk(t) {
+        if (/^\s*(?:(?:hi|hey|hello|ok|okay)[\s,.!]+){0,2}(?:iris|irish|ires|aris|iriz|eye ?ris)\b/i.test(t)) return true;           // Iris …
+        if (/^\s*(?:hi|hey|hello)\b/i.test(t) && /\b(?:please|pls)[\s.!?]*$/i.test(t)) return true;                         // Hi … please
+        return false;
+    }
+    function heard(text, conf, m) {
+        const t = text.trim(); if (!t) return false;
+        // far-away or mumbled speech comes back with low confidence (0 = the phone did not say)
+        if (m !== 'tap' && conf > 0 && conf < 0.55) { ignAt = Date.now(); st('Not clear: “' + t + '”. Come closer and say it again.'); console.log('[iris phone] unclear', conf.toFixed(2), t); return false; }
+        if (m === 'hf' && !wakeOk(t)) { ignAt = Date.now(); st('Ignored: “' + t + '” (start with Iris, or end with please)'); console.log('[iris phone] ignored (no Iris / Hi … please):', t); return false; }
+        if (m === 'follow' && Date.now() > followUntil && !wakeOk(t)) return false;
+        return true;
+    }
+    function hfAgain(ms) {
+        if (!hf || listening || speaking) return;
+        const w = $('iba-irisph'); if (!w || w.hidden || document.hidden) return;
+        setTimeout(() => { if (hf && !listening && !speaking) listen(Date.now() < followUntil ? 'follow' : 'hf'); }, ms || 300);
+    }
+    function listen(m) {
         if (!SR) { st('This phone browser cannot listen. Use the keyboard.'); return; }
         if (listening) return;
+        lmode = m || 'tap';
         try { speechSynthesis.cancel(); } catch (_) {}
         try {
             rec = new SR(); rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
-            let fin = '';
+            let fin = '', conf = 0; const my = lmode;
             rec.onresult = (e) => {
                 let t = '';
-                for (let i = e.resultIndex; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) fin = e.results[i][0].transcript; }
-                st('“' + t.trim() + '”');
+                for (let i = e.resultIndex; i < e.results.length; i++) { t += e.results[i][0].transcript; if (e.results[i].isFinal) { fin = e.results[i][0].transcript; conf = Number(e.results[i][0].confidence) || 0; } }
+                if (my !== 'hf' || wakeOk(t)) st('“' + t.trim() + '”');
             };
-            rec.onerror = (e) => { if (e && e.error && e.error !== 'no-speech' && e.error !== 'aborted') st('Mic problem: ' + e.error); };
-            rec.onend = () => { listening = false; rec = null; paintMic(); if (fin.trim()) { auto = true; handle(fin.trim()); } else if (!speaking) st('Tap the mic and talk'); };
-            rec.start(); listening = true; paintMic(); st('listening…');
+            rec.onerror = (e) => {
+                const c = e && e.error;
+                if (c === 'not-allowed' || c === 'service-not-allowed') { micErr = 9; if (hf) setHf(false); st('The microphone is blocked. Allow it in Chrome › Site settings › Microphone.'); return; }
+                if (c && c !== 'no-speech' && c !== 'aborted') { micErr++; st('Mic problem: ' + c); }
+            };
+            rec.onend = async () => {
+                listening = false; rec = null; paintMic();
+                if (fin.trim() && heard(fin, conf, my)) { micErr = 0; auto = true; followUntil = 0; await handle(fin.trim()); }
+                else if (!speaking && my !== 'hf') st(IDLE());
+                if (micErr < 5) hfAgain(micErr ? 1500 : 300);
+            };
+            rec.start(); listening = true; paintMic(); if (lmode !== 'hf' || Date.now() - ignAt > 3000) st(lmode === 'hf' ? IDLE() : 'listening…');
         } catch (_) { listening = false; paintMic(); }
     }
+    function setHf(on) {
+        hf = !!on; try { localStorage.setItem(HF_KEY, hf ? '1' : '0'); } catch (_) {}
+        paintHf(); micErr = 0;
+        if (hf) { irisSay('Hands-free is on. Start with Iris, or say hi and end with please. I stop when the screen locks.', { listen: false }); }
+        else { stopListen(); irisSay('Hands-free is off. Tap the mic when you want to talk.', { listen: false }); }
+    }
+    function paintHf() { const b = document.querySelector('#iba-irisph [data-iph-hf]'); if (b) { b.classList.toggle('is-on', hf); b.setAttribute('aria-pressed', hf ? 'true' : 'false'); } }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) stopListen(); else hfAgain(600); });
     function stopListen() { if (rec) { try { rec.abort(); } catch (_) {} } rec = null; listening = false; paintMic(); }
-    function paintMic() { const b = document.querySelector('#iba-irisph [data-iph-mic]'); if (b) b.classList.toggle('is-on', listening); }
+    function paintMic() { const b = document.querySelector('#iba-irisph [data-iph-mic]'); if (b) { b.classList.toggle('is-on', listening && lmode !== 'hf'); b.classList.toggle('is-hf', listening && lmode === 'hf'); } }
 
     // ---------- reading one PO ----------
     async function loadPO(po) {
@@ -219,18 +274,28 @@
         const job = Object.assign({ status: '', who: null, invs: null, warned: false }, pre || {});
         if (status) job.status = status;
         const w = findWho(text); if (w) job.who = w;
+        // patch 47: "all In Process to For Approval": the status they are IN now picks the invoices (not every open one)
+        if (!job.invs && status) {
+            const nt = norm(text).replace(new RegExp('\\b' + norm(status) + '\\b'), ' ');
+            const from = list.filter((i) => norm(i.status) !== norm(status) && nt.includes(norm(i.status)));
+            if (from.length) job.invs = from;
+        }
         if (!job.invs) { const chosen = pick(text.replace(/\b(?:for approval|for srv|in process)\b/ig, ' ').replace(/\bto\s+[a-z].*$/i, ''), list); if (chosen.length && (chosen.length < list.length || list.length === 1 || /\b(?:both|all)\b/i.test(text))) job.invs = chosen; }
         if (!job.status) { pend = { type: 'status', job }; irisSay((job.invs ? job.invs.map((i) => i.no).join(' and ') + '. ' : '') + 'Which status: For Approval, For SRV, or In Process?', { opts: ['For Approval', 'For SRV', 'In Process'] }); return; }
         if (job.invs) return nextStep(job);
         askWhich(list, (invs) => { job.invs = invs; nextStep(job); }, job);
     }
     function findWho(text) {
-        const s = String(text).replace(/\b(?:for approval|for srv|in process)\b/ig, ' ');
-        const m = s.match(/\b(?:to|attention|with)\s+([a-z][a-z.'-]+(?:\s+[a-z][a-z.'-]+)?)\s*$/i) || s.match(/\b(?:to|attention)\s+([a-z][a-z.'-]+(?:\s+[a-z][a-z.'-]+)?)/i);
-        if (!m) return null;
-        const cand = m[1].replace(/\b(?:please|thanks|now)\b.*$/i, '').trim();
-        if (/^(?:approval|srv|process|for|in)\b/i.test(cand)) return null;
-        const ps = findPeople(cand);
+        // patch 47: "to X", "attention X", "with X", "under X"; the LAST one counts; a trailing please is dropped
+        const s = String(text).replace(/\b(?:for approval|for srv|in process)\b/ig, ' ').replace(/[\s,.]+(?:please|pls|thanks|thank you|now)[\s.!?]*$/i, '');
+        const all = Array.from(s.matchAll(/\b(?:to|attention|with|under)\s+(?=([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*)?))/ig))
+            .map((m) => m[1].replace(/\b(?:please|thanks|now)\b.*$/i, '').trim())
+            .map((c) => c.replace(/^(?:mr|ms|sir|engineer|eng)\.?\s+/i, ''))
+            .filter((c) => c && !/^(?:approval|srv|process|for|in|under|to|status|the|him|her|it)\b/i.test(c));
+        if (!all.length) return null;
+        const cand = all[all.length - 1];
+        let ps = findPeople(cand);
+        if (!ps.length && /\s/.test(cand)) ps = findPeople(cand.split(/\s+/)[0]);
         return ps.length ? ps : { none: cand };
     }
     function nextStep(job) {
@@ -326,6 +391,18 @@
             { html: '<div class="iph-card iph-menu"><div>1 · Change a status (For Approval, For SRV, In Process)</div><div>2 · WhatsApp reminder to someone</div><div>3 · The pending invoices</div><div>4 · A note to do at the office</div></div>', opts: ['1', '2', '3', '4'] });
     }
 
+    function greetLine() {
+        const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'Asia/Qatar' })) || new Date().getHours();
+        return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (first() ? ', ' + first() : '') + '!';
+    }
+    async function briefSay() {
+        pend = null; st('thinking… reading your brief');
+        let t = '';
+        try { t = window.ibaAssistant && window.ibaAssistant.briefWords ? await window.ibaAssistant.briefWords() : ''; } catch (e) { console.warn('[iris phone] brief', e); }
+        st('');
+        irisSay(t || 'Your brief is not ready yet. Try again in a moment.', { listen: false, opts: ['What can you do?'] });
+    }
+
     // ---------- the brain ----------
     async function handle(raw) {
         let t = String(raw || '').trim(); if (!t) return;
@@ -337,7 +414,7 @@
         if (/^(?:cancel|never mind|forget it)$/.test(q)) { pend = null; irisSay('Okay, cancelled.', { listen: false }); return; }
 
         // a new command or a new PO number starts over (the old question is dropped)
-        if (pend && pend.type !== 'confirm' && ((/\b(?:mark|set|change|make|put|move)\b/.test(q) && statusOf(t)) || /\b(?:po|p o)\s*\d{4,6}\b/.test(q))) pend = null;
+        if (pend && pend.type !== 'confirm' && ((/\b(?:mark|set|change|make|put|move|turn|switch|update)\b/.test(q) && statusOf(t)) || /\b(?:po|p o)\s*\d{4,6}\b/.test(q))) pend = null;
         const p = pend;
         if (p && p.type === 'confirm') {
             if (/^(?:yes|yeah|yep|yup|ok|okay|sure|go|go ahead|proceed|do it|confirm|correct|right)\b/.test(q)) { pend = null; return p.yes(); }
@@ -387,10 +464,13 @@
             if (n === 3) return pendingList();
             if (n === 4) return noteForPC(rest);
         }
+        // patch 44: greetings alone, and the brief
+        if (/^(?:(?:hi|hey|hello|hullo|yo|ok|okay)\s*){1,3}(?:iris)?$/.test(q)) { irisSay(greetLine() + ' Tell me a PO number, or ask for your brief.', { opts: ['Brief me', 'What can you do?'] }); return; }
+        if (/\bbrief\b|\b(?:what|anything) (?:do )?(?:you )?(?:have|got) for me\b|\bwhat(?: s| is)? (?:waiting|pending) for me\b|\banything (?:pending|waiting|for me)\b|\bwhat (?:do|should|must) i (?:do|work on)\b|\bmy (?:tasks|work|to ?do)\b|\b(?:tasks?|work) (?:for )?today\b/.test(q) && !/\b\d{4,6}\b/.test(q)) return briefSay();
         if (/^(?:help|guide|all commands|show (?:the )?guide|about (?:you|iris))$/.test(q) && window.ibaIrisGuide) { window.ibaIrisGuide.open(/about/.test(q) ? 'about' : 'do'); irisSay(/about/.test(q) ? 'This is me.' : 'Here is everything I can do. Tap an example to try it.', { listen: false }); return; }
         if (/\bwhat (?:can|else can|do) you (?:do|help)|\bhelp me\b|^help$|\boptions?\b|\bmenu\b/.test(q)) return menu();
         if (/\b(?:remind|reminder|whatsapp|whats app|message)\b/.test(q)) return startRemind(t);
-        if (/\b(?:mark|set|change|make|put|move|send|give|forward)\b/.test(q) && statusOf(t)) return startStatus(t);
+        if (/\b(?:mark|set|change|make|put|move|send|give|forward|turn|switch|update)\b/.test(q) && statusOf(t)) return startStatus(t);
         if (/\b(?:pending|open|not paid|unpaid|waiting)\b/.test(q) && ctx) return pendingList();
         if (/\b(?:note|later|at the office|in the office|on the pc|on pc|tomorrow)\b/.test(q) && ctx) return noteForPC(t);
         if (p && p.type === 'which') { askWhich(p.list, p.then); return; }
@@ -418,7 +498,7 @@
             if (!w || w.hidden) { setTimeout(() => requestAnimationFrame(frame), 400); return; }
             t += 0.016; odd = !odd;
             if (!odd) { requestAnimationFrame(frame); return; } // 30 frames a second is enough (patch 42)
-            const mode = listening ? 'hear' : speaking ? 'speak' : (st && /thinking|saving/.test((w.querySelector('[data-iph-st]') || {}).textContent || '')) ? 'think' : 'listen';
+            const mode = (listening && lmode !== 'hf') ? 'hear' : speaking ? 'speak' : (st && /thinking|saving/.test((w.querySelector('[data-iph-st]') || {}).textContent || '')) ? 'think' : 'listen';
             const tgt = mode === 'speak' ? Math.abs(Math.sin(t * 7) * 0.55 + Math.sin(t * 15.3) * 0.3) : mode === 'hear' ? 0.35 + 0.3 * Math.abs(Math.sin(t * 9)) : mode === 'think' ? 0.15 + 0.1 * Math.sin(t * 4) : 0.05 + 0.05 * Math.sin(t * 1.6);
             lvl += (tgt - lvl) * 0.2;
             const p = PAL[mode].map(hex); for (let i = 0; i < 4; i++) for (let k = 0; k < 3; k++) cur[i][k] += (p[i][k] - cur[i][k]) * 0.06;
@@ -454,5 +534,28 @@
         b.hidden = !!document.body.classList.contains('iba-irisph-on');
     }
     setInterval(fab, 1500);
+
+    // ---------- 18.0.0 patch 48: IRIS as her own app (the IRIS shortcut opens ?app=iris) ----------
+    // Only her page, no ✕ and no way to the rest of the system (the IBA Invoice shortcut is for that).
+    function appTick() {
+        if (!window.IBA_IRIS_APP) return;
+        const b = document.body; if (!b) return;
+        b.classList.add('iba-iris-app');
+        try { document.title = 'IRIS'; } catch (_) {}
+        if (!me()) return; // still on the sign-in screen
+        let no = $('iba-irisapp-no');
+        if (!isSuper()) {
+            if (!no) {
+                no = document.createElement('div'); no.id = 'iba-irisapp-no';
+                no.innerHTML = '<div><b>IRIS</b><p>IRIS is for the Super Admin account. Please use the IBA Invoice app.</p></div>';
+                b.appendChild(no);
+            }
+            no.hidden = false; return;
+        }
+        if (no) no.hidden = true;
+        const w = $('iba-irisph');
+        if (!w || w.hidden) open();
+    }
+    if (window.IBA_IRIS_APP) { setInterval(appTick, 1000); appTick(); }
     window.ibaIrisPhone = { open, close, handle, _ctx: () => ctx, _pend: () => pend };
 })();

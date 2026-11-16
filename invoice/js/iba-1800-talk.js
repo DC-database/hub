@@ -526,7 +526,7 @@
         const pg = pageOf(q);
         if (pg && typeof window.ibaShellPageAllowed === 'function' && !window.ibaShellPageAllowed(pg.key)) { say(NOT_YOURS); return; }
         if (pg && typeof window.ibaOpenShellPage === 'function') { say('Opening ' + pg.name + '.'); try { await window.ibaOpenShellPage(pg.key); } catch (_) {} return; }
-        if (!/\b\d{4,6}\b|\b(?:trf|stk|use|ret)\b/i.test(q)) { // a PO / transfer number is answered by the assistant without the AI
+        if (!/\b\d{4,6}\b|\b(?:trf|stk|use|ret)\b/i.test(q) && !(A().isList && A().isList(q))) { // patch 45: status / job-type lists skip skill matching. A PO / transfer number is answered by the assistant without the AI
             const all = match(q, true);
             if (all.length && all[0].k.denied && (all.length === 1 || all[0].w > all[1].w * 1.3)) { say(NOT_YOURS); return; }
             const r = all.filter((x) => !x.k.denied);
@@ -563,7 +563,7 @@
         paint();
     }
     function setOn(v) {
-        v = !!v && !!SR && !phone();
+        v = !!v && !!SR && !phone() && !window.IBA_IRIS_APP; // patch 48: the IRIS app has her own listening
         if (v === on) { paint(); return; }
         on = v; muted = false; pending = null; pendingAct = null; choice = null; follow = 0;
         clearInterval(poll);
@@ -731,7 +731,7 @@
         if (NAME_RE.test(q) && q.split(/\s+/).length <= 9) return run1(async () => say('I am IRIS, Intelligent Records and Invoice System, your IBA assistant.'));
         if (TIME_RE.test(q)) return run1(async () => say('It is ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ }) + '.'));
         if (DATE_RE.test(q)) return run1(async () => say('Today is ' + new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }) + '.'));
-        if (PEND_RE.test(q) && q.split(/\s+/).length <= 10 && !/\b\d{4,}\b/.test(q) && !/\b(?:approv\w*|invoices?|vendors?|po|transfers?|payments?|site)\b/i.test(q)) return run1(async () => { let t = ''; try { t = A().pendingSay ? await A().pendingSay() : ''; } catch (_) {} say(t || 'Your brief is on the screen.'); });
+        if (PEND_RE.test(q) && q.split(/\s+/).length <= 10 && !/\b\d{4,}\b/.test(q) && !/\b(?:approv\w*|invoices?|vendors?|po|transfers?|payments?|site|ipcs?|pr|credit|original|cancel\w*|hold|srv|process|summary|report|jobs?|records?)\b/i.test(q)) return run1(async () => { let t = ''; try { t = A().pendingSay ? await A().pendingSay() : ''; } catch (_) {} say(t || 'Your brief is on the screen.'); });
         // patch 40: "good night" answers, then switches Talk mode off
         if (/^(?:good ?night|goodnight|nighty? night)\b/i.test(q) && q.split(/\s+/).length <= 6) return run1(async () => { say(anyOf(['Good night' + (myFirst() ? ', ' + myFirst() : '') + '! Rest well, see you tomorrow.', 'Good night! Take care going home. See you tomorrow.'])); if (on) setTimeout(() => { if (on) setOn(false); }, 4500); });
         for (const [re, fn] of SMALL) { if (re.test(q) && q.split(/\s+/).length <= 10) return run1(async () => say(fn(q))); }
