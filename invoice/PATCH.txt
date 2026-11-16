@@ -3,6 +3,15 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 55 (16-Nov-2026)
+- IRIS phone knows every status of the Invoice Entry list (Report, Report Approval, Report Approved, On Hold, Under
+  Review, For IPC, IPC Application, For Summary, For Inquiry, CEO Approval, No Need SRV, Pending, Retention,
+  Unresolved, With Accounts, Original PO, Cancelled + For Approval/For SRV/In Process). "change in process to report":
+  the status after the last "to/as/into" is the new one, the other picks the invoices (martin's case failed before).
+  Paid: "Paid is marked by Accounts". Every status now asks "To whom? Or say keep." (For Approval needs a name).
+- Names that sound the same are found ("jio" = Gio); "in boys"/"in voice" = invoice.
+- Files: js/iba-1800-iris-phone.js, js/iba-1800-talk.js, index.html
+
 18.0.0 patch 54 (16-Nov-2026)
 - IRIS: words the phone mishears are read as our statuses (martin said "in process", the phone wrote "impressive").
   impressive/impress/in progress... = In Process; four approval = For Approval; for s r v / for service = For SRV;
