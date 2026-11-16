@@ -3,6 +3,60 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 43 (16-Nov-2026)
+- "What can IRIS do?" guide (js/iba-1800-iris-guide.js, window.ibaIrisGuide): sections How to talk to me (Iris / Hi … please,
+  yes/no, choices, noisy room), Pages and skills, On the screen, Invoices and POs (phone), Quick answers, Just talking,
+  What I can't do yet, plus "Your skills" (from the person's own allowed skills, grows by itself). Tap an example to try it.
+- "About IRIS" tab (the ⓘ): orb logo, each letter I-R-I-S explained, short description, version / born / voice / wake words.
+- Open it: "Iris, what can you do" / "help" (voice or typed), "Iris, about you" / "what does Iris mean" (About),
+  the ? on the IRIS pill and "Help" on the Talk bar, buttons in Assistant settings, the ⓘ on the phone IRIS page.
+- iba-1705-fit.js leaves the guide and the phone IRIS page text unfolded.
+- Files: js/iba-1800-iris-guide.js (new), js/iba-1800-talk.js, js/iba-1800-iris-phone.js, js/iba-1705-fit.js, css/iba-1705-fit.css
+
+18.0.0 patch 42 (15-Nov-2026)
+- IRIS: the screen-edge glow is gone (martin: the orb is enough; it also slowed the background video).
+- The orb (PC pill and phone page) draws 30 times a second instead of 60: same look, half the work.
+- Files: js/iba-1800-orb.js, js/iba-1800-iris-phone.js
+
+18.0.0 patch 41 (15-Nov-2026)
+- IRIS on the phone (Super Admin only): round "IRIS" button bottom-left on the phone opens her own full-screen page
+  (orb, conversation, big mic, keyboard). Runs on the phone itself, no office PC needed.
+  - "PO 12345" / "look for PO 12345": reads ONLY that PO, says the invoices and statuses, "What do you want to do?"
+  - "What can you do?" = menu: 1 change a status (For Approval / For SRV / In Process), 2 WhatsApp reminder,
+    3 pending invoices, 4 note to do at the office (goes to your reminders as "Do on PC").
+  - Picks invoices: "the biggest / smallest / newest / oldest / first / 884 / the SRV done one / both".
+    Paid and With Accounts are never offered. For Approval without a name = "To whom?"; same names = "Which one?".
+    No SRV yet + For Approval = warns once. Vacation person = offers the replacement. ALWAYS yes/no before saving.
+  - Saves status + attention + history (by IRIS on phone) and updates the task lists, like the PC does.
+  - WhatsApp: message already written, you tap Open WhatsApp and press Send yourself.
+  - Time, maths, jokes, small talk also work there.
+- Files: js/iba-1800-iris-phone.js (new), js/iba-1800-talk.js, css/iba-1705-fit.css
+
+18.0.0 patch 40 (15-Nov-2026)
+- IRIS answers to "Hi … please" too: "Hi, open Batch Entry please", "Hi, what time is it please". A "hi" sentence
+  without "please" at the end is ignored (office greetings don't wake her). Tick in Assistant settings
+  "Also answer to Hi … please" (on by default, per person).
+- "Iris, good night" answers ("Good night, Irwin! Rest well…") and then turns Talk mode off.
+- First time Talk mode is switched on each day before noon: good morning + the short brief out loud.
+- Faster: the "words stopped" check is 1 s (was 1.5 s); short answers (70 letters or less) use the instant
+  Windows voice even when Kokoro is on (Kokoro needs 1-3 s to build a sentence); long answers stay Kokoro.
+- "good night" no longer answers "Good evening".
+- Files: js/iba-1800-talk.js, js/iba-assistant.js, js/iba-1800-kokoro.js
+
+18.0.0 patch 39 (15-Nov-2026)
+- IRIS writes her answer in the pill ("IRIS: That is 2.") for 7 s, so you see it even if the voice is silent.
+- Console logs every final sentence she hears ([iris] heard: ...) and every answer ([iris] said: ...).
+- Maths: "5 multiply 3", "3 into 4" (= times).
+- Small talk like a person: "how is your day", "did you eat lunch", "how do you feel", "are you tired", "I am tired / sad",
+  "where are you from", "do you like me", "good job", "I am going home" (a few different answers each).
+- File: js/iba-1800-talk.js
+
+18.0.0 patch 38 (15-Nov-2026)
+- IRIS not hearing on martin's PC: the orb (patch 34) opened its own microphone stream next to Chrome's speech
+  recognition, which can starve the recogniser on some PCs. The orb no longer opens the mic; it moves when the
+  recogniser hears sound / words (ibaTalk.heardAt / sound).
+- Files: js/iba-1800-orb.js, js/iba-1800-talk.js
+
 18.0.0 patch 37 (15-Nov-2026)
 - IRIS "save": "Iris, save all the entries in batch entry please" / "save" / "submit" presses the Save button
   of the open window (Batch Entry = Save All Invoices). Always asks yes/no first (typed: Proceed card).
