@@ -3,6 +3,20 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 57 (16-Nov-2026)
+- IRIS phone: a PO lookup also lists open WorkDesk jobs of that PO not yet in Invoice Entry (e.g. IPC with the QS)
+  via ONE indexed REST read job_entries?orderBy="po"&equalTo (no index = 400, never the full list).
+- IRIS phone: "check invoice 2", "invoice 11" (number at the end of the invoice no., else the 2nd in the list),
+  "the second invoice", "the IPC job" -> status, amount, attention, date (WorkDesk jobs say "still in WorkDesk").
+- IRIS phone: "remove the IPC job" -> read back -> must say "yes remove" -> job Removed (Recycle Bin, can be restored).
+  Invoices are never removed by voice. A status said alone after a PO ("for SRV") changes the status.
+- IRIS phone waits 20 s (was 9) for your answer after she asks something. "SRP" / "s r p" = SRV.
+- NEW Recycle Bin (Super Admin, PC, button next to Tidy old jobs on Job Records; window.ibaRecycleBin()):
+  WorkDesk tab lists removed jobs (who, when, why) with Restore (back to the status before) and Delete forever
+  (asks "Erase for good?"). Invoice / Inventory tabs come next. Removed jobs no longer show in the Job Records tabs.
+- Files: js/iba-1800-iris-phone.js, js/iba-1800-talk.js, js/iba-1800-tidy.js, js/app-workdesk-reporting.js,
+  css/iba-1705-fit.css, index.html
+
 18.0.0 patch 56 (16-Nov-2026)
 - Job Records: a job marked Cancelled (any type) leaves its own tab and shows in the Cancel tab (searching still finds it).
 - Job Records: Amount column shown as money, 102,000.00 (wdJrMoney; Firebase keeps the plain number).
