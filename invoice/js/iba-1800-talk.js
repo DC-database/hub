@@ -614,8 +614,18 @@
     // 18.0.0 patch 53 (martin): a PO said digit by digit ("six two six zero zero", "6 2 6 0 0", "double six", "oh")
     // becomes one number (62600). Only runs of 3 or more single digits, so "6 times 2" stays maths.
     const DW = { zero: '0', oh: '0', o: '0', one: '1', two: '2', to: '2', too: '2', three: '3', four: '4', for: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9' };
+    // 18.0.0 patch 54 (martin said "in process", the phone heard "impressive"): words the phone mishears for our statuses
+    const HEARD = [[/\b(?:impressive|impressed|impress|improcess|in progress|in-progress|inprocess|in processed|in precess|in proces|in prosess|in the process|imprecise|impressively|impression|impressing|im process|in proses|in prices|in princess|in processes)\b/gi, 'In Process'],
+        [/\b(?:for|four|4|fore)\s+(?:a\s+)?(?:approval|approve all|a proval|aproval|approvals|a pro val|upproval|approver)\b/gi, 'For Approval'],
+        [/\b(?:for|four|4|fore)\s+(?:s\.?\s*r\.?\s*v\.?|s r v|sr v|s rv|srb|srp|srv's|s are v|esrv|service|survey|s rb)\b/gi, 'For SRV'],
+        [/\b(?:s r v|s\. r\. v\.?|s are v|esrv|s rv|sr v)\b/gi, 'SRV'],
+        [/\bwith (?:account|a count|the accounts|accountant|accountants)\b/gi, 'With Accounts'],
+        [/\bon (?:whole|old|hole|holed|hold up)\b/gi, 'On Hold'],
+        [/\bunder (?:rev you|review|reviews|re view|rivew)\b/gi, 'Under Review'],
+        [/\bp\.?\s*o\.?(?=\s*\d)/gi, 'PO'], [/\b(?:pee oh|pio|p o|beo|bio)\b(?=\s*(?:\d|zero|one|two|three|four|five|six|seven|eight|nine))/gi, 'PO']];
+    function heardFix(t) { let s = String(t || ''); HEARD.forEach(([re, w]) => { s = s.replace(re, w); }); return s; }
     function digits(t) {
-        let s = ' ' + String(t || '') + ' ';
+        let s = ' ' + heardFix(t) + ' ';
         s = s.replace(/\b(double|triple)[\s-]+(zero|oh|one|two|three|four|five|six|seven|eight|nine|\d)\b/gi, (a, k, d) => { const x = /\d/.test(d) ? d : DW[d.toLowerCase()]; return ' ' + x.repeat(k.toLowerCase() === 'double' ? 2 : 3).split('').join(' ') + ' '; });
         const TOK = '(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|\\d|to|too|for|o)';
         const re = new RegExp('(^|[\\s(])((?:' + TOK + ')(?:[\\s-]+' + TOK + '){2,})(?=[\\s,.?!)]|$)', 'gi');
@@ -825,7 +835,7 @@
         [/\b(?:minas|mines|minis)\b/g, 'minus'], [/\b(?:pluss|pls one)\b/g, 'plus'], [/\b(?:devide|divid|dived|devided|divded)\b/g, 'divide'], [/\b(?:tims|time)\b(?=\s*\d)/g, 'times'],
         [/\b(?:swuare|sqaure|squre|sqare|suare)\b/g, 'square'], [/\b(?:rooth|rut|rot)\b/g, 'root'], [/\b(?:inchs|inchis|inces|ince|inche)\b/g, 'inches'], [/\b(?:metre|metr|mter|meeter)s?\b/g, 'meters'],
         [/\b(?:jok|jokes|joek)\b/g, 'joke'], [/\b(?:nam|nmae|naem)\b/g, 'name'], [/\b(?:tim)\b/g, 'time'], [/\b(?:thx|tnx|thanx|thanks?s)\b/g, 'thanks']];
-    function fixWords(q) { let t = ' ' + String(q || '').toLowerCase() + ' '; FIX.forEach(([re, w]) => { t = t.replace(re, w); }); return t.replace(/\s+/g, ' ').trim(); }
+    function fixWords(q) { let t = ' ' + heardFix(q).toLowerCase() + ' '; FIX.forEach(([re, w]) => { t = t.replace(re, w); }); return t.replace(/\s+/g, ' ').trim(); }
     const CONTACT_W = /\b(?:mobile|phone|number|contact|email|whatsapp)\b/;
     const FILL = new Set('what is the of his her their give me tell show find get i need want please can you could and or s whats number mobile phone contact email whatsapp address a an for to know details detail info'.split(' '));
     async function builtin(text, before) {
