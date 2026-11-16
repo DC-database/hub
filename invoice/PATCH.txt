@@ -3,6 +3,13 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 54 (16-Nov-2026)
+- IRIS: words the phone mishears are read as our statuses (martin said "in process", the phone wrote "impressive").
+  impressive/impress/in progress... = In Process; four approval = For Approval; for s r v / for service = For SRV;
+  with account = With Accounts; on whole = On Hold; "pee oh" / "p.o." before a number = PO. IRIS is a work tool,
+  so these are never taken as praise. heardFix() in js/iba-1800-talk.js (phone via ibaTalk.digits, PC via fixWords).
+- Files: js/iba-1800-talk.js, index.html
+
 18.0.0 patch 53 (16-Nov-2026)
 - IRIS understands a PO said digit by digit: "six two six zero zero", "6 2 6 0 0", "oh" = 0, "double six" = 66
   (runs of 3+ single digits, 4 to 8 long, become one number; "to"/"for" at the ends are kept as words, so
