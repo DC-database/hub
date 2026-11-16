@@ -2957,3 +2957,27 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body.iba-iris-app #iba-irisapp-no b { font-size: 22px !important; letter-spacing: .18em !important; }
   html body.iba-iris-app #iba-irisapp-no p { color: #b9a978 !important; max-width: 320px !important; margin: 10px auto 0 !important; }
 }
+
+/* 18.0.0 patch 50: IRIS page ⚙ voice settings (Kokoro natural voice / phone voice) */
+@layer iba-ui {
+  html body #iba-irisph .iph-g { margin-left: auto !important; }
+  html body #iba-irisph .iph-g ~ .iph-i { margin-left: 0 !important; }
+  html body #iba-irisph .iph-set { position: absolute !important; inset: 0 !important; z-index: 5 !important; display: grid !important; place-items: center !important; background: rgba(4,7,10,.72) !important; padding: 16px !important; }
+  html body #iba-irisph .iph-set[hidden] { display: none !important; }
+  html body #iba-irisph .iph-set-box { width: min(420px, 100%) !important; max-height: 100% !important; overflow: auto !important; background: #0e1318 !important; border: 1px solid rgba(255,255,255,.12) !important; border-radius: 18px !important; padding: 14px 16px 16px !important; display: grid !important; gap: 10px !important; box-shadow: 0 20px 60px rgba(0,0,0,.6) !important; }
+  html body #iba-irisph .iph-set-head { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+  html body #iba-irisph .iph-set-head b { letter-spacing: .1em !important; }
+  html body #iba-irisph .iph-set-check { display: flex !important; align-items: center !important; gap: 10px !important; font-weight: 600 !important; color: #eef3f8 !important; font-size: 15px !important; opacity: 1 !important; }
+  html body #iba-irisph .iph-set-check input { width: 20px !important; height: 20px !important; accent-color: #2fd3c2 !important; }
+  html body #iba-irisph .iph-set-note { margin: 0 !important; font-size: 12.5px !important; color: #b9a978 !important; }
+  html body #iba-irisph .iph-set-row { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  html body #iba-irisph .iph-set-row label, html body #iba-irisph .iph-set-lab { display: grid !important; gap: 4px !important; font-size: 12.5px !important; color: #cfd8df !important; }
+  html body #iba-irisph .iph-set select { width: 100% !important; min-width: 0 !important; height: 40px !important; border-radius: 10px !important; border: 1px solid rgba(255,255,255,.15) !important; background: #121a21 !important; color: #eef3f8 !important; padding: 0 8px !important; font-size: 14px !important; }
+  html body #iba-irisph .iph-set-btn { justify-self: start !important; height: 38px !important; padding: 0 16px !important; border-radius: 999px !important; border: 1px solid rgba(47,211,194,.6) !important; background: rgba(47,211,194,.1) !important; color: #2fd3c2 !important; font-weight: 600 !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; }
+  html body #iba-irisph .iph-set hr { border: 0 !important; border-top: 1px solid rgba(255,255,255,.1) !important; margin: 4px 0 !important; width: 100% !important; }
+  /* 18.0.0 patch 52: "Natural voice warming up…" line under the status */
+  html body #iba-irisph .iph-warm { display: inline-flex !important; align-items: center !important; gap: 6px !important; margin-top: 4px !important; font-size: 11.5px !important; color: #b9a978 !important; }
+  html body #iba-irisph .iph-warm[hidden] { display: none !important; }
+  html body #iba-irisph .iph-warm i { width: 7px !important; height: 7px !important; border-radius: 50% !important; background: #e3c98a !important; animation: iph-warm-blink 1.2s ease-in-out infinite !important; }
+}
+@keyframes iph-warm-blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
