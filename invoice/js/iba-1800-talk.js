@@ -611,7 +611,29 @@
     // patch 37 (martin): Chrome sometimes writes the numbers as words ("one plus one", "twenty five times two")
     const NW = { zero: 0, oh: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
         sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fourty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+    // 18.0.0 patch 53 (martin): a PO said digit by digit ("six two six zero zero", "6 2 6 0 0", "double six", "oh")
+    // becomes one number (62600). Only runs of 3 or more single digits, so "6 times 2" stays maths.
+    const DW = { zero: '0', oh: '0', o: '0', one: '1', two: '2', to: '2', too: '2', three: '3', four: '4', for: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9' };
+    function digits(t) {
+        let s = ' ' + String(t || '') + ' ';
+        s = s.replace(/\b(double|triple)[\s-]+(zero|oh|one|two|three|four|five|six|seven|eight|nine|\d)\b/gi, (a, k, d) => { const x = /\d/.test(d) ? d : DW[d.toLowerCase()]; return ' ' + x.repeat(k.toLowerCase() === 'double' ? 2 : 3).split('').join(' ') + ' '; });
+        const TOK = '(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|\\d|to|too|for|o)';
+        const re = new RegExp('(^|[\\s(])((?:' + TOK + ')(?:[\\s-]+' + TOK + '){2,})(?=[\\s,.?!)]|$)', 'gi');
+        const FILL_D = /^(?:to|too|for|o)$/i;
+        s = s.replace(re, (a, pre, run) => {
+            const parts = run.split(/[\s-]+/).filter(Boolean);
+            const head = [], tail = [];
+            while (parts.length && FILL_D.test(parts[0])) head.push(parts.shift());       // "to six two ..." keeps "to"
+            while (parts.length && FILL_D.test(parts[parts.length - 1])) tail.unshift(parts.pop()); // "... zero zero for approval"
+            if (parts.length < 3) return a;
+            const out = parts.map((p) => (/^\d$/.test(p) ? p : DW[p.toLowerCase()])).join('');
+            if (out.length < 4 || out.length > 8) return a;
+            return pre + head.concat([out], tail).join(' ');
+        });
+        return s.replace(/\s+/g, ' ').trim();
+    }
     function numWords(t) {
+        t = digits(t);
         return t.replace(/\b(?:(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fourty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|point)(?:[\s-]+|$))+/g, (run) => {
             const w = run.trim().split(/[\s-]+/); let total = 0, cur = 0, dec = '', inDec = false;
             for (const x of w) {
@@ -894,5 +916,5 @@
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-hi') { try { localStorage.setItem(HI_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} } });
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-snd') { try { localStorage.setItem(SND_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} if (e.target.checked) chime('done'); } });
     async function answer(text) { let out = null; sink = (t) => { out = out ? out + ' ' + t : t; }; try { const ok = await builtin(text); return ok ? out : null; } finally { sink = null; } }
-    window.ibaTalk = { answer, calc: (q) => calc(q), dimsOf: (q) => dimsOf(q), mathOf: (q) => mathOf(q), convOf: (q) => convOf(q), hiOn, _hi: hiCmd, heardAt: () => heardAt, sound: () => soundOn2, _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
+    window.ibaTalk = { answer, digits: (q) => digits(q), calc: (q) => calc(q), dimsOf: (q) => dimsOf(q), mathOf: (q) => mathOf(q), convOf: (q) => convOf(q), hiOn, _hi: hiCmd, heardAt: () => heardAt, sound: () => soundOn2, _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
 })();

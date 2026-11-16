@@ -472,6 +472,7 @@
         let t = String(raw || '').trim(); if (!t) return;
         youSaid(t);
         t = t.replace(WAKE, '').replace(/[\s,.]+(?:please|thanks|thank you|now)[\s.!?]*$/i, '').replace(/[.!?]+$/, '').trim();
+        try { if (window.ibaTalk && window.ibaTalk.digits) t = window.ibaTalk.digits(t); } catch (_) {} // patch 53: "six two six zero zero" = 62600
         const q = norm(t);
         if (!q) { irisSay('Yes?'); return; }
         if (/^(?:close|bye|goodbye|good bye|exit|that s all|nothing|no thanks|stop)$/.test(q)) { pend = null; auto = false; irisSay('Okay. Bye for now!', { listen: false }); return; }
