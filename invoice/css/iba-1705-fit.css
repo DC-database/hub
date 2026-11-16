@@ -2996,6 +2996,25 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body #iba-tidy-pop .iba-tidy-pick input[type=date] { width: auto !important; display: inline-block !important; min-width: 150px !important; margin: 0 6px !important; font-size: 14px !important; }
   html body #iba-tidy-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; }
   html body #iba-tidy-pop .iba-pb-head button { width: 34px !important; height: 34px !important; min-width: 0 !important; padding: 0 !important; border-radius: 50% !important; background: rgba(255,255,255,.08) !important; border: 1px solid rgba(255,255,255,.15) !important; color: #eef3f8 !important; }
+  /* 18.0.0 patch 57: Recycle Bin (same look as Tidy) */
+  html body #iba-bin-pop .iba-tidy-box { width: min(1180px, 100%) !important; max-height: calc(100vh - 40px) !important; overflow: auto !important; }
+  html body #iba-bin-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+  html body #iba-bin-pop .iba-pb-head button { width: 34px !important; height: 34px !important; min-width: 0 !important; padding: 0 !important; border-radius: 50% !important; background: rgba(255,255,255,.08) !important; border: 1px solid rgba(255,255,255,.15) !important; color: #eef3f8 !important; }
+  html body #iba-bin-pop .iba-bin-tabs { display: flex !important; gap: 6px !important; padding: 8px 18px 0 !important; flex-wrap: wrap !important; }
+  html body #iba-bin-pop .iba-bin-tabs button { height: 30px !important; padding: 0 14px !important; border-radius: 999px !important; border: 1px solid rgba(255,255,255,.15) !important; background: rgba(255,255,255,.05) !important; color: #cfd8df !important; font-size: 12.5px !important; }
+  html body #iba-bin-pop .iba-bin-tabs button.is-on { background: rgba(47,211,194,.15) !important; border-color: rgba(47,211,194,.6) !important; color: #2fd3c2 !important; font-weight: 600 !important; }
+  html body #iba-bin-pop .iba-bin-tabs button[disabled] { opacity: .5 !important; cursor: default !important; }
+  html body #iba-bin-pop .iba-tidy-tblwrap { max-height: 60vh !important; overflow: auto !important; margin: 8px 18px !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 10px !important; }
+  html body #iba-bin-pop .iba-tidy-tbl { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; }
+  html body #iba-bin-pop .iba-tidy-tbl th { position: sticky !important; top: 0 !important; background: #12324a !important; color: #eef3f8 !important; text-align: left !important; padding: 6px 8px !important; font-weight: 600 !important; }
+  html body #iba-bin-pop .iba-tidy-tbl td { padding: 5px 8px !important; border-top: 1px solid rgba(255,255,255,.07) !important; color: #e8eef3 !important; vertical-align: middle !important; }
+  html body #iba-bin-pop .iba-tidy-tbl .r { text-align: right !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; }
+  html body #iba-bin-pop .iba-tidy-tbl .m { font-family: ui-monospace, Menlo, Consolas, monospace !important; }
+  html body #iba-bin-pop .iba-bin-act { white-space: nowrap !important; text-align: right !important; }
+  html body #iba-bin-pop .iba-bin-act button { height: 28px !important; padding: 0 10px !important; border-radius: 999px !important; border: 1px solid rgba(47,211,194,.6) !important; background: rgba(47,211,194,.1) !important; color: #2fd3c2 !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important; }
+  html body #iba-bin-pop .iba-bin-act button.is-danger { border-color: rgba(255,107,107,.7) !important; background: rgba(220,53,69,.15) !important; color: #ff9a9a !important; }
+  html body #iba-bin-pop .iba-tidy-warn { color: #f5c26b !important; }
+  html body #iba-bin-pop .iba-tidy-msg { margin: 8px 18px 0 !important; }
   html body #iba-tidy-pop .iba-tidy-found summary { cursor: pointer !important; color: #2fd3c2 !important; margin: 6px 0 !important; }
   html body #iba-irisph .iph-warm i { width: 7px !important; height: 7px !important; border-radius: 50% !important; background: #e3c98a !important; animation: iph-warm-blink 1.2s ease-in-out infinite !important; }
 }
