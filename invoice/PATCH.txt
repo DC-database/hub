@@ -3,6 +3,16 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 56 (16-Nov-2026)
+- Job Records: a job marked Cancelled (any type) leaves its own tab and shows in the Cancel tab (searching still finds it).
+- Job Records: Amount column shown as money, 102,000.00 (wdJrMoney; Firebase keeps the plain number).
+- NEW js/iba-1800-tidy.js "Tidy old jobs" (Super Admin, PC, button next to Clear on Job Records; window.ibaTidyJobs()):
+  open Invoice jobs entered before a date (default 1 Aug 2026) -> one read of invoice_entries/<po> per PO ->
+  found (same invoice no., or the only invoice with the same amount) = closed as Converted to Invoice and linked
+  (same fields as a normal Add, tidiedAt, history line); not found = listed with the reason, choose Leave / Cancel /
+  Remove (soft: Removed + archived). Nothing is written until Confirm.
+- Files: js/app-workdesk-reporting.js, js/iba-1800-tidy.js (new), css/iba-1705-fit.css, index.html
+
 18.0.0 patch 55 (16-Nov-2026)
 - IRIS phone knows every status of the Invoice Entry list (Report, Report Approval, Report Approved, On Hold, Under
   Review, For IPC, IPC Application, For Summary, For Inquiry, CEO Approval, No Need SRV, Pending, Retention,
