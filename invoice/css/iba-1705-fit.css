@@ -2928,3 +2928,32 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body #iba-irisph .iph-i { margin-left: auto !important; }
   html body #iba-irisph .iph-i + .iph-x { margin-left: 0 !important; }
 }
+
+/* 18.0.0 patch 44: phone IRIS hands-free switch (own row under the mic) */
+@layer iba-ui {
+  html body #iba-irisph .iph-bar { flex-wrap: wrap !important; row-gap: 10px !important; padding-bottom: max(14px, env(safe-area-inset-bottom, 0px)) !important; }
+  html body #iba-irisph .iph-sm.iph-hf { order: 9 !important; flex-basis: 100% !important; width: auto !important; height: 34px !important; max-width: 190px !important; margin: 0 calc(50% - 95px) !important; border-radius: 999px !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; font-size: 13px !important; color: #b9c6d0 !important; }
+  html body #iba-irisph .iph-sm.iph-hf.is-on { border-color: rgba(47,211,194,.7) !important; color: #2fd3c2 !important; background: rgba(47,211,194,.1) !important; box-shadow: 0 0 14px rgba(47,211,194,.25) !important; }
+  html body #iba-irisph .iph-mic.is-hf { box-shadow: 0 0 0 4px rgba(47,211,194,.35), 0 0 22px rgba(47,211,194,.35) !important; }
+}
+
+/* 18.0.0 patch 45: Job Records Invoice tab - "N already converted are not shown" */
+@layer iba-ui {
+  html body #wd-jr-conv-note { margin: 6px 2px 8px !important; font-size: 12.5px !important; color: var(--ui-text-3, #E3C98A) !important; font-style: italic !important; opacity: .85 !important; }
+}
+
+/* 18.0.0 patch 46: Work History - a completed job (only seen in a search) gets a grey status tag */
+@layer iba-ui {
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4) #wd-reporting td.inv-status-cell .iba-wh-st.is-done { color: #9aa6b0 !important; -webkit-text-fill-color: #9aa6b0 !important; border-color: rgba(154,166,176,.35) !important; background: rgba(154,166,176,.08) !important; font-weight: 600 !important; }
+}
+
+/* 18.0.0 patch 48: IRIS as her own app (?app=iris): no ✕, wide windows keep the talk column centred */
+@layer iba-ui {
+  html body.iba-iris-app #iba-irisph [data-iph-x] { display: none !important; }
+  html body.iba-iris-app #iba-irisph .iph-log, html body.iba-iris-app #iba-irisph .iph-type { width: min(720px, 100%) !important; justify-self: center !important; }
+  html body.iba-iris-app #iba-irisph-fab { display: none !important; }
+  html body.iba-iris-app #iba-irisapp-no { position: fixed !important; inset: 0 !important; z-index: 2147482650 !important; display: grid !important; place-items: center !important; background: radial-gradient(120% 60% at 50% 0, #10202a, #07090c 70%) !important; color: #eef3f8 !important; text-align: center !important; padding: 24px !important; }
+  html body.iba-iris-app #iba-irisapp-no[hidden] { display: none !important; }
+  html body.iba-iris-app #iba-irisapp-no b { font-size: 22px !important; letter-spacing: .18em !important; }
+  html body.iba-iris-app #iba-irisapp-no p { color: #b9a978 !important; max-width: 320px !important; margin: 10px auto 0 !important; }
+}
