@@ -553,7 +553,7 @@ function renderReportingTable(entries) {
             <td><span class="wd-site-badge"><i class="fa-solid fa-location-dot"></i>${esc(entry.site || '')}</span></td>
             <td><span class="wd-po-code">${esc(entry.po || '')}</span></td>
             <td title="${esc(entry.vendorName || 'N/A')}"><span class="wd-vendor-name">${esc(wdReportClipVendor(entry.vendorName))}</span></td>
-            <td class="wd-amount-cell">${esc(entry.amount || '')}</td>
+            <td class="wd-amount-cell">${esc(wdJrMoney(entry.amount))}</td>
             <td><span class="wd-user-chip">${esc(entry.enteredBy || '')}</span></td>
             <td><span class="wd-date-chip">${esc(entry.date || '')}</span></td>
             <td><span class="wd-attention-chip">${esc(entry.attention || '')}</span></td>
@@ -738,7 +738,11 @@ function filterAndRenderReport(baseEntries = null) {
             }
         }
     } else if (selectedJobType) {
-        filteredEntries = filteredEntries.filter(entry => wdReportDisplayJobType(entry.for || 'Other') === selectedJobType);
+        // 18.0.0 patch 56 (martin): a job marked Cancelled (any type) leaves its own tab and shows in the Cancel tab
+        const canc = (e) => /^(?:cancelled|canceled)$/i.test(String(e.remarks || e.status || '').trim());
+        filteredEntries = filteredEntries.filter(entry => selectedJobType === 'Cancel'
+            ? (canc(entry) || wdReportDisplayJobType(entry.for || 'Other') === 'Cancel')
+            : (!canc(entry) && wdReportDisplayJobType(entry.for || 'Other') === selectedJobType));
         // 18.0.0 patch 45 (martin): the Invoice tab shows only what is still pending. Entries already
         // Converted to Invoice are hidden here; searching a PO / vendor / ref still finds them.
         if (selectedJobType === 'Invoice' && typeof wdIsConvertedInvoiceJobEntry === 'function') {
@@ -755,6 +759,14 @@ function filterAndRenderReport(baseEntries = null) {
 
     renderReportingTable(filteredEntries);
     wdJrConvertedNote(convHidden);
+}
+
+// 18.0.0 patch 56 (martin): Amount on screen in money format (102,000.00). Firebase keeps the plain number.
+function wdJrMoney(v) {
+    const raw = String(v == null ? '' : v).trim();
+    if (!raw) return '';
+    const n = Number(raw.replace(/,/g, '').replace(/^(?:qar|qr)\s*/i, ''));
+    return isFinite(n) && /\d/.test(raw) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : raw;
 }
 
 // 18.0.0 patch 45: one quiet line above the table saying how many converted entries the Invoice tab hides
