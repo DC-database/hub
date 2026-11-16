@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>IRIS</title>
+<!-- port.iba.com.qa/iris : IRIS as her own app (18.0.0 patch 50).
+     A separate folder, so phones and PCs install it as a second app next to IBA Invoice
+     (an app inside /invoice/ counts as the same app). It shows the IBA system's IRIS page
+     (/invoice/?app=iris) full screen. Same site, so the sign-in and saved data are shared. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#07090c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IRIS">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icons/iris-apple-touch-icon.png">
+<link rel="icon" href="icons/iris-192.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #07090c; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #07090c; }
+</style>
+</head><body>
+<iframe src="/invoice/?app=iris" title="IRIS" allow="microphone; autoplay; clipboard-read; clipboard-write; geolocation; fullscreen"></iframe>
+</body></html>
