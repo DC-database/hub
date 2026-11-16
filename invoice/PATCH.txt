@@ -3,6 +3,62 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 49 (16-Nov-2026)
+- Work History saved copy (like Job Records): transfer_entries is kept on the PC (IndexedDB iba_jobs_pocket,
+  key transfer_entries@<db>). Each open downloads only: new transfers (by key), the OPEN ones (Pending Source,
+  Pending Admin, Pending, Pending Confirmation, Approved, In Transit, Bounced) and, one by one, those open last time
+  but not now (just finished). One full download a day; full download also when the "remarks" index is missing,
+  more than 300 to check, no saved copy, or any error. window.__ibaTrfPocketLast shows what happened.
+- Files: js/app-data-cache.js, index.html
+
+18.0.0 patch 48 (16-Nov-2026)
+- IRIS as her own app (Super Admin). Link: <site>/?app=iris  -> Chrome "Install app" (PC) / "Add to Home screen" (phone).
+  Own name "IRIS" and orb icon (iris.webmanifest, icons/iris-*.png). After sign-in it shows only the IRIS page:
+  no ✕, no home button, no way to the other pages (use the IBA Invoice shortcut for those). Other accounts see
+  "IRIS is for the Super Admin account". Wide PC windows keep the talk column centred.
+- The IRIS window has its own lane in the one-tab rule (app-tab-guard.js) and does not take the one-PC session
+  (iba-session-lock.js), so the IBA window and the IRIS window stay open together. Two IBA windows are still blocked.
+- Talk mode (the PC pill) stays off inside the IRIS app; she uses her own mic / Hands-free there.
+- Files: index.html, iris.webmanifest (new), icons/iris-192.png, icons/iris-512.png, icons/iris-maskable-512.png,
+  icons/iris-apple-touch-icon.png (new), js/iba-1800-iris-phone.js, js/app-tab-guard.js, js/iba-session-lock.js,
+  js/iba-1800-talk.js, css/iba-1705-fit.css
+
+18.0.0 patch 47 (16-Nov-2026)
+- Phone IRIS: "turn / mark all In Process to For Approval to E.Ali" picks only the invoices that are In Process now
+  (before, "all" took every open invoice). Also "turn", "switch", "update" start a status change.
+- Phone IRIS: the person can follow "to", "attention", "with" or "under" ("... under E Ali please"); the last name
+  said counts, a trailing please is ignored.
+- Files: js/iba-1800-iris-phone.js, index.html
+
+18.0.0 patch 46 (16-Nov-2026)
+- Inventory Work History: the Active Jobs / Completed tabs are gone. Transfer / Restock / Return / Usage show only
+  ACTIVE jobs. A search shows everything that matches (active and completed) in one list; completed ones have a grey
+  status tag. Nothing is deleted, only hidden. To bring the Active / Completed tabs back: IBA_WH_COMPLETED_TAB = true
+  (window.IBA_WH_COMPLETED_TAB in js/app-inventory.js, filterAndRenderInventoryJobRecords).
+- Files: js/app-inventory.js, css/iba-1705-fit.css, index.html
+
+18.0.0 patch 45 (16-Nov-2026)
+- Job Records, Invoice tab: entries already Converted to Invoice are not listed any more (only what is still pending).
+  A quiet line says how many are hidden. Searching a PO, vendor or invoice number still finds them.
+- IRIS lists without the AI (typed or Talk mode, PC): "pending for IPC" (invoices For IPC + open IPC Application jobs),
+  "show For SRV invoices", "what is On Hold", any active status name; reception job types, open ones only:
+  IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other. Same lookups the AI uses.
+- "pending ..." with a status or job word no longer reads the brief instead; list words skip skill matching.
+- Guide: new "Lists" section.
+- Files: js/iba-assistant.js, js/iba-1800-talk.js, js/iba-1800-iris-guide.js, js/app-workdesk-reporting.js, css/iba-1705-fit.css, index.html
+
+18.0.0 patch 44 (16-Nov-2026)
+- Phone IRIS page: "hi" / "hello" alone gets a greeting (was "I don't know that one").
+- Phone IRIS: "brief me", "what do you have for me", "tell me my brief", "anything pending for me" read your brief
+  out loud (ibaAssistant.briefWords: read-only, same lists as the phone Now brief, no big reads).
+- Phone IRIS: Hands-free switch under the mic (remembered on that phone). While her page is open and the screen is on she
+  keeps listening, and answers only "Iris …" or "Hi … please"; other talk in the room is ignored (shown as "Ignored").
+  Right after she asks a question, a short reply is fine without the wake words. Unclear / far-away speech
+  (low recognition confidence) is ignored: "Come closer and say it again". Stops when the screen locks or the page closes.
+  Some Android phones beep each time listening restarts; the page cannot switch that off.
+- Guide: "Brief me" examples added.
+- Files: js/iba-1800-iris-phone.js, js/iba-assistant.js, js/iba-1800-iris-guide.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 43 (16-Nov-2026)
 - "What can IRIS do?" guide (js/iba-1800-iris-guide.js, window.ibaIrisGuide): sections How to talk to me (Iris / Hi … please,
   yes/no, choices, noisy room), Pages and skills, On the screen, Invoices and POs (phone), Quick answers, Just talking,

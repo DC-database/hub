@@ -1,0 +1,17 @@
+{
+  "name": "IRIS",
+  "short_name": "IRIS",
+  "description": "IRIS, the IBA assistant (Super Admin)",
+  "id": "/iris/",
+  "start_url": "./?app=iris",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090c",
+  "theme_color": "#07090c",
+  "icons": [
+    { "src": "icons/iris-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/iris-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/iris-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
