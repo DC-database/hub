@@ -27,7 +27,7 @@
             'Iris, open IPC Processed', 'Iris, show PR', 'Iris, open credit notes', 'Iris, pending original PO', 'Iris, show cancel jobs', 'Iris, show other jobs']],
         ['Quick answers', 'fa-bolt', 'No AI key needed for these.', [
             'Iris, what is today', 'Iris, is there anything pending for me', 'Iris, what is Hafiz mobile number', 'Iris, send a message to Hafiz saying I am on my way',
-            'Iris, 25 times 4', 'Iris, square root of 144', 'Iris, 15 percent of 2000', 'Iris, convert 10 inches to cm', 'Iris, 20 kg to pounds']],
+            'Iris, 25 times 4', 'Iris, square root of 144', 'Iris, 15 percent of 2000', 'Iris, convert 10 inches to cm', 'Iris, 20 kg to pounds', 'Hi multiply 100 by 100 please', 'Iris, 50 linear meter to feet', 'Iris, 20 ft by 10 ft', 'Iris, width 2 meter height 3 meter in square feet', 'Iris, 3 by 2 by 0.5 meters', 'Iris, 20 linear meter at 1.2 meter wide to square meter', 'Iris, 100 C to F']],
         ['Just talking', 'fa-face-smile', 'A little chat is fine too.', [
             'Iris, how is your day', 'Iris, did you eat lunch', 'Iris, tell me a joke', 'Iris, what is my name', 'Iris, what does Iris mean', 'Iris, I am tired']],
         ['What I can’t do yet', 'fa-circle-info', 'Tell martin what you need, and I learn it in the next update.', [

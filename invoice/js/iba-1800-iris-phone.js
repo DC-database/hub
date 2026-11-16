@@ -83,7 +83,7 @@
         w = document.createElement('div');
         w.id = 'iba-irisph'; w.hidden = true;
         w.setAttribute('role', 'dialog'); w.setAttribute('aria-label', 'IRIS');
-        w.innerHTML = '<div class="iph-top"><b>IRIS</b><span class="iph-chip">Super Admin</span><button type="button" class="iph-x" data-iph-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
+        w.innerHTML = '<div class="iph-top"><b>IRIS</b><span class="iph-chip">Super Admin</span><button type="button" class="iph-x iph-i iph-g" data-iph-set aria-label="Voice settings"><i class="fa-solid fa-gear"></i></button><button type="button" class="iph-x" data-iph-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
             '<div class="iph-orb"><canvas width="380" height="380"></canvas><div class="iph-st" data-iph-st>Tap the mic and talk</div></div>' +
             '<div class="iph-log" data-iph-log></div>' +
             '<form class="iph-type" data-iph-form hidden><input type="text" data-iph-in placeholder="Type to IRIS…" autocomplete="off" enterkeyhint="send"><button type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button></form>' +
@@ -96,12 +96,23 @@
             if (e.target.closest('[data-iph-x]')) return close();
             if (e.target.closest('[data-iph-mic]')) return listening && !hfWait() ? stopListen() : (stopListen(), listen('tap'));
             if (e.target.closest('[data-iph-hf]')) return setHf(!hf);
+            if (e.target.closest('[data-iph-set]')) return showSet(true);
+            if (e.target.closest('[data-iph-set-x]')) return showSet(false);
+            if (e.target.closest('[data-iph-kplay]')) { const K = window.ibaKokoro; if (K) { try { K.unlock(); } catch (_) {} if (!K.cfg().on) { K.setCfg({ on: true }); paintSet(); } K.sample(); } return; }
+            if (e.target.closest('[data-iph-vplay]')) { const was = window.ibaKokoro && window.ibaKokoro.cfg().on; if (was) window.ibaKokoro.setCfg({ on: false }); speak('Hi, I am Iris. P O 12345 has 2 invoices waiting for approval.', false); if (was) setTimeout(() => window.ibaKokoro.setCfg({ on: true }), 50); return; }
             if (e.target.closest('[data-iph-kb]')) { const f = w.querySelector('[data-iph-form]'); f.hidden = !f.hidden; if (!f.hidden) f.querySelector('input').focus(); return; }
             if (e.target.closest('[data-iph-menu]')) return handle('what can you do');
             const opt = e.target.closest('[data-iph-say]'); if (opt) return handle(opt.getAttribute('data-iph-say'));
             const wa = e.target.closest('[data-iph-wa]'); if (wa) { try { window.open(wa.getAttribute('data-iph-wa'), '_blank', 'noopener'); } catch (_) {} return; }
         });
         w.querySelector('[data-iph-form]').addEventListener('submit', (e) => { e.preventDefault(); const i = w.querySelector('[data-iph-in]'); const t = i.value.trim(); i.value = ''; if (t) { stopListen(); handle(t); } });
+        w.addEventListener('change', (e) => {
+            const t = e.target, K = window.ibaKokoro;
+            if (t.id === 'iph-kok-on' && K) { K.setCfg({ on: t.checked }); if (t.checked) { try { K.unlock(); } catch (_) {} K.load(true); } else K.stop(); paintSet(); }
+            else if (t.id === 'iph-kok-voice' && K) K.setCfg({ voice: t.value });
+            else if (t.id === 'iph-kok-speed' && K) K.setCfg({ speed: Number(t.value) || 1 });
+            else if (t.id === 'iph-sys-voice') { try { localStorage.setItem(VOICE_KEY, t.value); } catch (_) {} }
+        });
         orbStart(w.querySelector('canvas'));
         paintHf();
         return w;
@@ -109,11 +120,12 @@
     function open() {
         if (!isSuper()) return;
         const w = build(); w.hidden = false; document.body.classList.add('iba-irisph-on');
+        try { const K = window.ibaKokoro; if (K && K.wanted()) K.load(); } catch (_) {}
         const log = w.querySelector('[data-iph-log]');
         if (!log.children.length) irisSay('Hi' + (first() ? ' ' + first() : '') + '! Tell me a PO number, or ask what I can do.', { opts: ['What can you do?'] });
         else if (hf) setTimeout(() => listen('hf'), 400);
     }
-    function close() { if (window.IBA_IRIS_APP && isSuper()) return; stopListen(); auto = false; try { speechSynthesis.cancel(); } catch (_) {} const w = $('iba-irisph'); if (w) w.hidden = true; document.body.classList.remove('iba-irisph-on'); }
+    function close() { if (window.IBA_IRIS_APP && isSuper()) return; stopListen(); auto = false; try { speechSynthesis.cancel(); } catch (_) {} try { if (window.ibaKokoro) window.ibaKokoro.stop(); } catch (_) {} const w = $('iba-irisph'); if (w) w.hidden = true; document.body.classList.remove('iba-irisph-on'); }
     function st(t) { const e = document.querySelector('#iba-irisph [data-iph-st]'); if (e) e.textContent = t; }
     function addMsg(cls, html) {
         const log = document.querySelector('#iba-irisph [data-iph-log]'); if (!log) return;
@@ -129,21 +141,40 @@
             (o.wa ? '<div class="iph-opts"><button type="button" class="is-wa" data-iph-wa="' + esc(o.wa) + '"><i class="fa-brands fa-whatsapp"></i> Open WhatsApp</button></div>' : ''));
         speak(text, o.listen !== false && (!!pend || o.listen));
     }
+    // patch 50: her voice = Kokoro (natural, when switched on in ⚙ and downloaded), else the phone's own voice
+    const VOICE_KEY = 'iba-irisph-voice-v1';
+    function sysVoice() { let n = ''; try { n = localStorage.getItem(VOICE_KEY) || ''; } catch (_) {} if (!n) return null; try { return speechSynthesis.getVoices().find((v) => v.name === n) || null; } catch (_) { return null; } }
+    let sayRun = 0;
     function speak(text, thenListen) {
-        try {
-            speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(String(text).replace(/\bPO\b/g, 'P O').replace(/\bSRV\b/g, 'S R V').replace(/\bINV-?/g, 'invoice '));
-            u.lang = 'en-GB'; u.rate = 1.02;
-            speaking = true; st('speaking');
-            u.onend = u.onerror = () => {
-                speaking = false; st(IDLE());
-                if ($('iba-irisph').hidden) return;
-                if (thenListen) followUntil = Date.now() + 9000;
-                if (thenListen && (auto || hf)) setTimeout(() => listen('follow'), 250);
-                else if (hf) setTimeout(() => listen('hf'), 300);
-            };
-            speechSynthesis.speak(u);
-        } catch (_) { speaking = false; }
+        const my = ++sayRun;
+        const said = String(text).replace(/\bPO\b/g, 'P O').replace(/\bSRV\b/g, 'S R V').replace(/\bINV-?/g, 'invoice ');
+        const done = () => {
+            if (my !== sayRun) return;
+            speaking = false; st(IDLE());
+            if ($('iba-irisph').hidden) return;
+            if (thenListen) followUntil = Date.now() + 9000;
+            if (thenListen && (auto || hf)) setTimeout(() => listen('follow'), 250);
+            else if (hf) setTimeout(() => listen('hf'), 300);
+        };
+        const browserSay = () => {
+            try {
+                speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(said);
+                const v = sysVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+                u.rate = 1.02;
+                u.onend = u.onerror = done;
+                speechSynthesis.speak(u);
+            } catch (_) { done(); }
+        };
+        try { speechSynthesis.cancel(); } catch (_) {}
+        speaking = true; st('speaking');
+        const K = window.ibaKokoro;
+        if (K && K.wanted && K.wanted()) {
+            try { K.stop(); } catch (_) {}
+            K.speak(said, null, done).then((ok) => { if (!ok && my === sayRun) browserSay(); }).catch(() => { if (my === sayRun) browserSay(); });
+            return;
+        }
+        browserSay();
     }
 
     // ---------- listening (tap to talk; after a question she listens again by herself) ----------
@@ -173,6 +204,7 @@
         if (listening) return;
         lmode = m || 'tap';
         try { speechSynthesis.cancel(); } catch (_) {}
+        try { if (window.ibaKokoro) window.ibaKokoro.stop(); } catch (_) {}
         try {
             rec = new SR(); rec.lang = 'en-US'; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
             let fin = '', conf = 0; const my = lmode;
@@ -201,6 +233,30 @@
         if (hf) { irisSay('Hands-free is on. Start with Iris, or say hi and end with please. I stop when the screen locks.', { listen: false }); }
         else { stopListen(); irisSay('Hands-free is off. Tap the mic when you want to talk.', { listen: false }); }
     }
+    // ---------- patch 50: ⚙ voice settings ----------
+    function showSet(on) {
+        const w = $('iba-irisph'); if (!w) return;
+        let p = w.querySelector('[data-iph-setbox]');
+        if (!p) { p = document.createElement('div'); p.className = 'iph-set'; p.setAttribute('data-iph-setbox', ''); w.appendChild(p); }
+        p.hidden = !on;
+        if (on) paintSet();
+    }
+    function paintSet() {
+        const p = document.querySelector('#iba-irisph [data-iph-setbox]'); if (!p || p.hidden) return;
+        const K = window.ibaKokoro, c = K ? K.cfg() : { on: false, voice: '', speed: 1 };
+        let vs = []; try { vs = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang)); } catch (_) {}
+        let mine = ''; try { mine = localStorage.getItem(VOICE_KEY) || ''; } catch (_) {}
+        p.innerHTML = '<div class="iph-set-box"><div class="iph-set-head"><b>IRIS voice</b><button type="button" class="iph-x" data-iph-set-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
+            (K ? '<label class="iph-set-check"><input type="checkbox" id="iph-kok-on"' + (c.on ? ' checked' : '') + '> Natural voice (Kokoro)</label>' +
+                '<p class="iph-set-note">Free, runs on this ' + (phone() ? 'phone' : 'PC') + '. Downloads once (about 90 MB), best on Wi-Fi. On a phone she starts speaking 1 to 3 seconds later.</p>' +
+                '<div class="iph-set-row"><label>Voice<select id="iph-kok-voice">' + K.VOICES.map((v) => '<option value="' + v[0] + '"' + (v[0] === c.voice ? ' selected' : '') + '>' + v[1] + '</option>').join('') + '</select></label>' +
+                '<label>Speed<select id="iph-kok-speed">' + K.SPEEDS.map((v) => '<option value="' + v[0] + '"' + (Number(v[0]) === c.speed ? ' selected' : '') + '>' + v[1] + '</option>').join('') + '</select></label></div>' +
+                '<button type="button" class="iph-set-btn" data-iph-kplay><i class="fa-solid fa-play"></i> Play sample</button><p class="iph-set-note" id="iph-kok-status">' + esc(K.status()) + '</p>' : '') +
+            '<hr><label class="iph-set-lab">Phone voice (used when the natural voice is off or not ready)<select id="iph-sys-voice"><option value="">Default</option>' +
+                vs.map((v) => '<option value="' + esc(v.name) + '"' + (v.name === mine ? ' selected' : '') + '>' + esc(v.name + ' (' + v.lang + ')') + '</option>').join('') + '</select></label>' +
+            '<button type="button" class="iph-set-btn" data-iph-vplay><i class="fa-solid fa-play"></i> Try phone voice</button></div>';
+    }
+    try { speechSynthesis.addEventListener('voiceschanged', paintSet); } catch (_) {}
     function paintHf() { const b = document.querySelector('#iba-irisph [data-iph-hf]'); if (b) { b.classList.toggle('is-on', hf); b.setAttribute('aria-pressed', hf ? 'true' : 'false'); } }
     document.addEventListener('visibilitychange', () => { if (document.hidden) stopListen(); else hfAgain(600); });
     function stopListen() { if (rec) { try { rec.abort(); } catch (_) {} } rec = null; listening = false; paintMic(); }
@@ -445,6 +501,8 @@
             const got = pick(t, openOnes()); if (got.length) { p.job.invs = got; irisSay(got.map((i) => i.no).join(' and ') + '. Which status: For Approval, For SRV, or In Process?', { opts: ['For Approval', 'For SRV', 'In Process'] }); return; }
         }
 
+        // 18.0.0 patch 51: maths, units, width x height (before the PO check, so "1000 times 2000" is not a PO)
+        try { const c = window.ibaTalk && window.ibaTalk.calc ? window.ibaTalk.calc(t) : null; if (c) { irisSay(c, { listen: false }); return; } } catch (_) {}
         // a PO number
         const pom = t.match(/\b(\d{4,6})\b/);
         if (pom && (/\b(?:po|p o|look|find|search|open|check|status|show|track|about)\b/.test(q) || q === pom[1] || (!ctx && !pend))) {

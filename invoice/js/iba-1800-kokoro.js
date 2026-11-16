@@ -11,6 +11,8 @@
     const SPEEDS = [['0.9', 'Slower'], ['1', 'Normal'], ['1.1', 'A bit faster'], ['1.2', 'Faster']];
     const $ = (id) => document.getElementById(id);
     const phone = () => !!(document.body && (document.body.classList.contains('iba-mobile-ui') || document.body.classList.contains('iba-phone')));
+    // 18.0.0 patch 50: allowed on the phone only on the IRIS page (her own voice settings there)
+    const blocked = () => phone() && !(document.body && document.body.classList.contains('iba-irisph-on'));
     function who() { let k = ''; try { k = localStorage.getItem('approverKey') || ''; } catch (_) {} return k || 'me'; }
     const KEY = () => 'iba-kokoro-v1:' + who();
     function cfg() { let c = {}; try { c = JSON.parse(localStorage.getItem(KEY()) || '{}') || {}; } catch (_) {} return { on: c.on === true, voice: c.voice || 'af_heart', speed: Number(c.speed) || 1 }; }
@@ -18,12 +20,12 @@
 
     let tts = null, loadP = null, state = 'idle', pct = 0, why = '', failedAt = 0;
     function status() {
-        if (state === 'ready') return 'Ready. The natural voice is on this PC.';
+        if (state === 'ready') return 'Ready. The natural voice is on this ' + (phone() ? 'phone' : 'PC') + '.';
         if (state === 'loading') return 'Downloading the voice… ' + (pct ? pct + '%' : '') + ' (only the first time, about 90 MB). Until it is ready the normal voice speaks.';
         if (state === 'failed') return 'Could not load the natural voice (' + why + '). The normal voice is used.';
         return 'Not downloaded yet. It downloads once (about 90 MB) when you switch it on.';
     }
-    function paintStatus() { const s = $('iba-kok-status'); if (s) s.textContent = status(); }
+    function paintStatus() { ['iba-kok-status', 'iph-kok-status'].forEach((id) => { const s = $(id); if (s) s.textContent = status(); }); }
     function load(force) {
         if (loadP) return loadP;
         if (!force && state === 'failed' && Date.now() - failedAt < 10 * 60000) return Promise.resolve(null);
@@ -69,7 +71,7 @@
     // returns false when it cannot speak now (the caller then uses the normal voice)
     async function speak(text, onStart, onEnd) {
         const c = cfg();
-        if (!c.on || phone()) return false;
+        if (!c.on || blocked()) return false;
         if (state !== 'ready') { load(); return false; }
         const list = sentences(text); if (!list.length) return false;
         stop(); const my = run;
@@ -124,6 +126,6 @@
     });
     document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#iba-kok-play')) { e.preventDefault(); audioCtx(); if (!cfg().on) { setCfg({ on: true }); const cb = $('iba-kok-on'); if (cb) cb.checked = true; } sample(); } });
     // pre-load in the background for people who switched it on (only after the page is idle)
-    setTimeout(() => { if (cfg().on && !phone()) load(); }, 8000);
-    window.ibaKokoro = { wanted: () => cfg().on && !phone(), ready: () => state === 'ready', speak, stop, load, paintSettings, status, cfg };
+    setTimeout(() => { if (cfg().on && !blocked()) load(); }, 8000);
+    window.ibaKokoro = { wanted: () => cfg().on && !blocked(), ready: () => state === 'ready', speak, stop, load, paintSettings, status, cfg, setCfg, sample, VOICES, SPEEDS, unlock: () => audioCtx() };
 })();

@@ -644,28 +644,117 @@
         function expr() { let v = term(); while (peek() === '+' || peek() === '-') { const o = next(), w = term(); v = o === '+' ? v + w : v - w; } return v; }
         try { const v = expr(); if (i !== tk.length || !isFinite(v)) return null; return Math.round(v * 1e6) / 1e6; } catch (_) { return null; }
     }
-    // patch 36: units ("convert 10 inches to meters", "5 feet in cm", "how many cm in 3 inches", "20 kg to pounds")
-    const UNITS = { mm: ['l', 0.001, 'millimetres'], millimeter: ['l', 0.001], millimetre: ['l', 0.001], cm: ['l', 0.01, 'centimetres'], centimeter: ['l', 0.01], centimetre: ['l', 0.01],
-        m: ['l', 1, 'metres'], meter: ['l', 1], metre: ['l', 1], km: ['l', 1000, 'kilometres'], kilometer: ['l', 1000], kilometre: ['l', 1000],
-        in: ['l', 0.0254, 'inches'], inch: ['l', 0.0254], inche: ['l', 0.0254], ft: ['l', 0.3048, 'feet'], foot: ['l', 0.3048], feet: ['l', 0.3048], yard: ['l', 0.9144, 'yards'], yd: ['l', 0.9144], mile: ['l', 1609.344, 'miles'],
-        g: ['w', 0.001, 'grams'], gram: ['w', 0.001], kg: ['w', 1, 'kilograms'], kilo: ['w', 1], kilogram: ['w', 1], lb: ['w', 0.45359237, 'pounds'], pound: ['w', 0.45359237], ton: ['w', 1000, 'tonnes'], tonne: ['w', 1000],
-        sqm: ['a', 1, 'square metres'], 'square meter': ['a', 1], 'square metre': ['a', 1], sqft: ['a', 0.09290304, 'square feet'], 'square foot': ['a', 0.09290304], 'square feet': ['a', 0.09290304],
-        l: ['v', 1, 'litres'], liter: ['v', 1], litre: ['v', 1], gallon: ['v', 3.785411784, 'gallons'], ml: ['v', 0.001, 'millilitres'] };
-    const unitOf = (w) => { w = String(w || '').toLowerCase().trim().replace(/\.$/, ''); if (UNITS[w]) return w; const s1 = w.replace(/(?:es|s)$/, ''); if (UNITS[s1]) return s1; const s2 = w.replace(/s$/, ''); return UNITS[s2] ? s2 : ''; };
-    const UW = '(square (?:meters?|metres?|feet|foot)|[a-z]+)';
+    // 18.0.0 patch 51 (martin): every measurement. Length (mm cm m km inch ft yard mile, linear/running meter), area
+    // (square of any length, m2, sqft, hectare, acre), volume (cubic of any length, m3/cbm, litre, ml, gallon), weight
+    // (mg g kg ton lb oz), temperature (C F K). "20 ft by 10 ft", "width 2 m height 3 m in square feet", "2 by 3 by 4
+    // meters" = area / volume; "20 linear meter at 1.2 meter wide to square meter".
+    const UNITS = {};
+    const LEN = [['mm', 0.001, 'millimetres', 'millimetre', ['millimeter', 'millimetre', 'mili', 'milli']], ['cm', 0.01, 'centimetres', 'centimetre', ['centimeter', 'centimetre', 'centi']],
+        ['m', 1, 'metres', 'metre', ['meter', 'metre', 'mtr']], ['lm', 1, 'linear metres', 'linear metre', ['lmt', 'rm', 'linear_meter', 'running_meter']],
+        ['km', 1000, 'kilometres', 'kilometre', ['kilometer', 'kilometre']], ['in', 0.0254, 'inches', 'inch', ['inch', 'inche']],
+        ['ft', 0.3048, 'feet', 'foot', ['foot', 'feet', 'fts']], ['yd', 0.9144, 'yards', 'yard', ['yard']], ['mi', 1609.344, 'miles', 'mile', ['mile']]];
+    LEN.forEach(([k, f, pl, one, al]) => {
+        [k].concat(al).forEach((n) => {
+            UNITS[n] = ['l', f, pl, one];
+            if (k === 'lm') return;
+            UNITS['sq_' + n] = ['a', f * f, 'square ' + pl, 'square ' + one];
+            UNITS['cu_' + n] = ['v', f * f * f, 'cubic ' + pl, 'cubic ' + one];
+        });
+    });
+    const add = (dim, f, pl, one, names) => names.forEach((n) => { UNITS[n] = [dim, f, pl, one]; });
+    add('a', 10000, 'hectares', 'hectare', ['hectare', 'ha']); add('a', 4046.8564224, 'acres', 'acre', ['acre']);
+    add('v', 0.001, 'litres', 'litre', ['l', 'liter', 'litre', 'ltr', 'lt']); add('v', 0.000001, 'millilitres', 'millilitre', ['ml', 'milliliter', 'millilitre']);
+    add('v', 0.003785411784, 'gallons', 'gallon', ['gallon', 'gal', 'us_gallon']); add('v', 0.00454609, 'imperial gallons', 'imperial gallon', ['imperial_gallon', 'uk_gallon']);
+    add('v', 1, 'cubic metres', 'cubic metre', ['cbm']);
+    add('w', 0.000001, 'milligrams', 'milligram', ['mg', 'milligram']); add('w', 0.001, 'grams', 'gram', ['g', 'gram', 'gm', 'gr']);
+    add('w', 1, 'kilograms', 'kilogram', ['kg', 'kilo', 'kilogram', 'kgs']); add('w', 1000, 'tonnes', 'tonne', ['ton', 'tonne', 'mt_ton', 'metric_ton']);
+    add('w', 0.45359237, 'pounds', 'pound', ['lb', 'lbs', 'pound']); add('w', 0.028349523125, 'ounces', 'ounce', ['oz', 'ounce']);
+    add('t', 1, 'degrees Celsius', 'degree Celsius', ['celsius', 'centigrade', 'c', 'degc']); add('t', 2, 'degrees Fahrenheit', 'degree Fahrenheit', ['fahrenheit', 'f', 'degf']);
+    add('t', 3, 'kelvin', 'kelvin', ['kelvin', 'k']);
+    const unitOf = (w) => { w = String(w || '').toLowerCase().trim().replace(/\.$/, ''); if (UNITS[w]) return w; for (const s of [w.replace(/es$/, ''), w.replace(/s$/, ''), w.replace(/(_\w+?)(?:es|s)$/, '$1')]) if (UNITS[s]) return s; return ''; };
+    function unitText(t) {
+        return ' ' + numWords(String(t || '').toLowerCase()).replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/[²]/g, '2').replace(/[³]/g, '3').replace(/["”]/g, ' in ').replace(/(\d)\s*['’]/g, '$1 ft ')
+            .replace(/°\s*([cfk])\b/g, ' deg$1 ').replace(/\bdegrees?\s+(celsius|centigrade|fahrenheit|kelvin|c|f)\b/g, (a, u) => ' ' + (u === 'c' ? 'degc' : u === 'f' ? 'degf' : u) + ' ')
+            .replace(/\b(?:linear|running|lineal|lin\.?)\s+(?:meters?|metres?|mtrs?|m)\b/g, ' linear_meter ').replace(/\b(?:metric ton(?:ne)?s?)\b/g, ' metric_ton ')
+            .replace(/\b(?:imperial|uk) gallons?\b/g, ' imperial_gallon ').replace(/\bus gallons?\b/g, ' us_gallon ')
+            .replace(/\b(?:square|sq\.?)\s*([a-z]+)\b/g, ' sq_$1 ').replace(/\b(?:cubic|cu\.?)\s*([a-z]+)\b/g, ' cu_$1 ')
+            .replace(/(\d\s*|\b)(mm|cm|m|km|in|ft|yd|mi)2\b/g, '$1 sq_$2 ').replace(/(\d\s*|\b)(mm|cm|m|km|in|ft|yd|mi)3\b/g, '$1 cu_$2 ')
+            .replace(/\b(mm|cm|m|km|in|ft|yd|mi|meters?|metres?|feet|foot|inch(?:es)?|yards?)\s+(?:square|squared)\b/g, ' sq_$1 ').replace(/\b(mm|cm|m|km|in|ft|yd|mi|meters?|metres?|feet|foot|inch(?:es)?|yards?)\s+cubed?\b/g, ' cu_$1 ')
+            .replace(/\bsq_sq_/g, 'sq_').replace(/(\d)([a-z_]+)\b/g, '$1 $2').replace(/\s+/g, ' ') + ' ';
+    }
+    const nice = (x) => { const a = Math.abs(x); const r = a >= 1000 ? Math.round(x * 100) / 100 : Number(x.toPrecision(6)); return r.toLocaleString('en-US', { maximumFractionDigits: a < 0.01 ? 6 : 4 }); };
+    const nm = (u, x) => (Math.abs(x) === 1 ? UNITS[u][3] : UNITS[u][2]);
+    function tempConv(v, a, b) { const k = UNITS[a][1] === 1 ? v + 273.15 : UNITS[a][1] === 2 ? (v - 32) * 5 / 9 + 273.15 : v; return UNITS[b][1] === 1 ? k - 273.15 : UNITS[b][1] === 2 ? (k - 273.15) * 9 / 5 + 32 : k; }
+    const QTY = '(-?\\d+(?:\\.\\d+)?)\\s*([a-z_]+)';
+    // source like "5 feet 3 inches" (all one kind): [{n,u}]
+    function qtyList(s) { const out = []; const re = new RegExp(QTY, 'g'); let m, rest = s; while ((m = re.exec(s))) { const u = unitOf(m[2]); if (!u) return null; out.push({ n: Number(m[1]), u }); rest = rest.replace(m[0], ' '); } if (!out.length || /[a-z0-9]/.test(rest.replace(/\band\b/g, ''))) return null; if (out.some((x) => UNITS[x.u][0] !== UNITS[out[0].u][0])) return null; return out; }
     function convOf(q) {
-        const t = numWords(q.toLowerCase()).replace(/\s+/g, ' ').trim().replace(/^(?:please\s+)?(?:convert|change)\s+/, '');
-        let m = t.match(new RegExp('^(?:how many|how much)\\s+' + UW + '\\s+(?:in|is|are)\\s+(\\d+(?:\\.\\d+)?)\\s*' + UW + '$'));
-        let n, a, b;
-        if (m) { b = m[1]; n = m[2]; a = m[3]; }
-        else { m = t.match(new RegExp('^(\\d+(?:\\.\\d+)?)\\s*' + UW + '\\s+(?:to|in|into|as|is how many|in how many)\\s+' + UW + '$')); if (!m) return null; n = m[1]; a = m[2]; b = m[3]; }
-        const ua = unitOf(a), ub = unitOf(b); if (!ua || !ub || UNITS[ua][0] !== UNITS[ub][0]) return null;
-        const v = Number(n) * UNITS[ua][1] / UNITS[ub][1];
-        const nice = (x) => Number(x.toPrecision(6)).toLocaleString('en-US', { maximumFractionDigits: 4 });
-        const nm = (u) => { if (UNITS[u][2]) return UNITS[u][2]; const k = Object.keys(UNITS).find((x) => UNITS[x][0] === UNITS[u][0] && UNITS[x][1] === UNITS[u][1] && UNITS[x][2]); return k ? UNITS[k][2] : u + 's'; };
-        const one = { inches: 'inch', feet: 'foot', 'square feet': 'square foot' };
-        const nm1 = (u, x) => { const w = nm(u); return x === 1 ? (one[w] || w.replace(/s$/, '')) : w; };
-        return nice(Number(n)) + ' ' + nm1(ua, Number(n)) + ' is ' + nice(v) + ' ' + nm(ub, v) + '.';
+        let t = unitText(q).replace(/^\s*(?:hi|hey|hello|iris|ok|okay)\s+/, ' ').replace(/\b(?:please|iris|now|for me|exactly|approximately|roughly|about)\b/g, ' ').replace(/\s+/g, ' ').trim()
+            .replace(/^(?:can you |could you )?(?:convert|change|turn|what(?: is| s)?|how much is|tell me)\s+/, '').replace(/\s+(?:is|are|equals?)(?:\s+how many| how much)?\s*$/, '').trim();
+        let src, b;
+        let m = t.match(/^(?:how many|how much)\s+([a-z_]+)\s+(?:in|is|are|make|makes|equals?|equal to|=|for)\s+(?:a |an |one )?(.+)$/);
+        if (m) { b = m[1]; src = /^\d/.test(m[2]) ? m[2] : '1 ' + m[2]; }
+        else { m = t.match(/^(.+?)\s+(?:to|in|into|as|equals how many|is how many|in how many|=|how many|is equal to how many)\s+([a-z_]+)$/); if (!m) return null; src = m[1]; b = m[2]; }
+        const ub = unitOf(b); if (!ub) return null;
+        const list = qtyList(src.replace(/\s+(?:and|plus)\s+/g, ' ')); if (!list) return null;
+        const da = UNITS[list[0].u][0], db = UNITS[ub][0];
+        const said = list.map((x) => nice(x.n) + ' ' + nm(x.u, x.n)).join(' ');
+        if (da === 'l' && db === 'a') return 'To change ' + said + ' to ' + UNITS[ub][2] + ' I need the width too. For example: ' + said + ' at 1.2 metres wide to ' + UNITS[ub][2] + '.';
+        if (da !== db) return null;
+        if (da === 't') { const v = tempConv(list[0].n, list[0].u, ub); return said + ' is ' + nice(v) + ' ' + nm(ub, v) + '.'; }
+        const base = list.reduce((s, x) => s + x.n * UNITS[x.u][1], 0), v = base / UNITS[ub][1];
+        return said + ' is ' + nice(v) + ' ' + nm(ub, v) + '.';
+    }
+    // width × height (× depth): area or volume
+    function dimsOf(q) {
+        let t = unitText(q).replace(/\b(?:hi|hey|hello|iris|please|what(?: is| s)?|calculate|compute|find|give me|tell me|the|of|a|an|for|room|wall|floor|tile|area|size|space|total|how much|how many|is|are|it|this|that|me)\b/g, ' ');
+        let target = '';
+        const tm = t.match(/\s(?:in|to|into|as)\s+([a-z_]+)\s*$/); if (tm && unitOf(tm[1])) { target = unitOf(tm[1]); t = t.slice(0, tm.index); }
+        const wantVol = /\bvolume\b|\bcubic\b|\bcu_/.test(unitText(q)) && !/\bsq_/.test(unitText(q));
+        t = t.replace(/\b(?:volume|width|wide|height|high|tall|length|long|depth|deep|thick|thickness|breadth|w|h|l|d)\b(?!_)/g, ' ').replace(/\b(?:by|x|times|multiplied by|multiply|into|and|at|with)\b|[×*]/g, ' | ').replace(/\s+/g, ' ');
+        if (!/\|/.test(t)) t = t.replace(/(\d(?:\.\d+)?\s+[a-z_]+)\s+(?=-?\d)/g, '$1 | ');
+        const parts = t.split('|').map((s) => s.trim()).filter(Boolean);
+        if (parts.length < 2 || parts.length > 3) return null;
+        const got = parts.map((s) => { const m = s.match(/^(\d+(?:\.\d+)?)(?:\s+([a-z_]+))?$/); if (!m) return null; const u = m[2] ? unitOf(m[2]) : ''; if (m[2] && (!u || UNITS[u][0] !== 'l')) return null; return { n: Number(m[1]), u }; });
+        if (got.some((x) => !x) || !got.some((x) => x.u)) return null;
+        for (let i = got.length - 1, last = ''; i >= 0; i--) { if (got[i].u) last = got[i].u; else got[i].u = last; } // "2 by 3 meters"
+        for (let i = 0, last = ''; i < got.length; i++) { if (got[i].u) last = got[i].u; else got[i].u = last; }
+        const dim = got.length === 3 || wantVol ? 'v' : 'a';
+        if (got.length === 2 && dim === 'v') return null;
+        const base = got.reduce((s, x) => s * x.n * UNITS[x.u][1], 1);
+        const same = got.every((x) => x.u === got[0].u) ? got[0].u : 'm';
+        const k0 = same === 'lm' ? 'm' : same;
+        let out = target && UNITS[target][0] === dim ? target : (dim === 'a' ? 'sq_' : 'cu_') + k0;
+        const pl = (u) => UNITS[u][2].replace(/^linear /, '');
+        const said = got.every((x) => pl(x.u) === pl(got[0].u)) ? got.map((x) => nice(x.n)).join(' by ') + ' ' + pl(got[0].u) : got.map((x) => nice(x.n) + ' ' + pl(x.u)).join(' by ');
+        const v = base / UNITS[out][1];
+        let s = (dim === 'a' ? 'The area of ' : 'The volume of ') + said + ' is ' + nice(v) + ' ' + nm(out, v);
+        const metric = dim === 'a' ? 'sq_m' : 'cu_m';
+        if (UNITS[out][1] !== 1) s += ', that is ' + nice(base) + ' ' + nm(metric, base);
+        if (dim === 'v' && !target) s += ' (' + nice(base * 1000) + ' litres)';
+        return s + '.';
+    }
+    // maths said with a verb first: "multiply 100 by 100", "add 5 and 7", "subtract 3 from 10", "divide 100 by 4",
+    // "sum of 2, 3 and 4", "average of 10, 20 and 30"
+    function mathVerb(q) {
+        let t = ' ' + numWords(String(q || '').toLowerCase()).replace(/(\d),(?=\d{3}\b)/g, '$1').replace(/^\s*(?:hi|hey|hello|ok|okay)\b/, ' ').replace(/\b(?:please|iris|can you|could you|for me|what is|what s|the|numbers?)\b/g, ' ').replace(/\s+/g, ' ') + ' ';
+        const nums = (s) => (s.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+        const only = (s) => !/[a-z]/.test(s.replace(/\b(?:and|by|with|to|from|times|into|plus|of)\b/g, ''));
+        let m;
+        if ((m = t.match(/^\s*(?:multiply|product of)\s+(.+)$/)) && only(m[1]) && nums(m[1]).length >= 2) return nums(m[1]).reduce((a, b) => a * b, 1);
+        if ((m = t.match(/^\s*(?:add|add up|sum of|sum|total of|total)\s+(.+)$/)) && only(m[1]) && nums(m[1]).length >= 2) return nums(m[1]).reduce((a, b) => a + b, 0);
+        if ((m = t.match(/^\s*(?:subtract|minus|take away|deduct)\s+(-?\d+(?:\.\d+)?)\s+from\s+(-?\d+(?:\.\d+)?)\s*$/))) return Number(m[2]) - Number(m[1]);
+        if ((m = t.match(/^\s*(?:divide)\s+(-?\d+(?:\.\d+)?)\s+(?:by|into|over)\s+(-?\d+(?:\.\d+)?)\s*$/))) return Number(m[2]) ? Number(m[1]) / Number(m[2]) : null;
+        if ((m = t.match(/^\s*(?:difference between)\s+(-?\d+(?:\.\d+)?)\s+and\s+(-?\d+(?:\.\d+)?)\s*$/))) return Math.abs(Number(m[1]) - Number(m[2]));
+        if ((m = t.match(/^\s*(?:average of|average|mean of)\s+(.+)$/)) && only(m[1]) && nums(m[1]).length >= 2) { const a = nums(m[1]); return a.reduce((x, y) => x + y, 0) / a.length; }
+        return null;
+    }
+    function calc(q) {
+        const cv = convOf(q); if (cv) return cv;
+        const dv = dimsOf(q); if (dv) return dv;
+        let mv = mathVerb(q); if (mv === null) mv = mathOf(String(q || '').replace(/^\s*(?:hi|hey|hello|ok|okay)\b/i, ' '));
+        if (mv !== null && mv !== undefined && isFinite(mv)) return 'That is ' + (Math.round(mv * 1e6) / 1e6).toLocaleString('en-US', { maximumFractionDigits: 6 }) + '.';
+        return null;
     }
     const JOKES = ['Why did the invoice go to therapy? It had too many unresolved issues.', 'I told the printer a joke. It did not get it, so I sent it again, and again, and again.',
         'Why do accountants never get lost? They always follow the paper trail.', 'Why was the computer cold? It left its Windows open.',
@@ -735,8 +824,7 @@
         // patch 40: "good night" answers, then switches Talk mode off
         if (/^(?:good ?night|goodnight|nighty? night)\b/i.test(q) && q.split(/\s+/).length <= 6) return run1(async () => { say(anyOf(['Good night' + (myFirst() ? ', ' + myFirst() : '') + '! Rest well, see you tomorrow.', 'Good night! Take care going home. See you tomorrow.'])); if (on) setTimeout(() => { if (on) setOn(false); }, 4500); });
         for (const [re, fn] of SMALL) { if (re.test(q) && q.split(/\s+/).length <= 10) return run1(async () => say(fn(q))); }
-        const cv = convOf(q); if (cv) return run1(async () => say(cv));
-        const mv = mathOf(q); if (mv !== null && mv !== undefined) return run1(async () => say('That is ' + mv.toLocaleString('en-US', { maximumFractionDigits: 6 }) + '.'));
+        const cv = calc(q); if (cv) return run1(async () => say(cv));
         const cw = CONTACT_W.test(q) && !/\d{3,}/.test(q) && !/\b(?:po|invoice|vendor|supplier|my|your)\b/.test(q) && q.split(/\s+/).length <= 10
             ? q.replace(/'s\b/g, ' ').split(/[^a-z.']+/).filter((w) => w && !FILL.has(w) && !/^(?:mr|ms|mrs|engr|eng)\.?$/.test(w)).join(' ').trim() : '';
         if (cw) {
@@ -806,5 +894,5 @@
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-hi') { try { localStorage.setItem(HI_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} } });
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-snd') { try { localStorage.setItem(SND_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} if (e.target.checked) chime('done'); } });
     async function answer(text) { let out = null; sink = (t) => { out = out ? out + ' ' + t : t; }; try { const ok = await builtin(text); return ok ? out : null; } finally { sink = null; } }
-    window.ibaTalk = { answer, mathOf: (q) => mathOf(q), convOf: (q) => convOf(q), hiOn, _hi: hiCmd, heardAt: () => heardAt, sound: () => soundOn2, _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
+    window.ibaTalk = { answer, calc: (q) => calc(q), dimsOf: (q) => dimsOf(q), mathOf: (q) => mathOf(q), convOf: (q) => convOf(q), hiOn, _hi: hiCmd, heardAt: () => heardAt, sound: () => soundOn2, _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
 })();
