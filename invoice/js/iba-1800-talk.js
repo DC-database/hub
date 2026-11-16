@@ -36,6 +36,17 @@
     // "Iris", done = light ding when something runs, oops = gentle low tone when she can't. On/off per person
     // (Assistant Settings > Look and voice), on by default.
     const SND_KEY = () => { let k = ''; try { k = localStorage.getItem('approverKey') || ''; } catch (_) {} return 'iba-iris-sound-v1:' + (k || 'me'); };
+    // patch 40 (martin): "Hi, <command> please" works like "Iris, <command>" (tick in IRIS settings, on by default).
+    // Without "please" at the end a "hi" sentence is ignored, so office greetings don't wake her.
+    const HI_KEY = () => SND_KEY().replace('iba-iris-sound-v1:', 'iba-iris-hi-v1:');
+    function hiOn() { try { return localStorage.getItem(HI_KEY()) !== '0'; } catch (_) { return true; } }
+    function hiCmd(t) {
+        if (!hiOn() || WAKE.test(t)) return null;
+        const m = String(t || '').match(/^\s*(?:hi|hey|hello)\b[\s,.!]*(.+)$/i); if (!m) return null;
+        if (!END_W.test(' ' + m[1]) || !/\bplease\b[\s.!?]*$/i.test(m[1])) return null;
+        const c = m[1].replace(END_W, '').replace(/[\s,.]+$/, '').trim();
+        return c || null;
+    }
     function soundOn() { try { return localStorage.getItem(SND_KEY()) !== '0'; } catch (_) { return true; } }
     let sctx = null;
     function chime(kind) {
@@ -60,7 +71,10 @@
         else if (/^(?:opening|done|ticked|unticked|pressed|the chat with|your message to|here are all)|\bis now\b/i.test(t)) chime('done');
     }
     let typedMode = false; // 18.0.0 patch 34: a typed command answers in the chat (speaks only while Talk mode is on)
-    function say(t) { lastSaid = t; chimeFor(String(t || '')); if (typedMode) { note('IRIS: ' + t); if (!on) return; } try { if (A().speak) A().speak(t); } catch (_) {} }
+    // patch 39 (martin): her answer is also written in the pill for 7 s (in case the voice is silent) + Console log
+    let ansTxt = '', ansUntil = 0;
+    let sink = null; // patch 41: phone IRIS page collects her built-in answers instead of speaking here
+    function say(t) { if (sink) { sink(String(t || '')); return; } lastSaid = t; ansTxt = String(t || '').replace(/\s+/g, ' ').trim(); ansTxt = ansTxt.length > 70 ? ansTxt.slice(0, 69) + '…' : ansTxt; ansUntil = Date.now() + 7000; setTimeout(paint, 0); setTimeout(paint, 7100); try { console.info('[iris] said:', t); } catch (_) {} chimeFor(String(t || '')); if (typedMode) { note('IRIS: ' + t); if (!on) return; } try { if (A().speak) A().speak(t, { quick: String(t || '').length <= 70 }); } catch (_) {} }
     function note(t) { try { if (A().note) A().note(t); } catch (_) {} }
 
     function bar() {
@@ -80,7 +94,7 @@
     // patch 36: what she heard without her name is shown for 4 s, so you can see if "Iris" was heard as another word
     let heardTxt = '', heardUntil = 0;
     // patch 37 (martin): show the words live in the pill/bar while she hears them, so you can see she heard you right
-    let liveTxt = '', liveUntil = 0, liveT = 0;
+    let liveTxt = '', liveUntil = 0, liveT = 0, heardAt = 0, soundOn2 = false;
     function liveShow(t) {
         t = String(t || '').replace(/\s+/g, ' ').trim(); if (!t) return;
         liveTxt = t.length > 56 ? '…' + t.slice(-55) : t; liveUntil = Date.now() + 3500; paint();
@@ -110,7 +124,7 @@
         if (pl) {
             pl.hidden = !on || !(pnl && !pnl.hidden ? false : true);
             pl.className = 'is-' + s + (pl.querySelector('.iba-orb-cv') ? ' has-orb' : '');
-            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = (Date.now() < liveUntil && s !== 'speak') ? '“' + liveTxt + '”' : (s === 'listen' && Date.now() < heardUntil) ? 'heard “' + heardTxt + '” · start with Iris' : ({ listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '');
+            const ps = pl.querySelector('[data-pill-st]'); if (ps) ps.textContent = (Date.now() < ansUntil && (s === 'speak' || Date.now() >= liveUntil || ansUntil - 7000 > liveUntil - 3500)) ? 'IRIS: ' + ansTxt : (Date.now() < liveUntil && s !== 'speak') ? '“' + liveTxt + '”' : (s === 'listen' && Date.now() < heardUntil) ? 'heard “' + heardTxt + '” · start with Iris' : ({ listen: 'listening', think: 'thinking', speak: 'speaking', muted: 'muted', ask: 'waiting for you' }[s] || '');
             const pm = pl.querySelector('[data-talk-mute]'); if (pm) { pm.innerHTML = muted ? '<i class="fa-solid fa-microphone"></i>' : '<i class="fa-solid fa-microphone-slash"></i>'; pm.title = muted ? 'Unmute' : 'Mute'; }
         }
         const t = $('iba-ai-talk');
@@ -129,13 +143,14 @@
     const END_W = /[\s,.]+(?:please|go|over|now|thanks|thank you|okay go|that's all)[\s.!?]*$/i;
     let stallT = 0, stallTxt = '', doneEarly = '';
     const norm2 = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-    function wanted(t) { return WAKE.test(t) || !!pending || !!choice || (Date.now() < follow && !talking()); }
+    function wanted(t) { return WAKE.test(t) || !!hiCmd(t) || !!pending || !!choice || (Date.now() < follow && !talking()); }
     function fire(t) {
         clearTimeout(stallT); stallT = 0;
         const said = String(t || '').replace(END_W, '').trim();
         if (!said) return;
         doneEarly = norm2(t);
-        hear(said);
+        const hc = hiCmd(t);
+        hear(hc ? 'Iris ' + hc : said);
         try { if (rec) rec.abort(); } catch (_) {} // start fresh: the noise after it is not added to this sentence
     }
     function early(t) {
@@ -143,7 +158,7 @@
         const rest = t.replace(WAKE, '').trim();
         if (WAKE.test(t) && !rest) return; // only her name so far
         if (END_W.test(' ' + t)) { fire(t); return; }
-        if (t !== stallTxt) { stallTxt = t; clearTimeout(stallT); stallT = setTimeout(() => { if (stallTxt === t) fire(t); }, 1500); }
+        if (t !== stallTxt) { stallTxt = t; clearTimeout(stallT); stallT = setTimeout(() => { if (stallTxt === t) fire(t); }, 1000); } // patch 40: 1 s (was 1.5 s)
     }
     function start() {
         if (!on || muted || rec || !SR) return;
@@ -153,8 +168,11 @@
             rec.continuous = true;
             rec.interimResults = true;
             rec.maxAlternatives = 1;
+            // patch 37: the orb no longer opens the mic itself (a 2nd mic stream can starve speech recognition on
+            // some PCs); it moves when the recogniser hears sound / words instead.
+            rec.onsoundstart = () => { soundOn2 = true; }; rec.onsoundend = () => { soundOn2 = false; };
             rec.onresult = (e) => {
-                fails = 0;
+                fails = 0; heardAt = Date.now();
                 for (let i = e.resultIndex; i < e.results.length; i++) {
                     const r = e.results[i]; const t = (r[0] && r[0].transcript) || '';
                     if (!talking()) liveShow(t);
@@ -163,6 +181,7 @@
                         early(t); continue;
                     }
                     clearTimeout(stallT); stallT = 0;
+                    try { console.info('[iris] heard:', t); } catch (_) {}
                     if (doneEarly && norm2(t).startsWith(doneEarly)) { doneEarly = ''; continue; } // already handled
                     doneEarly = '';
                     hear(t);
@@ -197,15 +216,16 @@
             if (YES.test(t)) { const q = pending, act = pendingAct; pending = null; pendingAct = null; paint(); if (act) act(); else run(q, true); return; }
             if (NO.test(t)) { pending = null; pendingAct = null; say('Okay, I won’t do it.'); paint(); return; }
         }
-        const m = t.match(WAKE);
+        const m = t.match(WAKE), hc = m ? null : hiCmd(t);
         let q;
         if (m) { q = t.slice(m[0].length).trim(); chime('wake'); }
+        else if (hc) { q = hc; chime('wake'); }
         else if (Date.now() < follow && !talking() && !echo(t)) q = t;
         else { if (!talking() && !echo(t)) heardShow(t); return; }
-        if (!m && /^(?:no|nope|ok|okay|yes|yeah|good|great|nice|cool|nothing|fine|alright|thanks?|thank you)\b[\s\w]{0,12}$/i.test(q)) { if (/thank/i.test(q)) say('You’re welcome.'); follow = 0; return; }
+        if (!m && !hc && /^(?:no|nope|ok|okay|yes|yeah|good|great|nice|cool|nothing|fine|alright|thanks?|thank you)\b[\s\w]{0,12}$/i.test(q)) { if (/thank/i.test(q)) say('You’re welcome.'); follow = 0; return; }
         if (talking()) { try { A().stopSpeak(); } catch (_) {} }
         lastCmd = Date.now();
-        if (m) { pending = null; pendingAct = null; choice = null; }
+        if (m || hc) { pending = null; pendingAct = null; choice = null; }
         if (!q) { say('Yes?'); return; }
         if (/^(?:stop|be quiet|quiet|shut up|enough|that'?s enough)\b/i.test(q)) { follow = 0; paint(); return; }
         if (/^(?:good ?bye|bye|stop listening|turn (?:it )?off|talk mode off|go to sleep)\b/i.test(q)) { say('Okay. Bye for now.'); setTimeout(() => setOn(false), 1800); return; }
@@ -552,7 +572,13 @@
             try { if (A().open) A().open(); } catch (_) {}
             start();
             poll = setInterval(tick, 300);
-            say('Hi, I’m Iris. Say Iris, then your question.');
+            // patch 40: first switch-on of the day before noon = good morning + the short brief out loud
+            const day = new Date().toLocaleDateString('en-CA', { timeZone: TZ }), hr = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: TZ }));
+            const MK = SND_KEY().replace('iba-iris-sound-v1:', 'iba-iris-morning-v1:');
+            let first = false; try { first = hr >= 4 && hr < 12 && localStorage.getItem(MK) !== day; if (first) localStorage.setItem(MK, day); } catch (_) {}
+            if (first) {
+                (async () => { let t = ''; try { t = A().pendingSay ? await A().pendingSay() : ''; } catch (_) {} say(t || ('Good morning' + (myFirst() ? ', ' + myFirst() : '') + '! Say Iris, then your question.')); })();
+            } else say('Hi, I’m Iris. Say Iris, then your question.');
         } else {
             stopRec();
             try { A().stopSpeak && A().stopSpeak(); } catch (_) {}
@@ -606,7 +632,7 @@
         t = t.replace(/\bsquare ?root of\b|\bsqrt\b|√/g, ' r ').replace(/\bcube ?root of\b/g, ' c ')
             .replace(/(\d+(?:\.\d+)?)\s*(?:percent|%)\s*of\b/g, '($1/100)*').replace(/(\d+(?:\.\d+)?)\s*(?:percent|%)/g, '($1/100)')
             .replace(/\bsquared\b/g, '^2').replace(/\bcubed\b/g, '^3').replace(/\bto the power of\b|\bpower of\b|\bto the\b|\*\*/g, '^')
-            .replace(/\bplus\b|\band\b/g, '+').replace(/\bminus\b|\bless\b|\btake away\b/g, '-').replace(/\btimes\b|\bmultiplied by\b|\bmultiply by\b|(?<=\d)\s*x\s*(?=\d)|×/g, '*')
+            .replace(/\bplus\b|\band\b/g, '+').replace(/\bminus\b|\bless\b|\btake away\b/g, '-').replace(/\btimes\b|\bmultiplied by\b|\bmultiply(?: by)?\b|\binto\b(?=\s*\d)|(?<=\d)\s*x\s*(?=\d)|×/g, '*')
             .replace(/\bdivided by\b|\bdivide by\b|\bover\b|÷/g, '/').replace(/\bopen bracket\b/g, '(').replace(/\bclose bracket\b/g, ')').replace(/[=?]/g, ' ');
         if (/[a-bd-qs-z]/.test(t.replace(/\b[rc]\b/g, ''))) return null; // other words left: not maths
         const tk = t.match(/\d+(?:\.\d+)?|[-+*/^()rc]/g); if (!tk || !tk.some((x) => /[-+*/^rc]/.test(x))) return null;
@@ -651,7 +677,7 @@
         [/^(?:how are you|how are you doing|how(?:'s| is) it going|how do you do|are you ok(?:ay)?)\b/i, () => 'I am doing great, thank you for asking! How can I help you today?'],
         [/^(?:i am|i'm) (?:fine|good|great|ok(?:ay)?|well)\b/i, () => 'Good to hear! Tell me what you need.'],
         [/^(?:what are you doing|what's up|whats up|wassup)\b/i, () => 'Just here, listening and ready to help.'],
-        [/^(?:good (?:morning|afternoon|evening|night))\b/i, (q) => { const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: TZ })); return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (myFirst() ? ', ' + myFirst() : '') + '!' + (/night/i.test(q) ? ' Have a good rest.' : ''); }],
+        [/^(?:good (?:morning|afternoon|evening))\b/i, (q) => { const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: TZ })); return (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (myFirst() ? ', ' + myFirst() : '') + '!' + (/night/i.test(q) ? ' Have a good rest.' : ''); }],
         [/^(?:thank you|thanks|thank u|thx)\b/i, () => 'You are welcome!'],
         [/^(?:you are|you're) (?:great|good|smart|amazing|awesome|the best|nice|cool|funny)\b/i, () => 'Thank you! You are not bad yourself.'],
         [/^(?:i love you|love you)\b/i, () => 'That is sweet. I am happy to work with you every day.'],
@@ -659,9 +685,25 @@
         [/^(?:who (?:made|built|created) you)\b/i, () => 'I was built for the IBA system, to help with invoices, approvals and the daily work.'],
         [/^(?:how old are you)\b/i, () => 'I am very new. I started working with you this month.'],
         [/^(?:sorry)\b/i, () => 'No problem at all.'],
+        // patch 39 (martin): small talk like a person ("how is your day", "did you eat lunch", "how do you feel")
+        [/\bhow(?:'s| is| was) (?:your|ur) (?:day|morning|night|evening|week|weekend)\b/i, () => anyOf(['My day is going well, thank you! Lots of invoices moving. How is yours?', 'Busy but good! How about your day?', 'Pretty good so far. I like it when the approvals are moving. And you?'])],
+        [/\b(?:did|have) you (?:eat|ate|eaten|had|have)\b.*\b(?:lunch|dinner|breakfast|food|anything)\b|\bare you hungry\b/i, () => anyOf(['I don’t eat, but thank you for asking! Did you have your lunch?', 'No lunch for me, I run on electricity. Don’t forget to eat yours!', 'Not yet, and never will! But please take your break and eat something.'])],
+        [/\bhow (?:do|are) you feel(?:ing)?\b|\bare you (?:happy|sad|ok|okay|fine|alright)\b|\bwhat do you feel\b/i, () => anyOf(['I feel good today, thank you! Talking with you helps.', 'Happy and ready to work. How are you feeling?', 'I am feeling great. No errors today, so far!'])],
+        [/\bare you (?:tired|sleepy|bored|busy)\b|\bdo you (?:sleep|rest|get tired)\b/i, () => anyOf(['Never tired! I am here day and night.', 'I don’t sleep, but the screensaver gives me a little rest.', 'Not at all. I like being busy with you.'])],
+        [/\b(?:i am|i'm|im|i feel) (?:tired|exhausted|sleepy)\b/i, () => anyOf(['You worked hard today. Take a short break and drink some water.', 'Rest a little. The invoices will still be here, I promise.'])],
+        [/\b(?:i am|i'm|im|i feel) (?:sad|stressed|upset|angry|not ok(?:ay)?|bad)\b/i, () => anyOf(['I am sorry to hear that. Take a deep breath, one thing at a time. I am here to help.', 'That sounds hard. Tell me what I can take off your hands.'])],
+        [/\b(?:i am|i'm|im|i feel) (?:bored)\b/i, () => 'Want a joke? Say: Iris, tell me a joke.'],
+        [/\b(?:i am|i'm|im|i feel) (?:happy|excited|good today)\b/i, () => 'That makes me happy too!'],
+        [/\bwhere (?:are you from|do you live|are you)\b/i, () => 'I live inside the IBA system, here in Qatar with you.'],
+        [/\bdo you (?:like|love) (?:me|your job|working|work|your work)\b/i, () => anyOf(['Of course! Working with you is the best part of my day.', 'Yes! Helping you is what I like most.'])],
+        [/\bdo you have (?:a )?(?:family|friends?|boyfriend|girlfriend|husband|wife)\b|\bare you (?:married|single)\b/i, () => 'My family is the IBA team. You are one of my favourites.'],
+        [/\bwhat(?:'s| is) your (?:favourite|favorite) (?:\w+)\b/i, () => 'My favourite thing is an invoice that is fully paid!'],
+        [/\b(?:good job|well done|nice work|great job)\b/i, () => 'Thank you! We make a good team.'],
+        [/\b(?:good ?night|see you tomorrow|i am going home|i'm going home|going home)\b/i, () => anyOf(['Good night! Rest well, see you tomorrow.', 'Take care going home. See you tomorrow!'])],
         [/\b(?:joke|make me laugh|something funny)\b/i, () => { jokeN = (jokeN + 1) % JOKES.length; return JOKES[jokeN]; }],
         [/^(?:what(?:'s| is) my name|who am i|do you know (?:me|my name))\b/i, () => myFirst() ? 'You are ' + myFull() + '.' : 'I don’t know who is signed in yet.']
     ];
+    function anyOf(a) { return a[Math.floor(Math.random() * a.length)]; }
     function myFull() { try { const u = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover : null; return String((u && (u.Name || u.name)) || '').trim(); } catch (_) { return ''; } }
     function myFirst() { return myFull().split(/\s+/)[0] || ''; }
     // patch 36: forgiving words (typos and short forms) before the built-ins look at it
@@ -681,11 +723,18 @@
         const go = () => { try { before && before(); } catch (_) {} };
         const wasTyped = !!before;
         const run1 = async (fn) => { go(); if (wasTyped) typedMode = true; try { await fn(); } finally { if (wasTyped) typedMode = false; } return true; };
+        // patch 43: the "What can IRIS do?" guide and the About box
+        const G = window.ibaIrisGuide;
+        if (G && /^(?:what (?:can|else can|do) you do|what are you able to do|how (?:do i|to) use you|help(?: me)?|show (?:me )?(?:the )?(?:guide|commands|help)|(?:iris )?guide|all (?:your )?commands)\b/i.test(q) && q.split(/\s+/).length <= 9) return run1(async () => { G.open('do'); say('Here is what I can do. Tap any example to try it.'); });
+        if (G && /^(?:about (?:you|iris)|who are you|tell me about (?:you|yourself|iris))\b/i.test(q)) return run1(async () => { G.open('about'); say('I am IRIS, Intelligent Records and Invoice System, your IBA assistant.'); });
+        if (G && NAME_RE.test(q) && q.split(/\s+/).length <= 9) { try { G.open('about'); } catch (_) {} }
         if (NAME_RE.test(q) && q.split(/\s+/).length <= 9) return run1(async () => say('I am IRIS, Intelligent Records and Invoice System, your IBA assistant.'));
         if (TIME_RE.test(q)) return run1(async () => say('It is ' + new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ }) + '.'));
         if (DATE_RE.test(q)) return run1(async () => say('Today is ' + new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ }) + '.'));
         if (PEND_RE.test(q) && q.split(/\s+/).length <= 10 && !/\b\d{4,}\b/.test(q) && !/\b(?:approv\w*|invoices?|vendors?|po|transfers?|payments?|site)\b/i.test(q)) return run1(async () => { let t = ''; try { t = A().pendingSay ? await A().pendingSay() : ''; } catch (_) {} say(t || 'Your brief is on the screen.'); });
-        for (const [re, fn] of SMALL) { if (re.test(q) && q.split(/\s+/).length <= 8) return run1(async () => say(fn(q))); }
+        // patch 40: "good night" answers, then switches Talk mode off
+        if (/^(?:good ?night|goodnight|nighty? night)\b/i.test(q) && q.split(/\s+/).length <= 6) return run1(async () => { say(anyOf(['Good night' + (myFirst() ? ', ' + myFirst() : '') + '! Rest well, see you tomorrow.', 'Good night! Take care going home. See you tomorrow.'])); if (on) setTimeout(() => { if (on) setOn(false); }, 4500); });
+        for (const [re, fn] of SMALL) { if (re.test(q) && q.split(/\s+/).length <= 10) return run1(async () => say(fn(q))); }
         const cv = convOf(q); if (cv) return run1(async () => say(cv));
         const mv = mathOf(q); if (mv !== null && mv !== undefined) return run1(async () => say('That is ' + mv.toLocaleString('en-US', { maximumFractionDigits: 6 }) + '.'));
         const cw = CONTACT_W.test(q) && !/\d{3,}/.test(q) && !/\b(?:po|invoice|vendor|supplier|my|your)\b/.test(q) && q.split(/\s+/).length <= 10
@@ -754,6 +803,8 @@
         if (on) { pending = 'typed'; pendingAct = () => finish(true); say('Proceed? Say proceed, or no.'); paint(); }
         return true;
     }
+    document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-hi') { try { localStorage.setItem(HI_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} } });
     document.addEventListener('change', (e) => { if (e.target && e.target.id === 'iba-iris-snd') { try { localStorage.setItem(SND_KEY(), e.target.checked ? '1' : '0'); } catch (_) {} if (e.target.checked) chime('done'); } });
-    window.ibaTalk = { _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
+    async function answer(text) { let out = null; sink = (t) => { out = out ? out + ' ' + t : t; }; try { const ok = await builtin(text); return ok ? out : null; } finally { sink = null; } }
+    window.ibaTalk = { answer, mathOf: (q) => mathOf(q), convOf: (q) => convOf(q), hiOn, _hi: hiCmd, heardAt: () => heardAt, sound: () => soundOn2, _early: (t) => early(t), chime, soundOn, on: () => on, set: setOn, hear, stage, match, pageOf, typed, builtin, _vc: voiceControl, _root: frontRoot };
 })();

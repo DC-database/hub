@@ -2,7 +2,7 @@
    While Talk mode is on (PC only), the small IRIS pill shows a living orb: a liquid ball of light inside an
    electric ring. The screen edge lights up only while IRIS hears you, thinks or speaks (fades while she waits).
    Colours: listening teal/blue, thinking gold/teal/violet, speaking warm gold, muted grey.
-   "Hearing you" follows the real mic level (a small level meter on this PC only, nothing is recorded or sent).
+   "Hearing you" follows the speech recogniser (patch 37: no own mic stream).
    Reads window.ibaTalk.stage() every frame; draws nothing and holds no mic when Talk mode is off. */
 (function () {
     'use strict';
@@ -17,27 +17,19 @@
     const rgba = (c, a) => 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + a + ')';
     const phone = () => !!(document.body && (document.body.classList.contains('iba-mobile-ui') || document.body.classList.contains('iba-phone')));
     const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } };
-    let cur = PAL.listen.map(hex), t = 0, lvl = 0, raf = 0, cv = null, edge = null;
+    let odd = false, cur = PAL.listen.map(hex), t = 0, lvl = 0, raf = 0, cv = null, edge = null;
 
-    // ---- mic level (only while Talk mode is on and not muted) ----
-    let mic = null, an = null, buf = null, micCtx = null, micWant = false, micBusy = false;
-    async function micOn() {
-        if (mic || micBusy || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-        micBusy = true;
-        try {
-            const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-            if (!micWant) { s.getTracks().forEach((x) => x.stop()); return; }
-            const C = window.AudioContext || window.webkitAudioContext; micCtx = new C();
-            an = micCtx.createAnalyser(); an.fftSize = 512; buf = new Uint8Array(an.fftSize);
-            micCtx.createMediaStreamSource(s).connect(an); mic = s;
-        } catch (_) { mic = null; } finally { micBusy = false; }
-    }
-    function micOff() { if (mic) { try { mic.getTracks().forEach((x) => x.stop()); } catch (_) {} } mic = null; an = null; if (micCtx) { try { micCtx.close(); } catch (_) {} } micCtx = null; }
+    // ---- "hearing" level ----
+    // 18.0.0 patch 37: no own microphone any more. A second mic stream next to Chrome's speech recognition
+    // could stop IRIS hearing you on some PCs, so the orb now follows the recogniser: words coming in = hearing.
+    let micWant = false;
+    function micOn() {}
+    function micOff() {}
     function micLevel() {
-        if (!an) return 0;
-        an.getByteTimeDomainData(buf); let s = 0;
-        for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v; }
-        return Math.min(1, Math.sqrt(s / buf.length) * 6);
+        const T = window.ibaTalk; if (!T || !T.heardAt) return 0;
+        const ago = Date.now() - T.heardAt();
+        if (ago < 700) return 0.45 + 0.35 * Math.abs(Math.sin(t * 9) * 0.7 + Math.sin(t * 17) * 0.3);
+        return (T.sound && T.sound()) ? 0.13 : 0;
     }
 
     // ---- drawing ----
@@ -84,7 +76,8 @@
             pill.insertBefore(cv, pill.firstChild); pill.classList.add('has-orb');
             if (!pill.__orbClick) { pill.__orbClick = true; pill.addEventListener('click', openFromOrb); }
         }
-        if (!edge) { edge = document.createElement('div'); edge.id = 'iba-orb-edge'; edge.innerHTML = '<i class="is-blur"></i><i></i>'; edge.setAttribute('aria-hidden', 'true'); document.body.appendChild(edge); }
+        // 18.0.0 patch 42 (martin): no screen-edge glow any more (the orb is enough, and the glow slowed the video)
+        if (false && !edge) { edge = document.createElement('div'); edge.id = 'iba-orb-edge'; edge.innerHTML = '<i class="is-blur"></i><i></i>'; edge.setAttribute('aria-hidden', 'true'); document.body.appendChild(edge); }
         return pill;
     }
     function frame() {
@@ -106,7 +99,9 @@
         lvl += (tgt - lvl) * 0.25;
         const p = (PAL[shown] || PAL.listen).map(hex);
         for (let i = 0; i < 4; i++) for (let k = 0; k < 3; k++) cur[i][k] += (p[i][k] - cur[i][k]) * 0.06;
-        if (pill && !pill.hidden && cv) { const c = cv.getContext('2d'); draw(c, 132, shown); }
+        // patch 42: draw 30 times a second (was 60): same look, half the work, the background video stays smooth
+        odd = !odd;
+        if (pill && !pill.hidden && cv && odd) { const c = cv.getContext('2d'); draw(c, 132, shown); }
         if (edge) {
             const act = shown === 'hear' || S === 'think' || S === 'speak' || S === 'ask';
             edge.style.opacity = act ? (0.7 + lvl * 0.3).toFixed(2) : '0';

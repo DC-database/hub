@@ -7628,12 +7628,13 @@
         const fab = $('iba-ai-fab'); if (fab) fab.classList.toggle('is-talking', onOff);
         const mark = document.querySelector('#iba-ai-panel .iba-ai-mark'); if (mark) mark.classList.toggle('is-talking', onOff);
     }
-    function speak(text) {
+    function speak(text, o) {
         if (!canSpeak()) return;
         const t = plainForSpeech(text);
         if (!t) return;
         // 18.0.0 patch 31: Kokoro natural voice when the person switched it on (js/iba-1800-kokoro.js); normal voice if it can't
-        if (window.ibaKokoro && window.ibaKokoro.wanted()) {
+        // 18.0.0 patch 40 (martin: IRIS is slow): short IRIS answers use the instant voice, Kokoro needs 1-3 s to build one
+        if (window.ibaKokoro && window.ibaKokoro.wanted() && !(o && o.quick)) {
             try { window.speechSynthesis.cancel(); } catch (_) {}
             window.ibaKokoro.speak(t, () => setTalking(true), () => setTalking(false)).then((ok) => { if (!ok) browserSpeak(t); }).catch(() => browserSpeak(t));
             return;
@@ -7823,7 +7824,7 @@
         _run: runTool,
         openInvoice: (po, key, invNo) => openInvoiceDetail(po, key, invNo),
         // 18.0.0 patch 29: for Talk mode (js/iba-1800-talk.js)
-        speak: (t) => speak(t), stopSpeak: () => stopSpeak(), talking: () => talking || !!(canSpeak() && window.speechSynthesis.speaking),
+        speak: (t, o) => speak(t, o), stopSpeak: () => stopSpeak(), talking: () => talking || !!(canSpeak() && window.speechSynthesis.speaking),
         busy: () => !!state.busy, note: (t) => addNote(t), micError: (c) => micError(c),
         // 18.0.0 patch 30: Talk mode runs skills by voice without the AI
         // 18.0.0 patch 36 (martin): built-in answers for IRIS (no AI): the brief said in words, a message to a colleague
