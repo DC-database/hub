@@ -65,7 +65,15 @@
         const exact = ps.filter((p) => norm(p.name) === t);
         if (exact.length) return exact;
         const words = t.split(' ').filter((w) => w.length > 1);
-        return ps.filter((p) => { const n = norm(p.name); const nw = n.split(' '); return words.some((w) => nw.some((x) => x === w || (w.length >= 4 && x.startsWith(w)))); }).slice(0, 4);
+        const hit = ps.filter((p) => { const n = norm(p.name); const nw = n.split(' '); return words.some((w) => nw.some((x) => x === w || (w.length >= 4 && x.startsWith(w)))); }).slice(0, 4);
+        if (hit.length) return hit;
+        // patch 55 (martin said "Gio", the phone wrote "jio"): names that SOUND the same
+        const ks = words.map(sk).filter((k) => k.length >= 2);
+        return ps.filter((p) => norm(p.name).split(' ').some((x) => ks.includes(sk(x)))).slice(0, 4);
+    }
+    function sk(w) {
+        return String(w || '').toLowerCase().replace(/[^a-z]/g, '').replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/q/g, 'k').replace(/c(?=[aou]|$)/g, 'k').replace(/^j/, 'g').replace(/j/g, 'g')
+            .replace(/z/g, 's').replace(/(?:ee|ea|ie|ey)/g, 'i').replace(/y/g, 'i').replace(/(?:oo|ou)/g, 'u').replace(/([^aeiou])h/g, '$1').replace(/(.)\1+/g, '$1');
     }
     // the names that match the most words of what was said ("Imran Khan" beats "Imran Ali")
     function bestNames(text, list) {
@@ -329,7 +337,25 @@
     }
 
     // ---------- 1: change a status ----------
-    function statusOf(t) { t = norm(t); if (/for approval|approval|approve it|to approve/.test(t)) return 'For Approval'; if (/for srv|srv/.test(t) && !/srv done/.test(t)) return 'For SRV'; if (/in process|process/.test(t)) return 'In Process'; return ''; }
+    // patch 55 (martin: "change in process to report" did not work): every status of the Invoice Entry list (not Paid:
+    // that is Accounts' job). The status AFTER the last "to / as / into" is the new one; the other one picks the invoices.
+    const ST_ALIASES = [['Report Approval', 'report approval'], ['Report Approved', 'report approved'], ['CEO Approval', 'ceo approval|c e o approval'],
+        ['No Need SRV', 'no need srv|no need for srv|no srv needed'], ['For SRV', 'for srv|srv'], ['IPC Application', 'ipc application'], ['For IPC', 'for ipc|ipc'],
+        ['For Approval', 'for approval|approval|approve it|to approve'], ['In Process', 'in process|process'], ['Under Review', 'under review|review'],
+        ['For Summary', 'for summary|summary'], ['On Hold', 'on hold|hold'], ['For Inquiry', 'for inquiry|for enquiry|inquiry|enquiry'], ['With Accounts', 'with accounts|accounts'],
+        ['Original PO', 'original po'], ['Retention', 'retention'], ['Unresolved', 'unresolved'], ['Pending', 'pending'], ['Cancelled', 'cancelled|canceled|cancel'], ['Report', 'report']];
+    const ST_RE = new RegExp('\\b(?:' + ST_ALIASES.map((a) => a[1]).join('|') + ')\\b', 'g');
+    const ST_NAMES = ST_ALIASES.map((a) => a[0]);
+    function stName(phrase) { const p = norm(phrase); const a = ST_ALIASES.find((x) => new RegExp('^(?:' + x[1] + ')$').test(p)); return a ? a[0] : ''; }
+    function statusHits(t) { t = norm(t).replace(/\bsrv done\b/g, ' '); const out = []; let m; ST_RE.lastIndex = 0; while ((m = ST_RE.exec(t))) { const n = stName(m[0]); if (n) out.push({ n, at: m.index }); } return { t, out }; }
+    function statusOf(t) {
+        const { t: s, out } = statusHits(t); if (!out.length) return '';
+        let cut = -1; const re = /\b(?:to|as|into|in to)\s/g; let m; while ((m = re.exec(s))) cut = m.index;
+        const after = out.filter((x) => x.at > cut);
+        return (after.length ? after[0] : out[out.length - 1]).n;
+    }
+    const ST_RE_I = new RegExp('\\b(?:' + ST_ALIASES.map((a) => a[1]).join('|') + ')\\b', 'ig');
+    function fromStatus(t, target) { const { out } = statusHits(t); const f = out.find((x) => x.n !== target); return f ? f.n : ''; }
     function startStatus(text, pre) {
         if (!ctx) { irisSay('Which PO? Say the PO number first.'); pend = { type: 'po-then', text }; return; }
         const status = statusOf(text);
@@ -340,18 +366,19 @@
         const w = findWho(text); if (w) job.who = w;
         // patch 47: "all In Process to For Approval": the status they are IN now picks the invoices (not every open one)
         if (!job.invs && status) {
-            const nt = norm(text).replace(new RegExp('\\b' + norm(status) + '\\b'), ' ');
-            const from = list.filter((i) => norm(i.status) !== norm(status) && nt.includes(norm(i.status)));
+            const fs = fromStatus(text, status);
+            const from = fs ? list.filter((i) => norm(i.status) === norm(fs)) : [];
             if (from.length) job.invs = from;
+            else if (fs) { irisSay('No invoice on PO ' + ctx.po + ' is ' + fs + ' now. They are: ' + list.map((i) => i.no + ' ' + i.status).join('; ') + '. Which one?', { opts: list.map((i) => i.no) }); pend = { type: 'which', list, then: (invs) => { job.invs = invs; nextStep(job); }, job }; return; }
         }
-        if (!job.invs) { const chosen = pick(text.replace(/\b(?:for approval|for srv|in process)\b/ig, ' ').replace(/\bto\s+[a-z].*$/i, ''), list); if (chosen.length && (chosen.length < list.length || list.length === 1 || /\b(?:both|all)\b/i.test(text))) job.invs = chosen; }
-        if (!job.status) { pend = { type: 'status', job }; irisSay((job.invs ? job.invs.map((i) => i.no).join(' and ') + '. ' : '') + 'Which status: For Approval, For SRV, or In Process?', { opts: ['For Approval', 'For SRV', 'In Process'] }); return; }
+        if (!job.invs) { const chosen = pick(text.replace(ST_RE_I, ' ').replace(/\bto\s+[a-z].*$/i, ''), list); if (chosen.length && (chosen.length < list.length || list.length === 1 || /\b(?:both|all)\b/i.test(text))) job.invs = chosen; }
+        if (!job.status) { pend = { type: 'status', job }; irisSay((job.invs ? job.invs.map((i) => i.no).join(' and ') + '. ' : '') + 'Which status? For example For Approval, For SRV, In Process, Report or On Hold.', { opts: ['For Approval', 'For SRV', 'In Process', 'Report', 'On Hold'] }); return; }
         if (job.invs) return nextStep(job);
         askWhich(list, (invs) => { job.invs = invs; nextStep(job); }, job);
     }
     function findWho(text) {
         // patch 47: "to X", "attention X", "with X", "under X"; the LAST one counts; a trailing please is dropped
-        const s = String(text).replace(/\b(?:for approval|for srv|in process)\b/ig, ' ').replace(/[\s,.]+(?:please|pls|thanks|thank you|now)[\s.!?]*$/i, '');
+        const s = String(text).replace(/\bto\s+(?=(?:report|for|in|on|under|with|no need|ceo|ipc|original|pending|retention|unresolved|cancel)\b)/ig, ' ').replace(ST_RE_I, ' ').replace(/[\s,.]+(?:please|pls|thanks|thank you|now)[\s.!?]*$/i, '');
         const all = Array.from(s.matchAll(/\b(?:to|attention|with|under)\s+(?=([a-z][a-z.'-]*(?:\s+[a-z][a-z.'-]*)?))/ig))
             .map((m) => m[1].replace(/\b(?:please|thanks|now)\b.*$/i, '').trim())
             .map((c) => c.replace(/^(?:mr|ms|sir|engineer|eng)\.?\s+/i, ''))
@@ -372,6 +399,8 @@
             if (w && Array.isArray(w) && w.length === 1) job.person = w[0].name;
             else if (w && Array.isArray(w) && w.length > 1) { pend = { type: 'who', job, list: w }; irisSay('I found ' + w.map((p) => p.name).join(', ') + '. Which one?', { opts: w.map((p) => p.name) }); return; }
             else if (job.status === 'For Approval' || (w && w.none)) { pend = { type: 'who', job }; irisSay((w && w.none ? 'I can’t find ' + w.none + '. ' : '') + 'To whom?'); return; }
+            // patch 55 (martin): other statuses ask too; "keep" leaves the attention as it is
+            else if (!job.keep) { pend = { type: 'who', job }; irisSay('To whom? Or say keep.', { opts: ['Keep'] }); return; }
         }
         if (job.person) { const a = awayOf(job.person); if (a && a.target && !job.awayDone) { job.awayDone = true; pend = { type: 'confirm', yes: () => { job.person = a.target; nextStep(job); }, no: () => nextStep(job) }; irisSay(job.person + ' is on vacation. Send it to ' + a.target + ' instead? Yes or no.', { opts: ['Yes', 'No'] }); return; } }
         const what = job.invs.map((i) => i.no).join(' and ');
@@ -493,6 +522,7 @@
             if (got.length) { pend = null; return p.then(got); }
             if (w && p.job) { irisSay('Okay, to ' + (Array.isArray(w) && w.length === 1 ? w[0].name : t) + '. Which invoice: ' + p.list.map(invLine).join('; or ') + '?', { opts: p.list.map((i) => i.no).concat(p.list.length > 1 ? ['Both'] : []) }); return; }
         }
+        if (p && p.type === 'who' && p.job && p.job.status !== 'For Approval' && /^(?:keep|keep it|same|the same|no change|don t change|leave it|nobody|no one|skip)\b/.test(q)) { pend = null; p.job.keep = true; return nextStep(p.job); }
         if (p && p.type === 'who') {
             let ps = p.list ? bestNames(t, p.list) : findPeople(t);
             if (p.list && !ps.length) ps = findPeople(t);
@@ -537,6 +567,7 @@
         if (/^(?:help|guide|all commands|show (?:the )?guide|about (?:you|iris))$/.test(q) && window.ibaIrisGuide) { window.ibaIrisGuide.open(/about/.test(q) ? 'about' : 'do'); irisSay(/about/.test(q) ? 'This is me.' : 'Here is everything I can do. Tap an example to try it.', { listen: false }); return; }
         if (/\bwhat (?:can|else can|do) you (?:do|help)|\bhelp me\b|^help$|\boptions?\b|\bmenu\b/.test(q)) return menu();
         if (/\b(?:remind|reminder|whatsapp|whats app|message)\b/.test(q)) return startRemind(t);
+        if (/\b(?:mark|set|change|make|put|move|turn|switch|update)\b/.test(q) && /\b(?:to|as|into)\s+(?:be\s+)?paid\b|\bmark (?:it |them |all )?(?:as )?paid\b/.test(q)) { irisSay('Paid is marked by Accounts when they pay, so I can’t set it here.', { listen: false }); return; }
         if (/\b(?:mark|set|change|make|put|move|send|give|forward|turn|switch|update)\b/.test(q) && statusOf(t)) return startStatus(t);
         if (/\b(?:pending|open|not paid|unpaid|waiting)\b/.test(q) && ctx) return pendingList();
         if (/\b(?:note|later|at the office|in the office|on the pc|on pc|tomorrow)\b/.test(q) && ctx) return noteForPC(t);

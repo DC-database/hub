@@ -622,6 +622,7 @@
         [/\bwith (?:account|a count|the accounts|accountant|accountants)\b/gi, 'With Accounts'],
         [/\bon (?:whole|old|hole|holed|hold up)\b/gi, 'On Hold'],
         [/\bunder (?:rev you|review|reviews|re view|rivew)\b/gi, 'Under Review'],
+        [/\b(?:in boys|in voice|in voices|invoys|in voys|in boice|envoy|envoys|in bois)\b/gi, 'invoice'],
         [/\bp\.?\s*o\.?(?=\s*\d)/gi, 'PO'], [/\b(?:pee oh|pio|p o|beo|bio)\b(?=\s*(?:\d|zero|one|two|three|four|five|six|seven|eight|nine))/gi, 'PO']];
     function heardFix(t) { let s = String(t || ''); HEARD.forEach(([re, w]) => { s = s.replace(re, w); }); return s; }
     function digits(t) {
