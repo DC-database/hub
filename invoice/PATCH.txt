@@ -3,6 +3,14 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 52 (16-Nov-2026)
+- Kokoro (natural voice) runs in a background worker (blob module Worker in js/iba-1800-kokoro.js), so the IRIS page,
+  orb and buttons no longer freeze while the voice loads or makes a sentence (martin: Hands-free froze the phone).
+  If a worker cannot start, the old in-page way is used.
+- IRIS phone: if the natural voice has not started within 3.5 s, the phone voice says the answer (martin waited 30 s).
+- IRIS phone: small "Natural voice warming up…" line while Kokoro loads back after a refresh / app switch.
+- Files: js/iba-1800-kokoro.js, js/iba-1800-iris-phone.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 51 (16-Nov-2026)
 - IRIS maths and units, free (no AI), phone and PC: "multiply 100 by 100", "add 5 and 7", "subtract 3 from 10",
   "divide 100 by 4", "average of 10, 20 and 30", percent, brackets. Units: length (mm cm m km inch ft yard mile,
