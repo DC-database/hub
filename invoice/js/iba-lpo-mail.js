@@ -814,5 +814,5 @@
         if (n < 240) setTimeout(() => waitUser(n + 1), 500);
     })(0);
 
-    window.ibaLpoMail = { open, openSettings, canSync, canFresh, allowedSync, loadMailers, _parseCsv: parseCsv, _fill: fill };
+    window.ibaLpoMail = { open, openSettings, canSync, canFresh, allowedSync, loadMailers, siteNames, _parseCsv: parseCsv, _fill: fill };
 })();

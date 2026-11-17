@@ -3568,6 +3568,9 @@
         // 17.0.4 patch 3: LPO emails to vendors (js/iba-lpo-mail.js)
         lpo_mail: { name: 'LPO emails', icon: 'fa-envelope-open-text', desc: 'Type PO numbers: one Outlook email per PO to the vendor (email from Vendors.csv), subject and body filled from the PO list and Site.csv. Attach the LPO and send.',
             check: () => !!(window.ibaLpoMail && window.ibaLpoMail.canSync()), ask: () => [], action: () => { if (window.ibaLpoMail) window.ibaLpoMail.open(); } },
+        // 18.0.0 patch 59: search the LPO PDFs (js/iba-1800-lpo.js), Super Admin as built, Skill access can widen it
+        find_lpo: { name: 'Find LPO', icon: 'fa-file-pdf', superOnly: true, desc: 'Search the LPO PDFs (Proc - LPO folder) by PO, vendor, site or type of work, then open it or send the link by Email or WhatsApp.',
+            check: () => !!window.ibaFindLpo && !onPhone() && !document.body.classList.contains('iba-mobile-ui'), ask: () => [], action: () => { try { toggle(false); } catch (_) {} if (window.ibaFindLpo) window.ibaFindLpo.open(); } },
         lpo_mailers: { name: 'Who can send LPO emails', icon: 'fa-envelope-open-text', superOnly: true, desc: 'Pick the people who may use LPO emails. Kept by user record + name + mobile.',
             ask: () => [], action: () => { if (window.ibaLpoMail) window.ibaLpoMail.openSettings(); } },
         // 17.0.0 patch 24: who can open what (js/iba-17-p24.js)
@@ -7050,7 +7053,7 @@
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309'],
         // 18.0.0 patch 5: the skills that sat in "More" get their short line too
-        site_stock: ['All items of one site', '#0891b2'], ceo_sort: ['Single or Summary later', '#a855f7'], lpo_mail: ['One Outlook email per PO', '#2a78d6'],
+        site_stock: ['All items of one site', '#0891b2'], find_lpo: ['Search LPO PDFs, send the link', '#C9A227'], ceo_sort: ['Single or Summary later', '#a855f7'], lpo_mail: ['One Outlook email per PO', '#2a78d6'],
         po_pull: ['Originals out of the file', '#64748b'], dash_charts: ['Pie and bars on or off', '#2fa7a0'], dash_print: ['Pie and flow on A4', '#3b6fd8'], access_check: ['Who can see which pages', '#475569'], skill_access: ['Who can use each skill', '#b8901f']
     };
     // 15.0.0 patch 45: skills in groups, most used on top, with a search box
@@ -7065,7 +7068,7 @@
         ['Approvals', ['approvals_list', 'urgent']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
         ['Reports and lists', ['xl_wa', 'xl_ur', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
-        ['LPO and PO file', ['lpo_mail', 'po_pull']],
+        ['LPO and PO file', ['find_lpo', 'lpo_mail', 'po_pull']],
         ['Admin tools', ['access_check', 'dbcheck', 'skill_access', 'handover']]
     ];
     const SKILL_NO_TILE = ['esn_printers', 'lpo_mailers'];
