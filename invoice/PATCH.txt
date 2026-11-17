@@ -3,6 +3,17 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 59 (17-Nov-2026)
+- NEW "Find LPO" (assistant skill, group "LPO and PO file"; Super Admin as built, Skill access can give it to others; PC only).
+  Search the LPO PDFs in "Proc - LPO" by PO, vendor, site number/name, requisition or type of work; newest PO first.
+  Each LPO: Open, Email (Outlook web draft with the link), WhatsApp (text with the link), Copy link. You press Send.
+- The file names are read from the folder synced on the PC (OneDrive - IBA > Proc - LPO), picked once; Chrome
+  remembers it (after a Chrome restart: one click on "Allow folder"). Re-read by itself after 6 hours or with
+  "Re-read folder". Names are kept in this browser only: nothing goes to Firebase, PDFs are never read.
+- Vendor and site names come from POVALUE2 and Site.csv ("Cash" LPOs show the vendor from POVALUE2 when it has one).
+- Same dark see-through glass as the side panel.
+- Files: js/iba-1800-lpo.js (NEW), js/iba-assistant.js, js/iba-lpo-mail.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 58 (16-Nov-2026)
 - Phone IRIS natural voice (Kokoro) starts sooner: the first piece she says is short (up to the first
   comma or about 6 words), the rest is made while she talks; pieces are shorter on a phone.
