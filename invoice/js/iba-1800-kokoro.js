@@ -20,7 +20,7 @@
 
     let tts = null, loadP = null, state = 'idle', pct = 0, why = '', failedAt = 0;
     function status() {
-        if (state === 'ready') return 'Ready. The natural voice is on this ' + (phone() ? 'phone' : 'PC') + '.';
+        if (state === 'ready') return 'Ready. The natural voice is on this ' + (phone() ? 'phone' : 'PC') + '.' + (lastMs ? ' Last piece took ' + (lastMs / 1000).toFixed(1) + ' s to make' + (lastLen ? ' (' + lastLen + ' letters)' : '') + '.' : '');
         if (state === 'loading') return (pct && pct < 99 ? 'Getting the voice ready… ' + pct + '%' : 'Getting the voice ready…') + ' (downloads only the first time, about 90 MB; after that it loads from this ' + (phone() ? 'phone' : 'PC') + ' in a few seconds). Until it is ready the normal voice speaks.';
         if (state === 'failed') return 'Could not load the natural voice (' + why + '). The normal voice is used.';
         return 'Not downloaded yet. It downloads once (about 90 MB) when you switch it on.';
@@ -28,10 +28,11 @@
     function paintStatus() { ['iba-kok-status', 'iph-kok-status'].forEach((id) => { const s = $(id); if (s) s.textContent = status(); }); try { document.dispatchEvent(new CustomEvent('iba-kokoro-state', { detail: state })); } catch (_) {} }
     // 18.0.0 patch 52 (martin: the screen froze while she spoke): the voice runs in a background worker, so the page,
     // the orb and the buttons stay smooth while it loads or makes a sentence. If a worker cannot start, the old way is used.
-    const WSRC = "let tts=null;const LIB=" + JSON.stringify(LIB) + ",MODEL=" + JSON.stringify(MODEL) + ";" +
+    const WSRC = "let tts=null,ep=0,q=Promise.resolve();const LIB=" + JSON.stringify(LIB) + ",MODEL=" + JSON.stringify(MODEL) + ";" +
         "self.onmessage=async(e)=>{const d=e.data||{};" +
         "if(d.type==='load'){try{const mod=await import(LIB);tts=await mod.KokoroTTS.from_pretrained(MODEL,{dtype:'q8',device:'wasm',progress_callback:(p)=>{if(p&&p.status==='progress'&&p.total)self.postMessage({type:'progress',file:p.file,loaded:p.loaded||0,total:p.total});}});self.postMessage({type:'ready'});}catch(err){self.postMessage({type:'error',msg:String((err&&err.message)||err)});}}" +
-        "else if(d.type==='gen'){try{const a=await tts.generate(d.text,{voice:d.voice,speed:d.speed});const buf=a.audio;self.postMessage({type:'audio',id:d.id,audio:buf,rate:a.sampling_rate},[buf.buffer]);}catch(err){self.postMessage({type:'genErr',id:d.id,msg:String((err&&err.message)||err)});}}};";
+        "else if(d.type==='cancel'){ep=d.ep;}" +
+        "else if(d.type==='gen'){q=q.then(async()=>{if(d.ep<ep){self.postMessage({type:'genErr',id:d.id,msg:'cancelled'});return;}const t0=Date.now();try{const a=await tts.generate(d.text,{voice:d.voice,speed:d.speed});const buf=a.audio;self.postMessage({type:'audio',id:d.id,audio:buf,rate:a.sampling_rate,ms:Date.now()-t0},[buf.buffer]);}catch(err){self.postMessage({type:'genErr',id:d.id,msg:String((err&&err.message)||err)});}});}};";
     let worker = null, wid = 0; const wait = {};
     function startWorker() {
         try { return new Worker(URL.createObjectURL(new Blob([WSRC], { type: 'text/javascript' })), { type: 'module' }); }
@@ -49,19 +50,23 @@
                     const n = Math.min(99, Math.round(a / b * 100)); if (n !== pct) { pct = n; paintStatus(); }
                 } else if (d.type === 'ready') { worker = w; res({ generate: genInWorker }); }
                 else if (d.type === 'error') { try { w.terminate(); } catch (_) {} rej(new Error(d.msg)); }
-                else if (d.type === 'audio' || d.type === 'genErr') { const p = wait[d.id]; if (!p) return; delete wait[d.id]; if (d.type === 'audio') p[0]({ audio: d.audio, sampling_rate: d.rate }); else p[1](new Error(d.msg)); }
+                else if (d.type === 'audio' || d.type === 'genErr') { const p = wait[d.id]; if (!p) return; delete wait[d.id]; if (d.type === 'audio') { note(p[2], d.ms); p[0]({ audio: d.audio, sampling_rate: d.rate }); } else p[1](new Error(d.msg)); }
             };
             w.onerror = (e) => { try { w.terminate(); } catch (_) {} rej(new Error('worker failed ' + ((e && e.message) || ''))); };
             w.postMessage({ type: 'load' });
         });
     }
-    function genInWorker(text, o) { return new Promise((res, rej) => { const id = ++wid; wait[id] = [res, rej]; worker.postMessage({ type: 'gen', id, text, voice: o.voice, speed: o.speed }); }); }
+    function genInWorker(text, o) { return new Promise((res, rej) => { const id = ++wid; wait[id] = [res, rej, String(text).length]; worker.postMessage({ type: 'gen', id, text, voice: o.voice, speed: o.speed, ep: run }); }); }
+    // 18.0.0 patch 58 (martin: still the phone voice on the phone): how fast this device makes speech, shown in ⚙
+    let lastMs = 0, lastLen = 0;
+    function note(len, ms) { if (ms > 0) { lastMs = ms; lastLen = len || 0; paintStatus(); } }
+    function warm() { try { if (tts) Promise.resolve(tts.generate('Okay.', { voice: cfg().voice, speed: cfg().speed })).catch(() => {}); } catch (_) {} }
     function load(force) {
         if (loadP) return loadP;
         if (!force && state === 'failed' && Date.now() - failedAt < 10 * 60000) return Promise.resolve(null);
         state = 'loading'; pct = 0; paintStatus();
         loadP = (async () => {
-            try { const w = await loadInWorker(); tts = w; state = 'ready'; paintStatus(); return w; }
+            try { const w = await loadInWorker(); tts = w; state = 'ready'; paintStatus(); if (phone()) warm(); return w; }
             catch (e) { const m = String((e && e.message) || e); if (!/noworker|worker failed/i.test(m)) throw e; console.warn('[kokoro] worker way failed, using the page', e); }
             const mod = await import(/* webpackIgnore: true */ LIB);
             const seen = {};
@@ -82,12 +87,21 @@
 
     let ctx = null, src = null, run = 0;
     function audioCtx() { if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); } if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return ctx; }
+    // patch 58: the first piece is short (up to the first comma / about 7 words) so she starts fast; the rest is made while she talks
+    function cutFirst(p) {
+        if (p.length <= 40) return [p];
+        let m = p.slice(0, 45).match(/^(.{12,}?[,;:])\s/);
+        if (!m) { const w = p.split(' '); if (w.length <= 8) return [p]; let n = 6; while (n > 3 && /^(?:&|and|or|of|the|a|an|on|in|this|that|to|for|with|is|are)$/i.test(w[n - 1])) n--; m = [0, w.slice(0, n).join(' ')]; }
+        return [m[1], p.slice(m[1].length).trim()];
+    }
     function sentences(t) {
-        const parts = String(t || '').replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || [];
+        const max = phone() ? 90 : 140;
+        const parts = String(t || '').replace(/\s+/g, ' ').replace(/\bW\.\s?L\.\s?L\.?/gi, 'W L L').replace(/\b(Co|Mr|Ms|Dr|No|Est)\./g, '$1').replace(/\s+([,.])/g, '$1').match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || [];
         const out = []; let cur = '';
-        parts.forEach((p) => { p = p.trim(); if (!p) return; if ((cur + ' ' + p).length < 140) cur = (cur ? cur + ' ' : '') + p; else { if (cur) out.push(cur); cur = p; } });
+        parts.forEach((p) => { p = p.trim(); if (!p) return; if ((cur + ' ' + p).length < max) cur = (cur ? cur + ' ' : '') + p; else { if (cur) out.push(cur); cur = p; } });
         if (cur) out.push(cur);
-        return out.slice(0, 12);
+        if (out.length) out.splice(0, 1, ...cutFirst(out[0]));
+        return out.slice(0, 14);
     }
     function play(audio, my) {
         return new Promise((res) => {
@@ -99,7 +113,7 @@
             s.start();
         });
     }
-    function stop() { run++; try { if (src) src.stop(); } catch (_) {} src = null; }
+    function stop() { run++; try { if (src) src.stop(); } catch (_) {} src = null; try { if (worker) worker.postMessage({ type: 'cancel', ep: run }); } catch (_) {} }
     // returns false when it cannot speak now (the caller then uses the normal voice)
     async function speak(text, onStart, onEnd) {
         const c = cfg();
