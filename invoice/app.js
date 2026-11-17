@@ -2867,6 +2867,11 @@ async function handleUpdateJobEntry(e) {
     }
     // 17.0.4 p8: None = saved with no attention (stays in Job Records only)
     if (jobData.for !== 'Invoice' && jobData.attention === 'None') jobData.attention = '';
+    // 18.0.0 patch 60: editing an Invoice job: the same invoice no. on this PO is blocked too (not against itself)
+    if (jobData.for === 'Invoice' && window.ibaReception && !(await window.ibaReception.checkNewJob(Object.assign({}, jobData, { key: currentlyEditingKey })))) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Update'; }
+        return;
+    }
 
     try {
         // 15.0.0 patch 25: read only this job, fresh (before: the whole job list)
@@ -4740,7 +4745,7 @@ async function handleAddInvoiceRun(e) {
         for (const key in existingInvoices) {
             const inv = existingInvoices[key];
             const existingInvNumber = (inv.invNumber || '').trim();
-            if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
+            if (existingInvNumber && (window.ibaReception ? window.ibaReception.normNo(existingInvNumber) === window.ibaReception.normNo(newInvNumber) : existingInvNumber.toLowerCase() === newInvNumber.toLowerCase())) {
                 isDuplicate = true;
                 duplicateKey = key;
                 break;
@@ -4753,8 +4758,12 @@ async function handleAddInvoiceRun(e) {
             return; // Stop saving
         }
         if (isDuplicate) {
-            alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease check if this invoice was already entered, or use a different invoice number.`);
-            return; // Stop saving
+            // 18.0.0 patch 60: one rule everywhere; only the Super Admin may Save anyway
+            const goOn = window.ibaReception ? await window.ibaReception.guard({ po: currentPO, no: newInvNumber, invs: existingInvoices, jobs: false, where: 'invoice entry add' }) : false;
+            if (!goOn) {
+                if (!window.ibaReception) alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease check if this invoice was already entered, or use a different invoice number.`);
+                return; // Stop saving
+            }
         }
     }
     // ==========================================================
@@ -5082,21 +5091,27 @@ async function handleUpdateInvoiceRun(e) {
     });
 
     const newInvNumber = (invoiceData.invNumber || '').trim();
-    if (newInvNumber && allInvoiceData && allInvoiceData[currentPO]) {
+    // 18.0.0 patch 60: read this one PO fresh (a few KB) instead of trusting the copy in memory
+    let imUpdDupSource = allInvoiceData && allInvoiceData[currentPO];
+    if (newInvNumber && window.ibaReception) { try { imUpdDupSource = await window.ibaReception.poInvoices(currentPO); } catch (_) {} }
+    if (newInvNumber && imUpdDupSource) {
         let isDuplicate = false;
-        const existingInvoices = allInvoiceData[currentPO];
+        const existingInvoices = imUpdDupSource;
         for (const key in existingInvoices) {
             if (key === currentlyEditingInvoiceKey) continue;
             const inv = existingInvoices[key];
             const existingInvNumber = (inv.invNumber || '').trim();
-            if (existingInvNumber && existingInvNumber.toLowerCase() === newInvNumber.toLowerCase()) {
+            if (existingInvNumber && (window.ibaReception ? window.ibaReception.normNo(existingInvNumber) === window.ibaReception.normNo(newInvNumber) : existingInvNumber.toLowerCase() === newInvNumber.toLowerCase())) {
                 isDuplicate = true;
                 break;
             }
         }
         if (isDuplicate) {
-            alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease use a different invoice number.`);
-            return;
+            const goOn = window.ibaReception ? await window.ibaReception.guard({ po: currentPO, no: newInvNumber, invs: existingInvoices, exceptInvKey: currentlyEditingInvoiceKey, jobs: false, where: 'invoice entry update' }) : false;
+            if (!goOn) {
+                if (!window.ibaReception) alert(`❌ Duplicate Invoice Number!\n\nInvoice No. "${newInvNumber}" already exists for PO ${currentPO}.\nPlease use a different invoice number.`);
+                return;
+            }
         }
     }
 
@@ -5673,6 +5688,48 @@ async function imBatchSaveRun() {
             imBatchSaveProgress('');
             alert(`Nothing was saved.\n\nThe same invoice no. is on two new rows of one PO:\n- ${twice.join('\n- ')}\n\nChange one of them, then Save again.`);
             return;
+        }
+    }
+
+    // 18.0.0 patch 60 (martin): new rows must not repeat an invoice no. that is already SAVED on the PO.
+    // Reads only invoice_entries/<PO> of each PO with new rows (a few KB each), never the whole list.
+    if (window.ibaReception) {
+        const R = window.ibaReception, byPo = {};
+        rows.forEach((row) => {
+            if (row.dataset.key) return;
+            const el = row.querySelector('[name="invNumber"]');
+            const no = String((el && el.value) || '').trim();
+            if (no && row.dataset.po) (byPo[row.dataset.po] = byPo[row.dataset.po] || []).push({ row, no });
+        });
+        const hits = [];
+        for (const po of Object.keys(byPo)) {
+            imBatchSaveProgress(`Checking PO ${po}...`);
+            let invs = {};
+            try { invs = await R.poInvoices(po); } catch (_) { continue; }
+            for (const x of byPo[po]) {
+                const d = await R.findDup({ po, no: x.no, invs, jobs: false });
+                if (d.invs.length) hits.push({ po, no: x.no, row: x.row, inv: d.invs[0] });
+            }
+        }
+        if (hits.length) {
+            imBatchSaveProgress('');
+            const sup = (typeof window.ibaIsSuperAdmin === 'function') ? window.ibaIsSuperAdmin() : (currentApprover && currentApprover.Name === 'Irwin');
+            const fromRecv = hits.filter((h) => h.row.dataset.jobKey);
+            const list = hits.map((h) => `PO ${h.po}: invoice no. ${h.no} is already ${h.inv.inv.invEntryID || ''}${h.inv.inv.status ? ' (' + h.inv.inv.status + ')' : ''}`).join('\n- ');
+            if (fromRecv.length && confirm(`Nothing was saved.\n\nAlready in Invoice Records:\n- ${list}\n\n${fromRecv.length} of these came from Reception. Close ${fromRecv.length === 1 ? 'that Reception entry' : 'those Reception entries'} as already entered (linked to the existing invoice) and take ${fromRecv.length === 1 ? 'its card' : 'their cards'} out of the batch?`)) {
+                for (const h of fromRecv) {
+                    try { await R.closeJob(h.row.dataset.jobKey, { po: h.po, linkKey: h.inv.key, linkStatus: h.inv.inv.status || '', linkEntry: h.inv.inv.invEntryID || '' }); h.row.remove(); }
+                    catch (e) { console.error('[batch no-dup] close failed', e); }
+                }
+                try { if (typeof updateBatchCount === 'function') updateBatchCount(); } catch (_) {}
+                if (hits.length > fromRecv.length) alert('The Reception entries are closed. The other repeated invoice no. is still in the batch: change it, then Save again.');
+                else alert('Done. Press Save again for the rest of the batch.');
+                return;
+            }
+            if (!sup || !(await R.guard({ found: { po: hits[0].po, no: hits[0].no, invs: hits.map((h) => h.inv), jobs: [] }, no: hits.map((h) => h.no).join(', '), where: 'batch entry' }))) {
+                if (!sup && !fromRecv.length) alert(`Nothing was saved.\n\nThese invoice numbers are already in Invoice Records:\n- ${list}\n\nChange or remove those rows, then Save again.`);
+                return;
+            }
         }
     }
 

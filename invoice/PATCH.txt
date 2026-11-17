@@ -3,6 +3,21 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 60 (17-Nov-2026)
+- ONE no-duplicate rule for Reception (Add and Edit), Invoice Entry (Add and Update) and Batch Entry:
+  PO first (reads only invoice_entries/<PO>, a few KB), then the INVOICE NO. among that PO's invoices.
+  Never the Inv Entry ID. "INV-001" = "INV001" = "inv 001"; "123-2" / "123-B" are different invoices (second one).
+  Blocked for everyone with a message saying where it already is; only the Super Admin gets "Save anyway"
+  (kept in system_logs/dup_override with the name). An old open Reception entry of an invoice that is already
+  entered: "Close the open entry" (Super Admin) closes it linked to that invoice.
+- Batch Entry now also checks the invoices already SAVED on each PO (before: only two rows in the same batch).
+  Cards that came from Reception: offer to close those Reception entries as already entered and take the cards out.
+- Invoice Entry Update reads the PO fresh instead of the copy in memory.
+- Edit of an Invoice job (Reception) opens the guided window "Edit invoice" (same 4 steps, button Update).
+- New invoice window: the "already on this PO" hint compares the invoice no. only (not the Inv Entry ID).
+- Job Records: "Tidy old jobs" and "Recycle Bin" are inside one "More tools" button.
+- Files: app.js, js/iba-1705-recv.js, js/iba-1705-newinv.js, js/iba-1800-tidy.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 59 (17-Nov-2026)
 - NEW "Find LPO" (assistant skill, group "LPO and PO file"; Super Admin as built, Skill access can give it to others; PC only).
   Search the LPO PDFs in "Proc - LPO" by PO, vendor, site number/name, requisition or type of work; newest PO first.
