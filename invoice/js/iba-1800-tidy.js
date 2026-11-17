@@ -289,30 +289,36 @@
   }
   function openBin() { if (!isSuper()) return; bin = { ask: '', msg: '', busy: false }; binPaint(); }
 
-  // small buttons next to Clear on Job Records (Super Admin, PC)
+  // 18.0.0 patch 60 (martin): ONE "More tools" button next to Clear on Job Records (Super Admin, PC);
+  // Tidy old jobs and Recycle Bin are inside its little menu
+  function closeMenu() { var m = document.getElementById('iba-jr-tools-menu'); if (m) m.hidden = true; }
   function addButton() {
     var clear = document.getElementById('reporting-clear-button');
-    var b = document.getElementById('iba-tidy-btn'), r = document.getElementById('iba-bin-btn');
+    var w = document.getElementById('iba-jr-tools');
+    ['iba-tidy-btn', 'iba-bin-btn'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     var inv = false; try { inv = typeof wdReportIsInventoryMode === 'function' && wdReportIsInventoryMode(); } catch (_) {}
     var want = clear && isSuper() && !phone() && !inv;
-    if (!want) { if (b) b.remove(); if (r) r.remove(); return; }
-    if (!b) {
-      b = document.createElement('button');
-      b.type = 'button'; b.id = 'iba-tidy-btn'; b.className = 'secondary-btn wd-clear-chip';
-      b.title = 'Close old Invoice jobs that are already in Invoice Entry';
-      b.innerHTML = '<i class="fa-solid fa-broom"></i> Tidy old jobs';
-      b.addEventListener('click', open);
-      clear.insertAdjacentElement('afterend', b);
-    }
-    if (!r) {
-      r = document.createElement('button');
-      r.type = 'button'; r.id = 'iba-bin-btn'; r.className = 'secondary-btn wd-clear-chip';
-      r.title = 'Removed jobs: restore or delete forever';
-      r.innerHTML = '<i class="fa-solid fa-trash-can-arrow-up"></i> Recycle Bin';
-      r.addEventListener('click', openBin);
-      b.insertAdjacentElement('afterend', r);
-    }
+    if (!want) { if (w) w.remove(); return; }
+    if (w) return;
+    w = document.createElement('span');
+    w.id = 'iba-jr-tools'; w.className = 'iba-jr-tools';
+    w.innerHTML = '<button type="button" class="secondary-btn wd-clear-chip" data-jr-tools aria-haspopup="true" title="More tools"><i class="fa-solid fa-toolbox"></i> More tools <i class="fa-solid fa-chevron-down iba-jr-caret"></i></button>' +
+      '<span class="iba-jr-tools-menu" id="iba-jr-tools-menu" role="menu" hidden>' +
+      '<button type="button" role="menuitem" data-jr-tidy><i class="fa-solid fa-broom"></i><span><b>Tidy old jobs</b><small>Close old Invoice jobs already in Invoice Entry</small></span></button>' +
+      '<button type="button" role="menuitem" data-jr-bin><i class="fa-solid fa-trash-can-arrow-up"></i><span><b>Recycle Bin</b><small>Removed jobs: restore or delete forever</small></span></button>' +
+      '</span>';
+    clear.insertAdjacentElement('afterend', w);
   }
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target : null;
+    var w = document.getElementById('iba-jr-tools');
+    if (!w) return;
+    if (!t || !w.contains(t)) return closeMenu();
+    if (t.closest('[data-jr-tools]')) { var m = document.getElementById('iba-jr-tools-menu'); if (m) m.hidden = !m.hidden; return; }
+    if (t.closest('[data-jr-tidy]')) { closeMenu(); return open(); }
+    if (t.closest('[data-jr-bin]')) { closeMenu(); return openBin(); }
+  }, true);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
   window.ibaRecycleBin = openBin;
   setInterval(addButton, 2500);
   window.ibaTidyJobs = open;

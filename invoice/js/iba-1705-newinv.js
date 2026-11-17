@@ -21,7 +21,8 @@
     const $ = (id) => document.getElementById(id);
     const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const norm = (v) => String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
-    const normInv = (v) => String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    // 18.0.0 patch 60: the same invoice-no. rule as the save check ("123-2" / "123-B" are different invoices)
+    const normInv = (v) => (window.ibaReception && window.ibaReception.normNo) ? window.ibaReception.normNo(v) : String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
     // 17.0.5 patch 123: two guided windows. inv = New invoice (Reception),
     // req = New requisition (Procurement, job type PR, no PO yet)
     const CFG = {
@@ -49,6 +50,8 @@
     function modal() { return $('standard-job-modal'); }
     function isOpen() { const m = modal(); return !!(m && !m.classList.contains('hidden') && m.getClientRects().length > 0); }
     function addMode() { const a = $('add-job-button'), u = $('update-job-button'); return !!(a && !a.classList.contains('hidden') && (!u || u.classList.contains('hidden'))); }
+    // 18.0.0 patch 60 (martin): Edit of an Invoice job (Reception) uses this window too
+    function editMode() { const a = $('add-job-button'), u = $('update-job-button'); return !!(u && !u.classList.contains('hidden') && (!a || a.classList.contains('hidden'))); }
     function isInvoice() { const f = $('job-for'); return !!(f && f.value === 'Invoice'); }
     function modeOfForm() { const f = $('job-for'); const v = f ? f.value : ''; return v === 'Invoice' ? 'inv' : v === 'PR' ? 'req' : ''; }
     function onPhone() { const b = document.body; return !!(b && (b.classList.contains('iba-mobile-ui') || b.classList.contains('iba-phone'))); }
@@ -69,6 +72,7 @@
     function on(mode) {
         if (st.on) return;
         st.mode = mode === 'req' ? 'req' : 'inv';
+        st.edit = editMode();
         const S = C().steps;
         const m = modal(), form = $('jobentry-form');
         const grid = form && form.querySelector('.transfer-2col-grid');
@@ -77,7 +81,7 @@
         const wrap = document.createElement('div');
         wrap.id = 'iba-ni';
         wrap.innerHTML = '<div class="iba-ni-kick"><b id="iba-ni-step"></b><span id="iba-ni-help"></span><span class="iba-ni-bar" id="iba-ni-bar">' +
-            S.map((s) => '<i data-ni-bar="' + s.n + '"></i>').join('') + '</span><button type="button" class="iba-ni-other" data-ni-other title="Use the normal form for another job type">Other job type</button></div>' +
+            S.map((s) => '<i data-ni-bar="' + s.n + '"></i>').join('') + '</span>' + (st.edit ? '' : '<button type="button" class="iba-ni-other" data-ni-other title="Use the normal form for another job type">Other job type</button>') + '</div>' +
             '<div class="iba-ni-steps">' + S.map((s) => '<section class="iba-ni-st" data-ni-st="' + s.n + '"><div class="iba-ni-sh"><span class="iba-ni-num">' + s.n + '</span><b>' +
                 esc(s.head) + '</b><small data-ni-tag="' + s.n + '"></small></div><div class="iba-ni-body" data-ni-body="' + s.n + '"></div>' +
                 '<div class="iba-ni-hint" data-ni-hint="' + s.n + '"></div></section>').join('') + '</div>';
@@ -113,7 +117,7 @@
             relabel('label[for="job-ref"]', 'Invoice no.');
             relabel('label[for="job-amount"]', 'Amount (QAR)');
             relabel('label[for="job-vendor-name"]', 'Vendor');
-            relabel('#standard-modal-title', 'New invoice');
+            relabel('#standard-modal-title', st.edit ? 'Edit invoice' : 'New invoice');
         } else {
             // New requisition: requisition no. (Reference), Site, Value | Vendor | Attachment | Attention, note
             move(grp('job-ref'), body(1));
@@ -142,6 +146,7 @@
         const ref = $('job-ref'); if (ref && st.mode === 'inv') { st.saved.refPh = ref.placeholder; ref.placeholder = 'Type the invoice number…'; }
         ['job-po', 'job-ref', 'job-amount', 'job-vendor-name', 'job-vendor-id', 'job-attachment'].forEach((id) => { const el = $(id); if (el) el.setAttribute('autocomplete', 'off'); });
         const add = $('add-job-button'); if (add) { st.saved.add = add.innerHTML; add.innerHTML = '<i class="fa-solid fa-check"></i> ' + C().save; }
+        const upd = $('update-job-button'); if (upd && st.edit) { st.saved.upd = upd.innerHTML; upd.innerHTML = '<i class="fa-solid fa-check"></i> Update'; }
         const foot = m.querySelector('.modal-footer');
         if (foot && !$('iba-ni-next')) { const n = document.createElement('span'); n.id = 'iba-ni-next'; foot.insertBefore(n, foot.lastElementChild); }
         m.classList.add('iba-ni-on');
@@ -164,6 +169,7 @@
             if (k === 'refPh') { const r = $('job-ref'); if (r) r.placeholder = st.saved[k]; }
             if (k === 'attPh') { const r = $('job-attachment'); if (r) r.placeholder = st.saved[k]; }
             else if (k === 'add') { const a = $('add-job-button'); if (a) a.innerHTML = st.saved[k]; }
+            else if (k === 'upd') { const a = $('update-job-button'); if (a) a.innerHTML = st.saved[k]; }
             else { const l = document.querySelector(k); if (l) l.innerHTML = st.saved[k]; }
         });
         st.saved = {};
@@ -389,7 +395,7 @@
         const po = cleanPO(val('job-po')), no = normInv(val('job-ref'));
         let html = '', cls = '';
         if (po && no && st.invs && st.invsPo === po) {
-            const k = Object.keys(st.invs).find((x) => { const i = st.invs[x] || {}; return normInv(i.invNumber) === no || normInv(i.invEntryID) === no; });
+            const k = Object.keys(st.invs).find((x) => { const i = st.invs[x] || {}; return normInv(i.invNumber) === no; });   // the invoice no. only, never the Inv Entry ID
             if (k) {
                 const i = st.invs[k] || {};
                 cls = 'is-bad';
@@ -414,8 +420,8 @@
     }
     function sync() {
         setTimeout(fixNav, 0);
-        const want = (isOpen() && addMode() && !onPhone()) ? modeOfForm() : '';
-        if (st.on && want !== st.mode) off();
+        const want = (isOpen() && !onPhone()) ? (addMode() ? modeOfForm() : (editMode() && modeOfForm() === 'inv' ? 'inv' : '')) : '';
+        if (st.on && (want !== st.mode || editMode() !== !!st.edit)) off();
         if (want && !st.on) on(want);
         else if (st.on) paint();
         // after a save the form is cleared: stay in the same window for the next one
@@ -457,14 +463,14 @@
             try { if (window.ibaAssistant && window.ibaAssistant.ask) window.ibaAssistant.ask(po); } catch (_) {}
             return;
         }
-        if (t.closest('#add-job-button') && reqPo()) {
+        if (t.closest('#add-job-button, #update-job-button') && st.mode === 'req' && reqPo()) {
             e.preventDefault(); e.stopImmediatePropagation();
             paint();
             const g = $('job-ref'); if (g) { g.classList.add('iba-ni-glow'); try { g.focus(); } catch (_) {} }
             const nx = $('iba-ni-next'); if (nx) { nx.classList.remove('is-shake'); void nx.offsetWidth; nx.classList.add('is-shake'); }
             return;
         }
-        if (t.closest('#add-job-button')) {
+        if (t.closest('#add-job-button, #update-job-button')) {
             const now = firstOpen();
             if (now) {
                 e.preventDefault(); e.stopImmediatePropagation();
@@ -476,6 +482,7 @@
                 const nx = $('iba-ni-next'); if (nx) { nx.classList.remove('is-shake'); void nx.offsetWidth; nx.classList.add('is-shake'); }
                 return;
             }
+            if (st.edit) return;   // Update: keep its Attention, no "stay for the next one"
             if (st.mode === 'inv') {
                 // no Attention: the app sends invoice jobs to Irwin / his replacement
                 try { if (typeof attentionSelectChoices !== 'undefined' && attentionSelectChoices) attentionSelectChoices.removeActiveItems(); } catch (_) {}

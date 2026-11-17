@@ -194,37 +194,117 @@
   if (!watchModal()) document.addEventListener('DOMContentLoaded', watchModal);
 
   // 3. Reception Job Entry: same invoice number already there? (called from app.js)
-  async function checkNewJob(job) {
-    var po = String(job.po || '').trim().toUpperCase();
-    var ref = norm(job.ref);
-    if (!po || !ref) return true;
-    var hits = [];
+  // ---- 18.0.0 patch 60 (martin): ONE no-duplicate rule for Reception, Invoice Entry and Batch Entry ----
+  // PO first (reads only invoice_entries/<PO>, a few KB), then the INVOICE NO. among that PO's invoices.
+  // Never the Inv Entry ID. "INV-001", "inv 001", "INV001" are the same. Blocked for everyone; the Super
+  // Admin may "Save anyway" (written to system_logs/dup_override with the name).
+  // martin: a vendor's repeated number gets "-2" / "-B" (second one), so a short ending after - / or a space stays its own part:
+  // "123-2" and "123-B" are NOT "123" (and "123-2" is not "1232"); "INV-001" = "INV001" = "inv 001"
+  function normNo(v) {
+    var t = String(v == null ? '' : v).toUpperCase().trim();
+    var m = t.match(/^(.*?[A-Z0-9])\s*[-\/ ]\s*([A-Z0-9]{1,2})$/);
+    var core = (m ? m[1] : t).replace(/[^A-Z0-9]/g, '');
+    return m ? core + '|' + m[2] : core;
+  }
+  async function poInvoices(po) {
+    po = String(po || '').trim().toUpperCase();
+    if (!po) return {};
+    var snap = await invoiceDb.ref('invoice_entries/' + po).once('value');
+    return snap.val() || {};
+  }
+  function openJobsOf(po, no, exceptJobKey) {
     try {
-      // only this one PO (a few KB), never the whole invoice list
-      var snap = await invoiceDb.ref('invoice_entries/' + po).once('value');
-      var all = snap.val() || {};
-      Object.keys(all).forEach(function (k) {
-        var inv = all[k];
-        if (inv && typeof inv === 'object' && norm(inv.invNumber) === ref) {
-          hits.push('In Invoice Records as <b>' + esc(inv.invEntryID || k) + '</b>' + (inv.status ? ' · ' + esc(inv.status) : '') + (inv.attention ? ' · with ' + esc(inv.attention) : ''));
-        }
+      return (Array.isArray(allSystemEntries) ? allSystemEntries : []).filter(function (e) {
+        if (!e || e.key === exceptJobKey) return false;
+        if (String(e.po || '').trim().toUpperCase() !== po || normNo(e.ref) !== no) return false;
+        if (e.for !== 'Invoice' || e.convertedToInvoice || e.archived) return false;
+        return !/^(removed|cancelled|completed|converted to invoice)$/i.test(String(e.remarks || ''));
       });
-    } catch (e) { console.warn('[reception] invoice check skipped', e); }
-    try {
-      (Array.isArray(allSystemEntries) ? allSystemEntries : []).forEach(function (e) {
-        if (!e || String(e.po || '').trim().toUpperCase() !== po || norm(e.ref) !== ref) return;
-        if (e.for !== 'Invoice' || e.convertedToInvoice || e.archived) return;
-        hits.push('Already at Reception (New Entries)' + (e.enteredBy ? ', entered by ' + esc(e.enteredBy) : '') + (e.date ? ' on ' + esc(e.date) : ''));
+    } catch (_) { return []; }
+  }
+  // o: { po, no, exceptJobKey, exceptInvKey, invs (already read), jobs: false to skip Reception }
+  async function findDup(o) {
+    var po = String(o.po || '').trim().toUpperCase(), no = normNo(o.no);
+    var out = { po: po, no: no, invs: [], jobs: [] };
+    if (!po || !no) return out;
+    var all = o.invs;
+    if (!all) { try { all = await poInvoices(po); } catch (e) { console.warn('[no-dup] PO read failed', e); all = {}; } }
+    Object.keys(all || {}).forEach(function (k) {
+      var inv = all[k];
+      if (k === o.exceptInvKey || !inv || typeof inv !== 'object') return;
+      if (normNo(inv.invNumber) === no) out.invs.push({ key: k, inv: inv });
+    });
+    if (o.jobs !== false) out.jobs = openJobsOf(po, no, o.exceptJobKey);
+    return out;
+  }
+  function choose(o) {
+    return new Promise(function (done) {
+      var old = document.getElementById('iba-recv-pop'); if (old) old.remove();
+      var w = document.createElement('div');
+      w.id = 'iba-recv-pop'; w.className = 'iba-pb-layer';
+      w.innerHTML = '<div class="iba-pb-box" role="alertdialog" aria-modal="true" aria-labelledby="iba-recv-t" style="width:min(520px,100%)">' +
+        '<div class="iba-pb-head"><b id="iba-recv-t"><i class="fa-solid ' + (o.icon || 'fa-clone') + '"></i> ' + esc(o.title) + '</b></div>' +
+        '<div class="iba-pb-sub">' + o.html + '</div>' +
+        '<div class="iba-pb-foot"><span></span>' + o.btns.map(function (b) {
+          return '<button type="button" data-v="' + esc(b.v) + '"' + (b.main ? ' class="is-main"' : '') + '>' + esc(b.t) + '</button>';
+        }).join('') + '</div></div>';
+      document.body.appendChild(w);
+      var end = function (v) { w.remove(); done(v); };
+      w.addEventListener('click', function (e) {
+        if (e.target === w) return end('no');
+        var b = e.target.closest('button'); if (b) end(b.getAttribute('data-v'));
       });
-    } catch (_) {}
-    if (!hits.length) return true;
-    return ask({
-      icon: 'fa-clone', title: 'This invoice may already be in the system',
-      html: 'Invoice No. <b>' + esc(job.ref) + '</b> for PO <b>' + esc(po) + '</b>:<ul style="margin:8px 0 0 18px;padding:0">' +
-        hits.map(function (h) { return '<li>' + h + '</li>'; }).join('') + '</ul><br>Save it again anyway?',
-      yes: 'Save anyway', no: 'Don\'t save'
+      w.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.stopPropagation(); end('no'); } });
+      setTimeout(function () { var n = w.querySelector('[data-v="no"]'); if (n) n.focus(); }, 0);
     });
   }
+  function hitLines(d) {
+    var l = [];
+    d.invs.forEach(function (h) {
+      var i = h.inv;
+      l.push('In Invoice Records as <b>' + esc(i.invEntryID || h.key) + '</b>' + (i.invNumber ? ' (invoice no. ' + esc(i.invNumber) + ')' : '') +
+        (i.status ? ' · ' + esc(i.status) : '') + (i.attention ? ' · with ' + esc(i.attention) : ''));
+    });
+    d.jobs.forEach(function (e) {
+      l.push('Open at Reception (New Entries)' + (e.enteredBy ? ', entered by ' + esc(e.enteredBy) : '') + (e.date ? ' on ' + esc(e.date) : '') + (e.ref ? ' · invoice no. ' + esc(e.ref) : ''));
+    });
+    return l;
+  }
+  function logOverride(d, where) {
+    try { db.ref('system_logs/dup_override').push({ by: me(), at: firebase.database.ServerValue.TIMESTAMP, po: d.po, invNo: d.no, where: where || '' }); } catch (_) {}
+  }
+  // shows the block message; true = go ahead (no duplicate, or the Super Admin pressed Save anyway)
+  async function guard(o) {
+    var d = o.found || await findDup(o);
+    if (!d.invs.length && !d.jobs.length) return true;
+    var sup = isSuper();
+    var canClose = sup && d.invs.length && d.jobs.length;   // a leftover Reception entry of an invoice that is already entered
+    var btns = [{ v: 'no', t: 'Go back' }];
+    if (canClose) btns.push({ v: 'close', t: 'Close the open entry' });
+    if (sup) btns.push({ v: 'yes', t: 'Save anyway', main: true });
+    var html = 'Invoice No. <b>' + esc(o.no) + '</b> is already on PO <b>' + esc(d.po) + '</b>:' +
+      '<ul style="margin:8px 0 0 18px;padding:0">' + hitLines(d).map(function (h) { return '<li>' + h + '</li>'; }).join('') + '</ul><br>' +
+      (sup ? 'It is not saved. Use <b>Save anyway</b> only for a real exception (your name is kept).' : 'It is not saved, so the same invoice is not entered twice. Check the invoice no.') +
+      (canClose ? '<br><b>Close the open entry</b> closes the old Reception entry and links it to the invoice that is already entered.' : '');
+    var v = await choose({ title: 'This invoice is already in the system', html: html, btns: btns });
+    if (v === 'close') {
+      var inv = d.invs[0];
+      for (var i = 0; i < d.jobs.length; i++) {
+        try { await closeJob(d.jobs[i].key, { po: d.po, linkKey: inv.key, linkStatus: inv.inv.status || '', linkEntry: inv.inv.invEntryID || '' }); }
+        catch (e) { console.error('[no-dup] close failed', e); }
+      }
+      alert('Done. The open Reception entry is closed and linked to ' + (inv.inv.invEntryID || 'the existing invoice') + '. Nothing new was saved.');
+      return false;
+    }
+    if (v === 'yes' && sup) { logOverride(d, o.where); return true; }
+    return false;
+  }
 
-  window.ibaReception = { offerAlreadyEntered: offerAlreadyEntered, checkNewJob: checkNewJob, paint: paint };
+  // 3. Reception Job Entry (Add or Edit of an Invoice job): same invoice no. on this PO? (called from app.js)
+  async function checkNewJob(job) {
+    if (!job || !String(job.po || '').trim() || !normNo(job.ref)) return true;
+    return guard({ po: job.po, no: job.ref, exceptJobKey: job.key || '', where: job.key ? 'reception edit' : 'reception new' });
+  }
+
+  window.ibaReception = { offerAlreadyEntered: offerAlreadyEntered, checkNewJob: checkNewJob, paint: paint, normNo: normNo, poInvoices: poInvoices, findDup: findDup, guard: guard, closeJob: closeJob };
 })();
