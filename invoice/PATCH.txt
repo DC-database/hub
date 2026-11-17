@@ -3,6 +3,15 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 58 (16-Nov-2026)
+- Phone IRIS natural voice (Kokoro) starts sooner: the first piece she says is short (up to the first
+  comma or about 6 words), the rest is made while she talks; pieces are shorter on a phone.
+- After the voice loads on a phone it says one silent practice word, so the first real answer is not the slowest.
+- Company names like "Co. W.L.L." are no longer cut into pieces.
+- When she is stopped, pieces still waiting in the background are dropped (no pile-up).
+- ⚙ status shows how long the last piece took to make, e.g. "Last piece took 1.2 s to make (30 letters)".
+- Files: js/iba-1800-kokoro.js, index.html
+
 18.0.0 patch 57 (16-Nov-2026)
 - IRIS phone: a PO lookup also lists open WorkDesk jobs of that PO not yet in Invoice Entry (e.g. IPC with the QS)
   via ONE indexed REST read job_entries?orderBy="po"&equalTo (no index = 400, never the full list).
