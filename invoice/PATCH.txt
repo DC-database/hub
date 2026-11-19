@@ -3,6 +3,10 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 84 (19-Nov-2026)
+- Batch Entry: after Save all, the button kept the old number ("Save all 26") although the batch was empty. It now shows the real count again as soon as saving ends.
+  Files: js/iba-1800-batchbar.js, index.html
+
 18.0.0 patch 83 (19-Nov-2026)
 - Find LPO: picking the folder showed nothing (it kept asking to pick). Now:
   * It also reads the sub-folders of Proc - LPO (3 levels), and Open / Email / WhatsApp links include the sub-folder.
