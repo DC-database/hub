@@ -3,6 +3,11 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 82 (19-Nov-2026)
+- Batch Entry: every way of adding (Add to Batch, Recent changes to Batch, Sort for CEO, IRIS) now adds the cards A-Z by vendor, same vendor together, then PO, then the earliest invoice date. New entries to Batch already did this (patch 62).
+- With Accounts list / Under Review list (Copy and Download CSV): rows A-Z by vendor, then PO, then invoice date (was: by the time they reached the status), so they match the papers filed alphabetically.
+  Files: js/iba-assistant.js, index.html
+
 18.0.0 patch 81 (19-Nov-2026)
 - Invoice Records + Invoice Entry table: the Action buttons are dark buttons with a coloured icon and a word, like the Add / Edit buttons: Edit, INV, SRV, History (and Report, Delete, PO Close Out the same way). In Invoice Records the Action column is a little wider so they fit on one line.
 - Invoice Records: the "Results kept from ... Refresh" line is hidden (the results are still kept; Search refreshes them).
