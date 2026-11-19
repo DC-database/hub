@@ -1140,9 +1140,15 @@ async function imTrySmartInvoiceRecordsSearch(rawSearchTerm, filters, ui = {}) {
 
         if (!poVendorOnly) {
             if (!ui.silent && ui.contentArea) ui.contentArea.innerHTML = '<div class="loading-state"><i class="fa-solid fa-spinner fa-spin"></i> Searching saved invoice copy...</div>';
-            const snap = await imRecGetSnapshot();
-            if (!snap) return null; // no saved copy yet: full download once, then it is saved
-            const data = snap.data || {};
+            // 18.0.0 patch 85 (martin: 8 invoices in Report, a status search showed 5): the 6-hour saved copy did not
+            // know today's changes. Use the saved copy + the POs changed since (window.ibaInvoiceEntriesLoad, small reads).
+            let data = null;
+            try { if (typeof window.ibaInvoiceEntriesLoad === 'function') { const r = await window.ibaInvoiceEntriesLoad(); data = r && r.data; } } catch (e) { console.warn('Invoice Records: saved copy + changes failed', e); }
+            if (!data) {
+                const snap = await imRecGetSnapshot();
+                if (!snap) return null; // no saved copy yet: full download once, then it is saved
+                data = snap.data || {};
+            }
             const poKeys = new Set([...Object.keys(data), ...Object.keys(live)]);
             poKeys.forEach((po) => {
                 // POs already read live in this tab are newer than the saved copy.
