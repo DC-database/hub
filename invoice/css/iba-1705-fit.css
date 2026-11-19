@@ -3135,6 +3135,18 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc { border: 1px solid rgba(255,255,255,.14) !important; border-radius: 14px !important; background: rgba(9,18,30,.42) !important; margin: 0 0 12px !important; padding: 0 !important; overflow: hidden !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc > .master-grid-row { display: none !important; }
   /* p63: Records cards see-through glass (martin), no blur */
+  /* p88: Summary Note move rows by hand (Super Admin): small up/down buttons in the Inv S/N cell + Reset bar */
+  html body #sn-table-body td .iba-sno-mv { display: inline-flex !important; flex-direction: column !important; gap: 2px !important; margin-left: 8px !important; vertical-align: middle !important; }
+  html body #sn-table-body td .iba-sno-mv button { all: unset !important; box-sizing: border-box !important; width: 22px !important; height: 15px !important; display: flex !important; align-items: center !important; justify-content: center !important; border-radius: 4px !important; background: #0e4d7a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 12px !important; cursor: pointer !important; }
+  html body #sn-table-body td .iba-sno-mv button:hover { background: #1677b8 !important; }
+  html body #sn-table-body tr:first-child .iba-sno-mv [data-sno="up"], html body #sn-table-body tr:last-child .iba-sno-mv [data-sno="down"] { opacity: .25 !important; pointer-events: none !important; }
+  html body #sn-table-body tr.iba-sno-moved > td { background: #fff3c4 !important; transition: background .5s !important; }
+  html body #iba-sno-bar { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; margin: 0 0 6px !important; padding: 6px 10px !important; border-radius: 8px !important; background: #fff3c4 !important; color: #6b4e00 !important; -webkit-text-fill-color: #6b4e00 !important; font-size: 12px !important; font-weight: 700 !important; }
+  html body #iba-sno-bar button { all: unset !important; cursor: pointer !important; padding: 4px 10px !important; border-radius: 6px !important; background: #0e4d7a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 12px !important; font-weight: 700 !important; }
+  @media print { html body .iba-sno-mv, html body #iba-sno-bar { display: none !important; } }
+  /* p86: Summary Note Per PO: a PO paid off by this note is faded on screen and left out of the print */
+  html body tr.is-done:has(.iba-snpo-done) > td { opacity: .5 !important; }
+  html body .iba-snpo-done { display: block !important; color: #16a34a !important; -webkit-text-fill-color: #16a34a !important; font-weight: 700 !important; font-size: 11px !important; }
   /* p83: Find LPO: title bar drags the window; two pick buttons side by side */
   html body #iba-lpo-pop .iba-lpo-head { cursor: move !important; user-select: none !important; }
   html body #iba-lpo-pop .iba-lpo-picks { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; align-items: center !important; }
