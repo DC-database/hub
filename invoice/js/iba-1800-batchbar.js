@@ -126,6 +126,10 @@
         paintCount();
         const tb = $('im-batch-table-body');
         if (tb) new MutationObserver(paintCount).observe(tb, { childList: true });
+        // patch 84 (martin): after Save the app puts back the label it had BEFORE saving ("Save all 26"), so the count
+        // is painted again as soon as the button stops saving
+        const sb = $('im-batch-save-button');
+        if (sb && !sb.dataset.bbWatch) { sb.dataset.bbWatch = '1'; new MutationObserver(() => setTimeout(paintCount, 0)).observe(sb, { attributes: true, attributeFilter: ['class', 'disabled'] }); }
         try { if (window.ibaBatchDel) window.ibaBatchDel.scan(); } catch (_) {}
         return true;
     }
