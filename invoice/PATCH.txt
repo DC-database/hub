@@ -3,6 +3,154 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 81 (19-Nov-2026)
+- Invoice Records + Invoice Entry table: the Action buttons are dark buttons with a coloured icon and a word, like the Add / Edit buttons: Edit, INV, SRV, History (and Report, Delete, PO Close Out the same way). In Invoice Records the Action column is a little wider so they fit on one line.
+- Invoice Records: the "Results kept from ... Refresh" line is hidden (the results are still kept; Search refreshes them).
+  Files: css/iba-1705-fit.css, index.html
+
+18.0.0 patch 80 (19-Nov-2026)
+- Summary Note Per PO table: really hidden by default now on every PC. Patch 78 still showed it on PCs where it had been ticked before (that old tick was remembered). The tick starts fresh (off).
+  Files: js/iba-1800-snpo.js, index.html
+
+18.0.0 patch 79 (19-Nov-2026)
+- IRIS robot moved to the LEFT side of the screen: everything now opens toward the free side.
+  * Speech bubble: its tail points to the robot on the left (on the top half the bubble sits under the robot, tail on top).
+  * Little scenes (laptop, forklift, loader, walking...) are mirrored, so they move left to right and are not cut by the screen edge.
+  * The IRIS window opens on the left, just right of the side menu (or at the edge when the menu is not pinned). The big wide window stays as it was.
+  Robot back in the bottom-right corner = everything as before.
+  Files: css/iba-1705-fit.css, js/iba-1800-botdrag.js, index.html
+
+18.0.0 patch 78 (19-Nov-2026)
+- Summary Note: the Per PO reference table is now HIDDEN by default (only the Super Admin uses it). Tick it on when you need it; the tick is remembered on that PC.
+  Files: js/iba-1800-snpo.js, index.html
+
+18.0.0 patch 77 (19-Nov-2026)
+- IRIS on the phone understands more:
+  * Vendor names: "Oscar", "PO for Oscar Marble", "Oscar Marble invoices" -> the vendor's POs, open ones first, with who has the invoices. Tap a PO to work on it. A name that fits several vendors asks which one.
+  * Inventory transfers: "transfer 361", "TRF 361", "STK 12" -> items, from/to site, who must act next and for how long. "transfers for cement", "transfer about wheel loader", "open transfers" -> matching requests (recent ones; the full search stays on the PC).
+  * "How can I help you" gets a friendly answer. "What's new", "catch me up", "what do you have for me", "fill me in" open the brief.
+  No full downloads: vendors come from the PO list already in memory, transfers by number are one small read.
+  Files: js/iba-1800-iris-phone.js, index.html
+
+18.0.0 patch 76 (19-Nov-2026)
+- Invoice Records: the open PO details and the column header are now nearly solid, so the rows you scroll under them no longer show through (they were confusing to read).
+- IRIS robot: when you drag it onto the side menu it now stays in front of the menu (it went behind before). Any open pop-up still covers it.
+  Files: css/iba-1705-fit.css, js/iba-1800-botdrag.js, index.html
+
+18.0.0 patch 75 (19-Nov-2026)
+- Invoice Records: each PO card has clean round corners on all 4 sides: everything inside the card is clipped to
+  the same round shape and the edge line is a little clearer.
+- Files: index.html, css/iba-1705-fit.css
+
+18.0.0 patch 74 (19-Nov-2026)
+- Summary Note print (martin picked A): no boxes around "Amount in words" and "Total current payment",
+  only a | line between them.
+- IRIS robot can be DRAGGED anywhere on the screen (PC only), e.g. the empty space under the side menu, so it
+  does not cover the tables. Hold and move it; a normal click still opens IRIS. The place is remembered on this
+  PC. Drop it back in the bottom-right corner, or double-click it, to put it back. Its speech bubbles follow it.
+- Files: index.html, js/iba-17-p27.js, js/iba-1800-botdrag.js (new)
+
+18.0.0 patch 73 (19-Nov-2026)
+- Invoice Records: the fixed PO details and the column header of an open PO are FROSTED glass (blurred see-through)
+  instead of solid. Rows scrolling under them are blurred so the figures stay readable.
+  In Light speed mode (no blur) they stay dark so rows don't show through.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-reccards.js
+
+18.0.0 patch 72 (19-Nov-2026)
+- Invoice Records: "Search Results Summary" is hidden (not deleted: one CSS rule "p72" in iba-1705-fit.css,
+  remove it to bring it back). The invoice list now reaches the bottom of the screen.
+- Files: index.html, css/iba-1705-fit.css
+
+18.0.0 patch 71 (19-Nov-2026)
+- Invoice Records: "Search Results Summary" sits at the bottom of the screen like a footer; the empty space that
+  was under it now goes to the invoice list (about 50 px taller on a 900 px screen). Only on Invoice Records.
+- Files: index.html, css/iba-1705-fit.css
+
+18.0.0 patch 70 (19-Nov-2026)
+- Summary Note print: Summary for / Previous payment / Current payment are aligned to the TOP of the strip
+  (were centred). The QR stays centred.
+- Files: index.html, js/iba-17-p27.js
+
+18.0.0 patch 69 (19-Nov-2026)
+- Invoice Records: the line under each PO's invoices (Total Invoice | Confirmed Paid | Unconfirmed | Not Paid |
+  Epicore Value) is hidden (not deleted: one CSS rule in iba-1705-fit.css "p69", remove it to show it again).
+- Invoice Records: when a PO is open, its PO details (PO No. | Site | Vendor, figures, bar) stay fixed at the top
+  and the column header right under them; only the invoice rows scroll.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-reccards.js
+
+18.0.0 patch 68 (19-Nov-2026)
+- Summary Note: a tick on the Per PO box turns the WHOLE box on/off (remembered on this PC). Off = only a small
+  dashed line "Per PO reference - Off: not shown and not printed" stays on screen (tick it to bring it back);
+  nothing is printed. "Show previous" still works inside the box when it is on.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-snpo.js
+
+18.0.0 patch 67 (19-Nov-2026)
+- Invoice Records: the results list has a visible gold scrollbar (like Material Stock) so you can see there are
+  more records, and the "Search Results Summary" bar is slimmer and sits lower, so the list gets more room.
+- Summary Note print (martin picked the sample): the top cards are ONE strip divided by lines:
+  Summary for | Prev summary QR | Previous payment | Current payment (current in blue).
+- Files: index.html, css/iba-1705-fit.css, js/iba-17-p27.js
+
+18.0.0 patch 66 (19-Nov-2026)
+- Invoice Records: a PO with many invoices (e.g. 52878, 45 invoices) showed only ~6 rows: the card was squeezed
+  to the height of the results box. Now the card keeps its full height and all invoices show (scroll the results).
+- Summary Note: the "Per PO" reference box sits on the LEFT, under Prepared By (screen and print).
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-snpo.js
+
+18.0.0 patch 65 (19-Nov-2026)
+- Invoice Records: the extra glass box around all the PO cards (the old table frame) is gone; only the
+  PO cards themselves show.
+- Files: index.html, css/iba-1705-fit.css
+
+18.0.0 patch 64 (19-Nov-2026)
+- Summary Note: the "Per PO" box (Previous | This note | Total) moved UNDER the signatures (Prepared By /
+  Managing Director), on screen and in print, marked "for reference only, not part of the payment".
+  The signature space stays as it was. A long note runs onto page 2, 3...: rows are never cut in half and
+  the column header repeats on each new page.
+- Files: index.html, css/iba-1705-fit.css, js/iba-17-p27.js, js/iba-1800-snpo.js
+
+18.0.0 patch 63 (19-Nov-2026)
+- Invoice Records PO cards are see-through glass (light dark tint, no blur): the background shows through the
+  card, the invoice table and its header. Before: solid dark blue.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-reccards.js
+
+18.0.0 patch 62 (18-Nov-2026)
+- New entries to Batch: cards sorted by vendor A-Z (same vendor together), then PO, then earliest invoice date.
+- Summary Note: "Per PO (amount to pay)" box under the total, one line per PO on the note:
+  PO + PO value | Previous | This note | Total. Previous = amount to pay of that PO's other invoices already
+  With Accounts or Paid (reads only invoice_entries/<PO>). "Show previous" switch (remembered on this PC).
+  Previous can be typed from the paper PO; shows "edited x" on screen only (click to go back).
+  Printed too (same box under the total).
+- Invoice Entry in the tracker style: PO No. | Site | Vendor, then PO value | Invoiced (n) | Paid | Balance
+  with a coloured bar (page after Search PO and the pop-up). Existing invoices table: status dot, clear Total.
+  No figures for people who see "---".
+- Invoice Records: each PO is a card (PO | Site | Vendor, "N open / M invoices", PO value | Invoiced | Paid |
+  Balance + bar). Click opens its invoices; ALL invoice columns kept. "Total SRV" now says "Total Invoiced".
+- IRIS understands free sentences (js/iba-1800-mind.js, runs on the PC, no key, no download):
+  "hi do me a favor can you navigate this po 12345 tell me what we got" -> PO 12345, vendor names, approvals,
+  brief, colleague numbers, days (today / yesterday / last sunday / 17 nov).
+- IRIS "register all new entries we received yesterday": Under Review, invoice no. follows the PO's series
+  (12345.IPC/01 -> 12345.IPC/02), else PO + "." + reception no. Ready ones go to Batch; not-sure ones
+  (no PO / no amount / already entered / same no. twice) are listed with the reason + "Add anyway".
+  "Save the N now" or "I will review first". Nothing is saved without your tap.
+- Speed (Settings > Speed, this PC only): Auto / Light / Full. Light = no background video, no weather,
+  no glass blur, no endless glow. Auto turns Light on for PCs with 4 cores / 4 GB or less, or a slow screen.
+- Files: index.html, css/iba-1705-fit.css, js/iba-1800-lite.js (new), js/iba-1800-iestyle.js (new),
+  js/iba-1800-reccards.js (new), js/iba-1800-mind.js (new), js/iba-1800-snpo.js (new), js/iba-assistant.js,
+  js/iba-17-p27.js, js/iba-1702-reception-batch.js, js/iba-1705-rain.js
+
+18.0.0 patch 61 (18-Nov-2026)
+- Batch Entry > Search PO also shows that PO's Reception New Entries ("New Entries (Reception) on PO ...")
+  under the invoices found (or under "No existing invoices"): invoice no., date, amount, who entered it.
+  "Add to batch" = a card already filled from the entry and linked to it, so Save closes the entry as
+  Converted to Invoice (same as "New entries to Batch"). "In batch" = already carded; "Already entered"
+  = that invoice no. is already saved on the PO (patch 60 rule), cannot be added.
+  No extra download: uses the reception list the app already keeps.
+- Jobs side panel (Active job bookmark) hides while the assistant is open and comes back when it closes,
+  in the same open/closed state you left it.
+- Files: index.html, js/iba-1800-batchrecv.js (new), js/iba-1702-reception-batch.js, js/iba-1705-ajbm.js,
+  css/iba-1705-fit.css
+
 18.0.0 patch 60 (17-Nov-2026)
 - ONE no-duplicate rule for Reception (Add and Edit), Invoice Entry (Add and Update) and Batch Entry:
   PO first (reads only invoice_entries/<PO>, a few KB), then the INVOICE NO. among that PO's invoices.
