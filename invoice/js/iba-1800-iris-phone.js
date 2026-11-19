@@ -564,6 +564,89 @@
         irisSay(t || 'Your brief is not ready yet. Try again in a moment.', { listen: false, opts: ['What can you do?'] });
     }
 
+    // ---------- 18.0.0 patch 77 (martin): vendors and inventory transfers by voice ----------
+    // Both reuse the assistant's own searches (no full download: vendors come from the PO list in memory,
+    // transfers by control number = one indexed read, by words = the transfers already loaded / latest 60).
+    const run = async (name, args) => { const a = window.ibaAssistant; if (!a || !a._run) return null; const r = await a._run(name, args); return r && r.result; };
+    const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+    const shortV = (v) => String(v || '').replace(/\b(?:w\.?\s?l\.?\s?l|l\.?\s?l\.?\s?c|co|company|est|establishment|trading|contracting|services|group)\b\.?/ig, ' ').replace(/[&,.]+\s*$/, '').replace(/\s+/g, ' ').trim() || v;
+    const VENDOR_CUE = /^(?:(?:show|find|check|track|get|give me|open|list|search|look for|what about|how about|any|all|the|my|me)\s+)*(?:po|pos|p o|purchase orders?|invoices?|bills?|vendor|supplier|company)\s+(?:for|of|from|by|named|called)?\s*(.+)$/i;
+    const VENDOR_TAIL = /^(.+?)\s+(?:po|pos|purchase orders?|invoices?|bills?)$/i;
+    function vendorWords(t) {
+        let s = String(t || '').trim().replace(/[?.!]+$/, '');
+        let m = s.match(VENDOR_CUE); if (m) return { q: m[1].trim(), cued: true };
+        m = s.match(VENDOR_TAIL); if (m) return { q: m[1].replace(/^(?:show|find|check|track|the|all|any)\s+/i, '').trim(), cued: true };
+        return { q: s, cued: false };
+    }
+    async function vendorSay(q, cued) {
+        q = String(q || '').replace(/\b(?:please|now|status|today)\b/ig, ' ').replace(/\s+/g, ' ').trim();
+        if (!q || /\d{4,}/.test(q) || q.split(' ').length > 5) return false;
+        st('thinking… looking for ' + q);
+        let r = null; try { r = await run('track_invoices', { vendor: q }); } catch (_) { r = null; }
+        st('');
+        if (!r) return false;
+        if (r.mode === 'suggest' && r.suggestions && r.suggestions.length) {
+            const names = r.suggestions.slice(0, 5);
+            pend = null;
+            irisSay((r.all_of ? q + ' fits ' + names.length + ' vendors.' : 'I don’t have ' + q + ' exactly.') + ' Which one: ' + names.map(shortV).join('; ') + '?', { opts: names.map((n) => 'POs for ' + n) });
+            return true;
+        }
+        if (r.mode !== 'pos' || !r.pos || !r.pos.length) { if (cued) { irisSay('I can’t find a vendor called ' + q + ' in the PO list. Try another part of the name.', { listen: false }); return true; } return false; }
+        const pos = r.pos, act = pos.filter((x) => (x.group == null ? 3 : x.group) <= 1);
+        const line = (x) => { const open = (x.items || []).filter((i) => i.kind === 'invoice' && !/^paid$/i.test(i.status)); const by = {}; open.forEach((i) => { const k = i.status + (i.with ? ' with ' + i.with : ''); by[k] = (by[k] || 0) + 1; }); return 'PO ' + x.po + (x.site ? ', site ' + x.site : '') + (open.length ? ': ' + Object.keys(by).map((k) => by[k] + ' ' + k).join(', ') : ''); };
+        const total = r.total || pos.length;
+        let say = shortV(r.vendor) + ' has ' + plural(total, 'PO') + '. ';
+        say += act.length ? (act.length === 1 ? 'One with open invoices: ' : act.length + ' with open invoices. Newest: ') + act.slice(0, 2).map(line).join('; ') + '.' : 'All its invoices are paid. Newest: PO ' + pos[0].po + '.';
+        say += ' Say a PO number to work on it.';
+        const show = (act.length ? act : pos).slice(0, 6);
+        const html = '<div class="iph-card"><div class="iph-v">' + esc(r.vendor) + '</div>' + show.map((x) => { const open = (x.items || []).filter((i) => i.kind === 'invoice' && !/^paid$/i.test(i.status)).length; return '<div class="iph-row"><span>PO ' + esc(x.po) + '</span><em class="iph-s ' + (open ? '' : 'is-done') + '">' + esc(open ? open + ' open' : 'paid up') + (x.site ? ' · ' + esc(x.site) : '') + '</em><b>' + esc(x.balance || '') + '</b></div>'; }).join('') + (total > show.length ? '<div class="iph-jobs-h">' + esc(total - show.length) + ' more on the PC</div>' : '') + '</div>';
+        pend = null;
+        irisSay(say, { html, opts: show.slice(0, 4).map((x) => 'PO ' + x.po) });
+        return true;
+    }
+    const TRF_CUE = /\b(?:transfers?|transactions?|restocks?|returns?|usage|trf|stk|ret|material|materials|delivery requests?|stock requests?)\b/;
+    function trfNo(t) {
+        const m = norm(t).match(/\b(trf|stk|use|ret|transfer|restock|return|usage|transaction|material)?\s*(?:number|no|num)?\s*(\d{1,5})\b/);
+        if (!m || !m[2]) return '';
+        const pre = { trf: 'TRF', transfer: 'TRF', transaction: '', material: '', stk: 'STK', restock: 'STK', use: 'USE', usage: 'USE', ret: 'RET', return: 'RET' }[m[1] || ''] || '';
+        return pre ? pre + '-' + m[2].padStart(4, '0') : m[2];
+    }
+    async function transferSay(t) {
+        const q = norm(t);
+        const no = trfNo(t);
+        if (no) {
+            st('thinking… finding ' + no);
+            let r = null; try { r = await run('track_transfer', { control: no }); } catch (_) { r = null; }
+            st('');
+            const x = r && r.transfers && r.transfers[0];
+            if (!x) { irisSay('Transfers are not ready yet. Try again in a moment.', { listen: false }); return; }
+            if (!x.found) { irisSay('I can’t find transfer ' + no + '. Check the number, like TRF 361 or STK 12.', { listen: false }); return; }
+            if (x.hidden) { irisSay(x.note || 'That one is for sites you do not cover.', { listen: false }); return; }
+            const open = (x.items || []).filter((i) => i.open), f = open[0] || (x.items || [])[0] || {};
+            const prod = (x.items || []).map((i) => i.product).filter(Boolean);
+            let say = x.control + ', ' + (x.type || 'transfer') + (x.from || x.to ? ' from ' + (x.from || '?') + ' to ' + (x.to || '?') : '') + '. ' + (prod.length ? prod.slice(0, 2).join(' and ') + (prod.length > 2 ? ' and ' + (prod.length - 2) + ' more' : '') + '. ' : '');
+            say += open.length ? 'Waiting for ' + (f.waiting_for || 'nobody') + ': ' + (f.next || 'next step') + (f.days_at_step != null ? ', ' + plural(f.days_at_step, 'day') : '') + '.' : (f.step || 'Completed') + '.';
+            if (f.problems && f.problems.length) say += ' Problem: ' + f.problems[0];
+            const html = '<div class="iph-card"><div class="iph-po">' + esc(x.control) + '</div><div class="iph-v">' + esc([x.type, (x.from || x.to) ? (x.from || '?') + ' → ' + (x.to || '?') : ''].filter(Boolean).join(' · ')) + '</div>' + (x.items || []).slice(0, 8).map((i) => '<div class="iph-row"><span>' + esc(i.product || i.product_id || 'Item') + '</span><em class="iph-s ' + (i.open ? '' : 'is-done') + '">' + esc(i.open ? (i.waiting_for ? 'with ' + i.waiting_for : i.step) : i.step) + '</em><b>' + esc(i.qty_ordered || '') + '</b></div>').join('') + '</div>';
+            pend = null; irisSay(say, { html, listen: false }); return;
+        }
+        const words = q.replace(/\b(?:show|find|check|track|search|look for|any|all|the|my|me|of|for|with|about|where is|where s|what s|status|please|transfers?|transactions?|requests?|records?|restocks?|returns?|usage|materials?|inventory|stock|delivery|is|are|a|an|in|on|to)\b/g, ' ').replace(/\s+/g, ' ').trim();
+        const openOnly = /\b(?:open|pending|waiting|stuck|not done)\b/.test(q);
+        if (!words || /^(?:open|pending|waiting|stuck|not done)$/.test(words)) {
+            if (!openOnly) { irisSay('Which transfer? Say its number, like TRF 361, or what it is about: an item, a vehicle number or a name.', { opts: ['Open transfers'] }); return; }
+        }
+        st('thinking… searching transfers');
+        let r = null; try { r = await run('find_transfers', { text: words && !/^(?:open|pending|waiting|stuck|not done)$/.test(words) ? words : 'trf', open_only: openOnly }); } catch (_) { r = null; }
+        st('');
+        if (!r || r.error) { irisSay((r && r.error) || 'Transfers are not ready yet. Try again in a moment.', { listen: false }); return; }
+        if (!r.items || !r.items.length) { irisSay('No recent transfer mentions ' + (words || 'that') + '. I looked at the ' + (r.checked || 'latest') + ' newest ones; the full search is on the PC.', { listen: false }); return; }
+        const top = r.items.slice(0, 3);
+        const about = words && !/^(?:open|pending|waiting|stuck|not done)$/.test(words) ? words : '';
+        const say = 'I found ' + plural(r.total, openOnly ? 'open transfer' : 'transfer') + (about ? ' about ' + about : '') + '. ' + top.map((i) => i.control + (i.products ? ', ' + i.products : '') + (i.open ? ', with ' + i.waiting_for : ', ' + (i.status || 'done'))).join('; ') + '. Tap one for details.';
+        const html = '<div class="iph-card">' + r.items.slice(0, 6).map((i) => '<div class="iph-row"><span>' + esc(i.control) + '</span><em class="iph-s ' + (i.open ? '' : 'is-done') + '">' + esc(i.open ? 'with ' + (i.waiting_for || '?') : (i.status || 'done')) + '</em><b>' + esc(String(i.products || '').slice(0, 22)) + '</b></div>').join('') + '</div>';
+        pend = null; irisSay(say, { html, opts: top.map((i) => 'Transfer ' + i.control) });
+    }
+
     // ---------- the brain ----------
     async function handle(raw) {
         let t = String(raw || '').trim(); if (!t) return;
@@ -626,6 +709,10 @@
         }
         // 18.0.0 patch 51: maths, units, width x height (before the PO check, so "1000 times 2000" is not a PO)
         try { const c = window.ibaTalk && window.ibaTalk.calc ? window.ibaTalk.calc(t) : null; if (c) { irisSay(c, { listen: false }); return; } } catch (_) {}
+        // patch 77: inventory transfers by number or by what they are about (before the PO check: "transfer 0361" is not a PO)
+        if (TRF_CUE.test(q) && !/\b(?:po|p o|invoices?)\b/.test(q) && !(/\b(?:mark|set|change|make|put|move|turn|switch|update)\b/.test(q) && statusOf(t))) return transferSay(t);
+        // patch 77: "PO for Oscar Marble", "Oscar invoices"
+        { const vw = vendorWords(t); if (vw.cued && !/\d{4,}/.test(vw.q) && await vendorSay(vw.q, true)) return; }
         // a PO number
         const pom = t.match(/\b(\d{4,6})\b/);
         if (pom && (/\b(?:po|p o|look|find|search|open|check|status|show|track|about)\b/.test(q) || q === pom[1] || (!ctx && !pend))) {
@@ -648,6 +735,8 @@
         // patch 44: greetings alone, and the brief
         if (/^(?:(?:hi|hey|hello|hullo|yo|ok|okay)\s*){1,3}(?:iris)?$/.test(q)) { irisSay(greetLine() + ' Tell me a PO number, or ask for your brief.', { opts: ['Brief me', 'What can you do?'] }); return; }
         if (/\bbrief\b|\b(?:what|anything) (?:do )?(?:you )?(?:have|got) for me\b|\bwhat(?: s| is)? (?:waiting|pending) for me\b|\banything (?:pending|waiting|for me)\b|\bwhat (?:do|should|must) i (?:do|work on)\b|\bmy (?:tasks|work|to ?do)\b|\b(?:tasks?|work) (?:for )?today\b/.test(q) && !/\b\d{4,6}\b/.test(q)) return briefSay();
+        if (/\bhow (?:can|could|may) (?:i |for |4 |we )?(?:help |serve |assist )?(?:you|u)\b|\bwhat can i do for you\b/.test(q)) { irisSay('That’s kind of you! I’m the one here to help you. Ask me for your brief, a PO, a vendor or a transfer.', { opts: ['Brief me', 'What can you do?'] }); return; }
+        if (/\b(?:what ?s new|whats new|anything new|update me|catch me up|fill me in|what did i miss|status report|daily report|report for today|what ?s (?:up|on|happening) today|how ?s my day|my day|today ?s (?:brief|tasks|work)|what (?:do|did) (?:you|u) (?:have|got)|what (?:you|u) (?:have|got))\b/.test(q) && !/\b\d{4,6}\b/.test(q)) return briefSay();
         if (/^(?:help|guide|all commands|show (?:the )?guide|about (?:you|iris))$/.test(q) && window.ibaIrisGuide) { window.ibaIrisGuide.open(/about/.test(q) ? 'about' : 'do'); irisSay(/about/.test(q) ? 'This is me.' : 'Here is everything I can do. Tap an example to try it.', { listen: false }); return; }
         if (/\bwhat (?:can|else can|do) you (?:do|help)|\bhelp me\b|^help$|\boptions?\b|\bmenu\b/.test(q)) return menu();
         if (/\b(?:remind|reminder|whatsapp|whats app|message)\b/.test(q)) return startRemind(t);
@@ -661,7 +750,9 @@
 
         // her built-in answers (time, maths, jokes, small talk, what does Iris mean)
         try { const a = window.ibaTalk && window.ibaTalk.answer ? await window.ibaTalk.answer('Iris ' + t) : null; if (a) { irisSay(a, { listen: false }); return; } } catch (_) {}
-        irisSay('I don’t know that one yet. Say a PO number, or ask: what can you do?', { opts: ['What can you do?'], listen: false });
+        // patch 77: a vendor name said alone ("Oscar")
+        if (!/\d/.test(q) && q.split(' ').length <= 4) { try { if (await vendorSay(t, false)) return; } catch (_) {} }
+        irisSay('I don’t know that one yet. Say a PO number, a vendor or a transfer, or ask: what can you do?', { opts: ['What can you do?'], listen: false });
     }
 
     // ---------- the orb (design D) ----------

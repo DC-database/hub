@@ -27,15 +27,16 @@
         'h1{margin:0;font-size:28pt;font-weight:800;letter-spacing:-.5px;color:var(--ink);line-height:1.1}',
         'h1 span{color:var(--b)}',
         '.title p{margin:0;font-size:11pt;color:var(--mut);text-align:right;line-height:1.5}.title p b{color:var(--ink)}',
-        '.cards{display:grid;grid-template-columns:1.3fr 1fr 1fr 25mm;gap:2.6mm;margin-top:4.5mm;break-inside:avoid}',
-        '.cards.no-qr{grid-template-columns:1.3fr 1fr 1fr}',
-        '.cd{background:var(--b2);border:.4mm solid #9fb3c2;border-radius:2.6mm;padding:3mm 3.6mm}',
+        // 18.0.0 p67 (martin picked the sample): ONE strip divided by lines: Summary for | Prev summary QR | Previous | Current
+        '.cards{display:grid;grid-template-columns:1.5fr 26mm 1fr 1fr;margin-top:4.5mm;break-inside:avoid;border:.4mm solid #9fb3c2;border-radius:2.6mm;overflow:hidden}',
+        '.cards.no-qr{grid-template-columns:1.5fr 1fr 1fr}',
+        '.cd{background:#fff;padding:3mm 4mm;display:flex;flex-direction:column;justify-content:flex-start}.cd+.cd{border-left:.4mm solid #9fb3c2}.cd.amt{text-align:right}',
         '.cd span{display:block;font-size:8.5pt;letter-spacing:1px;text-transform:uppercase;color:var(--mut);font-weight:700}',
         '.cd b{display:block;margin-top:1mm;font-size:14.5pt;line-height:1.2;font-variant-numeric:tabular-nums}',
         '.cd b i{font-style:normal;font-size:9pt;color:var(--mut);margin-left:1mm;font-weight:600}',
         '.cd.vendor b{font-size:13pt}',
-        '.cd.dark{background:var(--b);border-color:var(--b);color:#fff}.cd.dark span,.cd.dark b i{color:#bcd6e8}',
-        '.cd.qr{background:#fff;border:.4mm solid #9fb3c2;padding:2mm;text-align:center}',
+        '.cd.dark{background:var(--b2)}.cd.dark b{color:var(--b)}',
+        '.cd.qr{background:#fff;padding:2mm;text-align:center;align-items:center;justify-content:center}', // p70: text cells top-aligned (martin), QR stays centred
         '.qrb{width:16mm;height:16mm;margin:0 auto}.qrb img{width:100%;height:100%;display:block}',
         '.cd.qr small{display:block;font-size:7.5pt;color:var(--mut);font-weight:700;margin-top:.8mm;line-height:1.2}',
         'table{width:100%;border-collapse:separate;border-spacing:0;margin-top:5mm;font-size:11pt}',
@@ -53,6 +54,8 @@
         '.total{background:#fff;color:var(--ink);border:.4mm solid #9fb3c2;border-radius:2.6mm;padding:3mm 4.6mm;text-align:right}',
         '.total span{font-size:8.5pt;letter-spacing:1.5px;color:var(--mut);font-weight:700;text-transform:uppercase}',
         '.total b{display:block;font-size:17pt;font-variant-numeric:tabular-nums;color:var(--ink)}',
+        // 18.0.0 p74 (martin picked A): no boxes around Amount in words / Total, only a | line between them
+        '.sum{gap:0!important}.sum .words,.sum .total{border:0!important;border-radius:0!important;background:none!important;padding:1mm 4.6mm!important}.sum .total{border-left:.4mm solid #9fb3c2!important}',
         '.note{margin-top:3.6mm;font-size:10.5pt;color:#33424f;white-space:pre-wrap;break-inside:avoid}',
         '.note b{color:var(--b);font-size:8.5pt;letter-spacing:1px;text-transform:uppercase;margin-right:2mm}',
         '.sign{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:22mm;break-inside:avoid}',
@@ -142,9 +145,9 @@
                 '<p>Date <b>' + esc(date) + '</b><br><b>' + rows.length + '</b> invoice' + (rows.length === 1 ? '' : 's') + ' · <b>' + sites + '</b> site' + (sites === 1 ? '' : 's') + '</p></div>' +
             '<div class="cards' + (qr ? '' : ' no-qr') + '">' +
                 '<div class="cd vendor"><span>Summary for</span><b>' + esc(txt('sn-vendor-name')) + '</b></div>' +
-                '<div class="cd"><span>Previous payment</span><b>' + esc(amount(txt('sn-previous-payment'))) + '<i>QAR</i></b></div>' +
-                '<div class="cd dark"><span>Current payment</span><b>' + esc(amount(txt('sn-current-payment'))) + '<i>QAR</i></b></div>' +
                 (qr ? '<div class="cd qr"><div class="qrb">' + qr + '</div><small>Prev summary' + (prevDate ? '<br>' + esc(prevDate) : '') + '</small></div>' : '') +
+                '<div class="cd amt"><span>Previous payment</span><b>' + esc(amount(txt('sn-previous-payment'))) + '<i>QAR</i></b></div>' +
+                '<div class="cd amt dark"><span>Current payment</span><b>' + esc(amount(txt('sn-current-payment'))) + '<i>QAR</i></b></div>' +
             '</div>' +
             '<table><thead><tr><th class="c">S/N</th><th>P.O. No.</th><th class="c">Site</th><th>Bill description</th><th class="c">Bill date</th><th class="r">Amount (QAR)</th></tr></thead><tbody>' +
                 rows.map((r) => '<tr><td class="c">' + esc(r.sn) + '</td><td class="nw">' + esc(r.po) + '</td><td class="c">' + (r.site ? '<span class="pill">' + esc(r.site) + '</span>' : '') + '</td><td>' + esc(r.desc) + '</td><td class="c">' + esc(r.date) + '</td><td class="r">' + esc(r.amt) + '</td></tr>').join('') +
@@ -153,6 +156,8 @@
                 '<div class="total"><span>Total current payment · QAR</span><b>' + esc(txt('sn-total-numeric')) + '</b></div></div>' +
             (note ? '<div class="note"><b>Notes</b><span>' + esc(note) + '</span></div>' : '') +
             '<div class="sign"><div><b>Prepared By</b><small>Name · Signature · Date</small></div><div><b>Managing Director</b><small>Name · Signature · Date</small></div></div>' +
+            // 18.0.0 patch 62/64: Per PO box (Previous | This note | Total) UNDER the signatures (extra info, martin), iba-1800-snpo.js
+            (window.ibaSnPo ? window.ibaSnPo.printHtml() : '') +
             '</div>';
         pageFooter([prevNote ? 'Previous note: ' + prevNote : '', curNote ? 'Current note: ' + curNote : ''].filter(Boolean).join('   ·   '));
         document.body.classList.add('iba-sn-print-c');

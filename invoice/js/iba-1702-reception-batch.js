@@ -29,7 +29,11 @@
             '.batch-invoice-card .iba-rb-del{display:inline-flex;align-items:center;gap:5px;margin-left:8px;height:22px;padding:0 9px;border-radius:999px;border:1px solid rgba(255,255,255,.35);background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;font-size:.7rem;font-weight:800;cursor:pointer;vertical-align:middle}',
             '.batch-invoice-card .iba-rb-del i{color:#facc15}',
             '.batch-invoice-card .iba-rb-del.is-added{background:#059669}',
-            '.batch-invoice-card .iba-rb-del.is-added i{color:#fff}'
+            '.batch-invoice-card .iba-rb-del.is-added i{color:#fff}',
+            '.batch-invoice-card .iba-rb-fix{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 10px;padding:4px 10px;border-radius:8px;background:rgba(245,200,76,.12);border:1px solid rgba(245,200,76,.35);color:#E3C98A;font-size:.74rem}',
+            '.batch-invoice-card .iba-rb-fix b{color:#fff;font-family:ui-monospace,Consolas,monospace}',
+            '.batch-invoice-card .iba-rb-fix i{color:#F5C84C}',
+            '.batch-invoice-card .iba-rb-fix button{margin-left:auto;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;border-radius:999px;padding:1px 10px;font-size:.72rem;cursor:pointer}'
         ].join('\n');
         document.head.appendChild(st);
     }
@@ -46,6 +50,12 @@
         if (isNaN(t)) return '';
         const d = new Date(t);
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    // the day a reception entry was made, as "YYYY-MM-DD" (timestamp first, else its date)
+    function dayOf(j) {
+        const ts = Number(j && j.timestamp);
+        if (ts > 0) { const d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+        return isoDate(j && (j.date || j.dateEntered));
     }
     function group(v) {
         try { if (typeof imNormalizeInvoiceGroupValue === 'function') return imNormalizeInvoiceGroupValue(v || 'Normal'); } catch (_) {}
@@ -97,8 +107,64 @@
         if (el && v !== undefined && v !== null && String(v).trim() !== '') el.value = String(v).trim();
     }
 
+    // ---- 18.0.0 patch 62 (martin): the invoice no. follows the PO's own numbering ----
+    // PO had 67357.IPC/01 -> reception "12345INV02" becomes 67357.IPC/02 (next free in that style).
+    // No such series -> PO + "." + reception no. (67357.12345). Already starting with the PO -> kept.
+    const poCache = new Map();
+    async function poInvs(po) {
+        const c = poCache.get(po);
+        if (c && Date.now() - c.t < 120000) return c.v;
+        let v = null;
+        try { if (window.ibaReception && window.ibaReception.poInvoices) v = await window.ibaReception.poInvoices(po); } catch (_) { v = null; }
+        if (!v) { try { v = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[po]) || {}; } catch (_) { v = {}; } }
+        poCache.set(po, { t: Date.now(), v: v });
+        return v;
+    }
+    function numberFor(po, ref, invs, exceptCard) {
+        const raw = String(ref == null ? '' : ref).trim();
+        const P = String(po || '').toUpperCase();
+        if (!raw || !P) return { no: raw, changed: false };
+        const startsPo = (x) => { const u = String(x || '').toUpperCase().trim(); return u.indexOf(P) === 0 && /^[.\-\/ _]/.test(u.slice(P.length)); };
+        if (startsPo(raw)) return { no: raw, changed: false };
+        const prior = Object.keys(invs || {}).map((k) => invs[k] && invs[k].invNumber).filter(Boolean).map(String)
+            .concat(cards().filter((c) => c !== exceptCard && c.getAttribute('data-po') === P).map((c) => (c.querySelector('[name="invNumber"]') || {}).value).filter(Boolean));
+        const series = {};
+        prior.forEach((n) => {
+            const m = String(n).trim().match(/^(.*[A-Za-z][^0-9]*)(\d+)$/);
+            if (!m || !startsPo(m[1]) || !/[A-Za-z]/.test(m[1].slice(P.length))) return;
+            const k = m[1].toUpperCase();
+            const x = series[k] || (series[k] = { prefix: m[1], max: 0, w: 0, n: 0, last: n });
+            const v = parseInt(m[2], 10);
+            if (v >= x.max) { x.max = v; x.last = n; }
+            x.w = Math.max(x.w, m[2].length); x.n++;
+        });
+        const best = Object.keys(series).map((k) => series[k]).sort((a, b) => (b.n - a.n) || (b.max - a.max))[0];
+        if (best) {
+            const no = best.prefix + String(best.max + 1).padStart(best.w, '0');
+            return { no: no, changed: no !== raw, why: 'same style as ' + best.last };
+        }
+        return { no: P + '.' + raw, changed: true, why: 'PO number + dot' };
+    }
+    function markFixed(card, from, to, why) {
+        const host = card.querySelector('.batch-card-header') || card;
+        let n = card.querySelector('.iba-rb-fix');
+        if (!n) { n = document.createElement('div'); n.className = 'iba-rb-fix'; host.after(n); }
+        n.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Reception wrote <b></b> → using <b></b> <small></small> <button type="button" data-rb-undo>Undo</button>';
+        const b = n.querySelectorAll('b'); b[0].textContent = from; b[1].textContent = to;
+        n.querySelector('small').textContent = '(' + why + ')';
+        card.dataset.recvNo = from;
+    }
+    document.addEventListener('click', (e) => {
+        const u = e.target && e.target.closest && e.target.closest('[data-rb-undo]');
+        if (!u) return;
+        const card = u.closest('.batch-invoice-card'), inp = card && card.querySelector('[name="invNumber"]');
+        if (inp && card.dataset.recvNo != null) { inp.value = card.dataset.recvNo; inp.dispatchEvent(new Event('input', { bubbles: true })); }
+        const n = u.closest('.iba-rb-fix'); if (n) n.remove();
+    }, true);
+
     // one reception entry -> one new Batch Entry card
     async function addJob(job) {
+        css();
         const po = String(job.po || '').trim().toUpperCase();
         if (!po) return { ok: false, reason: 'No PO on the reception entry' };
         if (cards().some((c) => c.dataset.jobKey === job.key)) return { ok: false, already: true, reason: 'Already in Batch Entry' };
@@ -136,7 +202,9 @@
         card.setAttribute('data-group', g);
         card.setAttribute('data-invoice-group', g);
 
-        setVal(card, 'invNumber', job.ref);
+        const nf = numberFor(po, job.ref, await poInvs(po), card);
+        setVal(card, 'invNumber', nf.no);
+        if (nf.changed) markFixed(card, String(job.ref || '').trim(), nf.no, nf.why);
         setVal(card, 'invValue', job.amount);
         setVal(card, 'amountPaid', job.amount);
         setVal(card, 'invoiceDate', isoDate(job.invoiceDate || job.date));
@@ -161,13 +229,16 @@
             tagHost.appendChild(t);
         }
         inArchive(po).then((yes) => { if (yes && card.isConnected) addArchiveButton(card, po); });
-        return { ok: true, invId: invId };
+        return { ok: true, invId: invId, no: nf.no, fixed: nf.changed ? nf.why : '' };
     }
 
-    async function run(openBatch) {
+    async function run(openBatch, opts) {
+        opts = opts || {};
         css();
-        const list = await jobs();
-        const out = { total: list.length, added: [], skipped: [] };
+        let list = await jobs();
+        // 18.0.0 patch 62: only one day's entries ("yesterday", "today", a date)
+        if (opts.day) list = list.filter((j) => dayOf(j) === opts.day);
+        const out = { total: list.length, added: [], skipped: [], unsure: [], day: opts.day || '' };
         if (!list.length) return out;
         if (typeof ensureInvoicePOBaseDataFetched === 'function') { try { await ensureInvoicePOBaseDataFetched(false); } catch (_) {} }
         // one fresh POVALUE2.csv read when any PO is missing (not one per PO)
@@ -179,13 +250,38 @@
             const miss = Array.from(new Set(list.map((j) => String(j.po || '').trim().toUpperCase()).filter((po) => po && !poData(po))));
             for (const po of miss) { try { await window.ibaAddPo.fill(po); } catch (_) {} }
         }
-        if (openBatch && !(await openBatch())) throw new Error('Batch Entry could not be opened.');
-        await wait(100);
+        // 18.0.0 patch 62 (martin): vendor A-Z, same vendor together, then PO, then the earliest invoice date
+        const vend = (j) => { const d = poData(String(j.po || '').trim().toUpperCase()); return String((d && (d['Supplier Name'] || d.Vendor)) || j.vendorName || j.vendor || '~').trim().toUpperCase(); };
+        const when = (j) => { const t = Date.parse(isoDate(j.invoiceDate || j.date) || ''); return isNaN(t) ? 9e15 : t; };
+        list.sort((a, b) => vend(a).localeCompare(vend(b)) || String(a.po || '').localeCompare(String(b.po || ''), undefined, { numeric: true }) || (when(a) - when(b)) || String(a.ref || '').localeCompare(String(b.ref || ''), undefined, { numeric: true }));
+        // not sure -> not added, listed for you (no invoice no., no amount, already entered, twice here)
+        const seen = {};
+        const ready = [];
         for (const j of list) {
-            const row = { po: String(j.po || '').trim().toUpperCase() || '—', invoice_no: j.ref || '', amount: j.amount || '', by: j.enteredBy || '', date: j.date || '' };
+            const po = String(j.po || '').trim().toUpperCase();
+            const row = { po: po || '—', invoice_no: j.ref || '', amount: j.amount || '', by: j.enteredBy || '', date: j.date || '', vendor: (() => { const d = poData(po); return String((d && (d['Supplier Name'] || d.Vendor)) || j.vendorName || j.vendor || '').trim(); })(), job: j };
+            let why = '';
+            if (!po) why = 'No PO on the entry';
+            else if (!String(j.ref || '').trim()) why = 'No invoice no.';
+            else if (!(parseFloat(String(j.amount || '').replace(/[^0-9.\-]/g, '')) > 0)) why = 'No amount';
+            else if (opts.check !== false) {
+                const invs = await poInvs(po);
+                const nf = numberFor(po, j.ref, invs);
+                const N = (window.ibaReception && window.ibaReception.normNo) || ((v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+                const hit = Object.keys(invs || {}).map((k) => invs[k]).find((v) => v && v.invNumber && (N(v.invNumber) === N(j.ref) || N(v.invNumber) === N(nf.no)));
+                if (hit) why = 'Invoice no. already entered on this PO (' + (hit.invEntryID || hit.invNumber) + ')';
+                else if (seen[po + '|' + N(j.ref)]) why = 'Same invoice no. twice in this list';
+                seen[po + '|' + N(j.ref)] = 1;
+            }
+            if (why) out.unsure.push(Object.assign(row, { reason: why }));
+            else ready.push([j, row]);
+        }
+        if (ready.length && openBatch && !(await openBatch())) throw new Error('Batch Entry could not be opened.');
+        await wait(100);
+        for (const [j, row] of ready) {
             let r;
             try { r = await addJob(j); } catch (e) { r = { ok: false, reason: (e && e.message) || 'Could not be added' }; }
-            if (r.ok) out.added.push(Object.assign(row, { inv: r.invId }));
+            if (r.ok) out.added.push(Object.assign(row, { inv: r.invId, invoice_no: r.no || row.invoice_no, fixed: r.fixed || '', from: j.ref || '' }));
             else out.skipped.push(Object.assign(row, { reason: r.reason }));
         }
         try { if (typeof updateBatchCount === 'function') updateBatchCount(); } catch (_) {}
@@ -245,5 +341,5 @@
         }, (e) => console.error('[IBA reception batch] reception entry not closed for ' + po, e));
     }
 
-    window.ibaReceptionBatch = { run: run, prepare: prepare, convert: convert, isoDate: isoDate };
+    window.ibaReceptionBatch = { run: run, prepare: prepare, convert: convert, isoDate: isoDate, addJob: addJob, jobs: jobs, numberFor: numberFor, dayOf: dayOf };
 })();

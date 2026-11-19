@@ -3288,7 +3288,20 @@
         }
         // 15.0.0 patch 47: answered without the AI (key or no key): a PO
         // number, a report / skill word; with no key also a name or vendor
+        // 18.0.0 patch 62: clear jobs ("register the new entries from yesterday", "what do I have today") go first
+        if (!(opts && opts.silentUser) && window.ibaMind) {
+            let m0 = null; try { m0 = window.ibaMind.understand(text); } catch (_) { m0 = null; }
+            if (m0 && m0.run) { await runTemplateNow(m0.run, m0.vals, text); return; }
+        }
         if (!(opts && opts.silentUser) && await localAnswer(text)) return;
+        // 18.0.0 patch 62 (martin): the meaning matcher (js/iba-1800-mind.js) - a free sentence turned into what
+        // IRIS already knows (PO number, register new entries from a day, brief, approvals, vendor, colleague)
+        if (!(opts && opts.silentUser) && window.ibaMind) {
+            let mm = null; try { mm = window.ibaMind.understand(text); } catch (_) { mm = null; }
+            if (mm && mm.run) { await runTemplateNow(mm.run, mm.vals, text); return; }
+            if (mm && mm.brief) { showView('chat'); addUser(text); return openBrief(); }
+            if (mm && mm.text && norm(mm.text) !== norm(text) && await localAnswer(mm.text, text)) return;
+        }
         if (opts && opts.noAI) return 'no-ai'; // 18.0.0 patch 32: IRIS Talk mode never uses the AI
         if (!ready() && /\b(brief|waiting|today|remind(?:er)?s?|my tasks?|pending)\b/i.test(text)) {
             addUser(text);
@@ -3731,20 +3744,20 @@
             } },
         // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
         reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv or the PO file yet are left out and listed. No AI used.',
-            ask: () => [], run: async () => {
+            ask: () => [], run: async (vals) => {
                 if (!window.ibaReceptionBatch) throw new Error('This skill is not loaded on this page.');
-                const r = await window.ibaReceptionBatch.run(openBatchEntry);
-                if (!r.total) return 'No reception New Entry is waiting for you right now.';
-                const line = (x) => '- PO ' + x.po + (x.inv ? ' (' + x.inv + ')' : '') + (x.invoice_no ? ', inv. ' + x.invoice_no : '') + (x.amount ? ', ' + x.amount : '') + (x.reason ? ': ' + x.reason : '');
-                let msg = '**' + r.added.length + ' of ' + r.total + '** reception entr' + (r.total === 1 ? 'y' : 'ies') + ' added to Batch Entry as Under Review.';
-                if (r.added.length) msg += '\n\n' + r.added.map(line).join('\n');
-                if (r.skipped.length) msg += '\n\n**Left out (' + r.skipped.length + ')**\n' + r.skipped.map(line).join('\n');
+                // 18.0.0 patch 62: one day only ("register the new entries from yesterday"), sorted by vendor,
+                // invoice no. in the PO's own style, the unsure ones held back for you
+                const day = (vals && vals.day) || '';
+                const r = await window.ibaReceptionBatch.run(openBatchEntry, { day: day });
+                if (!r.total) return day ? 'No reception New Entry from ' + rbDayLabel(day) + ' is waiting for you.' : 'No reception New Entry is waiting for you right now.';
+                try { toggle(true); showView('chat'); } catch (_) {} // the batch page closed the panel: bring the result back
+                rbCard(r);
                 if (r.added.length) {
-                    msg += '\n\nNothing is saved yet. Check or change the rows, then press Save: each reception entry is then closed as Converted to Invoice.';
                     const btn = $('im-batch-save-button');
                     if (btn) { btn.classList.remove('iba-ai-pulse'); void btn.offsetWidth; btn.classList.add('iba-ai-pulse'); setTimeout(() => btn.classList.remove('iba-ai-pulse'), 6000); }
                 }
-                return msg;
+                return '';
             } },
         weekly: { name: 'Weekly report', icon: 'fa-chart-column', superOnly: true, desc: 'The meeting report by site: For SRV, For Approval, On Hold, Pending, Unresolved, IPC Application, IPC Processed, Report, sites to sort out and PO Close Out. Print or PDF.',
             ask: () => [], action: () => { if (window.ibaWeeklyReport) window.ibaWeeklyReport.open(); } },
@@ -4117,6 +4130,75 @@
         if (el.selectionStart !== el.value.length) return; // typing in the middle: leave it
         if (/(^|[\s,;])\d{5}$/.test(el.value)) el.value = el.value + ', ';
     }, true);
+    // 18.0.0 patch 62: "New entries to Batch" result card: ready ones (in Batch, Under Review), not sure ones (held back)
+    const rbStore = new Map();
+    let rbSeq = 0;
+    function rbDayLabel(d) {
+        const iso = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+        const t = new Date(), y = new Date(Date.now() - 864e5);
+        if (d === iso(t)) return 'today'; if (d === iso(y)) return 'yesterday';
+        const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return m ? m[3] + '/' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[2]) - 1] + '/' + m[1].slice(2) : d;
+    }
+    function rbCard(r) {
+        const id = 'rb' + (++rbSeq);
+        rbStore.set(id, r);
+        if (rbStore.size > 5) rbStore.delete(rbStore.keys().next().value);
+        const money = (v) => { const n = parseFloat(String(v || '').replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : esc(v || ''); };
+        const ready = r.added.map((x) => '<tr><td>' + esc(x.vendor || '') + '</td><td class="m">' + esc(x.po) + '</td><td class="m">' + esc(x.invoice_no) +
+            (x.fixed ? '<small title="Reception wrote ' + esc(x.from) + '">was ' + esc(x.from) + '</small>' : '') + '</td><td class="n">' + money(x.amount) + '</td></tr>').join('');
+        const unsure = r.unsure.concat(r.skipped).map((x, i) => '<tr><td>' + esc(x.vendor || '') + '</td><td class="m">' + esc(x.po) + '</td><td class="m">' + esc(x.invoice_no || '—') + '</td><td class="n">' + money(x.amount) + '</td>' +
+            '<td class="why">' + esc(x.reason || '') + '</td><td>' + (x.job && r.unsure.indexOf(x) !== -1 ? '<button type="button" class="iba-ai-mini" data-rb-any="' + id + ':' + i + '">Add anyway</button>' : '') + '</td></tr>').join('');
+        const n = r.added.length, u = r.unsure.length + r.skipped.length;
+        const d = document.createElement('div');
+        d.className = 'iba-ai-card is-action iba-rb-card';
+        d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-inbox"></i> New entries to Batch' + (r.day ? ' · ' + esc(rbDayLabel(r.day)) : '') + '</div>' +
+            '<p class="iba-rb-sum"><b>' + n + ' ready</b> in Batch Entry as Under Review' + (u ? ' · <b class="u">' + u + ' not sure</b>, held back for you' : '') + '.</p>' +
+            (n ? '<div class="iba-rb-tw"><table class="iba-rb-t"><thead><tr><th>Vendor</th><th>PO</th><th>Invoice no.</th><th class="n">Amount</th></tr></thead><tbody>' + ready + '</tbody></table></div>' : '') +
+            (u ? '<div class="iba-rb-h">Not sure (' + u + ')</div><div class="iba-rb-tw"><table class="iba-rb-t is-u"><thead><tr><th>Vendor</th><th>PO</th><th>Invoice no.</th><th class="n">Amount</th><th>Why</th><th></th></tr></thead><tbody>' + unsure + '</tbody></table></div>' : '') +
+            (n ? '<div class="iba-rb-acts"><button type="button" class="iba-ai-mini is-main" data-rb-save>Save the ' + n + ' now</button><button type="button" class="iba-ai-mini" data-rb-review>I will review first</button></div>' +
+                '<small class="iba-rb-note">Nothing is saved until you press one of these. Save closes each reception entry as Converted to Invoice.</small>' : '');
+        put(d);
+    }
+    document.addEventListener('click', async (e) => {
+        const t = e.target && e.target.closest ? e.target : null;
+        if (!t) return;
+        const any = t.closest('[data-rb-any]');
+        if (any) {
+            const [id, i] = any.getAttribute('data-rb-any').split(':');
+            const r = rbStore.get(id), x = r && r.unsure.concat(r.skipped)[Number(i)];
+            if (!x || !x.job) return;
+            any.disabled = true; any.textContent = 'Adding…';
+            let out = { ok: false };
+            try { await openBatchEntry(); out = await window.ibaReceptionBatch.addJob(x.job); } catch (err) { out = { ok: false, reason: String((err && err.message) || err) }; }
+            any.textContent = out.ok ? 'Added' : (out.reason || 'Could not add');
+            try { if (typeof updateBatchCount === 'function') updateBatchCount(); } catch (_) {}
+            return;
+        }
+        if (t.closest('[data-rb-save]')) {
+            const b = $('im-batch-save-button');
+            if (!b) { addNote('Batch Entry is not open. Open it and press Save.'); return; }
+            toggle(false);
+            await openBatchEntry();
+            setTimeout(() => b.click(), 150);
+            return;
+        }
+        if (t.closest('[data-rb-review]')) { toggle(false); try { await openBatchEntry(); } catch (_) {} }
+    }, true);
+    // run a skill straight away with values (IRIS: "register the new entries from yesterday")
+    async function runTemplateNow(id, vals, shown) {
+        if (!tplAllowed(id)) { showView('chat'); addNote('This skill is not open for you. The Super Admin can open it in Skill access.'); return; }
+        if (state.busy) return;
+        const t = SKILL_TPL[id];
+        if (!t || !t.run) return runTemplate(id);
+        bumpSkillUse(id);
+        showView('chat');
+        addUser(shown || ('▶ ' + t.name));
+        state.busy = true; setBusy(true);
+        try { const msg = await t.run(vals || {}); return msg ? addBot(msg, {}) : null; }
+        catch (err) { return addError(err); }
+        finally { state.busy = false; setBusy(false); }
+    }
     async function runTemplate(id, title, prefill) {
         if (!tplAllowed(id)) { showView('chat'); addNote('This skill is not open for you. The Super Admin can open it in Skill access.'); return; }
         if (state.busy) return;
@@ -5076,7 +5158,8 @@
         if (hit && /\binvoices?\b|\bstatus\b|^(?:pending|open|show|list|check|all|what|which|any)\b/.test(q)) return [['invoices_by_status', { status: hit }]];
         return null;
     }
-    async function localAnswer(text) {
+    async function localAnswer(text, shown) {
+        shown = shown || text; // 18.0.0 patch 62: the words the person typed (text may be the cleaned version)
         const t = text.replace(/[?!.]+$/, '').trim();
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
@@ -5085,7 +5168,7 @@
         // and the reception job types (IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other).
         const lst = !onPhone() && words <= 16 ? listAsk(t) : null;
         if (lst) {
-            return localDo(text, async () => {
+            return localDo(shown, async () => {
                 for (const job of lst) {
                     const out = await runTool(job[0], job[1]);
                     if (out.card) addCard(out.card);
@@ -5095,40 +5178,40 @@
         }
         // 18.0.0 patch 36 (martin): built-in answers (name, time, date, pending, message to ...) without the AI
         if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.builtin === 'function') {
-            let ok = false; try { ok = await window.ibaTalk.builtin(text, () => { showView('chat'); addUser(text); }); } catch (_) {}
+            let ok = false; try { ok = await window.ibaTalk.builtin(text, () => { showView('chat'); addUser(shown); }); } catch (_) {}
             if (ok) return true;
         }
         // 18.0.0 patch 34 (martin): typed window commands (clear the batch, tick, press, change ... to ...) run
         // without the AI after Proceed (button or "proceed" to IRIS)
         if (!onPhone() && window.ibaTalk && typeof window.ibaTalk.typed === 'function') {
-            let ok = false; try { ok = window.ibaTalk.typed(text, () => { showView('chat'); addUser(text); }); } catch (_) {}
+            let ok = false; try { ok = window.ibaTalk.typed(text, () => { showView('chat'); addUser(shown); }); } catch (_) {}
             if (ok) return true;
         }
         // 18.0.0 patch 33 (martin): a typed skill name ("notes to accounts", "open note to accounts skill") opens
         // that skill here, no AI (same matching as IRIS). Two close matches = both buttons to pick from.
         if (words <= 7 && /^(?:(?:show|open|list)\s+(?:me\s+)?)?(?:all\s+|my\s+)?(?:the\s+)?skills$|^what can you do$/i.test(t)) {
-            showView('chat'); addUser(text); const b = document.querySelector('#iba-ai-panel [data-ai="skills"]'); if (b) b.click(); return true;
+            showView('chat'); addUser(shown); const b = document.querySelector('#iba-ai-panel [data-ai="skills"]'); if (b) b.click(); return true;
         }
         if (words <= 6 && !onPhone() && window.ibaTalk && typeof window.ibaTalk.pageOf === 'function' && typeof window.ibaOpenShellPage === 'function') {
             let pg = null; try { pg = window.ibaTalk.pageOf(t); } catch (_) {}
-            if (pg) { showView('chat'); addUser(text);
+            if (pg) { showView('chat'); addUser(shown);
                 if (typeof window.ibaShellPageAllowed === 'function' && !window.ibaShellPageAllowed(pg.key)) { addNote(NOT_YOURS); return true; }
                 addNote('Opening ' + pg.name + '.'); try { window.ibaOpenShellPage(pg.key); } catch (_) {} return true; }
         }
         if (words <= 7 && !/\d/.test(t) && !/\b(why|how|when|who|what is|explain)\b/i.test(t) && window.ibaTalk && typeof window.ibaTalk.match === 'function') {
             let r = []; try { r = window.ibaTalk.match(t, true) || []; } catch (_) {}
-            if (r.length && r[0].k.denied && (r.length === 1 || r[0].w > r[1].w * 1.3) && (/\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t) || r[0].h >= 2)) { showView('chat'); addUser(text); addNote(NOT_YOURS); return true; }
+            if (r.length && r[0].k.denied && (r.length === 1 || r[0].w > r[1].w * 1.3) && (/\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t) || r[0].h >= 2)) { showView('chat'); addUser(shown); addNote(NOT_YOURS); return true; }
             r = r.filter((x) => !x.k.denied);
             const said = /\bskills?\b|^(?:please\s+)?(?:open|run|start|use)\b/i.test(t);
             if (r.length && (r.length === 1 || r[0].w > r[1].w * 1.3) && (said || r[0].h >= 2)) {
-                showView('chat'); addUser(text); runTemplate(r[0].k.id); return true;
+                showView('chat'); addUser(shown); runTemplate(r[0].k.id); return true;
             }
-            if (r.length > 1 && said) { showView('chat'); addUser(text); if (quickPicks([r[0].k.id, r[1].k.id])) return true; }
+            if (r.length > 1 && said) { showView('chat'); addUser(shown); if (quickPicks([r[0].k.id, r[1].k.id])) return true; }
         }
         // a PO number, alone or as "po 62921" / "status of po 62921"
         const po = (t.match(/^(?:(?:status|track|check|where is|show)(?:\s+(?:of|the|for))?\s+)?(?:po|p\.o\.?)?[\s#:-]*(\d{4,7})$/i) || [])[1];
         if (po && words <= 6 && !onPhone()) {
-            return localDo(text, async () => {
+            return localDo(shown, async () => {
                 for (const n of ['find_po', 'track_invoices']) {
                     const out = await runTool(n, { po: po });
                     if (out.card) addCard(out.card);
@@ -5141,7 +5224,7 @@
             const hit = INTENTS.find((x) => x[0].test(t));
             if (hit && !(ready() && /\b(why|how many|how much|compare|which|when did)\b/i.test(t))) {
                 showView('chat');
-                addUser(text);
+                addUser(shown);
                 if (!quickPicks(hit[1])) addNote('That is not available for your account.');
                 return true;
             }
@@ -5153,7 +5236,7 @@
             if (!pr.name) {
                 try { await ensureBase(); } catch (_) {}
                 if (vendorPOs(t, poMap()).list.length) {
-                    return localDo(text, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
+                    return localDo(shown, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
                 }
             }
         }
@@ -5163,18 +5246,18 @@
             let found = null;
             try { found = await anyFind(t); } catch (_) { found = null; }
             if (found && (found.transfers.length || found.inv_total || found.vendors.length)) {
-                return localDo(text, async () => { addCard({ kind: 'any_find', data: found }); });
+                return localDo(shown, async () => { addCard({ kind: 'any_find', data: found }); });
             }
         }
         if (ready()) return false;
         // no key: a colleague, a mobile number, else a vendor (short text only)
-        if (/^\+?[\d\s\-()]{8,}$/.test(t) && t.replace(/\D+/g, '').length >= 8) return localDo(text, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
+        if (/^\+?[\d\s\-()]{8,}$/.test(t) && t.replace(/\D+/g, '').length >= 8) return localDo(shown, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
         if (words <= 4 && /[a-z]/i.test(t) && !/\b(hi|hello|hey|thanks?|thank you|good (morning|afternoon|evening)|help|brief|today|waiting|remind(er)?s?|my tasks?|pending)\b/i.test(t)) {
             const pr = resolvePerson(t);
             if (pr.name || (pr.matches.length && pr.matches.length <= 3 && pr.matches.every((x) => norm(x.value).includes(norm(t))))) {
-                return localDo(text, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
+                return localDo(shown, async () => { const o = await runTool('find_person', { name: t }); if (o.card) addCard(o.card); });
             }
-            return localDo(text, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
+            return localDo(shown, async () => { addCard({ kind: 'track', data: await trackSearch({ po: '', vendor: t }) }); });
         }
         return false;
     }
@@ -7912,6 +7995,7 @@
         isList: (t) => { try { return !!listAsk(String(t || '').replace(/^\s*iris[\s,]*/i, '')); } catch (_) { return false; } }, // patch 45
         askLocal: (t) => { if (!allowed()) return 'no-ai'; build(); toggle(true); return ask(t, { noAI: true }); },
         runTpl: (id) => { if (!allowed()) return; build(); toggle(true); return runTemplate(id); },
+        runTplNow: (id, vals, shown) => { if (!allowed()) return; build(); toggle(true); return runTemplateNow(id, vals, shown); }, // patch 62
         _card: (c) => addCard(c),
         _state: state
     };

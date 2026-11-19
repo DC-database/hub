@@ -68,8 +68,13 @@
         if (open) showPanel();
         sync();
     }
+    // 18.0.0 patch 61 (martin): while the assistant is open, Active Jobs + its bookmark step aside (they sat over /
+    // under the assistant). Only hidden for that time: your open/closed choice is kept and comes back after.
+    function aiOpen() { const p = $('iba-ai-panel'); return !!(p && !p.hidden && p.getClientRects().length); }
     function sync() {
-        const on = eligible() && onEntryPage();
+        const ai = aiOpen();
+        document.body.classList.toggle('iba-aj-ai', ai);
+        const on = eligible() && onEntryPage() && !ai;
         document.body.classList.toggle('iba-aj-on', on);
         document.body.classList.toggle('iba-aj-closed', on && !open);
         const b = ensureBm();
@@ -115,6 +120,7 @@
             'html body.iba-aj-on ' + V + ' #im-show-active-jobs-btn { display: none !important; }' +
             'html body.iba-shell-on.iba-aj-on ' + V + ' #im-entry-sidebar#im-entry-sidebar { transition: transform .28s ease !important; }' +
             'html body.iba-shell-on.iba-aj-closed ' + V + ' #im-entry-sidebar#im-entry-sidebar { transform: translateX(110%) !important; pointer-events: none !important; }' +
+            'html body.iba-shell-on.iba-aj-ai ' + V + ' #im-entry-sidebar#im-entry-sidebar { transform: translateX(110%) !important; pointer-events: none !important; transition: transform .2s ease !important; }' +
             'html body.iba-shell-on.iba-aj-closed ' + V + ' .workdesk-main.with-sidebar { padding-right: 0 !important; }' +
             'html body.iba-shell-on.iba-aj-closed ' + V + ' .workdesk-main.with-sidebar #im-content-area { padding-right: 0 !important; }' +
             '#iba-aj-bm { position: fixed !important; top: calc(var(--iba-shell-header-h, 64px) + 70px) !important; right: var(--aj-r, 0px) !important; z-index: 10006 !important; width: 21px !important; min-width: 0 !important; height: auto !important; padding: 8px 0 !important; margin: 0 !important; display: flex !important; flex-direction: column !important; align-items: center !important; gap: 6px !important; border-radius: 9px 0 0 9px !important; border: 1px solid rgba(232,197,71,.6) !important; border-right: 0 !important; background: rgba(12,14,17,.86) !important; color: #F3EAD3 !important; -webkit-text-fill-color: #F3EAD3 !important; font: 700 10px/1 inherit !important; cursor: pointer !important; box-shadow: -6px 6px 18px rgba(0,0,0,.35) !important; transition: right .28s ease, background .15s !important; }' +
@@ -139,6 +145,9 @@
             const c = $('active-jobs-sidebar-count-display'); if (c) mo.observe(c, { childList: true, characterData: true, subtree: true });
         } catch (_) {}
         window.addEventListener('resize', sync);
+        // the assistant opens / closes by a click (fab, Esc): follow it at once, not on the next tick
+        document.addEventListener('click', () => setTimeout(sync, 60), true);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setTimeout(sync, 60); }, true);
     }
     window.ibaAjBm = { sync, toggle, eligible };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();

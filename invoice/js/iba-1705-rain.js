@@ -108,7 +108,7 @@
   function tlevel() { return (level() === 'off' || kind() !== 'rain') ? 'off' : (tshown[cur()] || 'off'); }
   // 18.0.0 patch 32: a person's own "Still photo" switch (js/iba-1800-still.js) = no video, no weather, unless a Super Admin preview runs
   function stillMe() { try { return !pv && !!(window.ibaStill && window.ibaStill.on()); } catch (_) { return false; } }
-  function reduced() { if (stillMe()) return true; try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } }
+  function reduced() { if (stillMe()) return true; try { if (window.ibaLite && window.ibaLite.on()) return true; } catch (_) {} /* 18.0.0 patch 62: Light speed mode */ try { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } }
   function onPhone() {
     var b = document.body; if (!b) return true;
     if (b.classList.contains('iba-mobile-ui') || b.classList.contains('iba-phone')) return true;
