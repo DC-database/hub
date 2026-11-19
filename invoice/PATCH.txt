@@ -3,6 +3,20 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 88 (19-Nov-2026)
+  Summary Note order (martin): same PO together; lower site first; same site = older bill date first;
+  PO number only breaks a full tie; inside a PO oldest bill first.
+  Super Admin (or the active vacation replacement until the return date) gets up/down buttons on each
+  row to move it by hand before printing; kept per note on this PC; "Reset order" goes back to automatic.
+  Print and Per PO box follow the screen order.
+  Files: app.js, index.html, PATCH.txt, js/iba-1800-snorder.js (NEW), css/iba-1705-fit.css
+
+18.0.0 patch 87 (19-Nov-2026)
+  Summary Note rows by bill date (martin): same PO stays together; the PO with the oldest bill
+  comes first (unique POs simply follow bill date), inside a PO oldest bill first. Per PO box and
+  print follow the screen order.
+  Files: app.js, index.html, PATCH.txt
+
 18.0.0 patch 86 (19-Nov-2026)
 - Summary Note, Per PO reference box: a PO that this note pays off completely (Previous + This note reaches the PO value,
   e.g. PO value 600 and invoices 600) is left out of the print automatically: no next payment, no need for the line.

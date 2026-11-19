@@ -6391,12 +6391,18 @@ async function handleGenerateSummary() {
         const snInvNo = (inv) => { const m = String((inv && inv.invEntryID) || '').match(/(\d+)/); return m ? parseInt(m[1], 10) : 1e9; };
         const snInvTime = (inv) => { const d = normalizeDateForInput(inv && inv.invoiceDate); const t = d ? Date.parse(d + 'T00:00:00') : NaN; return isNaN(t) ? 9e15 : t; };
         const snPoSite = {};
-        allCurrentInvoices.forEach((inv) => { const k = String(inv.po || ''); const st = inv.site || ''; if (!(k in snPoSite) || (st && st.localeCompare(snPoSite[k]) < 0)) snPoSite[k] = st; });
+        allCurrentInvoices.forEach((inv) => { const k = String(inv.po || ''); const st = inv.site || ''; if (!(k in snPoSite) || (st && st.localeCompare(snPoSite[k], undefined, { numeric: true }) < 0)) snPoSite[k] = st; });
+        // 18.0.0 patch 88 (martin): same PO always together; POs ordered by lowest site first, then the
+        // PO's oldest bill date; the PO number only breaks a full tie. Inside a PO oldest bill first.
+        // (Super Admin can still move rows by hand: js/iba-1800-snorder.js.)
+        const snPoFirst = {};
+        allCurrentInvoices.forEach((inv) => { const k = String(inv.po || ''); const t = snInvTime(inv); if (!(k in snPoFirst) || t < snPoFirst[k]) snPoFirst[k] = t; });
         allCurrentInvoices.sort((a, b) =>
-            (snPoSite[String(a.po || '')] || '').localeCompare(snPoSite[String(b.po || '')] || '') ||
+            (snPoSite[String(a.po || '')] || '').localeCompare(snPoSite[String(b.po || '')] || '', undefined, { numeric: true }) ||
+            (snPoFirst[String(a.po || '')] - snPoFirst[String(b.po || '')]) ||
             String(a.po || '').localeCompare(String(b.po || ''), undefined, { numeric: true }) ||
-            (snInvNo(a) - snInvNo(b)) ||
             (snInvTime(a) - snInvTime(b)) ||
+            (snInvNo(a) - snInvNo(b)) ||
             String(a.key || '').localeCompare(String(b.key || '')));
         const vendorData = allPOs[allCurrentInvoices[0].po] || allPOs[String(allCurrentInvoices[0].po).toUpperCase()] || null;
         snVendorName.textContent = getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
