@@ -3,6 +3,12 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 86 (19-Nov-2026)
+- Summary Note, Per PO reference box: a PO that this note pays off completely (Previous + This note reaches the PO value,
+  e.g. PO value 600 and invoices 600) is left out of the print automatically: no next payment, no need for the line.
+  On screen it stays, faded, with "Fully paid · not printed". When every PO is fully paid, nothing is printed.
+  Files: js/iba-1800-snpo.js, css/iba-1705-fit.css, index.html
+
 18.0.0 patch 85 (19-Nov-2026)
 - Invoice Records: searching by STATUS (e.g. Report) missed invoices changed in the last hours (8 in Report, only 5 shown).
   The status search looked in the saved copy (up to 6 hours old) only. It now uses the saved copy plus every PO changed
