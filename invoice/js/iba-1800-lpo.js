@@ -58,12 +58,33 @@
     } catch (_) {}
     return false;
   }
-  async function readFolder(h) {
-    var list = [];
+  // patch 83: also the sub-folders (e.g. one per year), 3 levels deep; names keep their folder ("2025/LPO# 1-x.pdf")
+  async function readFolder(h, pre, depth) {
+    var list = []; pre = pre || ''; depth = depth || 0;
     for await (var e of h.values()) {
-      if (e.kind === 'file' && /\.pdf$/i.test(e.name)) list.push(e.name);
+      if (e.kind === 'file' && /\.pdf$/i.test(e.name)) list.push(pre + e.name);
+      else if (e.kind === 'directory' && depth < 3 && !/^\./.test(e.name)) { try { list = list.concat(await readFolder(e, pre + e.name + '/', depth + 1)); } catch (_) {} }
     }
     return list;
+  }
+  // patch 83: the other way to pick (works when Chrome will not open the folder): a folder input; the browser
+  // lists the files (Chrome asks "upload"? but nothing is sent anywhere: only the names are kept here)
+  function pickByInput() {
+    var i = document.createElement('input');
+    i.type = 'file'; i.multiple = true; i.setAttribute('webkitdirectory', ''); i.style.display = 'none';
+    i.addEventListener('change', async function () {
+      var files = Array.from(i.files || []); i.remove();
+      if (!files.length) { S.msg = 'No folder was picked.'; return paint(); }
+      var list = files.filter(function (f) { return /\.pdf$/i.test(f.name); }).map(function (f) {
+        var rel = String(f.webkitRelativePath || f.name); var cut = rel.indexOf('/'); return cut > -1 ? rel.slice(cut + 1) : rel;
+      });
+      var top = String(files[0].webkitRelativePath || '').split('/')[0];
+      if (!list.length) { S.msg = 'No PDF files in "' + top + '". Pick the "Proc - LPO" folder (OneDrive - IBA › Proc - LPO).'; return paint(); }
+      S.names = list; S.at = Date.now(); S.parsed = null; S.msg = ''; S.byInput = true;
+      await put('names', { list: list, at: S.at });
+      paint();
+    });
+    document.body.appendChild(i); i.click();
   }
   async function refresh(ask, pick) {
     if (S.busy) return;
@@ -72,22 +93,23 @@
       if (pick || !h) {
         if (!window.showDirectoryPicker) { S.msg = 'This browser cannot open a folder. Use Chrome or Edge on the PC.'; return paint(); }
         h = await window.showDirectoryPicker({ id: 'iba-proc-lpo', mode: 'read' });
-      } else if (!(await permitted(h, ask))) { S.msg = ''; return paint(); }
+      } else if (!(await permitted(h, ask))) { S.msg = 'Chrome did not allow the folder. Press “Pick the folder” again, or use “Other way to pick”.'; return paint(); }
       S.busy = 'Reading the LPO names…'; paint();
       var list = await readFolder(h);
       if (!list.length) { S.busy = ''; S.msg = 'No PDF files in "' + h.name + '". Pick the "Proc - LPO" folder (OneDrive - IBA › Proc - LPO).'; return paint(); }
       S.handle = h; S.names = list; S.at = Date.now(); S.parsed = null; S.msg = '';
       await put('handle', h); await put('names', { list: list, at: S.at });
     } catch (e) {
-      if (e && e.name === 'AbortError') S.msg = '';
-      else { S.msg = 'Could not read the folder (' + ((e && e.message) || e) + ').'; console.warn('[find lpo]', e); }
+      if (e && e.name === 'AbortError') S.msg = 'No folder was picked. If Chrome would not open it, use “Other way to pick”.';
+      else { S.msg = 'Chrome could not read the folder (' + ((e && e.name) || '') + ': ' + ((e && e.message) || e) + '). Try “Other way to pick”.'; console.warn('[find lpo]', e); }
     }
     S.busy = ''; paint();
   }
 
   // ---------- understanding a file name ----------
   // "LPO# 67036-Noor Al Khaleej Tyre-Tyres-100.pdf" -> po 67036, site 100, parts ["Noor Al Khaleej Tyre", "Tyres"]
-  function parse(name) {
+  function parse(path) {
+    var name = String(path).split('/').pop();
     var base = name.replace(/\.pdf$/i, '');
     var m = base.match(/(\d{5,6})\s*-\s*(.*)$/);
     var po = m ? m[1] : '', rest = m ? m[2] : base;
@@ -96,7 +118,7 @@
     if (bits.length && /^\d{1,4}$/.test(bits[bits.length - 1])) site = bits.pop();
     var req = '';
     if (bits.length && /^\d{5}$/.test(bits[0])) req = bits.shift();
-    return { name: name, po: po, site: site, req: req, bits: bits };
+    return { name: name, path: path, po: po, site: site, req: req, bits: bits };
   }
   function poRec(po) { try { return (typeof allPOData !== 'undefined' && allPOData && allPOData[po]) || null; } catch (_) { return null; } }
   var siteMap = null;
@@ -140,7 +162,7 @@
   }
 
   // ---------- links and messages ----------
-  function urlOf(p) { return BASE + encodeURIComponent(p.name); }
+  function urlOf(p) { return BASE + String(p.path || p.name).split('/').map(encodeURIComponent).join('/'); }
   function lineOf(p) { return 'LPO ' + (p.po || '') + (p.vendor ? ' · ' + p.vendor : '') + (p.siteNo ? ' · Site ' + p.siteNo : '') + (p.siteName ? ' ' + p.siteName : ''); }
   function textOf(p) { return lineOf(p) + '\n' + urlOf(p); }
   function emailUrl(p) {
@@ -189,7 +211,8 @@
     if (!S.names) {
       return '<div class="iba-lpo-first"><p>Pick the <b>Proc - LPO</b> folder once. It is the OneDrive folder on this PC:<br><code>OneDrive - IBA › Proc - LPO</code></p>' +
         '<p class="iba-lpo-note">Only the file names are read. Nothing is uploaded.</p>' +
-        '<button type="button" class="iba-lpo-main" data-lpo-pick>Pick the folder</button></div>';
+        '<div class="iba-lpo-picks"><button type="button" class="iba-lpo-main" data-lpo-pick>Pick the folder</button>' +
+        '<button type="button" class="iba-lpo-ghost" data-lpo-pick2 title="Use this when Pick the folder does not work">Other way to pick</button></div></div>';
     }
     var q = S.q.trim();
     if (!q) return '<p class="iba-lpo-note">Type a PO, vendor, site or type of work.</p>';
@@ -255,14 +278,30 @@
     var b = t.closest('button'); if (!b) return;
     if (b.hasAttribute('data-lpo-close')) return close();
     if (b.hasAttribute('data-lpo-pick')) return refresh(true, true);
+    if (b.hasAttribute('data-lpo-pick2')) return pickByInput();
     if (b.hasAttribute('data-lpo-allow')) { S.needAllow = false; return refresh(true, false); }
-    if (b.hasAttribute('data-lpo-reread')) { return S.handle ? refresh(true, false) : refresh(true, true); }
+    if (b.hasAttribute('data-lpo-reread')) { return S.handle ? refresh(true, false) : (S.byInput || !window.showDirectoryPicker ? pickByInput() : refresh(true, true)); }
     var i, p;
     if ((i = b.getAttribute('data-lpo-open')) != null && (p = shown[+i])) return void window.open(urlOf(p), '_blank');
     if ((i = b.getAttribute('data-lpo-mail')) != null && (p = shown[+i])) return void window.open(emailUrl(p), '_blank');
     if ((i = b.getAttribute('data-lpo-wa')) != null && (p = shown[+i])) return void window.open(waUrl(p), '_blank');
     if ((i = b.getAttribute('data-lpo-copy')) != null && (p = shown[+i])) return copy(textOf(p), function () { S.copied = p.name; paint(); });
   });
+
+  // patch 83 (martin): the window can be moved by its title bar
+  document.addEventListener('pointerdown', function (e) {
+    var head = e.target && e.target.closest && e.target.closest('#iba-lpo-pop .iba-lpo-head');
+    if (!head || e.button !== 0 || e.target.closest('button')) return;
+    var box = head.closest('.iba-lpo-box'); var r = box.getBoundingClientRect();
+    var dx = e.clientX - r.left, dy = e.clientY - r.top;
+    e.preventDefault();
+    function mv(ev) {
+      var x = Math.max(0, Math.min(window.innerWidth - 120, ev.clientX - dx)), y = Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - dy));
+      box.style.setProperty('position', 'fixed', 'important'); box.style.setProperty('left', x + 'px', 'important'); box.style.setProperty('top', y + 'px', 'important'); box.style.setProperty('margin', '0', 'important');
+    }
+    function up() { document.removeEventListener('pointermove', mv, true); document.removeEventListener('pointerup', up, true); }
+    document.addEventListener('pointermove', mv, true); document.addEventListener('pointerup', up, true);
+  }, true);
 
   window.ibaFindLpo = { open: open, close: close, _parse: parse, _search: search, _url: urlOf, _state: S };
 })();
