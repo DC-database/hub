@@ -2689,6 +2689,13 @@
     async function batchAdd(found, a, notAdded, head) {
         if (typeof addInvoiceToBatchTable !== 'function') return { result: { error: 'Batch Entry is not available on this page.' } };
         const result = Object.assign({}, head, { added: [], already_in_batch: [], not_added: notAdded, filled: {} });
+        // 18.0.0 patch 82 (martin): every way into Batch (Add to Batch, Recent changes, Sort for CEO...) adds the cards
+        // A-Z by vendor, same vendor together, then PO, then the earliest invoice date (like New entries to Batch)
+        let pm = {}; try { await ensureBase(); pm = poMap() || {}; } catch (_) {}
+        const vOf = (f) => String((f.vendor && f.vendor !== 'N/A' ? f.vendor : '') || (f.inv && (f.inv.vendorName || f.inv.vendor_name)) || ((pm[f.po] || {})['Supplier Name']) || '~').trim();
+        const dOf = (f) => Date.parse((f.inv && f.inv.invoiceDate) || '') || 0;
+        found = found.slice().sort((x, y) => vOf(x).localeCompare(vOf(y), undefined, { sensitivity: 'base' }) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }) || (dOf(x) - dOf(y)) ||
+            String((x.inv && x.inv.invEntryID) || '').localeCompare(String((y.inv && y.inv.invEntryID) || ''), undefined, { numeric: true }));
         if (found.length) {
             if (!(await openBatchEntry())) return { result: { error: 'Batch Entry could not be opened.' } };
             const body = $('im-batch-table-body');
@@ -3076,10 +3083,13 @@
                 rows.push({ po: po, key: k, invoice_no: String(inv.invNumber || '').trim(), entry: String(inv.invEntryID || '').trim(), vendor: vendor, site: site,
                     invoice_date: fmtDate(inv.invoiceDate || ''), value: num(inv.invValue), paid: num(inv.amountPaid), status: st, since: at ? fmtDate(at) + ' ' + fmtClock(at) : '',
                     days: at ? Math.max(0, Math.floor((Date.now() - at) / 86400000)) : '', attention: String(inv.attention || '').trim(), entered_by: String(inv.enteredBy || '').trim(),
-                    release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0, file: fileNameFor(inv, st) });
+                    release: inv.releaseDate || '', note: String(inv.note || '').trim(), _at: at || 0, _idate: inv.invoiceDate || '', file: fileNameFor(inv, st) });
             });
         });
-        rows.sort((x, y) => (x._at - y._at) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }));
+        // 18.0.0 patch 82 (martin): A-Z by vendor (same vendor together), then PO, then invoice date, so the list
+        // matches the papers he files alphabetically (was: by the time it reached the status)
+        const dOf = (r) => Date.parse(r._idate || '') || 0;
+        rows.sort((x, y) => String(x.vendor || '~').localeCompare(String(y.vendor || '~'), undefined, { sensitivity: 'base' }) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }) || (dOf(x) - dOf(y)) || String(x.invoice_no).localeCompare(String(y.invoice_no), undefined, { numeric: true }));
         // 18.0.0 patch 33 (martin): With Accounts / Under Review lists = one row per SRV / invoice name (the
         // invoices of one Summary Note share one name: only the first is kept). Rows without a name all stay.
         let sameName = 0;
