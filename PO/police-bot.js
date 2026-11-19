@@ -106,7 +106,7 @@
   async function setStatus(item, status) {
     const changes = status === 'Active'
       ? { Status: 'Active', DateFiled: today(), DateAdded: null }
-      : { Status: 'Inactive', DateReleased: today() };
+      : { Status: 'Inactive', DateReleased: today(), ParoleTo: null, ParoleSince: null, ParoleDue: null };
     if (typeof crimeLog === 'function') changes.Log = crimeLog(item.data, status === 'Active' ? 'J' : 'R', today());
     await db.ref('records/' + item.key).update(changes);
     const updated = { ...item.data, ...changes };
@@ -263,11 +263,13 @@
   function card(item) {
     const r = item.r;
     const jailed = r.Status === 'Active';
+    const lbl = typeof custodyLabel === 'function' ? custodyLabel(r) : { text: jailed ? 'In Jail' : 'Released', cls: jailed ? 'active' : 'inactive' };
+    const sentence = typeof sentenceText === 'function' ? sentenceText(r) : '';
     return `<div class="bot-card ${jailed ? 'in' : 'out'}">
-      <div class="bot-card-top"><b class="bot-po">${esc(r.PO)}</b><span class="status-badge status-${jailed ? 'active' : 'inactive'}">${jailed ? 'In jail' : 'Released'}</span></div>
+      <div class="bot-card-top"><b class="bot-po">${esc(r.PO)}</b><span class="status-badge status-${lbl.cls}">${lbl.text}</span></div>
       <div>${esc(r.SupplierName || '—')} ${r.SupplierID ? `<small>(${esc(r.SupplierID)})</small>` : ''}</div>
       <small>Project ${esc(r.ProjectID || '—')} · Req ${esc(r.ReqNum || '—')} · QAR ${esc(formatNumber(r.Amount))}</small>
-      <small>${jailed ? 'Jailed ' + esc(r.DateFiled || '—') : 'Released ' + esc(r.DateReleased || '—')}</small>
+      <small>${jailed ? 'Jailed ' + esc(r.DateFiled || '—') : r.DateReleased ? 'Released ' + esc(r.DateReleased) : 'At large: never jailed, still with Procurement'}${sentence && sentence !== '-' ? ' · ' + sentence : ''}</small>
       <div class="bot-row"><button class="btn btn-sm btn-ghost" data-show="${esc(item.key)}">Show in table</button></div>
     </div>`;
   }
@@ -325,7 +327,7 @@
   }
 
   // ---------------- Basic mode (no AI) ----------------
-  const HELP = `I can:<br>• <b>find 12345</b> — check one or more POs<br>• <b>jail 12345 12346</b> — put POs in jail (Active)<br>• <b>release 12345</b> — release POs (Inactive)<br>• <b>how many in jail</b><br>• <b>supplier aamaal</b> — search POs in jail by supplier, project or ReqNum<br>Jail and release always ask you to confirm.`;
+  const HELP = `I can:<br>• <b>find 12345</b> — check one or more POs<br>• <b>arrest 12345 12346</b> (or jail) — lock POs up<br>• <b>release 12345</b> — release POs from jail<br>• <b>how many in jail</b><br>• <b>supplier aamaal</b> — search POs in jail by supplier, project or ReqNum<br>Jail and release always ask you to confirm.`;
   async function basic(text) {
     const t = text.toLowerCase();
     const pos = poTokens(text);
@@ -412,7 +414,7 @@
     try {
       const cfg = getCfg();
       // Plain commands are answered instantly without using the AI
-      const plain = /^(help|\?|how many|count)/i.test(text) || /^(find|jail|release|lock|free|supplier|vendor)\b/i.test(text) || /^[\sA-Z0-9#,-]*\d{3,}[\sA-Z0-9#,-]*$/i.test(text);
+      const plain = /^(help|\?|how many|count)/i.test(text) || /^(find|jail|arrest|release|lock|free|supplier|vendor)\b/i.test(text) || /^[\sA-Z0-9#,-]*\d{3,}[\sA-Z0-9#,-]*$/i.test(text);
       thinking.remove();
       if (cfg && !plain) await ai(text, cfg);
       else await basic(text);

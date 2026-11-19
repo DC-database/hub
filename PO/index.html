@@ -26,7 +26,7 @@
       <img src="icons/icon.svg?v=3" alt="" class="brand-icon" />
       <div>
         <h1>PO Records</h1>
-        <p class="brand-sub">Original POs in my custody</p>
+        <p class="brand-sub">PO Jail · original POs in custody</p>
       </div>
     </div>
     <div id="statusTotals" class="status-totals"></div>
@@ -46,12 +46,12 @@
           <i class="fa-solid fa-magnifying-glass"></i>
           <input type="text" id="searchBox" placeholder="Search PO, ReqNum, supplier or project…" autocomplete="off" />
         </div>
-        <select id="statusFilter" onchange="searchRecords()" title="Show Active, Inactive or All records">
-          <option value="Active" selected>Active</option>
-          <option value="Inactive">Inactive</option>
+        <select id="statusFilter" onchange="searchRecords()" title="Show POs in jail, out of jail, or all">
+          <option value="Active" selected>In Jail</option>
+          <option value="Inactive">Out of Jail</option>
           <option value="All">All</option>
         </select>
-        <input type="date" id="datePicker" onchange="filterBySpecificDate()" title="Filter by Date Filed" />
+        <input type="date" id="datePicker" onchange="filterBySpecificDate()" title="Filter by jail date" />
         <button class="btn btn-primary" onclick="searchRecords()"><i class="fa-solid fa-magnifying-glass"></i><span>Search</span></button>
         <button class="btn btn-ghost" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i><span>Clear</span></button>
       </div>
@@ -65,9 +65,9 @@
     <!-- ===== Toolbar ===== -->
     <section class="toolbar">
       <div class="toolbar-group">
-        <button class="btn btn-accent admin-only hidden" onclick="openAddPOModal()"><i class="fa-solid fa-circle-check"></i><span>Mark Active</span></button>
-        <button class="btn btn-ghost admin-only hidden" onclick="openNewPOModal('')"><i class="fa-solid fa-plus"></i><span>Add new PO</span></button>
-        <button id="deleteSelectedBtn" class="btn btn-warn hidden" onclick="deleteSelectedRecords()"><i class="fa-solid fa-box-archive"></i><span>Release Selected</span></button>
+        <button class="btn btn-accent admin-only hidden" onclick="openAddPOModal()"><i class="fa-solid fa-handcuffs"></i><span>Arrest PO</span></button>
+        <button class="btn btn-ghost admin-only hidden" onclick="openNewPOModal('')"><i class="fa-solid fa-id-card"></i><span>Register PO</span></button>
+        <button id="deleteSelectedBtn" class="btn btn-warn hidden" onclick="deleteSelectedRecords()"><i class="fa-solid fa-door-open"></i><span>Release Selected</span></button>
       </div>
       <div class="toolbar-group">
         <span id="resultCount" class="result-count"></span>
@@ -84,7 +84,7 @@
           <thead>
             <tr>
               <th class="col-check"><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()" title="Select all" /></th>
-              <th>ReqNum</th><th>PO</th><th>Supplier ID</th><th>Supplier Name</th><th>Project ID</th><th class="num">Amount</th><th>Status</th><th>Date Filed</th><th>Date Released</th><th>Action</th>
+              <th>ReqNum</th><th>PO</th><th>Supplier ID</th><th>Supplier Name</th><th>Project ID</th><th class="num">Amount</th><th>Status</th><th>Jailed On</th><th>Released On</th><th>Sentence</th><th>Action</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -97,8 +97,8 @@
       </div>
 
       <div id="noResultsBar" class="hidden no-results-row">
-        <p>No matching PO in your custody.</p>
-        <button class="btn btn-accent" onclick="sendWhatsAppRequestAuto()"><i class="fa-brands fa-whatsapp"></i><span>Request via WhatsApp</span></button>
+        <p>No matching PO in jail.</p>
+        <button class="btn btn-accent" onclick="sendWhatsAppRequestAuto()"><i class="fa-brands fa-whatsapp"></i><span>Issue warrant (WhatsApp)</span></button>
       </div>
     </section>
   </main>
@@ -126,7 +126,7 @@
       <div id="adminSection" class="hidden">
         <div class="note">
           <p><b>CSV columns:</b> ReqNum, PO, Supplier ID, Supplier Name, Project ID, Amount, Status</p>
-          <p>Status is optional and only used for new POs (blank = Inactive). A PO that is already saved gets its details updated, but its Active/Inactive status is never changed by an upload. Unchanged POs are skipped.</p>
+          <p>Status is optional and only used for new POs (blank = Inactive = at large). A PO that is already saved gets its details updated, but whether it is in jail or out is never changed by an upload. Unchanged POs are skipped.</p>
         </div>
         <label class="file-drop">
           <i class="fa-solid fa-file-csv"></i>
@@ -179,16 +179,16 @@
   <div id="addPOModal" class="modal hidden">
     <div class="modal-content">
       <button class="close" onclick="closeAddPOModal()" aria-label="Close">&times;</button>
-      <h3><i class="fa-solid fa-circle-check"></i> Mark PO Active</h3>
-      <p class="modal-sub">The original is back in my custody</p>
+      <h3><i class="fa-solid fa-handcuffs"></i> Arrest PO</h3>
+      <p class="modal-sub">The original is in my hands: lock it up</p>
       <div class="field-icon">
         <i class="fa-solid fa-hashtag"></i>
         <input type="text" id="addPOInput" placeholder="Enter PO number" autocomplete="off" />
       </div>
       <div id="addPOStatus" class="modal-msg"></div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeAddPOModal(); openNewPOModal(document.getElementById('addPOInput').value.trim())">Add new PO</button>
-        <button class="btn btn-accent" onclick="addPOFromModal()">Mark Active</button>
+        <button class="btn btn-ghost" onclick="closeAddPOModal(); openNewPOModal(document.getElementById('addPOInput').value.trim())">Register PO</button>
+        <button class="btn btn-accent" onclick="addPOFromModal()"><i class="fa-solid fa-lock"></i> Lock up</button>
       </div>
     </div>
   </div>
@@ -196,7 +196,7 @@
   <div id="newPOModal" class="modal hidden">
     <div class="modal-content modal-wide">
       <button class="close" onclick="closeNewPOModal()" aria-label="Close">&times;</button>
-      <h3 id="newPOTitle">Add new PO</h3>
+      <h3 id="newPOTitle">Register PO</h3>
       <p class="modal-sub">Type a Supplier ID, or start typing a Supplier Name and pick from the list.</p>
       <div class="form-grid">
         <label>ReqNum <input type="text" id="newReqNum" /></label>
@@ -205,10 +205,10 @@
         <label>Supplier Name <input type="text" id="newSupplierName" autocomplete="off" /></label>
         <label>Project ID <input type="text" id="newProjectID" /></label>
         <label>Amount <input type="text" id="newAmount" inputmode="decimal" /></label>
-        <label class="span-2">Status
+        <label class="span-2">Where is the original?
           <select id="newStatus">
-            <option value="Inactive" selected>Inactive</option>
-            <option value="Active">Active (I have the original)</option>
+            <option value="Inactive" selected>At large (still with Procurement)</option>
+            <option value="Active">In jail (I have the original)</option>
           </select>
         </label>
       </div>
@@ -223,7 +223,7 @@
   <div id="editModal" class="modal hidden">
     <div class="modal-content modal-wide">
       <button class="close" onclick="closeEditModal()" aria-label="Close">&times;</button>
-      <h3><i class="fa-solid fa-pen"></i> Edit record</h3>
+      <h3><i class="fa-solid fa-pen"></i> Edit PO record</h3>
       <div class="form-grid">
         <label>ReqNum <input type="text" id="editReqNum" /></label>
         <label>PO <input type="text" id="editPO" /></label>

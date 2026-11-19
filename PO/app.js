@@ -38,7 +38,8 @@ function rec(d){
     Amount: d.Amount ?? d.Value ?? "",
     Status: d.Status === "Inactive" ? "Inactive" : "Active",
     DateFiled: d.DateFiled || d.DateAdded || "",
-    DateReleased: d.DateReleased || ""
+    DateReleased: d.DateReleased || "",
+    _raw: d
   };
 }
 // Old field names to clear whenever a record is rewritten with the new ones
@@ -153,11 +154,15 @@ function renderTotals(){
   const savedNote = all && !allLive
     ? ` <button type="button" class="status-badge status-refresh" onclick="refreshSavedList()" title="Inactive/Total come from the list saved in this browser at ${new Date(allSavedAt).toLocaleString()}. Click to download a fresh copy.">↻ ${timeAgo(allSavedAt)}</button>`
     : "";
+  const paroled = Object.values(recordCache.active || {}).map(paroleOf).filter(Boolean);
+  const overdue = paroled.filter(p => p.overdue).length;
+  const paroleNote = paroled.length
+    ? ` <span class="status-badge status-${overdue ? 'overdue' : 'parole'}" title="Jailed POs handed out for a while${overdue ? `; ${overdue} overdue` : ''}">On Parole: ${paroled.length}${overdue ? ` (${overdue} overdue)` : ''}</span>` : "";
   totals.innerHTML =
-    `<span class="status-badge status-active">Active: ${active.toLocaleString()}</span> ` +
+    `<span class="status-badge status-active" title="POs in jail (originals in my custody)">In Jail: ${active.toLocaleString()}</span>${paroleNote} ` +
     (all
-      ? `<span class="status-badge status-inactive">Inactive: ${(total - active).toLocaleString()}</span> <span class="status-badge">Total: ${total.toLocaleString()}</span>${savedNote}`
-      : `<span class="status-badge status-inactive" title="Choose Inactive or All to load every PO">Inactive / Total: choose All</span>`);
+      ? `<span class="status-badge status-inactive" title="Released or still at large">Out: ${(total - active).toLocaleString()}</span> <span class="status-badge">Total: ${total.toLocaleString()}</span>${savedNote}`
+      : `<span class="status-badge status-inactive" title="Choose Out of Jail or All to load every PO">Out / Total: choose All</span>`);
 }
 // One-time fix for records saved before Status existed: they are the POs in my custody, so mark them Active.
 // With the Status index this only downloads records that have no Status yet (none after the first run).
@@ -272,10 +277,93 @@ function generateAZFilter(){
 
 // Active = in my custody. Inactive with a release date = I released it.
 // Inactive without a release date = never came to me: the original is still with Procurement, so it can be requested.
+// "02-NOV-2026" -> Date (local midnight), or null
+function parsePODate(t){
+  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/.exec(String(t || "").trim());
+  if (!m) return null;
+  const mon = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"].indexOf(m[2].toUpperCase());
+  return mon < 0 ? null : new Date(+m[3], mon, +m[1]);
+}
+function formatPODate(d){
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  return `${String(d.getDate()).padStart(2, "0")}-${months[d.getMonth()]}-${d.getFullYear()}`;
+}
+// Parole = a jailed PO handed out for a while, expected back by a due date. Status stays Active
+// (still my responsibility), so the invoice system is not affected. Fields: ParoleTo, ParoleSince, ParoleDue.
+function paroleOf(d){
+  if (!d || !d.ParoleDue) return null;
+  const due = parsePODate(d.ParoleDue);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return { to: d.ParoleTo || "", since: d.ParoleSince || "", due: d.ParoleDue, overdue: !!due && due < today,
+           daysLeft: due ? Math.round((due - today) / 86400000) : null };
+}
+const PAROLE_CLEAR = { ParoleTo: null, ParoleSince: null, ParoleDue: null };
+function openParole(key){
+  if (!auth.currentUser) { alert("Only the warden (admin) can grant parole"); return; }
+  const r = rec(lastRenderedRows[key]);
+  let m = document.getElementById('paroleModal');
+  if (!m) { m = document.createElement('div'); m.id = 'paroleModal'; m.className = 'modal hidden'; document.body.appendChild(m); }
+  const due = new Date(); due.setDate(due.getDate() + 7);
+  m.innerHTML = `<div class="modal-content">
+    <button class="close" onclick="closeModal('paroleModal')" aria-label="Close">&times;</button>
+    <h3><i class="fa-solid fa-person-walking-arrow-right"></i> Parole PO ${escapeAttr(String(r.PO))}</h3>
+    <p class="modal-sub">The original leaves the cell for a while and must come back by the due date.</p>
+    <div class="form-grid">
+      <label class="span-2">Handed to <input type="text" id="paroleTo" placeholder="Name or department" autocomplete="off"></label>
+      <label class="span-2">Must return by <input type="date" id="paroleDue" value="${due.toISOString().slice(0, 10)}"></label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('paroleModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveParole('${key}')">Grant parole</button>
+    </div></div>`;
+  openModal('paroleModal');
+  setTimeout(() => document.getElementById('paroleTo')?.focus(), 50);
+}
+function saveParole(key){
+  const to = (document.getElementById('paroleTo').value || "").trim();
+  const dueVal = document.getElementById('paroleDue').value;
+  if (!to) { alert("Who is the PO handed to?"); return; }
+  if (!dueVal) { alert("Pick the return date."); return; }
+  const [y, mo, d] = dueVal.split('-').map(Number);
+  const today = getFormattedDate();
+  const changes = { ParoleTo: to, ParoleSince: today, ParoleDue: formatPODate(new Date(y, mo - 1, d)),
+                    Log: crimeLog(lastRenderedRows[key], 'P', today) };
+  db.ref('records/' + key).update(changes)
+    .then(() => { refreshRow(key, { ...lastRenderedRows[key], ...changes }); closeModal('paroleModal'); showToast(`PO ${rec(lastRenderedRows[key]).PO} on parole with ${to} until ${changes.ParoleDue}`); })
+    .catch(err => alert(err.message));
+}
+function endParole(key){
+  if (!auth.currentUser) { alert("Only the warden (admin) can do this"); return; }
+  const today = getFormattedDate();
+  const changes = { ...PAROLE_CLEAR, Log: crimeLog(lastRenderedRows[key], 'B', today) };
+  db.ref('records/' + key).update(changes)
+    .then(() => { const next = { ...lastRenderedRows[key], ...changes }; ['ParoleTo','ParoleSince','ParoleDue'].forEach(f => delete next[f]); refreshRow(key, next); showToast(`PO ${rec(next).PO} is back in its cell 🔒`); })
+    .catch(err => alert(err.message));
+}
+// Sentence = days in jail: "Serving 12 days" while in jail, "Served 30 days" after release.
+function sentenceText(r){
+  const jailed = parsePODate(r.DateFiled);
+  if (!jailed) return "-";
+  const days = (a, b) => Math.max(0, Math.round((b - a) / 86400000));
+  const plural = n => `${n} day${n === 1 ? "" : "s"}`;
+  if (r.Status === "Active") {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const p = paroleOf(r._raw);
+    const note = p ? `<br><span class="sentence ${p.overdue ? 'overdue' : 'parole'}" title="Handed to ${escapeAttr(p.to)} on ${p.since}">${p.overdue ? `Overdue ${plural(-p.daysLeft)}` : `Due back ${p.due}`} · ${escapeAttr(p.to)}</span>` : "";
+    return `<span class="sentence serving" title="In jail since ${r.DateFiled}">Serving ${plural(days(jailed, today))}</span>${note}`;
+  }
+  const out = parsePODate(r.DateReleased);
+  if (out && out >= jailed) return `<span class="sentence" title="${r.DateFiled} to ${r.DateReleased}">Served ${plural(days(jailed, out))}</span>`;
+  return "-";
+}
 function custodyLabel(r){
-  if (r.Status === "Active") return { text: "Active", cls: "active" };
+  if (r.Status === "Active") {
+    const p = paroleOf(r._raw);
+    if (p) return p.overdue ? { text: "Parole Overdue", cls: "overdue" } : { text: "On Parole", cls: "parole" };
+    return { text: "In Jail", cls: "active" };
+  }
   if (r.DateReleased) return { text: "Released", cls: "inactive" };
-  return { text: "With Procurement", cls: "procurement" };
+  return { text: "At Large", cls: "procurement" };
 }
 function renderRow(childKey, data){
   lastRenderedRows[childKey]=data;
@@ -283,14 +371,18 @@ function renderRow(childKey, data){
   const checked = selectedPOs[childKey] ? 'checked' : '';
   const r = rec(data);
   const isAdmin = !!auth.currentUser;
+  const onParole = r.Status === "Active" && paroleOf(data);
+  const paroleBtn = r.Status !== "Active" ? ""
+    : onParole ? `<button class="btn btn-sm btn-ok" onclick="endParole('${childKey}')" title="The original came back"><i class="fa-solid fa-lock"></i>Back in cell</button>`
+    : `<button class="btn btn-sm btn-ghost" onclick="openParole('${childKey}')" title="Hand the original out for a while"><i class="fa-solid fa-person-walking-arrow-right"></i>Parole</button>`;
   const statusBtn = r.Status === "Active"
-    ? `<button class="btn btn-sm btn-warn" onclick="releaseRecord('${childKey}')" title="Original left my custody"><i class="fa-solid fa-box-archive"></i>Release</button>`
-    : `<button class="btn btn-sm btn-ok" onclick="reactivateRecord('${childKey}')" title="Original is back with me"><i class="fa-solid fa-rotate-left"></i>Re-activate</button>`;
+    ? `<button class="btn btn-sm btn-warn" onclick="releaseRecord('${childKey}')" title="Original left my custody"><i class="fa-solid fa-door-open"></i>Release</button>`
+    : `<button class="btn btn-sm btn-ok" onclick="reactivateRecord('${childKey}')" title="Original is in my hands: lock it up"><i class="fa-solid fa-handcuffs"></i>${r.DateReleased ? 'Re-arrest' : 'Arrest'}</button>`;
 
   const custody = custodyLabel(r);
   const jailCount = crimeEvents(data).filter(e => e.type === 'jail').length;
   const requestBtn = custody.cls === "procurement"
-    ? `<button class="btn btn-sm btn-accent" onclick="requestRecord('${childKey}')" title="Ask Procurement for the original"><i class="fa-brands fa-whatsapp"></i>Request</button>` : "";
+    ? `<button class="btn btn-sm btn-accent" onclick="requestRecord('${childKey}')" title="Ask Procurement to hand over the original (WhatsApp)"><i class="fa-brands fa-whatsapp"></i>Warrant</button>` : "";
   const tr=document.createElement('tr');
   tr.dataset.key = childKey;
   if (r.Status === "Inactive") tr.classList.add('row-inactive');
@@ -302,10 +394,11 @@ function renderRow(childKey, data){
      <td>${r.SupplierName}</td>
      <td>${r.ProjectID}</td>
      <td>${formatNumber(r.Amount)}</td>
-     <td><span class="status-badge status-${custody.cls}">${custody.text}</span>${jailCount > 1 ? ` <span class="rap-count" title="Jailed ${jailCount} times">×${jailCount}</span>` : ""}</td>
+     <td><span class="status-badge status-${custody.cls}">${custody.text}</span>${jailCount > 1 ? ` <span class="rap-count" title="Repeat offender: jailed ${jailCount} times">×${jailCount}</span>` : ""}</td>
      <td>${r.DateFiled || "-"}</td>
      <td>${r.DateReleased || "-"}</td>
-     <td><div class="row-actions">${requestBtn}${isAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openEditModal('${childKey}')" title="Edit"><i class="fa-solid fa-pen"></i>Edit</button>` + statusBtn : ""}${viewingCollection ? `<button class="btn btn-sm btn-ghost" onclick="removeFromCollection('${childKey}')" title="Take off my list (record is not changed)"><i class="fa-solid fa-xmark"></i>Remove from list</button>` : ""}</div></td>`;
+     <td>${sentenceText(r)}</td>
+     <td><div class="row-actions">${requestBtn}${isAdmin ? `<button class="btn btn-sm btn-ghost" onclick="openEditModal('${childKey}')" title="Edit"><i class="fa-solid fa-pen"></i>Edit</button>` + paroleBtn + statusBtn : ""}${viewingCollection ? `<button class="btn btn-sm btn-ghost" onclick="removeFromCollection('${childKey}')" title="Take off my list (record is not changed)"><i class="fa-solid fa-xmark"></i>Remove from list</button>` : ""}</div></td>`;
   return tr;
 }
 
@@ -469,7 +562,7 @@ function searchRecords(){
         matchCount++;
         updateResultCount();
         const lbl = custodyLabel(rec(found[1]));
-        showToast(lbl.cls === "procurement" ? `PO ${term} is not in jail: still with Procurement. You can request it.` : `PO ${term} is not in jail: released ${rec(found[1]).DateReleased}.`);
+        showToast(lbl.cls === "procurement" ? `PO ${term} is at large: still with Procurement. Issue a warrant to get it.` : `PO ${term} is out of jail: released ${rec(found[1]).DateReleased}.`);
       }
       if (matchCount === 0 && (currentSearchTerm !== "" || targetDate !== "")) playErrorSound();
     });
@@ -526,7 +619,8 @@ function crimeEvents(data){
     if (r.DateFiled && (r.Status === "Active" || r.DateReleased)) log.push('J' + r.DateFiled);
     if (r.DateReleased) log.push('R' + r.DateReleased);
   }
-  return log.map(e => ({ type: e[0] === 'J' ? 'jail' : 'release', date: e.slice(1) }));
+  const T = { J: 'jail', R: 'release', P: 'parole', B: 'back' };
+  return log.map(e => ({ type: T[e[0]] || 'jail', date: e.slice(1) }));
 }
 function showPoliceRecord(key){
   const data = lastRenderedRows[key] || (recordCache.all || {})[key] || (recordCache.active || {})[key];
@@ -541,10 +635,10 @@ function showPoliceRecord(key){
   const lbl = custodyLabel(r);
   m.innerHTML = `<div class="modal-content">
     <button class="close" onclick="closeModal('policeRecordModal')" aria-label="Close">&times;</button>
-    <h3><i class="fa-solid fa-id-card"></i> Police record: PO ${escapeAttr(String(r.PO))}</h3>
+    <h3><i class="fa-solid fa-id-card"></i> Criminal record: PO ${escapeAttr(String(r.PO))}</h3>
     <p class="modal-sub">${escapeAttr(String(r.SupplierName || ''))} · now <span class="status-badge status-${lbl.cls}">${lbl.text}</span></p>
     <p class="rap-summary">${jails ? `Jailed <b>${jails}</b> time${jails === 1 ? '' : 's'}.` : 'Clean record: never been in jail.'}</p>
-    ${ev.length ? `<ol class="rap-sheet">${ev.map(e => `<li class="rap-${e.type}"><i class="fa-solid ${e.type === 'jail' ? 'fa-lock' : 'fa-lock-open'}"></i><span>${e.type === 'jail' ? 'Jailed' : 'Released'}</span><b>${escapeAttr(e.date)}</b></li>`).join('')}</ol>` : ''}
+    ${ev.length ? `<ol class="rap-sheet">${ev.map(e => { const L = { jail: ['fa-lock', 'Jailed'], release: ['fa-lock-open', 'Released'], parole: ['fa-person-walking-arrow-right', 'Paroled'], back: ['fa-lock', 'Back from parole'] }[e.type]; return `<li class="rap-${e.type}"><i class="fa-solid ${L[0]}"></i><span>${L[1]}</span><b>${escapeAttr(e.date)}</b></li>`; }).join('')}</ol>` : ''}
     <div class="modal-actions"><button class="btn btn-primary" onclick="closeModal('policeRecordModal')">Close</button></div>
   </div>`;
   openModal('policeRecordModal');
@@ -553,16 +647,16 @@ function showPoliceRecord(key){
 // ---------- Release / Re-activate ----------
 // Release = original left my custody: mark Inactive and stamp Date Released.
 function releaseRecord(key){
-  if(!auth.currentUser){ alert("Only admin can release"); return; }
+  if(!auth.currentUser){ alert("Only the warden (admin) can release"); return; }
   const today = getFormattedDate();
-  const changes = { Status: "Inactive", DateReleased: today, Log: crimeLog(lastRenderedRows[key], 'R', today) };
+  const changes = { Status: "Inactive", DateReleased: today, ...PAROLE_CLEAR, Log: crimeLog(lastRenderedRows[key], 'R', today) };
   db.ref('records/' + key).update(changes)
     .then(() => refreshRow(key, { ...lastRenderedRows[key], ...changes }))
     .catch(err => alert(err.message));
 }
 // Re-activate = original is back with me: mark Active, new Date Filed. Date Released is kept (it's history).
 function reactivateRecord(key){
-  if(!auth.currentUser){ alert("Only admin can re-activate"); return; }
+  if(!auth.currentUser){ alert("Only the warden (admin) can re-arrest"); return; }
   const today = getFormattedDate();
   const changes = { Status: "Active", DateFiled: today, DateAdded: null, Log: crimeLog(lastRenderedRows[key], 'J', today) };
   db.ref('records/' + key).update(changes)
@@ -592,7 +686,8 @@ function saveEdit(){
   fields.Amount = toNumberOrRaw(fields.Amount);
   const cur = rec(lastRenderedRows[key]);
   const next = { ...cur, ...fields, ...OLD_FIELDS, DateReleased: cur.DateReleased || null };
-  if (lastRenderedRows[key] && lastRenderedRows[key].Log) next.Log = lastRenderedRows[key].Log;
+  delete next._raw;
+  ['Log','ParoleTo','ParoleSince','ParoleDue'].forEach(f => { if (lastRenderedRows[key] && lastRenderedRows[key][f]) next[f] = lastRenderedRows[key][f]; });
   db.ref('records/' + key).update(next)
     .then(() => { refreshRow(key, next); closeEditModal(); })
     .catch(err => alert(err.message));
@@ -626,7 +721,7 @@ function addPOFromModal(){
   findRecordByPO(po).then(found => {
     if (!found) {
       // Not in Firebase: offer to add it manually
-      if (stat) stat.textContent = `PO ${po} is not in the records.`;
+      if (stat) stat.textContent = `PO ${po} has no record yet. Register it first.`;
       playErrorSound(); // <-- Trigger sound
       closeAddPOModal();
       openNewPOModal(po);
@@ -634,7 +729,7 @@ function addPOFromModal(){
     }
     const [key, data] = found;
     if (rec(data).Status === "Active") {
-      if (stat) stat.textContent = `PO ${po} is already Active.`;
+      if (stat) stat.textContent = `PO ${po} is already in jail.`;
       playErrorSound(); // <-- Trigger sound
       return;
     }
@@ -646,7 +741,7 @@ function addPOFromModal(){
       const shown = document.querySelector(`#poTable tbody tr[data-key="${key}"]`);
       if (shown) refreshRow(key, updated);
       else if (tbody) { tbody.appendChild(renderRow(key, updated)); updateResultCount(); }
-      if (stat) stat.textContent = `PO ${po} marked Active ✔`;
+      if (stat) stat.textContent = `PO ${po} arrested and locked up 🔒`;
       if (inp) { inp.value = ""; inp.focus(); }
     });
   }).catch(e => {
@@ -994,7 +1089,8 @@ function uploadCSV(){
           const [key, data] = byPO[k];
           const cur = rec(data);
           const next = { ...cur, ...OLD_FIELDS, PO: cur.PO || PO };
-          if (data.Log) next.Log = data.Log; // keep the police record
+          ['Log','ParoleTo','ParoleSince','ParoleDue'].forEach(f => { if (data[f]) next[f] = data[f]; }); // keep the criminal record and parole
+          delete next._raw;
           // Blank cells keep what is already saved
           ["ReqNum","SupplierID","SupplierName","ProjectID","Amount"].forEach(f => { if (fields[f] !== "") next[f] = fields[f]; });
           // Upload never changes the status of a PO that is already saved.
@@ -1026,11 +1122,11 @@ function uploadCSV(){
       const summary =
         `Please check before saving:\n\n` +
         `Existing POs found: ${updated + unchanged} (${unchanged} unchanged, ${updated} to update)\n` +
-        `  - staying Active: ${keptActive}\n` +
-        `  - statuses are never changed by an upload\n` +
-        `New POs: ${added} (${added - addedActive} Inactive, ${addedActive} Active)\n` +
+        `  - staying in jail: ${keptActive}\n` +
+        `  - nobody is jailed or released by an upload\n` +
+        `New POs: ${added} (${added - addedActive} at large, ${addedActive} in jail)\n` +
         (skipped ? `Rows skipped (no PO): ${skipped}\n` : "") +
-        `\nTotal Active: ${activeBefore} now -> ${activeBefore + addedActive} after upload\n` +
+        `\nTotal in jail: ${activeBefore} now -> ${activeBefore + addedActive} after upload\n` +
         `\nA backup of all current records will download first.\nSave these changes?`;
       if (!confirm(summary)) { alert("Upload cancelled. Nothing was changed."); return; }
 
@@ -1120,17 +1216,17 @@ function toggleSelectAll() {
 // Releases the selected records (marks them Inactive). They stay in Firebase.
 function deleteSelectedRecords() {
   if (!auth.currentUser) {
-    alert("Only admin can release records.");
+    alert("Only the warden (admin) can release POs.");
     return;
   }
 
   const checks = document.querySelectorAll('#poTable tbody input.rowSelect:checked');
   if (!checks.length) {
-    alert("No records selected to release.");
+    alert("No POs selected to release.");
     return;
   }
 
-  if (!confirm(`Release these ${checks.length} records? They will be marked Inactive and can be re-activated later.`)) {
+  if (!confirm(`Release these ${checks.length} POs from jail? Their release date is recorded and they can be re-arrested later.`)) {
     return;
   }
 
@@ -1143,13 +1239,14 @@ function deleteSelectedRecords() {
       updates[key + '/Status'] = "Inactive";
       updates[key + '/DateReleased'] = today;
       updates[key + '/Log'] = crimeLog(lastRenderedRows[key], 'R', today);
+      ['ParoleTo','ParoleSince','ParoleDue'].forEach(f => { updates[key + '/' + f] = null; });
       keys.push(key);
     }
   });
-  if (!keys.length) { alert("The selected records are already Inactive."); return; }
+  if (!keys.length) { alert("The selected POs are already out of jail."); return; }
 
   db.ref('records').update(updates).then(() => {
-    keys.forEach(key => refreshRow(key, { ...lastRenderedRows[key], Status: "Inactive", DateReleased: today, Log: updates[key + '/Log'] }));
+    keys.forEach(key => refreshRow(key, { ...lastRenderedRows[key], Status: "Inactive", DateReleased: today, Log: updates[key + '/Log'], ParoleDue: null }));
     document.getElementById('selectAllCheckbox').checked = false;
   }).catch(err => alert("Error releasing records: " + err.message));
 }
@@ -1297,6 +1394,6 @@ window.releaseRecord=releaseRecord; window.reactivateRecord=reactivateRecord;
 window.openNewPOModal=openNewPOModal; window.closeNewPOModal=closeNewPOModal; window.saveNewPO=saveNewPO;
 window.openEditModal=openEditModal; window.closeEditModal=closeEditModal; window.saveEdit=saveEdit;
 window.addCheckedToCollection=addCheckedToCollection; window.removeFromCollection=removeFromCollection; window.viewCollection=viewCollection; window.clearCollection=clearCollection;
-window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto; window.requestRecord=requestRecord; window.showPoliceRecord=showPoliceRecord; window.crimeLog=crimeLog; window.refreshSavedList=refreshSavedList;
+window.sendWhatsAppRequestAuto=sendWhatsAppRequestAuto; window.requestRecord=requestRecord; window.openParole=openParole; window.saveParole=saveParole; window.endParole=endParole; window.showPoliceRecord=showPoliceRecord; window.crimeLog=crimeLog; window.refreshSavedList=refreshSavedList;
 window.toggleSelectAll = toggleSelectAll;
 window.deleteSelectedRecords = deleteSelectedRecords;
