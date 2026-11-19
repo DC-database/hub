@@ -3135,6 +3135,9 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc { border: 1px solid rgba(255,255,255,.14) !important; border-radius: 14px !important; background: rgba(9,18,30,.42) !important; margin: 0 0 12px !important; padding: 0 !important; overflow: hidden !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc > .master-grid-row { display: none !important; }
   /* p63: Records cards see-through glass (martin), no blur */
+  /* p83: Find LPO: title bar drags the window; two pick buttons side by side */
+  html body #iba-lpo-pop .iba-lpo-head { cursor: move !important; user-select: none !important; }
+  html body #iba-lpo-pop .iba-lpo-picks { display: flex !important; flex-wrap: wrap !important; gap: 10px !important; align-items: center !important; }
   /* p81: Invoice Records: the "Results kept from … Refresh" line is HIDDEN (martin: not needed; Search refreshes). Remove this rule to bring it back */
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8):not(#iba-no9):not(#iba-no10):not(#iba-no11) #iba-keep-note { display: none !important; }
   /* p81: Action buttons in Invoice Records + Invoice Entry table = dark buttons with a coloured icon and a word (like the Add / Edit buttons) */
