@@ -68,6 +68,9 @@
     }
     return out;
   }
+  // patch 86 (martin): a PO this note pays off completely (previous + this note reaches the PO value) has no next
+  // payment, so it is left out of the print; on screen it stays, faded, marked "fully paid · not printed"
+  function done(d) { return d.poValue > 0 && (prevOf(d).v + d.note) >= d.poValue - 0.01; }
   function prevOf(d) { var o = overrideOf(d.po); return o != null ? { v: num(o), edited: true } : { v: d.prev, edited: false }; }
 
   function screenHtml() {
@@ -75,7 +78,8 @@
     var on = showPrev(), tn = 0, tp = 0;
     var body = data.map(function (d) {
       var p = prevOf(d); tn += d.note; tp += p.v;
-      return '<tr><td><b>PO ' + esc(d.po) + '</b>' + (d.poValue ? '<small>PO value ' + money(d.poValue) + '</small>' : '') + '</td>' +
+      var fin = done(d);
+      return '<tr' + (fin ? ' class="is-done" title="Fully paid with this note: not printed"' : '') + '><td><b>PO ' + esc(d.po) + '</b>' + (d.poValue ? '<small>PO value ' + money(d.poValue) + '</small>' : '') + (fin ? '<small class="iba-snpo-done">Fully paid · not printed</small>' : '') + '</td>' +
         (on ? '<td class="r"><input type="text" inputmode="decimal" data-snpo-prev="' + esc(d.po) + '" value="' + (p.v ? money(p.v) : '') + '" placeholder="0.00" title="Type the previous total from the paper PO if the system missed an invoice">' +
           (p.edited ? '<button type="button" class="iba-snpo-ed" data-snpo-reset="' + esc(d.po) + '" title="Typed by you. Click to go back to the system figure (' + money(d.prev) + ')">edited ×</button>' : '<small>' + d.pn + ' invoice' + (d.pn === 1 ? '' : 's') + '</small>') + '</td>' : '') +
         '<td class="r">' + money(d.note) + '<small>' + d.n + ' invoice' + (d.n === 1 ? '' : 's') + '</small></td>' +
@@ -87,13 +91,15 @@
   }
   function printHtml() {
     if (!data.length || !boxOn()) return '';
+    var rows = data.filter(function (d) { return !done(d); });
+    if (!rows.length) return '';
     var on = showPrev();
     // p64/p66: under Prepared By (left side); a long list may run onto the next page (rows never split, header repeats)
     var st = '<style>.pobw{margin-top:12mm;break-inside:auto}.pobt{font-size:8pt;letter-spacing:1.2px;text-transform:uppercase;color:#617180;font-weight:700;margin:0 0 1.6mm;text-align:left;break-after:avoid}' +
       '.pob{margin:0 auto 0 0;width:' + (on ? '128mm' : '80mm') + ';border:.4mm solid #9fb3c2;border-radius:2.6mm;break-inside:auto;font-size:9.5pt}.pob thead{display:table-header-group}.pob tr{break-inside:avoid}' +
       '.pob table{margin:0;font-size:9.5pt}.pob th{font-size:7.5pt;padding:1.6mm 2.4mm;background:#e9f2f8;color:#0e4d7a;border-radius:0!important}' +
       '.pob td{padding:1.5mm 2.4mm;border-bottom:.25mm solid #cfe0ec}.pob tbody tr:last-child td{border-bottom:0}.pob td small{display:block;font-size:7.5pt;color:#617180}.pob td.t{font-weight:800}</style>';
-    var body = data.map(function (d) {
+    var body = rows.map(function (d) {
       var p = prevOf(d);
       return '<tr><td><b>PO ' + esc(d.po) + '</b>' + (d.poValue ? '<small>PO value ' + money(d.poValue) + '</small>' : '') + '</td>' +
         (on ? '<td class="r">' + money(p.v) + '</td>' : '') + '<td class="r">' + money(d.note) + '</td>' + (on ? '<td class="r t">' + money(p.v + d.note) + '</td>' : '') + '</tr>';
