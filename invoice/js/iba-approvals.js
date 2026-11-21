@@ -923,7 +923,7 @@
     // WhatsApp with a ready reminder for the person in Attention.
     // 18.0.0 patch 97 (martin): new wording, the mobile approval link, and the same message from IRIS
     // ("Approval reminder (WhatsApp)" skill and "send 12345" in the chat).
-    const MOBILE_APPROVAL_URL = 'https://port.iba.com.qa/invoice/';
+    const MOBILE_APPROVAL_URL = 'https://port.iba.com.qa/invoice/?go=approve'; // 18.0.0 patch 99: opens the Approval tab
     function firstAttention(inv) {
         return String((inv && inv.attention) || '').split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i).map((x) => x.trim()).filter(Boolean)[0] || '';
     }

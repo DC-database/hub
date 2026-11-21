@@ -233,12 +233,12 @@
             const n = state.inv.list.length + state.qs.length;
             const t = [{ id: 'home', icon: 'fa-house', label: 'Home' }];
             // 17.0.5 patch 182 (martin): Approve stays in the bar for approvers even at 0 (badge only when > 0)
-            if (n || state.invSeen || canRecords()) t.push({ id: 'approve', icon: 'fa-file-signature', label: 'Approve', count: n });
+            if (n || state.invSeen || canRecords()) t.push({ id: 'approve', icon: 'fa-file-signature', label: 'Approval', count: n });
             if (canRecords()) t.push({ id: 'records', icon: 'fa-folder-open', label: 'Records' });
             return t;
         }
         const t = [];
-        if (mayApproveInventory()) t.push({ id: 'approve', icon: 'fa-clipboard-check', label: 'Approve', count: state.stk.list.length });
+        if (mayApproveInventory()) t.push({ id: 'approve', icon: 'fa-clipboard-check', label: 'Approval', count: state.stk.list.length });
         // 17.0.5 patch 175: Receive a delivery by scan (js/iba-1705-receive.js)
         if (window.ibaReceive) t.push({ id: 'receive', icon: 'fa-barcode', label: 'Receive' });
         t.push({ id: 'search', icon: 'fa-magnifying-glass', label: 'Item search' });
@@ -372,6 +372,25 @@
     // ------------------------------------------------------------------
     // Enter / leave the phone workspace
     // ------------------------------------------------------------------
+    // 18.0.0 patch 99: remember ?go=approve from the link (it survives the sign-in) and use it once
+    var GO_KEY = 'iba-go-approve-v1';
+    try {
+        var sp = new URLSearchParams(location.search || '');
+        if (/^approv/i.test(sp.get('go') || '')) {
+            sessionStorage.setItem(GO_KEY, String(Date.now()));
+            sp.delete('go');
+            var q = sp.toString();
+            history.replaceState(history.state, '', location.pathname + (q ? '?' + q : '') + location.hash);
+        }
+    } catch (_) {}
+    function goApprove() {
+        try {
+            var t = Number(sessionStorage.getItem(GO_KEY) || 0);
+            sessionStorage.removeItem(GO_KEY);
+            return t > 0 && Date.now() - t < 30 * 60000;
+        } catch (_) { return false; }
+    }
+
     async function enter() {
         if (state.on) return;
         if (!isPhone() || !myName()) return;
@@ -393,6 +412,8 @@
         await Promise.all([loadInvoice(true), loadInventory(true)]);
         // 17.0.5 patch 117: everyone lands on Home (approvals show on top of it)
         state.tab = 'home';
+        // 18.0.0 patch 99: the WhatsApp approval link (?go=approve) lands on the Approval tab
+        if (goApprove() && (state.inv.list.length + state.qs.length)) state.tab = 'approve';
         setSide('invoice');
     }
 
