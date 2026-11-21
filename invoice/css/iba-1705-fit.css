@@ -3135,6 +3135,46 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc { border: 1px solid rgba(255,255,255,.14) !important; border-radius: 14px !important; background: rgba(9,18,30,.42) !important; margin: 0 0 12px !important; padding: 0 !important; overflow: hidden !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc > .master-grid-row { display: none !important; }
   /* p63: Records cards see-through glass (martin), no blur */
+  /* p94: "Stuck too long" window (Super Admin): same look as the Recycle Bin */
+  html body #iba-stuck-pop .iba-tidy-box { width: min(1180px, 100%) !important; max-height: calc(100vh - 40px) !important; overflow: auto !important; }
+  html body #iba-stuck-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+  html body #iba-stuck-pop .iba-pb-head button { width: 34px !important; height: 34px !important; min-width: 0 !important; padding: 0 !important; border-radius: 50% !important; background: rgba(255,255,255,.08) !important; border: 1px solid rgba(255,255,255,.15) !important; color: #eef3f8 !important; }
+  html body #iba-stuck-pop .iba-bin-tabs { display: flex !important; gap: 6px !important; padding: 8px 18px 0 !important; flex-wrap: wrap !important; }
+  html body #iba-stuck-pop .iba-bin-tabs button { height: 30px !important; padding: 0 14px !important; border-radius: 999px !important; border: 1px solid rgba(255,255,255,.15) !important; background: rgba(255,255,255,.05) !important; color: #cfd8df !important; font-size: 12.5px !important; }
+  html body #iba-stuck-pop .iba-bin-tabs button.is-on { background: rgba(47,211,194,.15) !important; border-color: rgba(47,211,194,.6) !important; color: #2fd3c2 !important; font-weight: 600 !important; }
+  html body #iba-stuck-pop .iba-bin-tabs button[disabled] { opacity: .5 !important; cursor: default !important; }
+  html body #iba-stuck-pop .iba-tidy-tblwrap { max-height: 60vh !important; overflow: auto !important; margin: 8px 18px !important; border: 1px solid rgba(255,255,255,.1) !important; border-radius: 10px !important; }
+  html body #iba-stuck-pop .iba-tidy-tbl { width: 100% !important; border-collapse: collapse !important; font-size: 12.5px !important; }
+  html body #iba-stuck-pop .iba-tidy-tbl th { position: sticky !important; top: 0 !important; background: #12324a !important; color: #eef3f8 !important; text-align: left !important; padding: 6px 8px !important; font-weight: 600 !important; }
+  html body #iba-stuck-pop .iba-tidy-tbl td { padding: 5px 8px !important; border-top: 1px solid rgba(255,255,255,.07) !important; color: #e8eef3 !important; vertical-align: middle !important; }
+  html body #iba-stuck-pop .iba-tidy-tbl .r { text-align: right !important; font-variant-numeric: tabular-nums !important; white-space: nowrap !important; }
+  html body #iba-stuck-pop .iba-tidy-tbl .m { font-family: ui-monospace, Menlo, Consolas, monospace !important; }
+  html body #iba-stuck-pop .iba-bin-act { white-space: nowrap !important; text-align: right !important; }
+  html body #iba-stuck-pop .iba-bin-act button { height: 28px !important; padding: 0 10px !important; border-radius: 999px !important; border: 1px solid rgba(47,211,194,.6) !important; background: rgba(47,211,194,.1) !important; color: #2fd3c2 !important; font-size: 12px !important; font-weight: 600 !important; cursor: pointer !important; }
+  html body #iba-stuck-pop .iba-bin-act button.is-danger { border-color: rgba(255,107,107,.7) !important; background: rgba(220,53,69,.15) !important; color: #ff9a9a !important; }
+  html body #iba-stuck-pop .iba-tidy-warn { color: #f5c26b !important; }
+  html body #iba-stuck-pop .iba-tidy-msg { margin: 8px 18px 0 !important; }
+  html body #iba-stuck-pop .iba-bin-act button.is-plain, html body #iba-stuck-pop .iba-stk-remacts button.is-plain { border-color: rgba(255,255,255,.2) !important; background: transparent !important; color: #cfd8df !important; }
+  html body #iba-stuck-pop .iba-bin-act button[disabled], html body #iba-stuck-pop .iba-stk-remacts button[disabled] { opacity: .5 !important; cursor: default !important; }
+  html body #iba-stuck-pop .iba-bin-tabs .iba-stk-setbtn { margin-left: auto !important; color: #E3C98A !important; border-color: rgba(227,201,138,.45) !important; }
+  html body #iba-stuck-pop .iba-stk-age { display: inline-block !important; padding: 2px 9px !important; border-radius: 999px !important; font-weight: 700 !important; font-size: 12px !important; white-space: nowrap !important; }
+  html body #iba-stuck-pop .iba-stk-age.is-watch { background: rgba(245,194,107,.16) !important; color: #f5c26b !important; }
+  html body #iba-stuck-pop .iba-stk-age.is-alert { background: rgba(255,140,90,.18) !important; color: #ffa27a !important; }
+  html body #iba-stuck-pop .iba-stk-age.is-critical { background: rgba(255,90,95,.2) !important; color: #ff9a9a !important; }
+  html body #iba-stuck-pop .iba-stk-set, html body #iba-stuck-pop .iba-stk-rembox { margin: 8px 18px !important; padding: 10px 12px !important; border: 1px solid rgba(255,255,255,.12) !important; border-radius: 10px !important; background: rgba(0,0,0,.18) !important; color: #e8eef3 !important; display: grid !important; gap: 8px !important; }
+  html body #iba-stuck-pop .iba-stk-rembox { margin: 4px 0 !important; }
+  html body #iba-stuck-pop .iba-stk-setgrid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important; gap: 6px 12px !important; }
+  html body #iba-stuck-pop .iba-stk-setgrid label, html body #iba-stuck-pop .iba-stk-rembox label { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; font-size: 12.5px !important; }
+  html body #iba-stuck-pop input[type=number] { width: 70px !important; height: 30px !important; }
+  html body #iba-stuck-pop input, html body #iba-stuck-pop textarea { border-radius: 8px !important; border: 1px solid rgba(255,255,255,.2) !important; background: rgba(0,0,0,.25) !important; color: #eef3f8 !important; -webkit-text-fill-color: #eef3f8 !important; padding: 4px 8px !important; font-size: 13px !important; }
+  html body #iba-stuck-pop .iba-stk-rembox label input { flex: 1 !important; height: 30px !important; }
+  html body #iba-stuck-pop .iba-stk-rembox textarea { width: 100% !important; resize: vertical !important; }
+  html body #iba-stuck-pop .iba-stk-remacts { display: flex !important; gap: 8px !important; justify-content: flex-end !important; }
+  html body #iba-stuck-pop .iba-stk-remacts button { height: 30px !important; padding: 0 12px !important; border-radius: 999px !important; border: 1px solid rgba(47,211,194,.6) !important; background: rgba(47,211,194,.1) !important; color: #2fd3c2 !important; cursor: pointer !important; }
+  html body #iba-stuck-pop tr.iba-stk-rem td { border-top: 0 !important; }
+  /* p93: Batch Entry row left in the batch because something is missing (red until you type in it) */
+  html body .batch-invoice-card.iba-bt-bad { outline: 2px solid #ff5a5f !important; outline-offset: 2px !important; box-shadow: 0 0 0 4px rgba(255,90,95,.18) !important; }
+  html body .batch-invoice-card.iba-bt-bad::after { content: attr(data-bt-bad) !important; display: block !important; grid-column: 1 / -1 !important; margin-top: 6px !important; padding: 6px 10px !important; border-radius: 8px !important; background: rgba(255,90,95,.14) !important; color: #ffb3b5 !important; -webkit-text-fill-color: #ffb3b5 !important; font-size: 12px !important; font-weight: 600 !important; }
   /* p92: Invoice Entry "Save as new" next to Update (edit mode only) */
   html body #iba-save-as-new-btn { display: inline-flex !important; align-items: center !important; gap: 6px !important; background: #0e6f8a !important; background-image: none !important; color: #fff !important; -webkit-text-fill-color: #fff !important; border: 1px solid rgba(255,255,255,.18) !important; }
   html body #iba-save-as-new-btn:hover { background: #12819f !important; }
