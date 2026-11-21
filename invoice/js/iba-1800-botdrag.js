@@ -9,7 +9,8 @@
     const KEY = 'iba-fab-pos-v1', SIZE_PAD = 6, MOVE = 6;
     const $ = (id) => document.getElementById(id);
     function pc() {
-        try { return window.matchMedia('(pointer: fine)').matches && window.innerWidth >= 900 && !document.body.classList.contains('iba-phone') && !document.body.classList.contains('iba-mobile-ui'); } catch (_) { return false; }
+        // 18.0.0 patch 91 (martin): also a tablet in "Desktop view" (touch, no mouse): any wide screen that is not the phone layout
+        try { return window.innerWidth >= 900 && !document.body.classList.contains('iba-phone') && !document.body.classList.contains('iba-mobile-ui'); } catch (_) { return false; }
     }
     function load() { try { const o = JSON.parse(localStorage.getItem(KEY) || 'null'); return o && isFinite(o.x) && isFinite(o.y) ? o : null; } catch (_) { return null; } }
     function save(o) { try { if (o) localStorage.setItem(KEY, JSON.stringify(o)); else localStorage.removeItem(KEY); } catch (_) {} }

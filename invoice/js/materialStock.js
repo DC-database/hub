@@ -2122,6 +2122,31 @@ document.querySelectorAll('.ms-delete-btn').forEach(btn => {
 // 4. DELETE & EDIT LOGIC
 // ==========================================================================
 
+// 18.0.0 patch 91 (martin): Inventory Recycle Bin. Before a Material Stock card is deleted, a full copy of it
+// (and of the transactions deleted with it) goes to recycle_bin/inventory/<key> in the inventory db.
+// Restore / Delete forever: Recycle Bin, Inventory tab (js/iba-1800-tidy.js). Throws (and writes nothing
+// that stays) if any copy cannot be made, so the caller can stop before deleting.
+async function ibaInvBinSave(database, list) {
+    const who = (typeof currentApprover !== 'undefined' && currentApprover) ? currentApprover.Name : '';
+    const up = {};
+    for (const x of list) {
+        const fresh = (await database.ref(`material_stock/${x.key}`).once('value')).val();
+        if (!fresh) throw new Error('could not read ' + (x.productName || x.key));
+        const tx = {};
+        await Promise.all((x.transferKeys || []).map(async (k) => {
+            const v = (await database.ref(`transfer_entries/${k}`).once('value')).val();
+            if (v) tx[k] = v;
+        }));
+        up[`recycle_bin/inventory/${x.key}`] = {
+            kind: 'stock', item: fresh, transfers: Object.keys(tx).length ? tx : null,
+            productID: String(x.productID || ''), productName: String(x.productName || fresh.productName || ''),
+            txCount: Object.keys(tx).length, deletedBy: who, deletedAt: firebase.database.ServerValue.TIMESTAMP
+        };
+    }
+    await database.ref().update(up);
+}
+window.ibaInvBinSave = ibaInvBinSave;
+
 window.handleDeleteMaterial = async function(key) {
     const currentUser = (typeof currentApprover !== 'undefined') ? currentApprover.Name : '';
 
@@ -2146,7 +2171,7 @@ window.handleDeleteMaterial = async function(key) {
 
     const confirmMsg = idStillUsed
         ? `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nAnother card still uses this Product ID, so the movement history will be KEPT. Only this card is deleted.\n\nProceed?`
-        : `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nThis cannot be undone. Proceed?`;
+        : `⚠️ MASTER DELETE (Super Admin) ⚠️\n\nProduct: ${productName}\nID: ${productID}\n\nThis will DELETE the item AND ALL ${relatedTransfers.length} related transactions history.\n\nIt goes to the Recycle Bin (Inventory tab), where you can restore it. Proceed?`;
 
     if (confirm(confirmMsg)) {
         const database = (typeof inventoryDb !== 'undefined' && inventoryDb) ? inventoryDb : getInventoryDatabase();
@@ -2159,10 +2184,19 @@ window.handleDeleteMaterial = async function(key) {
             updates[`transfer_entries/${t.key}`] = null;
         });
 
+        // 18.0.0 patch 91 (martin): Inventory Recycle Bin: keep a copy first; if it cannot be saved, nothing is deleted
+        try {
+            await ibaInvBinSave(database, [{ key, productID, productName, transferKeys: relatedTransfers.map(t => t.key) }]);
+        } catch (binErr) {
+            console.error('Recycle Bin copy failed:', binErr);
+            alert('Nothing was deleted: the copy for the Recycle Bin could not be saved (' + ((binErr && binErr.message) || binErr) + ').');
+            return;
+        }
+
         try {
             await database.ref().update(updates);
             try { await window.inventoryPocket?.removeMaterialFromPocketByKey(key); } catch (pocketError) { console.warn('Inventory Pocket delete cleanup failed:', pocketError); }
-            alert(`Master Delete Successful.\nRemoved: ${productName}`);
+            alert(`Deleted: ${productName}\nIt is in the Recycle Bin (Inventory tab) if you need it back.`);
             localStorage.removeItem(STOCK_CACHE_KEY);
             populateMaterialStock(true);
         } catch (e) {
@@ -3377,7 +3411,7 @@ async function handleBulkDelete() {
     }
 
     const count = checkedBoxes.length;
-    const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nAre you sure you want to proceed?`;
+    const confirmMsg = `⚠️ MASTER BULK DELETE ⚠️\n\nYou are about to delete ${count} items from Stock.\n\nThis will also delete the history for these specific Product IDs.\n\nThey go to the Recycle Bin (Inventory tab), where you can restore them. Proceed?`;
 
     if (!confirm(confirmMsg)) return;
 
@@ -3389,10 +3423,13 @@ async function handleBulkDelete() {
     const updates = {};
     let transfersDeletedCount = 0;
 
+    const binList = [];   // 18.0.0 patch 91: copies for the Recycle Bin
     checkedBoxes.forEach(box => {
         const key = box.dataset.key;
         const stockItem = allMaterialStockData.find(i => i.key === key);
         const productID = stockItem?.productID || stockItem?.productId || "";
+        const binEntry = { key, productID, productName: stockItem?.productName || '', transferKeys: [] };
+        binList.push(binEntry);
 
         updates[`material_stock/${key}`] = null;
 
@@ -3411,6 +3448,7 @@ async function handleBulkDelete() {
             });
             relatedTransfers.forEach(t => {
                 updates[`transfer_entries/${t.key}`] = null;
+                binEntry.transferKeys.push(t.key);
                 transfersDeletedCount++;
             });
         }
@@ -3420,11 +3458,21 @@ async function handleBulkDelete() {
     updates[`${STOCK_META_PATH}/updatedAt`] = firebase.database.ServerValue.TIMESTAMP;
 
     try {
+        await ibaInvBinSave(database, binList);
+    } catch (binErr) {
+        console.error('Recycle Bin copy failed:', binErr);
+        alert('Nothing was deleted: the copies for the Recycle Bin could not be saved (' + ((binErr && binErr.message) || binErr) + ').');
+        btn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete Selected';
+        btn.disabled = false;
+        return;
+    }
+
+    try {
         await database.ref().update(updates);
         try {
             for (const box of checkedBoxes) await window.inventoryPocket?.removeMaterialFromPocketByKey(box.dataset.key);
         } catch (pocketError) { console.warn('Inventory Pocket bulk delete cleanup failed:', pocketError); }
-        alert(`Success!\n\nDeleted ${count} Stock Items.\nDeleted ${transfersDeletedCount} Related History Entries.`);
+        alert(`Done.\n\nDeleted ${count} Stock Items (with ${transfersDeletedCount} history entries).\nThey are in the Recycle Bin (Inventory tab) if you need them back.`);
         localStorage.removeItem(STOCK_CACHE_KEY);
         populateMaterialStock(true);
     } catch (e) {
