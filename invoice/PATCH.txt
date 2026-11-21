@@ -3,6 +3,22 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 92 (21-Nov-2026)
+  Invoice Entry "Save as new" (martin): next to Update while a saved invoice is open. Update still corrects that
+  invoice; Save as new keeps it untouched and adds a NEW invoice on the PO from the form: next INV number, the
+  typed Inv No. kept, Invoice/SRV/Report file names cleared (usual auto invoice name), status Under Review,
+  copiedFromKey/copiedFromEntry + history line. If the Add does not go through the form is put back for Update.
+  Files: js/iba-1800-saveasnew.js (NEW), index.html, css/iba-1705-fit.css, PATCH.txt
+
+18.0.0 patch 91 (21-Nov-2026)
+  Inventory Recycle Bin (martin): Material Stock Delete and Delete Selected now keep a full copy of each card
+  (and the history deleted with it) in recycle_bin/inventory before deleting; if the copy fails nothing is deleted.
+  Recycle Bin Inventory tab: Restore (card + history back, count +1) / Delete forever. Material Stock has its own
+  "Recycle Bin" button (Super Admin, PC). Both bin tabs: tick boxes, Select all, Restore selected / Delete selected
+  forever (one "Erase N for good?" question). "More tools" button now looks like Clear / Print.
+  IRIS robot can be dragged on a tablet too (Desktop view, touch): the mouse-only check is gone.
+  Files: index.html, PATCH.txt, app.js, js/materialStock.js, js/iba-1800-tidy.js, js/iba-1800-botdrag.js, css/iba-1705-fit.css
+
 18.0.0 patch 90 (19-Nov-2026)
   New entries to Batch invoice no. rule (martin): PO already has an IPC-style series -> next in that series;
   otherwise 6+ characters = kept as Reception typed it; 5 or fewer = PO number + dot + number.

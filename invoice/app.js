@@ -3447,7 +3447,8 @@ document.addEventListener('DOMContentLoaded', () => {
             stockTableBody.appendChild(row);
         });
     }
-    window.deleteStock = async function (key) {
+    // 18.0.0 patch 91: the Material Stock delete (with Recycle Bin) wins if it is loaded
+    window.deleteStock = window.handleDeleteMaterial || async function (key) {
         if (confirm("Delete?")) {
             await getInventoryDatabase().ref(`material_stock/${key}`).remove();
             loadMaterialStock();
