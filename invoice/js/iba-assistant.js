@@ -3654,7 +3654,7 @@
                 return null;
             } },
         // 17.0.5 patch 130: every summary note of today in one print
-        sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note whose invoices are in CEO Approval, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). No AI used.',
+        sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note whose invoices are in CEO Approval, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). "Add to Batch Entry" there sends the CEO Approval invoices of the ticked summary notes only (no other status; SRV Done has its own skill). No AI used.',
             check: () => !!(window.ibaSummaryBatch && typeof window.ibaSummaryBatch.open === 'function'),
             ask: () => [], run: async () => { toggle(false); await window.ibaSummaryBatch.open(); return null; } },
         // 17.0.5 patch 124: New requisition window (no PO yet)
@@ -3768,6 +3768,9 @@
                 return 'Empty merged items is open.';
             } },
         // 17.0.2: reception New Entries -> Batch Entry (js/iba-1702-reception-batch.js)
+        // 18.0.0 patch 108 (martin): SRV Done invoices only, its own skill so it is never mixed with the summary notes
+        srv_batch: { name: 'SRV Done to Batch', icon: 'fa-clipboard-check', superOnly: true, desc: 'Every invoice now in SRV Done (and only SRV Done) goes into Batch Entry, oldest PO first, up to 100 at a time, keeping its status. Summary notes are not part of this: they go from Print summary notes. Nothing is saved until you press Save. No AI used.',
+            ask: () => [], build: () => [{ tool: 'add_to_batch', args: { pos: [], status: 'SRV Done' } }] },
         reception_batch: { name: 'New entries to Batch', icon: 'fa-inbox', superOnly: true, desc: 'Every reception New Entry waiting for you goes into Batch Entry as a new invoice: PO, invoice no., amount, invoice date and group filled in, the next invoice number on the PO, status Under Review, and +Del when the original PO is in the file. You can change any box. On Save each reception entry is closed as Converted to Invoice. POs not in POVALUE2.csv or the PO file yet are left out and listed. No AI used.',
             ask: () => [], run: async (vals) => {
                 if (!window.ibaReceptionBatch) throw new Error('This skill is not loaded on this page.');
@@ -3834,6 +3837,7 @@
     const SKILL_LOCK = {
         batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         today_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        srv_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         reception_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         notes_to_acc: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         stuck: 'It shows every invoice and can remove them, so it stays Super Admin only.',
@@ -7207,7 +7211,7 @@
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], stuck: ['Invoices that have not moved', '#b91c1c'], apv_wa: ['WhatsApp reminder to approve', '#16a34a'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         xl_wa: ['Morning / afternoon, copy or CSV', '#15803d'], xl_ur: ['Morning / afternoon, copy or CSV', '#0f766e'], recent: ['Moved lately, into Batch', '#0e7490'],
-        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
+        new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['CEO Approval notes: print or to Batch', '#7FE3D6'], srv_batch: ['SRV Done invoices into Batch', '#22a06b'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
         po_report: ['Value, invoiced, paid, remaining', '#2a78d6'], approvals_list: ['Grouped list to print', '#b45309'],
         // 18.0.0 patch 5: the skills that sat in "More" get their short line too
         site_stock: ['All items of one site', '#0891b2'], find_lpo: ['Search LPO PDFs, send the link', '#C9A227'], ceo_sort: ['Single or Summary later', '#a855f7'], lpo_mail: ['One Outlook email per PO', '#2a78d6'],
@@ -7221,7 +7225,7 @@
         ['Add new', ['new_invoice', 'new_job', 'new_requisition', 'new_delivery']],
         ['My day', ['brief', 'remind_me', 'screensaver', 'dash_charts']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
-        ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
+        ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch', 'srv_batch']],
         ['Approvals', ['approvals_list', 'apv_wa', 'urgent', 'stuck']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
         ['Reports and lists', ['xl_wa', 'xl_ur', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],

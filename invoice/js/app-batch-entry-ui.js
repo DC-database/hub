@@ -337,7 +337,7 @@ async function handleAddPOToBatch() {
                         </span>
                     </label>
                     <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
-                        <option value="For SRV">For SRV</option>
+                        <option value="For SRV">For SRV</option><option value="SRV Done">SRV Done</option>
                         <option value="No Need SRV">No Need SRV</option>
                         <option value="Pending">Pending</option>
                         <option value="For IPC">For IPC</option>
@@ -527,7 +527,7 @@ async function addInvoiceToBatchTable(invData) {
                     </span>
                 </label>
                 <select name="status" class="batch-input" style="padding: 0 6px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; margin: 0 !important; height: 32px !important; font-size: 0.85rem !important; cursor: pointer !important;">
-                    <option value="For SRV">For SRV</option>
+                    <option value="For SRV">For SRV</option><option value="SRV Done">SRV Done</option>
                     <option value="No Need SRV">No Need SRV</option>
                     <option value="Pending">Pending</option>
                     <option value="For IPC">For IPC</option>
