@@ -2,7 +2,9 @@
    Only the Super Admin (or the active vacation replacement, until the return date: isVacationDelegateUser).
    Each row gets small up/down buttons (icons only, so the print text is unchanged) and the table gets
    "Reset order". The order is remembered per note on this PC (localStorage iba-sn-order-v1).
-   The print (#sn-c) and the Per PO box read the rows from the screen, so they follow this order. */
+   The print (#sn-c) and the Per PO box read the rows from the screen, so they follow this order.
+   18.0.0 patch 93: the order is also saved in the invoice db (summary_note_order/<note>), so it is the same
+   on every PC; this PC's copy is only the fallback when there is no connection. */
 (function () {
   var KEY = 'iba-sn-order-v1';
   var busy = false;
@@ -28,8 +30,37 @@
   function save() {
     var n = noteKey(); if (!n) return;
     var o = load(); o[n] = rows().map(function (tr) { return tr.getAttribute('data-key') || ''; }); store(o);
+    push(n, o[n]);
   }
-  function reset() { var n = noteKey(); var o = load(); delete o[n]; store(o); }
+  function reset() { var n = noteKey(); var o = load(); delete o[n]; store(o); var r = dbRef(n); if (r) r.remove().catch(function () {}); }
+
+  // p93: shared copy in the invoice db. Read once per note per page (a few bytes), written on every move.
+  var fetched = {};
+  function dbRef(n) {
+    try {
+      var d = (typeof invoiceDb !== 'undefined' && invoiceDb) ? invoiceDb : null;
+      if (!d || !n) return null;
+      return d.ref('summary_note_order/' + n.replace(/[.#$\[\]\/]/g, '_').slice(0, 300));
+    } catch (_) { return null; }
+  }
+  function me() { try { return (currentApprover && currentApprover.Name) || ''; } catch (_) { return ''; } }
+  function push(n, keys) {
+    var r = dbRef(n); if (!r) return;
+    r.set({ keys: keys, by: me(), at: firebase.database.ServerValue.TIMESTAMP }).catch(function (e) { console.warn('[sn order] not saved online', e); });
+  }
+  function pull(n) {
+    if (!n || fetched[n]) return; fetched[n] = 1;
+    var r = dbRef(n); if (!r) return;
+    r.once('value').then(function (snap) {
+      var v = snap && snap.val ? snap.val() : null, o = load();
+      if (v && Array.isArray(v.keys)) {
+        if (JSON.stringify(o[n] || null) === JSON.stringify(v.keys)) return;
+        o[n] = v.keys; store(o);
+      } else if (o[n]) { push(n, o[n]); return; } // order made on this PC before p93: share it
+      else return;
+      if (noteKey() === n) setTimeout(run, 30);
+    }).catch(function () { fetched[n] = 0; });
+  }
 
   // put rows in the saved order; rows not in the saved list (new on this note) go after the last row of the same PO
   function applySaved() {
@@ -72,7 +103,7 @@
   }
   function run() {
     if (busy) return; busy = true;
-    try { if (allowed()) applySaved(); paint(); } finally { setTimeout(function () { busy = false; }, 0); }
+    try { if (allowed()) { pull(noteKey()); applySaved(); } paint(); } finally { setTimeout(function () { busy = false; }, 0); }
   }
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-sno]'); if (!b) return;

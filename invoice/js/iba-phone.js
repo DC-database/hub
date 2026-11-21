@@ -814,7 +814,7 @@
         set('transfer-modal-key', key);
         set('transfer-modal-qty', qty);
         set('transfer-modal-note', note || '');
-        set('transfer-modal-date', new Date().toISOString().split('T')[0]);
+        set('transfer-modal-date', (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]));
     }
 
     async function runTransfer(key, action, qty, note) {

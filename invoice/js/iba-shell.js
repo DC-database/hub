@@ -196,7 +196,7 @@
   }
 
   function tickClock() {
-    const now = new Date();
+    const now = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time on every device
     const h = now.getHours() % 12;
     const m = now.getMinutes();
     const s = now.getSeconds();

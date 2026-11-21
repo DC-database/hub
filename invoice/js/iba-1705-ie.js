@@ -138,7 +138,7 @@
     let t = 0;
     function soon() { if (!t) t = setTimeout(() => { t = 0; sync(); }, 80); }
     function fmtWhen(ms) {
-        const d = new Date(ms); if (!ms || isNaN(d)) return '';
+        const d = (window.ibaQatarWall ? window.ibaQatarWall(new Date(ms)) : new Date(ms)); if (!ms || isNaN(d)) return ''; // p96 Qatar time
         const M = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
         return String(d.getDate()).padStart(2, '0') + '/' + M[d.getMonth()] + '/' + String(d.getFullYear()).slice(2) + ' ' + h + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + ap;

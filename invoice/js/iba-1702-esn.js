@@ -347,7 +347,7 @@
     const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
     const DAY = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
     function stampWhen(ms) {
-        const d = new Date(Number(ms));
+        const d = (window.ibaQatarWall ? window.ibaQatarWall(new Date(Number(ms))) : new Date(Number(ms))); // p96 Qatar time
         if (!ms || isNaN(d)) return '';
         let h = d.getHours();
         const ap = h < 12 ? 'AM' : 'PM';

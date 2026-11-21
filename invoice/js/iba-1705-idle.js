@@ -93,7 +93,7 @@
     ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart', 'pointerdown', 'scroll'].forEach((t) => window.addEventListener(t, activity, { capture: true, passive: true }));
 
     function clockHtml() {
-        const d = new Date();
+        const d = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time
         let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
         const t = h + ':' + String(d.getMinutes()).padStart(2, '0');
         const day = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });

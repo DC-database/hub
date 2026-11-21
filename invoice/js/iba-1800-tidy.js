@@ -230,8 +230,18 @@
       bin.inv = Object.keys(v).map(function (k) { return Object.assign({ key: k }, v[k]); }).sort(function (a, b) { return (Number(b.deletedAt) || 0) - (Number(a.deletedAt) || 0); });
     } catch (err) { bin.inv = []; bin.msg = '<b class="iba-tidy-warn">Could not read the Inventory bin:</b> ' + esc((err && err.message) || err); }
   }
+  // 18.0.0 patch 93 (martin): Invoice tab = invoices deleted in Invoice Entry / Records (copy in invoice db
+  // recycle_bin/invoice/<po>~<key>, js/iba-1800-p93.js ibaInvoiceToBin)
+  function invcDb() { try { return (typeof invoiceDb !== 'undefined' && invoiceDb) ? invoiceDb : null; } catch (_) { return null; } }
+  async function loadInvc() {
+    var d = invcDb(); if (!d) { bin.invc = []; return; }
+    try {
+      var v = (await d.ref('recycle_bin/invoice').once('value')).val() || {};
+      bin.invc = Object.keys(v).map(function (k) { return Object.assign({}, v[k], { key: k, invKey: (v[k] && v[k].key) || String(k).split('~').pop() }); }).sort(function (a, b) { return (Number(b.deletedAt) || 0) - (Number(a.deletedAt) || 0); });
+    } catch (err) { bin.invc = []; bin.msg = '<b class="iba-tidy-warn">Could not read the Invoice bin:</b> ' + esc((err && err.message) || err); }
+  }
   function fmtAt(t) { t = Number(t); if (!t) return ''; var d = new Date(t); return (typeof formatDate === 'function' ? formatDate(d) : d.toDateString()) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
-  function curRows() { return bin.tab === 'inv' ? (bin.inv || []) : removedJobs(); }
+  function curRows() { return bin.tab === 'inv' ? (bin.inv || []) : bin.tab === 'invc' ? (bin.invc || []) : removedJobs(); }
   function selKeys() { var have = {}; curRows().forEach(function (r) { have[r.key] = 1; }); return Object.keys(bin.sel).filter(function (k) { return bin.sel[k] && have[k]; }); }
   function actCell(key, s) {
     if (s.ask === key) return '<span class="iba-tidy-warn">Erase for good?</span> <button type="button" data-bin-del2="' + esc(key) + '" class="is-danger">Yes, delete</button> <button type="button" data-bin-no>No</button>';
@@ -253,7 +263,7 @@
     }
     var s = bin, jobs = removedJobs(), inv = s.inv, rows = curRows(), sel = selKeys(), n = sel.length;
     var tabs = '<div class="iba-bin-tabs"><button type="button" data-bin-tab="wd" class="' + (s.tab === 'wd' ? 'is-on' : '') + '">WorkDesk (' + jobs.length + ')</button>' +
-      '<button type="button" disabled title="Coming in a later update">Invoice · soon</button>' +
+      '<button type="button" data-bin-tab="invc" class="' + (s.tab === 'invc' ? 'is-on' : '') + '">Invoice' + (s.invc ? ' (' + s.invc.length + ')' : '') + '</button>' +
       '<button type="button" data-bin-tab="inv" class="' + (s.tab === 'inv' ? 'is-on' : '') + '">Inventory' + (inv ? ' (' + inv.length + ')' : '') + '</button></div>';
     var all = rows.length && n === rows.length;
     var bar = rows.length ? '<div class="iba-bin-bulk">' + (n
@@ -263,7 +273,14 @@
       : '<small>Tick the boxes to restore or delete several at once.</small>') + '</div>' : '';
     var head = '<th class="iba-bin-ck"><input type="checkbox" data-bin-all' + (all ? ' checked' : '') + (s.busy ? ' disabled' : '') + ' aria-label="Select all" title="Select all"></th>';
     var body;
-    if (s.tab === 'inv') {
+    if (s.tab === 'invc') {
+      var ic = s.invc;
+      body = !ic ? '<div class="iba-pb-sub">Loading the Invoice bin…</div>' : ic.length ? '<div class="iba-tidy-tblwrap"><table class="iba-tidy-tbl"><thead><tr>' + head + '<th>PO</th><th>Entry</th><th>Inv No.</th><th>Vendor</th><th class="r">Value</th><th>Status</th><th>Deleted by</th><th>When</th><th></th></tr></thead><tbody>' +
+        ic.map(function (e) {
+          return '<tr>' + tick(e.key) + '<td class="m">' + esc(e.po || '') + '</td><td>' + esc(e.invEntryID || '') + '</td><td class="m">' + esc(e.invNumber || '') + '</td><td>' + esc(e.vendor || '') + '</td><td class="r">' + money(e.invValue) + '</td><td>' + esc(e.status || '') + '</td><td>' + esc(e.deletedBy || '') + '</td><td>' + esc(fmtAt(e.deletedAt)) + '</td><td class="iba-bin-act">' + actCell(e.key, s) + '</td></tr>';
+        }).join('') + '</tbody></table></div>'
+        : '<div class="iba-pb-sub">The Invoice bin is empty. Invoices you delete in Invoice Entry or Records show here.</div>';
+    } else if (s.tab === 'inv') {
       body = !inv ? '<div class="iba-pb-sub">Loading the Inventory bin…</div>' : inv.length ? '<div class="iba-tidy-tblwrap"><table class="iba-tidy-tbl"><thead><tr>' + head + '<th>Product ID</th><th>Item</th><th>Details</th><th class="r">Balance</th><th class="r">History</th><th>Deleted by</th><th>When</th><th></th></tr></thead><tbody>' +
         inv.map(function (e) {
           var it = e.item || {};
@@ -277,14 +294,15 @@
         }).join('') + '</tbody></table></div>'
         : '<div class="iba-pb-sub">The bin is empty. Removed jobs show here (if Job Records is not loaded yet, open it first).</div>';
     }
-    var foot = s.tab === 'inv' ? 'Restore puts the item card (and its history) back in Material Stock. Delete forever cannot be undone.' : 'Restore puts a job back where it was. Delete forever cannot be undone.';
+    var foot = s.tab === 'invc' ? 'Restore puts the invoice back on its PO with the same entry number and history. Delete forever cannot be undone.' : s.tab === 'inv' ? 'Restore puts the item card (and its history) back in Material Stock. Delete forever cannot be undone.' : 'Restore puts a job back where it was. Delete forever cannot be undone.';
     w.innerHTML = '<div class="iba-pb-box iba-tidy-box" role="dialog" aria-modal="true"><div class="iba-pb-head"><b><i class="fa-solid fa-trash-can-arrow-up"></i> Recycle Bin</b><button type="button" data-bin-x aria-label="Close">✕</button></div>' + tabs +
       (s.msg ? '<div class="iba-pb-sub iba-tidy-msg">' + s.msg + '</div>' : '') + bar + body + '<div class="iba-pb-foot"><span><small>' + foot + '</small></span><button type="button" data-bin-x>Close</button></div></div>';
   }
   function binClose() { var w = document.getElementById('iba-bin-pop'); if (w) w.remove(); bin = null; }
   function findJob(key) { var r = removedJobs(); for (var i = 0; i < r.length; i++) if (r[i].key === key) return r[i]; return null; }
+  function findInvc(key) { var r = bin.invc || []; for (var i = 0; i < r.length; i++) if (r[i].key === key) return r[i]; return null; }
   function findInv(key) { var r = bin.inv || []; for (var i = 0; i < r.length; i++) if (r[i].key === key) return r[i]; return null; }
-  function label(x) { return bin.tab === 'inv' ? esc(x.productName || (x.item && x.item.productName) || x.productID || 'item') : esc((x.for || 'Job') + (x.po ? ' · PO ' + x.po : '')); }
+  function label(x) { if (bin.tab === 'invc') return esc('PO ' + (x.po || '?') + ' ' + (x.invEntryID || '') + (x.invNumber ? ' (' + x.invNumber + ')' : '')); return bin.tab === 'inv' ? esc(x.productName || (x.item && x.item.productName) || x.productID || 'item') : esc((x.for || 'Job') + (x.po ? ' · PO ' + x.po : '')); }
 
   async function restoreJob(j) {
     var d = mainDb(); var TS = firebase.database.ServerValue.TIMESTAMP;
@@ -321,6 +339,20 @@
     try { if (window.inventoryPocket && window.inventoryPocket.publishMaterialByKey) await window.inventoryPocket.publishMaterialByKey(e.key); } catch (_) {}
     stockChanged();
   }
+  async function restoreInvc(e) {
+    var d = invcDb(); if (!d) throw new Error('no connection');
+    if (!e.item || !e.po || !e.invKey) throw new Error('no saved copy of the invoice');
+    var path = 'invoice_entries/' + e.po + '/' + e.invKey;
+    if ((await d.ref(path).once('value')).exists()) throw new Error('this invoice is already back on PO ' + e.po);
+    var item = Object.assign({}, e.item, { restoredBy: me(), restoredAt: firebase.database.ServerValue.TIMESTAMP, lastUpdated: firebase.database.ServerValue.TIMESTAMP });
+    await d.ref(path).set(item);
+    await d.ref('recycle_bin/invoice/' + e.key).remove();
+    try { if (typeof updateInvoiceTaskLookup === 'function') await updateInvoiceTaskLookup(e.po, e.invKey, e.item, null); } catch (_) {}
+    try { if (typeof window.syncInvoicePaymentReadyIndex === 'function') await window.syncInvoicePaymentReadyIndex(e.po, e.invKey, e.item); } catch (_) {}
+    try { if (typeof window.logInvoiceHistory === 'function') await window.logInvoiceHistory(e.po, e.invKey, e.item.status || '', 'Restored from the Recycle Bin'); } catch (_) {}
+    try { if (typeof allInvoiceData !== 'undefined' && allInvoiceData) { if (!allInvoiceData[e.po]) allInvoiceData[e.po] = {}; allInvoiceData[e.po][e.invKey] = Object.assign({}, e.item); } } catch (_) {}
+  }
+  async function deleteInvc(e) { await invcDb().ref('recycle_bin/invoice/' + e.key).remove(); }
   async function deleteInv(e) { await stockDb().ref('recycle_bin/inventory/' + e.key).remove(); }
   function stockChanged() {
     try { localStorage.removeItem('cached_MATERIAL_STOCK'); } catch (_) {}
@@ -328,6 +360,7 @@
     stockChanged.t = setTimeout(function () { try { if (typeof populateMaterialStock === 'function') populateMaterialStock(true); } catch (_) {} }, 400);
   }
   function after() {
+    if (bin && bin.tab === 'invc') { try { if (typeof currentPO !== 'undefined' && currentPO && typeof fetchAndDisplayInvoices === 'function') fetchAndDisplayInvoices(currentPO); } catch (_) {} return; }
     if (bin && bin.tab !== 'inv') { try { if (typeof handleReportingSearch === 'function') handleReportingSearch({ reason: 'bin' }); } catch (_) {} }
   }
   async function run(list, fn) {
@@ -345,34 +378,36 @@
     if (b.hasAttribute('data-bin-tab')) {
       bin.tab = b.getAttribute('data-bin-tab'); bin.sel = {}; bin.ask = ''; bin.msg = ''; binPaint();
       if (bin.tab === 'inv' && !bin.inv) { await loadInv(); if (bin) binPaint(); }
+      if (bin.tab === 'invc' && !bin.invc) { await loadInvc(); if (bin) binPaint(); }
       return;
     }
     if (b.hasAttribute('data-bin-no')) { bin.ask = ''; return binPaint(); }
     if (b.hasAttribute('data-bin-clr')) { bin.sel = {}; bin.ask = ''; return binPaint(); }
     if (b.hasAttribute('data-bin-del')) { bin.ask = b.getAttribute('data-bin-del'); return binPaint(); }
     if (b.hasAttribute('data-bin-bdel')) { bin.ask = '__bulk'; return binPaint(); }
-    var inv = bin.tab === 'inv', find = inv ? findInv : findJob;
-    var res = inv ? restoreInv : restoreJob, del = inv ? deleteInv : deleteJob, list = null, mode = '';
+    var inv = bin.tab === 'inv', ivc = bin.tab === 'invc', find = ivc ? findInvc : inv ? findInv : findJob;
+    var res = ivc ? restoreInvc : inv ? restoreInv : restoreJob, del = ivc ? deleteInvc : inv ? deleteInv : deleteJob, list = null, mode = '';
     if (b.hasAttribute('data-bin-res')) { list = [find(b.getAttribute('data-bin-res'))]; mode = 'res'; }
     else if (b.hasAttribute('data-bin-del2')) { list = [find(b.getAttribute('data-bin-del2'))]; mode = 'del'; }
     else if (b.hasAttribute('data-bin-bres')) { list = selKeys().map(find); mode = 'res'; }
     else if (b.hasAttribute('data-bin-bdel2')) { list = selKeys().map(find); mode = 'del'; }
     if (!mode) return;
     list = list.filter(Boolean); if (!list.length) return;
-    if (!(inv ? stockDb() : mainDb())) return;
+    if (!(ivc ? invcDb() : inv ? stockDb() : mainDb())) return;
     bin.busy = true; bin.ask = ''; bin.msg = (mode === 'res' ? 'Restoring ' : 'Deleting ') + list.length + '…'; binPaint();
     var r = await run(list, mode === 'res' ? res : del);
     if (inv) await loadInv();
+    if (ivc) await loadInvc();
     if (!bin) return;
     var what = list.length === 1 ? label(list[0]) : r.ok + ' of ' + list.length;
-    bin.msg = r.ok ? (mode === 'res' ? 'Restored: ' : 'Deleted forever: ') + what + (mode === 'res' && !inv && list.length === 1 ? ' (back to <b>' + esc(list[0].remarks || '') + '</b>)' : '') + '.' : '';
+    bin.msg = r.ok ? (mode === 'res' ? 'Restored: ' : 'Deleted forever: ') + what + (mode === 'res' && !inv && !ivc && list.length === 1 ? ' (back to <b>' + esc(list[0].remarks || '') + '</b>)' : '') + '.' : '';
     if (r.bad.length) bin.msg += (bin.msg ? '<br>' : '') + '<b class="iba-tidy-warn">Not ' + (mode === 'res' ? 'restored' : 'deleted') + ':</b> ' + r.bad.join('; ');
     bin.busy = false; binPaint(); after();
   }
   function openBin(tab) {
     if (!isSuper()) return;
-    bin = { tab: tab === 'inv' ? 'inv' : 'wd', sel: {}, inv: null, ask: '', msg: '', busy: false }; binPaint();
-    loadInv().then(function () { if (bin) binPaint(); });
+    bin = { tab: tab === 'inv' ? 'inv' : tab === 'invc' ? 'invc' : 'wd', sel: {}, inv: null, invc: null, ask: '', msg: '', busy: false }; binPaint();
+    Promise.all([loadInv(), loadInvc()]).then(function () { if (bin) binPaint(); });
   }
 
   // 18.0.0 patch 60 (martin): ONE "More tools" button next to Clear on Job Records (Super Admin, PC);

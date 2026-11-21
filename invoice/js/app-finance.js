@@ -636,7 +636,7 @@ window.downloadReportingTableToExcel = async function() {
         const encodedUri = ibaCsvHref(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        const dateStr = new Date().toISOString().split('T')[0];
+        const dateStr = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
         link.setAttribute("download", `Invoice_Report_Approved_${dateStr}.csv`);
         document.body.appendChild(link);
         link.click();
@@ -800,7 +800,7 @@ window.exportCurrentTableToExcel = function() {
     const encodedUri = ibaCsvHref(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
     link.setAttribute("download", `Invoice_Records_Filtered_${dateStr}.csv`);
     
     document.body.appendChild(link);

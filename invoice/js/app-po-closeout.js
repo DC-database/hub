@@ -935,8 +935,9 @@
 
     function reportDate(value) {
         const n = Number(value);
-        const d = Number.isFinite(n) && n > 0 ? new Date(n) : new Date(value);
+        let d = Number.isFinite(n) && n > 0 ? new Date(n) : new Date(value);
         if (!d || Number.isNaN(d.getTime())) return '';
+        if (window.ibaQatarWall) d = window.ibaQatarWall(d); // p96 Qatar time
         const pad = (v) => String(v).padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }

@@ -378,7 +378,7 @@
   }
 
   function updateClocks() {
-    const now = new Date();
+    const now = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time
     const phase = getTimePhase(now);
     const hour = now.getHours();
     const minute = now.getMinutes();

@@ -118,7 +118,7 @@ async function openTransferModal(type) {
     }
 
     const dateEl = document.getElementById('tf-shipping-date');
-    if(dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+    if(dateEl) dateEl.value = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
 
     document.getElementById('transfer-job-modal').classList.remove('hidden');
     paintTransferModalGlass();
@@ -543,7 +543,7 @@ window.openTransferActionModal = async function(task) {
         qtyInput.value = safeApproved;
         dateContainer.classList.remove('hidden');
         if(dateInput) {
-            dateInput.value = new Date().toISOString().split('T')[0];
+            dateInput.value = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
             dateInput.classList.add('input-required-highlight');
         }
         qtyInput.classList.add('input-required-highlight');
@@ -1400,7 +1400,7 @@ window.handlePrintWaybill = async function(entry) {
 
     // Use the clicked entry as the primary record when possible.
     const primary = (batchItems.find(i => i && entry && i.key && entry.key && i.key === entry.key) || entry || batchItems[0]);
-    const date = primary.shippingDate || new Date().toISOString().split('T')[0];
+    const date = primary.shippingDate || (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
     // IMPORTANT: Always resolve a printable control identifier.
     // (Fix for "undefined" appearing in the printout when the UI passes controlId instead of controlNumber.)
     const controlId = primary.controlNumber || primary.controlId || primary.ref || controlNo || '-';

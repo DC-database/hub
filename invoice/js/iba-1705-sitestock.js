@@ -192,7 +192,7 @@
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         const w = String(words || '').trim().replace(/[^\w-]+/g, '_');
-        a.download = 'Site_Stock_' + canon(site).replace(/[^\w-]+/g, '_') + (w ? '_' + w : '') + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+        a.download = 'Site_Stock_' + canon(site).replace(/[^\w-]+/g, '_') + (w ? '_' + w : '') + '_' + (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().slice(0, 10)) + '.csv';
         document.body.appendChild(a);
         a.click();
         setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);

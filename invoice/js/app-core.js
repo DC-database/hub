@@ -98,6 +98,7 @@ function normalizeMobile(mobile) {
     return digitsOnly;
 }
 function formatDate(date) {
+    if (date && typeof ibaQatarWall === 'function') date = ibaQatarWall(date); // p96: Qatar day
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const day = String(date.getDate()).padStart(2, '0');
     const month = months[date.getMonth()];
@@ -172,11 +173,58 @@ function convertDisplayDateToInput(displayDate) {
     if (!month) return '';
     return `${year}-${month}-${day}`;
 }
+// 18.0.0 patch 93: a date as a calendar day, never the world clock (UTC). toISOString() gave yesterday's date
+// between 12:00 AM and 3:00 AM Qatar time.
+// 18.0.0 patch 95 (martin): always the QATAR day (UTC+3, no summer time), wherever the device is. Someone on
+// vacation in the Philippines at 1 AM their time saves the Qatar date (8 PM the day before in Qatar).
+const IBA_QATAR_MS = 3 * 3600000;
+function ibaLocalISO(d) {
+    const t = d == null ? new Date() : new Date(d);
+    if (isNaN(t)) return '';
+    const q = new Date(t.getTime() + IBA_QATAR_MS);
+    return q.getUTCFullYear() + '-' + String(q.getUTCMonth() + 1).padStart(2, '0') + '-' + String(q.getUTCDate()).padStart(2, '0');
+}
+window.ibaLocalISO = ibaLocalISO;
+// 18.0.0 patch 95 (martin): the clock in the header, the screen saver and the greeting show QATAR time on
+// every device (abroad too). Returns a Date whose hours/minutes/day read as Qatar wall time; for showing only,
+// never for saving (saved times stay real moments).
+function ibaQatarNow() { return ibaQatarWall(new Date()); }
+window.ibaQatarNow = ibaQatarNow;
+// 18.0.0 patch 96 (martin): every time SHOWN is Qatar time, also on a phone/PC abroad (the office works on Qatar
+// time). ibaQatarWall(d) gives a Date whose hours/day read as Qatar wall time (display only, marked __ibaQ).
+// A date at exactly 00:00:00 local is a calendar day typed or built from "2026-11-02" (not a moment), so it is
+// left as it is; otherwise a day could move back on a device east of Qatar.
+function ibaIsDayOnly(d) { return d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0 && d.getMilliseconds() === 0; }
+function ibaQatarWall(d) {
+    const t = d instanceof Date ? d : new Date(d);
+    if (isNaN(t) || t.__ibaQ || ibaIsDayOnly(t)) return t;
+    const q = new Date(t.getTime() + (180 + t.getTimezoneOffset()) * 60000);
+    try { Object.defineProperty(q, '__ibaQ', { value: true }); } catch (_) {}
+    return q;
+}
+window.ibaQatarWall = ibaQatarWall;
+// toLocaleString / toLocaleDateString / toLocaleTimeString show Qatar time unless the code names a zone itself.
+// On a device in Qatar (or Riyadh, same clock) nothing changes.
+(function () {
+    try {
+        if (Date.prototype.__ibaQatarFmt) return;
+        ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString'].forEach(function (name) {
+            const orig = Date.prototype[name];
+            Date.prototype[name] = function (loc, opts) {
+                if (isNaN(this) || this.__ibaQ || (opts && opts.timeZone) || ibaIsDayOnly(this)) return orig.call(this, loc, opts);
+                return orig.call(this, loc, Object.assign({}, opts || {}, { timeZone: 'Asia/Qatar' }));
+            };
+        });
+        Object.defineProperty(Date.prototype, '__ibaQatarFmt', { value: true });
+    } catch (_) {}
+})();
+
 function getTodayDateString() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
+    // 18.0.0 patch 95: Qatar day on every device
+    const today = new Date(Date.now() + IBA_QATAR_MS);
+    const year = today.getUTCFullYear();
+    const month = String(today.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(today.getUTCDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
 function formatCurrency(value) {

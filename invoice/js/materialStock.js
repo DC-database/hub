@@ -2999,7 +2999,7 @@ window.msFillStockDetail = function (row) {
         historyRows = '<tr><td colspan="8" class="ms-hist-empty">No movement history found.</td></tr>';
     } else {
         productTransfers.forEach((t, histIndex) => {
-            const date = t.shippingDate || (t.timestamp ? new Date(t.timestamp).toISOString().split('T')[0] : '');
+            const date = t.shippingDate || (t.timestamp ? (window.ibaLocalISO ? window.ibaLocalISO(t.timestamp) : new Date(t.timestamp).toISOString().split('T')[0]) : '');
             const type = t.jobType || t.for || 'Transfer';
             const from = msEscapeHtml(t.fromLocation || t.fromSite || '');
             const to = msEscapeHtml(t.toLocation || t.toSite || '');
@@ -3834,7 +3834,7 @@ function msDownloadStockCheckCsv() {
     const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `Stock_Check_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `Stock_Check_${window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }

@@ -58,7 +58,7 @@
     // site code as written: digits, sometimes a letter in front (M40)
     function siteCode(v) { const t = String(v == null ? '' : v); const m = t.match(/\b[A-Za-z]?\d+/) || t.match(/\d+/); return m ? m[0].toUpperCase() : t.replace(/^site\s*/i, ''); }
     function greet() {
-        const h = new Date().getHours();
+        const h = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()).getHours(); // p95 Qatar time
         return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     }
 

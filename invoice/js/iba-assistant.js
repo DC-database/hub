@@ -3721,6 +3721,9 @@
         // 17.0.5 patch 155: CEO approved Summary Notes -> Batch Entry as With Accounts + SRV name (js/iba-1705-n2a.js)
         notes_to_acc: { name: 'Notes to Accounts', icon: 'fa-file-export', superOnly: true, desc: 'Tick the Summary Notes the CEO approved: every invoice under them goes into Batch Entry as With Accounts with the note\'s SRV name (first 23 letters of the vendor + today). Invoices that already have an SRV name or are not CEO Approval are highlighted. Copy or download one row per SRV name to rename the scans. Nothing is saved until you press Save. No AI used.',
             check: () => !!(window.ibaNotesToAcc && window.ibaNotesToAcc.allowed()), ask: () => [], action: () => { if (window.ibaNotesToAcc) window.ibaNotesToAcc.open(); } },
+        // 18.0.0 patch 94: invoices that have not moved for too long (js/iba-1800-stuck.js)
+        stuck: { name: 'Stuck too long', icon: 'fa-hourglass-half', superOnly: true, desc: 'Every open invoice that has been in the same status longer than its days (7 unless you set another number per status), oldest first, with PO, vendor, site, value, days and who holds it. Open it in Invoice Entry to update or finish it, Remind the person (never the CEO), or Remove it to the Recycle Bin. No AI used.',
+            check: () => !!(window.ibaStuck && window.ibaStuck.allowed()), ask: () => [], action: () => { try { toggle(false); } catch (_) {} if (window.ibaStuck) window.ibaStuck.open(); } },
         // 17.0.3 patch 10: today's invoices of some statuses -> Batch Entry
         today_batch: { name: 'Today to Batch', icon: 'fa-calendar-day', superOnly: true, desc: 'Every invoice that got the picked status today (Qatar time) goes into Batch Entry: Under Review, With Accounts, For Approval, CEO Approval, or all four. Up to 100 at a time. Nothing is saved until you press Save. No AI used.',
             ask: () => [{ key: 'st', label: 'Status today', type: 'select', options: [
@@ -3821,6 +3824,7 @@
         today_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         reception_batch: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         notes_to_acc: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
+        stuck: 'It shows every invoice and can remove them, so it stays Super Admin only.',
         recent: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         ceo_sort: 'Batch Entry is a Super Admin page, so this skill stays Super Admin only.',
         merge_clean: 'Deleting merged items is Super Admin only (Material Stock rule), so this skill cannot be opened to others.',
@@ -7140,7 +7144,7 @@
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], photo_names: ['Item photo file names', '#F7BE45'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], stuck: ['Invoices that have not moved', '#b91c1c'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         xl_wa: ['Morning / afternoon, copy or CSV', '#15803d'], xl_ur: ['Morning / afternoon, copy or CSV', '#0f766e'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -7158,7 +7162,7 @@
         ['My day', ['brief', 'remind_me', 'screensaver', 'dash_charts']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
         ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
-        ['Approvals', ['approvals_list', 'urgent']],
+        ['Approvals', ['approvals_list', 'urgent', 'stuck']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
         ['Reports and lists', ['xl_wa', 'xl_ur', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
         ['LPO and PO file', ['find_lpo', 'lpo_mail', 'po_pull']],

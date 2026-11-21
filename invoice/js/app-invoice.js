@@ -610,7 +610,7 @@ if (imDeleteInvoiceBtn) {
         }
         // ------------------------------------------------
 
-        if (!confirm("⚠️ ARE YOU SURE?\n\nThis will permanently delete this invoice entry.\nThis action cannot be undone.")) {
+        if (!confirm("⚠️ ARE YOU SURE?\n\nThis will delete this invoice entry.\nIt goes to the Recycle Bin (Invoice tab), where you can restore it.")) {
             return;
         }
 
@@ -619,6 +619,10 @@ if (imDeleteInvoiceBtn) {
             (currentPOInvoices && currentPOInvoices[keyToDelete]) ||
             (allInvoiceData && allInvoiceData[currentPO] && allInvoiceData[currentPO][keyToDelete]) ||
             null;
+
+        // 18.0.0 patch 93 (martin): keep a copy in the Recycle Bin first; if that fails nothing is deleted
+        try { if (typeof window.ibaInvoiceToBin === 'function') await window.ibaInvoiceToBin(currentPO, keyToDelete, invoiceToDelete); }
+        catch (binErr) { alert('Nothing was deleted: the copy for the Recycle Bin could not be saved (' + ((binErr && binErr.message) || binErr) + ').'); return; }
 
         try {
             // 1) Delete from main invoice entries
@@ -654,7 +658,7 @@ if (imDeleteInvoiceBtn) {
                 }
             } catch (_) { /* ignore */ }
 
-            alert("Invoice deleted successfully.");
+            alert("Invoice deleted. It is in the Recycle Bin (Invoice tab) if you need it back.");
 
             // Close modal
             const modal = document.getElementById('im-new-invoice-modal');

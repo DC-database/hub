@@ -1538,7 +1538,7 @@ function renderInventoryMobileActiveTasks(tasks) {
     }
 
     function transferRequestCode() {
-        const d = new Date();
+        const d = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // p96 Qatar time
         const pad = n => String(n).padStart(2, '0');
         const stamp = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
         const rand = Math.random().toString(36).slice(2, 6).toUpperCase();

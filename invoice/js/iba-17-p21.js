@@ -199,7 +199,7 @@
 
     const pad = (n) => (n < 10 ? '0' : '') + n;
     function tick() {
-        const now = new Date();
+        const now = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time
         const hm = pad(now.getHours()) + ':' + pad(now.getMinutes());
         const t = document.getElementById('iba-shell-time');
         if (t && t.textContent !== hm) t.textContent = hm;
