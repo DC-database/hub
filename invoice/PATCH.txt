@@ -3,6 +3,12 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 99 (21-Nov-2026)
+  Phone bottom bar: "Approve" is now "Approval" (martin: easier to understand).
+  WhatsApp approval link is now https://port.iba.com.qa/invoice/?go=approve: on the phone it opens straight on
+  the Approval tab (after sign-in too; used once, for 30 minutes). Without anything waiting it stays on Home.
+  Files: js/iba-phone.js, js/iba-approvals.js, index.html, PATCH.txt
+
 18.0.0 patch 98 (21-Nov-2026)
   Urgent tick fix (martin): an invoice saved with the Urgent tick still showed under Normal in Active Task
   (PC) and the phone approvals. The flag was saved, but the two lists that build the approval rows did not
