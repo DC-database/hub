@@ -3,6 +3,13 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 108 (21-Nov-2026)
+  New IRIS skill "SRV Done to Batch" (Super Admin only, martin): every invoice now in SRV Done, and only SRV Done,
+  goes into Batch Entry (up to 100 at a time) keeping its status. Kept apart from the summary notes so there is no
+  mix-up: summary notes go only from "Print summary notes" (CEO Approval only), whose help text now says so.
+  Batch Entry status list now has "SRV Done", so those rows keep their status.
+  Files: js/iba-assistant.js, js/app-batch-entry-ui.js, index.html, PATCH.txt
+
 18.0.0 patch 107 (21-Nov-2026)
   IRIS "Print summary notes": new "Add to Batch Entry (N)" button next to Print (martin). The invoices of the
   ticked notes go to Batch Entry with their summary note filled in, so you can adjust them or add more invoices
