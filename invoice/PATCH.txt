@@ -3,6 +3,21 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 102 (21-Nov-2026)
+  WhatsApp approval message (martin): no "Waiting: N days" line and no invoice PDF link any more; the approval
+  link opens the invoice with its PDF. Each invoice = PO · invoice no. · vendor, Amount, Note (if any).
+  Files: js/iba-approvals.js, js/iba-assistant.js (skill text), index.html, PATCH.txt
+
+18.0.0 patch 101 (21-Nov-2026)
+  WhatsApp approval message wording (martin): "Automated message from IBA: An invoice is pending your approval."
+  (several: "Automated message from IBA: N invoices are pending your approval.")
+  Files: js/iba-approvals.js, index.html, PATCH.txt
+
+18.0.0 patch 100 (21-Nov-2026)
+  IRIS "Approval reminder (WhatsApp)": the "Send to" box now suggests the real names (with position and site)
+  as you type. Before, the list was built wrong and showed single letters. The CEO is not suggested.
+  Files: js/iba-assistant.js, index.html, PATCH.txt
+
 18.0.0 patch 99 (21-Nov-2026)
   Phone bottom bar: "Approve" is now "Approval" (martin: easier to understand).
   WhatsApp approval link is now https://port.iba.com.qa/invoice/?go=approve: on the phone it opens straight on
