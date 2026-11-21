@@ -3135,6 +3135,12 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc { border: 1px solid rgba(255,255,255,.14) !important; border-radius: 14px !important; background: rgba(9,18,30,.42) !important; margin: 0 0 12px !important; padding: 0 !important; overflow: hidden !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8) #im-reporting-content .invoice-card.iba-rc > .master-grid-row { display: none !important; }
   /* p63: Records cards see-through glass (martin), no blur */
+  /* p97: IRIS WhatsApp approval reminder card */
+  html body .iba-apvwa .iba-apvwa-row { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 10px !important; flex-wrap: wrap !important; padding: 6px 0 !important; border-top: 1px solid rgba(255,255,255,.08) !important; }
+  html body .iba-apvwa .iba-apvwa-row.is-off span { color: #f5c26b !important; -webkit-text-fill-color: #f5c26b !important; }
+  html body .iba-apvwa .iba-apvwa-row [data-apvwa] { background: #1f9d55 !important; border-color: #25D366 !important; color: #fff !important; -webkit-text-fill-color: #fff !important; }
+  html body .iba-apvwa .iba-apvwa-text summary { cursor: pointer !important; margin-top: 6px !important; }
+  html body .iba-apvwa .iba-apvwa-text pre { white-space: pre-wrap !important; word-break: break-word !important; font-size: 12px !important; margin: 6px 0 0 !important; padding: 8px 10px !important; border-radius: 8px !important; background: rgba(0,0,0,.25) !important; }
   /* p94: "Stuck too long" window (Super Admin): same look as the Recycle Bin */
   html body #iba-stuck-pop .iba-tidy-box { width: min(1180px, 100%) !important; max-height: calc(100vh - 40px) !important; overflow: auto !important; }
   html body #iba-stuck-pop .iba-pb-head { display: flex !important; align-items: center !important; justify-content: space-between !important; }
