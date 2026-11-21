@@ -4395,6 +4395,7 @@ async function updateInvoiceTaskLookup(poNumber, invoiceKey, invoiceData, oldAtt
             site: site,
             invName: invoiceData.invName || '',
             note: invoiceData.note || '',
+            summaryNote: invoiceData.summaryNote || null, // 18.0.0 patch 105
             // 17.0.5 patch 150: ⚡ urgent approval flag
             urgent: invoiceData.urgent === true ? true : null,
             urgentBy: invoiceData.urgent === true ? (invoiceData.urgentBy || null) : null,
@@ -4898,12 +4899,12 @@ async function handleAddInvoiceRun(e) {
             allInvoiceData[currentPO][newKey] = invoiceData;
         }
 
-        if (invoiceData.note && invoiceData.note.trim() !== '') {
-            allUniqueNotes.add(invoiceData.note.trim());
-            refreshNotePickers(invoiceData.note);
+        if (ibaSumNoteOf(invoiceData)) { // 18.0.0 patch 105: only the Summary note goes to the note list
+            allUniqueNotes.add(ibaSumNoteOf(invoiceData));
+            refreshNotePickers(ibaSumNoteOf(invoiceData));
             try {
                 if (typeof saveInvoiceNoteToIndex === 'function') {
-                    saveInvoiceNoteToIndex(invoiceData.note, { po: currentPO, invoiceKey: newKey, status: invoiceData.status, source: 'invoice-entry-add' });
+                    saveInvoiceNoteToIndex(ibaSumNoteOf(invoiceData), { po: currentPO, invoiceKey: newKey, status: invoiceData.status, source: 'invoice-entry-add' });
                 }
             } catch (_) {}
         }
@@ -5219,12 +5220,12 @@ async function handleUpdateInvoiceRun(e) {
 
         if (typeof window.ibaToast === 'function') window.ibaToast('Invoice updated.'); else alert('Invoice updated successfully!');
 
-        if (invoiceData.note && invoiceData.note.trim() !== '') {
-            allUniqueNotes.add(invoiceData.note.trim());
-            refreshNotePickers(invoiceData.note);
+        if (ibaSumNoteOf(invoiceData)) { // 18.0.0 patch 105: only the Summary note goes to the note list
+            allUniqueNotes.add(ibaSumNoteOf(invoiceData));
+            refreshNotePickers(ibaSumNoteOf(invoiceData));
             try {
                 if (typeof saveInvoiceNoteToIndex === 'function') {
-                    saveInvoiceNoteToIndex(invoiceData.note, { po: currentPO, invoiceKey: currentlyEditingInvoiceKey, status: invoiceData.status, source: 'invoice-entry-update' });
+                    saveInvoiceNoteToIndex(ibaSumNoteOf(invoiceData), { po: currentPO, invoiceKey: currentlyEditingInvoiceKey, status: invoiceData.status, source: 'invoice-entry-update' });
                 }
             } catch (_) {}
         }
@@ -5892,7 +5893,9 @@ async function imBatchSaveRun() {
             invValue: imMoneyText(row.querySelector('[name="invValue"]').value), // commas + spaces stripped (p93)
             amountPaid: imMoneyText(row.querySelector('[name="amountPaid"]').value), // commas + spaces stripped (p93)
             status: row.querySelector('[name="status"]').value,
-            note: row.querySelector('[name="note"]').value,
+            // 18.0.0 patch 105: the row's note column is the Summary note; the 💬 remark is the Note
+            summaryNote: row.querySelector('[name="note"]').value,
+            note: row.querySelector('[name="remark"]') ? row.querySelector('[name="remark"]').value : '',
             group: invoiceGroup,
             invoiceGroup: invoiceGroup,
             releaseDate: row.querySelector('[name="releaseDate"]') ? row.querySelector('[name="releaseDate"]').value : (typeof getTodayDateString === 'function' ? getTodayDateString() : new Date().toISOString().split('T')[0])
@@ -5906,7 +5909,7 @@ async function imBatchSaveRun() {
         // multi-row batch save uses the current Global Override values.
         invoiceData.attention = row.choicesInstance ? row.choicesInstance.getValue(true) : row.querySelector('select[name="attention"]').value;
         if (batchGlobalStatus) invoiceData.status = batchGlobalStatus;
-        if (batchGlobalNote) invoiceData.note = batchGlobalNote;
+        if (batchGlobalNote) invoiceData.summaryNote = batchGlobalNote; // p105
         if (batchGlobalAttention) invoiceData.attention = batchGlobalAttention;
 
         try {
@@ -5931,7 +5934,7 @@ async function imBatchSaveRun() {
         });
 
         try {
-            const n = (invoiceData.note || '').replace(/\u00A0/g, ' ').trim();
+            const n = ibaSumNoteOf(invoiceData); // p105
             if (n) {
                 if (typeof allUniqueNotes === 'undefined' || !allUniqueNotes) allUniqueNotes = new Set();
                 allUniqueNotes.add(n);
@@ -6040,8 +6043,8 @@ async function imBatchSaveRun() {
             if (statusChangedForHistory && window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, existingKey, finalBatchStatus, invoiceData.note || 'Updated via Batch Entry')));
             }
-            if (invoiceData.note && typeof saveInvoiceNoteToIndex === 'function') {
-                savePromises.push(p.then(() => saveInvoiceNoteToIndex(invoiceData.note, { po: poNumber, invoiceKey: existingKey, status: invoiceData.status, source: 'batch-entry-update' })).catch(() => null));
+            if (ibaSumNoteOf(invoiceData) && typeof saveInvoiceNoteToIndex === 'function') {
+                savePromises.push(p.then(() => saveInvoiceNoteToIndex(ibaSumNoteOf(invoiceData), { po: poNumber, invoiceKey: existingKey, status: invoiceData.status, source: 'batch-entry-update' })).catch(() => null));
             }
             updatedInvoicesCount++;
             
@@ -6072,8 +6075,8 @@ async function imBatchSaveRun() {
             if (window.logInvoiceHistory) {
                 savePromises.push(p.then(() => window.logInvoiceHistory(poNumber, newKey, invoiceData.status, 'Initial Entry via Batch Entry')));
             }
-            if (invoiceData.note && typeof saveInvoiceNoteToIndex === 'function') {
-                savePromises.push(p.then(() => saveInvoiceNoteToIndex(invoiceData.note, { po: poNumber, invoiceKey: newKey, status: invoiceData.status, source: 'batch-entry-add' })).catch(() => null));
+            if (ibaSumNoteOf(invoiceData) && typeof saveInvoiceNoteToIndex === 'function') {
+                savePromises.push(p.then(() => saveInvoiceNoteToIndex(ibaSumNoteOf(invoiceData), { po: poNumber, invoiceKey: newKey, status: invoiceData.status, source: 'batch-entry-add' })).catch(() => null));
             }
             newInvoicesCount++;
 
@@ -6233,9 +6236,11 @@ async function handleGenerateSummary() {
     const getSummaryVendorForInvoice = (inv) => {
         const po = inv && inv.po ? String(inv.po) : '';
         const poData = (allPOData && (allPOData[po] || allPOData[String(po).toUpperCase()])) ? (allPOData[po] || allPOData[String(po).toUpperCase()]) : {};
+        // 18.0.0 patch 103 (martin): the PO list's supplier first (same as Invoice Entry). The saved note
+        // index copy can carry a wrong vendor (Update data used to stamp the title on every row).
         return summaryNormalizeText(
-            (inv && (inv.vendor || inv.vendor_name || inv.vendorName)) ||
-            poData['Supplier Name'] || poData['Supplier Name:'] || poData.Supplier || poData['Supplier'] || 'N/A'
+            poData['Supplier Name'] || poData['Supplier Name:'] || poData.Supplier || poData['Supplier'] ||
+            (inv && (inv.vendorName || inv.vendor_name || inv.vendor)) || 'N/A'
         );
     };
     const getSummarySiteForInvoice = (inv) => {
@@ -6283,7 +6288,7 @@ async function handleGenerateSummary() {
     const ibaSummaryExactNoteRows = (rows, note) => {
         const exactKey = summaryNormalizeKey(note);
         if (!exactKey) return [];
-        return (Array.isArray(rows) ? rows : []).filter(inv => summaryNormalizeKey(inv && inv.note) === exactKey);
+        return (Array.isArray(rows) ? rows : []).filter(inv => summaryNormalizeKey(ibaSumNoteRaw(inv)) === exactKey); // p105
     };
 
     sessionStorage.setItem('imSummaryPrevNote', prevNote);
@@ -6364,8 +6369,8 @@ async function handleGenerateSummary() {
                     const invoices = allInvoiceData[poNumber] || {};
                     for (const key in invoices) {
                         const inv = invoices[key] || {};
-                        if (summaryNormalizeKey(inv.note) === summaryNormalizeKey(currentNote)) currentRows.push({ po: poNumber, key, ...inv });
-                        if (prevNote && summaryNormalizeKey(inv.note) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
+                        if (summaryNormalizeKey(ibaSumNoteRaw(inv)) === summaryNormalizeKey(currentNote)) currentRows.push({ po: poNumber, key, ...inv });
+                        if (prevNote && summaryNormalizeKey(ibaSumNoteRaw(inv)) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
                     }
                 }
                 allCurrentInvoices = currentRows;
@@ -6402,7 +6407,7 @@ async function handleGenerateSummary() {
                         const invoices = allInvoiceData[poNumber] || {};
                         for (const key in invoices) {
                             const inv = invoices[key] || {};
-                            if (summaryNormalizeKey(inv.note) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
+                            if (summaryNormalizeKey(ibaSumNoteRaw(inv)) === summaryNormalizeKey(prevNote)) prevRows.push({ po: poNumber, key, ...inv });
                         }
                     }
                     previousInvoices = prevRows;
@@ -6512,7 +6517,19 @@ async function handleGenerateSummary() {
             (snInvNo(a) - snInvNo(b)) ||
             String(a.key || '').localeCompare(String(b.key || '')));
         const vendorData = allPOs[allCurrentInvoices[0].po] || allPOs[String(allCurrentInvoices[0].po).toUpperCase()] || null;
-        snVendorName.textContent = getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
+        // 18.0.0 patch 103: the vendor most rows have; a warning when the rows have different vendors
+        {
+            const vCount = {}, vOrder = [];
+            allCurrentInvoices.forEach((inv) => { const v = inv.vendor || ''; if (!v || v === 'N/A') return; if (!(v in vCount)) { vCount[v] = 0; vOrder.push(v); } vCount[v]++; });
+            vOrder.sort((a, b) => vCount[b] - vCount[a]);
+            snVendorName.textContent = vOrder[0] || getSummaryVendorForInvoice(allCurrentInvoices[0]) || (vendorData ? vendorData['Supplier Name'] : 'N/A');
+            let warn = document.getElementById('iba-sn-vwarn');
+            if (vOrder.length > 1) {
+                if (!warn) { warn = document.createElement('span'); warn.id = 'iba-sn-vwarn'; warn.className = 'iba-sn-vwarn'; snVendorName.insertAdjacentElement('afterend', warn); }
+                warn.textContent = '⚠ These invoices have ' + vOrder.length + ' vendors: ' + vOrder.map((v) => v + ' (' + vCount[v] + ')').join(', ');
+                warn.hidden = false;
+            } else if (warn) { warn.hidden = true; warn.textContent = ''; }
+        }
 
         const today = new Date();
         snDate.textContent = `Date: ${today.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' }).replace(/ /g, '-')}`;
@@ -6679,6 +6696,11 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                     details: newDetails,
                     invoiceDate: newInvoiceDate
                 };
+                // 18.0.0 patch 105: the invoice gets its own Summary note field (the Note is left as it is)
+                try {
+                    const curSum = summaryNoteCurrentInput ? String(summaryNoteCurrentInput.value || '').replace(/\s+/g, ' ').trim() : '';
+                    if (curSum && !String(originalInvoice.summaryNote || '').trim()) updates.summaryNote = curSum;
+                } catch (_) {}
 
                 if (newGlobalStatus) {
                     updates.status = newGlobalStatus;
@@ -6719,13 +6741,16 @@ async function handleUpdateSummaryChanges(sendToAccounts = false) {
                 updatePromises.push(updateInvoiceTaskLookup(poNumber, invoiceKey, updatedInvoiceData, originalInvoice.attention));
 
                 // 11.1.7: Keep Summary Note's small note index accurate after status/SRV updates.
-                const summaryIndexNote = (originalInvoice.note || (summaryNoteCurrentInput ? summaryNoteCurrentInput.value : '') || '').trim();
+                const summaryIndexNote = (ibaSumNoteRaw(updatedInvoiceData) || (summaryNoteCurrentInput ? summaryNoteCurrentInput.value : '') || '').trim(); // p105
                 if (summaryIndexNote && typeof saveInvoiceNoteToIndex === 'function') {
                     updatePromises.push(Promise.resolve().then(() => saveInvoiceNoteToIndex(summaryIndexNote, {
                         po: poNumber,
                         invoiceKey,
                         status: updatedInvoiceData.status || newGlobalStatus || '',
-                        vendor: snVendorName ? snVendorName.textContent.trim() : '',
+                        // 18.0.0 patch 103: each row's own vendor (PO list first), never the title
+                        vendor: (() => { const pd = (typeof allPOData !== 'undefined' && allPOData && (allPOData[poNumber] || allPOData[String(poNumber).toUpperCase()])) || {};
+                            return String(pd['Supplier Name'] || pd['Supplier Name:'] || pd.Supplier || updatedInvoiceData.vendorName || updatedInvoiceData.vendor_name || '').trim()
+                                || (snVendorName ? snVendorName.textContent.trim() : ''); })(),
                         site: updatedInvoiceData.site || updatedInvoiceData.site_name || '',
                         group: updatedInvoiceData.group || updatedInvoiceData.jobType || '',
                         srvName: updatedInvoiceData.srvName || newGlobalSRV || '',

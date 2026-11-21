@@ -3,6 +3,56 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 107 (21-Nov-2026)
+  IRIS "Print summary notes": new "Add to Batch Entry (N)" button next to Print (martin). The invoices of the
+  ticked notes go to Batch Entry with their summary note filled in, so you can adjust them or add more invoices
+  to the same summary. Only invoices still in CEO Approval go (each one's status is read on its own; others are
+  skipped and counted). The list itself still shows only notes with CEO Approval invoices.
+  Files: js/iba-1705-snbatch.js, index.html, PATCH.txt
+
+18.0.0 patch 106 (21-Nov-2026)
+  File names + Nil, notes layout, batch card (martin).
+  - Invoice Entry: Invoice / SRV name boxes as before; two ticks at the top of Files: "Invoice no PDF (Nil)" and
+    "SRV no PDF (Nil)" (tick = Nil, untick clears). Notes box = rows like Files: Remarks, Summary note, Details.
+  - Batch Entry: SRV name + Description hidden. Bottom line = Invoice Name (NIL chip above it, like IPC/F/FIVE) |
+    Summary note | Remark (always shown) | Release Date, all the same width. Header on one line:
+    "# PO (Existing: INV-xx in white italic) | Site | Vendor", bold gold, icons kept.
+  Files: index.html, js/iba-1705-ie.js, js/iba-1800-sumnote.js, js/app-batch-entry-ui.js, js/iba-ui-skin.js,
+  css/iba-1705-fit.css, PATCH.txt
+
+18.0.0 patch 105 (21-Nov-2026)
+  Summary note has its OWN field now (martin): invoice.summaryNote. "Note" = remarks only (shows in the tracker).
+  Old invoices: their Note counts as the summary note only when it has a date in it (old summaries always do);
+  nothing is moved or cleared automatically.
+  - Summary Note page: Current note suggests only summary notes of this month and last month (newest first).
+    Previous note = the same vendor's 3 newest notes before the current one; the newest is filled in for you.
+    Any older note can still be typed by its full name. Update data saves summaryNote on invoices that had none.
+  - Invoice Entry: new "Summary note" box with a SUM button (status For Summary + "<vendor 16 letters> <dd-Mon-yyyy>").
+  - Batch Entry: each row's note column is the Summary note; the small speech-bubble button shows / hides that
+    row's remark (Note). Top bar: "Set All Summary Notes To" only (no "all remarks").
+  - Tracker receipt: "Summary: Yes / No" (not the note name).
+  - Print summary notes / Notes to Accounts / previous payments read summaryNote first, then a dated Note.
+  Files: index.html, app.js, js/app-core.js, js/app-data-cache.js, js/app-batch-entry-ui.js, js/app-im-event-wiring.js,
+  js/app-invoice-entry-search.js, js/iba-17-p7.js, js/iba-task-check.js, js/iba-assistant.js, js/iba-1705-batchui.js,
+  js/iba-1800-batchbar.js, js/iba-1705-ie.js, js/iba-1705-notesync.js, js/iba-1705-n2a.js, js/iba-1705-snbatch.js,
+  js/iba-1800-sumnote.js (NEW), css/iba-1705-fit.css, PATCH.txt
+
+18.0.0 patch 104 (21-Nov-2026)
+  IRIS "Print summary notes" (martin): lists only the summary notes whose invoices are in CEO Approval right now
+  (any date), not "today's notes" any more. Read = only the CEO Approval rows of the shared task list
+  (invoice_tasks_by_user/All, indexed on status), never the invoices. Each note shows how many invoices it has;
+  the same vendor's previous note is still picked for you. None in CEO Approval = says so.
+  Files: js/iba-1705-snbatch.js, js/iba-assistant.js (skill text), index.html, PATCH.txt
+
+18.0.0 patch 103 (21-Nov-2026)
+  Summary Note vendor name (martin): a "United Gulf Cement" note printed "United Cooperation General Trading WLL".
+  The title took the vendor from the note's saved row copy before the PO list, and Update data used to write the
+  title onto every row, so one wrong name stuck. Now: vendor = the PO list's supplier (same as Invoice Entry),
+  the saved copy only when the PO is not in the list; the title = the vendor most rows have; when the rows have
+  different vendors a yellow warning lists them (screen only, not printed); Update data saves each row's own vendor.
+  Old notes show the right name at once, nothing to clean.
+  Files: app.js, css/iba-1705-fit.css, index.html, PATCH.txt
+
 18.0.0 patch 102 (21-Nov-2026)
   WhatsApp approval message (martin): no "Waiting: N days" line and no invoice PDF link any more; the approval
   link opens the invoice with its PDF. Each invoice = PO · invoice no. · vendor, Amount, Note (if any).
