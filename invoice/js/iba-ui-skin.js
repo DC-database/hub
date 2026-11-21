@@ -46,6 +46,23 @@
 
     const header = card.querySelector(":scope > .batch-card-header");
     if (header) Array.prototype.forEach.call(header.children, tagHeaderPart);
+    // 18.0.0 patch 106: "# PO (Existing ...) | Site | Vendor" close together on one line (martin)
+    if (header) {
+      const po = header.querySelector(":scope > .bc-po");
+      const site = header.querySelector(":scope > .bc-site");
+      const ven = header.querySelector(":scope > .bc-vendor");
+      if (po && (site || ven)) {
+        po.classList.add("bc-head");
+        [site, ven].forEach(function (el) {
+          if (!el) return;
+          const bar = document.createElement("span");
+          bar.className = "bc-bar";
+          bar.textContent = "|";
+          po.appendChild(bar);
+          po.appendChild(el);
+        });
+      }
+    }
     card.querySelectorAll(".batch-input-grid > div").forEach(function (el) {
       el.classList.add("bc-field", "bc-f");
     });

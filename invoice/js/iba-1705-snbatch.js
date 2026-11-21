@@ -68,7 +68,7 @@
         try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
         const meta = noteMeta();
         const out = [];
-        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s) { const m = meta[s.toLowerCase()] || {}; out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s), vid: m.vid || '', vname: m.vname || '' }); } });
+        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s && (typeof window.ibaNoteIsDated !== 'function' || window.ibaNoteIsDated(s))) { /* p105: summary names have a date */ const m = meta[s.toLowerCase()] || {}; out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s), vid: m.vid || '', vname: m.vname || '' }); } });
         return out;
     }
     function isToday(n, today) {
@@ -126,6 +126,57 @@
         });
     }
 
+    // 18.0.0 patch 104 (martin): only the summary notes whose invoices are in CEO Approval now.
+    // Read only the CEO Approval rows of invoice_tasks_by_user/All (indexed on status), never invoice_entries.
+    async function ceoNotes() {
+        const out = {};
+        let rows = {};
+        try {
+            const r = invoiceDb.ref('invoice_tasks_by_user/All');
+            const ok = (typeof wdAllStatusIndexed === 'function') ? await wdAllStatusIndexed() : true;
+            if (ok) rows = (await r.orderByChild('status').equalTo('CEO Approval').once('value')).val() || {};
+            else if (typeof window.wdReadApprovalRowsFromAll === 'function') rows = await window.wdReadApprovalRowsFromAll();
+        } catch (e) { console.warn('[IBA summary print] CEO Approval rows not read', e); return null; }
+        Object.keys(rows || {}).forEach((k) => {
+            const x = rows[k] || {};
+            if (String(x.status || '').trim().toLowerCase() !== 'ceo approval') return;
+            const t = (typeof window.ibaSumNoteOf === 'function') ? window.ibaSumNoteOf(x) : String(x.note || '').replace(/\s+/g, ' ').trim(); // p105: the Summary note
+            if (!t) return;
+            const key = t.toLowerCase();
+            if (!out[key]) out[key] = { text: t, n: 0, items: [] };
+            out[key].n++;
+            // 18.0.0 patch 107: which invoices, for "Add to Batch Entry"
+            const po = String(x.po || x.originalPO || '').trim(), ik = String(x.invoiceKey || x.key || k || '').trim();
+            if (po && ik) out[key].items.push({ po: po, key: ik });
+        });
+        return out;
+    }
+
+    // 18.0.0 patch 105: shared with the Summary Note page suggestions (js/iba-1800-sumnote.js)
+    function recentFrom() { const q = new Date(Date.now() + 3 * 3600e3); return Date.UTC(q.getUTCFullYear(), q.getUTCMonth() - 1, 1); } // 1st of last month, Qatar
+    function noteObj(t, meta) { const m = (meta || {})[String(t).toLowerCase()] || {}; return { text: t, date: dateOf(t), vk: vendorKey(t), used: 0, vid: m.vid || '', vname: m.vname || '' }; }
+    function knownNames() {
+        let set = null;
+        try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
+        return (set ? Array.from(set) : []).map((t) => String(t || '').replace(/\s+/g, ' ').trim()).filter((t) => t && (typeof window.ibaNoteIsDated !== 'function' || window.ibaNoteIsDated(t)));
+    }
+    // current note suggestions: this month and last month, newest first
+    function currentOptions() {
+        const from = recentFrom();
+        const seen = new Set();
+        return knownNames().map((t) => ({ t: t, d: dateOf(t) })).filter((x) => x.d >= from && !seen.has(x.t.toLowerCase()) && seen.add(x.t.toLowerCase()))
+            .sort((a, b) => (b.d - a.d) || a.t.localeCompare(b.t)).map((x) => x.t);
+    }
+    // previous note suggestions: same vendor, before the current note, the newest `limit`
+    function previousOptions(cur, limit) {
+        const c = String(cur || '').replace(/\s+/g, ' ').trim();
+        if (!c) return [];
+        const meta = noteMeta();
+        const list = knownNames().map((t) => noteObj(t, meta));
+        const me = list.find((x) => x.text.toLowerCase() === c.toLowerCase()) || noteObj(c, meta);
+        return earlierOf(list, me).filter((x, i, a) => a.findIndex((y) => y.text.toLowerCase() === x.text.toLowerCase()) === i).slice(0, limit || 3).map((x) => x.text);
+    }
+
     // ---- the window ---------------------------------------------------------------
     let win = null;
     function close() { if (win) { win.remove(); win = null; } }
@@ -136,20 +187,32 @@
         win.id = 'iba-esn';
         win.className = 'iba-esn-ov iba-snb';
         win.innerHTML = '<div class="iba-esn-box is-wide" role="dialog" aria-modal="true" aria-label="Print summary notes">' +
-            '<div class="iba-esn-head"><b><i class="fa-solid fa-print"></i> Print summary notes · today</b>' +
+            '<div class="iba-esn-head"><b><i class="fa-solid fa-print"></i> Print summary notes · CEO Approval</b>' +
             '<button type="button" class="iba-esn-x" data-snb-x aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>' +
-            '<div class="iba-esn-body"><p class="iba-esn-sub">Loading today\'s notes…</p></div>' +
+            '<div class="iba-esn-body"><p class="iba-esn-sub">Loading the notes in CEO Approval…</p></div>' +
             '<div class="iba-esn-foot"><span class="iba-esn-sub" data-snb-msg></span><span class="iba-esn-sp"></span>' +
             '<button type="button" class="iba-esn-btn" data-snb-x>Cancel</button>' +
+            (typeof window.ibaAddToBatch === 'function' ? '<button type="button" class="iba-esn-btn" data-snb-batch disabled title="Put the CEO Approval invoices of the ticked notes in Batch Entry"><i class="fa-solid fa-table-list"></i> Add to Batch Entry</button>' : '') +
             '<button type="button" class="iba-esn-btn is-go" data-snb-go disabled><i class="fa-solid fa-print"></i> Print all</button></div></div>';
         document.body.appendChild(win);
         win.addEventListener('click', onClick);
         win.addEventListener('change', count);
-        let all = await names(false);
-        let rows = plan(all);
-        if (!rows.length) { all = await names(true); rows = plan(all); }   // one fresh read of the note names
+        // 18.0.0 patch 104: the notes in CEO Approval (not "dated today" any more)
+        const [allNames, ceo] = await Promise.all([names(false), ceoNotes()]);
+        let all = allNames;
         if (!win) return;
         const body = win.querySelector('.iba-esn-body');
+        if (ceo === null) { body.innerHTML = '<p class="iba-esn-sub">Could not read the CEO Approval list. Check the connection and try again.</p>'; return; }
+        const ceoKeys = Object.keys(ceo);
+        if (!ceoKeys.length) { body.innerHTML = '<p class="iba-esn-sub">No summary note is in CEO Approval right now.</p>'; return; }
+        ceoKeys.forEach((k) => { if (!all.some((n) => n.text.toLowerCase() === k)) all.push({ text: ceo[k].text, date: dateOf(ceo[k].text), vk: vendorKey(ceo[k].text), used: 0, vid: '', vname: '' }); });
+        let rows = all.filter((n) => ceo[n.text.toLowerCase()]).sort((a, b) => (b.date - a.date) || a.text.localeCompare(b.text)).map((n) => {
+            const earlier = earlierOf(all, n);
+            const others = all.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && (!n.date || x.date < n.date)).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
+            // 18.0.0 patch 105 (martin): previous = the same vendor's 3 newest earlier notes; other notes only from the last 2 months
+            const from = recentFrom();
+            return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.slice(0, 3).map((x) => x.text), others: all.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && x.date >= from && (!n.date || x.date < n.date)).sort((a, b) => b.date - a.date).map((x) => x.text), count: ceo[n.text.toLowerCase()].n, items: ceo[n.text.toLowerCase()].items };
+        });
         if (!rows.length) {
             // nothing dated today: the newest notes, to tick by hand
             const recent = all.slice().sort((a, b) => (b.used || b.date) - (a.used || a.date)).slice(0, 12);
@@ -162,8 +225,8 @@
         }
         const off = rows.some((r) => r.off);
         body.innerHTML = (off ? '<p class="iba-esn-sub"><b>No note with today\'s date found.</b> Here are your newest notes: tick the ones to print.</p>' : '') + '<p class="iba-esn-sub">Each note prints on its own A4 page with its previous note. The previous note is the same vendor\'s latest earlier note; change it if needed.</p>' +
-            '<table class="iba-snb-t"><thead><tr><th><input type="checkbox" data-snb-all' + (off ? '' : ' checked') + ' aria-label="All"></th><th>' + (off ? 'Note' : 'Current note (today)') + '</th><th>Previous note</th></tr></thead><tbody>' +
-            rows.map((r, i) => '<tr><td><input type="checkbox" data-snb-on="' + i + '"' + (r.off ? '' : ' checked') + '></td><td><b>' + esc(r.cur) + '</b></td><td><select class="iba-esn-place iba-snb-prev" data-snb-prev="' + i + '">' +
+            '<table class="iba-snb-t"><thead><tr><th><input type="checkbox" data-snb-all' + (off ? '' : ' checked') + ' aria-label="All"></th><th>' + (off ? 'Note' : 'Summary note (CEO Approval)') + '</th><th>Previous note</th></tr></thead><tbody>' +
+            rows.map((r, i) => '<tr><td><input type="checkbox" data-snb-on="' + i + '"' + (r.off ? '' : ' checked') + '></td><td><b>' + esc(r.cur) + '</b>' + (r.count ? ' <span class="iba-esn-sub">· ' + r.count + ' invoice' + (r.count === 1 ? '' : 's') + '</span>' : '') + '</td><td><select class="iba-esn-place iba-snb-prev" data-snb-prev="' + i + '">' +
                 '<option value="">none</option>' + (r.options.length ? '<optgroup label="Same vendor">' + r.options.map((o) => '<option' + (o === r.prev ? ' selected' : '') + '>' + esc(o) + '</option>').join('') + '</optgroup>' : '') +
                 ((r.others || []).length ? '<optgroup label="Other notes">' + r.others.map((o) => '<option>' + esc(o) + '</option>').join('') + '</optgroup>' : '') + '</select></td></tr>').join('') +
             '</tbody></table>';
@@ -175,7 +238,7 @@
         return win.__rows.map((r, i) => {
             const on = win.querySelector('[data-snb-on="' + i + '"]');
             const pv = win.querySelector('[data-snb-prev="' + i + '"]');
-            return on && on.checked ? { cur: r.cur, prev: pv ? pv.value : '' } : null;
+            return on && on.checked ? { cur: r.cur, prev: pv ? pv.value : '', items: r.items || [] } : null;
         }).filter(Boolean);
     }
     function count(e) {
@@ -184,13 +247,46 @@
         const n = picked().length;
         const go = win.querySelector('[data-snb-go]');
         if (go) { go.disabled = !n; go.innerHTML = '<i class="fa-solid fa-print"></i> Print all (' + n + ')'; }
+        const bt = win.querySelector('[data-snb-batch]');
+        if (bt) { const k = picked().reduce((a, r) => a + r.items.length, 0); bt.disabled = !k; bt.innerHTML = '<i class="fa-solid fa-table-list"></i> Add to Batch Entry' + (k ? ' (' + k + ')' : ''); }
     }
     function onClick(e) {
         if (e.target.closest('[data-snb-x]') || e.target === win) { close(); return; }
         const go = e.target.closest('[data-snb-go]');
         if (go && !go.disabled) printAll(picked());
+        const bt = e.target.closest('[data-snb-batch]');
+        if (bt && !bt.disabled) toBatch(picked(), bt);
     }
     function msg(t) { const m = win && win.querySelector('[data-snb-msg]'); if (m) m.textContent = t; }
+
+    // 18.0.0 patch 107 (martin): the ticked notes' invoices go to Batch Entry with their summary note.
+    // Only invoices still in CEO Approval go (each one's status is read on its own, never the whole list).
+    async function toBatch(list, btn) {
+        const seen = {}, items = [];
+        list.forEach((r) => (r.items || []).forEach((it) => { const id = it.po + '/' + it.key; if (!seen[id]) { seen[id] = 1; items.push(it); } }));
+        if (!items.length) { msg('No invoice to add.'); return; }
+        btn.disabled = true;
+        msg('Checking ' + items.length + ' invoice' + (items.length === 1 ? '' : 's') + '…');
+        const ok = [];
+        let moved = 0;
+        for (const it of items) {
+            let st = '';
+            try { st = String((await invoiceDb.ref('invoice_entries/' + it.po + '/' + it.key + '/status').once('value')).val() || ''); } catch (_) {}
+            if (st.trim().toLowerCase() === 'ceo approval') ok.push(it); else moved++;
+        }
+        if (!ok.length) { msg('None of these invoices is in CEO Approval any more.'); btn.disabled = false; return; }
+        msg('Adding ' + ok.length + ' to Batch Entry…');
+        try {
+            const r = await window.ibaAddToBatch(ok);
+            if (r && r.error) throw new Error(r.error);
+            const added = (r.added || []).length, had = (r.already_in_batch || []).length, miss = (r.not_added || []).length;
+            say(added + ' added to Batch Entry' + (had ? ', ' + had + ' already there' : '') + (moved ? ', ' + moved + ' skipped (no longer CEO Approval)' : '') + (miss ? ', ' + miss + ' not found' : '') + '.');
+            close();
+        } catch (err) {
+            btn.disabled = false;
+            msg('Could not add them: ' + ((err && err.message) || err));
+        }
+    }
 
     // ---- build every page, then one print -------------------------------------------
     async function openSummaryScreen() {
@@ -275,5 +371,6 @@
         window.print();
     }
 
-    window.ibaSummaryBatch = { open: open, _plan: plan, _vendorKey: vendorKey, _names: names, _print: printAll };
+    window.ibaSummaryBatch = { currentOptions, previousOptions, // p105
+        open: open, _plan: plan, _vendorKey: vendorKey, _names: names, _print: printAll };
 })();

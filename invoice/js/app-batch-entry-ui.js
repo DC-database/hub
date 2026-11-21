@@ -355,8 +355,9 @@ async function handleAddPOToBatch() {
                 </div>
 
                 <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
-                    <input type="text" name="note" class="batch-input" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                    <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important;"><span>Summary note</span><button type="button" class="iba-bt-rmk" title="Remark for this invoice (Note)" aria-label="Remark"><i class="fa-regular fa-comment-dots"></i></button></label>
+                    <input type="text" name="note" class="batch-input" placeholder="Summary note" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                    <input type="text" name="remark" class="batch-input iba-bt-rmk-in" placeholder="Remark (Note)" hidden>
                 </div>
 
                 <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
@@ -368,7 +369,7 @@ async function handleAddPOToBatch() {
  <div class="batch-card-body" style="padding: 12px 15px !important;">
             <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important; margin-bottom: 4px !important; min-height: 20px !important;"><span>Invoice Name</span><button type="button" class="iba-bt-nil" data-f="invName" title="No invoice PDF: Invoice name = Nil">NIL</button></label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
                 <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;"></div>
                 
@@ -550,8 +551,9 @@ async function addInvoiceToBatchTable(invData) {
             </div>
 
             <div style="display: flex !important; flex-direction: column !important; gap: 4px !important; flex: 1 1 195px !important; min-width: 130px !important;">
-                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important;">Note</label>
-                <input type="text" name="note" class="batch-input" value="${invData.note || ''}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                <label style="color: white !important; font-weight: 600 !important; font-size: 0.75rem !important; margin: 0 !important; white-space: nowrap !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important;"><span>Summary note</span><button type="button" class="iba-bt-rmk${String(invData.note || '').trim() ? ' is-on' : ''}" title="Remark for this invoice (Note)" aria-label="Remark"><i class="fa-regular fa-comment-dots"></i></button></label>
+                <input type="text" name="note" class="batch-input" placeholder="Summary note" value="${String(ibaSumNoteOf(invData) || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}" style="padding: 0 8px !important; border: none !important; border-radius: 4px !important; font-weight: bold !important; color: #14293f !important; width: 100% !important; box-sizing: border-box !important; margin: 0 !important; height: 32px !important;">
+                <input type="text" name="remark" class="batch-input iba-bt-rmk-in" placeholder="Remark (Note)" value="${String(invData.note || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"${String(invData.note || '').trim() ? '' : ' hidden'}>
             </div>
 
             <div style="display: flex !important; align-items: flex-end !important; flex: 0 0 auto !important;">
@@ -563,7 +565,7 @@ async function addInvoiceToBatchTable(invData) {
 <div class="batch-card-body" style="padding: 12px 15px !important;">
             <div class="batch-input-grid" style="display: flex !important; flex-wrap: nowrap !important; gap: 8px !important; overflow-x: auto !important; align-items: flex-start !important;">
                 
-                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">Invoice Name</label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invName || ''}"></div>
+                <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 6px !important; margin-bottom: 4px !important; min-height: 20px !important;"><span>Invoice Name</span><button type="button" class="iba-bt-nil${/^nil$/i.test(String(invData.invName || '').trim()) ? ' is-on' : ''}" data-f="invName" title="No invoice PDF: Invoice name = Nil">NIL</button></label><input type="text" name="invName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.invName || ''}"></div>
                 
                 <div style="flex: 0 0 18%; min-width: 130px;"><label style="color: #0f172a !important; -webkit-text-fill-color: #0f172a !important; font-size: 0.75rem !important; white-space: nowrap !important; display: block !important; margin-bottom: 4px !important;">SRV Name</label><input type="text" name="srvName" class="batch-input" style="width: 100% !important; height: 40px !important; box-sizing: border-box !important; padding: 0 8px !important;" value="${invData.srvName || ''}"></div>
                 

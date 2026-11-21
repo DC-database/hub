@@ -368,3 +368,23 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+// ==========================================================================
+// 18.0.0 patch 105 (martin): the Summary note has its own field, summaryNote.
+// "note" is plain remarks again. Old invoices (no summaryNote yet): the Note
+// still counts for matching a summary; for LISTS only a Note with a date counts
+// (summary names are always "<vendor> <date>", remarks are not).
+// ==========================================================================
+function ibaNoteText(v) { return String(v == null ? '' : v).replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim(); }
+function ibaNoteIsDated(t) {
+    try { if (typeof imNoteTextDate === 'function') return !!imNoteTextDate(t); } catch (_) {}
+    return /(?:^|[^0-9])(19|20)\d{2}(?![0-9])/.test(String(t || ''));
+}
+function ibaSumNoteRaw(inv) { if (!inv) return ''; return ibaNoteText(inv.summaryNote) || ibaNoteText(inv.note); }
+function ibaSumNoteOf(inv) {
+    if (!inv) return '';
+    const s = ibaNoteText(inv.summaryNote);
+    if (s) return s;
+    const n = ibaNoteText(inv.note);
+    return n && ibaNoteIsDated(n) ? n : '';
+}
+try { window.ibaSumNoteRaw = ibaSumNoteRaw; window.ibaSumNoteOf = ibaSumNoteOf; window.ibaNoteIsDated = ibaNoteIsDated; } catch (_) {}

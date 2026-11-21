@@ -212,8 +212,9 @@ function imNoteTimesFromInvoices() {
         if (!invoices || typeof invoices !== 'object') return;
         Object.keys(invoices).forEach(k => {
             const inv = invoices[k];
-            if (!inv || !inv.note) return;
-            const key = imInvoiceNoteUsageKey(inv.note);
+            const sn = inv ? ibaSumNoteOf(inv) : ''; // p105
+            if (!sn) return;
+            const key = imInvoiceNoteUsageKey(sn);
             if (!key) return;
             // 17.0.5 patch 16: the invoice's own date, not its last change, so an
             // old note does not jump to the top when an old invoice is updated
@@ -633,7 +634,7 @@ function imNoteIndexRowFromInvoice(note, po, invoiceKey, inv = {}) {
 }
 
 function imNoteIndexIsExactNote(inv, note) {
-    return imNormalizeInvoiceNoteText(inv && inv.note).toLowerCase() === imNormalizeInvoiceNoteText(note).toLowerCase();
+    return imNormalizeInvoiceNoteText(ibaSumNoteRaw(inv)).toLowerCase() === imNormalizeInvoiceNoteText(note).toLowerCase(); // p105
 }
 
 
@@ -698,7 +699,7 @@ function imNoteIndexMatchesQuery(noteText, queryText) {
 }
 
 function imNoteIndexIsQueryMatch(inv, noteQuery) {
-    return imNoteIndexMatchesQuery(inv && inv.note, noteQuery);
+    return imNoteIndexMatchesQuery(ibaSumNoteRaw(inv), noteQuery); // p105
 }
 
 async function loadInvoiceNoteIndexDataForSearch(forceRefresh = false, limit = 2000) {
@@ -761,7 +762,7 @@ async function loadInvoicesByNoteSearch(noteQuery, options = {}) {
                     if (imNoteIndexIsQueryMatch(inv, query)) {
                         const id = `${po}::${key}`;
                         if (!seen.has(id)) {
-                            rows.push(imNoteIndexRowFromInvoice(inv.note || query, po, key, inv));
+                            rows.push(imNoteIndexRowFromInvoice(ibaSumNoteRaw(inv) || query, po, key, inv));
                             seen.add(id);
                         }
                     }
@@ -792,7 +793,7 @@ async function loadInvoicesByNoteSearch(noteQuery, options = {}) {
             if (!allInvoiceData[po]) allInvoiceData[po] = {};
             allInvoiceData[po][invoiceKey] = { ...inv, key: invoiceKey };
             if (window.__invoiceEntriesFullLoaded !== true) window.__invoiceEntriesFullLoaded = false;
-            rows.push(imNoteIndexRowFromInvoice(inv.note || query, po, invoiceKey, inv));
+            rows.push(imNoteIndexRowFromInvoice(ibaSumNoteRaw(inv) || query, po, invoiceKey, inv));
             seen.add(`${po}::${invoiceKey}`);
         } catch (error) {
             console.warn('Invoice note query ref read skipped:', po, invoiceKey, error);
@@ -955,7 +956,7 @@ async function backfillInvoiceNoteIndexForVendor(noteList, vendorName, options =
             if (!allInvoiceData[po]) allInvoiceData[po] = {};
             for (const key in invoices) {
                 const inv = invoices[key] || {};
-                const invNote = imNormalizeInvoiceNoteText(inv.note);
+                const invNote = imNormalizeInvoiceNoteText(ibaSumNoteRaw(inv)); // p105
                 if (!invNote) continue;
                 const matchedQueries = notes.filter(q => imNoteIndexMatchesQuery(invNote, q));
                 if (!matchedQueries.length) continue;
@@ -1001,7 +1002,7 @@ async function buildInvoiceNoteIndexFromLoadedInvoicesForNotes(noteList) {
         const invoices = allInvoiceData[po] || {};
         for (const key in invoices) {
             const inv = invoices[key] || {};
-            const invNote = imNormalizeInvoiceNoteText(inv.note);
+            const invNote = imNormalizeInvoiceNoteText(ibaSumNoteRaw(inv)); // p105
             if (!invNote) continue;
             const matchedQueries = notes.filter(q => imNoteIndexMatchesQuery(invNote, q));
             if (!matchedQueries.length) continue;
@@ -2148,8 +2149,8 @@ async function ensureInvoiceDataFetched(forceRefresh = false, options = {}) {
             for (const po in allInvoiceData) {
                 for (const invKey in allInvoiceData[po]) {
                     const invoice = allInvoiceData[po][invKey];
-                    if (invoice.note && invoice.note.trim() !== '') {
-                        allUniqueNotes.add(invoice.note.trim());
+                    if (ibaSumNoteOf(invoice)) { // p105: summary notes only
+                        allUniqueNotes.add(ibaSumNoteOf(invoice));
                     }
                 }
             }

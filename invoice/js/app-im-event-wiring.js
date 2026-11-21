@@ -1476,7 +1476,7 @@ if (summaryNotePrintBtn) {
                         for (const key in allInvoiceData[po]) {
                             const inv = allInvoiceData[po][key];
                             // Check if note matches and we have a valid SRV name
-                            if (inv.note === prevNote && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
+                            if (ibaSumNoteRaw(inv) === prevNote && inv.srvName && inv.srvName.toLowerCase() !== 'nil' && inv.srvName.trim() !== '') {
                                 foundSrvName = inv.srvName;
                                 foundPo = po;
                                 break outerLoop; // Stop looking, we found one

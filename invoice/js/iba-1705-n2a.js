@@ -71,7 +71,7 @@
             Object.keys(invs).forEach(function (k) {
                 var e = invs[k];
                 if (!e || typeof e !== 'object' || low(e.status) !== CEO) return;
-                var n = txt(e.note);
+                var n = txt(window.ibaSumNoteOf ? window.ibaSumNoteOf(e) : e.note); // p105: the Summary note
                 if (!n) return;
                 var g = by[low(n)] || (by[low(n)] = { note: n, vendor: vendorOf(po, e), n: 0, total: 0, at: 0 });
                 g.n++; g.total += amountOf(e);
@@ -94,7 +94,7 @@
         Object.keys(all).forEach(function (po) {
             var invs = all[po];
             if (!invs || typeof invs !== 'object') return;
-            Object.keys(invs).forEach(function (k) { var e = invs[k]; if (e && typeof e === 'object' && low(e.note) === key) cand[po + '::' + k] = { po: po, key: k }; });
+            Object.keys(invs).forEach(function (k) { var e = invs[k]; if (e && typeof e === 'object' && low(window.ibaSumNoteRaw ? window.ibaSumNoteRaw(e) : e.note) === key) cand[po + '::' + k] = { po: po, key: k }; });
         });
         var list = Object.keys(cand).map(function (k) { return cand[k]; });
         var out = [];
@@ -105,7 +105,7 @@
                 var inv = null;
                 if (db) { try { var s = await db.ref('invoice_entries/' + c.po + '/' + c.key).once('value'); inv = s && s.val(); } catch (_) { inv = null; } }
                 else inv = (all[c.po] || {})[c.key] || null;
-                if (inv && low(inv.note) === key) out.push({ po: c.po, key: c.key, inv: inv });
+                if (inv && low(window.ibaSumNoteRaw ? window.ibaSumNoteRaw(inv) : inv.note) === key) out.push({ po: c.po, key: c.key, inv: inv });
             }
         }
         await Promise.all([worker(), worker(), worker(), worker()]);

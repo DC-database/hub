@@ -102,7 +102,7 @@
     }
     document.addEventListener('input', (e) => {
         const el = e.target;
-        if (!el || el.tagName !== 'INPUT' || el.getAttribute('list') !== 'note-suggestions') return;
+        if (!el || el.tagName !== 'INPUT' || !/^(note-suggestions|iba-sn-cur-list|iba-sn-prev-list|iba-ie-sum-list)$/.test(el.getAttribute('list') || '')) return; // p105
         clearTimeout(tmr);
         const v = el.value;
         tmr = setTimeout(() => { typed(v); }, 450);

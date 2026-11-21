@@ -115,7 +115,7 @@
         if (quick) { if (sum) { sum.removeAttribute('style'); sum.className = 'iba-bt-q is-sum'; sum.innerHTML = '<b>SUM</b>'; quick.appendChild(sum); } gc.appendChild(quick); }
         const st = $('im-batch-global-status');
         if (st && st.options[0] && st.options[0].value === '') st.options[0].text = 'Status: no change';
-        const nt = $('im-batch-global-note'); if (nt) nt.placeholder = 'Note for all…';
+        const nt = $('im-batch-global-note'); if (nt) nt.placeholder = 'Summary note for all…'; // p105
         r2.hidden = true;
         late();
         let k = 0; const iv = setInterval(() => { late(); if (++k > 40) clearInterval(iv); }, 500);

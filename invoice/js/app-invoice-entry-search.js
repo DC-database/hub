@@ -1842,6 +1842,8 @@ function populateInvoiceFormForEditing(invoiceKey) {
     imReleaseDateInput.value = normalizeDateForInput(invData.releaseDate);
     imStatusSelect.value = invData.status || 'Under Review';
     document.getElementById('im-note').value = invData.note || '';
+    // 18.0.0 patch 105: Summary note field (old invoices: a Note with a date)
+    try { const sn = document.getElementById('im-sumnote-field'); if (sn) sn.value = (typeof ibaSumNoteOf === 'function') ? ibaSumNoteOf(invData) : (invData.summaryNote || ''); } catch (_) {}
 
     // Dropdown Logic
     if (imAttentionSelectChoices) {

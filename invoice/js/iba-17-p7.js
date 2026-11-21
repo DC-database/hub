@@ -100,7 +100,7 @@
             if (typeof allUniqueNotes !== 'undefined') {
                 allUniqueNotes = new Set();
                 Object.keys(data).forEach((po) => Object.keys(data[po] || {}).forEach((k) => {
-                    const n = data[po][k] && data[po][k].note;
+                    const n = data[po][k] && ibaSumNoteOf(data[po][k]); // p105
                     if (n && String(n).trim()) allUniqueNotes.add(String(n).trim());
                 }));
             }

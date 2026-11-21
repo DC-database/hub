@@ -1816,6 +1816,8 @@
             pay: acc.amounts && num(inv.amountPaid) ? money(inv.amountPaid) : undefined,
             // 17.0.5 patch 187: the invoice Note = the reason it is held (shown until With Accounts)
             note: trkNoteText(inv.note) || undefined,
+            // 18.0.0 patch 105 (martin): only Yes / No, not the summary note's name
+            in_summary: (typeof window.ibaSumNoteOf === 'function') ? !!window.ibaSumNoteOf(inv) : undefined,
             invoice_date: fmtDate(inv.invoiceDate) || undefined, entered: enteredAt ? fmtDate(enteredAt) : undefined,
             // 17.0.5 patch 164: Release Date (same field as Invoice Records)
             release: fmtDate(inv.releaseDate || inv.ReleaseDate || inv.release_date || '') || undefined,
@@ -3652,7 +3654,7 @@
                 return null;
             } },
         // 17.0.5 patch 130: every summary note of today in one print
-        sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note with today\'s date in its name, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). No AI used.',
+        sn_print_all: { name: 'Print summary notes', icon: 'fa-print', superOnly: true, desc: 'Every summary note whose invoices are in CEO Approval, each with the same vendor\'s previous note picked for you, printed in one go (one A4 page per note). No AI used.',
             check: () => !!(window.ibaSummaryBatch && typeof window.ibaSummaryBatch.open === 'function'),
             ask: () => [], run: async () => { toggle(false); await window.ibaSummaryBatch.open(); return null; } },
         // 17.0.5 patch 124: New requisition window (no PO yet)
@@ -6686,6 +6688,7 @@
                   (it.value ? '<span class="iba-trk-r-amt">QAR ' + esc(it.value) + '</span>' : '') +
                   '<span class="iba-trk-r-inv"><b>' + esc(it.invoice_no) + '</b><span class="iba-trk-r-urg">' + (it.urgent ? trkUrgBadge() : '') + '</span></span></div>') +
                 (trkShowNote(it) ? '<div class="iba-u-remark"><span class="iba-u-lbl"><i class="fa-regular fa-note-sticky"></i> Remarks</span><p>' + esc(it.note) + '</p></div>' : '') +
+                (typeof it.in_summary === 'boolean' ? '<div class="iba-trk-sumyn"><span class="iba-u-lbl"><i class="fa-solid fa-file-invoice"></i> Summary</span><b class="' + (it.in_summary ? 'is-yes' : 'is-no') + '">' + (it.in_summary ? 'Yes' : 'No') + '</b></div>' : '') + // p105
                 '<div class="iba-trk-r-po">' + trkPoCard(p, false) + '</div>' +
               '</div>' +
               '<div class="iba-trk-r-right">' +

@@ -86,7 +86,7 @@
         if (first && !first.classList.contains('form-group')) { first.className = 'iba-bt-all'; first.textContent = 'Apply to all'; }
         const la = gc.querySelector('label[for="im-batch-global-attention"]'); if (la) la.textContent = 'Attention';
         const ls = gc.querySelector('label[for="im-batch-global-status"] > span'); if (ls) ls.textContent = 'Status';
-        const ln = gc.querySelector('label[for="im-batch-global-note"]'); if (ln) ln.textContent = 'Note';
+        const ln = gc.querySelector('label[for="im-batch-global-note"]'); if (ln) ln.textContent = 'Summary note'; // p105
         document.body.classList.add('iba-bt-v2');
         return true;
     }

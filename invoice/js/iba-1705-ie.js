@@ -18,7 +18,7 @@
     function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
     function relabel(id, text) { const l = document.querySelector('label[for="' + id + '"]'); if (l && l.textContent !== text) l.textContent = text; }
     // other start-up scripts write some labels back, so these are re-applied while the pop-up is open
-    const LABELS = [['im-amount-paid', 'Amount to pay'], ['im-release-date', 'Release date'], ['im-note', 'Note (shows in the tracker)']];
+    const LABELS = [['im-amount-paid', 'Amount to pay'], ['im-release-date', 'Release date'], ['im-note', 'Remarks'], ['im-sumnote-field', 'Summary note'], ['im-details', 'Details']];
     function sec(icon, title, cls) {
         const s = el('section', 'iba-ie-sec ' + cls);
         s.appendChild(el('h4', '', '<i class="' + icon + '"></i> ' + title));
@@ -75,7 +75,20 @@
             inp.after(open);
             fFi.appendChild(g);
         });
-        ['im-note', 'im-details'].forEach((id) => { const g = grp(id); if (g) fNo.appendChild(g); });
+        // p106: two "No PDF (Nil)" ticks at the top of Files (Invoice + SRV); the name boxes stay as before
+        const ticks = el('span', 'iba-ie-nils', '');
+        [['im-inv-name', 'Invoice', 'iba-ie-nil-chk'], ['im-srv-name', 'SRV', 'iba-ie-nil-srv']].forEach(([id, name, cid]) => {
+            const inp = fFi.querySelector('#' + id); if (!inp) return;
+            const nl = el('label', 'iba-ie-nil', '<input type="checkbox" id="' + cid + '"> ' + name + ' no PDF (Nil)');
+            nl.title = 'Tick when there is no ' + name + ' PDF: the ' + name + ' name is saved as Nil';
+            ticks.appendChild(nl);
+            const chk = nl.querySelector('input');
+            chk.tabIndex = -1;
+            chk.addEventListener('change', () => { inp.value = chk.checked ? 'Nil' : (/^nil$/i.test(String(inp.value || '').trim()) ? '' : inp.value); inp.dispatchEvent(new Event('input', { bubbles: true })); });
+            setInterval(() => { if (!modal.classList.contains('hidden')) { const v = /^nil$/i.test(String(inp.value || '').trim()); if (chk.checked !== v) chk.checked = v; } }, 600);
+        });
+        if (ticks.children.length) sFi.querySelector('h4').appendChild(ticks);
+        ['im-note', 'im-sumnote-field', 'im-details'].forEach((id) => { const g = grp(id); if (g) { g.classList.add('iba-ie-nrow'); fNo.appendChild(g); } }); // p106: Remarks, Summary note, Details as rows like Files (martin)
         LABELS.forEach(([id, txt]) => relabel(id, txt));
         if (oldWrap && oldWrap !== grid && !oldWrap.querySelector('input,select,textarea')) oldWrap.remove();
         // anything left in the grid (future fields) goes to the Notes box so nothing gets lost
