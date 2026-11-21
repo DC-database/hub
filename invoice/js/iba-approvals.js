@@ -930,19 +930,16 @@
     function approvalMessage(who, items) {
         const one = items.length === 1;
         const lines = [`Hello ${who},`, '',
-            one ? 'This is an automatic message from IBA: an invoice is waiting for your approval.'
-                : `This is an automatic message from IBA: ${items.length} invoices are waiting for your approval.`];
+            one ? 'Automated message from IBA: An invoice is pending your approval.'
+                : `Automated message from IBA: ${items.length} invoices are pending your approval.`];
         items.forEach((it, i) => {
             const inv = it.inv || {};
-            const days = waitingDays(inv);
-            const link = pdfUrl(inv);
             const vendor = inv.vendorName || inv.vendor_name || '';
             lines.push('');
             lines.push(`${one ? '' : (i + 1) + '. '}PO ${it.po} · ${inv.invNumber || inv.invEntryID || ''}${vendor ? ' · ' + vendor : ''}`);
             lines.push(`Amount: QAR ${money(inv.amountPaid || inv.invValue || 0)}`);
-            if (days !== null) lines.push(`Waiting: ${days} day${days === 1 ? '' : 's'}`);
             if (inv.note) lines.push(`Note: ${inv.note}`);
-            if (link) lines.push(`Invoice: ${link}`);
+            // 18.0.0 patch 102 (martin): no waiting days and no PDF link; the approval page has the PDF
         });
         lines.push('', `Please click here to approve: ${MOBILE_APPROVAL_URL}`, '', 'Thank you,', myName() || 'IBA'); // p97: the link opens the approval (martin)
         return lines.join('\n');
