@@ -1404,7 +1404,7 @@ window.processMobileTransferAction = async function(task, action, cardElement) {
         if(keyInput) keyInput.value = task.key;
         if(qtyInput) qtyInput.value = qty;
         if(noteInput) noteInput.value = "Mobile Action";
-        if(dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if(dateInput) dateInput.value = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
 
         // 4. Execute Logic (Updates Database Status Only)
         if (window.handleTransferAction) {
@@ -1493,7 +1493,7 @@ window.processMobileTransferBulkApproval = async function(selectedKeys, buttonEl
                 if (keyInput) keyInput.value = task.key;
                 if (qtyInput) qtyInput.value = qty;
                 if (noteInput) noteInput.value = 'Mobile bulk approval';
-                if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+                if (dateInput) dateInput.value = (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]);
 
                 const actionResult = await window.handleTransferAction('Approved', {
                     skipConfirm: true,
@@ -4680,8 +4680,13 @@ async function handleAddInvoiceRun(e) {
     invoiceData.invoiceGroup = invoiceData.group;
     
     // SANITIZE: Remove commas before saving
-    if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
-    if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    // 18.0.0 patch 93: values must be real numbers (commas/spaces are removed, letters are refused)
+    if (!imMoneyOk(invoiceData.invValue) || !imMoneyOk(invoiceData.amountPaid)) {
+        alert(`Please check the amounts:\n${!imMoneyOk(invoiceData.invValue) ? '- Invoice Value "' + invoiceData.invValue + '" is not a number\n' : ''}${!imMoneyOk(invoiceData.amountPaid) ? '- Amount Paid "' + invoiceData.amountPaid + '" is not a number\n' : ''}\nNothing was saved.`);
+        return;
+    }
+    if (invoiceData.invValue) invoiceData.invValue = imMoneyText(invoiceData.invValue);
+    if (invoiceData.amountPaid) invoiceData.amountPaid = imMoneyText(invoiceData.amountPaid);
     imApplyRetentionInvoiceDataRule(invoiceData);
     
     let attentionValue = '';
@@ -4766,6 +4771,12 @@ async function handleAddInvoiceRun(e) {
                 return; // Stop saving
             }
         }
+    }
+    // 18.0.0 patch 93: same value + same invoice date as an invoice already on this PO, but another Inv No.
+    // (e.g. "A-101" and "A101" typed for one paper invoice). A warning only: OK saves.
+    if (imDupSource && typeof window.ibaSameInvoice === 'function') {
+        const twin = window.ibaSameInvoice(imDupSource, invoiceData);
+        if (twin && !confirm(`Please check: PO ${currentPO} already has ${twin.invEntryID || 'an invoice'} (Inv No. ${twin.invNumber || '-'}) with the same value and the same invoice date.\n\nIs this a different invoice?\nOK = save it\nCancel = don't save`)) return;
     }
     // ==========================================================
 
@@ -4999,9 +5010,28 @@ async function handleUpdateInvoiceRun(e) {
     const invoiceData = Object.fromEntries(formData.entries());
 
     // SANITIZE: Remove commas before saving
-    if (invoiceData.invValue) invoiceData.invValue = invoiceData.invValue.replace(/,/g, '');
-    if (invoiceData.amountPaid) invoiceData.amountPaid = invoiceData.amountPaid.replace(/,/g, '');
+    // 18.0.0 patch 93: values must be real numbers (commas/spaces are removed, letters are refused)
+    if (!imMoneyOk(invoiceData.invValue) || !imMoneyOk(invoiceData.amountPaid)) {
+        alert(`Please check the amounts:\n${!imMoneyOk(invoiceData.invValue) ? '- Invoice Value "' + invoiceData.invValue + '" is not a number\n' : ''}${!imMoneyOk(invoiceData.amountPaid) ? '- Amount Paid "' + invoiceData.amountPaid + '" is not a number\n' : ''}\nNothing was saved.`);
+        return;
+    }
+    if (invoiceData.invValue) invoiceData.invValue = imMoneyText(invoiceData.invValue);
+    if (invoiceData.amountPaid) invoiceData.amountPaid = imMoneyText(invoiceData.amountPaid);
     imApplyRetentionInvoiceDataRule(invoiceData);
+
+    // 18.0.0 patch 93 (martin): Update had no empty-field check (Add has). A box that had a value may not be
+    // emptied: Inv No., Invoice Value, Invoice Date, Status. (Old invoices that never had one can still be saved.)
+    {
+        const orig = (typeof currentPOInvoices !== 'undefined' && currentPOInvoices && currentPOInvoices[currentlyEditingInvoiceKey]) || {};
+        const blank = (x) => String(x == null ? '' : x).trim() === '';
+        const lost = [['invNumber', 'Invoice No.'], ['invValue', 'Invoice Value'], ['invoiceDate', 'Invoice Date'], ['status', 'Status']]
+            .filter(([k]) => blank(invoiceData[k]) && (!blank(orig[k]) || k === 'status' || k === 'invNumber'))
+            .map(([, label]) => label);
+        if (lost.length) {
+            alert(`Please fill in:\n- ${lost.join('\n- ')}\n\nNothing was saved.`);
+            return;
+        }
+    }
 
     let attentionValue = '';
     try {
@@ -5160,7 +5190,7 @@ async function handleUpdateInvoiceRun(e) {
                 await db.ref(`job_entries/${matchedJob.key}`).update({
                     status: "Completed",
                     remarks: newStatus,
-                    dateResponded: new Date().toISOString().split('T')[0],
+                    dateResponded: (window.ibaLocalISO ? window.ibaLocalISO() : new Date().toISOString().split('T')[0]),
                     amount: invoiceData.invValue
                 });
             // 15.0.0 patch 43: leave a change marker so other browsers (and the saved Job Records copy) pick it up
@@ -5237,7 +5267,10 @@ async function handleDeleteInvoice(key) {
         return;
     }
 
-    if (confirm("Are you sure you want to delete this invoice entry? This action cannot be undone.")) {
+    if (confirm("Delete this invoice entry?\n\nIt goes to the Recycle Bin (Invoice tab), where you can restore it.")) {
+        // 18.0.0 patch 93 (martin): keep a copy in the Recycle Bin first; if that fails nothing is deleted
+        try { if (typeof window.ibaInvoiceToBin === 'function') await window.ibaInvoiceToBin(currentPO, key, invoiceToDelete); }
+        catch (binErr) { alert('Nothing was deleted: the copy for the Recycle Bin could not be saved (' + ((binErr && binErr.message) || binErr) + ').'); return; }
         try {
             await invoiceDb.ref(`invoice_entries/${currentPO}/${key}`).remove();
             await removeInvoiceTaskFromUser(key, invoiceToDelete);
@@ -5249,7 +5282,7 @@ async function handleDeleteInvoice(key) {
                 console.warn('Deleted invoice payment-ready cleanup skipped:', paymentIndexError);
             }
 
-            alert("Invoice deleted successfully.");
+            alert("Invoice deleted. It is in the Recycle Bin (Invoice tab) if you need it back.");
             removeFromLocalInvoiceCache(currentPO, key);
             fetchAndDisplayInvoices(currentPO);
 
@@ -5528,15 +5561,71 @@ async function handleSaveBatchInvoices() {
     }
 }
 
+// 18.0.0 patch 93 (martin): money boxes must hold a real number. Commas and spaces are fine ("1,200.50"),
+// anything else ("1,2OO", "500 QR") is refused instead of being saved as text that totals then skip.
+function imMoneyText(v) { return String(v == null ? '' : v).replace(/[,\s]/g, ''); }
+function imMoneyOk(v) { const t = imMoneyText(v); return t === '' || /^-?\d+(\.\d+)?$/.test(t); }
+
+// 18.0.0 patch 93 (martin): which Batch rows can be saved. A row needs Inv No., a numeric Invoice Value
+// (Retention = 0), Invoice Date and a Status (the Add rule); Amount Paid, if typed, must be a number.
+function imBatchRowProblems(row, globalStatus) {
+    const v = (n) => { const el = row.querySelector('[name="' + n + '"]'); return el ? String(el.value || '').trim() : ''; };
+    const out = [];
+    const no = v('invNumber');
+    if (!no) out.push('Inv No.');
+    const retention = (typeof imIsRetentionInvoiceNumber === 'function') && imIsRetentionInvoiceNumber(no);
+    const val = v('invValue');
+    if (!retention && !val) out.push('Invoice Value');
+    else if (!retention && !imMoneyOk(val)) out.push('Invoice Value is not a number ("' + val + '")');
+    if (!v('invoiceDate')) out.push('Invoice Date');
+    if (!(globalStatus || v('status'))) out.push('Status');
+    const paid = v('amountPaid');
+    if (paid && !imMoneyOk(paid)) out.push('Amount Paid is not a number ("' + paid + '")');
+    return out;
+}
+
 async function imBatchSaveRun() {
     // 💡 UPDATED: Grabs the new Div Cards instead of <tr> rows
-    const rows = document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card');
+    let rows = Array.from(document.getElementById('im-batch-table-body').querySelectorAll('.batch-invoice-card'));
     if (rows.length === 0) {
         alert("There are no invoices to save.");
         return;
     }
-    
-    if (!confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
+
+    // 18.0.0 patch 93 (martin): check every row BEFORE anything is written. Before, rows were saved one by one
+    // and a blank value in row 7 stopped the save after rows 1-6 were already written (they stayed in the batch,
+    // so the next Save ran into them again). Now: complete rows are saved and leave the batch; incomplete rows
+    // are marked red and stay for you to finish.
+    const imBatchKept = [];
+    {
+        const gEl = document.getElementById('im-batch-global-status');
+        const gStatus = gEl ? String(gEl.value || '').trim() : '';
+        const bad = [];
+        rows.forEach((row) => {
+            const probs = imBatchRowProblems(row, gStatus);
+            row.classList.toggle('iba-bt-bad', probs.length > 0);
+            if (probs.length) {
+                row.setAttribute('data-bt-bad', 'Not saved - missing or wrong: ' + probs.join(', '));
+                const no = (row.querySelector('[name="invNumber"]') || {}).value || '';
+                bad.push({ row, line: `PO ${row.dataset.po || '?'}${no ? ' / ' + no : ''}: ${probs.join(', ')}` });
+            } else row.removeAttribute('data-bt-bad');
+        });
+        if (bad.length) {
+            if (bad.length === rows.length) {
+                alert(`Nothing was saved.\n\nThese rows are not complete (marked red):\n- ${bad.map((b) => b.line).join('\n- ')}\n\nFill them in, then Save again.`);
+                try { bad[0].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+                return;
+            }
+            if (!confirm(`${bad.length} of ${rows.length} rows are not complete (marked red):\n- ${bad.map((b) => b.line).join('\n- ')}\n\nSave the other ${rows.length - bad.length} now? The ${bad.length} incomplete ${bad.length === 1 ? 'row stays' : 'rows stay'} in the batch for you to finish.`)) {
+                try { bad[0].row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+                return;
+            }
+            bad.forEach((b) => imBatchKept.push(b.row));
+            rows = rows.filter((r) => imBatchKept.indexOf(r) < 0);
+        }
+    }
+
+    if (!imBatchKept.length && !confirm(`You are about to save/update ${rows.length} invoice(s). Continue?`)) return;
     imBatchSaveProgress('Checking...');
 
     let currentUserName = 'Admin'; 
@@ -5694,6 +5783,7 @@ async function imBatchSaveRun() {
 
     // 18.0.0 patch 60 (martin): new rows must not repeat an invoice no. that is already SAVED on the PO.
     // Reads only invoice_entries/<PO> of each PO with new rows (a few KB each), never the whole list.
+    const imBatchTwins = [];
     if (window.ibaReception) {
         const R = window.ibaReception, byPo = {};
         rows.forEach((row) => {
@@ -5710,6 +5800,12 @@ async function imBatchSaveRun() {
             for (const x of byPo[po]) {
                 const d = await R.findDup({ po, no: x.no, invs, jobs: false });
                 if (d.invs.length) hits.push({ po, no: x.no, row: x.row, inv: d.invs[0] });
+                else if (typeof window.ibaSameInvoice === 'function') {
+                    // 18.0.0 patch 93: same value + same invoice date as an invoice already on the PO (other Inv No.)
+                    const g = (n) => { const el = x.row.querySelector('[name="' + n + '"]'); return el ? el.value : ''; };
+                    const twin = window.ibaSameInvoice(invs, { invValue: g('invValue'), invoiceDate: g('invoiceDate'), invNumber: x.no });
+                    if (twin) imBatchTwins.push(`PO ${po}: ${x.no} has the same value and invoice date as ${twin.invEntryID || ''} (Inv No. ${twin.invNumber || '-'})`);
+                }
             }
         }
         if (hits.length) {
@@ -5732,6 +5828,10 @@ async function imBatchSaveRun() {
                 return;
             }
         }
+    }
+    if (imBatchTwins.length) {
+        imBatchSaveProgress('');
+        if (!confirm(`Please check: these look like an invoice that is already saved (same value and same invoice date, only the Inv No. is written differently):\n- ${imBatchTwins.join('\n- ')}\n\nOK = save anyway (they are different invoices)\nCancel = nothing is saved, so you can check`)) return;
     }
 
     let imBatchRowNo = 0;
@@ -5789,8 +5889,8 @@ async function imBatchSaveRun() {
             details: row.querySelector('[name="details"]') ? row.querySelector('[name="details"]').value : '',
             srvName: row.querySelector('[name="srvName"]').value,
             invoiceDate: row.querySelector('[name="invoiceDate"]').value,
-            invValue: row.querySelector('[name="invValue"]').value.replace(/,/g, ''), // Commas stripped!
-            amountPaid: row.querySelector('[name="amountPaid"]').value.replace(/,/g, ''), // Commas stripped!
+            invValue: imMoneyText(row.querySelector('[name="invValue"]').value), // commas + spaces stripped (p93)
+            amountPaid: imMoneyText(row.querySelector('[name="amountPaid"]').value), // commas + spaces stripped (p93)
             status: row.querySelector('[name="status"]').value,
             note: row.querySelector('[name="note"]').value,
             group: invoiceGroup,
@@ -6008,9 +6108,15 @@ async function imBatchSaveRun() {
         if (notesTouchedThisBatch.size > 0) refreshNotePickers(Array.from(notesTouchedThisBatch)[notesTouchedThisBatch.size - 1]);
         
         alert(`Batch Process Complete!\n\nNew Invoices: ${newInvoicesCount}\nUpdated Invoices: ${updatedInvoicesCount}` +
-            (imBatchRenumbered.length ? `\n\nInv Entry ID changed to the next free number:\n- ${imBatchRenumbered.join('\n- ')}` : ''));
-        
-        if (typeof imClearBatchEntryAfterSuccessfulSave === 'function') {
+            (imBatchRenumbered.length ? `\n\nInv Entry ID changed to the next free number:\n- ${imBatchRenumbered.join('\n- ')}` : '') +
+            (imBatchKept.length ? `\n\n${imBatchKept.length} incomplete ${imBatchKept.length === 1 ? 'row is' : 'rows are'} still in the batch (marked red): finish and Save again.` : ''));
+
+        if (imBatchKept.length) {
+            // 18.0.0 patch 93: only the saved rows leave; the incomplete ones stay with their PO, choices and marks
+            rows.forEach((r) => { try { r.remove(); } catch (_) {} });
+            try { if (typeof updateBatchCount === 'function') updateBatchCount(); } catch (_) {}
+            try { imBatchKept[0].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+        } else if (typeof imClearBatchEntryAfterSuccessfulSave === 'function') {
             imClearBatchEntryAfterSuccessfulSave();
         } else {
             document.getElementById('im-batch-table-body').innerHTML = '';
@@ -7110,7 +7216,7 @@ document.querySelectorAll('.sidebar-version-display').forEach(el => {
             }
             try { if (cleanName && cleanName !== 'User' && localStorage.getItem('IBA_LAST_USER_NAME') !== cleanName) localStorage.setItem('IBA_LAST_USER_NAME', cleanName); } catch (_) {}
 
-            const now = new Date();
+            const now = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time
             const hour = now.getHours();
             const greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
             const fullDate = now.toLocaleDateString('en-QA', {

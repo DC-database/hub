@@ -3,6 +3,56 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 96 (21-Nov-2026)
+  Qatar time on every screen (martin): the office works on Qatar time, so a phone or PC abroad shows every time
+  and date in Qatar time too (history, records, ESN sticker time, receipts, close-out lists...). Dates and times
+  shown with toLocaleString / toLocaleDateString / toLocaleTimeString and formatDate() use Asia/Qatar unless the
+  code names a zone; window.ibaQatarWall(d) for hand-made formats. A plain calendar day (00:00:00, e.g. an
+  invoice date) is never moved. On a device in Qatar nothing changes.
+  Files: js/app-core.js, js/iba-1705-ie.js, js/iba-1702-esn.js, js/app-po-closeout.js, js/app-inventory.js,
+  index.html, PATCH.txt
+
+18.0.0 patch 95 (21-Nov-2026)
+  Qatar date everywhere (martin): the dates the system writes for "today" (ibaLocalISO, getTodayDateString:
+  payments, transfers, stock files, responded dates, date boxes filled for you) are now the QATAR day on every
+  device, also abroad (e.g. on vacation in the Philippines at 1 AM = Qatar 8 PM the day before). Times are
+  already saved as one world moment (server time), so everyone in Qatar sees them in Qatar time.
+  The header clock (digital + analog + date), the sidebar clock, the screen saver clock and the
+  Good morning/afternoon greeting show QATAR time on every device (window.ibaQatarNow in app-core.js).
+  Files: js/app-core.js, app.js, js/iba-shell.js, js/iba-17-p21.js, js/app-time-clock.js, js/iba-1705-idle.js,
+  js/iba-1705-mhome.js, index.html, PATCH.txt
+
+18.0.0 patch 94 (21-Nov-2026)
+  "Stuck too long" (martin, Super Admin, PC): one list of open invoices that have been in the same status longer
+  than their days (7, or the number you set per status: "Days per status", saved in invoice db
+  iba_settings/stuck_days). Oldest first; PO, entry / Inv No., vendor, site, value, status, days, who holds it.
+  Open = Invoice Entry with that invoice open; Remind = reminder to a person (IRIS reminders inbox, never the CEO);
+  Remove = to the Recycle Bin (Invoice tab). Days = start of the current status in the history, else
+  statusChangedAt, else entry date, else invoice date. Data from the saved invoice copy (no full download).
+  Paid / CLOSED / Cancelled / Original PO / Retention are left out. Open it from IRIS (chip "Stuck too long",
+  Approvals group) or Job Records > More tools.
+  Files: js/iba-1800-stuck.js (NEW), js/iba-assistant.js, css/iba-1705-fit.css, index.html, PATCH.txt
+
+18.0.0 patch 93 (21-Nov-2026)
+  Review fixes (martin asked to fix every finding of the system review):
+  - Batch Entry Save: every row is checked BEFORE anything is written (Inv No., Invoice Value as a number unless
+    Retention, Invoice Date, Status, Amount Paid a number if typed). Complete rows are saved and leave the batch;
+    incomplete rows stay, marked red with what is missing, and the mark goes as soon as you type in the row.
+    All rows incomplete = nothing saved. (Before, rows 1-6 could be saved and row 7 stopped the save.)
+  - Update: Inv No., Invoice Value, Invoice Date and Status can no longer be emptied (Add already checked this).
+  - Invoice Value / Amount Paid must be real numbers on Add, Update and Batch ("1,200.50" fine, "12a" refused).
+  - Dates: Qatar (device) date instead of the UTC date in invoice/finance/inventory/transfer screens and file
+    names, so 00:00-03:00 no longer gives yesterday (window.ibaLocalISO in app-core.js).
+  - Deleting an invoice (Invoice Entry and invoice pop-up) first copies it to invoice db
+    recycle_bin/invoice/<po>~<key>; if that copy fails nothing is deleted. Recycle Bin has an Invoice tab
+    (Restore puts it back with the same key + history line, Delete forever, tick boxes / bulk).
+  - Same-invoice warning on Add and Batch: same value + same invoice date as an invoice already on the PO but a
+    different Inv No. -> "Is this a different invoice?" (OK saves).
+  - Summary Note hand order (patch 88) is now saved in invoice db summary_note_order/<note>, same on every PC.
+  Files: app.js, index.html, css/iba-1705-fit.css, js/iba-1800-p93.js (NEW), js/iba-1800-tidy.js,
+  js/iba-1800-snorder.js, js/app-invoice.js, js/app-core.js, js/app-finance.js, js/iba-1705-sitestock.js,
+  js/materialStock.js, js/iba-phone.js, js/transferLogic.js, PATCH.txt
+
 18.0.0 patch 92 (21-Nov-2026)
   Invoice Entry "Save as new" (martin): next to Update while a saved invoice is open. Update still corrects that
   invoice; Save as new keeps it untouched and adds a NEW invoice on the PO from the form: next INV number, the
