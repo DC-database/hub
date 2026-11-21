@@ -3,6 +3,16 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 90 (19-Nov-2026)
+  New entries to Batch invoice no. rule (martin): PO already has an IPC-style series -> next in that series;
+  otherwise 6+ characters = kept as Reception typed it; 5 or fewer = PO number + dot + number.
+  Files: js/iba-1702-reception-batch.js, index.html, PATCH.txt
+
+18.0.0 patch 89 (19-Nov-2026)
+  Batch Entry: the "Reception wrote ... using ..." note (New entries to Batch fixing an invoice no.)
+  now spans the whole card in one line instead of being squeezed into one narrow column.
+  Files: css/iba-1705-fit.css, index.html, PATCH.txt
+
 18.0.0 patch 88 (19-Nov-2026)
   Summary Note order (martin): same PO together; lower site first; same site = older bill date first;
   PO number only breaks a full tie; inside a PO oldest bill first.
