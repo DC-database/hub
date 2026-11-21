@@ -471,6 +471,10 @@
                     amountPaid: inv.amountPaid || inv.invValue || c.row.amountPaid || '',
                     invName: inv.invName || c.row.invName || '',
                     note: inv.note || '',
+                    // 18.0.0 patch 98: carry the ⚡ Urgent tick (phone Urgent | Normal tabs)
+                    urgent: inv.urgent === true ? true : null,
+                    urgentBy: inv.urgentBy || '',
+                    urgentAt: inv.urgentAt || 0,
                     invoiceDate: inv.invoiceDate || c.row.date || '',
                     enteredBy: inv.enteredBy || '',
                     approvalCount: Number(inv.approvalCount || 0),
@@ -917,6 +921,36 @@
     // Invoice Records: the green WhatsApp icon on a "For Approval" invoice.
     // It was left from the old system with nothing behind it; now it opens
     // WhatsApp with a ready reminder for the person in Attention.
+    // 18.0.0 patch 97 (martin): new wording, the mobile approval link, and the same message from IRIS
+    // ("Approval reminder (WhatsApp)" skill and "send 12345" in the chat).
+    const MOBILE_APPROVAL_URL = 'https://port.iba.com.qa/invoice/';
+    function firstAttention(inv) {
+        return String((inv && inv.attention) || '').split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i).map((x) => x.trim()).filter(Boolean)[0] || '';
+    }
+    function approvalMessage(who, items) {
+        const one = items.length === 1;
+        const lines = [`Hello ${who},`, '',
+            one ? 'This is an automatic message from IBA: an invoice is waiting for your approval.'
+                : `This is an automatic message from IBA: ${items.length} invoices are waiting for your approval.`];
+        items.forEach((it, i) => {
+            const inv = it.inv || {};
+            const days = waitingDays(inv);
+            const link = pdfUrl(inv);
+            const vendor = inv.vendorName || inv.vendor_name || '';
+            lines.push('');
+            lines.push(`${one ? '' : (i + 1) + '. '}PO ${it.po} · ${inv.invNumber || inv.invEntryID || ''}${vendor ? ' · ' + vendor : ''}`);
+            lines.push(`Amount: QAR ${money(inv.amountPaid || inv.invValue || 0)}`);
+            if (days !== null) lines.push(`Waiting: ${days} day${days === 1 ? '' : 's'}`);
+            if (inv.note) lines.push(`Note: ${inv.note}`);
+            if (link) lines.push(`Invoice: ${link}`);
+        });
+        lines.push('', `Please click here to approve: ${MOBILE_APPROVAL_URL}`, '', 'Thank you,', myName() || 'IBA'); // p97: the link opens the approval (martin)
+        return lines.join('\n');
+    }
+    function isCeoName(name) {
+        const a = approverRecord(name);
+        return !!a && isCEOUser(a);
+    }
     async function shareForApproval(po, key) {
         let inv = null;
         try { inv = (typeof allInvoiceData !== 'undefined' && allInvoiceData && allInvoiceData[po]) ? allInvoiceData[po][key] : null; } catch (_) {}
@@ -924,22 +958,39 @@
             try { const s = await invDb().ref(`invoice_entries/${po}/${key}`).once('value'); inv = s.val(); } catch (_) {}
         }
         if (!inv) { alert('This invoice was not found.'); return; }
-        const who = String(inv.attention || '').split(/\s*(?:,|;|\/|\||&|\+|->|➔|\band\b|\bor\b)\s*/i).map((x) => x.trim()).filter(Boolean)[0] || '';
+        const who = firstAttention(inv);
         if (!who) { alert('Nobody is in Attention for this invoice.'); return; }
-        const days = waitingDays(inv);
-        const link = pdfUrl(inv);
-        const lines = [
-            `Hello ${who},`,
-            '',
-            'A reminder: this invoice is waiting for your approval in IBA.',
-            `PO ${po} · ${inv.invNumber || inv.invEntryID || ''}${inv.vendorName || inv.vendor_name ? ' · ' + (inv.vendorName || inv.vendor_name) : ''}`,
-            `Amount: QAR ${money(inv.amountPaid || inv.invValue || 0)}`
-        ];
-        if (days !== null) lines.push(`Waiting: ${days} day${days === 1 ? '' : 's'}`);
-        if (inv.note) lines.push(`Note: ${inv.note}`);
-        if (link) lines.push('', `Invoice: ${link}`);
-        lines.push('', 'Please approve it in IBA (WorkDesk > Active Task).', `Thank you, ${myName() || 'IBA'}`);
-        await whatsAppTo(who, lines.join('\n'));
+        await ensureApprovers();
+        if (isCeoName(who) || /\bceo approval\b/i.test(String(inv.status || ''))) { alert('No reminders to the CEO.'); return; }
+        await whatsAppTo(who, approvalMessage(who, [{ po, inv }]));
+    }
+    // IRIS: every "For Approval" invoice of one PO (one read of that PO only), grouped by the person in
+    // Attention (or sent to `to`). Returns { po, none, other, groups:[{ who, phone, text, count, blocked }] }.
+    async function approvalReminder(po, to) {
+        po = String(po || '').trim().toUpperCase();
+        if (!po) throw new Error('Type a PO number.');
+        await ensureApprovers();
+        const snap = await invDb().ref('invoice_entries/' + po).once('value');
+        const all = snap.val() || {};
+        const keys = Object.keys(all).filter((k) => all[k] && typeof all[k] === 'object');
+        if (!keys.length) return { po, missing: true, groups: [] };
+        const fa = keys.filter((k) => statusNorm(all[k].status) === 'for approval');
+        const other = keys.filter((k) => fa.indexOf(k) < 0).map((k) => `${all[k].invEntryID || all[k].invNumber || k} is ${all[k].status || 'without a status'}`);
+        if (!fa.length) return { po, none: true, other, groups: [] };
+        let toName = String(to || '').trim();
+        if (toName) { const a = approverRecord(toName); if (a) toName = String(a.Name || a.name || toName); }
+        const by = {};
+        fa.forEach((k) => {
+            const who = toName || firstAttention(all[k]) || '';
+            (by[who] = by[who] || []).push({ po, key: k, inv: all[k] });
+        });
+        const groups = Object.keys(by).map((who) => {
+            const items = by[who];
+            if (!who) return { who: '', count: items.length, blocked: 'Nobody is in Attention for ' + items.map((x) => x.inv.invEntryID || x.key).join(', ') + '.' };
+            if (isCeoName(who)) return { who, count: items.length, blocked: 'No reminders to the CEO.' };
+            return { who, phone: phoneOf(who), count: items.length, entries: items.map((x) => x.inv.invEntryID || x.inv.invNumber || x.key), text: approvalMessage(who, items) };
+        });
+        return { po, groups, other };
     }
     window.imShareInvoiceForApprovalWhatsApp = shareForApproval;
 
@@ -980,7 +1031,7 @@
         openDialog, closeDialog, printStamp, sendWhatsApp, decisionToast, toast, processReturned,
         rowActionsHtml, returnNoteText,
         settle, refreshAfterDecision, isUrgent, isApprovalStatus,
-        whatsAppTo, phoneOf, shareForApproval
+        whatsAppTo, phoneOf, shareForApproval, approvalReminder, approvalMessage
     };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });

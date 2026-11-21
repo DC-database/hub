@@ -1374,6 +1374,10 @@ async function wdLoadPersonalInvoiceLookupTasksForActiveTask(names = [], forceRe
                     esnState: validatedTask.esnState || '',
                     esnPrintedAt: validatedTask.esnPrintedAt || 0,
                     readyBy: validatedTask.readyBy || '',
+                    // 18.0.0 patch 98: carry the ⚡ Urgent tick so the Urgent | Normal tabs see it
+                    urgent: validatedTask.urgent === true ? true : null,
+                    urgentBy: validatedTask.urgentBy || '',
+                    urgentAt: validatedTask.urgentAt || 0,
                     isUrgent: !String(invoiceStatus || '').toLowerCase().includes('on hold')
                 });
             }

@@ -3299,6 +3299,11 @@
         // 15.0.0 patch 47: answered without the AI (key or no key): a PO
         // number, a report / skill word; with no key also a name or vendor
         // 18.0.0 patch 62: clear jobs ("register the new entries from yesterday", "what do I have today") go first
+        // 18.0.0 patch 97: "send 12345" / "whatsapp 12345 to E.Bara" = WhatsApp approval reminder (before the PO lookup)
+        if (!(opts && opts.silentUser)) {
+            const w0 = apvWaAsk(text.replace(/[?!.]+$/, '').trim());
+            if (w0) { showView('chat'); addUser(text); state.busy = true; setBusy(true); try { await apvWa(w0.po, w0.to); } finally { state.busy = false; setBusy(false); } return; }
+        }
         if (!(opts && opts.silentUser) && window.ibaMind) {
             let m0 = null; try { m0 = window.ibaMind.understand(text); } catch (_) { m0 = null; }
             if (m0 && m0.run) { await runTemplateNow(m0.run, m0.vals, text); return; }
@@ -3721,6 +3726,11 @@
         // 17.0.5 patch 155: CEO approved Summary Notes -> Batch Entry as With Accounts + SRV name (js/iba-1705-n2a.js)
         notes_to_acc: { name: 'Notes to Accounts', icon: 'fa-file-export', superOnly: true, desc: 'Tick the Summary Notes the CEO approved: every invoice under them goes into Batch Entry as With Accounts with the note\'s SRV name (first 23 letters of the vendor + today). Invoices that already have an SRV name or are not CEO Approval are highlighted. Copy or download one row per SRV name to rename the scans. Nothing is saved until you press Save. No AI used.',
             check: () => !!(window.ibaNotesToAcc && window.ibaNotesToAcc.allowed()), ask: () => [], action: () => { if (window.ibaNotesToAcc) window.ibaNotesToAcc.open(); } },
+        // 18.0.0 patch 97 (martin): WhatsApp approval reminder by PO (js/iba-approvals.js approvalReminder)
+        apv_wa: { name: 'Approval reminder (WhatsApp)', icon: 'fa-comment-dots', superOnly: true, desc: 'Type a PO: every invoice of that PO waiting For Approval goes into one ready WhatsApp message to the person in Attention (or to the name you type), with the mobile approval link and the invoice PDF. WhatsApp opens with the text; you press Send. Never to the CEO. Also in the chat: "send 12345" or "whatsapp 12345 to E.Bara". No AI used.',
+            ask: () => [{ key: 'po', label: 'PO number', placeholder: 'e.g. 66992' },
+                { key: 'to', label: 'Send to (empty = the person in Attention)', placeholder: 'e.g. E.Bara', optional: true, suggest: () => people().map((p) => p.value) }],
+            run: async (vals) => apvWa(vals.po, vals.to) },
         // 18.0.0 patch 94: invoices that have not moved for too long (js/iba-1800-stuck.js)
         stuck: { name: 'Stuck too long', icon: 'fa-hourglass-half', superOnly: true, desc: 'Every open invoice that has been in the same status longer than its days (7 unless you set another number per status), oldest first, with PO, vendor, site, value, days and who holds it. Open it in Invoice Entry to update or finish it, Remind the person (never the CEO), or Remove it to the Recycle Bin. No AI used.',
             check: () => !!(window.ibaStuck && window.ibaStuck.allowed()), ask: () => [], action: () => { try { toggle(false); } catch (_) {} if (window.ibaStuck) window.ibaStuck.open(); } },
@@ -5172,11 +5182,58 @@
         if (hit && /\binvoices?\b|\bstatus\b|^(?:pending|open|show|list|check|all|what|which|any)\b/.test(q)) return [['invoices_by_status', { status: hit }]];
         return null;
     }
+    // 18.0.0 patch 97: WhatsApp approval reminder by PO
+    function apvWaAsk(t) {
+        if (!tplAllowed('apv_wa')) return null;
+        const s = String(t || '').replace(/^(?:hi|hello|hey)(?:\s+iris)?[,!\s]+/i, '').trim();
+        if (!/\b(send|whatsapp|whats app|wa|remind)\b/i.test(s)) return null;
+        if (/\b(batch|email|e-mail|mail|lpo|print|report|excel|summary|note|accounts?)\b/i.test(s)) return null;
+        const pos = s.match(/\b\d{4,6}\b/g);
+        if (!pos || pos.length !== 1) return null;
+        if (!/\b(send|whatsapp|whats app|wa)\b/i.test(s) && !/\bapprov/i.test(s)) return null;
+        let to = '';
+        const m = s.match(/\b(?:to|for)\s+([A-Za-z][A-Za-z.\-' ]{0,40})$/);
+        if (m && !/^(?:the\s+)?(?:approval|approve|whatsapp|whats app|me|him|her|them|status|please|pls)\b/i.test(m[1].trim())) to = m[1].replace(/\s+(?:please|pls|thanks?)$/i, '').trim();
+        return { po: pos[0], to: to };
+    }
+    async function apvWa(po, to) {
+        const A = window.ibaApprovals;
+        if (!A || typeof A.approvalReminder !== 'function') { addNote('This tool is not loaded on this page.'); return ''; }
+        po = String(po || '').replace(/\D+/g, '');
+        if (!po) { addNote('Type a PO number.'); return ''; }
+        let r;
+        try { r = await A.approvalReminder(po, to); } catch (err) { addError(err); return ''; }
+        if (r.missing) { addNote('PO ' + po + ' has no invoices in Invoice Records.'); return ''; }
+        if (r.none) { addNote('PO ' + po + ' has nothing waiting For Approval' + (r.other && r.other.length ? ' (' + r.other.join(', ') + ').' : '.')); return ''; }
+        const ok = r.groups.filter((g) => g.text);
+        const card = document.createElement('div');
+        card.className = 'iba-ai-msg is-bot iba-apvwa';
+        card.innerHTML = '<div class="iba-ai-text"><p><strong>PO ' + esc(po) + ' · For Approval</strong></p>' +
+            r.groups.map((g, i) => g.text
+                ? '<div class="iba-apvwa-row"><span><b>' + esc(g.who) + '</b> · ' + esc(g.entries.join(', ')) + (g.phone ? '' : ' <small>(no mobile number saved: you will be asked once)</small>') + '</span>' +
+                  '<button type="button" class="iba-ai-mini is-main" data-apvwa="' + i + '"><i class="fa-brands fa-whatsapp"></i> WhatsApp ' + esc(g.who) + '</button></div>'
+                : '<div class="iba-apvwa-row is-off"><span>' + esc(g.who || 'Nobody') + ': ' + esc(g.blocked) + '</span></div>').join('') +
+            (ok.length ? '<details class="iba-apvwa-text"><summary>Message</summary><pre>' + esc(ok[0].text) + '</pre></details>' : '') + '</div>';
+        card.addEventListener('click', (e) => {
+            const b = e.target.closest('[data-apvwa]'); if (!b) return;
+            e.preventDefault(); e.stopPropagation();
+            const g = r.groups[Number(b.getAttribute('data-apvwa'))];
+            if (g && g.text) A.whatsAppTo(g.who, g.text);
+        });
+        put(card);
+        // one person with a saved number: open WhatsApp straight away (the browser may block it; the button stays)
+        if (ok.length === 1 && ok[0].phone) {
+            let w = null; try { w = window.open('https://wa.me/' + ok[0].phone + '?text=' + encodeURIComponent(ok[0].text), '_blank'); } catch (_) {}
+            if (w) addNote('WhatsApp opened for ' + ok[0].who + ' with the message ready. Press Send there.');
+        }
+        return '';
+    }
     async function localAnswer(text, shown) {
         shown = shown || text; // 18.0.0 patch 62: the words the person typed (text may be the cleaned version)
         const t = text.replace(/[?!.]+$/, '').trim();
         // 17.0.5 patch 138: "remind me Saturday about PO 66459 ..." -> saved for you, no AI
         if (/^(?:please\s+|pls\s+|can you\s+)?remind\s+me\b/i.test(t)) return remindMeLocal(text);
+        // 18.0.0 patch 97 (martin): "send 12345", "whatsapp po 12345 to E.Bara", "can you send 12345 that approval status"
         const words = t.split(/\s+/).filter(Boolean).length;
         // 18.0.0 patch 45 (martin): lists without the AI. "pending for IPC", "show For SRV", "what is On Hold",
         // and the reception job types (IPC Application, IPC Processed, PR, Credit Note, Cancel, Original PO, Other).
@@ -7144,7 +7201,7 @@
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], photo_names: ['Item photo file names', '#F7BE45'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
         screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
-        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], stuck: ['Invoices that have not moved', '#b91c1c'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
+        brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], stuck: ['Invoices that have not moved', '#b91c1c'], apv_wa: ['WhatsApp reminder to approve', '#16a34a'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         xl_wa: ['Morning / afternoon, copy or CSV', '#15803d'], xl_ur: ['Morning / afternoon, copy or CSV', '#0f766e'], recent: ['Moved lately, into Batch', '#0e7490'],
         new_job: ['PO in, form filled', '#138A97'], new_invoice: ['Reception, 4 easy steps', '#C9A227'], new_requisition: ['Procurement, no PO yet', '#4FA3D9'], sn_print_all: ['Today\'s summary notes, one print', '#7FE3D6'], remind_me: ['For yourself, on a day', '#f59e0b'], new_delivery: ['Transfer, Restock, Return, Usage', '#0f9f6e'],
@@ -7162,7 +7219,7 @@
         ['My day', ['brief', 'remind_me', 'screensaver', 'dash_charts']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
         ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch']],
-        ['Approvals', ['approvals_list', 'urgent', 'stuck']],
+        ['Approvals', ['approvals_list', 'apv_wa', 'urgent', 'stuck']],
         ['Inventory', ['merge_clean', 'photo_names', 'site_stock']],
         ['Reports and lists', ['xl_wa', 'xl_ur', 'po_report', 'sn_print_all', 'dash_print', 'site_list', 'weekly']],
         ['LPO and PO file', ['find_lpo', 'lpo_mail', 'po_pull']],
