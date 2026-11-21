@@ -143,6 +143,9 @@
             const no = best.prefix + String(best.max + 1).padStart(best.w, '0');
             return { no: no, changed: no !== raw, why: 'same style as ' + best.last };
         }
+        // 18.0.0 patch 90 (martin): no IPC-style series on this PO -> a 6+ character invoice no. is kept as
+        // Reception typed it; only a short one (5 or fewer) becomes PO number + dot + number.
+        if (raw.replace(/\s+/g, '').length >= 6) return { no: raw, changed: false };
         return { no: P + '.' + raw, changed: true, why: 'PO number + dot' };
     }
     function markFixed(card, from, to, why) {
