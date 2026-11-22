@@ -11,7 +11,7 @@
  */
 (function () {
     'use strict';
-    const VERSION = '18.0.0-p114';
+    const VERSION = '18.0.0-p116';
     const KEY = 'iba-settings-item-v1';
     const GROUPS = [
         { id: 'account', label: 'My account' },
@@ -97,20 +97,20 @@
 }`;
     // 2-column page + tidier cards (inside the app's own layer so it wins over its !important rules)
     const PAGE_CSS = `@layer iba-ui {
-html body #wd-settings.iba-st-on{display:grid !important;grid-template-columns:290px minmax(0,1fr) !important;column-gap:26px !important;align-items:start !important}
-html body #wd-settings.iba-st-on > *{grid-column:2 !important;min-width:0}
-html body #wd-settings.iba-st-on > #iba-st-nav{grid-column:1 !important;grid-row:1 / span 50 !important;position:sticky !important;top:12px !important;align-self:start !important}
-html body #wd-settings.iba-st-on > .settings-hero{display:none !important}
-html body #wd-settings.iba-st-on #settings-form,html body #wd-settings.iba-st-on .settings-grid{margin-top:0 !important}
-html body #wd-settings.iba-st-on .iba-st-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin:4px 2px 16px}
-html body #wd-settings.iba-st-on .iba-st-head b{font-size:24px;color:#fff;font-weight:700}
-html body #wd-settings.iba-st-on .iba-st-head span{color:#E3C98A;font-size:14px}
-html body #wd-settings.iba-st-on [data-st]{max-width:1000px}
-html body #wd-settings.iba-st-on .settings-card{padding:18px 20px !important;border-radius:16px !important;margin-bottom:14px !important}
+html body #wd-settings.iba-st-on:not(.hidden){display:grid !important;grid-template-columns:290px minmax(0,1fr) !important;column-gap:26px !important;align-items:start !important}
+html body #wd-settings.iba-st-on:not(.hidden) > *{grid-column:2 !important;min-width:0}
+html body #wd-settings.iba-st-on:not(.hidden) > #iba-st-nav{grid-column:1 !important;grid-row:1 / span 50 !important;position:sticky !important;top:12px !important;align-self:start !important}
+html body #wd-settings.iba-st-on:not(.hidden) > .settings-hero{display:none !important}
+html body #wd-settings.iba-st-on:not(.hidden) #settings-form,html body #wd-settings.iba-st-on:not(.hidden) .settings-grid{margin-top:0 !important}
+html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin:4px 2px 16px}
+html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head b{font-size:24px;color:#fff;font-weight:700}
+html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head span{color:#E3C98A;font-size:14px}
+html body #wd-settings.iba-st-on:not(.hidden) [data-st]{max-width:1000px}
+html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !important;border-radius:16px !important;margin-bottom:14px !important}
 @media (max-width:900px){
- html body #wd-settings.iba-st-on{grid-template-columns:minmax(0,1fr) !important}
- html body #wd-settings.iba-st-on > *{grid-column:1 !important}
- html body #wd-settings.iba-st-on > #iba-st-nav{grid-column:1 !important;grid-row:auto !important;top:0 !important;z-index:5}
+ html body #wd-settings.iba-st-on:not(.hidden){grid-template-columns:minmax(0,1fr) !important}
+ html body #wd-settings.iba-st-on:not(.hidden) > *{grid-column:1 !important}
+ html body #wd-settings.iba-st-on:not(.hidden) > #iba-st-nav{grid-column:1 !important;grid-row:auto !important;top:0 !important;z-index:5}
 }}`;
 
     const blocksOf = (sec) => {
