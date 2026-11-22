@@ -6300,11 +6300,56 @@
             if (fresh.length) {
                 lsSet(REM_SEEN_KEY, shown.concat(fresh.map((r) => r.id)).slice(-100));
                 const r = fresh[0];
+                remChime(); // 18.0.0 patch 115: a sound with it (martin)
                 showBubble('<i class="fa-solid fa-bell"></i><div class="iba-ai-bubble-text"><b>' + (r.self ? 'Your reminder' + (r.po ? ' · PO ' + esc(r.po) : '') : 'Reminder from ' + esc(r.from || 'someone')) + '</b><br>' + esc(String(r.text || '').split('\n')[0].slice(0, 140)) + '</div>' +
-                    '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="brief">Open</button><button type="button" data-bubble="x" title="Dismiss">×</button></div>', 30000);
+                    '<div class="iba-ai-bubble-actions"><button type="button" data-bubble="open" data-then="brief">Open</button><button type="button" data-bubble="x" title="Dismiss">×</button></div>', 60000); // p115: stays while it rings
             }
         }
     }
+    // 18.0.0 patch 115: reminder rings like a call (martin): the chime repeats every 4 s
+    // until Open or × on the reminder bubble, by itself it stops after 1 minute (the red
+    // number stays). Made by the browser itself (no sound file); plays even when System
+    // Audio is muted (that switch is for clicks). Browsers only allow sound after the person
+    // clicked / typed on the page once: if blocked, it starts at the first click or key.
+    const RING_EVERY = 4000, RING_MAX = 60000;
+    let remCtx = null, ringTimer = 0, ringStop = 0, ringWait = null;
+    function chimeOnce() {
+        const ctx = remCtx, t0 = ctx.currentTime + 0.05;
+        [[0, 880], [0.22, 1175], [0.44, 1568]].forEach(([dt, f]) => {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = 'sine'; o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, t0 + dt);
+            g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.9);
+            o.connect(g); g.connect(ctx.destination);
+            o.start(t0 + dt); o.stop(t0 + dt + 0.95);
+        });
+    }
+    function stopRing() {
+        clearInterval(ringTimer); clearTimeout(ringStop); ringTimer = 0; ringStop = 0;
+        if (ringWait) { document.removeEventListener('pointerdown', ringWait, true); document.removeEventListener('keydown', ringWait, true); ringWait = null; }
+    }
+    function remChime() {
+        const C = window.AudioContext || window.webkitAudioContext;
+        if (!C) return;
+        try { if (!remCtx) remCtx = new C(); } catch (_) { return; }
+        stopRing();
+        const ring = () => {
+            if (ringTimer) return;
+            chimeOnce();
+            ringTimer = setInterval(() => { if (remCtx.state === 'running') chimeOnce(); }, RING_EVERY);
+            ringStop = setTimeout(stopRing, RING_MAX);
+        };
+        if (remCtx.state === 'running') { ring(); return; }
+        const go = () => remCtx.resume().then(() => { if (remCtx.state === 'running' && !ringTimer) { if (ringWait) { document.removeEventListener('pointerdown', ringWait, true); document.removeEventListener('keydown', ringWait, true); ringWait = null; } ring(); } }).catch(() => {});
+        ringWait = () => go();
+        document.addEventListener('pointerdown', ringWait, true); document.addEventListener('keydown', ringWait, true);
+        go();
+    }
+    // answering the reminder (Open or ×) stops the ringing
+    document.addEventListener('click', (e) => { if (e.target && e.target.closest && e.target.closest('#iba-ai-bubble [data-bubble]')) stopRing(); }, true);
+    window.ibaRemChime = remChime;
+    window.ibaRemStop = stopRing;
     function stopReminders() { try { if (remRef) remRef.off(); } catch (_) {} remRef = null; remList = []; }
 
     // 15.0.0 patch 9: Invoice Records, searched for this PO

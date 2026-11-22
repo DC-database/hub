@@ -22,7 +22,7 @@
 (function () {
     'use strict';
     if (window.ibaPwd) return;
-    const VERSION = '18.0.0-p113';
+    const VERSION = '18.0.0-p114';
     const SUPER = () => (typeof SUPER_ADMIN_NAME === 'string' && SUPER_ADMIN_NAME) || 'Irwin';
     const REQ = 'iba_pwd_requests';
     const CLEAR_MIN = 30;
@@ -57,7 +57,7 @@
         const d = pw.replace(/\D/g, ''), mob = String((u && u.Mobile) || '').replace(/\D/g, '');
         if (d.length >= 6 && mob && mob.indexOf(d) >= 0) return 'Do not use your mobile number.';
         const nm = String((u && u.Name) || '').toLowerCase().replace(/[^a-z]/g, '');
-        if (nm.length >= 3 && low.replace(/[^a-z]/g, '') === nm && /^(\d{1,3})$/.test(d) && d.length < 4) return 'Too close to your name. Add more numbers or letters.';
+        if (nm.length >= 3 && low.replace(/[^a-z]/g, '') === nm && d.length < 2) return 'Too close to your name. Add more numbers or letters.';
         return '';
     }
     const clearedOpen = (u) => !!(u && u.PwdStatus === 'cleared');
