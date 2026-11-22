@@ -1,0 +1,28 @@
+/* iba-1717-slide.css — 18.0.0 patch 117: IRIS windows slide out beside the assistant (js/iba-1717-slide.js) */
+@layer iba-ui {
+  /* 120 (martin): solid #0C0E11 so text stays readable over any background */
+  html body #iba-ai-panel.iba-sl-on > .iba-sl-win { background: #0C0E11 !important; background-color: #0C0E11 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  html body #iba-ai-panel > .iba-sl-sub { display: flex !important; flex-direction: column !important; overflow: hidden !important; color: #e6eef5 !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-head { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 12px !important; padding: 12px 14px !important; border-bottom: 1px solid rgba(255,255,255,.1) !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-head > span { font-size: 15px !important; font-weight: 600 !important; color: #a9b9c8 !important; -webkit-text-fill-color: #a9b9c8 !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-head > span i { color: #d4af37 !important; -webkit-text-fill-color: #d4af37 !important; margin-right: 4px !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-x { width: 40px !important; height: 40px !important; min-width: 40px !important; padding: 0 !important; border-radius: 12px !important; border: 1px solid rgba(255,255,255,.16) !important; background: rgba(255,255,255,.04) !important; display: grid !important; place-items: center !important; cursor: pointer !important; box-shadow: none !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-x i { font-size: 17px !important; color: #d4af37 !important; -webkit-text-fill-color: #d4af37 !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-body { flex: 1 1 auto !important; min-height: 0 !important; overflow-y: auto !important; padding: 14px 16px 16px !important; }
+  /* the Remind / Mark urgent box itself: no second frame inside the window */
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-body > :is(.iba-ai-remind, .iba-ai-urg-mini) { margin: 0 !important; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-sl-body > .iba-ai-remind > .iba-ai-sub:first-child { display: none !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-remind { display: flex !important; flex-direction: column !important; gap: 12px !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-rem-row { display: flex !important; flex-direction: column !important; gap: 6px !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-rem-row > span { text-align: left !important; font-size: 12px !important; font-weight: 700 !important; letter-spacing: .04em !important; text-transform: uppercase !important; color: #8aa0b4 !important; -webkit-text-fill-color: #8aa0b4 !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-rem-text { min-height: 120px !important; width: 100% !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-rem-acts { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; align-items: center !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-urg-mini { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+  html body #iba-ai-panel > .iba-sl-sub .iba-ai-urg-mini input { flex: 0 0 auto !important; height: 42px !important; }
+  /* the invoice window keeps its own look, just a softer frame */
+  html body #iba-ai-panel.iba-sl-on > .iba-trk-rcpt.iba-sl-win { overflow: hidden !important; }
+  /* inner blocks of the invoice window: see-through too, not solid */
+  html body #iba-ai-panel.iba-sl-on > .iba-trk-rcpt.iba-sl-win :is(.iba-u-po, .iba-trk-r-dl) { background: rgba(255, 255, 255, .045) !important; background-color: rgba(255, 255, 255, .045) !important; border-color: rgba(255, 255, 255, .1) !important; }
+  /* 121 (martin): the list pop-ups (ESN printing, LPO emails, Skill access, Inventory permissions, ESN choose) solid so they are easy to read */
+  html body #iba-esn.iba-esn-ov .iba-esn-box { background: #0C0E11 !important; background-image: none !important; background-color: #0C0E11 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}

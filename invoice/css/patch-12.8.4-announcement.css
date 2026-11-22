@@ -355,3 +355,43 @@ body.inventory-mode #workdesk-view > .workdesk-sidebar .general-announcement-sid
 .general-important-announcement.gia-main-popup .gia-body{
   background:transparent!important;
 }
+
+/* 18.0.0 patch 117 (martin): crystal glass look - dark, see-through, no red side line.
+   Written twice: unlayered and inside @layer iba-ui, so neither the old rules above nor
+   the theme layers can bring the white card / red line back. */
+html body .general-important-announcement,
+html body .general-important-announcement.gia-main-popup,
+html body .general-important-announcement.gia-welcome-card,
+html body .general-announcement-sidebar-host .general-important-announcement{
+  background:linear-gradient(140deg,rgba(28,42,58,.58),rgba(8,14,22,.46))!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 50px rgba(0,0,0,.40)!important;
+  backdrop-filter:blur(14px) saturate(140%)!important;-webkit-backdrop-filter:blur(14px) saturate(140%)!important;
+  color:#e9eef3!important;animation:gia-glass-breathe 3.6s ease-in-out infinite!important;
+}
+html body .general-important-announcement.gia-main-popup{animation:none!important;border-radius:20px!important}
+html body .general-important-announcement .gia-accent{display:none!important}
+html body .general-important-announcement .gia-icon{color:#EBD8A8!important;padding-left:8px}
+html body .general-important-announcement .gia-kicker{color:#E3C98A!important;-webkit-text-fill-color:#E3C98A!important}
+html body .general-important-announcement .gia-title{color:#ffffff!important;-webkit-text-fill-color:#ffffff!important}
+html body .general-important-announcement .gia-message{color:#d6dee6!important;-webkit-text-fill-color:#d6dee6!important}
+@keyframes gia-glass-breathe{
+  0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 10px 30px rgba(0,0,0,.35),0 0 0 0 rgba(235,216,168,0)}
+  50%{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 10px 30px rgba(0,0,0,.35),0 0 26px 4px rgba(235,216,168,.30)}
+}
+@layer iba-ui {
+html body .general-important-announcement,
+html body .general-important-announcement.gia-main-popup,
+html body .general-important-announcement.gia-welcome-card,
+html body .general-announcement-sidebar-host .general-important-announcement{
+  background:linear-gradient(140deg,rgba(28,42,58,.58),rgba(8,14,22,.46))!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  backdrop-filter:blur(14px) saturate(140%)!important;-webkit-backdrop-filter:blur(14px) saturate(140%)!important;
+  color:#e9eef3!important;
+}
+html body .general-important-announcement .gia-accent{display:none!important}
+html body .general-important-announcement .gia-icon{color:#EBD8A8!important}
+html body .general-important-announcement .gia-kicker{color:#E3C98A!important;-webkit-text-fill-color:#E3C98A!important}
+html body .general-important-announcement .gia-title{color:#ffffff!important;-webkit-text-fill-color:#ffffff!important}
+html body .general-important-announcement .gia-message{color:#d6dee6!important;-webkit-text-fill-color:#d6dee6!important}
+}
