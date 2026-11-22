@@ -3,6 +3,10 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 116 (22-Nov-2026)
+  Fix: the new Settings page stayed on screen over other pages (its layout rule beat the page switch).
+  Files: js/iba-1714-settabs.js, index.html, PATCH.txt
+
 18.0.0 patch 115 (22-Nov-2026)
   Reminders now RING like a call when they pop up, PC and phone (martin): soft chime every 4 seconds until you
   press Open or x on the reminder bubble; stops by itself after 1 minute (red number stays). Made by the browser,
