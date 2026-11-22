@@ -1,10 +1,9 @@
 /* 18.0.0 patch 109: password control (Super Admin)
  *
  * 0. CLEAR (main way, martin): Super Admin presses Clear password while the
- *    person is waiting (they asked on WhatsApp). For CLEAR_MIN minutes that
- *    person signs in with just their mobile (password box empty) and makes a
- *    new password right away. The old password stops working at once; after
- *    the time is up nobody can use the account until it is cleared again.
+ *    person asked (WhatsApp). That person signs in with just their mobile
+ *    (any or empty password) and makes a new password. The old password stops
+ *    working at once. p111: no time limit, it stays cleared until they do.
  * 1. Reset: Super Admin (Settings > Passwords) gives a person a TEMPORARY
  *    password. Saved on the approver record as Password + PwdStatus 'temp',
  *    PwdSetBy '<super admin>'.
@@ -23,7 +22,7 @@
 (function () {
     'use strict';
     if (window.ibaPwd) return;
-    const VERSION = '18.0.0-p110';
+    const VERSION = '18.0.0-p111';
     const SUPER = () => (typeof SUPER_ADMIN_NAME === 'string' && SUPER_ADMIN_NAME) || 'Irwin';
     const REQ = 'iba_pwd_requests';
     const CLEAR_MIN = 30;
@@ -45,7 +44,8 @@
         for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
         return (h >>> 0).toString(36);
     }
-    const clearedOpen = (u) => !!(u && u.PwdStatus === 'cleared' && u.PwdClearedAt && Date.now() - u.PwdClearedAt < CLEAR_MIN * 60000);
+    // p111: no time limit (martin): a cleared account stays open until the person makes a new password
+    const clearedOpen = (u) => !!(u && u.PwdStatus === 'cleared');
     const lockPw = () => { let r = 'locked-'; const a = new Uint32Array(4); try { crypto.getRandomValues(a); } catch (_) { for (let i = 0; i < 4; i++) a[i] = Math.random() * 4e9; } a.forEach((x) => { r += x.toString(36); }); return r; };
     const isTemp = (u) => !!(u && u.PwdStatus === 'temp' && u.Password && u.PwdTempKey && tag(u.Password) === u.PwdTempKey);
     function when(t) {
@@ -341,7 +341,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
             s2.innerHTML = '<p class="ok">Request saved. Press the green button to send it on WhatsApp.</p>' +
                 (sa && sa.Mobile ? '<div class="row"><a class="btn wa grow" target="_blank" rel="noopener" data-wa href="https://wa.me/' + waNum(sa.Mobile) + '?text=' + encodeURIComponent(txt) + '">Send on WhatsApp</a></div>'
                     : '<p class="note">WhatsApp number not found. Please call ' + esc(SUPER()) + '. Your request is saved.</p>') +
-                '<p class="note">Keep this page open: when ' + esc(SUPER()) + ' clears your password, "Make your new password" opens here by itself. If you closed it: sign in with your mobile and leave the password empty (within ' + CLEAR_MIN + ' minutes of the clear).</p>' +
+                '<p class="note">Keep this page open: when ' + esc(SUPER()) + ' clears your password, "Make your new password" opens here by itself. If you closed it: after ' + esc(SUPER()) + ' clears it, sign in with your mobile and leave the password empty.</p>' +
                 '<div class="row"><span class="grow"></span><button data-x2 type="button">Close</button></div>';
             s2.querySelector('[data-x2]').addEventListener('click', w.close);
         });
@@ -369,7 +369,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
     function statusHtml(p) {
         if (!p.Password) return '<span class="st none">Not set</span><span class="by">makes own at first sign-in</span>';
         if (p.PwdStatus === 'cleared') return clearedOpen(p)
-            ? '<span class="st temp">Cleared · waiting for new password</span><span class="by">by ' + esc(p.PwdSetBy || SUPER()) + ' · open until ' + esc(when(p.PwdClearedAt + CLEAR_MIN * 60000).split(' ')[1]) + '</span>'
+            ? '<span class="st temp">Cleared · waiting for new password</span><span class="by">by ' + esc(p.PwdSetBy || SUPER()) + (p.PwdClearedAt ? ' · ' + esc(when(p.PwdClearedAt)) : '') + '</span>'
             : '<span class="st none">Cleared · time is up</span><span class="by">press Clear again</span>';
         if (isTemp(p)) return '<span class="st temp">Temporary · not changed yet</span><span class="by">set by ' + esc(p.PwdSetBy || SUPER()) + (p.PwdSetAt ? ' · ' + when(p.PwdSetAt) : '') + '</span>';
         if (p.PwdStatus === 'user' || p.PwdStatus === 'temp') return '<span class="st user">Own password</span><span class="by">set by ' + esc(p.PwdSetBy || p.Name || 'user') + (p.PwdSetAt ? ' · ' + when(p.PwdSetAt) : '') + '</span>';
@@ -391,7 +391,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
     async function openAdmin() {
         if (!isSuper()) return;
         const w = mount(
-            '<div class="head"><div><h2>Passwords</h2><p class="sub">Clear: for ' + CLEAR_MIN + ' minutes the person signs in with the mobile only and makes a new password (do it while they wait). Temporary: they sign in with the password you send, then make their own.</p></div>' +
+            '<div class="head"><div><h2>Passwords</h2><p class="sub">Clear: the person signs in with the mobile only and makes a new password (stays cleared until they do). Temporary: they sign in with the password you send, then make their own.</p></div>' +
             '<button class="x" data-x type="button" title="Close">×</button></div>' +
             '<div data-reqs></div>' +
             '<div class="tools"><input data-q placeholder="Search name, mobile, position…" autocomplete="off"><span class="note" data-count></span></div>' +
@@ -458,7 +458,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
         const w = mount(
             '<div class="head"><div><h2>Clear password</h2><p class="sub">' + esc(p.Name || '') + ' · ' + esc(showMobile(p.Mobile)) + '</p></div>' +
             '<button class="x" data-x type="button" title="Close">×</button></div>' +
-            '<div data-s1><p class="note" style="font-size:13.5px;color:#cfd8e1">Their current password stops working now. For the next ' + CLEAR_MIN + ' minutes they sign in with their mobile only (password empty) and make a new password. Do it while they are ready to sign in.</p>' +
+            '<div data-s1><p class="note" style="font-size:13.5px;color:#cfd8e1">Their old password stops working now. Tell them: type your mobile, leave the password empty, press Sign in, then make your new password. It stays cleared until they do.</p>' +
             '<p class="err" data-err></p>' +
             '<div class="row"><button type="button" data-x2>Cancel</button><span class="grow"></span><button class="main" type="button" data-save>Clear password</button></div></div>' +
             '<div data-s2 hidden></div>', { name: 'clear' });
@@ -478,10 +478,10 @@ tr:hover td{background:rgba(255,255,255,.04)}
                 err.textContent = 'Could not save. Check the connection and try again.';
                 return;
             }
-            const msg = 'Hi ' + (p.Name || '') + ', your IBA System password is cleared. Sign in now with your mobile number, leave the password empty, and make your new password (within ' + CLEAR_MIN + ' minutes).';
+            const msg = 'Hi ' + (p.Name || '') + ', your IBA System password is cleared. Sign in now with your mobile number, leave the password empty, and make your new password.';
             const s2 = w.q('[data-s2]');
             w.q('[data-s1]').hidden = true; s2.hidden = false;
-            s2.innerHTML = '<p class="ok">Cleared. ' + esc(p.Name || '') + ' can sign in with the mobile only and make a new password until ' + esc(when(now + CLEAR_MIN * 60000).split(' ')[1]) + '.</p>' +
+            s2.innerHTML = '<p class="ok">Cleared. ' + esc(p.Name || '') + ' can sign in with the mobile only and make a new password.</p>' +
                 '<div class="row">' + (p.Mobile ? '<a class="btn wa grow" target="_blank" rel="noopener" href="https://wa.me/' + waNum(p.Mobile) + '?text=' + encodeURIComponent(msg) + '">Tell them on WhatsApp</a>' : '') +
                 '<button type="button" data-x3>Close</button></div>';
             s2.querySelector('[data-x3]').addEventListener('click', w.close);
