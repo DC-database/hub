@@ -3,6 +3,11 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 111 (22-Nov-2026)
+  Clear password has NO time limit any more (martin): a cleared account stays cleared until the person signs in
+  with the mobile (any or empty password) and makes a new password. Wording in Passwords / WhatsApp text updated.
+  Files: js/iba-1709-pwd.js, index.html, PATCH.txt
+
 18.0.0 patch 110 (22-Nov-2026)
   Passwords on the phone + automatic switch (martin).
   - Phone assistant: new "Passwords" tile (Super Admin only) in the bottom row, red number = forgot password
