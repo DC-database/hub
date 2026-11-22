@@ -577,7 +577,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <!-- ====================================================================== -->
 <!-- FIRST LOGIN / ACCOUNT SETUP VIEW -->
 <!-- ====================================================================== -->
-<div class="hidden" id="setup-view"><div class="form-container animated-card"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div class="hidden" id="setup-email-container"><label for="setup-email">Enter your email address:</label><input id="setup-email" placeholder="user@example.com" required="" type="email"/></div><div class="hidden" id="setup-site-container"><label for="setup-site">Enter your Site:</label><input id="setup-site" placeholder="Site Name" required="" type="text"/><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div class="hidden" id="setup-position-container"><label for="setup-position">Enter your Position:</label><input id="setup-position" placeholder="Position" required="" type="text"/></div><label for="setup-password">Create Password</label><input id="setup-password" placeholder="New Password" required="" type="password"/><button type="submit">Complete Setup</button></form><p class="error-message" id="setup-error"></p></div></div>
+<div class="hidden" id="setup-view"><div class="form-container animated-card"><h2>Complete Your Account Setup</h2><p>This is your first time logging in. Please complete the following steps.</p><form id="setup-form"><div class="hidden" id="setup-email-container"><label for="setup-email">Enter your email address:</label><input id="setup-email" placeholder="user@example.com" required="" type="email"/></div><div class="hidden" id="setup-site-container"><label for="setup-site">Enter your Site:</label><input id="setup-site" placeholder="Site Name" required="" type="text"/><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div><div class="hidden" id="setup-position-container"><label for="setup-position">Enter your Position:</label><input id="setup-position" placeholder="Position" required="" type="text"/></div><label for="setup-password">Create Password</label><input id="setup-password" placeholder="New Password" required="" type="password"/><p class="input-note">At least 6 characters, letters and numbers in any order (ex. bara26, 26bara, ba26ra)</p><button type="submit">Complete Setup</button></form><p class="error-message" id="setup-error"></p></div></div>
 <!-- ====================================================================== -->
 <!-- WELCOME DASHBOARD / MODULE LAUNCHER -->
 <!-- ====================================================================== -->
@@ -1379,7 +1379,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 </div>
 <div class="settings-fields-grid">
 <div class="form-group settings-span-2"><label for="settings-site">Site</label><input id="settings-site" placeholder="Your site(s)" type="text"/><p class="input-note">For multiple sites, separate them with a comma (ex. 175,176)</p></div>
-<div class="form-group settings-span-2"><label for="settings-password">New Password</label><input id="settings-password" placeholder="Leave blank to keep current password" type="password"/></div>
+<div class="form-group settings-span-2"><label for="settings-password">New Password</label><input id="settings-password" placeholder="Leave blank to keep current password" type="password"/><p class="input-note">At least 6 characters, letters and numbers in any order (ex. bara26, 26bara, ba26ra)</p></div>
 <div class="form-group settings-span-2 settings-toggle-row"><div class="checkbox-group settings-toggle"><input id="settings-vacation" type="checkbox"/><label for="settings-vacation"><span>On Vacation</span><small>Enable replacement routing while you are away</small></label></div></div>
 <div class="settings-vacation-panel hidden" id="settings-vacation-details-container">
 <div class="form-group"><label for="settings-return-date">Return Date</label><input id="settings-return-date" type="date"/></div>
@@ -3871,7 +3871,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-entry-po-mirror.js?v=18.0.0"></script>
 <script>
       window.IBA_SYSTEM_VERSION = '18.0.0';
-      window.IBA_PATCH = '111'; window.IBA_PATCH_DATE = '22-Nov-2026'; // bump on every upload (Settings > System Version)
+      window.IBA_PATCH = '113'; window.IBA_PATCH_DATE = '22-Nov-2026'; // bump on every upload (Settings > System Version)
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=18.0.0"></script>
@@ -3976,7 +3976,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-session-lock.js?v=18.0.0-p48"></script>
 <script src="js/app-version-checker.js?v=18.0.0"></script>
 <script src="js/iba-silent-update.js?v=18.0.0"></script>
-<script src="js/iba-1709-pwd.js?v=18.0.0-p111"></script>
+<script src="js/iba-1709-pwd.js?v=18.0.0-p113"></script>
 </div>    <script src="js/app-approval-print.js?v=18.0.0"></script>
 <link href="css/iba-1705-black.css?v=18.0.0-p5" rel="stylesheet"/>
 <link href="css/iba-1705-nostripe.css?v=18.0.0" rel="stylesheet"/>

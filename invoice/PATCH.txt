@@ -3,6 +3,16 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 113 (22-Nov-2026)
+  Password examples shown under every new-password box: letters and numbers in any order (bara26, 26bara, ba26ra).
+  Files: js/iba-1709-pwd.js, index.html, PATCH.txt
+
+18.0.0 patch 112 (22-Nov-2026)
+  Stronger new passwords (martin): at least 6 characters with letters AND numbers (e.g. bara2026). Easy ones
+  (123456, abc123, password1...) and the person's own mobile are refused. Applies to "Make your new password",
+  first-time setup and Settings > New Password. Old passwords keep working until changed.
+  Files: js/iba-1709-pwd.js, index.html, PATCH.txt
+
 18.0.0 patch 111 (22-Nov-2026)
   Clear password has NO time limit any more (martin): a cleared account stays cleared until the person signs in
   with the mobile (any or empty password) and makes a new password. Wording in Passwords / WhatsApp text updated.
