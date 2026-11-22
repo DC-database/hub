@@ -3,6 +3,59 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 124 (22-Nov-2026)
+  Settings: "Settings / Hello, name" title removed (martin: the header already says it); only the search box
+  stays at the top. Group names are plain text again with a dark shadow so they read on light backgrounds.
+  Files: js/iba-1714-settabs.js, index.html, PATCH.txt
+
+18.0.0 patch 123 (22-Nov-2026)
+  Settings: title "Settings / Hello, name" and the group names (MY ACCOUNT & SCREEN, SUPER ADMIN...) sit on a dark
+  label now, so they are readable on light backgrounds too (martin).
+  Files: js/iba-1714-settabs.js, index.html, PATCH.txt
+
+18.0.0 patch 122 (22-Nov-2026)
+  Sign in once a day (martin): a new day starts at 4 AM Doha. Next morning the system asks to sign in again
+  (browser remembers mobile + password, one click). If it is still open after 4 AM it signs out at a safe
+  moment only (when you come back to the tab, after 10 min idle, or 2 min in the background), never with a
+  pop-up open or typed text. Note on the sign-in screen: "A new day started - please sign in again".
+  PC and phone. Cleared passwords get "Make your new password" at that sign-in.
+  Files: js/iba-1721-daily.js (new), index.html, PATCH.txt
+
+18.0.0 patch 121 (22-Nov-2026)
+  Settings pop-ups SOLID dark #0C0E11 so they are easy to read (martin): the setting window, Passwords, and the
+  list pop-ups (ESN printing, LPO emails, Skill access, Inventory permissions; also the ESN sticker chooser).
+  The tiles page itself stays see-through.
+  Files: js/iba-1714-settabs.js, js/iba-1709-pwd.js, css/iba-1717-slide.css, index.html, PATCH.txt
+
+18.0.0 patch 120 (22-Nov-2026)
+  IRIS slide-out windows (invoice detail, Remind, Mark urgent) are SOLID dark #0C0E11 again (martin: see-through
+  was hard to read over the background). IRIS itself and Settings stay see-through.
+  Files: css/iba-1717-slide.css, index.html, PATCH.txt
+
+18.0.0 patch 119 (22-Nov-2026)
+  Settings (martin): tiles that only had an "Open ..." button now open their list straight away, no
+  in-between window: Passwords, ESN printing, LPO emails, Skill access, Inventory permissions.
+  Passwords pop-up is dark see-through like the tiles (lighter dim behind).
+  Files: js/iba-1714-settabs.js, js/iba-1709-pwd.js, index.html, PATCH.txt
+
+18.0.0 patch 118 (22-Nov-2026)
+  IRIS: rounded corners back while windows slide out (they were square). Slide-out windows are dark see-through
+  like the Settings tiles (no solid boxes), also the PO / invoice blocks inside the invoice window.
+  Settings: the tiles stay visible (dimmed) behind the open window; click a tile behind to switch, or outside to
+  close. The window itself is dark see-through like the tiles.
+  Files: js/iba-1714-settabs.js, js/iba-1717-slide.js, css/iba-1717-slide.css, index.html, PATCH.txt
+
+18.0.0 patch 117 (22-Nov-2026)
+  Settings redesigned (martin picked design 2): tiles grouped (Me / Super Admin / Other), each tile shows its
+  state; a click opens that setting in a centre window (x or Esc to close), rows re-arranged label | value.
+  Important announcement: Preview works again (shows a copy for 15 s) and the box is dark crystal glass
+  (no red side line, soft gold glow).
+  IRIS windows slide out BESIDE the assistant (PC): IRIS on the right -> to the left, on the left -> to the right.
+  Invoice detail = window 1; Remind / Mark urgent opened from it slide out next to it. x closes that window and
+  the ones after it; Esc closes the last. Phone, IRIS big window or no room: opens over IRIS as before.
+  Files: js/iba-1714-settabs.js, js/app-general-announcement.js, css/patch-12.8.4-announcement.css,
+  js/iba-1717-slide.js (new), css/iba-1717-slide.css (new), index.html, PATCH.txt
+
 18.0.0 patch 116 (22-Nov-2026)
   Fix: the new Settings page stayed on screen over other pages (its layout rule beat the page switch).
   Files: js/iba-1714-settabs.js, index.html, PATCH.txt
