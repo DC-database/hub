@@ -22,7 +22,7 @@
 (function () {
     'use strict';
     if (window.ibaPwd) return;
-    const VERSION = '18.0.0-p111';
+    const VERSION = '18.0.0-p113';
     const SUPER = () => (typeof SUPER_ADMIN_NAME === 'string' && SUPER_ADMIN_NAME) || 'Irwin';
     const REQ = 'iba_pwd_requests';
     const CLEAR_MIN = 30;
@@ -45,6 +45,21 @@
         return (h >>> 0).toString(36);
     }
     // p111: no time limit (martin): a cleared account stays open until the person makes a new password
+    // p112: password rule (martin): 6+ characters, at least one letter AND one number,
+    // not an easy one, not the person's mobile or name. '' = OK, else the message to show.
+    const EASY = ['abc123','abcd1234','a12345','pass123','password1','password123','qwerty1','qwerty123','iba123','iba2026','admin123','test123','123abc','1q2w3e','1q2w3e4r','aa1234','abc12345'];
+    function pwProblem(pw, u) {
+        pw = String(pw || '');
+        if (pw.length < 6) return 'Use at least 6 characters.';
+        if (!/[a-z]/i.test(pw) || !/[0-9]/.test(pw)) return 'Use letters and numbers together, in any order (for example: bara26, 26bara, ba26ra).';
+        const low = pw.toLowerCase();
+        if (EASY.indexOf(low) >= 0) return 'This password is too easy. Make another one.';
+        const d = pw.replace(/\D/g, ''), mob = String((u && u.Mobile) || '').replace(/\D/g, '');
+        if (d.length >= 6 && mob && mob.indexOf(d) >= 0) return 'Do not use your mobile number.';
+        const nm = String((u && u.Name) || '').toLowerCase().replace(/[^a-z]/g, '');
+        if (nm.length >= 3 && low.replace(/[^a-z]/g, '') === nm && /^(\d{1,3})$/.test(d) && d.length < 4) return 'Too close to your name. Add more numbers or letters.';
+        return '';
+    }
     const clearedOpen = (u) => !!(u && u.PwdStatus === 'cleared');
     const lockPw = () => { let r = 'locked-'; const a = new Uint32Array(4); try { crypto.getRandomValues(a); } catch (_) { for (let i = 0; i < 4; i++) a[i] = Math.random() * 4e9; } a.forEach((x) => { r += x.toString(36); }); return r; };
     const isTemp = (u) => !!(u && u.PwdStatus === 'temp' && u.Password && u.PwdTempKey && tag(u.Password) === u.PwdTempKey);
@@ -144,7 +159,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
             '<form autocomplete="off">' +
             '<label>New password</label><input type="password" data-n1 autocomplete="new-password" minlength="6">' +
             '<label>Type it again</label><input type="password" data-n2 autocomplete="new-password">' +
-            '<p class="note">At least 6 characters. Only you will know it.</p>' +
+            '<p class="note">At least 6 characters, with letters and numbers in any order. Examples: bara26, 26bara, ba26ra, Bara2026. Only you will know it.</p>' +
             '<p class="err" data-err></p>' +
             '<div class="row"><button type="button" data-out>' + (cleared ? 'Cancel' : 'Sign out') + '</button><span class="grow"></span><button type="submit" class="main" data-save>Save and continue</button></div>' +
             '</form>', { name: 'force', solid: true, locked: true });
@@ -158,7 +173,7 @@ tr:hover td{background:rgba(255,255,255,.04)}
             e.preventDefault();
             const a = w.q('[data-n1]').value, b = w.q('[data-n2]').value, err = w.q('[data-err]');
             err.textContent = '';
-            if (a.length < 6) { err.textContent = 'Use at least 6 characters.'; return; }
+            { const pr = pwProblem(a, u); if (pr) { err.textContent = pr; return; } }
             if (a !== b) { err.textContent = 'The two passwords are not the same.'; return; }
             if (!cleared && a === u.Password) { err.textContent = 'This is the temporary password. Make a new one.'; return; }
             const btn = w.q('[data-save]'); btn.disabled = true; btn.textContent = 'Saving…';
@@ -284,10 +299,18 @@ tr:hover td{background:rgba(255,255,255,.04)}
         if (!f || !f.id) return;
         if (f.id === 'settings-form') {
             const p = $('settings-password');
-            if (p && p.value && p.value.length >= 6) markOwn('Own password changed in Settings');
+            if (p && p.value) {
+                const pr = pwProblem(p.value, me());
+                if (pr) { e.preventDefault(); e.stopImmediatePropagation(); const m = $('settings-message'); if (m) { m.textContent = 'Password: ' + pr; m.style.color = '#ff8a80'; } try { p.focus(); } catch (_) {} return; }
+                markOwn('Own password changed in Settings');
+            }
         } else if (f.id === 'setup-form') {
             const p = $('setup-password');
-            if (p && p.value && p.value.length >= 6) markOwn('Own password made (first sign-in)');
+            if (p && p.value) {
+                const pr = pwProblem(p.value, me());
+                if (pr) { e.preventDefault(); e.stopImmediatePropagation(); const m = $('setup-error'); if (m) m.textContent = pr; try { p.focus(); } catch (_) {} return; }
+                markOwn('Own password made (first sign-in)');
+            }
         }
     }, true);
 
@@ -610,5 +633,5 @@ tr:hover td{background:rgba(255,255,255,.04)}
         })(0);
     })();
 
-    window.ibaPwd = { VERSION, openAdmin, openForgot, isTemp, tag, clearedOpen };
+    window.ibaPwd = { VERSION, openAdmin, openForgot, isTemp, tag, clearedOpen, pwProblem };
 })();
