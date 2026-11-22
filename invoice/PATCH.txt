@@ -3,6 +3,23 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 115 (22-Nov-2026)
+  Reminders now RING like a call when they pop up, PC and phone (martin): soft chime every 4 seconds until you
+  press Open or x on the reminder bubble; stops by itself after 1 minute (red number stays). Made by the browser,
+  no sound file; plays even if System Audio is muted. If the page was just opened and nothing clicked yet, the
+  browser holds the sound until the first click or key.
+  Files: js/iba-assistant.js, index.html, PATCH.txt
+
+18.0.0 patch 114 (22-Nov-2026)
+  Settings re-arranged (martin): menu on the left inside the Settings page (like phone / Windows settings) with a
+  search box; one item at a time on the right. Groups: My account (Profile & password, System version), My screen
+  (Sound, Screensaver, Background & speed, Dashboard) for everyone; Super Admin also: People & access (Passwords
+  with red request count, ESN printing, LPO emails, Skill access, Inventory permissions), Announcements
+  (Celebration banner, Important announcement), System & look (Feature controls, Backgrounds, Opening).
+  Nothing removed: every card works as before, cards are only sorted/hidden. Small screens: menu becomes a row.
+  Passwords: name + numbers is fine now (bara26 was refused as 'too close to your name'); only name + 1 digit is refused.
+  Files: js/iba-1714-settabs.js (new), js/iba-1709-pwd.js, index.html, PATCH.txt
+
 18.0.0 patch 113 (22-Nov-2026)
   Password examples shown under every new-password box: letters and numbers in any order (bara26, 26bara, ba26ra).
   Files: js/iba-1709-pwd.js, index.html, PATCH.txt
