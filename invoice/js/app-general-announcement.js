@@ -479,13 +479,34 @@
     const oldMainPopup = isMainPortalPopup;
     const oldSidebarExpanded = sidebarExpanded;
 
-    announcement = cfg;
+    // 18.0.0 patch 117: preview must show even when "Enable announcement" is not ticked
+    // yet or the dates are in the past (it showed nothing before = looked broken).
+    const pe = parseDate(cfg.endAt);
+    announcement = Object.assign({}, cfg, { enabled: true, endAt: (Number.isFinite(pe) && pe <= Date.now()) ? '' : cfg.endAt });
     poppedOutFromSidebar = true;
     isMainPortalPopup = true;
     sidebarExpanded = true;
     lastRenderKey = '';
     render();
-    setMessage('Preview shown. This is only a preview and was not saved.', true);
+    // 18.0.0 patch 117: on screens without the old WorkDesk sidebar (new shell, Settings
+    // window) render() keeps the notice hidden, so Preview showed nothing. Show a copy of the
+    // notice as the centred reading view for 15 s (click it to close); the real one is untouched.
+    const pbox = el('general-important-announcement');
+    const oldCopy = document.getElementById('gia-preview-copy'); if (oldCopy) oldCopy.remove();
+    if (pbox && (pbox.classList.contains('hidden') || !pbox.getClientRects().length)) {
+      const copy = pbox.cloneNode(true);
+      copy.id = 'gia-preview-copy';
+      copy.querySelectorAll('[id]').forEach((n) => n.removeAttribute('id'));
+      cRem(copy, 'hidden', 'gia-collapsed', 'gia-welcome-card');
+      cAdd(copy, 'gia-main-popup');
+      copy.style.zIndex = '2147483000';
+      const t = copy.querySelector('.gia-title'); if (t) t.textContent = text(cfg.title || 'IBA TEAM ANNOUNCEMENT');
+      const m = copy.querySelector('.gia-message'); if (m) m.textContent = text(cfg.message || '');
+      copy.addEventListener('click', () => copy.remove());
+      document.body.appendChild(copy);
+      setTimeout(() => copy.remove(), 15000);
+    }
+    setMessage('Preview shown for 15 seconds. This is only a preview and was not saved.', true);
 
     setTimeout(function () {
       // Restore exactly the state that existed before Preview was clicked.

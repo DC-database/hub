@@ -1,45 +1,51 @@
-/* 18.0.0 patch 114: Settings re-arranged (martin: "settings is like a jungle").
- * Layout like phone / Windows settings: a menu on the left (groups + items, search box),
- * the chosen item's card(s) on the right, one item at a time.
- * Nothing is moved or rebuilt: every card stays in its place in the page (other patches
- * keep inserting cards next to each other); cards of other items are only hidden
- * (inline display:none !important) and the section becomes a 2-column grid.
- * An item shows in the menu only when the person can see at least one of its cards, so a
- * normal user / Admin gets "My account" + "My screen" and the Super Admin also gets the
- * admin groups. Unknown (future) cards get their own item under "Other".
- * Last item is remembered per PC (localStorage iba-settings-item-v1).
+/* 18.0.0 patch 117: Settings, fresh look (martin picked design 2 of 3).
+ * Settings page = tiles grouped "My account & screen" (everyone) and "Super Admin".
+ * Each tile shows its current state (Sound: On, Passwords: 1 request ...). Click a tile ->
+ * that setting opens as a centre pop-up window with a clean inside: one header, rows with
+ * the label left and the box / switch right, buttons in one bar at the bottom.
+ * Nothing is rebuilt or moved: the Settings section itself becomes the pop-up window (so
+ * the form, Save and every patch's own buttons keep working); other cards are only hidden
+ * (inline display:none !important). A tile shows only when the person can see its card(s).
+ * Unknown (future) cards get their own tile under "Other".
  */
 (function () {
     'use strict';
-    const VERSION = '18.0.0-p116';
-    const KEY = 'iba-settings-item-v1';
+    const VERSION = '18.0.0-p124';
+    const $ = (id) => document.getElementById(id);
+    const txt = (id) => (($(id) || {}).textContent || '');
     const GROUPS = [
-        { id: 'account', label: 'My account' },
-        { id: 'screen', label: 'My screen' },
-        { id: 'people', label: 'People & access', admin: true },
-        { id: 'news', label: 'Announcements', admin: true },
-        { id: 'system', label: 'System & look', admin: true },
+        { id: 'me', label: 'My account & screen' },
+        { id: 'super', label: 'Super Admin', note: 'only you see these' },
         { id: 'other', label: 'Other' }
     ];
-    // item: id, group, label, small line, icon, cards (selectors)
+    // tile: id, group, label, line, icon, cards, state() -> [text, kind]
     const ITEMS = [
-        { id: 'profile', g: 'account', label: 'Profile & password', sub: 'Your details, site, new password, vacation', ic: 'user',
-            cards: ['.settings-profile-card', '.settings-account-card', '.main-settings-actions', '#settings-message'] },
-        { id: 'version', g: 'account', label: 'System version', sub: 'Which patch this page runs', ic: 'info', cards: ['#iba-ver-card'] },
-        { id: 'sound', g: 'screen', label: 'Sound', sub: 'Click and success sounds', ic: 'sound', cards: ['.settings-audio-card'] },
-        { id: 'saver', g: 'screen', label: 'Screensaver', sub: 'Clock and video when you are away', ic: 'moon', cards: ['#iba-ss-settings'] },
-        { id: 'look', g: 'screen', label: 'Background & speed', sub: 'Moving background, light mode for old PCs', ic: 'image', cards: ['#iba-still-card', '#iba-lite-card'] },
-        { id: 'dash', g: 'screen', label: 'Dashboard', sub: 'Refresh numbers, chart or cards', ic: 'chart', cards: ['#iba-dash-tools', '#iba-d2-settings-card'] },
-        { id: 'pwd', g: 'people', label: 'Passwords', sub: 'Clear, temporary, forgot requests', ic: 'key', cards: ['#iba-pwd-settings-card'] },
-        { id: 'esn', g: 'people', label: 'ESN printing', sub: 'Who can print ESN', ic: 'print', cards: ['#iba-esn-settings-card'] },
-        { id: 'lpo', g: 'people', label: 'LPO emails', sub: 'Who can send LPO emails', ic: 'mail', cards: ['#iba-lpo-settings-card'] },
-        { id: 'skills', g: 'people', label: 'Skill access', sub: 'Who can use each assistant skill', ic: 'spark', cards: ['#iba-sa-settings-card'] },
-        { id: 'inv', g: 'people', label: 'Inventory permissions', sub: 'Material Stock functions per person', ic: 'box', cards: ['#iba-invperm-card'] },
-        { id: 'celeb', g: 'news', label: 'Celebration banner', sub: 'Greeting banner for everyone', ic: 'star', cards: ['#celebration-settings-container'] },
-        { id: 'ann', g: 'news', label: 'Important announcement', sub: 'Message everyone must see', ic: 'horn', cards: ['#general-announcement-settings-container'] },
-        { id: 'feat', g: 'system', label: 'Feature controls', sub: 'Manual PO / vacation mode switches', ic: 'sliders', cards: ['#im-admin-controls'] },
-        { id: 'bg', g: 'system', label: 'Backgrounds', sub: 'Photo of each area, for everyone', ic: 'image', cards: ['#iba-shell-bg-settings'] },
-        { id: 'open', g: 'system', label: 'Opening', sub: 'Sign-in animation for everyone', ic: 'play', cards: ['#iba-login-opening-settings'] }
+        { id: 'profile', g: 'me', label: 'Profile & password', sub: 'Site, new password, vacation', ic: 'user',
+            cards: ['.settings-profile-card', '.settings-account-card', '.main-settings-actions', '#settings-message'],
+            state: () => { const v = (($('settings-site') || {}).value || '').trim(); return v ? ['Site: ' + v] : null; } },
+        { id: 'sound', g: 'me', label: 'Sound', sub: 'Click and success sounds', ic: 'sound', cards: ['.settings-audio-card'],
+            state: () => window.isAudioMuted ? ['Muted', 'r'] : ['On', 'g'] },
+        { id: 'saver', g: 'me', label: 'Screensaver', sub: 'Clock and video when you are away', ic: 'moon', cards: ['#iba-ss-settings'],
+            state: () => { const m = /Screensaver\s+(On|Off)/i.exec(txt('iba-ss-settings')); return m ? [m[1], /on/i.test(m[1]) ? 'g' : ''] : null; } },
+        { id: 'look', g: 'me', label: 'Background & speed', sub: 'Moving background, light mode for older PCs', ic: 'image', cards: ['#iba-still-card', '#iba-lite-card'],
+            state: () => { const m = /Now:\s*([A-Za-z]+)/.exec(txt('iba-lite-card')); return m ? [m[1]] : null; } },
+        { id: 'dash', g: 'me', label: 'Dashboard', sub: 'Refresh numbers, chart or cards', ic: 'chart', cards: ['#iba-dash-tools', '#iba-d2-settings-card'] },
+        { id: 'version', g: 'me', label: 'System version', sub: 'Which patch this page runs', ic: 'info', cards: ['#iba-ver-card'],
+            state: () => window.IBA_PATCH ? ['Patch ' + window.IBA_PATCH] : null },
+        { id: 'pwd', g: 'super', label: 'Passwords', sub: 'Clear, temporary, forgot requests', ic: 'key', cards: ['#iba-pwd-settings-card'],
+            state: () => { const m = /(\d+)\s+forgot password request/i.exec(txt('iba-pwd-settings-card')); return m && +m[1] ? [m[1] + (m[1] === '1' ? ' request' : ' requests'), 'r'] : ['No requests']; } },
+        { id: 'esn', g: 'super', label: 'ESN printing', sub: 'Who can print ESN', ic: 'print', cards: ['#iba-esn-settings-card'],
+            state: () => /Nobody yet/i.test(txt('iba-esn-settings-card')) ? ['Only you'] : ['List set'] },
+        { id: 'lpo', g: 'super', label: 'LPO emails', sub: 'Who can send LPO emails', ic: 'mail', cards: ['#iba-lpo-settings-card'],
+            state: () => /Nobody yet/i.test(txt('iba-lpo-settings-card')) ? ['Only you'] : ['List set'] },
+        { id: 'skills', g: 'super', label: 'Skill access', sub: 'Who can use each assistant skill', ic: 'spark', cards: ['#iba-sa-settings-card'],
+            state: () => /built-in rule/i.test(txt('iba-sa-settings-card')) ? ['As built'] : ['Custom'] },
+        { id: 'inv', g: 'super', label: 'Inventory permissions', sub: 'Material Stock functions per person', ic: 'box', cards: ['#iba-invperm-card'] },
+        { id: 'news', g: 'super', label: 'Announcements', sub: 'Celebration banner and important message', ic: 'horn', cards: ['#celebration-settings-container', '#general-announcement-settings-container'],
+            state: () => { const a = ($('general-announcement-enabled') || {}).checked, c = ($('celebration-enabled') || {}).checked; return a || c ? [(a && c ? 'Both on' : a ? 'Announcement on' : 'Banner on'), 'g'] : ['None on']; } },
+        { id: 'feat', g: 'super', label: 'Feature controls', sub: 'Manual PO / vacation mode', ic: 'sliders', cards: ['#im-admin-controls'],
+            state: () => /Normal Mode/i.test(txt('im-admin-controls')) ? ['Normal'] : ['Vacation mode', 'r'] },
+        { id: 'bgopen', g: 'super', label: 'Backgrounds & opening', sub: 'Photos and sign-in animation for everyone', ic: 'play', cards: ['#iba-shell-bg-settings', '#iba-login-opening-settings'] }
     ];
     const ICON = {
         user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
@@ -53,76 +59,108 @@
         mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
         spark: '<path d="M12 3l2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z"/>',
         box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
-        star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
         horn: '<path d="M3 10v4h3l9 5V5L6 10H3z"/><path d="M18 9v6"/>',
         sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
         play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+        x: '<path d="M6 6l12 12M18 6L6 18"/>',
         dot: '<circle cx="12" cy="12" r="3"/>'
     };
     const svg = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + (ICON[k] || ICON.dot) + '</svg>';
     const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const $ = (id) => document.getElementById(id);
-    let cur = null, query = '';
-    try { cur = localStorage.getItem(KEY); } catch (_) {}
+    let open = null, query = '';
 
-    // the menu: shadow root, so the app's button / theme rules cannot touch it
-    const CSS = `
-:host{all:initial;display:block;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
-.nav{border-radius:18px;background:rgba(12,22,32,.92);border:1px solid rgba(235,216,168,.2);padding:14px 10px 12px;
-  box-shadow:0 10px 28px rgba(0,0,0,.28);max-height:calc(100vh - 130px);overflow:auto;scrollbar-width:thin}
-.title{font:700 19px/1.2 system-ui,sans-serif;color:#fff;margin:2px 8px 12px;letter-spacing:.01em}
-.search{display:flex;align-items:center;gap:8px;margin:0 4px 6px;padding:0 10px;height:40px;border-radius:11px;
-  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
-.search svg{width:16px;height:16px;stroke:#9fb3c2;fill:none;stroke-width:2;flex:none}
-.search input{all:unset;flex:1;min-width:0;color:#fff;font:400 14px/1 system-ui,sans-serif}
-.search input::placeholder{color:#8a9aa8}
-.g{font:700 10.5px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#E3C98A;margin:16px 10px 6px;display:flex;align-items:center;gap:6px}
-.g .lock{font-weight:600;letter-spacing:.04em;color:#9fb3c2;text-transform:none}
-.it{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:11px;width:100%;padding:9px 10px;border-radius:11px;cursor:pointer;color:#dfe6ec}
-.it:hover{background:rgba(255,255,255,.07)}
-.it.on{background:#EBD8A8;color:#1b2430}
-.it svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.9}
-.it .tx{display:flex;flex-direction:column;min-width:0}
-.it b{font:600 14px/1.25 system-ui,sans-serif}
-.it small{font:400 11.5px/1.3 system-ui,sans-serif;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.it .badge{margin-left:auto;min-width:20px;height:20px;border-radius:10px;background:#e5484d;color:#fff;font:700 11px/20px system-ui,sans-serif;text-align:center;padding:0 6px}
-.none{color:#9fb3c2;font:400 13px/1.4 system-ui,sans-serif;margin:8px 10px}
-@media (max-width:900px){
-  .nav{max-height:none;padding:10px 8px}
-  .title,.g,.it small{display:none}
-  .list{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
-  .list::-webkit-scrollbar{display:none}
-  .it{width:auto;white-space:nowrap;padding:8px 12px}
-  .search{margin:0 0 8px}
-}`;
-    // 2-column page + tidier cards (inside the app's own layer so it wins over its !important rules)
+    // ---------- tiles page (shadow root: the app's theme cannot touch it) ----------
+    const TILE_CSS = `
+:host{all:initial;display:block;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#e9eef3;max-width:1180px;margin:0 auto 24px}
+.top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:6px 2px 18px}
+h1{font:700 28px/1.15 system-ui,sans-serif;margin:0;color:#fff}
+.hi{font:400 14px/1.4 system-ui,sans-serif;color:#E3C98A;margin-top:5px}
+.top>div:first-child{display:none}
+.top{justify-content:flex-end}
+.srch{margin-left:auto;display:flex;gap:10px;align-items:center;height:44px;border-radius:12px;background:rgba(11,19,29,.82);border:1px solid rgba(255,255,255,.13);padding:0 14px;width:min(380px,100%)}
+.srch svg{width:17px;height:17px;stroke:#9fb3c2;fill:none;stroke-width:2;flex:none}
+.srch input{all:unset;flex:1;min-width:0;color:#fff;font:400 14px/1 system-ui,sans-serif}
+.srch input::placeholder{color:#8a9aa8}
+.g{font:700 11px/1 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#E3C98A;margin:20px 2px 10px;display:flex;gap:8px;align-items:center;text-shadow:0 1px 3px rgba(0,0,0,.95),0 0 10px rgba(0,0,0,.7)}
+.g i{font-style:normal;color:#9fb0bf;letter-spacing:.03em;font-weight:600;text-transform:none}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.t{all:unset;box-sizing:border-box;cursor:pointer;background:rgba(11,19,29,.84);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:15px 16px;display:flex;flex-direction:column;gap:6px;min-height:118px;transition:border-color .15s,transform .15s,background .15s}
+.t:hover{border-color:rgba(235,216,168,.55);background:rgba(16,27,40,.92);transform:translateY(-1px)}
+.t:focus-visible{outline:2px solid #EBD8A8;outline-offset:2px}
+.ic{width:36px;height:36px;border-radius:10px;background:rgba(235,216,168,.13);color:#EBD8A8;display:flex;align-items:center;justify-content:center;margin-bottom:4px}
+.ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.t b{font:600 15px/1.25 system-ui,sans-serif;color:#fff}
+.t small{font:400 12.5px/1.35 system-ui,sans-serif;color:#9fb0bf}
+.st{margin-top:auto;padding-top:6px}
+.chip{display:inline-block;font:600 11.5px/1 system-ui,sans-serif;padding:5px 10px;border-radius:20px;background:rgba(255,255,255,.08);color:#cfd8e1}
+.chip.g{background:rgba(70,180,120,.18);color:#8fe0b0}.chip.r{background:rgba(229,72,77,.2);color:#ff9a9d}
+.none{color:#cfd8e1;font:400 14px/1.4 system-ui,sans-serif;margin:16px 4px;background:rgba(12,14,17,.86);border-radius:10px;padding:10px 14px;width:fit-content}
+@media (max-width:1100px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.srch{margin-left:0}}`;
+
+    // ---------- the pop-up window (the Settings section itself), inside the app's layer ----------
+    const S = 'html body #wd-settings.iba-sw-open:not(.hidden)';
     const PAGE_CSS = `@layer iba-ui {
-html body #wd-settings.iba-st-on:not(.hidden){display:grid !important;grid-template-columns:290px minmax(0,1fr) !important;column-gap:26px !important;align-items:start !important}
-html body #wd-settings.iba-st-on:not(.hidden) > *{grid-column:2 !important;min-width:0}
-html body #wd-settings.iba-st-on:not(.hidden) > #iba-st-nav{grid-column:1 !important;grid-row:1 / span 50 !important;position:sticky !important;top:12px !important;align-self:start !important}
 html body #wd-settings.iba-st-on:not(.hidden) > .settings-hero{display:none !important}
-html body #wd-settings.iba-st-on:not(.hidden) #settings-form,html body #wd-settings.iba-st-on:not(.hidden) .settings-grid{margin-top:0 !important}
-html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin:4px 2px 16px}
-html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head b{font-size:24px;color:#fff;font-weight:700}
-html body #wd-settings.iba-st-on:not(.hidden) .iba-st-head span{color:#E3C98A;font-size:14px}
-html body #wd-settings.iba-st-on:not(.hidden) [data-st]{max-width:1000px}
-html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !important;border-radius:16px !important;margin-bottom:14px !important}
-@media (max-width:900px){
- html body #wd-settings.iba-st-on:not(.hidden){grid-template-columns:minmax(0,1fr) !important}
- html body #wd-settings.iba-st-on:not(.hidden) > *{grid-column:1 !important}
- html body #wd-settings.iba-st-on:not(.hidden) > #iba-st-nav{grid-column:1 !important;grid-row:auto !important;top:0 !important;z-index:5}
+${S}{position:fixed !important;left:50% !important;top:calc(50% + 34px) !important;transform:translate(-50%,-50%) !important;width:min(880px,94vw) !important;max-height:calc(100vh - 110px) !important;
+  overflow:auto !important;z-index:8995 !important;margin:0 !important;padding:0 0 10px !important;display:block !important;background:#0C0E11 !important;
+  border:1px solid rgba(235,216,168,.25) !important;border-radius:18px !important;box-shadow:0 0 0 100vmax rgba(3,8,14,.42),0 30px 90px rgba(0,0,0,.55) !important;scrollbar-width:thin}
+${S} > .settings-hero, ${S} > #iba-st-tiles{display:none !important}
+html body #iba-st-ghost:has(+ #wd-settings.hidden), html body #iba-st-ghost:has(+ #wd-settings:not(.iba-sw-open)){display:none !important}
+${S} .iba-sw-head{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:14px;padding:18px 24px 16px;background:#0C0E11;border-bottom:1px solid rgba(255,255,255,.08)}
+${S} .iba-sw-head .ic{width:40px;height:40px;border-radius:11px;background:rgba(235,216,168,.14);color:#EBD8A8;display:flex;align-items:center;justify-content:center;flex:none}
+${S} .iba-sw-head svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+${S} .iba-sw-head .tx{flex:1;min-width:0}
+${S} .iba-sw-head b{display:block;font-size:19px;font-weight:700;color:#fff;line-height:1.2}
+${S} .iba-sw-head span{display:block;font-size:13px;color:#E3C98A;margin-top:3px}
+${S} .iba-sw-head .x{all:unset;cursor:pointer;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#cfd8e1;border:1px solid rgba(255,255,255,.14)}
+${S} .iba-sw-head .x:hover{background:rgba(255,255,255,.08);color:#fff}
+${S} #settings-form, ${S} .settings-grid{display:block !important;margin:0 !important;padding:0 !important;gap:0 !important;max-width:none !important}
+${S} [data-st]{max-width:none !important}
+${S} .settings-card{background:transparent !important;border:0 !important;box-shadow:none !important;border-radius:0 !important;margin:0 !important;padding:16px 24px 6px !important;backdrop-filter:none !important;width:auto !important;min-height:0 !important}
+${S} .settings-card::before, ${S} .settings-card::after{display:none !important}
+${S}.iba-sw-one .settings-card-header{display:none !important}
+${S} .settings-card-header{display:block !important;padding:0 0 8px !important;margin:0 0 4px !important;border:0 !important;min-height:0 !important}
+${S} .settings-card-header .settings-card-icon{display:none !important}
+${S} .settings-card-header h2, ${S} .settings-card-header h3{font-size:12px !important;letter-spacing:.12em !important;text-transform:uppercase !important;color:#E3C98A !important;margin:0 0 4px !important;font-weight:700 !important}
+${S} .settings-card-header p{font-size:12.5px !important;color:#9fb0bf !important;margin:0 !important;line-height:1.45 !important}
+${S} .settings-card + .settings-card, ${S} [data-st] + [data-st]{border-top:1px solid rgba(255,255,255,.07) !important}
+${S} .settings-fields-grid{display:block !important}
+${S} .form-group{display:grid !important;grid-template-columns:210px minmax(0,1fr) !important;column-gap:20px !important;row-gap:4px !important;align-items:center !important;padding:12px 0 !important;margin:0 !important;border-top:1px solid rgba(255,255,255,.06) !important}
+${S} .settings-fields-grid > .form-group:first-child{border-top:0 !important}
+${S} .form-group > label{grid-column:1 !important;font-size:13.5px !important;font-weight:600 !important;color:#e9eef3 !important;margin:0 !important}
+${S} .form-group > input, ${S} .form-group > select, ${S} .form-group > textarea{grid-column:2 !important;width:100% !important;margin:0 !important}
+${S} .form-group > .input-note{grid-column:2 !important;font-size:12px !important;color:#9fb0bf !important;margin:2px 0 0 !important}
+${S} .form-group:has(> .checkbox-group){display:block !important}
+${S} .checkbox-group{display:flex !important;flex-direction:row-reverse !important;justify-content:space-between !important;align-items:center !important;gap:18px !important;margin:0 !important}
+${S} .checkbox-group label{display:flex !important;flex-direction:column !important;gap:2px !important;margin:0 !important;font-size:13.5px !important;font-weight:600 !important}
+${S} .checkbox-group label small{font-weight:400 !important;font-size:12px !important;color:#9fb0bf !important}
+${S} .checkbox-group input[type=checkbox]{width:20px !important;height:20px !important;flex:none !important;accent-color:#c9a94f !important}
+${S} .settings-vacation-panel{padding-left:0 !important;margin:0 !important;border:0 !important;background:transparent !important}
+${S} .settings-action-row{display:flex !important;flex-wrap:wrap !important;justify-content:flex-end !important;gap:10px !important;padding:14px 0 8px !important;margin:10px 0 0 !important;border-top:1px solid rgba(255,255,255,.08) !important}
+${S} .main-settings-actions{padding:14px 24px 8px !important;margin:0 !important}
+${S} #settings-message{padding:0 24px !important;margin:0 !important;text-align:right !important}
+${S} .settings-message-line:empty, ${S} .error-message:empty{display:none !important}
+@media (max-width:760px){
+ ${S}{width:100vw !important;max-height:100vh !important;height:100vh !important;border-radius:0 !important}
+ ${S} .form-group{grid-template-columns:minmax(0,1fr) !important}
+ ${S} .form-group > label, ${S} .form-group > input, ${S} .form-group > select, ${S} .form-group > textarea, ${S} .form-group > .input-note{grid-column:1 !important}
 }}`;
 
     const blocksOf = (sec) => {
         const out = [];
-        const add = (el) => { if (el && el.nodeType === 1 && el.id !== 'iba-st-nav' && !el.classList.contains('iba-st-head') && out.indexOf(el) < 0) out.push(el); };
+        const skip = (el) => el.id === 'iba-st-tiles' || el.classList.contains('iba-sw-head') || el.classList.contains('settings-hero') || /^(STYLE|SCRIPT)$/.test(el.tagName);
+        const add = (el) => { if (el && el.nodeType === 1 && !skip(el) && out.indexOf(el) < 0) out.push(el); };
         const form = $('settings-form');
         if (form) Array.from(form.children).forEach((c) => { if (c.classList.contains('settings-grid')) Array.from(c.children).forEach(add); else add(c); });
-        Array.from(sec.children).forEach((c) => { if (c !== form && !c.classList.contains('settings-hero') && !/^(STYLE|SCRIPT)$/.test(c.tagName)) add(c); });
+        Array.from(sec.children).forEach((c) => { if (c !== form) add(c); });
         return out;
     };
+    // ids first (some patch cards also carry a borrowed class like settings-audio-card)
     const itemOf = (el) => {
-        for (const it of ITEMS) for (const sel of it.cards) { try { if (el.matches(sel)) return it.id; } catch (_) {} }
+        for (const it of ITEMS) for (const sel of it.cards) { if (sel[0] === '#' && el.id === sel.slice(1)) return it.id; }
+        for (const it of ITEMS) for (const sel of it.cards) { try { if (sel[0] !== '#' && el.matches(sel)) return it.id; } catch (_) {} }
         return null;
     };
     function hide(el) {
@@ -148,7 +186,32 @@ html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !
         return r;
     }
     const cardTitle = (el) => ((el.querySelector('h2,h3,h4,.settings-card-eyebrow,strong') || {}).textContent || el.id || 'Setting').trim().slice(0, 40);
-    const reqCount = () => { const c = $('iba-pwd-settings-card'); const m = c && /(\d+)\s+forgot password request/i.exec(c.textContent || ''); return m ? +m[1] : 0; };
+    const me = () => { try { return (typeof currentApprover !== 'undefined' && currentApprover) || null; } catch (_) { return null; } };
+
+    function closeWin() {
+        if (!open) return;
+        open = null;
+        paint();
+    }
+    // 119 (martin): tiles that only hold an "Open ..." button open that list straight away
+    // (no in-between window with one button)
+    const DIRECT = { pwd: /^Open Passwords/i, esn: /^Open the list/i, lpo: /^Open the list/i, skills: /^Open skill access/i, inv: /^Open$/i };
+    function directBtn(id) {
+        const re = DIRECT[id];
+        const sec = $('wd-settings');
+        if (!re || !sec) return null;
+        const cards = sec.querySelectorAll('[data-st="' + id + '"]');
+        for (const c of cards) {
+            const b = Array.from(c.querySelectorAll('button')).find((x) => re.test(String(x.textContent || '').trim()) && !x.disabled);
+            if (b) return b;
+        }
+        return null;
+    }
+    function openWin(id) {
+        const b = directBtn(id);
+        if (b) { if (open) { open = null; paint(); } b.click(); return; }
+        open = id; paint(); const sec = $('wd-settings'); if (sec) sec.scrollTop = 0;
+    }
 
     let paints = 0, lastSig = '';
     function paint() {
@@ -156,42 +219,37 @@ html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !
         const sec = $('wd-settings');
         if (!sec) return;
         if (!$('iba-st-css')) { const s = document.createElement('style'); s.id = 'iba-st-css'; s.textContent = PAGE_CSS; document.head.appendChild(s); }
+        if (sec.classList.contains('hidden') && open) open = null;
         const list = blocksOf(sec);
         const shown = roleShown(list);
-        const items = ITEMS.map((it) => Object.assign({}, it, { els: [], vis: false }));
+        const items = ITEMS.map((it) => Object.assign({}, it, { els: [], vis: false, n: 0 }));
         const byId = {}; items.forEach((it) => { byId[it.id] = it; });
         list.forEach((el) => {
             let id = itemOf(el);
             if (!id) {
                 if (!el.matches('.settings-card, [id$="-card"], [id$="-settings"]')) return; // spacers, message lines
                 id = 'x-' + (el.id || cardTitle(el).toLowerCase().replace(/\W+/g, '-'));
-                if (!byId[id]) { const it = { id, g: 'other', label: cardTitle(el), sub: '', ic: 'dot', els: [], vis: false }; byId[id] = it; items.push(it); }
+                if (!byId[id]) { const it = { id, g: 'other', label: cardTitle(el), sub: '', ic: 'dot', els: [], vis: false, n: 0 }; byId[id] = it; items.push(it); }
             }
             if (el.getAttribute('data-st') !== id) el.setAttribute('data-st', id);
             byId[id].els.push(el);
-            if (shown.get(el) && !/settings-message|main-settings-actions/.test(el.id + ' ' + el.className)) byId[id].vis = true;
+            if (shown.get(el) && !/settings-message|main-settings-actions/.test(el.id + ' ' + el.className)) { byId[id].vis = true; byId[id].n++; }
         });
         const vis = items.filter((it) => it.vis);
         if (!vis.length) return;
-        if (!cur || !byId[cur] || !byId[cur].vis) cur = vis[0].id;
+        if (open && (!byId[open] || !byId[open].vis)) open = null;
         sec.classList.add('iba-st-on');
+        sec.classList.toggle('iba-sw-open', !!open);
+        sec.classList.toggle('iba-sw-one', !!open && byId[open].n === 1);
 
-        // menu
-        let host = $('iba-st-nav');
+        // tiles
+        let host = $('iba-st-tiles');
         if (!host) {
-            host = document.createElement('div'); host.id = 'iba-st-nav';
+            host = document.createElement('div'); host.id = 'iba-st-tiles';
             const root = host.attachShadow({ mode: 'open' });
-            root.innerHTML = '<style>' + CSS + '</style><nav class="nav" aria-label="Settings"><div class="title">Settings</div>' +
-                '<label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" placeholder="Search settings" autocomplete="off"></label>' +
-                '<div class="list"></div></nav>';
-            root.addEventListener('click', (e) => {
-                const b = e.target.closest && e.target.closest('[data-st-item]');
-                if (!b) return;
-                cur = b.getAttribute('data-st-item');
-                try { localStorage.setItem(KEY, cur); } catch (_) {}
-                paint();
-                if (sec.getBoundingClientRect().top < 0) sec.scrollIntoView({ block: 'start' });
-            });
+            root.innerHTML = '<style>' + TILE_CSS + '</style><div class="top"><div><h1>Settings</h1><div class="hi"></div></div>' +
+                '<label class="srch">' + svg('search') + '<input type="search" placeholder="Search settings" autocomplete="off"></label></div><div class="body"></div>';
+            root.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-st-item]'); if (b) openWin(b.getAttribute('data-st-item')); });
             const inp = root.querySelector('input');
             inp.addEventListener('input', () => { query = inp.value.trim().toLowerCase(); lastSig = ''; paint(); });
             inp.addEventListener('keydown', (e) => {
@@ -199,50 +257,75 @@ html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !
                 if (e.key === 'Escape') { inp.value = ''; query = ''; lastSig = ''; paint(); }
             });
         }
-        if (host.parentNode !== sec) sec.prepend(host);
+        if (host.parentNode !== sec || sec.firstElementChild !== host) sec.prepend(host);
         const root = host.shadowRoot;
+        const u = me() || {};
+        const hi = (u.Name ? 'Hello, ' + u.Name : 'Your settings') + (u.Position ? ' · ' + u.Position : '');
+        const hiEl = root.querySelector('.hi'); if (hiEl.textContent !== hi) hiEl.textContent = hi;
         const match = (it) => !query || (it.label + ' ' + it.sub + ' ' + it.els.map((e) => e.textContent).join(' ')).toLowerCase().indexOf(query) >= 0;
-        const badge = reqCount();
-        const sig = vis.map((it) => it.id).join(',') + '|' + query + '|' + badge;
-        if (sig !== lastSig) {
-            lastSig = sig;
-            let html = '', admin = false;
-            GROUPS.forEach((g) => {
-                const its = vis.filter((it) => it.g === g.id && match(it));
-                if (!its.length) return;
-                html += '<div class="g">' + esc(g.label) + (g.admin && !admin ? '<span class="lock">· Super Admin</span>' : '') + '</div>';
-                if (g.admin) admin = true;
-                its.forEach((it) => {
-                    html += '<button type="button" class="it" data-st-item="' + esc(it.id) + '">' + svg(it.ic) +
-                        '<span class="tx"><b>' + esc(it.label) + '</b>' + (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + '</span>' +
-                        (it.id === 'pwd' && badge ? '<span class="badge">' + badge + '</span>' : '') + '</button>';
-                });
+        const stateOf = (it) => { try { return it.state ? it.state() : null; } catch (_) { return null; } };
+        let html = '';
+        GROUPS.forEach((g) => {
+            const its = vis.filter((it) => it.g === g.id && match(it));
+            if (!its.length) return;
+            html += '<div class="g">' + esc(g.label) + (g.note ? '<i>· ' + esc(g.note) + '</i>' : '') + '</div><div class="tiles">';
+            its.forEach((it) => {
+                const st = stateOf(it);
+                html += '<button type="button" class="t" data-st-item="' + esc(it.id) + '"><span class="ic">' + svg(it.ic) + '</span><b>' + esc(it.label) + '</b>' +
+                    (it.sub ? '<small>' + esc(it.sub) + '</small>' : '') + '<span class="st">' + (st ? '<span class="chip ' + (st[1] || '') + '">' + esc(st[0]) + '</span>' : '') + '</span></button>';
             });
-            root.querySelector('.list').innerHTML = html || '<p class="none">Nothing found.</p>';
-        }
-        root.querySelectorAll('[data-st-item]').forEach((b) => b.classList.toggle('on', b.getAttribute('data-st-item') === cur));
+            html += '</div>';
+        });
+        if (!html) html = '<p class="none">Nothing found.</p>';
+        if (html !== lastSig) { lastSig = html; root.querySelector('.body').innerHTML = html; }
 
-        // heading over the cards
-        const it = byId[cur];
-        let head = sec.querySelector(':scope > .iba-st-head');
-        if (!head) { head = document.createElement('div'); head.className = 'iba-st-head'; }
-        if (head.previousElementSibling !== host) host.after(head);
-        const hh = '<b>' + esc(it.label) + '</b><span>' + esc(it.sub || '') + '</span>';
-        if (head.innerHTML !== hh) head.innerHTML = hh;
+        // window header + dim
+        let head = sec.querySelector(':scope > .iba-sw-head');
+        if (open) {
+            const it = byId[open];
+            if (!head) {
+                head = document.createElement('div'); head.className = 'iba-sw-head';
+                head.addEventListener('click', (e) => { if (e.target.closest('.x')) closeWin(); });
+            }
+            if (head.previousElementSibling !== host) host.after(head);
+            const hh = '<span class="ic">' + svg(it.ic) + '</span><span class="tx"><b>' + esc(it.label) + '</b><span>' + esc(it.sub || '') + '</span></span><button type="button" class="x" title="Close (Esc)">' + svg('x') + '</button>';
+            if (head.getAttribute('data-for') !== open) { head.innerHTML = hh; head.setAttribute('data-for', open); }
+        } else if (head) head.remove();
+
+        // 117 (martin): the tiles stay visible behind the open window. The real tiles live
+        // inside the section (which becomes the window), so a copy sits just before it.
+        let ghost = $('iba-st-ghost');
+        if (open) {
+            if (!ghost) {
+                ghost = document.createElement('div'); ghost.id = 'iba-st-ghost';
+                const gr = ghost.attachShadow({ mode: 'open' });
+                gr.innerHTML = '<style>' + TILE_CSS + '</style><div class="top"><div><h1>Settings</h1><div class="hi"></div></div></div><div class="body"></div>';
+                gr.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-st-item]'); if (b) openWin(b.getAttribute('data-st-item')); else closeWin(); });
+            }
+            if (ghost.nextElementSibling !== sec) sec.parentNode.insertBefore(ghost, sec);
+            const gr = ghost.shadowRoot;
+            if (gr.__sig !== lastSig) { gr.__sig = lastSig; gr.querySelector('.body').innerHTML = lastSig; }
+            const ghi = gr.querySelector('.hi'); if (ghi.textContent !== hi) ghi.textContent = hi;
+            const cs = getComputedStyle(host);
+            ghost.style.cssText = 'display:block;box-sizing:border-box;padding:' + cs.paddingTop + ' ' + cs.paddingRight + ' ' + cs.paddingBottom + ' ' + cs.paddingLeft + ';';
+        } else if (ghost) ghost.remove();
 
         list.forEach((el) => {
             const st = el.getAttribute('data-st');
             if (!st) return;
-            if (st === cur) unhide(el); else hide(el);
+            if (open && st === open) unhide(el); else hide(el);
         });
         if (obs) obs.takeRecords(); // our own changes must not start another round
     }
 
-    // a password error in Settings must be seen: jump to Profile & password
-    // (window, capture: runs before the password check, which may stop the submit)
-    window.addEventListener('submit', (e) => {
-        if (e.target && e.target.id === 'settings-form' && cur !== 'profile') { cur = 'profile'; paint(); }
-    }, true);
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || !open) return;
+        // an app pop-up opened from inside the window closes first
+        const top = Array.from(document.querySelectorAll('.modal:not(.hidden), [role="dialog"]:not([hidden])')).find((m) => m.offsetParent !== null && !m.closest('#wd-settings'));
+        if (top) return;
+        closeWin();
+    });
+    // Save in Profile & password: a password error must stay visible -> keep the window open
 
     let tmr = 0;
     const later = () => { clearTimeout(tmr); tmr = setTimeout(paint, 120); };
@@ -252,8 +335,8 @@ html body #wd-settings.iba-st-on:not(.hidden) .settings-card{padding:18px 20px !
         paint();
         obs = new MutationObserver(later);
         obs.observe(sec, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
-        setInterval(paint, 4000); // role changes after sign-in, request count
+        setInterval(paint, 4000); // role changes after sign-in, states on the tiles
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
-    window.ibaSettingsTabs = { VERSION, paint, count: () => paints, show: (id) => { cur = id; paint(); } };
+    window.ibaSettingsTabs = { VERSION, paint, count: () => paints, show: openWin, close: closeWin };
 })();

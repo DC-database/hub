@@ -22,7 +22,7 @@
 (function () {
     'use strict';
     if (window.ibaPwd) return;
-    const VERSION = '18.0.0-p114';
+    const VERSION = '18.0.0-p121';
     const SUPER = () => (typeof SUPER_ADMIN_NAME === 'string' && SUPER_ADMIN_NAME) || 'Irwin';
     const REQ = 'iba_pwd_requests';
     const CLEAR_MIN = 30;
@@ -86,9 +86,9 @@
     const CSS = `
 :host{all:initial}
 *{box-sizing:border-box;font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif}
-.dim{position:fixed;inset:0;z-index:2147483000;background:rgba(5,12,20,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.dim{position:fixed;inset:0;z-index:2147483000;background:rgba(5,12,20,.42);display:flex;align-items:center;justify-content:center;padding:16px}
 .dim.solid{background:radial-gradient(circle at 30% 20%,#173247 0,#0b1724 55%,#060d15 100%)}
-.box{width:min(440px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#101e2b;border:1px solid rgba(227,201,138,.35);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.45);color:#F3F6F9;padding:22px 22px 18px}
+.box{width:min(440px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#0C0E11;border:1px solid rgba(227,201,138,.35);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,.45);color:#F3F6F9;padding:22px 22px 18px}
 .box.wide{width:min(1000px,100%)}
 h2{margin:0 0 4px;font-size:20px;font-weight:700;color:#fff}
 .sub{margin:0 0 16px;font-size:13.5px;line-height:1.45;color:#E3C98A}
