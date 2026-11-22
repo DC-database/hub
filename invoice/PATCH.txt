@@ -3,6 +3,28 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 110 (22-Nov-2026)
+  Passwords on the phone + automatic switch (martin).
+  - Phone assistant: new "Passwords" tile (Super Admin only) in the bottom row, red number = forgot password
+    requests waiting. Opens the same Passwords window (phone layout: one card per person, Clear button).
+  - Forgot password WhatsApp message now has a link (?pwd=1): tapping it opens Passwords right after sign-in.
+  - The person's Forgot password screen watches only their own account for 30 minutes: when the Super Admin
+    presses Clear, "Make your new password" opens there by itself (no need to wait for a reply).
+  Files: js/iba-1709-pwd.js, index.html, PATCH.txt
+
+18.0.0 patch 109 (22-Nov-2026)
+  Password control (martin). Database rules NOT changed (still read/write true).
+  - Settings > Passwords (Super Admin only): every person's password status, who set it and when, history (tap
+    the name). Forgot password requests listed on top.
+  - CLEAR (main way): old password stops working at once; for 30 minutes the person signs in with the mobile only
+    (password empty) and makes a new password on the spot. After 30 min the account stays locked until cleared
+    again. "Tell them on WhatsApp" button.
+  - TEMPORARY (optional): you give a temporary password; at sign-in they must make their own (cannot reuse it).
+  - "Forgot password?" under both sign-in screens: mobile number -> request saved (iba_pwd_requests) and WhatsApp
+    opens with a ready message to the Super Admin. It changes nothing by itself.
+  - Own password changes in Settings / first-time setup are marked "set by user".
+  Files: js/iba-1709-pwd.js (new), index.html, PATCH.txt
+
 18.0.0 patch 108 (21-Nov-2026)
   New IRIS skill "SRV Done to Batch" (Super Admin only, martin): every invoice now in SRV Done, and only SRV Done,
   goes into Batch Entry (up to 100 at a time) keeping its status. Kept apart from the summary notes so there is no
