@@ -3,6 +3,26 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 126 (23-Nov-2026)
+  App feel (martin): on a PC, a browser tab shows "Install IBA System to continue" (one-click Install, or
+  "Open the IBA app" when it is already installed); the installed app has its own window and icon, no address
+  bar. Phones/tablets are never blocked. Local index.html (file:// / localhost) is never blocked. Small
+  "Super Admin sign-in" link on the gate (others are sent back to it after sign-in).
+  Settings > "Install on phone": QR code -> phone opens a 3-step guide (iPhone: Share > Add to Home Screen > Add;
+  Android: Install). Super Admin picks who sees the tile (Admins / Everyone / people I pick) and has the
+  off switch "Require the app on PC" (system_settings/app_install; tabs open normally again within a minute).
+  Right-click and F12 / Ctrl+Shift+I/J/C / Ctrl+U blocked for everyone except Super Admin (still allowed in
+  text boxes). This only discourages, it is not real security.
+  Files: js/iba-1726-app.js (new), js/iba-1714-settabs.js, index.html, PATCH.txt
+
+18.0.0 patch 125 (23-Nov-2026)
+  Fix (martin: Hafiz still working after his password was cleared): a person who stayed signed in (tab never
+  closed, session restored) was only caught by the daily sign-in. Now the system checks the signed-in person's
+  own password status (a few bytes) 20 s after opening and every 10 minutes; if it is Cleared, it signs them
+  out at the next safe moment (no pop-up open, nothing typed) with "Your password was cleared - sign in with
+  your mobile and make your new password". Also: a tab first opened with patch 122 counted as signed in "today".
+  Files: js/iba-1721-daily.js, index.html, PATCH.txt
+
 18.0.0 patch 124 (22-Nov-2026)
   Settings: "Settings / Hello, name" title removed (martin: the header already says it); only the search box
   stays at the top. Group names are plain text again with a dark shadow so they read on light backgrounds.
