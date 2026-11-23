@@ -3,6 +3,19 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 129 (23-Nov-2026)
+  Find LPO fix (martin): "Re-read folder" said "No folder was picked" on a PC where only "Other way to pick"
+  works. The way the folder was picked was forgotten after closing Find LPO, so Re-read tried the green picker
+  (which Chrome refuses there). Now it remembers: Re-read opens the same folder chooser that worked. And when
+  a folder message says "use Other way to pick", the button is right there in the message.
+  Material Stock much faster to scroll (martin: slow even on a good PC). Cause: the gold hover bar was moved
+  by script on EVERY row the mouse passed while scrolling, and each move made the whole page recalculate its
+  style (~0.1 s per row). Now hover is plain CSS (no script), the opened row keeps a gold edge. Measured in
+  a test: about 110 ms per scroll step before, about 20-25 ms after (4-5x faster). Table restyled simple and
+  clean: solid header, thin lines, gold monospace Product ID, teal family pill, small quiet buttons, red only on
+  Delete; no shadows/blur/animations on rows. css/iba-1729-ms.css (new).
+  Files: js/iba-1800-lpo.js, js/materialStock.js, css/iba-1729-ms.css (new), index.html, PATCH.txt
+
 18.0.0 patch 128 (23-Nov-2026)
   Find LPO (martin): clear (x) button inside the search box; shows only when something is typed, one click
   empties the search and keeps the cursor in the box.
