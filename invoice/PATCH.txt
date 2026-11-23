@@ -3,6 +3,12 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 131 (23-Nov-2026)
+  Darker see-through boxes (martin): the Invoice Entry PO figures box (after Search PO) and the Invoice
+  Records PO cards (with their invoice tables) get a darker see-through background so the numbers read well
+  over the moving backgrounds. Empty part of the bar and the small labels slightly brighter. No blur (fast).
+  Files: css/iba-1731-dark.css (new), index.html, PATCH.txt
+
 18.0.0 patch 130 (23-Nov-2026)
   Material Stock scrolling much faster on every PC, all family tabs (martin: still slow after p129, even on a
   good PC). Real cause found: a kind of style rule (":has") in several css files made Chrome recheck the WHOLE
