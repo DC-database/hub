@@ -2013,19 +2013,19 @@
      keeps a warmer wash and the same gold edge. Text stays light (the old
      white frost bar with dark text is switched off).
      ===================================================================== */
-  body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area, #im-content-area#im-content-area#im-content-area) table tbody tr:not(.stock-child-row):not(:has(> td[colspan])):is(:hover, :focus-within) > td {
+  body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area, #im-content-area#im-content-area#im-content-area) table tbody tr:not(.stock-child-row):is(:hover, :focus-within) > td:not(td[colspan]) {
     background: var(--ui-row-hover) !important;
     background-color: var(--ui-row-hover) !important;
     background-image: none !important;
     -webkit-mask-image: none !important;
     mask-image: none !important;
   }
-  body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area, #im-content-area#im-content-area#im-content-area) table tbody tr:not(.stock-child-row):not(:has(> td[colspan])):is(:hover, :focus-within) > td:first-child {
+  body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area, #im-content-area#im-content-area#im-content-area) table tbody tr:not(.stock-child-row):is(:hover, :focus-within) > td:not(td[colspan]):first-child {
     box-shadow: inset 3px 0 0 var(--ui-gold) !important;
   }
   /* open / expanded rows */
   body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area) :is(
-      #ms-table tbody tr.ms-parent-row:has(+ tr.stock-child-row:not(.hidden)),
+      #ms-table tbody tr.ms-parent-row.ms-open,
       #job-records-table tbody tr.inv-job-group-row.is-open,
       #inv-active-job-table-body tr.controlid-group-header.open) > td {
     background: var(--ui-row-open) !important;
@@ -2033,7 +2033,7 @@
     background-image: none !important;
   }
   body.iba-shell-on :is(#workdesk-content-area#workdesk-content-area#workdesk-content-area) :is(
-      #ms-table tbody tr.ms-parent-row:has(+ tr.stock-child-row:not(.hidden)),
+      #ms-table tbody tr.ms-parent-row.ms-open,
       #job-records-table tbody tr.inv-job-group-row.is-open,
       #inv-active-job-table-body tr.controlid-group-header.open) > td:first-child {
     box-shadow: inset 3px 0 0 var(--ui-gold) !important;
@@ -3944,7 +3944,7 @@
     -webkit-backdrop-filter: var(--ui-blur) !important;
     transition: border-color .15s ease !important;
   }
-  body.iba-shell-on #im-po-closeout #im-po-closeout-list > div:has(span[style*="fff7ed"]) { box-shadow: inset 3px 0 0 var(--ui-amber) !important; }
+  body.iba-shell-on #im-po-closeout #im-po-closeout-list > div.iba-pco-ready { box-shadow: inset 3px 0 0 var(--ui-amber) !important; }
   body.iba-shell-on #im-po-closeout #im-po-closeout-list > div:hover { border-color: rgba(227, 201, 138, 0.45) !important; }
   body.iba-shell-on #im-po-closeout #im-po-closeout-list > div > div { align-items: center !important; }
   body.iba-shell-on #im-po-closeout #im-po-closeout-list > div > div > div:first-child > div:nth-child(1) {

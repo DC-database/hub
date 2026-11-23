@@ -728,7 +728,7 @@
   html body #wd-material-stock .ms-bd-qtyline .ms-set-qty-btn { margin: 0 !important; }
   html body #wd-material-stock .ms-glass-panel:not(.ms-hist-showall) tr.ms-hist-old { display: none !important; }
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3) #wd-material-stock .ms-hist-all { margin-top: 8px !important; height: 30px !important; min-height: 0 !important; padding: 0 14px !important; border-radius: 99px !important; font-size: 12.5px !important; }
-  html body #wd-material-stock .ms-premium-tablewrap:has(tr.stock-child-row:not(.hidden)) { max-height: none !important; overflow-y: visible !important; }
+  html body #wd-material-stock .ms-premium-tablewrap.ms-has-open { max-height: none !important; overflow-y: visible !important; }
   html body #wd-material-stock tr.ms-parent-row { scroll-margin-top: 96px; }
   /* 17.0.5 patch 81: Watching table, one fact per column (wide); stacked on a narrow panel / phone */
   #iba-ai-panel .iba-ai-ttab.is-watch2 li > span { min-width: 0; }
@@ -2324,10 +2324,10 @@ html body:not(#iba-g1) #iba-rcv .rcv-bg { font-size: 14px !important; }
 
 
 /* 17.0.5 patch 211: pinned side panel hid the Actions column (10) of inventory Work History (old iba-shell.css rule), so the Fix transfer wrench was invisible. Keep Actions for inventory records. */
-html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table:has(> tbody.inv-job-records-body) th:nth-child(10),
-html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table:has(> tbody.inv-job-records-body) td:nth-child(10),
-html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-job-records-body) th:nth-child(10),
-html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-job-records-body) td:nth-child(10) { display: table-cell !important; }
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table.inv-job-records-table:is(table) th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #reporting-printable-area table.inv-job-records-table:is(table) td:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table.inv-job-records-table:is(table) th:nth-child(10),
+html body.iba-sidebar-pinned #wd-reporting #job-records-table.inv-job-records-table:is(table) td:nth-child(10) { display: table-cell !important; }
 
 /* 18.0.0 patch 5: All skills sorted - gold group title, count and line, thin divider between groups */
 @layer iba-ui {
@@ -3266,7 +3266,7 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body #iba-sno-bar button { all: unset !important; cursor: pointer !important; padding: 4px 10px !important; border-radius: 6px !important; background: #0e4d7a !important; color: #fff !important; -webkit-text-fill-color: #fff !important; font-size: 12px !important; font-weight: 700 !important; }
   @media print { html body .iba-sno-mv, html body #iba-sno-bar { display: none !important; } }
   /* p86: Summary Note Per PO: a PO paid off by this note is faded on screen and left out of the print */
-  html body tr.is-done:has(.iba-snpo-done) > td { opacity: .5 !important; }
+  html body tr.is-done.iba-snpo-fin > td { opacity: .5 !important; }
   html body .iba-snpo-done { display: block !important; color: #16a34a !important; -webkit-text-fill-color: #16a34a !important; font-weight: 700 !important; font-size: 11px !important; }
   /* p83: Find LPO: title bar drags the window; two pick buttons side by side */
   html body #iba-lpo-pop .iba-lpo-head { cursor: move !important; user-select: none !important; }
@@ -3312,7 +3312,7 @@ html body.iba-sidebar-pinned #wd-reporting #job-records-table:has(> tbody.inv-jo
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8).iba-fab-L #iba-ai-panel.iba-ai-panel:not(.is-wide):not(.is-moved) { left: var(--iba-fab-pl, 16px) !important; right: auto !important; }
   /* p76: a dragged IRIS robot (and its speech bubbles) sits IN FRONT of the side menu (layer 99990), but drops back under any open pop-up (9999) */
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8).iba-fab-is-moved :is(#iba-ai-fab.iba-fab-moved, #iba-ai-tip, #iba-ai-bubble) { z-index: 99996 !important; }
-  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8).iba-fab-is-moved:has(.modal-overlay:not(.hidden), .modal:not(.hidden)[style*="flex"], .modal:not(.hidden)[style*="block"]) :is(#iba-ai-fab.iba-fab-moved, #iba-ai-tip, #iba-ai-bubble) { z-index: 9990 !important; }
+  html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8).iba-fab-is-moved.iba-fab-under-modal :is(#iba-ai-fab.iba-fab-moved, #iba-ai-tip, #iba-ai-bubble) { z-index: 9990 !important; }
   /* p76: open PO details + column header nearly SOLID (martin: scrolled rows showing through the frosted head were confusing). Still a slight glass tint */
   html body:not(#iba-no1):not(#iba-no2):not(#iba-no3):not(#iba-no4):not(#iba-no5):not(#iba-no6):not(#iba-no7):not(#iba-no8):not(#iba-no9):not(#iba-no10) #im-reporting#im-reporting #im-reporting-content .invoice-card.iba-rc.expanded :is(.iba-rc-head, .im-nested-invoice-table thead) { background-color: rgba(12, 22, 35, .95) !important; background: rgba(12, 22, 35, .95) !important; }
   /* p75: clean round corners on every Records card (martin saw broken-looking corners): everything inside is clipped to the

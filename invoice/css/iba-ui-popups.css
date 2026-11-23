@@ -563,10 +563,10 @@
   }
   /* a picked row in the result tables */
   .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:is(.selected, .is-selected, .highlight, .highlighted, .row-selected) > td,
-  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:has(input[type="checkbox"]:checked) > td {
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr.iba-row-checked > td {
     background: rgba(19, 138, 151, 0.16) !important;
   }
-  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr:has(input[type="checkbox"]:checked) > td:first-child { box-shadow: inset 3px 0 0 var(--ui-teal) !important; }
+  .modal-overlay:not(#standard-job-modal) > .modal-container tbody tr.iba-row-checked > td:first-child { box-shadow: inset 3px 0 0 var(--ui-teal) !important; }
   /* Legacy archive switch (Super Admin): amber note */
   #im-add-payment-modal .im-payment-legacy-controls {
     margin: 0 0 12px !important;

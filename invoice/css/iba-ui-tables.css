@@ -78,7 +78,7 @@
       #im-existing-invoices-container table,
       #im-payments #im-payments-table,
       #wd-dashboard .wd-payment-pocket-table,
-      #wd-dashboard .wd-paid-po-history-table) > tbody > tr:not(.controlid-group-child):not(.inventory-child-row):not(.stock-child-row):not(.ms-bd-gap-row):not(:has(> td[colspan])):nth-child(even of :not(.controlid-group-child):not(.inventory-child-row):not(.stock-child-row):not(.ms-bd-gap-row)) > td {
+      #wd-dashboard .wd-paid-po-history-table) > tbody > tr:not(.controlid-group-child):not(.inventory-child-row):not(.stock-child-row):not(.ms-bd-gap-row):nth-child(even of :not(.controlid-group-child):not(.inventory-child-row):not(.stock-child-row):not(.ms-bd-gap-row)) > td:not(td[colspan]) {
     background: rgba(255, 255, 255, 0.03) !important;
     background-color: rgba(255, 255, 255, 0.03) !important;
   }
