@@ -20,7 +20,7 @@
 (function () {
     'use strict';
     if (window.ibaApp) return;
-    var VERSION = '18.0.0-p126';
+    var VERSION = '18.0.0-p127';
     var INSTALLED = 'iba-app-installed-v1';
     var SET_PATH = 'system_settings/app_install';
     var deferred = null;
@@ -97,12 +97,28 @@
         c.remove();
         Array.prototype.forEach.call(document.body.children, function (el) { if (el.__ibaInert) { el.inert = false; el.__ibaInert = false; } });
     }
+    // (p127) open the installed app from the tab: web+iba: link (manifest protocol_handlers). Chrome asks once "Open IBA?".
+    function openApp(root) {
+        var opened = false;
+        // the app window takes focus -> try to close this tab (Chrome only lets a script close tabs it opened itself;
+        // if it stays open, the tab shows "IBA is open in its own window" and holds nothing)
+        function gone() {
+            if (opened) return; opened = true;
+            window.removeEventListener('blur', gone); document.removeEventListener('visibilitychange', gone);
+            try { window.close(); } catch (_) {}
+            setTimeout(function () { paintCard('opened'); }, 300);
+        }
+        window.addEventListener('blur', gone); document.addEventListener('visibilitychange', gone);
+        try { var a = document.createElement('a'); a.href = 'web+iba:open'; a.rel = 'noopener'; a.style.display = 'none'; document.body.appendChild(a); a.click(); setTimeout(function () { try { a.remove(); } catch (_) {} }, 500); } catch (_) {}
+        setTimeout(function () { if (opened) return; var h = root.querySelector('[data-open-help]'); if (h) h.hidden = false; }, 1500);
+    }
     function gateHtml(state) {
         var main;
-        if (state === 'done') main = '<h2>Installed!</h2><p class="sub">IBA now opens in its own window. Use that window from now on - you can close this browser tab.</p>';
+        if (state === 'opened') main = '<h2>IBA is open in its own window</h2><p class="sub">You can close this browser tab now (Ctrl+W).</p>';
+        else if (state === 'done') main = '<h2>Installed!</h2><p class="sub">Chrome opens IBA in its own window now. Use that window from now on - this tab can be closed (Ctrl+W).</p>';
         else if (deferred) main = '<h2>Install IBA System to continue</h2><p class="sub">IBA works as an app on this PC: its own window and desktop icon, no address bar. One click.</p><div class="row"><button class="m" data-inst>Install IBA</button></div>';
-        else if (get(INSTALLED) === '1') main = '<h2>Open the IBA app</h2><p class="sub">IBA is installed on this PC. Close this tab and open <b style="display:inline;margin:0">IBA</b> from the icon on your desktop or Start menu.</p><p class="sub" style="font-size:12.5px">Removed it? Click the install icon ⊕ at the right end of the address bar, then Install.</p>';
-        else if (EDGE_CHROME) main = '<h2>Install IBA System to continue</h2><p class="sub">Click the install icon <b style="display:inline;margin:0">⊕</b> at the right end of the address bar (or the browser menu ⋮ → <b style="display:inline;margin:0">Install IBA</b>), then press Install.</p>';
+        else if (get(INSTALLED) === '1') main = '<h2>Open the IBA app</h2><p class="sub">IBA is installed on this PC. Open it in its own window - you can close this tab.</p>' + '<div class="row"><button class="m" data-open>Open IBA app</button></div><p class="sub" data-open-help hidden style="font-size:12.5px;color:#EBD8A8">Nothing opened? Click the <b style="display:inline;margin:0">Open in app</b> icon at the right end of the address bar, or open IBA from your desktop / Start menu icon. If Chrome asks "Open IBA?", tick Always allow and press Open.</p>';
+        else if (EDGE_CHROME) main = '<h2>Install IBA System to continue</h2><p class="sub">Click the install icon <b style="display:inline;margin:0">⊕</b> at the right end of the address bar (or the browser menu ⋮ → <b style="display:inline;margin:0">Install IBA</b>), then press Install.</p>' + '<p class="sub" style="margin-top:14px;font-size:12.5px">Already installed?</p>' + '<div class="row"><button class="m" data-open>Open IBA app</button></div><p class="sub" data-open-help hidden style="font-size:12.5px;color:#EBD8A8">Nothing opened? Click the <b style="display:inline;margin:0">Open in app</b> icon at the right end of the address bar, or open IBA from your desktop / Start menu icon. If Chrome asks "Open IBA?", tick Always allow and press Open.</p>';
         else main = '<h2>Open IBA in Chrome or Edge</h2><p class="sub">IBA is used as an installed app. Please open this page in Google Chrome or Microsoft Edge and install it there.</p>';
         return '<div class="dim gate"><div class="sheet" role="dialog" aria-modal="true" aria-label="Install IBA">' +
             '<div style="display:flex;justify-content:center;margin-bottom:14px"><div class="ic" style="width:64px;height:64px;border-radius:16px"><img src="icons/icon-192.png" alt=""></div></div>' +
@@ -118,11 +134,12 @@
         Array.prototype.forEach.call(document.body.children, function (el) { if (el !== c && !el.inert && !/^(SCRIPT|STYLE)$/.test(el.tagName)) { el.inert = true; el.__ibaInert = true; } });
         root.addEventListener('click', function (e) {
             var t = e.target.closest && e.target.closest('button'); if (!t) return;
+            if (t.hasAttribute('data-open')) { openApp(root); return; }
             if (t.hasAttribute('data-sa')) { try { sessionStorage.setItem(SA, '1'); } catch (_) {} closeCard(); return; }
             if (t.hasAttribute('data-inst') && deferred) {
                 var d = deferred; deferred = null;
                 d.prompt();
-                (d.userChoice || Promise.resolve({})).then(function (r) { if (r && r.outcome === 'accepted') { set(INSTALLED, '1'); paintCard('done'); } else paintCard(); });
+                (d.userChoice || Promise.resolve({})).then(function (r) { if (r && r.outcome === 'accepted') { set(INSTALLED, '1'); paintCard('done'); setTimeout(function () { try { window.close(); } catch (_) {} }, 1500); } else paintCard(); });
             }
         });
     }
