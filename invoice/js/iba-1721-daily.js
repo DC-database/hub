@@ -14,7 +14,7 @@
 (function () {
     'use strict';
     if (window.ibaDaily) return;
-    var VERSION = '18.0.0-p122';
+    var VERSION = '18.0.0-p125';
     var KEY = 'approverKey';
     var STAMP = 'iba-signin-day-v1';
     var NOTE = 'iba-daily-note-v1';
@@ -80,6 +80,34 @@
     });
     setInterval(function () { check(false); }, 60000);
 
+    // 4. (p125) an account that was CLEARED while signed in: sign out at the next safe moment,
+    //    so the person makes a new password now, not only next morning. Reads only this person's
+    //    own PwdStatus (a few bytes) at start and every 10 minutes.
+    var clearedNow = false;
+    function myKey() { var k = get(KEY); return (k && k !== TEST) ? k : ''; }
+    function readStatus() {
+        var k = myKey();
+        if (!k) return;
+        var d = null; try { d = (typeof db !== 'undefined' && db && db.ref) ? db : null; } catch (_) {}
+        if (!d) return;
+        try {
+            d.ref('approvers/' + k + '/PwdStatus').once('value').then(function (s) {
+                clearedNow = s && s.val() === 'cleared';
+                if (clearedNow) kick();
+            }).catch(function () {});
+        } catch (_) {}
+    }
+    function kick() {
+        if (!clearedNow || !myKey() || busy()) return;
+        try { sessionStorage.setItem(NOTE, 'cleared'); } catch (_) {}
+        try { if (typeof handleLogout === 'function') { handleLogout(); return; } } catch (_) {}
+        del(KEY);
+        location.reload();
+    }
+    setTimeout(readStatus, 20000);
+    setInterval(readStatus, 10 * 60000);
+    setInterval(kick, 15000); // waits for a safe moment (no pop-up / typed text)
+
     // 3. a short note on the sign-in screen
     function note() {
         var n = null; try { n = sessionStorage.getItem(NOTE); } catch (_) {}
@@ -88,7 +116,7 @@
         var d = document.createElement('div');
         d.id = 'iba-daily-note';
         d.setAttribute('role', 'status');
-        d.textContent = 'Good morning! A new day started - please sign in again.';
+        d.textContent = n === 'cleared' ? 'Your password was cleared - sign in with your mobile and make your new password.' : 'Good morning! A new day started - please sign in again.';
         d.style.cssText = 'position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:2147483600;background:#0C0E11;color:#EBD8A8;border:1px solid rgba(227,201,138,.45);border-radius:12px;padding:10px 18px;font:600 14px/1.3 Inter,Segoe UI,Arial,sans-serif;box-shadow:0 12px 34px rgba(0,0,0,.45);max-width:calc(100vw - 32px);text-align:center';
         document.body.appendChild(d);
         setTimeout(function () { try { d.remove(); } catch (_) {} }, 9000);
@@ -96,5 +124,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(note, 800); });
     else setTimeout(note, 800);
 
-    window.ibaDaily = { VERSION: VERSION, day: day, stale: stale, check: check };
+    window.ibaDaily = { VERSION: VERSION, day: day, stale: stale, check: check, readStatus: readStatus };
 })();

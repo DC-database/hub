@@ -10,7 +10,7 @@
  */
 (function () {
     'use strict';
-    const VERSION = '18.0.0-p124';
+    const VERSION = '18.0.0-p126';
     const $ = (id) => document.getElementById(id);
     const txt = (id) => (($(id) || {}).textContent || '');
     const GROUPS = [
@@ -30,6 +30,8 @@
         { id: 'look', g: 'me', label: 'Background & speed', sub: 'Moving background, light mode for older PCs', ic: 'image', cards: ['#iba-still-card', '#iba-lite-card'],
             state: () => { const m = /Now:\s*([A-Za-z]+)/.exec(txt('iba-lite-card')); return m ? [m[1]] : null; } },
         { id: 'dash', g: 'me', label: 'Dashboard', sub: 'Refresh numbers, chart or cards', ic: 'chart', cards: ['#iba-dash-tools', '#iba-d2-settings-card'] },
+        { id: 'apps', g: 'me', label: 'Install on phone', sub: 'Scan the QR with your phone or tablet', ic: 'phone', cards: ['#iba-app-qr-card'],
+            state: () => (window.ibaApp && window.ibaApp.gateOn && document.body.classList.contains('iba-is-super-admin')) ? (window.ibaApp.gateOn() ? ['App required on PC', 'g'] : ['Tabs allowed', 'r']) : ['QR code'] },
         { id: 'version', g: 'me', label: 'System version', sub: 'Which patch this page runs', ic: 'info', cards: ['#iba-ver-card'],
             state: () => window.IBA_PATCH ? ['Patch ' + window.IBA_PATCH] : null },
         { id: 'pwd', g: 'super', label: 'Passwords', sub: 'Clear, temporary, forgot requests', ic: 'key', cards: ['#iba-pwd-settings-card'],
@@ -64,6 +66,7 @@
         play: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5z"/>',
         search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
         x: '<path d="M6 6l12 12M18 6L6 18"/>',
+        phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
         dot: '<circle cx="12" cy="12" r="3"/>'
     };
     const svg = (k) => '<svg viewBox="0 0 24 24" aria-hidden="true">' + (ICON[k] || ICON.dot) + '</svg>';
