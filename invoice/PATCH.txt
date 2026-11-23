@@ -3,6 +3,97 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 139 (23-Nov-2026)
+  IBA Office: "I'm in" button on the top bar = Lunch / Toilet / Meeting / Out of office / Back at my desk.
+  Your avatar walks there (pantry stool, toilet, meeting room, out the entrance) and your empty chair shows
+  "At lunch · 12:40". The button turns orange with the same text. Saved in system_settings/office_away/{your key}
+  (own small node, the chat's online status is not touched); older than 12 hours = ignored.
+  Other people who set it are shown the same way. Back = you walk back to your desk and Rina says how
+  many are on your desk.
+  Files: js/iba-office-boot.js, js/iba-office.js, css/iba-office.css, index.html, PATCH.txt
+
+18.0.0 patch 138 (23-Nov-2026)
+  IBA Office desk: "Copy all for Excel" next to the count = the same list as the Under Review list skill
+  (Time, PO, Site, Inv No, Inv name, Inv Amount, Amount Paid, Status; no header, tabs; vendor A-Z;
+  one row per invoice name), for your rename Excel. Uses the name in the box, so your fixes are included.
+  The Copy button on each row stays.
+  Files: js/iba-office-boot.js, js/iba-office.js, css/iba-office.css, index.html, PATCH.txt
+
+18.0.0 patch 137 (23-Nov-2026)
+  IBA Office: the bots do real work (Super Admin only, 2 tasks for now).
+  - Reception cabinet = your Reception entries (WorkDesk jobs for Invoice), the same list as Invoice Entry.
+  - Rina collects them by herself while the office is open: each becomes an invoice in Under Review (same
+    routine as "New entries to Batch": next Inv Entry ID, PO-style invoice no., auto invoice name) and the
+    reception entry is closed as Converted to Invoice. Not sure (no PO in the list, no invoice no. or amount,
+    invoice no. already on the PO) = stays at Reception and the log says why. Switch: "Rina collects..." tick
+    on your desk.
+  - Your desk (click your desk, or "Your desk · Under Review") = every Under Review invoice, sorted by site.
+    Each row: invoice name (edit + Copy), task For SRV / Report / Later, Goes to.
+    Rina pre-ticks: IPC in the invoice no. = Report (always to Gio), else For SRV.
+    For SRV goes to the person you last sent that site to, else whoever holds that site's For SRV now,
+    else the normal site routing. The reason is shown under the name; you can change it.
+  - Done -> Sami sends 10 s later (Undo until then): status + Attention + history line
+    "Sorted in IBA Office by ...". An invoice someone else changed meanwhile is not touched.
+  - Click a person = their desk (their own job: Site DC = For SRV + On Hold, COO = In Process + For Approval,
+    MD = CEO Approval, Accounts = Report / With Accounts ...) and a "Side cabinet" tab with their other tasks.
+  Files: js/iba-office-boot.js, js/iba-office.js, css/iba-office.css, index.html, PATCH.txt
+
+18.0.0 patch 136 (23-Nov-2026)
+  IBA Office new floor plan (martin: "make the office logical").
+  - Rooms: Reception (New Entry only, desk faces the entrance), Bot room, Logistics, Your office, Managing Director
+    (was CEO), Finance (Finance Manager), HR, Accounts (with the Reports cabinet, no Report room any more), COO
+    (In Process cabinet), Project Director (E.bara), Meeting room (10 chairs), Site room (site DCs), Warehouse
+    (store keepers), Break room, Pantry (bar with stools), Toilet (sinks, urinals, toilets), Office A and Office B
+    (spare rooms: rename them in Setup for a new department).
+  - Every room has a door; desks face the room door. Printer in your office (click = print basket).
+  - Setup: rename any room, add people to any room (each room shows how many desks it has).
+  - Click a person = their own open invoices (Attention on them), e.g. COO = In Process / For Approval on the COO.
+  - Fixed black sofa sides.
+  Files: js/iba-office-boot.js, js/iba-office.js, index.html, PATCH.txt
+
+18.0.0 patch 135 (23-Nov-2026)
+  IBA Office commands understand words, not only PO numbers (martin: "rina find PO for multilink" did nothing).
+  "find / search / show / look for / check / where is" + anything: vendor name (spelling mistakes and short
+  forms OK, same smart name search as the assistant), site ("find site 175"), person (Attention), invoice no.
+  or PO. A bot name in front is optional ("Rina find ...", "Bot 2 search ..."). The bot says how many it found
+  and the list opens (newest first) with the search box to narrow it down.
+  Files: js/iba-office-boot.js, js/iba-office.js, index.html, PATCH.txt
+
+18.0.0 patch 134 (23-Nov-2026)
+  IBA Office: Vendor and Site were empty / N/A in the cabinet lists (martin). The office now loads the PO list
+  the same way Invoice Records does (saved copy, no big download) and takes Vendor = Supplier Name and
+  Site = Project ID from it, else from the invoice itself. Search also finds vendor and site names.
+  Files: js/iba-office-boot.js, js/iba-office.js, index.html, PATCH.txt
+
+18.0.0 patch 133 (23-Nov-2026)
+  IBA Office changes after martin's first try (still Super Admin only, read only):
+  - The office now covers the whole screen, the side menu no longer shows over it.
+  - Neat rooms: Logistics and Accounts have rows of desks; every person has own chair, desk and PC.
+    Only one seat in your office, CEO and COO. Meeting room has chairs only.
+  - Bots have their own Bot room (Rina, Sami, Rafi, Ana) and are the only ones who walk around. People stay
+    seated at their desks.
+  - Only people who are logged in are in the office (from the app's online list, checked every minute).
+    Logged out = empty chair. The log says when someone comes in or leaves.
+  - Cabinets show only what changed today and yesterday, with a search box to find anything in that cabinet
+    (PO, invoice no., vendor, site, person, value). Red number on a cabinet = new since yesterday; the side
+    list shows the total and "+N new".
+  - Pantry has a couch; bots sit on the couch (pantry and break room) during breaks.
+  Files: js/iba-office-boot.js, js/iba-office.js, css/iba-office.css, index.html, PATCH.txt
+
+18.0.0 patch 132 (23-Nov-2026)
+  IBA Office, step 1 (martin's AI office idea). SUPER ADMIN ONLY until martin announces it: a new "Office"
+  button (BETA) under Dashboard in the left menu, nobody else sees it. The office files are downloaded only
+  on the first click. A 3D office over the app: Reception, Scan desk, Sorting, Logistics, your office, CEO,
+  COO, Report room, Accounts, Meeting room, Break room, Pantry, Toilet. Every person has a chair, desk and PC.
+  Cabinets hold the real invoices of that step (read from the saved copy, only changed POs downloaded):
+  click = the list, "Open" = Invoice Records with that PO searched. Red number over a person = open invoices
+  with Attention on them (click = the list). Printer = the print basket. Bots Rina, Sami, Rafi, Ana walk to
+  their cabinet and say the count, and take breaks when idle. Commands: "call Bot 1", "find PO 12345",
+  "Sami take a break". Setup: put people in rooms + suit colour (system_settings/office_v1). Opens on your
+  own office (or the whole office), +/- and mouse wheel zoom. READ ONLY: it changes no invoice. When closed,
+  everything stops.
+  Files: js/iba-office-boot.js (new), js/iba-office.js (new), css/iba-office.css (new), index.html, PATCH.txt
+
 18.0.0 patch 131 (23-Nov-2026)
   Darker see-through boxes (martin): the Invoice Entry PO figures box (after Search PO) and the Invoice
   Records PO cards (with their invoice tables) get a darker see-through background so the numbers read well
