@@ -28,5 +28,11 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+iba",
+      "url": "./?open=%s"
+    }
   ]
 }

@@ -3,6 +3,14 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 127 (23-Nov-2026)
+  Fix (martin): the "Open the IBA app" screen had no button. Now it has "Open IBA app" (also under "Already
+  installed?" on the install screen). It opens the installed IBA window (manifest web+iba link; Chrome asks
+  "Open IBA?" the first time - tick Always allow). When the app window opens, the tab tries to close itself;
+  if Chrome does not allow that, the tab only shows "IBA is open in its own window - close this tab". After
+  Install, Chrome opens the app window and the tab tries to close too.
+  Files: js/iba-1726-app.js, manifest.json, index.html, PATCH.txt
+
 18.0.0 patch 126 (23-Nov-2026)
   App feel (martin): on a PC, a browser tab shows "Install IBA System to continue" (one-click Install, or
   "Open the IBA app" when it is already installed); the installed app has its own window and icon, no address
