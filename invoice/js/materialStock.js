@@ -2973,12 +2973,12 @@ window.msFillStockDetail = function (row) {
         const alignBtn = canAlign
             ? ` <button type="button" class="secondary-btn ms-align-site-btn" data-key="${msEscapeHtml(item.key)}" data-site="${msEscapeHtml(r.site)}" title="Set the card qty at this site to the qty from completed movement history">Align</button>`
             : '';
-        return mainRow + `<tr class="ms-bd-gap-row"><td colspan="2"><div class="ms-bd-gap"><i class="fa-solid fa-triangle-exclamation"></i> Movement history says ${r.expected} should be here, card has ${r.stored}.${alignBtn}</div></td></tr>`;
+        return mainRow + `<tr class="ms-bd-gap-row ms-colspan-row"><td colspan="2"><div class="ms-bd-gap"><i class="fa-solid fa-triangle-exclamation"></i> Movement history says ${r.expected} should be here, card has ${r.stored}.${alignBtn}</div></td></tr>`;
     }).join('');
     if (!breakdownRows) breakdownRows = '<tr><td class="ms-bd-site">No site stock</td><td class="ms-bd-qty">0</td></tr>';
     const dupCards = (Array.isArray(allMaterialStockData) ? allMaterialStockData : []).filter((x) => String(x.productID || x.productId || '').trim() === stockID);
     if (dupCards.length > 1) {
-        breakdownRows += `<tr><td colspan="2" class="ms-bd-dup"><i class="fa-solid fa-clone"></i> ${dupCards.length} cards use Product ID ${msEscapeHtml(stockID)}. Tick them in the list and use Merge Selected so transfers use one card.</td></tr>`;
+        breakdownRows += `<tr class="ms-colspan-row"><td colspan="2" class="ms-bd-dup"><i class="fa-solid fa-clone"></i> ${dupCards.length} cards use Product ID ${msEscapeHtml(stockID)}. Tick them in the list and use Merge Selected so transfers use one card.</td></tr>`;
     }
 
     // 17.0.5 patch 87: Qty column showed only the RECEIVED qty, so a transfer
@@ -2996,7 +2996,7 @@ window.msFillStockDetail = function (row) {
     };
     let historyRows = '';
     if (!productTransfers.length) {
-        historyRows = '<tr><td colspan="8" class="ms-hist-empty">No movement history found.</td></tr>';
+        historyRows = '<tr class="ms-colspan-row"><td colspan="8" class="ms-hist-empty">No movement history found.</td></tr>';
     } else {
         productTransfers.forEach((t, histIndex) => {
             const date = t.shippingDate || (t.timestamp ? (window.ibaLocalISO ? window.ibaLocalISO(t.timestamp) : new Date(t.timestamp).toISOString().split('T')[0]) : '');
@@ -5003,6 +5003,8 @@ function msPaintRowFrost() {
     const openParent = openChild && openChild.previousElementSibling;
     t.querySelectorAll('tbody tr.ms-open').forEach(function (el) { if (el !== openParent) el.classList.remove('ms-open'); });
     if (openParent && openParent.classList.contains('ms-parent-row')) openParent.classList.add('ms-open');
+    // patch 130: the box that holds the table also gets a class (was a css :has() rule = slow)
+    const tw = t.closest('.ms-premium-tablewrap'); if (tw) tw.classList.toggle('ms-has-open', !!openChild);
 }
 function msPaintRowFrostOld() {
     const table = document.getElementById('ms-table');

@@ -223,6 +223,7 @@ ${S} .settings-message-line:empty, ${S} .error-message:empty{display:none !impor
         if (!sec) return;
         if (!$('iba-st-css')) { const s = document.createElement('style'); s.id = 'iba-st-css'; s.textContent = PAGE_CSS; document.head.appendChild(s); }
         if (sec.classList.contains('hidden') && open) open = null;
+        if (sec.classList.contains('hidden') && paints > 1) return; // p130: nothing to draw while Settings is closed
         const list = blocksOf(sec);
         const shown = roleShown(list);
         const items = ITEMS.map((it) => Object.assign({}, it, { els: [], vis: false, n: 0 }));
@@ -338,7 +339,7 @@ ${S} .settings-message-line:empty, ${S} .error-message:empty{display:none !impor
         paint();
         obs = new MutationObserver(later);
         obs.observe(sec, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] });
-        setInterval(paint, 4000); // role changes after sign-in, states on the tiles
+        setInterval(function () { const s = $('wd-settings'); if (s && !s.classList.contains('hidden') && !document.hidden) paint(); }, 4000); // p130: only while Settings is open (it made every page recalculate)
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
     window.ibaSettingsTabs = { VERSION, paint, count: () => paints, show: openWin, close: closeWin };

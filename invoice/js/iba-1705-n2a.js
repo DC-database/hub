@@ -385,6 +385,6 @@
         b.addEventListener('click', open);
         w.parentNode.insertBefore(b, w.nextSibling);
     }
-    setInterval(function () { var p = $('im-batch-entry'); if (p && p.offsetParent && !$('iba-n2a-btn')) addButton(); }, 2000);
+    setInterval(function () { var p = $('im-batch-entry'); if (p && !document.hidden && !p.classList.contains('hidden') && !p.closest('.hidden') && p.offsetParent && !$('iba-n2a-btn')) addButton(); }, 2000); // p130: cheap checks first
     window.ibaNotesToAcc = { allowed: allowed, open: open, srvFor: srvFor, ceoNotes: ceoNotes, _state: state };
 })();

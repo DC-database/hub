@@ -79,7 +79,7 @@
     var body = data.map(function (d) {
       var p = prevOf(d); tn += d.note; tp += p.v;
       var fin = done(d);
-      return '<tr' + (fin ? ' class="is-done" title="Fully paid with this note: not printed"' : '') + '><td><b>PO ' + esc(d.po) + '</b>' + (d.poValue ? '<small>PO value ' + money(d.poValue) + '</small>' : '') + (fin ? '<small class="iba-snpo-done">Fully paid · not printed</small>' : '') + '</td>' +
+      return '<tr' + (fin ? ' class="is-done iba-snpo-fin" title="Fully paid with this note: not printed"' : '') + '><td><b>PO ' + esc(d.po) + '</b>' + (d.poValue ? '<small>PO value ' + money(d.poValue) + '</small>' : '') + (fin ? '<small class="iba-snpo-done">Fully paid · not printed</small>' : '') + '</td>' +
         (on ? '<td class="r"><input type="text" inputmode="decimal" data-snpo-prev="' + esc(d.po) + '" value="' + (p.v ? money(p.v) : '') + '" placeholder="0.00" title="Type the previous total from the paper PO if the system missed an invoice">' +
           (p.edited ? '<button type="button" class="iba-snpo-ed" data-snpo-reset="' + esc(d.po) + '" title="Typed by you. Click to go back to the system figure (' + money(d.prev) + ')">edited ×</button>' : '<small>' + d.pn + ' invoice' + (d.pn === 1 ? '' : 's') + '</small>') + '</td>' : '') +
         '<td class="r">' + money(d.note) + '<small>' + d.n + ' invoice' + (d.n === 1 ? '' : 's') + '</small></td>' +

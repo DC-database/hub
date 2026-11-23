@@ -378,6 +378,7 @@
   }
 
   function updateClocks() {
+    if (document.hidden || (Date.now() - (window.ibaScrollAt || 0) < 600)) return; // 18.0.0 patch 130: the clock waits a second while a list scrolls
     const now = (window.ibaQatarNow ? window.ibaQatarNow() : new Date()); // 18.0.0 patch 95: Qatar time
     const phase = getTimePhase(now);
     const hour = now.getHours();

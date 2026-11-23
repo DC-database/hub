@@ -595,8 +595,9 @@
       });
       sidebarObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
     } catch (_) {}
-    adminPollTimer = setInterval(syncAdminPanel, 1500);
-    authPollTimer = setInterval(function () { render(); syncAdminPanel(); }, 1500);
+    // 18.0.0 patch 130: skip a beat while a list is scrolling (these checks made scrolling stutter)
+    adminPollTimer = setInterval(function () { if (document.hidden || (Date.now() - (window.ibaScrollAt || 0) < 600)) return; syncAdminPanel(); }, 1500);
+    authPollTimer = setInterval(function () { if (document.hidden || (Date.now() - (window.ibaScrollAt || 0) < 600)) return; render(); syncAdminPanel(); }, 1500);
   window.addEventListener('resize', function () { if (!findActiveSidebar() && activeConfig()) positionWelcomeAnnouncement(); });
     window.addEventListener('beforeunload', function () {
       if (countdownTimer) clearInterval(countdownTimer);

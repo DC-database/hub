@@ -206,7 +206,7 @@
         const d = document.querySelector('.iba-analog-clock .iba-clock-dig-hm');
         if (d && d.textContent !== hm) d.textContent = hm;
         const s = document.querySelector('.iba-analog-clock .iba-clock-dig-sec i');
-        if (s && s.getClientRects().length) s.style.width = ((now.getSeconds() + 1) / 60 * 100).toFixed(1) + '%';
+        if (s && !document.hidden) s.style.width = ((now.getSeconds() + 1) / 60 * 100).toFixed(1) + '%';
     }
 
     let queued = false;

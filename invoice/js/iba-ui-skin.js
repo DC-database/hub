@@ -196,16 +196,19 @@
   "use strict";
   // checked when a list starts to scroll (again at most every half second,
   // because one scrolling area can hold different pages)
-  const lastCheck = new WeakMap();
+  // 18.0.0 patch 130: measured AFTER the scrolling stops (reading styles during scrolling forced the whole page
+  // to recalculate and made long lists like Material Stock stutter)
+  const waits = new WeakMap();
   document.addEventListener("scroll", function (e) {
+    window.ibaScrollAt = Date.now(); // p130: background checks wait while something scrolls
     const box = e.target;
     if (!box || box.nodeType !== 1) return;
-    const now = Date.now();
-    if (now - (lastCheck.get(box) || 0) < 500) return;
-    lastCheck.set(box, now);
-    const pad = parseFloat(getComputedStyle(box).paddingTop) || 0;
-    const value = (-pad) + "px";
-    if (box.style.getPropertyValue("--iba-sticky-top") !== value) box.style.setProperty("--iba-sticky-top", value);
+    clearTimeout(waits.get(box));
+    waits.set(box, setTimeout(function () {
+      const pad = parseFloat(getComputedStyle(box).paddingTop) || 0;
+      const value = (-pad) + "px";
+      if (box.style.getPropertyValue("--iba-sticky-top") !== value) box.style.setProperty("--iba-sticky-top", value);
+    }, 250));
   }, { capture: true, passive: true });
 })();
 

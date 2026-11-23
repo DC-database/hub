@@ -127,5 +127,15 @@
         new MutationObserver(() => { if (fab.classList.contains('iba-fab-moved') && !fab.style.getPropertyValue('left')) apply(); })
             .observe(fab, { attributes: true, attributeFilter: ['style'] });
     })(0);
+    // 18.0.0 patch 130: "is a pop-up open?" is now checked here (every 0.4 s, only while the robot is moved) and set as
+    // body.iba-fab-under-modal. It used to be a css :has() rule that looked at every element's style attribute, which made
+    // the browser recheck the WHOLE page each time anything moved (clock hand, counters) and slowed Material Stock scrolling.
+    setInterval(() => {
+        const b = document.body;
+        if (!b || !b.classList.contains('iba-fab-is-moved')) { if (b && b.classList.contains('iba-fab-under-modal')) b.classList.remove('iba-fab-under-modal'); return; }
+        let up = !!document.querySelector('.modal-overlay:not(.hidden)');
+        if (!up) { const ms = document.querySelectorAll('.modal:not(.hidden)'); for (let i = 0; i < ms.length && !up; i++) { const d = ms[i].style.display; up = d === 'flex' || d === 'block'; } }
+        if (b.classList.contains('iba-fab-under-modal') !== up) b.classList.toggle('iba-fab-under-modal', up);
+    }, 400);
     window.ibaBotDrag = { reset: () => { save(null); const f = $('iba-ai-fab'); if (f) unplace(f); }, apply };
 })();

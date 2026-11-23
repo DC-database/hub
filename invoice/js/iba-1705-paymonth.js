@@ -188,6 +188,6 @@
         var t = e.target.closest && e.target.closest('[data-im-jump="im-payments"], [data-nav-key="im-payments"], [data-section="im-payments"]');
         if (t) setTimeout(addButton, 300);
     }, true);
-    setInterval(function () { var p = $('im-payments'); if (p && p.offsetParent) { if (!$('iba-pm-btn')) addButton(); fixOld(); } }, 3000);
+    setInterval(function () { var p = $('im-payments'); if (p && !document.hidden && !(Date.now() - (window.ibaScrollAt || 0) < 600) && !p.classList.contains('hidden') && !p.closest('.hidden') && p.offsetParent) { /* p130: cheap checks first, no layout read on other pages */ if (!$('iba-pm-btn')) addButton(); fixOld(); } }, 3000);
     window.ibaPayMonth = { allowed: allowed, open: open, pick: pick, paidDateFor: paidDateFor };
 })();

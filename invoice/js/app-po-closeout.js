@@ -1116,7 +1116,7 @@
                 ? `<button type="button" class="primary-btn" onclick="window.markPOCloseOutHoDone('${r.poNumber}','${r.invoiceKey}')">Close Out Done</button>`
                 : `<button type="button" class="secondary-btn" onclick="window.sendPOCloseOutToSite('${r.poNumber}','${r.invoiceKey}')">Reassign</button>`;
             return `
-                <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;">
+                <div${r.waitingHo ? ' class="iba-pco-ready"' : ''} style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;">
                     <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start;">
                         <div>
                             <div style="font-weight:800;font-size:16px;color:#14293f;">PO ${r.poNumber} · Inv ${r.invNumber || '—'}</div>

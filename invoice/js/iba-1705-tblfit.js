@@ -82,6 +82,7 @@
         return null;
     }
     function fit() {
+        if (document.hidden || (Date.now() - (window.ibaScrollAt || 0) < 600)) return; // 18.0.0 patch 130: no measuring while a list scrolls
         if (api.off || !pcOk()) { release(); return; }
         const w = pick();
         if (!w) { release(); return; }
