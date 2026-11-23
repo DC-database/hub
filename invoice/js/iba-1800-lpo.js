@@ -45,7 +45,7 @@
   async function loadSaved() {
     if (S.ready) return;
     var v = await get('names');
-    if (v && v.list) { S.names = v.list; S.at = v.at || 0; }
+    if (v && v.list) { S.names = v.list; S.at = v.at || 0; S.byInput = !!v.byInput; } // p129: remember which way worked
     S.handle = await get('handle');
     S.ready = true;
   }
@@ -81,7 +81,7 @@
       var top = String(files[0].webkitRelativePath || '').split('/')[0];
       if (!list.length) { S.msg = 'No PDF files in "' + top + '". Pick the "Proc - LPO" folder (OneDrive - IBA › Proc - LPO).'; return paint(); }
       S.names = list; S.at = Date.now(); S.parsed = null; S.msg = ''; S.byInput = true;
-      await put('names', { list: list, at: S.at });
+      await put('names', { list: list, at: S.at, byInput: true });
       paint();
     });
     document.body.appendChild(i); i.click();
@@ -97,7 +97,7 @@
       S.busy = 'Reading the LPO names…'; paint();
       var list = await readFolder(h);
       if (!list.length) { S.busy = ''; S.msg = 'No PDF files in "' + h.name + '". Pick the "Proc - LPO" folder (OneDrive - IBA › Proc - LPO).'; return paint(); }
-      S.handle = h; S.names = list; S.at = Date.now(); S.parsed = null; S.msg = '';
+      S.handle = h; S.names = list; S.at = Date.now(); S.parsed = null; S.msg = ''; S.byInput = false;
       await put('handle', h); await put('names', { list: list, at: S.at });
     } catch (e) {
       if (e && e.name === 'AbortError') S.msg = 'No folder was picked. If Chrome would not open it, use “Other way to pick”.';
@@ -230,7 +230,11 @@
     var w = $('iba-lpo-pop'); if (!w) return;
     var s = w.querySelector('[data-lpo-sub]'); if (s) s.textContent = sub();
     var re = w.querySelector('[data-lpo-reread]'); if (re) re.hidden = !S.names;
-    var m = w.querySelector('[data-lpo-msg]'); if (m) { m.textContent = S.msg || ''; m.hidden = !S.msg; }
+    var m = w.querySelector('[data-lpo-msg]'); if (m) {
+      m.textContent = S.msg || ''; m.hidden = !S.msg;
+      // p129 (martin): once LPOs are loaded the pick buttons are gone, so a message about the folder carries its own "Other way to pick"
+      if (S.msg && S.names && /Other way to pick/.test(S.msg)) { var b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'iba-lpo-ghost'; b2.setAttribute('data-lpo-pick2', ''); b2.textContent = 'Other way to pick'; b2.style.setProperty('margin-left', '10px', 'important'); m.appendChild(b2); }
+    }
     var ask = w.querySelector('[data-lpo-allow]');
     if (ask) ask.hidden = !(S.names && S.handle && S.needAllow);
     var b = w.querySelector('[data-lpo-body]'); if (b) b.innerHTML = bodyHtml();

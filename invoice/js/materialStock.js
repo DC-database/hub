@@ -4993,6 +4993,18 @@ window.deleteSiteStock = async function(key, siteToDelete) {
 };
 
 function msPaintRowFrost() {
+    // 18.0.0 patch 129 (martin: Material Stock slow even on a fast PC): the gold hover bar moved on EVERY row the
+    // mouse passed while scrolling and made the whole page recalculate its style (~0.1 s per row). Hover is now
+    // plain CSS (css/iba-1729-ms.css); only the opened row is marked, with one cheap class.
+    const t = document.getElementById('ms-table');
+    if (!t) return;
+    const w = t.closest('.table-wrapper'); const old = w && w.querySelector(':scope > .ms-row-frost'); if (old) old.hidden = true;
+    const openChild = t.querySelector('tbody tr.stock-child-row:not(.hidden)');
+    const openParent = openChild && openChild.previousElementSibling;
+    t.querySelectorAll('tbody tr.ms-open').forEach(function (el) { if (el !== openParent) el.classList.remove('ms-open'); });
+    if (openParent && openParent.classList.contains('ms-parent-row')) openParent.classList.add('ms-open');
+}
+function msPaintRowFrostOld() {
     const table = document.getElementById('ms-table');
     const wrap = table && table.closest('.table-wrapper');
     if (!table || !wrap) return;
