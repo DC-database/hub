@@ -3,6 +3,13 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 128 (23-Nov-2026)
+  Find LPO (martin): clear (x) button inside the search box; shows only when something is typed, one click
+  empties the search and keeps the cursor in the box.
+  Find LPO no longer closes when you drag the window or select text and let go outside it: the dark
+  background closes it only when the click starts AND ends there. LPO cards dark frosted (big window unchanged).
+  Files: js/iba-1800-lpo.js, index.html, PATCH.txt
+
 18.0.0 patch 127 (23-Nov-2026)
   Fix (martin): the "Open the IBA app" screen had no button. Now it has "Open IBA app" (also under "Already
   installed?" on the install screen). It opens the installed IBA window (manifest web+iba link; Chrome asks
