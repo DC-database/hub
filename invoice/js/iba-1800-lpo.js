@@ -251,14 +251,20 @@
       '<button type="button" class="iba-lpo-ghost" data-lpo-reread hidden title="Read the folder again (new LPOs)"><i class="fa-solid fa-rotate"></i> Re-read folder</button>' +
       '<button type="button" class="iba-lpo-x" data-lpo-close aria-label="Close">✕</button></div>' +
       '<label class="iba-lpo-search"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>' +
-      '<input type="text" data-lpo-q autocomplete="off" placeholder="PO, vendor, site or type of work" aria-label="Search LPO"></label>' +
+      '<input type="text" data-lpo-q autocomplete="off" placeholder="PO, vendor, site or type of work" aria-label="Search LPO">' +
+      '<button type="button" data-lpo-clear hidden title="Clear" aria-label="Clear search" style="background:rgba(255,255,255,.08) !important;border:1px solid rgba(255,255,255,.16) !important;color:#EBD8A8 !important;width:32px !important;height:32px !important;min-width:32px !important;padding:0 !important;margin:0 !important;border-radius:50% !important;display:grid !important;place-items:center !important;font-size:15px !important;line-height:1 !important;cursor:pointer !important;box-shadow:none !important;flex:0 0 auto !important">✕</button></label>' +
       '<p class="iba-lpo-msg" data-lpo-msg hidden></p>' +
       '<div class="iba-lpo-body" data-lpo-body></div></div>';
     document.body.appendChild(w);
     document.addEventListener('keydown', onKey, true);
     var inp = w.querySelector('[data-lpo-q]');
     inp.value = S.q;
-    inp.addEventListener('input', function () { S.q = inp.value; S.copied = ''; var b = w.querySelector('[data-lpo-body]'); if (b) b.innerHTML = bodyHtml(); });
+    // patch 128 (martin): clear (x) button inside the search box
+    var clr = w.querySelector('[data-lpo-clear]');
+    function showClr() { if (clr) { clr.hidden = !inp.value; clr.style.setProperty('display', inp.value ? 'grid' : 'none', 'important'); } }
+    inp.addEventListener('input', function () { S.q = inp.value; S.copied = ''; showClr(); var b = w.querySelector('[data-lpo-body]'); if (b) b.innerHTML = bodyHtml(); });
+    if (clr) clr.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); inp.value = ''; inp.dispatchEvent(new Event('input', { bubbles: true })); try { inp.focus(); } catch (_) {} });
+    showClr();
     setTimeout(function () { try { inp.focus(); inp.select(); } catch (_) {} }, 30);
     paint();
     loadPOs(); loadSites();
@@ -271,10 +277,14 @@
     paint();
   }
 
+  // patch 128 (martin: it closed when the mouse moved away): the dark background closes the window only when the
+  // press ALSO started on it. Before, dragging the window / selecting text and letting go outside the box closed it.
+  var downOnDim = false;
+  document.addEventListener('pointerdown', function (e) { var w = $('iba-lpo-pop'); downOnDim = !!(w && e.target === w); }, true);
   document.addEventListener('click', function (e) {
     var t = e.target && e.target.closest ? e.target : null; if (!t) return;
     var w = $('iba-lpo-pop'); if (!w || !w.contains(t)) return;
-    if (t === w) return close();
+    if (t === w) { var d = downOnDim; downOnDim = false; return d ? close() : undefined; }
     var b = t.closest('button'); if (!b) return;
     if (b.hasAttribute('data-lpo-close')) return close();
     if (b.hasAttribute('data-lpo-pick')) return refresh(true, true);
@@ -302,6 +312,17 @@
     function up() { document.removeEventListener('pointermove', mv, true); document.removeEventListener('pointerup', up, true); }
     document.addEventListener('pointermove', mv, true); document.addEventListener('pointerup', up, true);
   }, true);
+
+  // patch 128 (martin): the big window stays as it is; each LPO card is dark frosted so it reads well over any background
+  (function () {
+    if (document.getElementById('iba-lpo-128-css')) return;
+    var st = document.createElement('style'); st.id = 'iba-lpo-128-css';
+    st.textContent = '@layer iba-ui{' +
+      'html body #iba-lpo-pop .iba-lpo-row{background:rgba(12,14,17,.78) !important;-webkit-backdrop-filter:blur(14px) saturate(1.2) !important;backdrop-filter:blur(14px) saturate(1.2) !important;border:1px solid rgba(255,255,255,.12) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 6px 18px rgba(0,0,0,.28) !important}' +
+      'html body #iba-lpo-pop .iba-lpo-row.is-top{background:rgba(10,30,28,.8) !important;border-color:rgba(47,211,194,.5) !important}' +
+      '}';
+    (document.head || document.documentElement).appendChild(st);
+  })();
 
   window.ibaFindLpo = { open: open, close: close, _parse: parse, _search: search, _url: urlOf, _state: S };
 })();
