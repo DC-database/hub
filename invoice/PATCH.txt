@@ -3,6 +3,23 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 130 (23-Nov-2026)
+  Material Stock scrolling much faster on every PC, all family tabs (martin: still slow after p129, even on a
+  good PC). Real cause found: a kind of style rule (":has") in several css files made Chrome recheck the WHOLE
+  page (about 2,000 items) every time anything small changed while scrolling: the clock hand ticking, a counter,
+  a text or a badge. 20 such rules were rewritten to plain classes set by the script, same look (screenshots
+  compared pixel by pixel: identical). Background timers no longer force page recalculations while scrolling.
+  Measured (300 items, CPU slowed 4x like an old PC, 40 scroll steps): page style work 72 s -> about 2-4 s,
+  average screen update 856 ms -> 63-90 ms (about 10x smoother).
+  Rules changed: row hover / zebra / opened row (gold edge) in tables, Material Stock message and detail rows,
+  ticked rows in pop-ups and in IRIS Mark urgent (js/iba-1730-rowcheck.js, new), PO Close Out "Ready to close"
+  edge, Summary Note per PO done rows, Job Records column 10, IRIS robot under an open pop-up.
+  Files: css/iba-ui.css, css/iba-1705-nostripe.css, css/iba-1705-fit.css, css/iba-ui-popups.css,
+  css/iba-assistant.css, css/iba-ui-tables.css, css/iba-1298.css, js/materialStock.js, js/app-po-closeout.js,
+  js/iba-1800-snpo.js, js/iba-1800-botdrag.js, js/iba-1730-rowcheck.js (new), js/iba-17-p21.js,
+  js/iba-1714-settabs.js, js/iba-1705-paymonth.js, js/iba-ui-skin.js, js/app-general-announcement.js,
+  js/app-time-clock.js, js/iba-1705-tblfit.js, js/iba-1705-n2a.js, index.html, PATCH.txt
+
 18.0.0 patch 129 (23-Nov-2026)
   Find LPO fix (martin): "Re-read folder" said "No folder was picked" on a PC where only "Other way to pick"
   works. The way the folder was picked was forgotten after closing Find LPO, so Re-read tried the green picker
