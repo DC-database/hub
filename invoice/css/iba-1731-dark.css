@@ -1,0 +1,10 @@
+/* 18.0.0 patch 131 (martin): "make it a little dark see-through".
+   Invoice Entry PO figures box (after Search PO) and the Invoice Records PO cards get a darker see-through
+   background so the numbers read well over the moving backgrounds. Plain tint only, no blur (stays fast). */
+@layer iba-ui {
+  html body:not(#iba-d1):not(#iba-d2):not(#iba-d3):not(#iba-d4):not(#iba-d5):not(#iba-d6):not(#iba-d7):not(#iba-d8):not(#iba-d9):not(#iba-d10) #iba-ie2-page#iba-ie2-page { background: rgba(10, 16, 24, .55) !important; background-color: rgba(10, 16, 24, .55) !important; border-color: rgba(255, 255, 255, .14) !important; }
+  html body:not(#iba-d1):not(#iba-d2):not(#iba-d3):not(#iba-d4):not(#iba-d5):not(#iba-d6):not(#iba-d7):not(#iba-d8):not(#iba-d9):not(#iba-d10) #iba-ie2-page#iba-ie2-page .iba-ie2-bar { background: rgba(255, 255, 255, .14) !important; }
+  html body:not(#iba-d1):not(#iba-d2):not(#iba-d3):not(#iba-d4):not(#iba-d5):not(#iba-d6):not(#iba-d7):not(#iba-d8):not(#iba-d9):not(#iba-d10) #iba-ie2-page#iba-ie2-page .iba-ie2-figs > div:not(.is-ok):not(.is-bal) .l { color: #b4c3d2 !important; -webkit-text-fill-color: #b4c3d2 !important; }
+  html body:not(#iba-d1):not(#iba-d2):not(#iba-d3):not(#iba-d4):not(#iba-d5):not(#iba-d6):not(#iba-d7):not(#iba-d8):not(#iba-d9):not(#iba-d10) #iba-ie2-page#iba-ie2-page .iba-ie2-leg { color: #d5dde6 !important; -webkit-text-fill-color: #d5dde6 !important; }
+  html body:not(#iba-d1):not(#iba-d2):not(#iba-d3):not(#iba-d4):not(#iba-d5):not(#iba-d6):not(#iba-d7):not(#iba-d8):not(#iba-d9):not(#iba-d10) #im-reporting#im-reporting #im-reporting-content#im-reporting-content .invoice-card.iba-rc { background: rgba(6, 9, 13, .62) !important; background-color: rgba(6, 9, 13, .62) !important; }
+}
