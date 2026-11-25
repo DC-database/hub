@@ -1,5 +1,5 @@
 /* ==========================================================================
-   js/iba-office.js — 18.0.0 patch 132 (floor plan 136, bots work 137, copy all 138, away 139) (martin: "IBA AI Office", step 1)
+   js/iba-office.js — 18.0.0 patch 132 (floor plan 136, bots work 137, copy all 138, away 139, Ready to Print 140, door + 6 PM home 141) (martin: "IBA AI Office", step 1)
    A 3D (isometric) office that shows the REAL invoice system as rooms.
    SUPER ADMIN ONLY until martin announces it: the "Office" menu button is
    added by a small boot in index.html, and this file is only downloaded when
@@ -446,13 +446,40 @@ function buildStaff() {
 // who is logged in (the chat's presence list: presence/{userKey} status online + heartbeat every 2 min)
 let online = null;
 function isOnline(p) { if (p.me || !online) return true; return online.keys.has(String(p.key)) || online.names.has(norm(p.full || p.name)); }
-function applyPresence(quiet) { staff.forEach((p) => { const on = isOnline(p); if (!quiet && p.hidden === on) log(on ? `<b>${esc(p.full || p.name)}</b> came in.` : `<b>${esc(p.full || p.name)}</b> left the office.`); p.hidden = !on || !!(p.away && AWAY[p.away.what] && AWAY[p.away.what].hide && !p.path.length); }); }
+// patch 141 (martin): everyone who signs in comes in through the entrance door and walks to their desk;
+// signing off = walks out through the door. Office closes at 6:00 PM (Qatar): whoever is still in goes home
+// then, so after 6 no one is in the office (until 6:00 AM). All times shown as 8:30 AM / 5:45 PM.
+const DOOR = [0, 3];
+function qatarMin() { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); return (+p.find((x) => x.type === 'hour').value % 24) * 60 + (+p.find((x) => x.type === 'minute').value); } catch (_) { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); } }
+function officeClosed() { const m = qatarMin(); return m >= 18 * 60 || m < 6 * 60; }
+function awayHides(p) { return !!(p.away && AWAY[p.away.what] && AWAY[p.away.what].hide); }
+function walkIn(p) { p.walking = 'in'; p.hidden = false; p.x = DOOR[0]; p.y = DOOR[1]; p.path = []; const to = p.away && p.awaySpot && !awayHides(p) ? p.awaySpot : p.home; return go(p, to).then(() => { if (p.walking === 'in') p.walking = null; }); }
+function walkOut(p) { if (p.hidden) { p.walking = null; return Promise.resolve(); } p.walking = 'out'; return go(p, DOOR).then(() => { if (p.walking === 'out') { p.walking = null; if (p.inside === false) p.hidden = true; } }); }
+let closedLogged = false;
+function todayQ() { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar' }).format(new Date()); } catch (_) { return new Date().toDateString(); } }
+function applyPresence(quiet) {
+  const closed = officeClosed();
+  if (closed && !closedLogged && staff.some((p) => p.inside)) { closedLogged = true; log('6:00 PM · The office is closed. Everyone went home.'); }
+  if (!closed) closedLogged = false;
+  staff.forEach((p) => {
+    const on = isOnline(p) && !closed;
+    if (p.inside === undefined) {   // first look: people already in stay at their desk; you walk in once a day
+      p.inside = on; p.hidden = !on || awayHides(p);
+      if (on && p.me) { let seen = ''; try { seen = localStorage.getItem('iba-office-in-v1') || ''; } catch (_) {} const t = todayQ(); if (seen !== t) { try { localStorage.setItem('iba-office-in-v1', t); } catch (_) {} if (!awayHides(p)) walkIn(p); } }
+      return;
+    }
+    if (on && !p.inside) { p.inside = true; if (!quiet) log(`<b>${esc(p.full || p.name)}</b> came in.`); if (awayHides(p)) { p.walking = null; p.hidden = true; } else walkIn(p); }
+    else if (!on && p.inside) { p.inside = false; if (!quiet && !closed) log(`<b>${esc(p.full || p.name)}</b> left the office.`); walkOut(p); }
+    else if (!p.walking) p.hidden = !on || (awayHides(p) && !p.path.length);
+  });
+}
 async function loadPresence(quiet) {
-  const d = mainDb(); if (!d) return;
+  const d = mainDb(); if (!d) { applyPresence(quiet); return; }
   try { const snap = await d.ref('presence').once('value'); const v = snap.val() || {}; const now = Date.now(); const o = { keys: new Set(), names: new Set() };
     Object.keys(v).forEach((k) => { const x = v[k] || {}; const seen = Number(x.lastSeen) || 0; if (x.status === 'online' && (!seen || now - seen < 10 * 60000)) { o.keys.add(String(k)); if (x.name) o.names.add(norm(x.name)); } });
     online = o; applyPresence(quiet); } catch (e) { console.warn('Office: presence read failed', e); }
   try { const a = (await d.ref(AWAY_ROOT).once('value')).val() || {}; awayAll = a; applyAway(); } catch (_) {}
+  staff.forEach((p) => { if (p.inside === false && p.walking !== 'out') p.hidden = true; });
 }
 function myRoom() { const m = staff.find((p) => p.me); return m ? m.room : 'me'; }
 // ---------- real data ----------
@@ -463,7 +490,8 @@ const CABS = [
   { id: 'bot', at: [10, 0], title: 'Bot room · SRV / IPC / Summary', st: ['For SRV', 'For IPC', 'IPC Application', 'For Summary', 'Pending'] },
   { id: 'log', at: [18, 0], title: 'Logistics · On hold / inquiry', st: ['On Hold', 'For Inquiry', 'Unresolved'] },
   { id: 'me', at: [23, 0], title: 'Your office · For Approval', st: ['For Approval'] },
-  { id: 'print', at: [23, 4], printer: true, title: 'Printer · Print basket' },
+  { id: 'rtp', at: [23, 4], rtp: true, title: 'Printer · Ready to Print' },   // patch 140: the printer = Ready to Print
+  { id: 'print', at: [-1, -1], printer: true, title: 'Print basket' },
   { id: 'md', at: [28, 0], title: 'Managing Director · CEO Approval', st: ['CEO Approval'] },
   { id: 'acc', at: [17, 8], title: 'Accounts · With Accounts', st: ['With Accounts'] },
   { id: 'rep', at: [17, 10], title: 'Accounts · Reports', st: ['Report', 'Report Approval'] },
@@ -499,18 +527,20 @@ async function loadData(quiet) {
     Object.keys(byAtt).forEach((s) => byAtt[s].sort((a, b) => dateOf(b) - dateOf(a)));
     await loadJobs();
     loadedAt = Date.now(); paintSum();
+    rtpScan(out);
     log(`Cabinets filled: <b>${out.length.toLocaleString()}</b> invoices read from the saved copy.`);
   } catch (e) { console.warn('Office: load failed', e); log('Could not read the invoices. Try Refresh.'); }
   finally { loading = false; Q('.iba-off-load').hidden = true; }
 }
+function rtpN() { try { return window.ibaOfficePrint ? window.ibaOfficePrint.count() : 0; } catch (_) { return 0; } }
 function cabRows(c) {
-  if (c.printer) return [];
+  if (c.printer || c.rtp) return [];
   if (c.jobs) return jobRows.slice();
   let list = []; (c.st || []).forEach((s) => { list = list.concat(byStatus[s] || []); });
   return list.sort((a, b) => dateOf(b) - dateOf(a));
 }
-function cabNew(c) { return c.printer ? cabCount(c) : cabRows(c).filter(isNew).length; }
-function cabCount(c) { if (c.printer) { try { return window.ibaPrintBasket ? window.ibaPrintBasket.list().length : 0; } catch (_) { return 0; } } return cabRows(c).length; }
+function cabNew(c) { return c.rtp ? rtpN() : c.printer ? cabCount(c) : cabRows(c).filter(isNew).length; }
+function cabCount(c) { if (c.rtp) return rtpN(); if (c.printer) { try { return window.ibaPrintBasket ? window.ibaPrintBasket.list().length : 0; } catch (_) { return 0; } } return cabRows(c).length; }
 function attRows(p) { return byAtt[norm(p.full || p.name)] || []; }
 // ---------- room labels + counters ----------
 function badge(c, x, y, num) { if (!num) return; const s = String(num); c.font = '800 11px Inter,system-ui,sans-serif'; const w = Math.max(18, c.measureText(s).width + 10); c.fillStyle = '#E5484D'; rr(c, x - w / 2, y - 9, w, 18, 9); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(s, x, y + .5); }
@@ -574,14 +604,15 @@ function loop(t) { if (!running) return; const dt = Math.min(.08, (t - last) / 1
     if (dist <= sp) { p.x = tx; p.y = ty; p.path.shift(); if (!p.path.length && p.res) { const r = p.res; p.res = null; r(); } } else { p.x += dx / dist * sp; p.y += dy / dist * sp; } });
   frame(t); composite(); raf = requestAnimationFrame(loop); }
 // ---------- side panel ----------
-function log(html) { const ul = Q('.iba-off-feed'); const li = document.createElement('li'); const d = new Date(); li.innerHTML = `<time>${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}</time><span>${html}</span>`; ul.prepend(li); while (ul.children.length > 40) ul.lastChild.remove(); }
+function ampm(t) { const d = new Date(Number(t) || Date.now()); const h = d.getHours(); return (h % 12 || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
+function log(html) { const ul = Q('.iba-off-feed'); const li = document.createElement('li'); li.innerHTML = `<time>${ampm()}</time><span>${html}</span>`; ul.prepend(li); while (ul.children.length > 40) ul.lastChild.remove(); }
 function team() { Q('.iba-off-team').innerHTML = BOTS.map((b) => `<div class="iba-off-mem"><i style="background:${b.hair}"></i><div><b>${esc(b.name)} · ${esc(b.tag)}</b><span data-bot="${esc(b.name)}">${esc(b.status || b.role)}</span></div></div>`).join(''); }
 function status(b, s) { b.status = s; const el = Q(`[data-bot="${b.name}"]`); if (el) el.textContent = s; }
 let cabN = [], cabNewN = [];
 function paintSum() {
   cabN = CABS.map(cabCount); cabNewN = CABS.map(cabNew);
-  Q('.iba-off-sum').innerHTML = CABS.map((c, i) => `<button type="button" class="iba-off-sumrow" data-cab="${i}"><span>${esc(c.title)}${!c.printer && cabNewN[i] ? ` <em>+${cabNewN[i]} new</em>` : ''}</span><b>${cabN[i]}</b></button>`).join('')
-    + `<div class="iba-off-note">${loadedAt ? 'Red number on a cabinet = changed today or yesterday. Read ' + new Date(loadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · Rina ' + (rinaOn() ? 'collects by herself' : 'is paused') : ''}</div>`;
+  Q('.iba-off-sum').innerHTML = CABS.map((c, i) => `<button type="button" class="iba-off-sumrow" data-cab="${i}"><span>${esc(c.title)}${!c.printer && !c.rtp && cabNewN[i] ? ` <em>+${cabNewN[i]} new</em>` : ''}</span><b>${cabN[i]}</b></button>`).join('')
+    + `<div class="iba-off-note">${loadedAt ? 'Red number on a cabinet = changed today or yesterday. Read ' + ampm(loadedAt) + ' · Rina ' + (rinaOn() ? 'collects by herself' : 'is paused') : ''}</div>`;
 }
 // ---------- pop-up lists ----------
 function money(v) { const n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }
@@ -612,6 +643,7 @@ function openRecords(po) {
   setTimeout(() => { const inp = document.getElementById('im-reporting-search'); if (inp) { inp.value = po; inp.dispatchEvent(new Event('input', { bubbles: true })); const b = document.getElementById('im-reporting-search-btn'); if (b) b.click(); } }, 600);
 }
 function openCab(c) {
+  if (c.rtp) return openRtp();
   if (c.printer) {
     if (window.ibaPrintBasket && typeof window.ibaPrintBasket.open === 'function') { close(); window.ibaPrintBasket.open(); }
     else log('The print basket is not loaded on this page.');
@@ -1023,11 +1055,12 @@ const AWAY = {
   out: { label: 'Out of office', btn: 'Out of office', spots: () => [[0, 3]], hide: true },
 };
 let awayAll = {}, myAway = null;
-function hhmm(t) { const d = new Date(Number(t) || Date.now()); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+function hhmm(t) { return ampm(t); }
 function awayText(a) { const k = AWAY[a.what]; return (k ? k.label : 'Away') + ' · ' + hhmm(a.since); }
 function awayOf(p) { const a = awayAll[String(p.key)] || null; if (!a || !AWAY[a.what]) return null; const t = Number(a.since) || 0; if (t && Date.now() - t > 12 * 3600e3) return null; return a; }
 function placeAway(p, a, walk) {
   const was = p.away; p.away = a || null;
+  if (p.inside === false) { p.hidden = true; if (a && AWAY[a.what]) { const all = AWAY[a.what].spots(); p.awaySpot = all[0]; } return; }
   if (!a) { if (was) { p.hidden = false; if (walk) go(p, p.home); else { p.x = p.home[0]; p.y = p.home[1]; p.path = []; } } return; }
   const k = AWAY[a.what], all = k.spots();
   const taken = (q) => staff.some((o) => o !== p && o.away && o.awaySpot && o.awaySpot[0] === q[0] && o.awaySpot[1] === q[1]) || BOTS.some((b) => Math.round(b.x) === q[0] && Math.round(b.y) === q[1]);
@@ -1058,6 +1091,25 @@ async function setAway(what) {
   if (!a) { const r = BOTS[0]; const n = (byStatus['Under Review'] || []).length; if (n) setTimeout(() => say(r, `Welcome back! ${n} on your desk`, 3200), 1200); }
 }
 Q('.iba-off-pop').addEventListener('click', (e) => { const b = e.target.closest('[data-away]'); if (b) setAway(b.dataset.away || null); });
+
+// ==========================================================================
+// patch 140 (martin): Ready to Print. The logic lives in js/iba-office-print.js
+// (loaded with the office); here only the glue: the printer opens it, Rafi walks.
+// ==========================================================================
+function rtpCtx() {
+  return {
+    body: Q('.iba-off-popb'), title: (t) => { Q('.iba-off-pop h3').textContent = t; }, note: (t) => { Q('.iba-off-pop p').textContent = t; },
+    show: () => { Q('.iba-off-pop').hidden = false; }, log, poInfo, refreshSum: paintSum,
+    basket: () => openCab(CABS.find((q) => q.printer)),
+    botSay: (n, t) => { const b = BOTS.find((q) => q.name === n); if (b && !b.busy) busy(b, async () => { b.hidden = false; await go(b, SPOT.myFront); say(b, t, 3200); await wait(2600); await go(b, b.home); }); },
+    botWalk: (n, t) => { const b = BOTS.find((q) => q.name === n); if (b && !b.busy) busy(b, async () => { status(b, 'Printing'); b.hidden = false; b.paper = true; await go(b, SPOT.myFront); say(b, t, 3000); await wait(2200); b.paper = false; status(b, b.role); await go(b, b.home); }); },
+  };
+}
+function rtpScan(list, n) { try { if (window.ibaOfficePrint) window.ibaOfficePrint.scan(list, rtpCtx()).then(paintSum, () => {}); else if ((n || 0) < 20) setTimeout(() => rtpScan(rows, (n || 0) + 1), 1000); } catch (e) { console.warn('Office: ready to print scan', e); } }
+function openRtp() {
+  if (!window.ibaOfficePrint) { log('Ready to Print is still loading. Try again in a moment.'); return; }
+  window.ibaOfficePrint.open(rtpCtx());
+}
 
 // ---------- open / close ----------
 let timers = [], staticDone = false;

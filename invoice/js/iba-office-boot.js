@@ -4,7 +4,7 @@
    so nothing of the office runs for anyone else. Open from the console: window.ibaOfficeOpen() */
 (function () {
     'use strict';
-    var V = '18.0.0-p139', loading = null;
+    var V = '18.0.0-p141', loading = null;
     function isSuper() {
         try { if (window.ibaTestAs) return false; return typeof imIsCurrentUserSuperAdmin === 'function' && !!imIsCurrentUserSuperAdmin(); } catch (_) { return false; }
     }
@@ -14,7 +14,8 @@
         loading = new Promise(function (res, rej) {
             var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/iba-office.css?v=' + V; document.head.appendChild(l);
             var s = document.createElement('script'); s.src = 'js/iba-office.js?v=' + V;
-            s.onload = function () { res(); }; s.onerror = function () { loading = null; rej(new Error('office file not found')); };
+            s.onload = function () { res(); var r = document.createElement('script'); r.src = 'js/iba-office-print.js?v=' + V; document.head.appendChild(r); }; // patch 140: Ready to Print
+            s.onerror = function () { loading = null; rej(new Error('office file not found')); };
             document.head.appendChild(s);
         });
         return loading;
