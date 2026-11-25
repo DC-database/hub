@@ -36,8 +36,8 @@ body.iba-office-on{overflow:hidden}
 .iba-off-mem b{display:block;color:#EEF2F7;font-size:12.5px}
 .iba-off-mem span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .iba-off-feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;max-height:260px;overflow:auto}
-.iba-off-feed li{font-size:12.5px;color:#9FB0C2;display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px}
-.iba-off-feed time{font:500 11px Consolas,monospace;color:#6F8296}
+.iba-off-feed li{font-size:12.5px;color:#9FB0C2;display:grid;grid-template-columns:60px minmax(0,1fr);gap:6px}
+.iba-off-feed time{font:500 11px Consolas,monospace;color:#6F8296;white-space:nowrap}
 .iba-off-feed b{color:#EEF2F7}
 /* pop-up: solid for reading, light dim only */
 .iba-off-pop{position:fixed;inset:0;z-index:2147480010;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(5,8,12,.45)}
@@ -97,3 +97,26 @@ body.iba-office-on #iba-shell-sidebar,body.iba-office-on .iba-sidebar-hotspot{vi
 #iba-office .iba-off-awaybtns button{padding:10px 16px;font-size:13px}
 #iba-office .iba-off-awaybtns button.on{background:#F7A531;color:#1A140C;border-color:#F7A531}
 #iba-office .iba-off-awaybtns .iba-off-back{background:#3DDC97;color:#06140D;border-color:#3DDC97}
+/* patch 140: Ready to Print (printer in your office) */
+.iba-rtp-helper{border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px;line-height:1.5;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.iba-rtp-helper.is-ok{background:rgba(61,220,151,.12);border:1px solid rgba(61,220,151,.45);color:#CFF5E3}
+.iba-rtp-helper.is-bad{background:rgba(247,165,49,.12);border:1px solid rgba(247,165,49,.5);color:#FBE3BC}
+.iba-rtp-helper em{color:#FF8A80;font-style:normal;font-weight:700}
+.iba-rtp-helper input{font:600 12px Inter,system-ui,sans-serif;color:#EEF2F7;background:#0B0F15;border:1px solid #2A3646;border-radius:7px;padding:5px 8px;width:170px}
+.iba-rtp-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;color:#EEF2F7;font-size:12.5px}
+.iba-rtp-head span{margin-right:auto}
+.iba-rtp td.iba-rtp-act{white-space:nowrap}
+.iba-rtp td.iba-rtp-act button{margin:0 4px 4px 0}
+#iba-office .iba-rtp .is-go{background:#3DDC97;color:#06140D;border-color:#3DDC97}
+#iba-office .iba-rtp button:disabled{opacity:.45;cursor:default}
+.iba-rtp-esn{font:700 11.5px "Courier New",monospace;color:#E3C98A}
+.iba-rtp-name{color:#EEF2F7;word-break:break-all}
+.iba-rtp-err{color:#FF8A80;font-weight:700}
+.iba-rtp-msg{display:inline-block;margin-top:3px}
+.iba-rtp-prev{margin-top:12px;background:#0C0E11;border:1px solid #2A3646;border-radius:10px;padding:10px}
+.iba-rtp-prev[hidden]{display:none}
+.iba-rtp-prevh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;color:#EEF2F7;font-size:12.5px}
+.iba-rtp-prev canvas{display:block;max-width:100%;height:auto;margin:0 auto;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.iba-rtp-done{margin-top:12px;color:#C7D2DE;font-size:12.5px}
+.iba-rtp-done summary{cursor:pointer;font-weight:700;margin-bottom:6px}
+.iba-rtp-load{color:#9FB0C2;padding:14px 0}
