@@ -3,6 +3,33 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 141 (25-Nov-2026)
+  IBA Office: people come and go through the entrance door.
+  - Someone signs in = their avatar comes in through the entrance door (Reception) and walks to their desk.
+    You walk in too the first time you open the office each day. People already in when you open stay seated.
+  - Someone signs off = walks out through the door and their chair is empty.
+  - 6:00 PM (Qatar): the office closes. Anyone still in walks out ("The office is closed. Everyone went home.")
+    and nobody is shown until 6:00 AM, even if still signed in. Bots stay in the bot room.
+  - All office times are 12-hour (8:30 AM, 5:45 PM): office log, chair signs "At lunch · 12:40 PM",
+    cabinet "Read" time, Ready to Print times. (Copy all for Excel keeps its own format.)
+  - Fixed: the office loader's "file not found" fallback was switched off by mistake in patch 140.
+  Files: js/iba-office.js, js/iba-office-print.js, js/iba-office-boot.js, css/iba-office.css, index.html, PATCH.txt
+
+18.0.0 patch 140 (25-Nov-2026)
+  IBA Office: Ready to Print (Super Admin only). The printer in your office = Ready to Print.
+  - Between 8:30 AM and 6:00 PM (Qatar) while the office is open, Rafi puts every invoice that is Approved,
+    has an ESN and came back to you (not site flow) on Ready to Print. One row per ESN
+    (system_settings/office_print_queue/{PO}_{key}), so re-saves never add it twice; a later approval
+    (new ESN) adds it again. Approvals from before the first run: "Add older approved (N)" button.
+  - Each row: the PDF found in DC Files\INVOICE (exact name, then same name with other spaces/capitals;
+    otherwise a pick list or "not found"), the ESN place (1st ESN Middle, 2nd Right bottom, 3rd Right middle,
+    changeable), Preview (page 1 with the sticker), Print, Skip.
+  - Print = page 1 only with the same QR sticker as Print ESN, on THE NEW BLACK, through the print helper
+    on your PC. Then: printed (locked, "Print again" asks first), history line on the invoice, office log.
+    The invoice status is not changed; Print ESN, the basket and the gold Print button work as before.
+  - Print helper (NOT for GitHub): others\print-helper\ (Install print helper.bat once, + SumatraPDF.exe).
+  Files: js/iba-office-print.js (new), js/iba-office.js, js/iba-office-boot.js, css/iba-office.css, index.html, PATCH.txt
+
 18.0.0 patch 139 (23-Nov-2026)
   IBA Office: "I'm in" button on the top bar = Lunch / Toilet / Meeting / Out of office / Back at my desk.
   Your avatar walks there (pantry stool, toilet, meeting room, out the entrance) and your empty chair shows
