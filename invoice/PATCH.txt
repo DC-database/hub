@@ -3,6 +3,91 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 154 (26-Nov-2026)
+  IBA Office floor plan redo (Super Admin only, nothing changes for anyone else).
+  - The building is an octagon. In the middle: a hub with an octagon fountain, the IBA sign turning on top,
+    long waiting sofas, small tables, water dispensers in the corners. Every room has its own door onto the hub.
+  - Rooms: IRWIN corner office (top left), Pantry, Bot room, Logistics, Finance, COO, Managing Director corner
+    office (sofa L facing his TV, small own toilet + sink), Project Director, MEP Manager, Warehouse, Office B, Meeting room,
+    Reception (open to the hub, IBA logo wall), Toilet, Lounge (bigger, IBA logo wall, reading corner),
+    Accounts (pod of 4, 6 cabinets on one wall, sofa corner), Procurement (team of 3 / lead / architect behind
+    glass, desks by the window), Site room (Site DC 2 pods of 4, QS pod of 4 + head draftsman, whiteboard).
+  - Solid walls between rooms (cut low so you see inside); glass only inside shared rooms; desks in cubicle pods.
+  - Sharp names: room signs over each door, name tags over heads (plain text over the 3D view, never blurred).
+  - People type with their hands on the keyboard; every desk has a keyboard and mouse. Bigger plants, art frames.
+  - Controls: drag = move, right-drag = turn, wheel = zoom to the mouse, click a room = zoom into it,
+    buttons turn left/right, +/-, home; double-click = back. My office / Whole office reset the view.
+  Files: js/iba-office-3d.js, js/iba-office.js, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 153 (26-Nov-2026)
+  IBA Office new look (Super Admin only, nothing changes for anyone else).
+  - New 3D drawing of the same office: martin's picks "Clean · Walnut" (B) and "Pixel · Crimson noir" (D);
+    the theme button switches between them. Same rooms, desks, cabinets, bots, presence, lunch/away,
+    6 PM go-home, Rina collecting, desk tray and Ready to Print (only js/iba-office-3d.js was redrawn).
+  - Anime-style 3D people and the 4 bots, sitting at their desks, walking, talking (bubbles), name tags.
+  - New "Characters" button: pick each person's body, hair (12 incl. ghutra and hijab), hair colour, skin,
+    eyes, uniform (suit, shirt + ID, sweater vest, IBA polo, blouse + skirt, site + helmet, thobe, abaya,
+    hoodie), colours, glasses, beard, moustache. Saved per person in system_settings/office_look_v1/{key}.
+  - Solid IBA letters (no broken lines), no "IBA OFFICE" plates. Drag = turn, right-drag = move,
+    wheel = zoom, double-click = centre again.
+  Files: js/iba-office-3d.js, js/iba-office.js, js/iba-office-boot.js, index.html, PATCH.txt
+  (Patch 152 = print helper fix on the PC only: others\print-helper, not for GitHub.)
+
+18.0.0 patch 151 (26-Nov-2026)
+  Ready to Print: find out why pages do not come out (no error was shown).
+  - The print helper now checks what Windows says about "A4 Color" before printing (Offline, Paused, Error,
+    paper...) and refuses with that message instead of reporting success.
+  - After SumatraPDF, it checks SumatraPDF's result and watches the Windows print queue for the page;
+    the office log and the Printed list now say "Windows: sent to the printer" or what went wrong.
+  - Ready to Print bar shows the printer status from Windows, pages waiting in its queue, and warns when an
+    older helper is still running (double-click Install print helper.bat once to restart it).
+  - New "Test print" button: one plain test page through the same road.
+  - Helper log is now also in others\print-helper\helper.log (12-hour times).
+  (Patches 147-150 = 3D office by ChatGPT, see AI-OFFICE-BUILD-CHECKLIST.md.)
+  Files: js/iba-office-print.js, js/iba-office-boot.js, index.html, PATCH.txt
+  NOT for GitHub: others\print-helper\iba-print-helper.ps1, README.txt (then run Install print helper.bat once)
+
+18.0.0 patch 146 (25-Nov-2026)
+  - Starts the IBA OFFICE visual redesign for the signed-in Super Admin only; the existing access gate stays in place.
+  - Adds a Pixel Neon / Clean Isometric theme switch, open interior walking paths, the rotating 3D IBA wordmark,
+    the IRWIN office label, a larger lounge seating arrangement, and shared-team workstation capacities.
+  - Keeps the existing invoice cabinets, command bar, bots, presence, approvals, and ESN print hooks.
+  Files: js/iba-office.js, css/iba-office.css, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 145 (25-Nov-2026)
+  - Routes ESN printing to the separate A4 Color Windows printer queue for presentable color output.
+  - Keeps older approvals, including invoices already staged before Ready to Print starts, manual.
+  - The helper reads PDFs from the configured INVOICE folder and prints page 1 only.
+  Files: js/iba-office-print.js, js/iba-office-boot.js, index.html, PATCH.txt,
+         ../others/print-helper/iba-print-helper.ps1, install.ps1, README.txt
+
+18.0.0 patch 144 (25-Nov-2026)
+  - Restored the current user's office avatar while their Super Admin session is active; other staff still follow presence.
+  - Rina now collects Reception entries between 4:00 and 4:30 PM Qatar time while the Office is open,
+    then carries the created invoices to your desk. Entries she cannot verify stay at Reception.
+  - Ready to Print now also processes bot-staged pending rows from earlier scans. It keeps user-added older
+    approvals manual, reports helper readiness problems in the office log, and leaves uncertain PDF matches
+    for you to choose. It never guesses between similar PDFs.
+  Files: js/iba-office.js, js/iba-office-print.js, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 143 (25-Nov-2026)
+  IBA Office Ready to Print now prints newly approved invoices with an ESN automatically when:
+  - the office is running during the Qatar work window (8:30 AM–6:00 PM),
+  - the local helper, target printer, and invoice folder are ready, and
+  - the PDF finder returns one exact match.
+  Ambiguous or missing PDF matches, older approvals, and rows already in the tray stay manual.
+  The invoice is rechecked as Approved, assigned to the current approver, and still carrying the same ESN
+  immediately before printing. A failed print is not retried automatically, to avoid duplicate copies.
+  Files: js/iba-office-print.js, js/iba-office.js, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 142 (25-Nov-2026)
+  IBA Office presence completion:
+  - Your avatar now follows the same sign-in/sign-off presence status as everyone else, so signing off
+    triggers the walk to the entrance and hides the avatar there.
+  - Record the once-a-day entrance walk when you arrive after office opening, so reopening the office
+    later that day does not replay the entrance animation.
+  Files: js/iba-office.js, js/iba-office-boot.js, index.html, PATCH.txt
+
 18.0.0 patch 141 (25-Nov-2026)
   IBA Office: people come and go through the entrance door.
   - Someone signs in = their avatar comes in through the entrance door (Reception) and walks to their desk.
@@ -1108,3 +1193,43 @@ Upload since 18.0.0 is not on GitHub yet: index.html, app.js, version.json, PATC
 Files: ALL files listed in index.html get a new tag, so upload: index.html, app.js, version.json, PATCH.txt, PATCH-17.0.5.txt, js/iba-1705-copyinv.js (only these changed; the others are unchanged and already on GitHub).
 
 Highlights of 17.0.5 (since 26-Oct-2026): only-the-list-scrolls pages, rain + thunder (also phones) and videos backgrounds, screensaver, Active Jobs bookmark, transfer fixes (source contact rule, Fix transfer), request original PO, print basket, Notify me, ESN with district, tracking receipts, many assistant skills.
+
+Patch 147 — IBA Office approved renovation layout
+- Replaced the old compact room footprint with a large open central plaza and spacious department wings.
+- Added the requested shared Accounts (4), Procurement (4), and Site (6) workstation layouts, larger Lounge seating, leadership guest seating, and Main Entrance / Exit marking.
+- Centered a rotating dimensional IBA wordmark in the plaza. Pixel Neon and Clean Isometric retain the same floor plan, characters, bots, and live cabinet data.
+- Preserved the existing Super Admin access gate and invoice cabinet data/actions. Visual browser review remains outstanding.
+
+Patch 147 visual asset integration update
+- Added generated floor material, furniture, male avatar animation, and four bot animation atlases under design/ai-office/.
+- Integrated atlas-backed floors, furniture, staff/bot poses, and exterior window-wall sections into the existing live-data Office renderer.
+- Replaced the plain center lettering with rotating dimensional IBA on a fixed trophy-style metal base labeled IBA OFFICE.
+- Browser visual alignment review remains outstanding; interior cubicle dividers are not placed.
+
+Patch 148 — IBA Office WebGL conversion
+- Replaced the visible flat Canvas 2D office with a Three.js WebGL scene built from 3D floor tiles, exterior walls/window bays, entrance, dimensional furniture, male avatars, and bots.
+- Human avatars and bots move using the existing office path logic; human limbs animate during travel.
+- Added a rotating extruded IBA wordmark on a fixed metal base with IBA OFFICE plaque. Existing live cabinets, data/actions, and Super Admin access gate stay connected.
+- Three.js r187 loads as an ES module from jsDelivr with unpkg fallback.
+- Browser review remained outstanding after the first source pass.
+
+Patch 149 — IBA Office room structure and walk routes
+- Added low, framed glass room dividers with two-cell walk-through openings for the private offices, lounge, warehouse, washrooms, and shared departments.
+- Updated pathfinding boundaries to block divider panels but preserve door cells, so people and bots can navigate through actual openings.
+- Bumped the Office loader and Settings patch number to 149.
+- Local Chrome visual review is still pending because IBA displayed its "opened somewhere else" session lock; do not claim browser approval.
+Files: index.html, js/iba-office-boot.js, js/iba-office.js, js/iba-office-3d.js, AI-OFFICE-BUILD-CHECKLIST.md, CLAUDE-HANDOFF-LETTER.md, PATCH.txt
+- Pre-change backup: E:\project\Invoice\18.0.0\Project_01\Backup\backup-before-3d-office-p148
+- Pre-divider backup: E:\project\Invoice\18.0.0\Project_01\Backup\backup-before-3d-office-finish
+
+Patch 150 — Screenshot-driven 3D office visual correction
+- Fixed the InstancedMesh floor material multiplication that made the tiled floors render nearly black.
+- Brightened Pixel Neon wall and floor materials and increased ambient light; Clean Isometric layout/data stays shared.
+- Lowered the internal dividers and softened their glass/metal colors so the office reads as walkable rooms instead of a bright maze; door openings and pathfinding remain unchanged.
+- Enlarged workstation desks, chairs, human avatars, and bots modestly for whole-office readability.
+- Made the theme selector rebuild the same 3D layout and furniture in the selected palette, rather than only changing the background.
+- Scaled up the rotating extruded IBA letters and the fixed metal IBA OFFICE pedestal/plaque.
+- Bumped the Office loader and Settings patch number to 150.
+- The user's screenshot prompted this correction; the browser's actual office preview still needs a fresh visual review. No printer changes or printing verification in this patch.
+Files: index.html, js/iba-office-boot.js, js/iba-office.js, js/iba-office-3d.js, AI-OFFICE-BUILD-CHECKLIST.md, CLAUDE-HANDOFF-LETTER.md, PATCH.txt
+- Pre-change backup: E:\project\Invoice\18.0.0\Project_01\Backup\backup-before-office-visual-correction-p149
