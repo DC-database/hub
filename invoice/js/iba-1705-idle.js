@@ -137,10 +137,20 @@
     window.addEventListener('keydown', (e) => { if (!ss) return; eat(e); hide(); }, true);
     window.addEventListener('wheel', (e) => { if (ss) { hide(); } }, { capture: true, passive: true });
 
+    // 18.0.0 patch 157 (martin): for the Super Admin the IBA Office opens by itself when the PC is idle,
+    // instead of the screensaver. Own On/Off switch (Settings > Screensaver), on by default, this browser only.
+    // It opens after the same idle minutes; it stays open (Close it like normal). No screensaver while it is on.
+    const OFF_IDLE = 'iba-office-idle-v1';
+    function officeIdleOn() { try { return isSuper() && localStorage.getItem(OFF_IDLE) !== '0'; } catch (_) { return isSuper(); } }
+    function setOfficeIdle(v) { try { localStorage.setItem(OFF_IDLE, v ? '1' : '0'); } catch (_) {} }
+    function officeOpen() { try { return !!(window.ibaOffice && window.ibaOffice.summary && window.ibaOffice.summary().open); } catch (_) { return false; } }
     setInterval(() => {
-        if (ss || !userOn() || !signedIn() || onPhone() || document.hidden) return;
+        if (ss || !signedIn() || onPhone() || document.hidden) return;
+        const office = officeIdleOn() && typeof window.ibaOfficeOpen === 'function';
+        if (!office && !userOn()) return;
         if (Date.now() - last < cfg.minutes * 60000) return;
         if (typing() || popupOpen()) { activity(); return; }
+        if (office) { activity(); if (!officeOpen()) window.ibaOfficeOpen(); return; }
         show();
     }, 5000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) activity(); });
@@ -158,6 +168,7 @@
         el.innerHTML = '<div class="settings-card-header compact"><div class="settings-card-icon"><i class="fa-solid fa-tv"></i></div><div>' +
             '<h2>Screensaver</h2><p>When you leave the computer, a calm video with the time fills the screen. Move the mouse or press a key to come back. This switch is only for you.</p></div></div>' +
             '<button type="button" class="secondary-btn iba-ss-toggle" data-ss-toggle></button>' +
+            '<div class="iba-ss-office" data-ss-office hidden><button type="button" class="secondary-btn iba-ss-toggle" data-ss-office-toggle></button><span class="iba-ss-note">Super Admin: when the PC is idle the IBA Office opens instead of the screensaver.</span></div>' +
             '<div class="iba-ss-admin" data-ss-admin hidden>' +
             '<div class="iba-ss-admin-t"><i class="fa-solid fa-user-shield"></i> Super Admin · for everyone</div>' +
             '<label>Video <select data-ss-video></select></label>' +
@@ -167,6 +178,7 @@
         after.after(el);
         el.addEventListener('click', (e) => {
             if (e.target.closest('[data-ss-toggle]')) { setUserOn(!userOn()); activity(); paint(); return; }
+            if (e.target.closest('[data-ss-office-toggle]')) { setOfficeIdle(!officeIdleOn()); activity(); paint(); return; }
             if (e.target.closest('[data-ss-preview]')) { const sel = el.querySelector('[data-ss-video]'); setTimeout(() => show({ video: sel ? sel.value : cfg.video }), 150); return; }
             if (e.target.closest('[data-ss-save]')) save();
         });
@@ -181,6 +193,10 @@
         const on = userOn();
         const t = el.querySelector('[data-ss-toggle]');
         if (t) { t.classList.toggle('is-on', on); t.innerHTML = on ? '<i class="fa-solid fa-toggle-on"></i> Screensaver On' : '<i class="fa-solid fa-toggle-off"></i> Screensaver Off'; t.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+        const ob = el.querySelector('[data-ss-office]'), ot = el.querySelector('[data-ss-office-toggle]');
+        if (ob) ob.hidden = !isSuper();
+        if (ot) { const oo = officeIdleOn(); ot.classList.toggle('is-on', oo); ot.innerHTML = oo ? '<i class="fa-solid fa-toggle-on"></i> Office when idle On' : '<i class="fa-solid fa-toggle-off"></i> Office when idle Off'; ot.setAttribute('aria-pressed', oo ? 'true' : 'false'); }
+        if (t && isSuper() && officeIdleOn()) t.title = 'The Office opens instead while "Office when idle" is On';
         const adm = el.querySelector('[data-ss-admin]');
         if (adm) adm.hidden = !isSuper();
         const key = JSON.stringify(videos()) + '|' + JSON.stringify(cfg);
@@ -207,5 +223,5 @@
     function boot() { let n = 0; (function again() { if (!build() && n++ < 60) setTimeout(again, 750); })(); setInterval(paint, 3000); }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 
-    window.ibaIdle = { MINIMIZE_MS, show, hide, fold, cfg: () => Object.assign({}, cfg), on: userOn };
+    window.ibaIdle = { MINIMIZE_MS, show, hide, fold, cfg: () => Object.assign({}, cfg), on: userOn, officeIdle: officeIdleOn, setOfficeIdle };
 })();

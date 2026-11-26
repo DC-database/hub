@@ -230,8 +230,8 @@ function receptionDesk(p, x, z, ry, s = 1, pcs) { const g = grp(p, x, z, ry); g.
   add(g, RB(3.0, 1.0, .7, .2, 4), M.woodTop, 0, .5, 0); add(g, RB(3.1, .06, .8, .03), M.black, 0, 1.03, 0);
   add(g, RB(3.0, .04, .04, .01), M.trimA, 0, .55, -.36, { cast: false, noOutline: true }); add(g, RB(3.0, .04, .04, .01), M.trimB, 0, .1, -.36, { cast: false, noOutline: true });
   add(g, RB(2.4, .06, .5, .02), M.woodDark, 0, .74, .45); (pcs && pcs.length ? pcs : [-.4]).forEach((mx) => { monitor(g, mx, .77, .5, Math.PI); add(g, RB(.42, .02, .14, .01), M.black, mx, .785, .64); }); vase(g, .3, 1.06, -.05, .7); // one PC per reception chair
-  const ib = tex(256, 64, (c, w, h) => { c.fillStyle = DARK ? '#1B1636' : '#FFFFFF'; c.fillRect(0, 0, w, h); c.fillStyle = P.sign; c.font = '800 40px Space Grotesk, Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('IBA', w / 2, h / 2 + 2); });
-  add(g, new T.PlaneGeometry(.9, .22), toon({ map: ib, emissive: 0xffffff, emissiveMap: ib, emissiveIntensity: DARK ? .5 : 0 }), 0, .65, -.36, { ry: Math.PI, cast: false, noOutline: true });
+  const ib = tex(512, 104, (c, w, h) => { c.fillStyle = DARK ? '#1B1636' : '#FFFFFF'; c.fillRect(0, 0, w, h); c.strokeStyle = '#C9A24A'; c.lineWidth = 6; c.strokeRect(4, 4, w - 8, h - 8); c.fillStyle = P.sign; c.font = '800 60px Space Grotesk, Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('RECEPTION', w / 2, h / 2 + 2); }); // p157 (martin): the desk carries its name plate
+  add(g, new T.PlaneGeometry(1.5, .3), toon({ map: ib, emissive: 0xffffff, emissiveMap: ib, emissiveIntensity: DARK ? .5 : 0 }), 0, .65, -.36, { ry: Math.PI, cast: false, noOutline: true });
   return g; }
 function wallClock(p, x, y, z, ry) { const g = grp(p, x, z, ry, y); add(g, cyl(.22, .22, .05, 28), M.porcelain, 0, 0, 0, { rx: Math.PI / 2 }); add(g, new T.TorusGeometry(.22, .025, 6, 28), M.black, 0, 0, 0, { noOutline: true });
   for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; add(g, RB(.02, .045, .01, .004), M.black, Math.sin(a) * .17, Math.cos(a) * .17, .03, { rz: -a, noOutline: true }); }
@@ -242,7 +242,8 @@ function hands(x, y, z, ry) { const g = new T.Group(); g.position.set(x, y, z); 
 const DIRV = { S: [0, 1], N: [0, -1], W: [-1, 0], E: [1, 0] };
 const FACE = { N: 0, S: Math.PI, E: -Math.PI / 2, W: Math.PI / 2 }; // person rotation that looks that way
 const LEAD = ['me', 'md', 'coo', 'pd', 'fin', 'spA', 'spB'];
-let ADS = []; let OUTER = [], CLOCKS = [], IBA = null, SIGN = null, chairByTile = new Map();
+const CAR_ROOMS = ['me', 'md', 'coo', 'fin', 'spA', 'pd']; // p157: Irwin + the managers come by their own car (reserved bays by the door)
+let ADS = []; let BAYS = [], DOORZ = 0; let OUTER = [], CLOCKS = [], IBA = null, SIGN = null, FOUNT = null, chairByTile = new Map();
 function roomOf(state, x, y) { return state.rooms.find((r) => r.id !== 'plaza' && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || state.rooms.find((r) => r.id === 'plaza'); }
 // rotation so the model's front (+z when frontZ=1, -z when frontZ=-1) looks into its room
 function faceIn(state, o, frontZ) {
@@ -303,6 +304,58 @@ function glassRun(p, x1, y1, x2, y2, doors, h = 1.3) {
     add(g, new T.BoxGeometry(len, .05, .08), M.metal, 0, h, 0); add(g, new T.BoxGeometry(len, .05, .09), M.trimA, 0, .03, 0, { cast: false, noOutline: true });
     const n = Math.max(1, Math.round(len / 1.4)); for (let i = 0; i <= n; i++) add(g, RB(.08, h + .04, .08, .02), M.metal, -len / 2 + len * i / n, h / 2, 0); });
 }
+// 18.0.0 patch 157 (martin, his sample photos): every room name is a flat black acrylic plaque on the wall beside
+// its door (white name, thin line, small gold pins) - no door frames. Shared areas: the plaque sits flat on the glass.
+function plateMat(text, sub) { const t = tex(640, 180, (c, w, h) => { c.fillStyle = '#0C0D10'; c.fillRect(0, 0, w, h);
+  const g = c.createLinearGradient(0, 0, w, h); g.addColorStop(0, 'rgba(255,255,255,.10)'); g.addColorStop(.45, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); // acrylic shine
+  c.fillStyle = '#FFFFFF'; c.textAlign = 'center'; c.textBaseline = 'middle'; let f = 64; do { c.font = `700 ${f}px Inter, Segoe UI, Arial, sans-serif`; f -= 2; } while (c.measureText(text).width > w - 150 && f > 22);
+  const ty = sub ? h * .4 : h * .44; c.fillText(text, w / 2, ty); const lw = Math.min(w - 150, c.measureText(text).width + 30);
+  c.fillRect(w / 2 - lw / 2, ty + f * .62, lw, 3);
+  if (sub) { c.font = `500 28px Inter, Segoe UI, Arial, sans-serif`; c.fillText(sub, w / 2, ty + f * .62 + 30); } });
+  return toon({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: DARK ? .55 : .2 }); }
+// w = width in m; both = a face on each side (glass)
+function wallPlaque(p, x, y, z, ry, text, textB, both, w = 1.15) { const g = grp(p, x, z, ry, y); const h = w * 180 / 640, d = both ? .03 : .025;
+  add(g, RB(w, h, d, .006), M.black, 0, 0, both ? 0 : d / 2 + .02, { noOutline: true });
+  add(g, new T.PlaneGeometry(w - .01, h - .01), plateMat(text), 0, 0, (both ? d / 2 : d + .02) + .002, { cast: false, noOutline: true });
+  if (both) add(g, new T.PlaneGeometry(w - .01, h - .01), plateMat(textB || text), 0, 0, -d / 2 - .002, { ry: Math.PI, cast: false, noOutline: true });
+  [-1, 1].forEach((sd) => [1, both ? -1 : 0].forEach((fz) => { if (!fz) return; add(g, cyl(.028, .028, .05, 12), M.gold, sd * (w / 2 - .07), 0, fz * (both ? d / 2 + .02 : d + .04), { rx: Math.PI / 2, noOutline: true }); }));
+  return g; }
+function roomPlates(p, state) { const done = new Set();
+  const inR = (r, x, y) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+  const Y = 1.0; // the inner walls are 1.35 m high: the plaque sits just under the top trim
+  state.rooms.forEach((r) => { if (!r.name || r.id === 'plaza' || r.id === 'rec') return; let best = null; // reception: the name is on the front desk
+    (state.walls || []).forEach(([x1, y1, x2, y2, g, doors]) => { if (!doors || !doors.length) return; const v = x1 === x2;
+      const cells = doors.filter((c) => v ? (inR(r, x1 - 1, c) || inR(r, x1, c)) : (inR(r, c, y1 - 1) || inR(r, c, y1))); if (!cells.length) return;
+      const run = [cells[0]]; while (cells.includes(run[run.length - 1] + 1)) run.push(run[run.length - 1] + 1);
+      const outside = v ? (inR(r, x1, run[0]) ? -1 : 1) : (inR(r, run[0], y1) ? -1 : 1); // side of the wall that is NOT this room
+      const out = v ? [outside < 0 ? x1 - 1 : x1, run[0]] : [run[0], outside < 0 ? y1 - 1 : y1]; const o = roomOf(state, out[0], out[1]);
+      const hub = o && o.id === 'plaza'; if (o && o.id === r.id) return; if (!best || (hub && !best.hub)) best = { v, line: v ? x1 : y1, a: run[0], b: run[run.length - 1] + 1, hub, sd: outside }; });
+    if (!best) return; const key = (best.v ? 'v' : 'h') + best.line + ':' + best.a; if (done.has(key)) return; done.add(key);
+    const lo = best.v ? r.y : r.x, hi = best.v ? r.y + r.h : r.x + r.w; let at = best.b + .7; if (at > hi - .5) at = best.a - .7; if (at < lo + .5) at = (best.a + best.b) / 2; // beside the door, inside the wall length
+    const off = best.sd * .09; const [x, z] = best.v ? W(best.line + off, at) : W(at, best.line + off);
+    const ry = best.v ? (best.sd < 0 ? -Math.PI / 2 : Math.PI / 2) : (best.sd < 0 ? Math.PI : 0);
+    // martin: a room shared by two departments = two plaques, one above the other
+    if (r.depts && r.depts.length > 1) { wallPlaque(p, x, 1.14, z, ry, r.depts[0], null, false, 1.15); wallPlaque(p, x, .8, z, ry, r.depts[1], null, false, 1.15); }
+    else wallPlaque(p, x, Y, z, ry, r.name, null, false, 1.3); });
+  (state.plates || []).forEach(([px, py, k, text, textB, side]) => { const v = k === 'v';
+    const doors = []; (state.walls || []).forEach(([x1, y1, x2, y2, g, ds]) => { if (v ? (x1 === x2 && x1 === px) : (y1 === y2 && y1 === py)) (ds || []).forEach((c) => doors.push(c)); });
+    let c = v ? py : px; const c0 = Math.floor(c); if (doors.includes(c0)) { let a = c0, b = c0 + 1; while (doors.includes(a - 1)) a--; while (doors.includes(b)) b++; c = side === 'a' ? a - .65 : side === 'b' ? b + .65 : doors.includes(b) ? a - .65 : b + .65; } // beside the opening, on the glass
+    const [x, z] = v ? W(px, c) : W(c, py); wallPlaque(p, x, 1.05, z, v ? Math.PI / 2 : 0, text, textB, true, 1.3); });
+}
+// p157 (martin): a small wooden name bar on each person's desk (their name, white letters)
+function deskBarMat(text) { const t = tex(320, 72, (c, w, h) => { const g = c.createLinearGradient(0, 0, w, 0); g.addColorStop(0, '#3B2416'); g.addColorStop(.5, '#5A3722'); g.addColorStop(1, '#3B2416'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 1; for (let i = 0; i < 9; i++) { c.beginPath(); c.moveTo(0, 6 + i * 7); c.bezierCurveTo(w * .3, 2 + i * 7, w * .6, 11 + i * 7, w, 5 + i * 7); c.stroke(); }
+  c.fillStyle = '#F4F1EA'; c.textAlign = 'center'; c.textBaseline = 'middle'; let f = 40; do { c.font = `700 ${f}px Inter, Segoe UI, Arial, sans-serif`; f -= 2; } while (c.measureText(text).width > w - 24 && f > 14); c.fillText(text, w / 2, h / 2 + 2); });
+  return toon({ map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: DARK ? .35 : .05 }); }
+function deskBar(state, p) {
+  if (!p.human || !p.home) return null; const c = chairByTile.get(p.home[0] + ',' + p.home[1]); if (!c || !c.deskH) return null;
+  if (roomOf(state, c.x, c.y).id === 'rec') return null; // reception desk has its own plate
+  const exec = c.deskH > .72, v = DIRV[c.dir] || DIRV.S, k = exec ? .85 : .64, [px, pz] = W(c.x + .5, c.y + .5);
+  const g = new T.Group(); g.position.set(px + v[0] * k, 0, pz + v[1] * k); g.rotation.y = FACE[c.dir] + Math.PI;
+  const top = exec ? .835 : .62, bx = exec ? -.62 : -.3, bz = exec ? -.36 : -.2, name = String(p.name || '').slice(0, 18);
+  const b = grp(g, bx, bz, Math.PI, top); add(b, RB(.52, .012, .09, .004), M.black, 0, .006, 0, { noOutline: true });
+  const bar = grp(b, 0, 0, 0, .062); bar.rotation.x = -.35; add(bar, RB(.5, .11, .014, .003), M.woodDark, 0, 0, 0, { noOutline: true }); add(bar, new T.PlaneGeometry(.48, .1), deskBarMat(name), 0, 0, .0085, { cast: false, noOutline: true });
+  return g; }
 function ibaSign(p, x, z, s, lift = 0) {
   const g = grp(p, x, z); g.position.y = lift; g.scale.setScalar(s);
   add(g, cyl(2.2, 2.35, .3, 8), M.wallDark, 0, .15, 0); add(g, cyl(2.24, 2.24, .05, 8, true), M.trimA, 0, .3, 0, { cast: false, noOutline: true });
@@ -355,7 +408,7 @@ function furniture(st, state, o) {
     case 'urinal': return urinal(st, cx, cz, faceIn(state, o, 1) + Math.PI);
     case 'stall': return partition(st, cx, cz, alongZ ? Math.PI / 2 : 0, long);
     case 'plant': return plantBig(st, cx, cz, 1.35);
-    case 'rug': { const r = roomOf(state, Math.floor(cx + 23), Math.floor(cz + 20)); const mat = r && (LEAD.includes(r.id) || r.id === 'meet') ? M.carpet2 : M.carpet; floorPoly(st, [[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.d], [o.x, o.y + o.d]], mat, 1.4, .02); return null; }
+    case 'rug': { const r = roomOf(state, Math.floor(cx + 23), Math.floor(cz + 20)); const mat = r && (LEAD.includes(r.id) || r.id === 'meet') ? M.carpet2 : M.carpet; floorPoly(st, clipOct([[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.d], [o.x, o.y + o.d]], state.oct || 0), mat, 1.4, .02); return null; } // p156: rugs stop at the cut corners
     case 'tilefloor': floorPoly(st, clipOct([[o.x, o.y], [o.x + o.w, o.y], [o.x + o.w, o.y + o.d], [o.x, o.y + o.d]], state.oct || 0), M.tiles, 1.2, .012); return null;
     case 'lowcab': { const g = grp(st, cx, cz, faceIn(state, o, 1)); const len = Math.max(o.w, o.d) * .92; add(g, RB(len, .78, .46, .03), M.woodDark, 0, .39, 0); add(g, RB(len + .04, .04, .5, .01), M.woodTop || M.woodDark, 0, .8, 0, { noOutline: true });
       for (let i = 0; i < Math.max(2, Math.round(len / .45)); i++) { const n = Math.max(2, Math.round(len / .45)), x0 = -len / 2 + len * (i + .5) / n; add(g, RB(len / n - .04, .66, .02, .01), M.wood, x0, .4, .235, { noOutline: true }); add(g, RB(.1, .02, .02, .005), M.chrome, x0, .62, .25, { noOutline: true }); }
@@ -405,8 +458,33 @@ function fountain(st, x, z) {
   const water = toon({ color: DARK ? 0x1E8A96 : 0x4FB0D8, emissive: DARK ? 0x0E3A40 : 0x0A2A3A, emissiveIntensity: .35 });
   add(st, cyl(3.05, 3.05, .06, 8), water, x, .54, z, oct);
   add(st, cyl(1.55, 1.75, .75, 8), M.wall, x, .62, z, { ry: Math.PI / 8 }); add(st, cyl(1.6, 1.6, .04, 8, true), M.trimA, x, 1.0, z, oct);
-  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8, r = 2.45; add(st, cyl(.025, .05, .55, 6), M.glass, x + Math.sin(a) * r, .7, z + Math.cos(a) * r, { rx: Math.cos(a) * -.5, rz: Math.sin(a) * .5, cast: false, noOutline: true }); }
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8, r = 2.85; add(st, cyl(.06, .08, .1, 8), M.trimA, x + Math.sin(a) * r, .6, z + Math.cos(a) * r, { cast: false, noOutline: true }); } // jet nozzles
+  FOUNT = fountainWater(x, z, water);
   SIGN = ibaSign(st, x, z, .62, .78); return null;
+}
+// p158 (martin): moving water - 8 arcs of drops from the pool into the centre, a water sheet falling off the top basin, rings spreading on the pool
+function fountainWater(x, z, poolMat) {
+  const g = new T.Group(); g.position.set(x, 0, z);
+  const N = 8, PER = 16, drop = new T.InstancedMesh(new T.SphereGeometry(.045, 6, 5), new T.MeshBasicMaterial({ color: DARK ? 0x9FF3FF : 0xE6FAFF, transparent: true, opacity: .85, depthWrite: false }), N * PER);
+  drop.frustumCulled = false; drop.castShadow = false; g.add(drop);
+  const sheetT = tex(64, 128, (c, w, h) => { c.clearRect(0, 0, w, h); for (let i = 0; i < 40; i++) { const sx = Math.random() * w, sy = Math.random() * h, l = 10 + Math.random() * 30; const gr = c.createLinearGradient(0, sy, 0, sy + l); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.5, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(sx, sy, 1.5 + Math.random() * 2, l); } }, [6, 1]);
+  sheetT.colorSpace = T.NoColorSpace;
+  const sheet = new T.Mesh(new T.CylinderGeometry(1.64, 1.8, .44, 32, 1, true), new T.MeshBasicMaterial({ color: DARK ? 0x7FE6F2 : 0xBFEFFF, map: sheetT, transparent: true, opacity: .55, depthWrite: false, side: T.DoubleSide }));
+  sheet.position.y = .8; g.add(sheet);
+  const rings = []; for (let i = 0; i < 4; i++) { const m = new T.Mesh(new T.RingGeometry(.94, 1, 40), new T.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.y = .58; g.add(m); rings.push(m); }
+  const splash = []; for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2 + Math.PI / 8; const m = new T.Mesh(new T.RingGeometry(.6, 1, 20), rings[0].material.clone()); m.rotation.x = -Math.PI / 2; m.position.set(Math.sin(a) * 1.85, .58, Math.cos(a) * 1.85); g.add(m); splash.push(m); }
+  return { g, drop, sheetT, rings, splash, poolMat, N, PER, base: poolMat.emissiveIntensity || .35, m4: new T.Matrix4(), v: new T.Vector3() };
+}
+function fountainTick(F, ts) {
+  if (!F) return; const { N, PER, drop, m4, v } = F, T0 = 1.1; // seconds for one drop to fly
+  for (let j = 0; j < N; j++) { const a = j / N * Math.PI * 2 + Math.PI / 8, sx = Math.sin(a), sz = Math.cos(a);
+    for (let k = 0; k < PER; k++) { const u = ((ts / T0) + k / PER + j * .037) % 1; const r = 2.85 - u * 1.0, y = .66 + Math.sin(u * Math.PI) * .75 - u * .08;
+      v.set(sx * r, y, sz * r); const sc = .7 + .5 * Math.sin(u * Math.PI); m4.makeScale(sc, sc * 1.4, sc).setPosition(v); drop.setMatrixAt(j * PER + k, m4); } }
+  drop.instanceMatrix.needsUpdate = true;
+  F.sheetT.offset.y = (ts * .9) % 1;
+  F.rings.forEach((m, i) => { const u = ((ts * .28) + i / F.rings.length) % 1, r = 1.85 + u * 1.15; m.scale.set(r, r, 1); m.material.opacity = .32 * (1 - u); });
+  F.splash.forEach((m, i) => { const u = ((ts / T0) * 2 + i * .13) % 1, r = .12 + u * .22; m.scale.set(r, r, 1); m.material.opacity = .5 * (1 - u); });
+  F.poolMat.emissiveIntensity = F.base + Math.sin(ts * 2.1) * .06;
 }
 function seatY(c) { return !c ? .42 : c.stool ? .73 : c.hidden ? .42 : c.sprite === 'lounge' ? .5 : c.sprite === 'visitor' ? .46 : .44; }
 function mergeStatic(st) {
@@ -434,13 +512,16 @@ function outside(st, door) {
   const [, dz] = W(0, door[1] + .5); add(st, new T.BoxGeometry(9.6, .07, 2.2), pave, -30.3, .02, dz, { cast: false, noOutline: true });
   for (let i = 0; i < 4; i++) add(st, new T.BoxGeometry(1.2, .02, .35), M.white, -27.6, .065, dz - .75 + i * .5, { cast: false, noOutline: true });
   const cols = DARK ? [0x8A1626, 0x22202C, 0xB88A2A, 0x2E4A5A, 0x5A5A60] : [0xF2F4F8, 0x22305A, 0x8A2D3A, 0x9AA3AD, 0x2F5A48, 0xC9A24A];
-  let k = 0; for (let z = -18; z <= 18; z += 2.6) { if (Math.abs(z - dz) < 2.4) continue; add(st, new T.BoxGeometry(5.2, .02, .1), line, -32.2, .03, z - 1.3, { cast: false, noOutline: true });
-    if (rnd() < .72) car(st, -32.4, z, Math.PI / 2 + (rnd() < .5 ? 0 : Math.PI), cols[k++ % cols.length]); }
+  // p157 (martin): the 6 bays nearest the door are reserved for the managers + Irwin (their own car shows while they are in)
+  DOORZ = dz; BAYS = []; const zs = []; for (let z = -18; z <= 18; z += 2.6) if (Math.abs(z - dz) >= 2.4) zs.push(z); const res = new Set(zs.slice().sort((a, b) => Math.abs(a - dz) - Math.abs(b - dz)).slice(0, CAR_ROOMS.length));
+  let k = 0; zs.forEach((z) => { add(st, new T.BoxGeometry(5.2, .02, .1), line, -32.2, .03, z - 1.3, { cast: false, noOutline: true });
+    if (res.has(z)) { BAYS.push(z); add(st, new T.BoxGeometry(.5, .02, 2.3), M.gold || M.trimA, -34.6, .035, z, { cast: false, noOutline: true }); return; }
+    if (rnd() < .72) car(st, -32.4, z, Math.PI / 2 + (rnd() < .5 ? 0 : Math.PI), cols[k++ % cols.length]); }); BAYS.sort((a, b) => Math.abs(a - dz) - Math.abs(b - dz));
   add(st, new T.BoxGeometry(.1, .02, 38), line, -29.6, .03, 0, { cast: false, noOutline: true });
   [-16, -6, 6, 16].forEach((z) => streetLamp(st, -25.6, z)); [-12, 0, 12].forEach((z) => { if (Math.abs(z - dz) > 2) plantBig(st, -24.2, z, 1.1); });
 }
 function buildOffice(state) {
-  seed = 7; ADS = []; OUTER = []; CLOCKS = []; SIGN = null; chairByTile = new Map();
+  seed = 7; ADS = []; OUTER = []; CLOCKS = []; SIGN = null; FOUNT = null; chairByTile = new Map();
   const st = new T.Group(), low = new T.Group();
   // ground + floors (wood / carpet / tiles, per room)
   // the building is an octagon: base slab, floors cut to the octagon, eight outside walls
@@ -467,6 +548,7 @@ function buildOffice(state) {
     wallRun(low, x0, z0, x1, z1, H, opens, n, inSign); });
   // walls between rooms: solid (cut low so you can see in); glass only where the plan says (the lead's room)
   (state.walls || []).forEach(([x1, y1, x2, y2, g, doors]) => (g === 2 ? glassRun(st, x1, y1, x2, y2, doors) : solidRun(st, x1, y1, x2, y2, doors)));
+  try { roomPlates(st, state); } catch (e) { console.warn('Office 3D: plates', e); }
   // furniture + chairs (every seat has its chair; desks face the chair that uses them)
   state.furniture.forEach((o) => { try { furniture(st, state, o); } catch (e) { console.warn('Office 3D: furniture', o.t, e); } });
   state.chairs.forEach((c) => { chairByTile.set(c.x + ',' + c.y, c); chair(st, c); });
@@ -480,7 +562,7 @@ function buildOffice(state) {
   let sign = SIGN; if (!sign) { const ib = W(23.5, 19.5); sign = ibaSign(st, ib[0], ib[1], .62); }
   const statics = mergeStatic(st);
   const lowM = new T.Group(); low.children.slice().forEach((g) => lowM.add(g)); // exterior walls stay separate groups (they lower)
-  return { statics, low: lowM, sign, clocks: CLOCKS };
+  return { statics, low: lowM, sign, clocks: CLOCKS, fount: FOUNT };
 }
 
 // ================= anime-style 3D people (hair, uniform and style are all options) =================
@@ -702,7 +784,8 @@ function updateLabs() {
   LABS.forEach((a) => { const el = a.userData.dom; let o = a, shown = true; while (o && o !== scene) { if (o.visible === false) shown = false; o = o.parent; }
     if (!o) { el.remove(); LABS.delete(a); return; }
     _lv.setFromMatrixPosition(a.matrixWorld).project(camera); const x = ox + (_lv.x + 1) / 2 * w, y = oy + (1 - _lv.y) / 2 * h;
-    if (a.userData.kind === 'tag' && view.size * zoomMul > 30) shown = false; // whole office: room signs only, names show when you zoom in
+    if (a.userData.kind === 'tag' && view.size * zoomMul > 30) shown = false;
+    if (a.userData.kind === 'room' && view.size * zoomMul <= 30) shown = false; // p157: zoomed in, the door plates carry the names // whole office: room signs only, names show when you zoom in
     if (!shown || x < -80 || y < -40 || x > w + 80 || y > h + 40) { if (el.style.display !== 'none') el.style.display = 'none'; return; }
     if (el.style.display === 'none') el.style.display = ''; el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`; });
 }
@@ -743,12 +826,13 @@ function setLights() { lights.forEach((l) => l.parent && l.parent.remove(l)); li
   lights.forEach((l) => scene.add(l)); scene.background = new T.Color(P.bg); }
 function build(state) {
   const k = themeKey(state); P = THEMES[k]; DARK = !!P.dark; lastTheme = state.theme;
-  if (built) { disposeTree(built.statics); disposeTree(built.low); disposeTree(built.sign); built.clocks.forEach(disposeTree); }
+  if (built) { disposeTree(built.statics); disposeTree(built.low); disposeTree(built.sign); built.clocks.forEach(disposeTree); if (built.fount) disposeTree(built.fount.g); }
   disposeTree(people3); disposeTree(badges); roomLab.forEach((s) => s.parent && s.parent.remove(s)); roomLab.clear(); SPR.forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); SPR.clear();
   actors.clear(); pickables = []; cabinets.clear();
   materials(); built = buildOffice(state); addOutlines(built.low, OUT);
-  scene.add(built.statics, built.low, built.sign); built.clocks.forEach((c) => scene.add(c));
+  scene.add(built.statics, built.low, built.sign); if (built.fount) scene.add(built.fount.g); built.clocks.forEach((c) => scene.add(c));
   people3 = new T.Group(); badges = new T.Group(); scene.add(people3, badges);
+  disposeTree(rideG); rideG = new T.Group(); scene.add(rideG); RIDES = []; PARKED = {}; parkT = 0; // p157 rides
   setLights(); addBadges(state);
   const px = P.px || 1; renderer.setPixelRatio(px > 1 ? 1 / px : Math.min(1.5, devicePixelRatio || 1)); renderer.domElement.style.imageRendering = px > 1 ? 'pixelated' : '';
   resize3d();
@@ -782,9 +866,11 @@ function makeActor(p) {
   tag.position.y = p.human ? 2.02 : 1.62; holder.add(tag);
   const hit = add(holder, new T.BoxGeometry(.7, 1.8, .6), new T.MeshBasicMaterial({ visible: false }), 0, .9, 0, { cast: false, noOutline: true }); hit.userData.hit = { type: 'person', name: p.name }; pickables.push(hit);
   const a = { holder, g, tag, hit, bubble: null, bubbleText: '', ry: FACE.S, lx: p.x, ly: p.y };
-  const [x, z] = W(p.x + .5, p.y + .5); holder.position.set(x, 0, z); holder.rotation.y = a.ry; actors.set(p, a); return a;
+  const [x, z] = W(p.x + .5, p.y + .5); holder.position.set(x, 0, z); holder.rotation.y = a.ry; actors.set(p, a);
+  try { a.bar = deskBar(window.ibaOffice3DState ? window.ibaOffice3DState() : { rooms: [] }, p); if (a.bar) people3.add(a.bar); } catch (e) { console.warn('Office 3D: desk bar', e); }
+  return a;
 }
-function rebuildActor(p) { const a = actors.get(p); if (!a) return; pickables = pickables.filter((m) => m !== a.hit); const keep = { ry: a.ry, lx: a.lx, ly: a.ly }; disposeTree(a.holder); actors.delete(p); const n = makeActor(p); Object.assign(n, keep); n.holder.rotation.y = n.ry; }
+function rebuildActor(p) { const a = actors.get(p); if (!a) return; pickables = pickables.filter((m) => m !== a.hit); const keep = { ry: a.ry, lx: a.lx, ly: a.ly }; disposeTree(a.holder); if (a.bar) { disposeTree(a.bar); a.bar = null; } actors.delete(p); const n = makeActor(p); Object.assign(n, keep); n.holder.rotation.y = n.ry; }
 function stepActor(p, a, dt, t) {
   const u = a.g.userData, moving = !!(p.path && p.path.length), ch = !moving && chairByTile.get(Math.round(p.x) + ',' + Math.round(p.y));
   const seated = ch && Math.abs(p.x - Math.round(p.x)) < .06 && Math.abs(p.y - Math.round(p.y)) < .06;
@@ -792,9 +878,10 @@ function stepActor(p, a, dt, t) {
   let want = a.ry; if (moving && Math.hypot(dx, dy) > 1e-4) want = Math.atan2(dx, dy) + Math.PI; else if (seated) want = FACE[ch.dir] != null ? FACE[ch.dir] : a.ry;
   let df = want - a.ry; df = ((df + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; a.ry += df * Math.min(1, dt * 10);
   a.holder.position.set(x, 0, z); a.holder.rotation.y = a.ry; a.holder.visible = !p.hidden;
-  const bubble = p.bubble && performance.now() < p.bubbleT ? String(p.bubble) : '';
+  const talk = p.bubble && performance.now() < p.bubbleT ? String(p.bubble) : '';
+  const bubble = talk || (!moving && !p.hidden && p.awayLabel ? String(p.awayLabel) : ''); // p157: "Go here" / I'm in sign over your head
   u.carry = !!p.carry; if (u.rig.paper) u.rig.paper.visible = !!p.carry;
-  u.act = moving ? 'walk' : seated ? (bubble ? 'sittalk' : (ch.sprite === 'work' && !ch.noDesk ? 'work' : 'sit')) : (bubble ? 'talk' : 'stand');
+  u.act = moving ? 'walk' : seated ? (talk ? 'sittalk' : (ch.sprite === 'work' && !ch.noDesk ? 'work' : 'sit')) : (talk ? 'talk' : 'stand');
   u.seatY = seatY(ch); u.deskH = ch ? ch.deskH : 0;
   if (bubble !== a.bubbleText) { if (a.bubble) a.holder.remove(a.bubble); a.bubbleText = bubble; a.bubble = null;
     if (bubble) { a.bubble = sprite(bubble.length > 34 ? bubble.slice(0, 33) + '…' : bubble, { bg: '#FFFFFF', border: '#9B5CFF', color: '#16132B', tail: true }, .42); a.bubble.position.y = p.human ? 2.45 : 2.02; a.holder.add(a.bubble); } }
@@ -821,8 +908,37 @@ function slideDoor(state, dt) { const door = state.door || [0, 3]; let near = fa
 window.ibaOffice3DPan = (x, z) => { pan.x = +x || 0; pan.z = +z || 0; };
 window.ibaOffice3DFocus = (id, z) => { focusRoom = id || null; pan.x = pan.z = 0; zoomMul = +z || 1; };
 function lowerWalls(dt) { const cd = new T.Vector3(Math.sin(azimuth), 0, Math.cos(azimuth));
-  OUTER.forEach((w) => { const facing = w.n.x * cd.x + w.n.z * cd.z > .15, goal = facing && !w.door ? .12 : 1; /* the entrance wall (with the door) always stays up */ w.k += (goal - w.k) * Math.min(1, dt * 6); w.g.scale.y = w.k; });
+  OUTER.forEach((w) => { if (w.k !== 1) { w.k = 1; w.g.scale.y = 1; } }); /* p157 (martin): all outside walls always stay up */
   ADS.forEach((a) => { a.tm += dt; if (a.tm > 4.5) { a.tm = 0; a.i++; drawAd(a.t.image.getContext('2d'), a.t.image.width, a.t.image.height, a.i); a.t.needsUpdate = true; } }); }
+// 18.0.0 patch 157 (martin): rides. Staff come and go by Uber at the entrance; Irwin + the managers use their own car
+// in the reserved bays (it stays parked while they are in). ibaOffice3DRide(room, 'in'|'out') returns ms to wait.
+const CAR_COL = { me: 0x22305A, md: 0x1E1E24, coo: 0xF2F4F8, fin: 0x8A2D3A, spA: 0x9AA3AD, pd: 0x2F5A48 };
+let rideG = null, RIDES = [], PARKED = {}, parkT = 0;
+const LANE = -27.9, BAYX = -32.4;
+function rideCar(col, uber) { const g = car(rideG, 0, 0, 0, col); if (uber) { add(g, RB(.7, .22, .3, .04), toon({ color: 0x111111, emissive: 0xffffff, emissiveIntensity: .05 }), 0, 1.42, .15, { noOutline: true });
+    const t = tex(128, 40, (c, w, h) => { c.fillStyle = '#111'; c.fillRect(0, 0, w, h); c.fillStyle = '#fff'; c.font = '800 26px Inter, Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('TAXI', w / 2, h / 2 + 1); });
+    [1, -1].forEach((sd) => add(g, new T.PlaneGeometry(.66, .2), new T.MeshBasicMaterial({ map: t }), sd * .36, 1.42, .15, { ry: sd * Math.PI / 2, cast: false, noOutline: true })); }
+  addOutlines(g, OUT); return g; }
+// a ride = waypoints [x, z, ry, seconds]; ry PI = heading +z (down the road), 0 = heading -z
+function startRide(g, pts, end) { g.position.set(pts[0][0], 0, pts[0][1]); g.rotation.y = pts[0][2]; RIDES.push({ g, pts, i: 1, t: 0, end }); }
+function stepRides(state, dt) { if (!rideG) return;
+  RIDES = RIDES.filter((r) => { const a = r.pts[r.i - 1], b = r.pts[r.i]; if (!b) { if (r.end) r.end(r.g); return false; } r.t += dt; const k = Math.min(1, r.t / Math.max(.01, b[3])), e = k * k * (3 - 2 * k);
+    r.g.position.x = a[0] + (b[0] - a[0]) * e; r.g.position.z = a[1] + (b[1] - a[1]) * e; let d = b[2] - a[2]; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; r.g.rotation.y = a[2] + d * e;
+    if (k >= 1) { r.i++; r.t = 0; } return true; });
+  parkT -= dt; if (parkT > 0) return; parkT = 2; // keep the managers' cars parked while they are in
+  CAR_ROOMS.forEach((rid, i) => { const z = BAYS[i]; if (z === undefined) return; const busy = RIDES.some((r) => r.rid === rid); if (busy) return;
+    const want = (state.people || []).some((p) => p.room === rid && !p.bot && p.inside); if (want && !PARKED[rid]) { const g = rideCar(CAR_COL[rid], false); g.position.set(BAYX, 0, z); g.rotation.y = Math.PI / 2; PARKED[rid] = g; }
+    else if (!want && PARKED[rid]) { disposeTree(PARKED[rid]); delete PARKED[rid]; } }); }
+window.ibaOffice3DRide = (rid, dir) => { if (!rideG || !renderer) return 0; const root = document.getElementById('iba-office'); if (root && root.hidden) return 0;
+  const i = CAR_ROOMS.indexOf(rid), z = BAYS[i], top = -24, bot = 24;
+  if (i >= 0 && z !== undefined) { // own car: drive in and park / back out and drive off
+    if (dir === 'in') { if (PARKED[rid]) return 0; const g = rideCar(CAR_COL[rid], false); startRide(g, [[LANE, top, Math.PI, 0], [LANE, z - 2.2, Math.PI, 3], [BAYX, z, Math.PI / 2, 1.6]], (g2) => { PARKED[rid] = g2; }); RIDES[RIDES.length - 1].rid = rid; return 4800; }
+    const g = PARKED[rid] || rideCar(CAR_COL[rid], false); delete PARKED[rid]; g.position.set(BAYX, 0, z); g.rotation.y = Math.PI / 2;
+    startRide(g, [[BAYX, z, Math.PI / 2, 0], [LANE, z + 2, Math.PI, 1.8], [LANE, bot, Math.PI, 3]], (g2) => disposeTree(g2)); RIDES[RIDES.length - 1].rid = rid; return 0; }
+  if (RIDES.filter((r) => r.uber).length >= 2) return 0; // a rush (6 PM): two taxis are enough
+  const g = rideCar(0xF2C230, true), wait = dir === 'in' ? 1.2 : 2.6;
+  startRide(g, [[LANE, top, Math.PI, 0], [LANE + .4, DOORZ, Math.PI, 3.2], [LANE + .4, DOORZ + .01, Math.PI, wait], [LANE, bot, Math.PI, 3]], (g2) => disposeTree(g2)); RIDES[RIDES.length - 1].uber = true;
+  return dir === 'in' ? 3600 : 0; };
 function resize3d() { if (!renderer || !stage) return; const w = Math.max(1, stage.clientWidth), h = w < 700 ? Math.round(Math.max(300, Math.min(window.innerHeight * .62, w * 1.35))) : Math.max(360, Math.min(window.innerHeight * .76, w * .56)); /* p155: taller view on a phone */ stage.style.height = h + 'px'; renderer.setSize(w, h, false); lastSize = w + 'x' + h; }
 // 18.0.0 patch 155: touch. One finger = move, two fingers = pinch to zoom + twist to turn, tap = open (same as a click).
 const touches = new Map(); let pinch = null;
@@ -836,6 +952,8 @@ function onMove(e) { if (touchMove(e)) return; if (!drag) return; const dx = e.c
   if (drag.pan) { const k = view.size * zoomMul / Math.max(1, stage.clientHeight); const cx = Math.cos(azimuth), sx = Math.sin(azimuth); pan.x += (-dx * cx - dy * sx / Math.sin(elevation)) * k; pan.z += (dx * sx - dy * cx / Math.sin(elevation)) * k; pan.x = Math.max(-26, Math.min(26, pan.x)); pan.z = Math.max(-22, Math.min(22, pan.z)); }
   else { azimuth -= dx * .008; azGoal = azimuth; elevation = Math.max(.42, Math.min(1.25, elevation + dy * .004)); } }
 function onUp(e) { touchUp(e); if (!drag) return; const click = !drag.moved; drag = null; if (!click) return; const r = renderer.domElement.getBoundingClientRect(); pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  // 18.0.0 patch 157: right-CLICK (no drag) on the floor = small menu "Go here"; right-drag still turns the view
+  if (e.button === 2) { const g = groundAt(e); if (!g) return; const tx = Math.floor(g.x + 23), ty = Math.floor(g.z + 20); if (tx < 0 || ty < 0 || tx >= 46 || ty >= 40) return; if (window.ibaOfficeGoMenu) window.ibaOfficeGoMenu(tx, ty, e.clientX, e.clientY); return; }
   raycaster.setFromCamera(pointer, camera); const hit = raycaster.intersectObjects(pickables, false).find((h) => { let o = h.object; while (o) { if (o.visible === false && !o.userData.hit) return false; o = o.parent; } return true; });
   if (!hit) { const g = groundAt(e); if (!g) return; const s = window.ibaOffice3DState(); const tx = Math.floor(g.x + 23), ty = Math.floor(g.z + 20); if (tx < 0 || ty < 0 || tx >= 46 || ty >= 40) return;
     const room = roomOf(s, tx, ty); if (!room) return; if (focusRoom === room.id) return; focusRoom = room.id; pan.x = pan.z = 0; zoomMul = 1; return; } // click a room = zoom into it
@@ -858,7 +976,7 @@ function setup(state) {
   if (renderer) return; host = document.querySelector('#iba-office .iba-off-3d-host'); stage = document.querySelector('#iba-office .iba-off-stage'); if (!host || !stage) return;
   const oldCanvas = stage.querySelector('canvas'); if (oldCanvas) oldCanvas.classList.add('iba-off-legacy-canvas');
   renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFShadowMap; renderer.outputColorSpace = T.SRGBColorSpace;
-  renderer.domElement.className = 'iba-off-3d-canvas'; renderer.domElement.setAttribute('aria-label', 'IBA Office in 3D: drag to move, right-drag to turn, wheel to zoom, click a room to zoom into it, double-click to reset'); host.appendChild(renderer.domElement);
+  renderer.domElement.className = 'iba-off-3d-canvas'; renderer.domElement.setAttribute('aria-label', 'IBA Office in 3D: drag to move, right-drag to turn, wheel to zoom, click a room to zoom into it, right-click the floor to walk there, double-click to reset'); host.appendChild(renderer.domElement);
   scene = new T.Scene(); camera = new T.OrthographicCamera(-20, 20, 20, -20, -200, 400);
   const el = renderer.domElement; el.addEventListener('pointerdown', onDown); el.addEventListener('pointermove', onMove); el.addEventListener('pointerup', onUp); el.addEventListener('pointercancel', (e) => { drag = null; touchUp(e); }); el.addEventListener('wheel', onWheel, { passive: false }); el.addEventListener('contextmenu', (e) => e.preventDefault()); el.addEventListener('dblclick', () => resetView());
   new ResizeObserver(() => resize3d()).observe(stage); window.addEventListener('resize', resize3d);
@@ -871,16 +989,17 @@ function frame(t, state) {
   const dt = Math.min(.08, Math.max(0, (t - lastT) / 1000) || .016); lastT = t; const ts = t / 1000;
   if (state.theme !== lastTheme) build(state);
   roomLabels(state);
-  const live = new Set(state.people); actors.forEach((a, p) => { if (live.has(p)) return; pickables = pickables.filter((m) => m !== a.hit); disposeTree(a.holder); actors.delete(p); });
+  const live = new Set(state.people); actors.forEach((a, p) => { if (live.has(p)) return; pickables = pickables.filter((m) => m !== a.hit); disposeTree(a.holder); if (a.bar) { disposeTree(a.bar); a.bar = null; } actors.delete(p); });
   state.people.forEach((p) => { const a = actors.get(p) || makeActor(p); stepActor(p, a, dt, ts); });
   if (IBA) IBA.rotation.y = ts * .35;
+  if (built.fount) fountainTick(built.fount, ts);
   const d = new Date(); built.clocks.forEach((c) => { const [h, m] = c.userData.hands; h.rotation.z = -((d.getHours() % 12) + d.getMinutes() / 60) / 12 * Math.PI * 2; m.rotation.z = -d.getMinutes() / 60 * Math.PI * 2; });
   updateBadges(state);
   const appView = (state.zoom || 0).toFixed(2) + '|' + state.currentRoom; if (appView !== lastAppView) { if (lastAppView) resetView(); lastAppView = appView; } // My office / Whole office = back to that view
   { let dA = azGoal - azimuth; azimuth += dA * Math.min(1, dt * 6); }
   const goal = focusGoal(state), k = Math.min(1, dt * 5); view.x += (goal.x - view.x) * k; view.z += (goal.z - view.z) * k; view.size += (goal.size - view.size) * k;
   if (stage.clientWidth + 'x' + stage.clientHeight !== lastSize) resize3d();
-  slideDoor(state, dt); lowerWalls(dt); placeCamera(); renderer.render(scene, camera); updateLabs();
+  slideDoor(state, dt); lowerWalls(dt); stepRides(state, dt); placeCamera(); renderer.render(scene, camera); updateLabs();
 }
 
 // ---------------------------------------------------------------- "Characters": pick each person's look (Super Admin; saved per person)

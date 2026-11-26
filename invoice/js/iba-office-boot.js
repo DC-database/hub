@@ -4,7 +4,7 @@
    so nothing of the office runs for anyone else. Open from the console: window.ibaOfficeOpen() */
 (function () {
     'use strict';
-    var V = '18.0.0-p155', loading = null;
+    var V = '18.0.0-p158', loading = null;
     function isSuper() {
         try { if (window.ibaTestAs) return false; return typeof imIsCurrentUserSuperAdmin === 'function' && !!imIsCurrentUserSuperAdmin(); } catch (_) { return false; }
     }

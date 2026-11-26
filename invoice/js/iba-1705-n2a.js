@@ -271,19 +271,24 @@
             var on = g.rows.filter(function (r) { return r.on; });
             if (!on.length || !txt(g.srv)) return;
             var k = low(g.srv);
-            var x = by[k] || (by[k] = { srv: txt(g.srv), notes: [], vendor: g.vendor, n: 0, pos: [], total: 0 });
-            if (x.notes.indexOf(g.note) === -1) x.notes.push(g.note);
-            on.forEach(function (r) { x.n++; x.total += r.amt; if (x.pos.indexOf(r.po) === -1) x.pos.push(r.po); });
+            // 18.0.0 patch 157 (martin): the first invoice of the name (A-Z by vendor, then PO, then invoice date) = the row,
+            // same as the "With Accounts list" skill
+            on.slice().sort(function (a, b) { return String(a.po).localeCompare(String(b.po), undefined, { numeric: true }) || ((Date.parse(a.inv.invoiceDate || '') || 0) - (Date.parse(b.inv.invoiceDate || '') || 0)); })
+                .forEach(function (r) { if (!by[k]) by[k] = { srv: txt(g.srv), vendor: g.vendor || '', r: r }; });
         });
-        return Object.keys(by).map(function (k) { return by[k]; });
+        var list = Object.keys(by).map(function (k) { return by[k]; });
+        list.sort(function (a, b) { return String(a.vendor || '~').localeCompare(String(b.vendor || '~'), undefined, { sensitivity: 'base' }) || String(a.r.po).localeCompare(String(b.r.po), undefined, { numeric: true }); });
+        return list;
     }
-    var HEAD = ['SRV Name', 'PDF file name', 'Note', 'Vendor', 'Invoices', 'POs', 'Total (QAR)'];
-    function rowVals(x) { return [x.srv, x.srv + '.pdf', x.notes.join(' | '), x.vendor || '', String(x.n), x.pos.join(', '), x.total.toFixed(2)]; }
+    // 18.0.0 patch 157 (martin): the same columns as the "With Accounts list" / "Under Review list" skills; Copy has no header
+    var HEAD = ['Time', 'PO', 'Site', 'Inv No', 'Inv name / SRV name / Report name', 'Inv Amount', 'Amount Paid', 'Status'];
+    function nowStamp() { var t = Date.now(); var d = typeof window.ibaDay === 'function' ? window.ibaDay(t) : today(); var c = ''; try { c = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t)); } catch (_) {} return d + (c ? ' ' + c : ''); }
+    function rowVals(x) { var r = x.r, inv = r.inv || {}; return [nowStamp(), r.po, siteOf(r.po, inv), txt(inv.invNumber || ''), x.srv, (Number(r.amt) || 0).toFixed(2), (Number(inv.amountPaid) || 0).toFixed(2), 'With Accounts']; }
     function say(t) { var s = $('iba-n2a-said'); if (s) s.textContent = t; }
     function copyList() {
         var rows = srvRows();
         if (!rows.length) return say('Nothing ticked.');
-        var tsv = [HEAD].concat(rows.map(rowVals)).map(function (r) { return r.map(function (c) { return String(c).replace(/[\t\r\n]+/g, ' '); }).join('\t'); }).join('\r\n');
+        var tsv = rows.map(rowVals).map(function (r) { return r.map(function (c) { return String(c).replace(/[\t\r\n]+/g, ' '); }).join('\t'); }).join('\r\n');
         var done = function (ok) { say(ok ? rows.length + ' SRV name' + (rows.length === 1 ? '' : 's') + ' copied. Click a cell in Excel and press Ctrl+V.' : 'Could not copy. Use Download CSV.'); };
         if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(tsv).then(function () { done(true); }, function () { done(legacyCopy(tsv)); });
         else done(legacyCopy(tsv));

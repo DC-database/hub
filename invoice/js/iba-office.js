@@ -57,8 +57,8 @@ root.innerHTML = `
     </form>
   </div>
   <aside class="iba-off-side">
-    <section><h3>In the cabinets now</h3><div class="iba-off-sum"></div></section>
-    <section><h3>Bots</h3><div class="iba-off-team"></div></section>
+    <section class="iba-off-bt"><div class="iba-off-bt-tabs"><button type="button" class="on" data-bt-tab="bots">Bot tasks</button><button type="button" data-bt-tab="me">IRWIN · my prints</button></div><div class="iba-off-bt-body"></div></section>
+    <details class="iba-off-cabs"><summary>In the cabinets</summary><div class="iba-off-sum"></div></details>
     <section><h3>Office log</h3><ul class="iba-off-feed"></ul></section>
   </aside>
 </div>
@@ -123,16 +123,17 @@ const ROOMS=[
   {id:'spB',name:'Office B',x:34,y:25,w:4,h:6,floor:'#4A4F5E',kind:'carpet'},
   {id:'wh',name:'Warehouse',x:38,y:25,w:8,h:6,floor:'#B7BEC6',kind:'tile'},
   {id:'plaza',name:'',x:8,y:7,w:30,h:24,floor:'#243047',kind:'tile'},
-  {id:'break',name:'Lounge',x:0,y:31,w:15,h:9,floor:'#7A5A86',kind:'carpet'},
+  {id:'hrd',name:'HR',x:0,y:31,w:7,h:9,floor:'#4E5A6E',kind:'carpet'}, // p157 (martin): the lounge's reading corner is now HR (pod of 4)
+  {id:'break',name:'Lounge',x:7,y:31,w:8,h:9,floor:'#7A5A86',kind:'carpet'},
   {id:'acc',name:'Accounts',x:15,y:31,w:7,h:9,floor:'#C9935A',kind:'wood'},
   {id:'hr',name:'Procurement',x:22,y:31,w:8,h:9,floor:'#5A4E3E',kind:'carpet'},
-  {id:'site',name:'Site room',x:30,y:31,w:16,h:9,floor:'#A9824F',kind:'wood'},
+  {id:'site',name:'Site room',depts:['Site DC','QS · Head Draftsman'],x:30,y:31,w:16,h:9,floor:'#A9824F',kind:'wood'}, // p157: 2 departments = 2 door plaques
 ];
 // doors per room side: cells along that side that stay open (2 cells = a door), all onto the hub except Warehouse -> Site
 const ROOM_DOORS={
   me:{E:[7,8]}, pantry:{S:[10,11]}, bot:{S:[16,17]}, log:{S:[22,23]}, fin:{S:[28,29]}, coo:{S:[34,35]}, md:{W:[7,8]},
   meet:{E:[15,16]}, rec:{E:[17,18,19,20,21,22,23,24,25]}, wc:{E:[27,28]}, pd:{W:[14,15]}, spA:{W:[21,22]}, spB:{W:[27,28]}, wh:{S:[40,41,42,43]},
-  break:{N:[9,10]}, acc:{N:[16,17]}, hr:{N:[26,27]}, site:{N:[30,31]},
+  break:{N:[9,10]}, hrd:{E:[32,33]}, acc:{N:[16,17]}, hr:{N:[26,27]}, site:{N:[30,31]},
 };
 // Walls between rooms (shared sides once; the outside octagon wall is drawn by the 3D view). g: 1 = solid, 2 = glass.
 // Glass only inside rooms: Procurement split into team / lead / architect, Site room split into QS area / Site DC area,
@@ -142,7 +143,7 @@ const WALLS=(()=>{const GW0=46,GH0=40,edges=new Map();
   ROOMS.forEach((r)=>{if(r.id==='plaza')return;const d=ROOM_DOORS[r.id]||{};
     for(let x=r.x;x<r.x+r.w;x++){if(r.y>0)put('h',r.y,x,(d.N||[]).includes(x));if(r.y+r.h<GH0)put('h',r.y+r.h,x,(d.S||[]).includes(x));}
     for(let y=r.y;y<r.y+r.h;y++){if(r.x>0)put('v',r.x,y,(d.W||[]).includes(y));if(r.x+r.w<GW0)put('v',r.x+r.w,y,(d.E||[]).includes(y));}});
-  for(let x=22;x<30;x++)put('h',37,x,x===24||x===27,2);for(let y=37;y<40;y++)put('v',26,y,false,2); // Procurement: lead | architect
+  for(let x=22;x<30;x++)put('h',37,x,x===24||x===27,2);for(let y=31;y<37;y++)put('v',26,y,y>=35,2); /* p157: glass round the Procurement team (door at the bottom) */for(let y=37;y<40;y++)put('v',26,y,false,2); // Procurement: lead | architect
   for(let y=34;y<40;y++)put('v',35,y,false,2); // Site room: QS area | Site DC area (open at the top)
   for(let x=44;x<46;x++)put('h',10,x,x===44);for(let y=10;y<12;y++)put('v',44,y,false); // MD's private toilet (toilet + sink)
   const lines=new Map();edges.forEach((e)=>{const key=e.k+'|'+e.line+'|'+e.g;if(!lines.has(key))lines.set(key,[]);lines.get(key).push(e);});
@@ -191,14 +192,20 @@ F({x:3,y:30,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet',face:'N'});F({x:5,y:30,w:1,d:1
 F({x:2,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});F({x:4,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});F({x:6,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});
  // Lounge (corner, the room for later): a U of sofas round a coffee table open to the TV, a reading corner, big plants.
 RUG(8,32,7,6);F({x:9,y:34,w:1,d:3,h:16,col:'#7C5CB0',t:'sofa',face:'E',block:false});F({x:11,y:33,w:3,d:1,h:16,col:'#7152A3',t:'sofa',face:'S',block:false});F({x:11,y:37,w:3,d:1,h:16,col:'#7152A3',t:'sofa',face:'N',block:false});
-F({x:12,y:35,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:14,y:35,w:1,d:1,h:40,col:'#2D3550',t:'tv',face:'W'});F({x:4,y:34,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});
-PLANT(1,32);PLANT(6,32);PLANT(14,32);PLANT(14,39);PLANT(8,39);PLANT(6,37);
+F({x:12,y:35,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:14,y:35,w:1,d:1,h:40,col:'#2D3550',t:'tv',face:'W'});
+PLANT(14,32);PLANT(14,39);PLANT(8,39);
+ // HR (p157): one pod of four desks (glass dividers), cabinets on the back wall, a plant.
+CAB(1,31,'S');CAB(2,31,'S');PLANT(6,36);
  // Accounts (4): one pod of four desks (glass dividers), the six cabinets on one wall (incl. the reports shelf).
 [32,33,34,35,36].forEach((y)=>CAB(21,y,'W'));F({x:21,y:37,w:1,d:1,h:62,col:'#6B4A2E',t:'books',face:'W'});
  // their sofa corner by the window: a 2-seater on the window side + two singles = a U round a small table
 F({x:16,y:39,w:2,d:1,h:16,col:'#7152A3',t:'sofa',face:'N',block:false});F({x:16.5,y:38,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});PLANT(15,32);PLANT(20,39);
  // Procurement: three areas behind glass: the team of 3 (pod, cabinets on the wall), the lead (own cabinet), the architect.
-CAB(23,31,'S');CAB(24,31,'S');CAB(25,31,'S');CAB(22,38,'E');CAB(29,39,'W');PLANT(29,32);PLANT(22,33);
+CAB(23,31,'S');CAB(24,31,'S');CAB(25,31,'S');CAB(22,38,'E');CAB(29,39,'W');PLANT(22,33);
+ // p157: the free side = a small meeting table for 4 + a small whiteboard (team area is behind glass)
+F({x:27,y:34,w:2,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:28,y:31,w:2,d:1,h:40,col:'#F4F6F8',t:'board',face:'S'});PLANT(29,36);
+ // p157: name plates for the areas inside shared rooms [x, y, wall 'h'|'v', text, text on the other side]
+const PLATES=[[24,37,'h','Procurement Lead',null,'a'],[27,37,'h','Architect',null,'b'],[26,35.5,'v','Procurement Team','Procurement Team','a'],[35,34.6,'v','QS · Head Draftsman','Site DC']]; // p157: 6th = which side of the opening the plaque sits (a = before, b = after)
  // Site room: QS area (pod of 4 + the head draftsman) | Site DC area (two pods of 4, whiteboard); opens to the Warehouse.
 [32,33,34,35,36].forEach((x)=>CAB(x,31,'S'));[31,32,33].forEach((x)=>CAB(x,39,'N'));F({x:37,y:31,w:3,d:1,h:40,col:'#F4F6F8',t:'board',face:'S'});PLANT(44,32);PLANT(38,38);PLANT(42,34);PLANT(36,39);
  // Warehouse: racks + boxes.
@@ -415,7 +422,7 @@ function person(o) { Object.assign(o, { px: o.x, py: o.y, path: [], res: null, c
 const BOTS = [
   person({ name: 'Rina', tag: 'Bot 1', role: 'Reception', room: 'rec', hair: '#3FD1C1', suit: '#1E7E75', style: 'twin', x: 5, y: 22, home: [5, 22], dir: 'W', cab: [6, 18] }),
   person({ name: 'Sami', tag: 'Bot 2', role: 'Sorting', room: 'bot', hair: '#E3C98A', suit: '#8A6A2E', style: 'spike', x: 16, y: 2, home: [16, 2], cab: [19, 1] }),
-  person({ name: 'Rafi', tag: 'Bot 3', role: 'Reports', room: 'bot', hair: '#5AA9FF', suit: '#2F5F9C', style: 'spike', x: 17, y: 2, home: [17, 2], cab: [20, 37] }),
+  person({ name: 'Rafi', tag: 'Bot 3', role: 'Printing', room: 'bot', hair: '#5AA9FF', suit: '#2F5F9C', style: 'spike', x: 17, y: 2, home: [17, 2], cab: [20, 37] }),
   person({ name: 'Ana', tag: 'Bot 4', role: 'Accounts', room: 'bot', hair: '#FF7EB6', suit: '#A34676', style: 'bob', x: 16, y: 4, home: [16, 4], dir: 'N', cab: [20, 32] }),
 ];
 // lounge sofa seats [x, y, facing]
@@ -433,6 +440,7 @@ const SEATS = {
   site: [[37, 33, 'S'], [38, 33, 'S'], [37, 35, 'N'], [38, 35, 'N'], [40, 33, 'S'], [41, 33, 'S'], [40, 35, 'N'], [41, 35, 'N'], [31, 33, 'S'], [32, 33, 'S'], [31, 35, 'N'], [32, 35, 'N'], [34, 37, 'W']], // 8 Site DC, 4 QS, head draftsman
   wh: [[40, 26, 'S'], [41, 26, 'S'], [40, 28, 'N'], [41, 28, 'N']],
   spB: [[36, 26, 'S']],
+  hrd: [[3, 32, 'S'], [4, 32, 'S'], [3, 34, 'N'], [4, 34, 'N']], // p157: HR pod of 4
 };const DIRV = { S: [0, 1], N: [0, -1], W: [-1, 0], E: [1, 0] };
 // every seat = a chair + its own desk and PC in the facing direction (an existing desk/counter/table there is shared)
 const CHAIRS = [];
@@ -446,14 +454,15 @@ Object.keys(SEATS).forEach((rid) => SEATS[rid].forEach(([x, y, d], i) => addSeat
 BOTS.forEach((b) => addSeat(b.home[0], b.home[1], b.dir || 'S', '#24303F'));
  // Pod dividers: glass along the middle of each shared desk row, and between the two desks of a row.
 const DIV = (x, y, w, d) => F({ x, y, w, d, h: 20, col: '#C9D4DE', t: 'divider', block: false });
-[[17, 35, 2], [23, 34, 2], [37, 34, 2], [40, 34, 2], [31, 34, 2], [22, 3, 2], [40, 27, 2], [16, 3, 2]].forEach(([x, y, n]) => { DIV(x, y + .46, n, .08); DIV(x + 1 - .04, y, .08, 1); });
+[[17, 35, 2], [3, 33, 2], [23, 34, 2], [37, 34, 2], [40, 34, 2], [31, 34, 2], [22, 3, 2], [40, 27, 2], [16, 3, 2]].forEach(([x, y, n]) => { DIV(x, y + .46, n, .08); DIV(x + 1 - .04, y, .08, 1); });
  // Visitor chairs: two in front of every private desk, meeting table, reception waiting corner.
 [26, 32].forEach((X) => { addSeat(X + 2, 4, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }); addSeat(X + 4, 4, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }); });
 [[39, 5], [41, 5], [35, 28], [36, 28]].forEach(([x, y]) => addSeat(x, y, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
 [[40, 14], [40, 16], [40, 20], [40, 22]].forEach(([x, y]) => addSeat(x, y, 'E', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
 [[6, 4], [6, 6]].forEach(([x, y]) => addSeat(x, y, 'W', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
-[[3, 34, 'E'], [5, 34, 'W'], [15, 38, 'E'], [18, 38, 'W'], [39, 8, 'E']].forEach(([x, y, d]) => addSeat(x, y, d, '#69528C', { noDesk: true, sprite: 'lounge' })); // single sofas: Lounge reading corner, Accounts U, MD's L
+[[15, 38, 'E'], [18, 38, 'W'], [39, 8, 'E']].forEach(([x, y, d]) => addSeat(x, y, d, '#69528C', { noDesk: true, sprite: 'lounge' })); // single sofas: Lounge reading corner, Accounts U, MD's L
 [[16, 39, 'N'], [17, 39, 'N']].forEach(([x, y, d]) => addSeat(x, y, d, '', { noDesk: true, hidden: true })); // Accounts 2-seater
+[[27, 33, 'S'], [28, 33, 'S'], [27, 35, 'N'], [28, 35, 'N']].forEach(([x, y, d]) => addSeat(x, y, d, '#3A3F4A', { noDesk: true, sprite: 'visitor' })); // p157: Procurement small meeting table
 MEET_SEATS.forEach(([x, y, d]) => addSeat(x, y, d, '#2E3A4E', { noDesk: true, sprite: 'visitor' }));
 [[1, 18, 'E'], [3, 18, 'W'], [2, 19, 'N']].forEach(([x, y, d]) => addSeat(x, y, d, '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
 SPOT.pantry.forEach(([x, y]) => addSeat(x, y, y < 3 ? 'S' : 'N', '#5A4632', { noDesk: true, stool: true }));
@@ -497,6 +506,7 @@ function defaultCfg() {
     pd: pick((a) => /project director/.test(pos(a)) || /\be\.?\s*bara\b/.test(nm(a)), 1),
     fin: pick((a) => /finance manager/.test(pos(a)) || /\bmustafa\b|\bmostafa\b/.test(nm(a)), 1),
   hr: pick((a) => /procurement|purchasing/.test(pos(a)), 4),
+    hrd: pick((a) => /\bhr\b|human resource/.test(pos(a)), 4),
     log: pick((a) => /\b(imran|suhil|suhail)\b/.test(nm(a)) || /logistic/.test(pos(a)), 6),
     rec: pick((a) => /\bhafiz\b/.test(nm(a)) || /reception/.test(pos(a)), 2),
     acc: pick((a) => /\bgio\b/.test(nm(a)) || /account/.test(pos(a)), 6),
@@ -529,8 +539,10 @@ const DOOR = [0, 21];
 function qatarMin() { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); return (+p.find((x) => x.type === 'hour').value % 24) * 60 + (+p.find((x) => x.type === 'minute').value); } catch (_) { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); } }
 function officeClosed() { const m = qatarMin(); return m >= 18 * 60 || m < 6 * 60; }
 function awayHides(p) { return !!(p.away && AWAY[p.away.what] && AWAY[p.away.what].hide); }
-function walkIn(p) { p.walking = 'in'; p.hidden = false; p.x = DOOR[0]; p.y = DOOR[1]; p.path = []; const to = p.away && p.awaySpot && !awayHides(p) ? p.awaySpot : p.home; return go(p, to).then(() => { if (p.walking === 'in') p.walking = null; }); }
-function walkOut(p) { if (p.hidden) { p.walking = null; return Promise.resolve(); } p.walking = 'out'; return go(p, DOOR).then(() => { if (p.walking === 'out') { p.walking = null; if (p.inside === false) p.hidden = true; } }); }
+// p157 (martin): a taxi drops staff at the entrance / picks them up; Irwin + managers drive their own car (3D view only)
+function ride(p, dir) { try { return (window.ibaOffice3DRide && window.ibaOffice3DRide(p.room, dir)) || 0; } catch (_) { return 0; } }
+function walkIn(p) { p.walking = 'in'; p.path = []; const wait = ride(p, 'in'); p.hidden = true; return new Promise((ok) => setTimeout(ok, wait)).then(() => { if (p.walking !== 'in') return; p.hidden = false; p.x = DOOR[0]; p.y = DOOR[1]; const to = p.away && p.awaySpot && !awayHides(p) ? p.awaySpot : p.home; return go(p, to).then(() => { if (p.walking === 'in') p.walking = null; }); }); }
+function walkOut(p) { if (p.hidden) { p.walking = null; return Promise.resolve(); } p.walking = 'out'; return go(p, DOOR).then(() => { if (p.walking === 'out') { p.walking = null; if (p.inside === false) { p.hidden = true; ride(p, 'out'); } } }); }
 let closedLogged = false;
 function todayQ() { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar' }).format(new Date()); } catch (_) { return new Date().toDateString(); } }
 function markWalkInToday() { try { localStorage.setItem('iba-office-in-v1', todayQ()); } catch (_) {} }
@@ -698,13 +710,14 @@ function loop(t) { if (!running) return; const dt = Math.min(.08, (t - last) / 1
 // ---------- side panel ----------
 function ampm(t) { const d = new Date(Number(t) || Date.now()); const h = d.getHours(); return (h % 12 || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 function log(html) { const ul = Q('.iba-off-feed'); const li = document.createElement('li'); li.innerHTML = `<time>${ampm()}</time><span>${html}</span>`; ul.prepend(li); while (ul.children.length > 40) ul.lastChild.remove(); }
-function team() { Q('.iba-off-team').innerHTML = BOTS.map((b) => `<div class="iba-off-mem"><i style="background:${b.hair}"></i><div><b>${esc(b.name)} · ${esc(b.tag)}</b><span data-bot="${esc(b.name)}">${esc(b.status || b.role)}</span></div></div>`).join(''); }
-function status(b, s) { b.status = s; const el = Q(`[data-bot="${b.name}"]`); if (el) el.textContent = s; }
+function team() { paintBots(true); } // p157: the bots live in the Bot tasks panel
+function status(b, s) { b.status = s; const el = Q(`[data-bot="${b.name}"]`); if (el) el.textContent = btStatus(b.name); }
 let cabN = [], cabNewN = [];
 function paintSum() {
   cabN = CABS.map(cabCount); cabNewN = CABS.map(cabNew);
   Q('.iba-off-sum').innerHTML = CABS.map((c, i) => `<button type="button" class="iba-off-sumrow" data-cab="${i}"><span>${esc(c.title)}${!c.printer && !c.rtp && cabNewN[i] ? ` <em>+${cabNewN[i]} new</em>` : ''}</span><b>${cabN[i]}</b></button>`).join('')
     + `<div class="iba-off-note">${loadedAt ? 'Red number on a cabinet = changed today or yesterday. Read ' + ampm(loadedAt) + ' · Rina ' + (rinaOn() ? 'collects by herself' : 'is paused') : ''}</div>`;
+  paintBots();
 }
 // ---------- pop-up lists ----------
 function money(v) { const n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''; }
@@ -742,7 +755,7 @@ function openCab(c) {
     return;
   }
   if (c.tray) return openTray();
-  if (c.jobs) return showList(c.title, 'Reception entries waiting to become invoices. Rina collects them to your desk from 4:00 to 4:30 PM Qatar time while the Office is open. The ones she is not sure about stay here.', cabRows(c), false);
+  if (c.jobs) return showList(c.title, 'Reception entries waiting to become invoices. Rina collects them to your desk Sunday to Wednesday 4:00-4:30 PM and Thursday 1:00-1:30 PM (Qatar time) while the Office is open, or when you press Collect now on her card. The ones she is not sure about stay here.', cabRows(c), false);
   showList(c.title, 'Shows what changed today and yesterday. Search finds anything in this cabinet. Read only.', cabRows(c), true);
   log(`Opened the cabinet: <b>${esc(c.title)}</b>.`);
 }
@@ -752,7 +765,14 @@ const ROLE_ST = {
   acc: ['Report', 'Report Approval', 'With Accounts'], coo: ['In Process', 'For Approval'], md: ['CEO Approval'],
   me: ['For Approval'], pd: ['For Approval'], fin: ['For Approval', 'For Inquiry'],
 };
+// p157: your own avatar = the IRWIN print card (Reset lives there); a bot = its card (Rina = the set table)
 function openPerson(p) {
+  if (p.me) { btTab = 'me'; paintBots(true); log('Your IRWIN card is open on the right: print History and Reset.'); return; }
+  const bot = BOTS.indexOf(p) >= 0;
+  if (bot) { btTab = 'bots'; btSel = p.name.toLowerCase(); paintBots(true); if (p.name === 'Rina' && setRows().length) openTray(); return; }
+  return openPersonOld(p);
+}
+function openPersonOld(p) {
   const all = attRows(p), who = p.me ? 'you' : (p.full || p.name);
   const st = ROLE_ST[p.room];
   if (!st) return showList((p.me ? 'You' : p.full || p.name) + ' · waiting', `Open invoices with Attention on ${who}.`, all, false);
@@ -836,16 +856,16 @@ async function command(txt) {
 Q('.iba-off-cmd').addEventListener('submit', (e) => { e.preventDefault(); const i = Q('#iba-off-in'); const v = i.value; i.value = ''; command(v); });
 // ---------- setup (people in rooms) ----------
 const CFG_PATH = 'system_settings/office_v1';
-const ROOM_SETUP = ['me', 'md', 'coo', 'pd', 'fin', 'hr', 'acc', 'log', 'rec', 'site', 'wh', 'spA', 'spB'];
+const ROOM_SETUP = ['me', 'md', 'coo', 'pd', 'fin', 'hr', 'hrd', 'acc', 'log', 'rec', 'site', 'wh', 'spA', 'spB'];
 const BASE_NAMES = {}; ROOMS.forEach((r) => { BASE_NAMES[r.id] = r.name; });
-const FIXED_ROOM_NAMES={rec:'Reception',me:'IRWIN',md:'Managing Director',spA:'MEP Manager',fin:'Finance Manager',coo:'COO office',pd:'Project Director',hr:'Procurement',acc:'Accounts',site:'Site room',break:'Lounge'};
+const FIXED_ROOM_NAMES={rec:'Reception',me:'IRWIN',md:'Managing Director',spA:'MEP Manager',fin:'Finance Manager',coo:'COO office',pd:'Project Director',hr:'Procurement',hrd:'HR',acc:'Accounts',site:'Site room',break:'Lounge'};
 function applyNames(){const n=(cfg&&cfg.names)||{};ROOMS.forEach((r)=>{r.name=FIXED_ROOM_NAMES[r.id]||n[r.id]||BASE_NAMES[r.id]||'';});}
 
 async function loadCfg() {
   const d = mainDb(); let v = null;
   if (d) { try { const s = await d.ref(CFG_PATH).once('value'); v = s.val(); } catch (e) { console.warn('Office setup read failed', e); } }
   if (v && v.rooms) { const r = v.rooms; if (r.imran && !r.log) { r.log = r.imran; delete r.imran; } if (r.ceo && !r.md) { r.md = r.ceo; delete r.ceo; } delete r.sort; delete r.meet; }
-  cfg = (v && v.rooms) ? v : defaultCfg(); cfg.names = cfg.names || {}; applyNames(); buildStaff();
+  cfg = (v && v.rooms) ? v : defaultCfg(); cfg.names = cfg.names || {}; if (!cfg.rooms.hrd) { const d = defaultCfg().rooms.hrd || []; if (d.length) cfg.rooms.hrd = d; } /* p157: new HR room */ applyNames(); buildStaff();
 }
 function openSetup() {
   const list = approvers().sort((a, b) => String(a.Name).localeCompare(String(b.Name)));
@@ -976,14 +996,16 @@ async function makeInvoice(j) {
   try { const all = G('allInvoiceData'); if (all) { all[po] = all[po] || {}; all[po][ref.key] = Object.assign({ key: ref.key }, inv); } window.__imInvoiceReportingDirty = true; } catch (_) {}
   return { ok: true, po, key: ref.key, inv };
 }
-async function rinaCollect() {
-  if (collecting || !rinaOn() || !running || !allowed()) return;
-  const qMin = qatarMin(); if (qMin < 16 * 60 || qMin >= 16 * 60 + 30) return;
+// p157: force = the "Collect now" button (any time, even when paused); by herself only in her window
+async function rinaCollect(force) {
+  if (collecting || !running || !allowed()) return;
+  if (!force && (!rinaOn() || !rinaWindow())) return;
   const RB = window.ibaReceptionBatch, b = BOTS[0];
   if (!RB || !RB.numberFor || !RB.prepare || !RB.convert || !invDb() || !mainDb()) return;
+  if (force) { await loadJobs(); Object.keys(jobUnsure).forEach((k) => { delete jobUnsure[k]; }); }
   const todo = jobRows.filter((r) => !jobUnsure[r.key]);
-  if (!todo.length) return;
-  collecting = true;
+  if (!todo.length) { if (force) { log('<b>Rina</b>: nothing new at Reception.'); say(b, 'Nothing new at Reception', 2600); } return; }
+  collecting = true; paintBots(true);
   try {
     b.idleCancel = true;
     for (let i = 0; i < 40 && (b.busy || b.idleBusy); i++) await wait(500);
@@ -1005,7 +1027,7 @@ async function rinaCollect() {
     });
     if (made.length) log(`<b>Rina</b> collected <b>${made.length}</b> from Reception into Under Review on your desk: ${made.map((m) => esc(m.po + ' ' + m.inv.invNumber)).join(', ')}.`);
     if (unsure.length) log(`<b>Rina</b> left ${unsure.length} at Reception for you: ${unsure.join('; ')}.`);
-  } finally { collecting = false; }
+  } finally { collecting = false; paintBots(true); }
 }
 
 // ---- your desk tray ----
@@ -1043,45 +1065,93 @@ function srvPersonFor(site) {
   if (ranked.length) return { name: ranked[0].name, why: `site ${site} SRV is with ${ranked[0].name} (${ranked[0].n} now)`, others: ranked.slice(1).map((x) => x.name) };
   return null;
 }
+// ==========================================================================
+// 18.0.0 patch 157 (martin): Rina's Under Review SET. Never one by one:
+//  1. Review the set = one table (vendor A-Z, then PO, then invoice date). Change the task, the person,
+//     the name, tick Skip. SAVE keeps it (system_settings/office_rina_set) and goes back to the panel.
+//  2. START = Rina watches DC Files\INVOICE (print helper /find, exact name only). The moment an
+//     invoice's PDF is there, Sami sends it (For SRV -> site person, Report -> Gio). Progress card
+//     "x of N sorted"; when all are done the set moves to History.
+// ==========================================================================
 let tray = null;
 const uid = (r) => r.po + '/' + r.key;
-function autoName(r) { const pi = poInfo(r.po, r); return nameText(`${nameText(pi.site || 'N/A')}-${r.po}-${nameText(r.invEntryID || 'INV-XX')}-${cutText(nameText(pi.vendor || 'N/A'), 21) || 'Vendor'}`); } // { rows, choice: {key: {task, name, to}}, timer }
-async function openTray() {
-  const list = (byStatus['Under Review'] || []).slice().sort((a, b) => String(poInfo(a.po, a).site).localeCompare(String(poInfo(b.po, b).site), undefined, { numeric: true }) || String(a.po).localeCompare(String(b.po), undefined, { numeric: true }));
-  const names = approvers().map((a) => String(a.Name || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  tray = { rows: list, choice: {}, names };
-  for (const r of list) { const g = guessTask(r); const w = await whoFor(g.task, r); tray.choice[uid(r)] = { task: g.task, why: g.why, toWhy: w.why || '', name: r.invName || autoName(r), to: w.pick, cands: w.list, cand: { [g.task]: w.list }, candWhy: { [g.task]: w.why || '' } }; }
-  Q('.iba-off-pop h3').textContent = 'Your desk · Under Review';
-  Q('.iba-off-pop p').textContent = 'Sorted by site. Rina pre-ticked each one: IPC in the invoice no. = Report (to Gio), else For SRV (to the person who does SRV for that site). Change anything, then press Done and Sami sends them. "Later" keeps it on your desk.';
-  Q('.iba-off-popb').innerHTML = `<div class="iba-off-trayhead"><label><input type="checkbox" class="iba-off-rina" ${rinaOn() ? 'checked' : ''}> Rina collects Reception entries 4:00–4:30 PM</label><span class="iba-off-cnt">${list.length} on your desk</span><button type="button" class="iba-off-copyall" title="Same list as the Under Review list skill: no header, tab between cells, one row per invoice name, vendor A-Z">Copy all for Excel</button></div><div class="iba-off-rows"></div><div class="iba-off-actions"><button type="button" class="iba-off-done">Done</button><span class="iba-off-undo" hidden></span></div>`;
-  paintTray(); Q('.iba-off-pop').hidden = false;
+function autoName(r) { const pi = poInfo(r.po, r); return nameText(`${nameText(pi.site || 'N/A')}-${r.po}-${nameText(r.invEntryID || 'INV-XX')}-${cutText(nameText(pi.vendor || 'N/A'), 21) || 'Vendor'}`); }
+const SET_PATH = 'system_settings/office_rina_set';
+let SET = { saved: {}, savedAt: 0, run: {}, startedAt: 0, history: [] }, setLoaded = false;
+async function loadSet() {
+  const d = mainDb(); if (!d) { setLoaded = true; return; }
+  try { const v = (await d.ref(SET_PATH).once('value')).val() || {}; SET = { saved: v.saved || {}, savedAt: Number(v.savedAt) || 0, run: v.run || {}, startedAt: Number(v.startedAt) || 0, history: Array.isArray(v.history) ? v.history : Object.values(v.history || {}) }; } catch (e) { console.warn('Office: Rina set read failed', e); }
+  setLoaded = true;
 }
+async function saveSet() { const d = mainDb(); if (!d) return; try { await d.ref(SET_PATH).set({ saved: SET.saved, savedAt: SET.savedAt, run: SET.run, startedAt: SET.startedAt, history: SET.history.slice(0, 60), by: meName() }); } catch (e) { console.warn('Office: Rina set not saved', e); log('Could not save Rina\'s set. Check the connection.'); } }
+const skey = (k) => String(k).replace(/[.#$\[\]\/]/g, '_');
+function runList() { return Object.keys(SET.run || {}).map((k) => Object.assign({ id: k }, SET.run[k])); }
+function runWaiting() { return runList().filter((x) => x.state === 'wait'); }
+// Under Review rows that are not already in a running set
+function setRows() {
+  const busyK = new Set(runWaiting().map((x) => x.po + '/' + x.key));
+  return (byStatus['Under Review'] || []).filter((r) => !busyK.has(uid(r))).slice().sort((a, b) => {
+    const va = String(poInfo(a.po, a).vendor || '~'), vb = String(poInfo(b.po, b).vendor || '~');
+    return va.localeCompare(vb, undefined, { sensitivity: 'base' }) || String(a.po).localeCompare(String(b.po), undefined, { numeric: true }) || ((Date.parse(a.invoiceDate || '') || 0) - (Date.parse(b.invoiceDate || '') || 0)) || String(a.invNumber || '').localeCompare(String(b.invNumber || ''), undefined, { numeric: true });
+  });
+}
+function setSaved(list) { list = list || setRows(); return !!list.length && list.every((r) => SET.saved[skey(uid(r))]); }
+async function openTray() {
+  const list = setRows();
+  const names = approvers().map((a) => String(a.Name || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  tray = { rows: list, choice: {}, names, pdf: {} };
+  for (const r of list) {
+    const sv = SET.saved[skey(uid(r))];
+    const g = guessTask(r); const task = sv ? sv.task : g.task; const w = await whoFor(task, r);
+    tray.choice[uid(r)] = { task, why: sv ? 'you saved it' : g.why, toWhy: sv ? 'you saved it' : (w.why || ''), name: (sv && sv.name) || r.invName || autoName(r), to: (sv && sv.to) || w.pick, skip: !!(sv && sv.skip), cands: w.list, cand: { [task]: w.list }, candWhy: { [task]: w.why || '' } };
+  }
+  Q('.iba-off-pop h3').textContent = `Rina · Under Review (${list.length}) · waiting for your go`;
+  Q('.iba-off-pop p').textContent = 'Vendor A-Z, then PO, then invoice date. Rina pre-picked each one: IPC in the invoice no. = Report (to Gio), else For SRV (to the person who does SRV for that site). Change anything, tick Skip to keep one here, then Save. Back on Rina\'s card press Start: she waits for each PDF in DC Files\\INVOICE and Sami sends it by himself.';
+  Q('.iba-off-popb').innerHTML = `<div class="iba-off-trayhead"><label><input type="checkbox" class="iba-off-rina" ${rinaOn() ? 'checked' : ''}> Rina collects by herself (Sun-Wed 4:00-4:30 PM, Thu 1:00-1:30 PM)</label><span class="iba-off-cnt">${list.length} in the set</span><button type="button" class="iba-off-copyall" title="Same list as the Under Review list skill: no header, tab between cells, one row per invoice name, vendor A-Z">Copy all for Excel</button></div><div class="iba-off-rows"></div><div class="iba-off-actions"><button type="button" class="iba-off-setcancel">Cancel</button><button type="button" class="iba-off-done">Save</button></div>`;
+  paintTray(); Q('.iba-off-pop').hidden = false;
+  checkSetPdfs();
+}
+// PDF column: same exact-name check the bots use (print helper on this PC)
+async function checkSetPdfs() {
+  const P = window.ibaOfficePrint, t = tray; if (!t || !P || !P.findPdf) return;
+  for (const r of t.rows) {
+    if (tray !== t) return; const c = t.choice[uid(r)]; const pi = poInfo(r.po, r);
+    try { const f = await P.findPdf({ invName: c.name, site: pi.site, po: r.po, invEntryID: r.invEntryID }); t.pdf[uid(r)] = f.found ? 'ok' : 'no'; }
+    catch (e) { t.pdf[uid(r)] = 'off'; t.pdfErr = e.message || 'The print helper is not running on this PC.'; t.rows.forEach((q) => { if (!t.pdf[uid(q)]) t.pdf[uid(q)] = 'off'; }); paintPdfCells(); return; }
+    paintPdfCells();
+  }
+}
+function pdfCell(k) { const v = tray && tray.pdf[k]; return v === 'ok' ? '<span class="iba-off-pdfok">Found</span>' : v === 'no' ? '<span class="iba-off-pdfno">Not yet</span>' : v === 'off' ? `<span class="iba-off-why" title="${esc((tray && tray.pdfErr) || '')}">Helper off</span>` : '<span class="iba-off-why">Checking…</span>'; }
+function paintPdfCells() { if (!tray) return; root.querySelectorAll('.iba-off-pop tr[data-k]').forEach((tr) => { const td = tr.querySelector('[data-pdf]'); if (td) td.innerHTML = pdfCell(tr.dataset.k); }); }
 function optList(c) { const seen = new Set(); const out = []; (c.cands || []).concat(tray.names).forEach((n) => { const k = norm(n); if (!n || seen.has(k)) return; seen.add(k); out.push(n); }); if (c.to && !seen.has(norm(c.to))) out.unshift(c.to); return out; }
 function paintTray() {
   const box = Q('.iba-off-rows'); if (!box || !tray) return;
-  if (!tray.rows.length) { box.innerHTML = '<div class="iba-off-empty">Your desk is clear. Nothing in Under Review.</div>'; Q('.iba-off-done').disabled = true; return; }
-  box.innerHTML = `<table class="iba-off-tray"><thead><tr><th>PO</th><th>Invoice</th><th>Vendor · Site</th><th>Value</th><th>Invoice name</th><th>Task</th><th>Goes to</th></tr></thead><tbody>${tray.rows.map((r) => { const pi = poInfo(r.po, r), c = tray.choice[uid(r)];
-    const radio = (t, l) => `<label class="iba-off-tk"><input type="radio" name="tk-${esc(uid(r))}" value="${t}" ${c.task === t ? 'checked' : ''}> ${l}</label>`;
-    return `<tr data-k="${esc(uid(r))}" class="${c.task === 'Later' ? 'is-later' : ''}"><td><b>${esc(r.po)}</b><br><small>${esc(r.invEntryID || '')}</small></td><td>${esc(r.invNumber || '')}</td><td>${esc(pi.vendor || '')}<br><small>Site ${esc(pi.site || '')}</small></td><td class="n">${esc(money(r.invValue))}</td>
+  if (!tray.rows.length) { box.innerHTML = '<div class="iba-off-empty">Nothing in Under Review. Rina brings the next set from Reception.</div>'; Q('.iba-off-done').disabled = true; return; }
+  box.innerHTML = `<table class="iba-off-tray iba-off-set"><thead><tr><th>Site</th><th>PO</th><th>Inv no.</th><th>Invoice name</th><th>Vendor</th><th class="n">Amount</th><th>PDF</th><th>Task</th><th>Send to</th><th>Skip</th></tr></thead><tbody>${tray.rows.map((r) => { const pi = poInfo(r.po, r), k = uid(r), c = tray.choice[k];
+    return `<tr data-k="${esc(k)}" class="${c.skip ? 'is-later' : ''}"><td>${esc(pi.site || '')}</td><td><b>${esc(r.po)}</b><br><small>${esc(r.invEntryID || '')}</small></td><td>${esc(r.invNumber || '')}</td>
       <td><div class="iba-off-name"><input type="text" value="${esc(c.name)}" data-f="name" aria-label="Invoice name"><button type="button" data-copy title="Copy the name">Copy</button></div></td>
-      <td>${radio('For SRV', 'For SRV')}${radio('Report', 'Report')}${radio('Later', 'Later')}<small class="iba-off-why">${esc(c.why)}</small></td>
-      <td><select data-f="to" ${c.task === 'Later' ? 'disabled' : ''}>${optList(c).map((n) => `<option ${norm(n) === norm(c.to) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>${c.task !== 'Later' && c.toWhy ? `<small class="iba-off-why">${esc(c.toWhy)}</small>` : ''}</td></tr>`; }).join('')}</tbody></table>`;
-  const n = tray.rows.filter((r) => tray.choice[uid(r)].task !== 'Later').length;
-  const d = Q('.iba-off-done'); d.disabled = !n || !!tray.timer; d.textContent = n ? `Done · send ${n}` : 'Done';
+      <td>${esc(pi.vendor || '')}</td><td class="n">${esc(money(r.invValue))}</td><td data-pdf>${pdfCell(k)}</td>
+      <td><select data-f="task" aria-label="Task"><option ${c.task === 'For SRV' ? 'selected' : ''}>For SRV</option><option ${c.task === 'Report' ? 'selected' : ''}>Report</option></select><small class="iba-off-why">${esc(c.why)}</small></td>
+      <td><select data-f="to" aria-label="Send to">${optList(c).map((n) => `<option ${norm(n) === norm(c.to) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>${c.toWhy ? `<small class="iba-off-why">${esc(c.toWhy)}</small>` : ''}</td>
+      <td><input type="checkbox" data-f="skip" ${c.skip ? 'checked' : ''} aria-label="Skip this one (keep it on your desk)"></td></tr>`; }).join('')}</tbody></table>`;
+  const n = tray.rows.filter((r) => !tray.choice[uid(r)].skip).length;
+  const d = Q('.iba-off-done'); d.disabled = false; d.textContent = `Save (${n} to send${tray.rows.length - n ? ', ' + (tray.rows.length - n) + ' skipped' : ''})`;
 }
 Q('.iba-off-pop').addEventListener('change', async (e) => {
-  const t = e.target; if (t.classList.contains('iba-off-rina')) { setRina(t.checked); log(t.checked ? '<b>Rina</b> collects Reception entries by herself again.' : '<b>Rina</b> paused: Reception entries stay at Reception.'); paintSum(); if (t.checked) rinaCollect(); return; }
-  const tr = t.closest('tr[data-k]'); if (!tr || !tray) return; const c = tray.choice[tr.dataset.k], r = tray.rows.find((x) => uid(x) === tr.dataset.k);
-  if (t.type === 'radio') { c.task = t.value; if (c.task !== 'Later') { if (!c.cand[c.task]) { const w = await whoFor(c.task, r); c.cand[c.task] = w.list; c.candWhy[c.task] = w.why || ''; c.to = w.pick; } else c.to = (c.cand[c.task][0] || c.to); c.cands = c.cand[c.task]; c.toWhy = c.candWhy[c.task] || ''; } paintTray(); }
+  const t = e.target; if (t.classList.contains('iba-off-rina')) { setRina(t.checked); log(t.checked ? '<b>Rina</b> collects Reception entries by herself again.' : '<b>Rina</b> paused: Reception entries stay at Reception until you press Collect now.'); paintSum(); return; }
+  const tr = t.closest('tr[data-k]'); if (!tr || !tray || !tray.choice[tr.dataset.k]) return; const c = tray.choice[tr.dataset.k], r = tray.rows.find((x) => uid(x) === tr.dataset.k);
+  if (t.dataset.f === 'task') { c.task = t.value; c.why = 'you picked'; if (!c.cand[c.task]) { const w = await whoFor(c.task, r); c.cand[c.task] = w.list; c.candWhy[c.task] = w.why || ''; c.to = w.pick; } else c.to = (c.cand[c.task][0] || c.to); c.cands = c.cand[c.task]; c.toWhy = c.candWhy[c.task] || ''; paintTray(); }
   else if (t.dataset.f === 'to') { c.to = t.value; c.toWhy = 'you picked'; paintTray(); }
+  else if (t.dataset.f === 'skip') { c.skip = t.checked; paintTray(); }
 });
-Q('.iba-off-pop').addEventListener('input', (e) => { const t = e.target; if (t.dataset.f !== 'name' || !tray) return; const tr = t.closest('tr[data-k]'); if (tr) tray.choice[tr.dataset.k].name = t.value; });
+Q('.iba-off-pop').addEventListener('input', (e) => { const t = e.target; if (t.dataset.f !== 'name' || !tray) return; const tr = t.closest('tr[data-k]'); if (tr && tray.choice[tr.dataset.k]) { tray.choice[tr.dataset.k].name = t.value; tray.pdf[tr.dataset.k] = ''; } });
+Q('.iba-off-pop').addEventListener('focusout', (e) => { const t = e.target; if (t.dataset && t.dataset.f === 'name' && tray) checkSetPdfs(); });
 Q('.iba-off-pop').addEventListener('click', (e) => {
   const cp = e.target.closest('[data-copy]'); if (cp) { const i = cp.parentElement.querySelector('input'); try { navigator.clipboard.writeText(i.value); } catch (_) { i.select(); document.execCommand('copy'); } cp.textContent = 'Copied'; setTimeout(() => { cp.textContent = 'Copy'; }, 1200); return; }
   if (e.target.closest('.iba-off-copyall')) { const b = e.target.closest('.iba-off-copyall'); const t = trayTsv(); const ok = () => { b.textContent = `Copied ${t.n} rows`; setTimeout(() => { b.textContent = 'Copy all for Excel'; }, 1800); };
     try { navigator.clipboard.writeText(t.tsv).then(ok, () => { const a = document.createElement('textarea'); a.value = t.tsv; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); ok(); }); } catch (_) {} log(`Copied ${t.n} Under Review rows for Excel.`); return; }
-  if (e.target.closest('.iba-off-done')) return trayDone();
-  if (e.target.closest('[data-undo]')) { if (tray && tray.timer) { clearInterval(tray.timer); tray.timer = null; Q('.iba-off-undo').hidden = true; paintTray(); log('Sending cancelled. Nothing changed.'); } }
+  if (e.target.closest('.iba-off-setcancel')) { hidePop(); tray = null; return; }
+  if (e.target.closest('.iba-off-done')) return traySave();
 });
 // patch 138 (martin): "Copy all" = exactly the Under Review list skill (xl_ur): Time, PO, Site, Inv No, Inv name,
 // Inv Amount, Amount Paid, Status; no header, tabs; vendor A-Z, PO, invoice date; one row per invoice name.
@@ -1098,16 +1168,69 @@ function trayTsv() {
   const cell = (v) => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
   return { n: keep.length, tsv: keep.map((r) => [r.since, r.po, r.site, r.no, r.file, r.value.toFixed(2), r.paid.toFixed(2), r.status].map(cell).join('\t')).join('\r\n') };
 }
-function trayDone() {
-  if (!tray || tray.timer) return;
-  const send = tray.rows.filter((r) => tray.choice[uid(r)].task !== 'Later').map((r) => ({ r, c: Object.assign({}, tray.choice[uid(r)]) }));
-  const bad = send.find((x) => !String(x.c.to || '').trim()); if (bad) { log(`PO ${esc(bad.r.po)}: pick who it goes to first.`); return; }
-  if (!send.length) return;
-  let left = 10; const u = Q('.iba-off-undo'); u.hidden = false;
-  const show = () => { u.innerHTML = `Sami sends ${send.length} in ${left} s <button type="button" data-undo>Undo</button>`; };
-  show(); Q('.iba-off-done').disabled = true;
-  tray.timer = setInterval(() => { left--; if (left > 0) return show(); clearInterval(tray.timer); tray.timer = null; u.innerHTML = 'Sending…'; samiSend(send); }, 1000);
+async function traySave() {
+  if (!tray) return;
+  const bad = tray.rows.find((r) => { const c = tray.choice[uid(r)]; return !c.skip && !String(c.to || '').trim(); });
+  if (bad) { log(`PO ${esc(bad.po)}: pick who it goes to first (or tick Skip).`); return; }
+  const saved = {};
+  tray.rows.forEach((r) => { const c = tray.choice[uid(r)]; saved[skey(uid(r))] = { po: String(r.po), key: String(r.key), task: c.task, to: String(c.to || ''), name: nameText(c.name), skip: !!c.skip, vendor: poInfo(r.po, r).vendor || '', site: String(poInfo(r.po, r).site || ''), invEntryID: r.invEntryID || '', invNumber: r.invNumber || '' }; });
+  SET.saved = saved; SET.savedAt = Date.now();
+  const n = tray.rows.filter((r) => !tray.choice[uid(r)].skip).length;
+  hidePop(); tray = null; await saveSet();
+  log(`You reviewed the Under Review set and saved it (${n} to send). <b>Rina</b> is ready: press <b>Start</b> on her card.`);
+  btSel = 'rina'; btTab = 'bots'; paintBots(true);
 }
+async function setStart() {
+  const list = setRows(); if (!setSaved(list)) { log('Review the set and press Save first.'); return; }
+  let n = 0;
+  list.forEach((r) => { const sv = SET.saved[skey(uid(r))]; if (!sv || sv.skip) return; SET.run[skey(uid(r))] = Object.assign({}, sv, { state: 'wait', at: Date.now() }); n++; });
+  list.forEach((r) => { delete SET.saved[skey(uid(r))]; }); // skipped ones stay Under Review for the next set
+  SET.startedAt = Date.now(); await saveSet();
+  log(`You pressed Start. <b>Rina</b> works on ${n} invoice${n === 1 ? '' : 's'} and <b>Sami</b> sends each one the moment its PDF is in DC Files\\INVOICE.`);
+  const b = BOTS[0]; busy(b, async () => { b.hidden = false; status(b, 'Watching the INVOICE folder'); await go(b, SPOT.myFront); b.carry = true; say(b, `Got it, ${n} in the set`, 2600); await wait(1600); b.carry = false; await go(b, b.home); });
+  paintBots(true); setTick(true);
+}
+async function setStop() {
+  const w = runWaiting(); w.forEach((x) => { delete SET.run[x.id]; }); await saveSet();
+  log(`<b>Rina</b> stopped watching ${w.length} invoice${w.length === 1 ? '' : 's'}. They stay in Under Review on your desk.`); paintBots(true);
+}
+// the watch: every minute while the Office is open (and right after Start)
+let setBusy = false, setNote = '';
+async function setTick(now) {
+  if (setBusy || !running || !allowed()) return; const w = runWaiting(); if (!w.length) return finishSet();
+  const P = window.ibaOfficePrint; if (!P || !P.findPdf) return;
+  setBusy = true; const sent = [];
+  try {
+    for (const x of w) {
+      let f; try { f = await P.findPdf({ invName: x.name, site: x.site, po: x.po, invEntryID: x.invEntryID }); setNote = ''; }
+      catch (e) { setNote = (e && e.message) || 'The print helper is not running on this PC.'; break; }
+      if (!f.found) { if (x.pdf !== 'no') { x.pdf = 'no'; SET.run[x.id].pdf = 'no'; } continue; }
+      const r = rows.find((q) => String(q.po) === String(x.po) && String(q.key) === String(x.key)) || { po: x.po, key: x.key };
+      let why = ''; try { why = await sendOne({ r, c: { task: x.task, to: x.to, name: x.name } }); } catch (e) { console.warn('Office: Sami could not send', x.po, e); why = 'could not save'; }
+      SET.run[x.id] = Object.assign(SET.run[x.id], { state: why ? 'changed' : 'done', why: why || '', file: f.found, doneAt: Date.now() });
+      if (!why) { sent.push(x); if (x.task === 'For SRV') rememberSrv(x.site, x.to); log(`<b>Rina</b> found ${esc(f.found)} · <b>Sami</b> sent PO ${esc(x.po)} ${esc(x.invNumber || '')}: ${esc(x.task)} → ${esc(x.to)}.`); }
+      else log(`<b>Sami</b> did not send PO ${esc(x.po)}: ${esc(why)}.`);
+    }
+    if (sent.length || runWaiting().length !== w.length) await saveSet();
+  } finally { setBusy = false; }
+  if (sent.length) { const b = BOTS[1], srv = sent.filter((x) => x.task === 'For SRV').length, rep = sent.length - srv;
+    busy(b, async () => { status(b, 'Delivering'); b.hidden = false; await go(b, SPOT.myFront); b.carry = true; say(b, `Taking ${sent.length}`, 1800); await wait(700);
+      if (srv) { await go(b, [31, 32]); say(b, `${srv} For SRV delivered`, 2600); await wait(1400); }
+      if (rep) { await go(b, [16, 32]); say(b, `${rep} for Gio`, 2600); await wait(1400); }
+      b.carry = false; status(b, b.role); await go(b, b.home); });
+    loadData(true); }
+  if (!runWaiting().length) finishSet(); else paintBots();
+}
+async function finishSet() {
+  const all = runList(); if (!all.length || all.some((x) => x.state === 'wait')) return;
+  const done = all.filter((x) => x.state === 'done').length;
+  SET.history = [{ at: Date.now(), startedAt: SET.startedAt, n: all.length, done, items: all.map((x) => ({ po: x.po, inv: x.invNumber || '', task: x.task, to: x.to, state: x.state, why: x.why || '', at: x.doneAt || 0 })) }].concat(SET.history || []).slice(0, 30);
+  SET.run = {}; SET.startedAt = 0; await saveSet();
+  log(`<b>Rina</b> finished your set: ${done} of ${all.length} sorted. It is in her History.`);
+  const b = BOTS[0]; if (!b.busy) busy(b, async () => { b.hidden = false; await go(b, SPOT.myFront); say(b, `Set done: ${done} of ${all.length} sorted`, 3600); await wait(2400); await go(b, b.home); });
+  paintBots(true);
+}
+
 async function sendOne(x) {
   const db1 = invDb(); const { r, c } = x; const path = `invoice_entries/${r.po}/${r.key}`;
   const orig = (await db1.ref(path).once('value')).val();
@@ -1123,21 +1246,6 @@ async function sendOne(x) {
   try { const all = G('allInvoiceData'); if (all && all[r.po] && all[r.po][r.key]) Object.assign(all[r.po][r.key], upd); window.__imInvoiceReportingDirty = true; } catch (_) {}
   return '';
 }
-async function samiSend(send) {
-  const b = BOTS[1]; const done = [], fail = [];
-  for (const x of send) { try { const why = await sendOne(x); if (why) fail.push(`PO ${esc(x.r.po)}: ${esc(why)}`); else done.push(x); } catch (e) { console.warn('Office: Sami could not send', x.r.po, e); fail.push(`PO ${esc(x.r.po)}: could not save`); } }
-  done.forEach((x) => { if (x.c.task === 'For SRV') rememberSrv(poInfo(x.r.po, x.r).site, x.c.to); });
-  if (done.length) log(`<b>Sami</b> sent ${done.length}: ${done.map((x) => esc(`${x.r.po} ${x.c.task} → ${x.c.to}`)).join(', ')}.`);
-  if (fail.length) log(`<b>Sami</b> did not send ${fail.length}: ${fail.join('; ')}.`);
-  hidePop(); tray = null;
-  const srv = done.filter((x) => x.c.task === 'For SRV').length, rep = done.length - srv;
-  busy(b, async () => { status(b, 'Delivering'); b.hidden = false; await go(b, SPOT.myFront); b.carry = true; say(b, `Taking ${done.length}`, 1800); await wait(700);
-    if (srv) { await go(b, [31, 32]); say(b, `${srv} For SRV delivered`, 2600); await wait(1400); }
-    if (rep) { await go(b, [16, 32]); say(b, `${rep} for Gio`, 2600); await wait(1400); }
-    b.carry = false; status(b, b.role); await go(b, b.home); });
-  await loadData(true);
-}
-
 // ==========================================================================
 // patch 139 (martin): "I'm in" button = Lunch / Toilet / Meeting / Out of office / Back.
 // Your avatar walks there, your chair shows "At lunch · 12:40". Saved in system_settings/office_away/{yourKey}
@@ -1149,16 +1257,17 @@ const AWAY = {
   toilet: { label: 'In the toilet', btn: 'Toilet', spots: () => SPOT.wc, hide: true },
   meeting: { label: 'In a meeting', btn: 'Meeting', spots: () => MEET_SEATS.map(([x, y]) => [x, y]) },
   out: { label: 'Out of office', btn: 'Out of office', spots: () => [[0, 21]], hide: true },
+  room: { label: 'Away', btn: '', spots: () => [] }, // p157: right-click "Go here" (any room / the hall)
 };
 let awayAll = {}, myAway = null;
 function hhmm(t) { return ampm(t); }
-function awayText(a) { const k = AWAY[a.what]; return (k ? k.label : 'Away') + ' · ' + hhmm(a.since); }
+function awayText(a) { const k = AWAY[a.what]; let l = k ? k.label : 'Away'; if (a.what === 'room') { const r = ROOMS.find((q) => q.id === a.room); l = !r || r.id === 'plaza' ? 'In the hall' : 'In ' + (r.id === 'break' ? 'the Lounge' : roomName(r)); } return l + ' · ' + hhmm(a.since); }
 function awayOf(p) { const a = awayAll[String(p.key)] || null; if (!a || !AWAY[a.what]) return null; const t = Number(a.since) || 0; if (t && Date.now() - t > 12 * 3600e3) return null; return a; }
 function placeAway(p, a, walk) {
-  const was = p.away; p.away = a || null;
+  const was = p.away; p.away = a || null; p.awayLabel = a ? awayText(a) : '';
   if (p.inside === false) { p.hidden = true; if (a && AWAY[a.what]) { const all = AWAY[a.what].spots(); p.awaySpot = all[0]; } return; }
   if (!a) { if (was) { p.hidden = false; if (walk) go(p, p.home); else { p.x = p.home[0]; p.y = p.home[1]; p.path = []; } } return; }
-  const k = AWAY[a.what], all = k.spots();
+  const k = AWAY[a.what], all = (a.x != null && a.y != null) ? [[+a.x, +a.y]] : k.spots(); if (!all.length) return;
   const taken = (q) => staff.some((o) => o !== p && o.away && o.awaySpot && o.awaySpot[0] === q[0] && o.awaySpot[1] === q[1]) || BOTS.some((b) => Math.round(b.x) === q[0] && Math.round(b.y) === q[1]);
   const to = k.hide ? all[0] : (all.find((q) => !taken(q)) || all[hash(p.key || p.name) % all.length]); p.awaySpot = to;
   if (walk) { p.hidden = false; go(p, to).then(() => { if (p.away === a && k.hide) p.hidden = true; }); }
@@ -1174,16 +1283,16 @@ function paintAwayBtn() { const b = Q('.iba-off-away'); if (b) { b.textContent =
 function openAway() {
   Q('.iba-off-pop h3').textContent = myAway ? awayText(myAway) : "You're in the office";
   Q('.iba-off-pop p').textContent = 'Pick where you are going. Your avatar walks there and your chair shows it, so everyone looking at the office knows you are away.';
-  Q('.iba-off-popb').innerHTML = `<div class="iba-off-awaybtns">${Object.keys(AWAY).map((k) => `<button type="button" data-away="${k}" class="${myAway && myAway.what === k ? 'on' : ''}">${AWAY[k].btn}</button>`).join('')}<button type="button" data-away="" class="iba-off-back">Back at my desk</button></div>`;
+  Q('.iba-off-popb').innerHTML = `<div class="iba-off-awaybtns">${Object.keys(AWAY).filter((k) => AWAY[k].btn).map((k) => `<button type="button" data-away="${k}" class="${myAway && myAway.what === k ? 'on' : ''}">${AWAY[k].btn}</button>`).join('')}<button type="button" data-away="" class="iba-off-back">Back at my desk</button></div>`;
   Q('.iba-off-pop').hidden = false;
 }
-async function setAway(what) {
+async function setAway(what, extra) {
   const me = staff.find((p) => p.me), u = meUser() || {}, key = String(u.key || (me && me.key) || '');
-  const a = what ? { what, since: Date.now(), name: meName() } : null;
+  const a = what ? Object.assign({ what, since: Date.now(), name: meName() }, extra || {}) : null;
   myAway = a; paintAwayBtn(); hidePop();
   if (me) placeAway(me, a, true);
-  if (key) { awayAll[key] = a; const d = mainDb(); if (d) { try { if (a) await d.ref(AWAY_ROOT + '/' + key).set({ what, since: TS(), name: meName() }); else await d.ref(AWAY_ROOT + '/' + key).remove(); } catch (e) { console.warn('Office: away not saved', e); log('Could not save where you are. Check the connection.'); } } }
-  log(a ? `You: <b>${esc(AWAY[what].label)}</b>.` : 'You are back at your desk.');
+  if (key) { awayAll[key] = a; const d = mainDb(); if (d) { try { if (a) await d.ref(AWAY_ROOT + '/' + key).set(Object.assign({ what, since: TS(), name: meName() }, extra || {})); else await d.ref(AWAY_ROOT + '/' + key).remove(); } catch (e) { console.warn('Office: away not saved', e); log('Could not save where you are. Check the connection.'); } } }
+  log(a ? `You: <b>${esc(awayText(a).replace(/ · .*$/, ''))}</b>.` : 'You are back at your desk.');
   if (!a) { const r = BOTS[0]; const n = (byStatus['Under Review'] || []).length; if (n) setTimeout(() => say(r, `Welcome back! ${n} on your desk`, 3200), 1200); }
 }
 Q('.iba-off-pop').addEventListener('click', (e) => { const b = e.target.closest('[data-away]'); if (b) setAway(b.dataset.away || null); });
@@ -1207,6 +1316,132 @@ function openRtp() {
   window.ibaOfficePrint.open(rtpCtx());
 }
 
+// ==========================================================================
+// 18.0.0 patch 157 (martin): side panel "Bot tasks" (was "In the cabinets").
+// Strip of the 4 bots, the picked bot's card (LIVE status, Call to my desk, Collect now ...),
+// "Needs your answer (N)" from every bot, Rina's set progress, each bot's own work.
+// Tab "IRWIN · my prints" = print History with Reset (also opens when you click your own avatar).
+// ==========================================================================
+let btTab = 'bots', btSel = 'rina', btHtml = '', btLater = 0;
+const BOTC = { Rina: '#3FD1C1', Sami: '#E3C98A', Rafi: '#5AA9FF', Ana: '#FF7EB6' };
+const BOTROLE = { Rina: 'Reception · collects new entries into Under Review', Sami: 'Sorting · For SRV to the site person, Report to Gio', Rafi: 'Printing · approved ESNs on A4 Color', Ana: 'Accounts · finds any invoice' };
+function qatarDay() { try { const w = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Qatar', weekday: 'short' }).format(new Date()); return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(w); } catch (_) { return new Date().getDay(); } }
+// martin: Sun-Wed 4:00-4:30 PM, Thursday (half day) 1:00-1:30 PM, no collection Friday / Saturday
+function rinaStart(day) { return day >= 0 && day <= 3 ? 16 * 60 : day === 4 ? 13 * 60 : -1; }
+function rinaWindow() { const s = rinaStart(qatarDay()), m = qatarMin(); return s >= 0 && m >= s && m < s + 30; }
+function nextCollect() {
+  const d = qatarDay(), m = qatarMin(), names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  for (let i = 0; i < 8; i++) { const day = (d + i) % 7, s = rinaStart(day); if (s < 0) continue; if (i === 0 && m >= s + 30) continue; const t = (s / 60 % 12 || 12) + ':00 PM';
+    return i === 0 ? (m >= s ? 'now, until ' + (s / 60 % 12 || 12) + ':30 PM' : 'today ' + t) : (i === 1 ? 'tomorrow ' : names[day] + ' ') + t; }
+  return '';
+}
+const botFace = (c) => `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="6" width="14" height="12" rx="3" fill="${c}"/><rect x="7.5" y="9" width="3" height="3" fill="#0E1117"/><rect x="13.5" y="9" width="3" height="3" fill="#0E1117"/><rect x="9" y="14.5" width="6" height="1.6" fill="#0E1117"/><rect x="11" y="2.5" width="2" height="3.5" fill="${c}"/><circle cx="12" cy="2.5" r="1.6" fill="#F3C45B"/><rect x="3" y="10" width="2" height="4" fill="${c}"/><rect x="19" y="10" width="2" height="4" fill="${c}"/></svg>`;
+function prints() { try { return window.ibaOfficePrint && window.ibaOfficePrint.list ? window.ibaOfficePrint.list() : []; } catch (_) { return []; } }
+function btStatus(name) {
+  const ur = setRows().length, w = runWaiting().length, b = BOTS.find((q) => q.name === name) || {};
+  if (name === 'Rina') return collecting ? 'Collecting from Reception' : w ? `Watching for ${w} PDF${w > 1 ? 's' : ''}` : ur ? 'Waiting for your go' : 'All clear';
+  if (name === 'Sami') return b.busy ? (b.status || 'Delivering') : w ? `${w} waiting for the PDF` : 'Idle · ready to sort';
+  if (name === 'Rafi') { const p = prints().filter((x) => x.state === 'printing' || x.state === 'staged' || x.state === 'error'); return p.some((x) => x.state === 'printing') ? 'Printing now' : p.length ? `About to print ${p.length}` : 'Idle'; }
+  return b.busy ? (b.status || 'Searching') : 'Ready';
+}
+function paintBots(force) {
+  const box = Q('.iba-off-bt-body'); if (!box) return;
+  const a = document.activeElement; if (!force && a && box.contains(a) && a.tagName === 'INPUT') return; // never repaint under your typing
+  Q('.iba-off-bt-tabs').querySelectorAll('[data-bt-tab]').forEach((b) => b.classList.toggle('on', b.dataset.btTab === btTab));
+  const html = btTab === 'me' ? meHtml() : botsHtml();
+  if (html === btHtml && !force) return; btHtml = html; box.innerHTML = html;
+}
+function meHtml() {
+  const P = window.ibaOfficePrint; if (!P || !P.list) return '<div class="iba-off-empty">Ready to Print is still loading.</div>';
+  const done = prints().filter((x) => x.state === 'printed' || x.state === 'skipped').sort((a, b) => (b.printedAt || b.skippedAt || 0) - (a.printedAt || a.skippedAt || 0)).slice(0, 25);
+  const when = (t) => { if (!t) return ''; const d = new Date(Number(t)); const same = new Date().toDateString() === d.toDateString(); return (same ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + ' ') + ampm(t); };
+  return `<div class="iba-off-card"><div class="iba-off-bh"><span class="iba-off-av" style="background:#E3C98A">I</span><span class="iba-off-nm"><b>IRWIN</b><small>Your print history · Reset sends it back to Rafi</small></span><button type="button" class="iba-off-sm" data-bt="desk">My desk</button></div>
+    <div class="iba-off-btrows">${done.map((x) => `<div class="iba-off-btrow"><div class="l"><b>PO ${esc(x.po)}</b> · ${esc(x.esn || '')}<small>${esc(x.vendor || '')} · ${x.state === 'printed' ? 'printed ' + esc(when(x.printedAt)) : 'skipped ' + esc(when(x.skippedAt))}</small></div><button type="button" class="iba-off-sm" data-bt-reset="${esc(x.id)}" title="Forget this print: Rafi picks it up again and prints it by himself">Reset</button></div>`).join('')}</div>
+    ${done.length ? '' : '<div class="iba-off-empty">Nothing printed yet.</div>'}<div class="iba-off-btsub"><span>Reset = Rafi picks it up again and prints by himself (8:30 AM - 6:00 PM).</span><button type="button" class="iba-off-sm" data-bt="rtp">Ready to Print</button></div></div>`;
+}
+function botsHtml() {
+  const list = setRows(), saved = setSaved(list), nSrv = list.filter((r) => ((SET.saved[skey(uid(r))] || {}).task || guessTask(r).task) === 'For SRV').length;
+  const sel = btSel, B = BOTS.find((b) => b.name.toLowerCase() === sel) || BOTS[0], c = BOTC[B.name];
+  const strip = `<div class="iba-off-strip">${BOTS.map((b) => `<button type="button" data-bt-sel="${b.name.toLowerCase()}" class="${b === B ? 'on' : ''}"><span class="iba-off-av" style="background:${BOTC[b.name]}">${b.name[0]}</span>${esc(b.name)}</button>`).join('')}</div>`;
+  const acts = [`<button type="button" class="iba-off-sm" data-bt="call">Call to my desk</button>`];
+  if (B.name === 'Rina') acts.push(`<button type="button" class="iba-off-sm" data-bt="collect" ${collecting ? 'disabled' : ''}>${collecting ? 'Collecting…' : 'Collect now'}</button>`, list.length ? `<button type="button" class="iba-off-sm" data-bt="set">Review the set</button>` : '');
+  if (B.name === 'Sami' && runWaiting().length) acts.push(`<button type="button" class="iba-off-sm" data-bt="check">Check PDFs now</button>`);
+  if (B.name === 'Rafi') acts.push(`<button type="button" class="iba-off-sm" data-bt="rtp">Ready to Print</button>`);
+  const prof = `<div class="iba-off-prof" style="--c:${c}"><button type="button" class="iba-off-port" data-bt="${B.name === 'Rina' ? 'set' : 'none'}" title="${B.name === 'Rina' ? 'Open the Under Review set' : esc(B.name)}">${botFace(c)}</button><div><h4>${B.name === 'Rina' ? `<button type="button" class="iba-off-link" data-bt="set">${esc(B.name)}</button>` : esc(B.name)} <small>${esc(B.tag)}</small></h4><div class="iba-off-role">${esc(BOTROLE[B.name] || B.role)}</div><span class="iba-off-live"><i></i>LIVE · <span data-bot="${esc(B.name)}">${esc(btStatus(B.name))}</span></span><div class="iba-off-acts">${acts.join('')}</div></div></div>`;
+  // Needs your answer: what any bot is waiting on you for
+  const asks = [];
+  if (list.length && btLater !== list.length) asks.push({ b: 'Rina', t: `Under Review set: <b>${list.length} invoice${list.length > 1 ? 's' : ''}</b> (${nSrv} For SRV · ${list.length - nSrv} Report). ${saved ? 'Reviewed and saved. Press Start and I do the rest.' : 'Review the table once, Save, then Start.'}`, room: 'Your desk · ' + (saved ? 'Ready to start' : 'Review first'),
+    btns: `<button type="button" data-bt="set">${saved ? 'Review again' : 'Review the set'}</button><div class="iba-off-btns"><button type="button" class="is-go" data-bt="start" ${saved ? '' : 'disabled title="Review the set and Save first"'}>Start</button><button type="button" class="is-cancel" data-bt="later">Later</button></div>` });
+  const amb = prints().filter((x) => x.state === 'staged' && !x.file && x.candidates && x.candidates.length);
+  if (amb.length) asks.push({ b: 'Rafi', t: amb.length === 1 ? `PO <b>${esc(amb[0].po)}</b> ${esc(amb[0].esn || '')}: ${amb[0].candidates.length} PDFs look alike. Pick the right one and I print it.` : `<b>${amb.length} approved invoices</b> have PDFs that look alike (PO ${amb.slice(0, 5).map((x) => esc(x.po)).join(', ')}${amb.length > 5 ? '…' : ''}). Pick the right PDF for each and I print them.`, room: 'Printer',
+    btns: `<div class="iba-off-btns"><button type="button" class="is-go" data-bt="rtp">Pick ${amb.length === 1 ? 'it' : 'them'}</button>${amb.length === 1 ? `<button type="button" class="is-cancel" data-bt-skip="${esc(amb[0].id)}">Don't print</button>` : '<button type="button" class="is-cancel" data-bt="later">Later</button>'}</div>` });
+  const needs = `<div class="iba-off-need">• Needs your answer (${asks.length})</div>` + asks.map((q) => `<div class="iba-off-ask" style="--c:${BOTC[q.b]}"><div class="iba-off-who2"><span class="iba-off-av" style="background:${BOTC[q.b]}">${q.b[0]}</span>${q.b}</div><p>${q.t}</p><div class="iba-off-room"><em>ROOM</em>${esc(q.room)}</div>${q.btns}</div>`).join('');
+  // Rina's running set
+  let run = ''; const all = runList();
+  if (all.length) { const w = all.filter((x) => x.state === 'wait'), done = all.length - w.length, pct = Math.round(done / all.length * 100);
+    run = `<div class="iba-off-ask" style="--c:${BOTC.Rina}"><div class="iba-off-who2"><span class="iba-off-av" style="background:${BOTC.Rina}">R</span>Rina · working on your set</div><p><b>${done} of ${all.length}</b> sorted${w.length ? ` · ${w.length} waiting for the PDF in DC Files\\INVOICE` : ' · all done'}</p><div class="iba-off-bar"><i style="width:${pct}%;background:${BOTC.Rina}"></i></div>
+      ${setNote ? `<div class="iba-off-why is-bad">Paused: ${esc(setNote)}</div>` : ''}
+      ${w.length ? `<div class="iba-off-btrows">${w.slice(0, 12).map((x) => `<div class="iba-off-btrow"><div class="l"><b>PO ${esc(x.po)}</b> · ${esc(x.task)} → ${esc(x.to)}<small>Waiting for ${esc(x.name)}.pdf</small></div></div>`).join('')}${w.length > 12 ? `<div class="iba-off-why">and ${w.length - 12} more</div>` : ''}</div>` : ''}
+      <div class="iba-off-btns"><button type="button" data-bt="check">Check now</button><button type="button" class="is-cancel" data-bt="stop">Stop watching</button></div></div>`; }
+  // the picked bot's own work
+  let work = '';
+  if (B.name === 'Rina') { const h = SET.history || [];
+    work = `<div class="iba-off-card"><h4>Rina is doing</h4><div class="iba-off-empty">${collecting ? 'Collecting your Reception entries now.' : runWaiting().length ? `Watching the INVOICE folder for ${runWaiting().length} PDF${runWaiting().length > 1 ? 's' : ''}.` : list.length ? `Waiting for your go on ${list.length} invoice${list.length > 1 ? 's' : ''}.` : 'Nothing right now.'} ${rinaOn() ? 'Next collection: ' + esc(nextCollect()) + '.' : 'Collecting by herself is paused (Collect now still works).'}${jobRows.length ? ` ${jobRows.length} at Reception now.` : ''}</div>
+      ${h.length ? `<details class="iba-off-hist"><summary>History · finished sets (${h.length})</summary>${h.slice(0, 10).map((s) => `<div class="iba-off-btrow"><div class="l"><b>${s.done} of ${s.n} sorted</b><small>Finished ${esc(new Date(s.at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }))} ${esc(ampm(s.at))} · ${esc((s.items || []).slice(0, 4).map((i) => i.po + ' ' + i.task + ' → ' + i.to).join(', '))}${(s.items || []).length > 4 ? '…' : ''}</small></div></div>`).join('')}</details>` : ''}</div>`; }
+  if (B.name === 'Sami') { const w = runWaiting();
+    work = `<div class="iba-off-card"><h4>Sami is doing</h4>${w.length ? `<div class="iba-off-btrows">${w.map((x) => `<div class="iba-off-btrow"><div class="l"><b>PO ${esc(x.po)}</b> · ${esc(x.task)} → ${esc(x.to)}<small>Sends it by himself when ${esc(x.name)}.pdf is in DC Files\\INVOICE</small></div></div>`).join('')}</div>` : '<div class="iba-off-empty">Nothing waiting. He sends Rina\'s set after you press Start.</div>'}</div>`; }
+  if (B.name === 'Rafi') { const p = prints().filter((x) => x.state === 'staged' || x.state === 'printing' || x.state === 'error');
+    work = `<div class="iba-off-card"><h4>Rafi is doing</h4>${p.length ? `<div class="iba-off-btrows">${p.map((x) => { const g = x.prog || {}; const st = x.state === 'error' ? `<span class="is-bad">${esc(x.error || 'Did not print')}</span>` : esc(g.txt || (x.state === 'printing' ? 'Printing…' : 'Waiting its turn'));
+      return `<div class="iba-off-btrow"><div class="l"><b>PO ${esc(x.po)}</b> · ${esc(x.esn || '')}<small>${esc(x.vendor || '')}</small></div><button type="button" class="iba-off-sm" data-bt-print="${esc(x.id)}" ${x.state === 'printing' ? 'disabled' : ''}>Print by hand</button><div class="st">${st}</div><div class="iba-off-bar"><i style="width:${Math.max(4, g.pct || 0)}%"></i></div></div>`; }).join('')}</div>` : '<div class="iba-off-empty">Nothing waiting. New approved ESNs print by themselves, 8:30 AM to 6:00 PM.</div>'}<div class="iba-off-btsub"><span>History and Reset are on your IRWIN card.</span><button type="button" class="iba-off-sm" data-bt-tab="me">IRWIN · my prints</button></div></div>`; }
+  if (B.name === 'Ana') work = `<div class="iba-off-card"><h4>Ask Ana</h4><form class="iba-off-ana" autocomplete="off"><input type="search" placeholder="Search vendor or PO" aria-label="Search vendor or PO"><button type="submit" class="iba-off-sm">Find</button></form><div class="iba-off-empty">Type a vendor name or a PO number. Ana walks to the cabinets and brings back every invoice.</div></div>`;
+  return strip + prof + run + needs + work;
+}
+Q('.iba-off-side').addEventListener('submit', (e) => { const f = e.target.closest('.iba-off-ana'); if (!f) return; e.preventDefault(); const q = f.querySelector('input').value.trim(); if (!q) return;
+  const b = BOTS[3]; log(`You asked <b>Ana</b>: "${esc(q)}"`); if (!b.busy) busy(b, async () => { b.hidden = false; status(b, 'Searching the cabinets'); await go(b, b.cab); await wait(600); findAny(/^\d{4,}$/.test(q) ? q : q, b); await wait(1500); status(b, b.role); await go(b, b.home); }); else findAny(q, b); });
+Q('.iba-off-side').addEventListener('click', async (e) => {
+  const t = e.target.closest('button'); if (!t || !Q('.iba-off-side').contains(t)) return;
+  if (t.dataset.btTab) { btTab = t.dataset.btTab; paintBots(true); return; }
+  if (t.dataset.btSel) { btSel = t.dataset.btSel; paintBots(true); return; }
+  if (t.dataset.btReset) { t.disabled = true; t.textContent = 'Resetting…'; try { await window.ibaOfficePrint.resetRow(t.dataset.btReset); } catch (err) { log('Reset failed: ' + esc(err.message || err)); } paintBots(true); paintSum(); return; }
+  if (t.dataset.btSkip) { try { await window.ibaOfficePrint.skipRow(t.dataset.btSkip); log('Rafi will not print that one (skipped).'); } catch (_) {} paintBots(true); return; }
+  if (t.dataset.btPrint) { t.disabled = true; t.textContent = 'Printing…'; rtpCtx(); try { await window.ibaOfficePrint.printOne(t.dataset.btPrint); } catch (err) { log('Not printed: ' + esc(err.message || err)); } paintBots(true); return; }
+  const act = t.dataset.bt; if (!act) return;
+  if (act === 'set') { if (setRows().length) openTray(); else log('<b>Rina</b>: nothing in Under Review right now.'); return; }
+  if (act === 'start') return setStart();
+  if (act === 'later') { btLater = setRows().length; log('<b>Rina</b> keeps the set on your desk for later.'); paintBots(true); return; }
+  if (act === 'stop') return setStop();
+  if (act === 'check') { log('<b>Rina</b> checks the INVOICE folder now.'); return setTick(true); }
+  if (act === 'collect') { rinaCollect(true); paintBots(true); return; }
+  if (act === 'call') { const B = BOTS.find((b) => b.name.toLowerCase() === btSel) || BOTS[0]; command('call ' + B.name); return; }
+  if (act === 'rtp') return openRtp();
+  if (act === 'desk') { const m = staff.find((p) => p.me); if (m) openPersonDesk(m); return; }
+});
+// your own avatar / a bot avatar in the office
+function openPersonDesk(p) { return openPersonOld(p); }
+
+// ==========================================================================
+// 18.0.0 patch 157 (martin): right-click (no drag) on the floor = "Go here". Your avatar walks there and
+// the office shows where you are ("In the Lounge · 2:10 PM"). Same "I'm in" save as Lunch / Toilet.
+// ==========================================================================
+let goMenu = null;
+function nearFree(x, y) { for (let r = 0; r <= 3; r++) for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) { const a = x + dx, b = y + dy; if ((Math.abs(dx) === r || Math.abs(dy) === r) && walkable(a, b)) return [a, b]; } return null; }
+function roomAtTile(x, y) { return ROOMS.find((r) => r.id !== 'plaza' && x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || ROOMS.find((r) => r.id === 'plaza'); }
+function hideGoMenu() { if (goMenu) { goMenu.remove(); goMenu = null; } }
+window.ibaOfficeGoMenu = (x, y, cx, cy) => {
+  hideGoMenu(); if (root.hidden) return; const me = staff.find((p) => p.me); if (!me || me.inside === false) { log('You are not in the office right now, so your avatar cannot walk.'); return; }
+  const to = nearFree(x, y); const room = roomAtTile(x, y); const own = room && room.id === me.room; const rn = room && room.id === 'plaza' ? 'the hall' : (room ? roomName(room) : 'there');
+  goMenu = document.createElement('div'); goMenu.className = 'iba-off-gomenu'; goMenu.setAttribute('role', 'menu');
+  goMenu.innerHTML = `<b>${esc(own ? 'Your office' : rn)}</b>` + (to ? `<button type="button" role="menuitem" data-go="here">${own ? 'Go back to my desk' : 'Go here'}</button>` : '<span>Can\'t stand there.</span>') + (myAway && !own ? '<button type="button" role="menuitem" data-go="back">Back to my desk</button>' : '') + '<button type="button" role="menuitem" data-go="x">Cancel</button>';
+  const host = Q('.iba-off-stage'), hb = host.getBoundingClientRect(); goMenu.style.left = Math.min(hb.width - 180, Math.max(4, cx - hb.left)) + 'px'; goMenu.style.top = Math.min(hb.height - 120, Math.max(4, cy - hb.top)) + 'px';
+  host.appendChild(goMenu);
+  goMenu.addEventListener('click', (e) => { const b = e.target.closest('[data-go]'); if (!b) return; const g = b.dataset.go; hideGoMenu();
+    if (g === 'back' || (g === 'here' && own)) { setAway(null); return; }
+    if (g !== 'here' || !to) return;
+    const what = room && room.id === 'wc' ? 'toilet' : room && room.id === 'meet' ? 'meeting' : room && room.id === 'pantry' ? 'lunch' : 'room';
+    setAway(what, what === 'room' ? { room: room ? room.id : 'plaza', x: to[0], y: to[1] } : (what === 'lunch' || what === 'meeting') ? { x: to[0], y: to[1] } : null); });
+};
+document.addEventListener('pointerdown', (e) => { if (goMenu && !goMenu.contains(e.target)) hideGoMenu(); }, true);
+
 // ---------- open / close ----------
 let timers = [], staticDone = false;
 function allowed() { try { if (window.ibaTestAs) return false; return (typeof imIsCurrentUserSuperAdmin === 'function') && imIsCurrentUserSuperAdmin(); } catch (_) { return false; } }
@@ -1216,24 +1451,25 @@ async function open() {
   root.hidden = false; document.body.classList.add('iba-office-on');
   if (window.ibaOffice3DInit) { try { window.ibaOffice3DInit(window.ibaOffice3DState()); } catch (e) { console.error('Office 3D could not start', e); log('The 3D office could not start. Check that WebGL is available and the Three.js library loaded.'); } }
   if (!running) { running = true; last = 0; raf = requestAnimationFrame(loop); }
-  timers.push(setInterval(idleTick, 3000), setInterval(() => { if (!document.hidden) loadData(true).then(() => { botsReport(); setTimeout(rinaCollect, 6000); }); }, 180000), setInterval(paintSum, 5000));
+  timers.push(setInterval(idleTick, 3000), setInterval(() => { if (!document.hidden) loadData(true).then(() => { botsReport(); setTimeout(rinaCollect, 6000); }); }, 180000), setInterval(paintSum, 5000), setInterval(() => { if (!document.hidden) setTick(); }, 60000), setInterval(() => { if (!document.hidden && rinaOn() && rinaWindow()) rinaCollect(); }, 120000));
+  if (!setLoaded) loadSet().then(() => paintBots(true));
   if (!cfg) { await loadCfg(); log('Office opened.'); }
   await loadPresence(true);
   timers.push(setInterval(() => { if (!document.hidden) loadPresence(false); }, 60000));
   cam = camTarget();
-  if (!loadedAt || Date.now() - loadedAt > 120000) await loadData(); botsReport(); setTimeout(rinaCollect, 5000);
+  if (!loadedAt || Date.now() - loadedAt > 120000) await loadData(); botsReport(); setTimeout(rinaCollect, 5000); setTimeout(() => setTick(), 8000);
 }
 function close() {
-  root.hidden = true; document.body.classList.remove('iba-office-on'); hidePop();
+  hideGoMenu(); root.hidden = true; document.body.classList.remove('iba-office-on'); hidePop();
   running = false; cancelAnimationFrame(raf); timers.forEach(clearInterval); timers = [];
 }
-window.ibaOffice3DState = () => ({ rooms: ROOMS, walls: WALLS, furniture: FURN, chairs: CHAIRS, people, cabs: CABS, door: DOOR, oct: OCT, counts: cabNewN, currentRoom: myRoom(), theme: officeTheme, zoom });
+window.ibaOffice3DState = () => ({ rooms: ROOMS, walls: WALLS, furniture: FURN, chairs: CHAIRS, people, cabs: CABS, door: DOOR, oct: OCT, plates: PLATES, counts: cabNewN, currentRoom: myRoom(), theme: officeTheme, zoom });
 window.ibaOffice3DSelectCab = (id) => { const c = CABS.find((q) => q.id === id); if (c) openCab(c); };
 window.ibaOffice3DSelectPerson = (name) => { const p = people.find((q) => q.name === name); if (p) openPerson(p); };
 window.ibaOffice3DSetZoom = (value) => { zoom = Math.max(0, Math.min(1, Number(value) || 0)); };
 // 18.0.0 patch 155: a short summary for the phone "My office" card (filled once the office has been opened)
 function summary() { return { at: loadedAt || 0, open: !root.hidden, cabs: CABS.map((c, i) => ({ id: c.id, title: c.title, n: (cabN && cabN[i]) || 0 })), bots: BOTS.map((b) => ({ name: b.name, status: b.status || b.role })) }; }
-window.ibaOffice = { ready: true, summary, open, close, refresh: () => loadData(), collect: () => rinaCollect() };
+window.ibaOffice = { ready: true, summary, open, close, refresh: () => loadData(), collect: () => rinaCollect(true), set: () => SET };
 })();
 
 

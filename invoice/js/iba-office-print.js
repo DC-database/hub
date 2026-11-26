@@ -25,7 +25,7 @@
 (function () {
 'use strict';
 if (window.ibaOfficePrint) return;
-const VERSION = '18.0.0-p151';
+const VERSION = '18.0.0-p157';
 const HELPER_MIN = '18.0.0-p151'; // patch 151: helper that checks the Windows queue
 const ROOT = 'system_settings/office_print_queue';
 const HELPER = 'http://localhost:47123';
@@ -201,6 +201,10 @@ async function prepare(x, place) {
 async function claim(x, again) {
   const ref = mainDb().ref(`${ROOT}/${x.id}`), who = me();
   const r = await ref.transaction((cur) => {
+    // 18.0.0 patch 156: Firebase first runs this with the copy kept in the browser, which is often empty (null).
+    // Returning nothing then cancels the claim without asking the server, so the print stopped with
+    // "already printed or printing". Now an empty copy sends a claim; the server re-runs this with the real row.
+    if (cur === null) return Object.assign({}, Qd[x.id] || {}, { esn: x.esn, state: 'printing', claimAt: Date.now(), claimBy: who });
     if (!cur || cur.esn !== x.esn) return;
     const stale = cur.state === 'printing' && Date.now() - Number(cur.claimAt || 0) > 5 * 60000;
     if (cur.state === 'staged' || cur.state === 'error' || stale || (again && cur.state === 'printed') || (again && cur.state === 'skipped')) return Object.assign({}, cur, { state: 'printing', claimAt: Date.now(), claimBy: who });
@@ -213,19 +217,22 @@ async function printOne(x, place, again) {
   const ref = mainDb().ref(`${ROOT}/${x.id}`);
   try {
     if (!(await claim(x, again))) { await loadQueue(); paint(); ctx.log(`PO ${esc(x.po)}: already printed or printing. Nothing sent.`); return; }
-    setRow(x.id, 'Getting the PDF…');
+    setRow(x.id, 'Step 1 of 4 · Getting the PDF…', 15);
     // the invoice must still be approved with this ESN
     const inv = (await invDb().ref(`invoice_entries/${x.po}/${x.key}`).once('value')).val() || {};
     if (!wants(inv) || String(inv.esn || '').trim() !== x.esn) throw new Error('This invoice is no longer approved with this ESN and assigned to you. Refresh the office.');
+    setRow(x.id, 'Step 2 of 4 · Putting the ESN on page 1…', 40);
     const p = await prepare(x, place);
-    setRow(x.id, 'Printing page 1…');
+    setRow(x.id, 'Step 3 of 4 · Sending page 1 to ' + PRINTER + '…', 65);
     const res = await helper('/print?job=' + encodeURIComponent(x.id + '_' + x.esn.replace(/[^A-Za-z0-9]/g, '')) + (again ? '&again=1' : ''), { method: 'POST', body: p.bytes, headers: { 'Content-Type': 'application/pdf' }, timeout: 90000 });
     x.queue = (res && res.queue) || '';
+    setRow(x.id, 'Step 4 of 4 · In the Windows print queue' + (x.queue ? ': ' + x.queue : '') + '…', 90);
     const upd = { state: 'printed', queue: x.queue || '', place, file: p.file, printedAt: Date.now(), printedBy: me(), printer: PRINTER, error: null, claimAt: null, claimBy: null, again: again ? (Number(x.again || 0) + 1) : (x.again || 0) };
     await ref.update(upd); Object.assign(Qd[x.id] = Qd[x.id] || {}, x, upd);
     try { if (window.logInvoiceHistory) await window.logInvoiceHistory(x.po, x.key, inv.status || 'Approved', `${again ? 'Printed again' : 'Printed'}: ESN ${x.esn} on page 1 (${placeName(place)}) to ${PRINTER} by ${me()} · IBA Office`); } catch (_) {}
     ctx.log(`<b>Rafi</b> printed PO ${esc(x.po)} ${esc(x.invNumber || '')} page 1 with the ESN (${esc(placeName(place))}) on ${PRINTER}${x.queue ? ' · Windows: ' + esc(x.queue) : ''}.`);
     if (ctx.botWalk) ctx.botWalk('Rafi', 'Printed PO ' + x.po);
+    setRow(x.id, 'Done · moved to History', 100); showDone = true; await new Promise((ok) => setTimeout(ok, 1500));
   } catch (e) {
     console.warn('[ready to print] print', x.po, e);
     try { await ref.update({ state: 'error', error: String(e.message || e).slice(0, 300), claimAt: null, claimBy: null }); Object.assign(Qd[x.id] || {}, { state: 'error', error: e.message }); } catch (_) {}
@@ -268,7 +275,12 @@ async function autoPrintPending() {
 
 // ---------------------------------------------------------------- tray UI
 let tmp = {}, showDone = false, body = null;
-function setRow(id, txt) { const el = body && body.querySelector(`tr[data-id="${CSS.escape(id)}"] .iba-rtp-msg`); if (el) el.textContent = txt; }
+// 18.0.0 patch 156: each print shows its progress (bar + step); when it is done the row moves to History.
+// 18.0.0 patch 157: the step is also kept for the Bot tasks panel (Rafi's card).
+let prog = {};
+function setRow(id, txt, pct) { prog[id] = { txt, pct: pct == null ? (prog[id] && prog[id].pct) || 0 : pct, at: Date.now() }; if (pct != null && ctx && ctx.refreshSum) { try { ctx.refreshSum(); } catch (_) {} } const tr = body && body.querySelector(`tr[data-id="${CSS.escape(id)}"]`); if (!tr) return; const el = tr.querySelector('.iba-rtp-msg'); if (el) el.textContent = txt;
+  if (pct == null) return; let bar = tr.querySelector('.iba-rtp-prog'); if (!bar && el) { bar = document.createElement('div'); bar.className = 'iba-rtp-prog'; bar.style.cssText = 'height:6px;border-radius:4px;background:rgba(127,140,160,.25);margin-top:4px;overflow:hidden'; bar.innerHTML = '<i style="display:block;height:100%;width:0;border-radius:4px;background:#3FD1C1;transition:width .4s"></i>'; el.parentNode.insertBefore(bar, el.nextSibling); }
+  if (bar) { bar.firstChild.style.width = Math.max(0, Math.min(100, pct)) + '%'; if (pct >= 100) bar.firstChild.style.background = '#4CC26A'; } }
 async function open(c) {
   ctx = c || ctx; body = ctx.body; tmp = {};
   ctx.title('Printer · Ready to Print');
@@ -316,13 +328,13 @@ function paint() {
       <td><span class="iba-rtp-esn">${esc(x.esn)}</span><br><small>${esc(x.approver || '')}${x.approvals > 1 ? ` · approval ${x.approvals}` : ''}${x.prev ? ' · earlier ESN printed ' + esc(clock(x.prev.printedAt)) : ''}</small></td>
       <td>${fileCell}<br><small class="iba-rtp-msg">${st}</small></td>
       <td><select data-f="place">${PLACES.map(([k, l]) => `<option value="${k}" ${k === place ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-      <td class="iba-rtp-act"><button type="button" data-rtp="preview" ${ready ? '' : 'disabled'}>Preview</button><button type="button" data-rtp="print" class="is-go" ${ready && x.state !== 'printing' ? '' : 'disabled'}>Print</button><button type="button" data-rtp="skip">Skip</button></td></tr>`; };
-  const doneRow = (x) => `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}</td><td>${esc(x.esn)}</td><td>${x.state === 'printed' ? `Printed ${esc(clock(x.printedAt))} · ${esc(placeName(x.place))}${x.again ? ' · again ×' + x.again : ''}${x.queue ? `<br><small>${esc(x.queue)}</small>` : ''}` : 'Skipped ' + esc(clock(x.skippedAt))}</td><td class="iba-rtp-act">${x.state === 'printed' ? `<button type="button" data-rtp="again" ${ready ? '' : 'disabled'}>Print again</button>` : '<button type="button" data-rtp="unskip">Back to the list</button>'}</td></tr>`;
+      <td class="iba-rtp-act"><button type="button" data-rtp="preview" ${ready ? '' : 'disabled'}>Preview</button><button type="button" data-rtp="print" class="is-go" ${ready && x.state !== 'printing' ? '' : 'disabled'}>Print</button><button type="button" data-rtp="skip">Skip</button>${x.state === 'printing' || x.state === 'error' ? '<button type="button" data-rtp="reset" title="Forget this row, so Rafi picks the invoice up again by himself">Reset</button>' : ''}</td></tr>`; };
+  const doneRow = (x) => `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}</td><td>${esc(x.esn)}</td><td>${x.state === 'printed' ? `Printed ${esc(clock(x.printedAt))} · ${esc(placeName(x.place))}${x.again ? ' · again ×' + x.again : ''}${x.queue ? `<br><small>${esc(x.queue)}</small>` : ''}` : 'Skipped ' + esc(clock(x.skippedAt))}</td><td class="iba-rtp-act">${x.state === 'printed' ? `<button type="button" data-rtp="again" ${ready ? '' : 'disabled'}>Print again</button>` : '<button type="button" data-rtp="unskip">Back to the list</button>'}<button type="button" data-rtp="reset" title="For a test: forget this print, so Rafi picks the invoice up again and prints it by himself">Reset</button></td></tr>`;
   body.innerHTML = helperBar()
     + `<div class="iba-rtp-head"><span>${open.length} ready to print${inHours() ? '' : ' · the bot looks for new ones 8:30 AM – 6:00 PM'}</span>${olderN ? `<button type="button" data-rtp="older" title="Approved before Ready to Print started; they may already be on paper">Add older approved (${olderN})</button>` : ''}<button type="button" data-rtp="basket">Print basket</button></div>`
     + (open.length ? `<div class="iba-off-rows"><table class="iba-off-tray iba-rtp"><thead><tr><th>PO</th><th>Vendor · Site</th><th>Value</th><th>ESN</th><th>PDF (DC Files\\INVOICE)</th><th>ESN place</th><th></th></tr></thead><tbody>${open.map(row).join('')}</tbody></table></div>` : '<div class="iba-off-empty">Nothing waiting. New approvals land here by themselves.</div>')
     + `<div class="iba-rtp-prev" hidden><div class="iba-rtp-prevh"><b></b><button type="button" data-rtp="closeprev">Close preview</button></div><canvas></canvas></div>`
-    + `<details class="iba-rtp-done" ${showDone ? 'open' : ''}><summary>Printed and skipped (${done.length})</summary>${done.length ? `<table class="iba-off-tray"><tbody>${done.map(doneRow).join('')}</tbody></table>` : '<div class="iba-off-empty">None yet.</div>'}</details>`;
+    + `<details class="iba-rtp-done" ${showDone ? 'open' : ''}><summary>History · printed and skipped (${done.length})</summary>${done.length ? `<table class="iba-off-tray"><tbody>${done.map(doneRow).join('')}</tbody></table>` : '<div class="iba-off-empty">None yet.</div>'}</details>`;
 }
 function rowOf(el) { const tr = el.closest('tr[data-id]'); return tr ? Object.assign({ id: tr.dataset.id }, Qd[tr.dataset.id] || {}) : null; }
 async function onClick(e) {
@@ -345,6 +357,16 @@ async function onClick(e) {
   if (act === 'print') { if (!x.file && tmp[x.id] && tmp[x.id].candidates && tmp[x.id].candidates.length) { ctx.log(`PO ${esc(x.po)}: pick the PDF first.`); return; } return printOne(x, place, false); }
   if (act === 'again') { if (!confirm(`PO ${x.po} was printed ${clock(x.printedAt)}. Print page 1 again on ${PRINTER}?`)) return; return printOne(x, x.place || 'M', true); }
   if (act === 'skip') { await mainDb().ref(`${ROOT}/${x.id}`).update({ state: 'skipped', skippedAt: Date.now(), skippedBy: me() }); Object.assign(Qd[x.id], { state: 'skipped', skippedAt: Date.now() }); ctx.log(`PO ${esc(x.po)}: skipped (not printed).`); paint(); if (ctx.refreshSum) ctx.refreshSum(); return; }
+  // 18.0.0 patch 156: Reset = forget this row in Ready to Print. Rafi checks again right away and, if the invoice is
+  // still Approved with an ESN for you (8:30 AM - 6:00 PM), stages and prints it by himself - a test of the automatic road.
+  if (act === 'reset') {
+    b.disabled = true; b.textContent = 'Resetting…';
+    try { await mainDb().ref(`${ROOT}/${x.id}`).remove(); delete Qd[x.id]; delete tmp[x.id]; } catch (err) { ctx.log(`PO ${esc(x.po)}: reset failed. ${esc(err.message || err)}`); paint(); return; }
+    ctx.log(`PO ${esc(x.po)}: reset. <b>Rafi</b> checks again now and prints it by himself if it is still Approved with an ESN for you${inHours() ? '' : ' (he only does this 8:30 AM - 6:00 PM)'}.`);
+    paint(); if (ctx.refreshSum) ctx.refreshSum();
+    try { if (window.ibaOffice && window.ibaOffice.refresh) window.ibaOffice.refresh(); } catch (_) {}
+    return;
+  }
   if (act === 'unskip') { await mainDb().ref(`${ROOT}/${x.id}`).update({ state: 'staged', skippedAt: null, skippedBy: null }); Object.assign(Qd[x.id], { state: 'staged' }); showDone = true; paint(); if (ctx.refreshSum) ctx.refreshSum(); }
 }
 async function onChange(e) {
@@ -356,6 +378,15 @@ document.addEventListener('click', onClick);
 document.addEventListener('change', onChange);
 document.addEventListener('toggle', (e) => { if (e.target && e.target.classList && e.target.classList.contains('iba-rtp-done')) showDone = e.target.open; }, true);
 
-window.ibaOfficePrint = { VERSION, scan, count, open, loadQueue, stampPage1, checkHelper, inHours, PRINTER };
+// 18.0.0 patch 157: for the office Bot tasks panel (Rafi's card, IRWIN print history, Rina's PDF watch).
+function list() { return rowsOf().map((x) => Object.assign(x, { prog: prog[x.id] || null, candidates: (tmp[x.id] && tmp[x.id].candidates) || [] })); }
+async function resetRow(id) {
+  const x = Qd[id]; await mainDb().ref(`${ROOT}/${id}`).remove(); delete Qd[id]; delete tmp[id]; delete prog[id];
+  if (ctx && ctx.log && x) ctx.log(`PO ${esc(x.po)}: reset. <b>Rafi</b> checks again now and prints it by himself if it is still Approved with an ESN for you${inHours() ? '' : ' (he only does this 8:30 AM - 6:00 PM)'}.`);
+  try { if (window.ibaOffice && window.ibaOffice.refresh) window.ibaOffice.refresh(); } catch (_) {}
+}
+async function skipRow(id) { await mainDb().ref(`${ROOT}/${id}`).update({ state: 'skipped', skippedAt: Date.now(), skippedBy: me() }); if (Qd[id]) Object.assign(Qd[id], { state: 'skipped', skippedAt: Date.now() }); }
+function helperState() { return health; }
+window.ibaOfficePrint = { VERSION, scan, count, open, loadQueue, stampPage1, checkHelper, inHours, PRINTER, findPdf, list, resetRow, skipRow, helperState, printOne: (id) => { const x = Object.assign({ id }, Qd[id] || {}); return printOne(x, x.place || 'M', false); } };
 console.info('%cIBA Office Ready to Print ' + VERSION + ' loaded', 'color:#138A97;font-weight:700');
 })();
