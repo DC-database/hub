@@ -1231,7 +1231,9 @@ window.ibaOffice3DState = () => ({ rooms: ROOMS, walls: WALLS, furniture: FURN, 
 window.ibaOffice3DSelectCab = (id) => { const c = CABS.find((q) => q.id === id); if (c) openCab(c); };
 window.ibaOffice3DSelectPerson = (name) => { const p = people.find((q) => q.name === name); if (p) openPerson(p); };
 window.ibaOffice3DSetZoom = (value) => { zoom = Math.max(0, Math.min(1, Number(value) || 0)); };
-window.ibaOffice = { ready: true, open, close, refresh: () => loadData(), collect: () => rinaCollect() };
+// 18.0.0 patch 155: a short summary for the phone "My office" card (filled once the office has been opened)
+function summary() { return { at: loadedAt || 0, open: !root.hidden, cabs: CABS.map((c, i) => ({ id: c.id, title: c.title, n: (cabN && cabN[i]) || 0 })), bots: BOTS.map((b) => ({ name: b.name, status: b.status || b.role })) }; }
+window.ibaOffice = { ready: true, summary, open, close, refresh: () => loadData(), collect: () => rinaCollect() };
 })();
 
 
