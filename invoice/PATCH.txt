@@ -3,6 +3,18 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 155 (26-Nov-2026)
+  IBA Office on the phone (Super Admin only, nothing changes for anyone else).
+  - Phone Home: a "My office" card under the 4 counters. Tap = the same office, zoomed on your room.
+    After the first open the card shows Your desk / Ready to Print / For Approval counts and what Rina is doing.
+  - Touch: one finger moves, two fingers pinch to zoom and twist to turn, tap a cabinet or person to open it.
+  - Phone layout: taller 3D view on top, buttons in one row you can swipe, bigger view buttons,
+    cabinets / bots / log underneath.
+  - Patch 154 touch-ups made after its notes were written (same 154 files): Rina sits at the reception desk next to Hafiz, each reception
+    chair has its own PC, reception TV with IBA ad slides, own reception carpet, entrance wall stays up,
+    real water dispensers, snack vending machine + glass-door drinks fridge on the hub, art frames removed.
+  Files: js/iba-office-boot.js, js/iba-office.js, js/iba-office-3d.js, css/iba-office.css, index.html, PATCH.txt
+
 18.0.0 patch 154 (26-Nov-2026)
   IBA Office floor plan redo (Super Admin only, nothing changes for anyone else).
   - The building is an octagon. In the middle: a hub with an octagon fountain, the IBA sign turning on top,
