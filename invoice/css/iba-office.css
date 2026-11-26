@@ -151,3 +151,19 @@ body.iba-office-on #iba-shell-sidebar,body.iba-office-on .iba-sidebar-hotspot{vi
 #iba-office[data-theme="clean"] .iba-off-side h3{color:#26364a}
 #iba-office[data-theme="clean"] .iba-off-team b{color:#26364a}
 
+/* 18.0.0 patch 155: the office on a phone - view on top (taller), panels underneath, bigger touch buttons */
+@media (max-width:700px){
+#iba-office{padding:8px 8px calc(10px + env(safe-area-inset-bottom));gap:8px}
+.iba-off-top{flex-direction:column;align-items:stretch;gap:6px}
+.iba-off-title{font-size:17px}
+.iba-off-ctrl{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+.iba-off-ctrl::-webkit-scrollbar{display:none}
+#iba-office button{white-space:nowrap;padding:8px 12px;min-height:36px}
+.iba-off-stage.iba-off-3d-ready{min-height:300px}
+.iba-off-3d-btns{right:8px!important;bottom:8px!important}
+#iba-office .iba-off-3d-btns button{width:42px!important;height:42px!important;padding:0!important}
+.iba-off-cmd{padding:6px 8px}
+.iba-off-cmd input{min-width:0;flex:1 1 160px;font-size:16px}
+.iba-off-team{grid-template-columns:minmax(0,1fr)}
+.iba-off-pop{padding:8px;align-items:flex-end}
+}
