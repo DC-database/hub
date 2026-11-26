@@ -4,7 +4,7 @@
    so nothing of the office runs for anyone else. Open from the console: window.ibaOfficeOpen() */
 (function () {
     'use strict';
-    var V = '18.0.0-p141', loading = null;
+    var V = '18.0.0-p154', loading = null;
     function isSuper() {
         try { if (window.ibaTestAs) return false; return typeof imIsCurrentUserSuperAdmin === 'function' && !!imIsCurrentUserSuperAdmin(); } catch (_) { return false; }
     }
@@ -13,10 +13,17 @@
         if (loading) return loading;
         loading = new Promise(function (res, rej) {
             var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/iba-office.css?v=' + V; document.head.appendChild(l);
-            var s = document.createElement('script'); s.src = 'js/iba-office.js?v=' + V;
-            s.onload = function () { res(); var r = document.createElement('script'); r.src = 'js/iba-office-print.js?v=' + V; document.head.appendChild(r); }; // patch 140: Ready to Print
-            s.onerror = function () { loading = null; rej(new Error('office file not found')); };
-            document.head.appendChild(s);
+            function script(src) { return new Promise(function (ok, no) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = function () { no(new Error('Could not load ' + src)); }; document.head.appendChild(s); }); }
+            function three() {
+                if (window.THREE) return Promise.resolve();
+                return import('https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js').then(function (mod) { window.THREE = mod; }).catch(function () {
+                    return import('https://unpkg.com/three@0.187.0/build/three.module.js').then(function (mod) { window.THREE = mod; });
+                });
+            }
+            three().then(function () { return script('js/iba-office.js?v=' + V); })
+              .then(function () { return script('js/iba-office-3d.js?v=' + V); })
+              .then(function () { return script('js/iba-office-print.js?v=' + V); })
+              .then(res).catch(function (e) { loading = null; rej(e); });
         });
         return loading;
     }
@@ -45,3 +52,4 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paint); else paint();
     setInterval(paint, 2000);
 })();
+

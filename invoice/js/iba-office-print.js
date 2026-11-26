@@ -1,5 +1,5 @@
 /* ==========================================================================
-   js/iba-office-print.js — 18.0.0 patch 140 (martin: "Ready to Print" bot)
+   js/iba-office-print.js — 18.0.0 patch 145 (ESN printing on A4 Color)
    IBA Office (Super Admin only). Loaded by js/iba-office.js when the office opens.
 
    1. Trigger: every office refresh between 8:30 AM and 6:00 PM (Qatar time) the
@@ -9,14 +9,15 @@
       system_settings/office_print_queue/{PO}_{key} (Firebase transaction), so
       re-saves never stage it again. A later approval (new ESN) stages it again.
       Approvals from before the first run are not staged by themselves (they may
-      already be on paper): the tray offers "Add older approved".
+      already be on paper): the tray offers "Add older approved". New approvals
+      print automatically when the PDF name matches exactly and the helper is ready.
    2. The printer in your office = "Ready to Print". Each row: the PDF found in
       DC Files\INVOICE (or the problem / a pick list), the ESN place (1st ESN
       Middle, 2nd Right bottom, 3rd Right middle; you can change it), Preview,
-      Print, Skip.
+      Print, Skip. Missing or ambiguous PDFs stay in the tray for manual handling.
    3. Print: page 1 only + the same QR sticker as the Print ESN window, drawn into
       the page (pdf-lib), sent to the small Windows helper, which prints it on
-      THE NEW BLACK. Queue row -> printed, a history line on the invoice and an
+      A4 Color. Queue row -> printed, a history line on the invoice and an
       office log line. "Print again" asks first. The invoice status is not changed.
    The Windows helper (others\print-helper\iba-print-helper.ps1) is the only
    thing that touches your PC: it reads the INVOICE folder and prints.
@@ -24,11 +25,12 @@
 (function () {
 'use strict';
 if (window.ibaOfficePrint) return;
-const VERSION = '18.0.0-p140';
+const VERSION = '18.0.0-p151';
+const HELPER_MIN = '18.0.0-p151'; // patch 151: helper that checks the Windows queue
 const ROOT = 'system_settings/office_print_queue';
 const HELPER = 'http://localhost:47123';
 const TOKEN_KEY = 'iba-print-helper-token-v1';
-const PRINTER = 'THE NEW BLACK';
+const PRINTER = 'A4 Color';
 const PDFLIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
 const PLACES = [['M', 'Middle'], ['RB', 'Right bottom'], ['RM', 'Right middle'], ['RT', 'Right top'], ['L', 'Left']];
 // mm from the paper edges, same as the Print ESN window (js/iba-1702-esn.js PLACE_CSS)
@@ -69,7 +71,7 @@ async function loadQueue() {
 function rowsOf(state) { return Object.keys(Qd).map((k) => Object.assign({ id: k }, Qd[k])).filter((x) => !state || x.state === state || (state === 'staged' && (x.state === 'error' || x.state === 'printing'))); }
 function count() { return rowsOf('staged').length; }
 
-async function stage(r, why) {
+async function stage(r, why, autoPrint) {
   const id = idOf(r.po, r.key), esn = String(r.esn).trim();
   // fresh read of the one invoice: the saved copy can be minutes old
   let inv = r; try { const s = (await invDb().ref(`invoice_entries/${r.po}/${r.key}`).once('value')).val(); if (s) inv = Object.assign({ po: r.po, key: r.key }, s); } catch (_) {}
@@ -78,7 +80,7 @@ async function stage(r, why) {
   const res = await mainDb().ref(`${ROOT}/${id}`).transaction((cur) => {
     if (cur && cur.esn === esn) return; // already staged / printed / skipped for this ESN
     return { esn, state: 'staged', place: defaultPlace(inv), po: String(r.po), key: String(r.key), invNumber: inv.invNumber || '', invName: inv.invName || '', invEntryID: inv.invEntryID || '',
-      vendor: pi.vendor || inv.vendorName || '', site: String(pi.site || inv.site || ''), value: inv.invValue || '', approver: inv.last_approver || '', approvals: slots(inv),
+      vendor: pi.vendor || inv.vendorName || '', site: String(pi.site || inv.site || ''), value: inv.invValue || '', approver: inv.last_approver || '', approvals: slots(inv), autoPrint: !!autoPrint,
       stagedAt: Date.now(), stagedBy: why || 'bot', prev: cur && cur.state === 'printed' ? { esn: cur.esn || '', printedAt: cur.printedAt || 0, place: cur.place || '' } : null };
   });
   if (res.committed) Qd[id] = res.snapshot.val();
@@ -94,8 +96,9 @@ async function scan(rows, c, force) {
     const cand = (rows || []).filter((r) => wants(r) && !((Qd[idOf(r.po, r.key)] || {}).esn === String(r.esn).trim()));
     olderList = cand.filter((r) => approvedAt(r) && approvedAt(r) < meta.startedAt); olderN = olderList.length;
     if (!inHours() && !force) return 0;
-    for (const r of cand.filter((x) => !(approvedAt(x) && approvedAt(x) < meta.startedAt))) { try { if (await stage(r)) n++; } catch (e) { console.warn('[ready to print] stage', r.po, e); } }
-    if (n && ctx && ctx.log) ctx.log(`<b>Rafi</b> put ${n} approved invoice${n > 1 ? 's' : ''} on <b>Ready to Print</b>. Nothing prints until you press Print.`);
+    for (const r of cand.filter((x) => !(approvedAt(x) && approvedAt(x) < meta.startedAt))) { try { if (await stage(r, null, true)) n++; } catch (e) { console.warn('[ready to print] stage', r.po, e); } }
+    await autoPrintPending();
+    if (n && ctx && ctx.log) ctx.log(`<b>Rafi</b> put ${n} approved invoice${n > 1 ? 's' : ''} on <b>Ready to Print</b>. Exact PDF matches print automatically; unresolved PDFs stay in the tray.`);
     if (n && ctx && ctx.botSay) ctx.botSay('Rafi', `${n} ready to print`);
   } finally { scanning = false; }
   return n;
@@ -213,14 +216,15 @@ async function printOne(x, place, again) {
     setRow(x.id, 'Getting the PDF…');
     // the invoice must still be approved with this ESN
     const inv = (await invDb().ref(`invoice_entries/${x.po}/${x.key}`).once('value')).val() || {};
-    if (String(inv.esn || '').trim() !== x.esn) throw new Error('The ESN on this invoice changed. Refresh the office.');
+    if (!wants(inv) || String(inv.esn || '').trim() !== x.esn) throw new Error('This invoice is no longer approved with this ESN and assigned to you. Refresh the office.');
     const p = await prepare(x, place);
     setRow(x.id, 'Printing page 1…');
-    await helper('/print?job=' + encodeURIComponent(x.id + '_' + x.esn.replace(/[^A-Za-z0-9]/g, '')) + (again ? '&again=1' : ''), { method: 'POST', body: p.bytes, headers: { 'Content-Type': 'application/pdf' }, timeout: 90000 });
-    const upd = { state: 'printed', place, file: p.file, printedAt: Date.now(), printedBy: me(), printer: PRINTER, error: null, claimAt: null, claimBy: null, again: again ? (Number(x.again || 0) + 1) : (x.again || 0) };
+    const res = await helper('/print?job=' + encodeURIComponent(x.id + '_' + x.esn.replace(/[^A-Za-z0-9]/g, '')) + (again ? '&again=1' : ''), { method: 'POST', body: p.bytes, headers: { 'Content-Type': 'application/pdf' }, timeout: 90000 });
+    x.queue = (res && res.queue) || '';
+    const upd = { state: 'printed', queue: x.queue || '', place, file: p.file, printedAt: Date.now(), printedBy: me(), printer: PRINTER, error: null, claimAt: null, claimBy: null, again: again ? (Number(x.again || 0) + 1) : (x.again || 0) };
     await ref.update(upd); Object.assign(Qd[x.id] = Qd[x.id] || {}, x, upd);
     try { if (window.logInvoiceHistory) await window.logInvoiceHistory(x.po, x.key, inv.status || 'Approved', `${again ? 'Printed again' : 'Printed'}: ESN ${x.esn} on page 1 (${placeName(place)}) to ${PRINTER} by ${me()} · IBA Office`); } catch (_) {}
-    ctx.log(`<b>Rafi</b> printed PO ${esc(x.po)} ${esc(x.invNumber || '')} page 1 with the ESN (${esc(placeName(place))}) on ${PRINTER}.`);
+    ctx.log(`<b>Rafi</b> printed PO ${esc(x.po)} ${esc(x.invNumber || '')} page 1 with the ESN (${esc(placeName(place))}) on ${PRINTER}${x.queue ? ' · Windows: ' + esc(x.queue) : ''}.`);
     if (ctx.botWalk) ctx.botWalk('Rafi', 'Printed PO ' + x.po);
   } catch (e) {
     console.warn('[ready to print] print', x.po, e);
@@ -230,21 +234,75 @@ async function printOne(x, place, again) {
   } finally { busyIds[x.id] = false; paint(); if (ctx.refreshSum) ctx.refreshSum(); }
 }
 
+let autoPrintNotice = '';
+function noteAutoPrint(message) {
+  if (message === autoPrintNotice) return;
+  autoPrintNotice = message;
+  if (message && ctx && ctx.log) ctx.log(`<b>Rafi</b> automatic print paused: ${esc(message)}.`);
+}
+// Auto-print bot-staged approvals. Older approvals the user explicitly added
+// remain manual, as do rows with an uncertain PDF match.
+async function autoPrintPending() {
+  if (!inHours() || !mainDb()) return 0;
+  const h = await checkHelper();
+  if (!h || !h.ok) { noteAutoPrint(h && h.error ? h.error : 'The print helper is not ready. Check its key and connection in Ready to Print.'); return 0; }
+  if (h.printerFound === false || h.folderFound === false || h.sumatraFound === false) { noteAutoPrint('The helper cannot find the configured printer, invoice folder, or PDF tool.'); return 0; }
+  if (h.printerBad) { noteAutoPrint(`Windows says ${h.printer || PRINTER} is ${h.printerStatus}`); return 0; }
+  noteAutoPrint('');
+  let printed = 0;
+  const pending = Object.keys(Qd).map((id) => Object.assign({ id }, Qd[id] || {}))
+    .filter((x) => x.state === 'staged' && x.stagedBy !== 'you (older)')
+    .sort((a, b) => Number(a.stagedAt || 0) - Number(b.stagedAt || 0));
+  for (const x of pending) {
+    if (!inHours() || busyIds[x.id]) continue;
+    let f;
+    try { f = await findPdf(x); } catch (e) { console.warn('[ready to print] auto PDF lookup', x.po, e); continue; }
+    if (!f.found) { if (f.candidates && f.candidates.length) tmp[x.id] = { candidates: f.candidates }; setRow(x.id, f.problem || 'Choose the matching PDF to print manually.'); continue; } // never guess between similarly named PDFs
+    x.file = f.found;
+    try { await mainDb().ref(`${ROOT}/${x.id}/file`).set(f.found); } catch (e) { console.warn('[ready to print] save PDF match', x.po, e); continue; }
+    await printOne(x, x.place || 'M', false);
+    printed++;
+  }
+  return printed;
+}
+
 // ---------------------------------------------------------------- tray UI
 let tmp = {}, showDone = false, body = null;
 function setRow(id, txt) { const el = body && body.querySelector(`tr[data-id="${CSS.escape(id)}"] .iba-rtp-msg`); if (el) el.textContent = txt; }
 async function open(c) {
   ctx = c || ctx; body = ctx.body; tmp = {};
   ctx.title('Printer · Ready to Print');
-  ctx.note('Approved invoices with an ESN that came back to you. Check the PDF and the place, then Print: page 1 only, with the ESN sticker, on ' + PRINTER + '. Nothing prints by itself.');
+  ctx.note('New approved invoices with an ESN print automatically when the PDF name matches exactly. Missing or ambiguous PDFs stay here for you to pick and print.');
   body.innerHTML = '<div class="iba-rtp-load">Reading the list…</div>'; ctx.show();
   await Promise.all([loadQueue(), checkHelper()]);
   paint();
 }
+function oldHelper() { return health && health.ok && String(health.version || '') < HELPER_MIN; }
 function helperBar() {
-  if (health && health.ok) return `<div class="iba-rtp-helper is-ok">Print helper connected · printer <b>${esc(health.printer || PRINTER)}</b> ${health.printerFound === false ? '<em>not found on this PC</em>' : 'ready'}${health.folderFound === false ? ' · <em>INVOICE folder not found</em>' : ''}</div>`;
+  if (health && health.ok) {
+    const bad = health.printerFound === false || health.printerBad || health.folderFound === false || health.sumatraFound === false || oldHelper();
+    const prn = health.printerFound === false ? `<em>not found on this PC</em>${health.printers && health.printers.length ? ` (printers here: ${esc(health.printers.join(', '))})` : ''}` : health.printerStatus ? `Windows says <b>${esc(health.printerStatus)}</b>${health.waiting ? ` · ${health.waiting} page(s) waiting in its queue` : ''}` : 'ready';
+    return `<div class="iba-rtp-helper ${bad ? 'is-bad' : 'is-ok'}">Print helper connected · printer <b>${esc(health.printer || PRINTER)}</b> · ${prn}${health.folderFound === false ? ' · <em>INVOICE folder not found</em>' : ''}${health.sumatraFound === false ? ' · <em>SumatraPDF.exe missing</em>' : ''}`
+      + `${oldHelper() ? ' · <em>an older helper is still running: double-click others\\print-helper\\Install print helper.bat once (it restarts it)</em>' : ''}`
+      + ` <button type="button" data-rtp="test">Test print</button> <button type="button" data-rtp="check">Check again</button></div>`;
+  }
   const tokenBad = health && /token/i.test(health.error || '');
   return `<div class="iba-rtp-helper is-bad"><b>${tokenBad ? 'The helper needs its key.' : 'Print helper not running on this PC.'}</b> ${tokenBad ? 'Paste the key it showed when it started:' : 'Run others\\print-helper\\Install print helper.bat once (after that it starts with Windows by itself), paste its key, then press Check:'} <input type="password" class="iba-rtp-token" placeholder="Helper key" value="${esc(token())}" aria-label="Helper key"> <button type="button" data-rtp="check">Check</button></div>`;
+}
+// patch 151: one plain A4 test page through the same road (helper -> SumatraPDF -> Windows queue -> printer)
+async function testPrint(b) {
+  b.disabled = true; b.textContent = 'Printing test…';
+  try {
+    const L = await pdfLib(); const doc = await L.PDFDocument.create(); const pg = doc.addPage([595.28, 841.89]); const f = await doc.embedFont(L.StandardFonts.HelveticaBold);
+    const when = clock(Date.now());
+    pg.drawText('IBA Office · test page', { x: 60, y: 760, size: 22, font: f, color: L.rgb(0.06, 0.42, 0.18) });
+    pg.drawText(`Printer: ${PRINTER} · ${when} · ${me()}`, { x: 60, y: 730, size: 12, font: f });
+    pg.drawText('If you can read this on paper, Ready to Print can print.', { x: 60, y: 700, size: 12, font: f });
+    const bytes = await doc.save();
+    const r = await helper('/print?job=test_' + Date.now() + '&again=1', { method: 'POST', body: bytes, headers: { 'Content-Type': 'application/pdf' }, timeout: 90000 });
+    ctx.log(`Test page sent to ${esc(r.printer || PRINTER)} · Windows: ${esc(r.queue || 'ok')}.`);
+  } catch (e) { ctx.log(`Test page NOT printed: ${esc(e.message || e)}`); }
+  await checkHelper(); paint();
 }
 function paint() {
   if (!body || !body.isConnected) return;
@@ -259,7 +317,7 @@ function paint() {
       <td>${fileCell}<br><small class="iba-rtp-msg">${st}</small></td>
       <td><select data-f="place">${PLACES.map(([k, l]) => `<option value="${k}" ${k === place ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
       <td class="iba-rtp-act"><button type="button" data-rtp="preview" ${ready ? '' : 'disabled'}>Preview</button><button type="button" data-rtp="print" class="is-go" ${ready && x.state !== 'printing' ? '' : 'disabled'}>Print</button><button type="button" data-rtp="skip">Skip</button></td></tr>`; };
-  const doneRow = (x) => `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}</td><td>${esc(x.esn)}</td><td>${x.state === 'printed' ? `Printed ${esc(clock(x.printedAt))} · ${esc(placeName(x.place))}${x.again ? ' · again ×' + x.again : ''}` : 'Skipped ' + esc(clock(x.skippedAt))}</td><td class="iba-rtp-act">${x.state === 'printed' ? `<button type="button" data-rtp="again" ${ready ? '' : 'disabled'}>Print again</button>` : '<button type="button" data-rtp="unskip">Back to the list</button>'}</td></tr>`;
+  const doneRow = (x) => `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}</td><td>${esc(x.esn)}</td><td>${x.state === 'printed' ? `Printed ${esc(clock(x.printedAt))} · ${esc(placeName(x.place))}${x.again ? ' · again ×' + x.again : ''}${x.queue ? `<br><small>${esc(x.queue)}</small>` : ''}` : 'Skipped ' + esc(clock(x.skippedAt))}</td><td class="iba-rtp-act">${x.state === 'printed' ? `<button type="button" data-rtp="again" ${ready ? '' : 'disabled'}>Print again</button>` : '<button type="button" data-rtp="unskip">Back to the list</button>'}</td></tr>`;
   body.innerHTML = helperBar()
     + `<div class="iba-rtp-head"><span>${open.length} ready to print${inHours() ? '' : ' · the bot looks for new ones 8:30 AM – 6:00 PM'}</span>${olderN ? `<button type="button" data-rtp="older" title="Approved before Ready to Print started; they may already be on paper">Add older approved (${olderN})</button>` : ''}<button type="button" data-rtp="basket">Print basket</button></div>`
     + (open.length ? `<div class="iba-off-rows"><table class="iba-off-tray iba-rtp"><thead><tr><th>PO</th><th>Vendor · Site</th><th>Value</th><th>ESN</th><th>PDF (DC Files\\INVOICE)</th><th>ESN place</th><th></th></tr></thead><tbody>${open.map(row).join('')}</tbody></table></div>` : '<div class="iba-off-empty">Nothing waiting. New approvals land here by themselves.</div>')
@@ -272,6 +330,7 @@ async function onClick(e) {
   const b = e.target.closest('[data-rtp]'); if (!b) return; const act = b.dataset.rtp, x = rowOf(b);
   if (act === 'check') { const t = body.querySelector('.iba-rtp-token'); if (t) { try { localStorage.setItem(TOKEN_KEY, t.value.trim()); } catch (_) {} } b.textContent = 'Checking…'; await checkHelper(); paint(); return; }
   if (act === 'basket') { if (ctx.basket) ctx.basket(); return; }
+  if (act === 'test') return testPrint(b);
   if (act === 'closeprev') { body.querySelector('.iba-rtp-prev').hidden = true; return; }
   if (act === 'older') { b.disabled = true; b.textContent = 'Adding…'; let n = 0; for (const r of olderList) { try { if (await stage(r, 'you (older)')) n++; } catch (_) {} } olderN = 0; olderList = []; ctx.log(`Added ${n} older approved invoice${n === 1 ? '' : 's'} to Ready to Print.`); paint(); if (ctx.refreshSum) ctx.refreshSum(); return; }
   if (!x) return;

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   js/iba-office.js — 18.0.0 patch 132 (floor plan 136, bots work 137, copy all 138, away 139, Ready to Print 140, door + 6 PM home 141) (martin: "IBA AI Office", step 1)
+   js/iba-office.js — 18.0.0 patch 150 (3D visual refinement; business/bot logic retained)
    A 3D (isometric) office that shows the REAL invoice system as rooms.
    SUPER ADMIN ONLY until martin announces it: the "Office" menu button is
    added by a small boot in index.html, and this file is only downloaded when
@@ -34,12 +34,13 @@ root.id = 'iba-office'; root.hidden = true;
 root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', 'IBA Office');
 root.innerHTML = `
 <div class="iba-off-top">
-  <div class="iba-off-title"><b>IBA</b> Office <span class="iba-off-beta">SUPER ADMIN · BETA</span></div>
+   <div class="iba-off-title"><b>IBA</b> OFFICE</div>
   <div class="iba-off-ctrl">
     <button type="button" data-act="zin" title="Zoom in" aria-label="Zoom in">+</button>
     <button type="button" data-act="zout" title="Zoom out" aria-label="Zoom out">&minus;</button>
     <button type="button" data-act="me">My office</button>
     <button type="button" data-act="all">Whole office</button>
+   <button type="button" data-act="theme" class="iba-off-theme" title="Switch between Clean · Walnut and Pixel · Crimson noir">Pixel · Crimson noir</button>
     <button type="button" data-act="refresh" title="Read the latest changes">Refresh</button>
     <button type="button" data-act="away" class="iba-off-away" title="Lunch, toilet, meeting or out: the office shows you are away">I'm in</button>
     <button type="button" data-act="setup" title="Put people in rooms">Setup</button>
@@ -48,7 +49,7 @@ root.innerHTML = `
 </div>
 <div class="iba-off-body">
   <div class="iba-off-stagewrap">
-    <div class="iba-off-stage"><canvas aria-label="Office in 3D view"></canvas><div class="iba-off-load">Opening the cabinets…</div></div>
+    <div class="iba-off-stage"><canvas aria-label="Legacy fallback office map"></canvas><div class="iba-off-3d-host" aria-label="Interactive three-dimensional office"></div><div class="iba-off-load">Opening the cabinets…</div></div>
     <form class="iba-off-cmd" autocomplete="off">
       <label for="iba-off-in">COMMAND</label>
       <input id="iba-off-in" placeholder="call Bot 1  ·  Rina find PO for Multilink  ·  find site 175  ·  Sami take a break">
@@ -64,10 +65,24 @@ root.innerHTML = `
 <div class="iba-off-pop" hidden><div class="iba-off-box" role="dialog" aria-modal="true"><button type="button" class="iba-off-popx">Close</button><h3></h3><p></p><div class="iba-off-popb"></div></div></div>`;
 document.body.appendChild(root);
 const Q = (s) => root.querySelector(s);
-const GW=34,GH=20,TW=60,TH=30,WALL=118,PART=44;
+let officeTheme = 'pixel'; try { officeTheme = localStorage.getItem('iba-office-theme-v1') || 'pixel'; } catch (_) {}
+root.dataset.theme = officeTheme;
+function setOfficeTheme(theme) {
+  officeTheme = theme === 'clean' ? 'clean' : 'pixel'; root.dataset.theme = officeTheme;
+  const b = Q('.iba-off-theme'); if (b) b.textContent = officeTheme === 'pixel' ? 'Pixel · Crimson noir' : 'Clean · Walnut';
+  try { localStorage.setItem('iba-office-theme-v1', officeTheme); } catch (_) {}
+}
+setOfficeTheme(officeTheme);
+// Generated art atlases: shared across both themes so layout, staff and bots stay identical.
+const ART={architecture:null,furniture:null,human:null,bot:null};
+function loadOfficeAtlas(key,file){const a=new Image();a.onload=()=>{ART[key]=a;if(staticDone){sc.clearRect(0,0,CW,CH);drawStatic(sc);}};a.onerror=()=>console.warn('Office art atlas unavailable:',file);a.src='design/ai-office/'+file;}
+function drawAtlasCell(c,a,col,row,x,y,w,h){if(!a||!a.complete||!a.naturalWidth)return false;const cw=a.naturalWidth/4,ch=a.naturalHeight/4,px=cw*.035,py=ch*.035;c.drawImage(a,col*cw+px,row*ch+py,cw-px*2,ch-py*2,x,y,w,h);return true;}
+const GW=46,GH=40,TW=60,TH=30,WALL=118,PART=44;
 const OX=GH*TW/2+30,OY=WALL+60;
 const CW=(GW+GH)*TW/2+60,CH=(GW+GH)*TH/2+WALL+90;
 const cv=Q('canvas'),vctx=cv.getContext('2d');const scene=document.createElement('canvas'),ctx=scene.getContext('2d');
+// Patch 148 draws the live Office with WebGL geometry; the generated sprite atlases
+// remain in design/ai-office/ as approved art references and are not downloaded here.
 const DPR=Math.min(2,window.devicePixelRatio||1);
 cv.width=CW*DPR;cv.height=CH*DPR;scene.width=CW*DPR;scene.height=CH*DPR;ctx.scale(DPR,DPR);
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -86,42 +101,53 @@ function box(c,x,y,w,d,h,col,z=0,opts={}){
   c.globalAlpha=1;}
 function shadowAt(c,x,y,rx,ry,a=.28){const p=iso(x,y);c.fillStyle=`rgba(0,0,0,${a})`;c.beginPath();c.ellipse(p[0],p[1],rx,ry,0,0,Math.PI*2);c.fill();}
 // ---------- map ----------
-// 18.0.0 patch 136 (martin): logical floor plan. Back row = offices with windows, two corridors, every room
-// has a door on its corridor and its desks face that door. Entrance on the left wall, inside Reception.
+// 18.0.0 patch 154 (martin): the building is an OCTAGON (the four corners are cut on the diagonal). The middle is a
+// hub with an octagon fountain + the IBA sign and waiting sofas; every room has its own door onto the hub. Walls
+// between rooms are solid; glass is used only inside shared rooms (desk pod dividers, the Procurement lead's room).
+// Private offices are the same size; the Managing Director has the corner office with sofa + TV.
+const OCT = 8; // corner cut (tiles): a tile is inside when its outer corner is on the inside of every diagonal
+function inOct(x, y) { return x + y >= OCT && (GW - 1 - x) + y >= OCT && x + (GH - 1 - y) >= OCT && (GW - 1 - x) + (GH - 1 - y) >= OCT; }
 const ROOMS=[
-  {id:'rec',name:'Reception',x:0,y:0,w:6,h:6,floor:'#C9935A',kind:'wood'},
-  {id:'bot',name:'Bot room',x:6,y:0,w:5,h:6,floor:'#33465C',kind:'carpet'},
-  {id:'log',name:'Logistics',x:11,y:0,w:8,h:6,floor:'#4B5D7A',kind:'carpet'},
-  {id:'me',name:'Office',x:19,y:0,w:5,h:6,floor:'#2E4C6E',kind:'carpet'},
-  {id:'md',name:'Managing Director',x:24,y:0,w:5,h:6,floor:'#5A4632',kind:'carpet'},
-  {id:'spA',name:'Office A',x:29,y:0,w:5,h:6,floor:'#4A4F5E',kind:'carpet'},
-  {id:'hallA',name:'',x:0,y:6,w:34,h:2,floor:'#C9935A',kind:'wood'},
-  {id:'fin',name:'Finance',x:0,y:8,w:5,h:5,floor:'#3E5A4E',kind:'carpet'},
-  {id:'hr',name:'HR',x:5,y:8,w:5,h:5,floor:'#5A4E3E',kind:'carpet'},
-  {id:'acc',name:'Accounts',x:10,y:8,w:8,h:5,floor:'#C9935A',kind:'wood'},
-  {id:'coo',name:'COO office',x:18,y:8,w:5,h:5,floor:'#3E4A5E',kind:'carpet'},
-  {id:'pd',name:'Project Director',x:23,y:8,w:5,h:5,floor:'#4E3E5A',kind:'carpet'},
-  {id:'meet',name:'Meeting room',x:28,y:8,w:6,h:5,floor:'#B98A58',kind:'wood'},
-  {id:'hallB',name:'',x:0,y:13,w:34,h:2,floor:'#C9935A',kind:'wood'},
-  {id:'site',name:'Site room',x:0,y:15,w:8,h:5,floor:'#A9824F',kind:'wood'},
-  {id:'wh',name:'Warehouse',x:8,y:15,w:7,h:5,floor:'#B7BEC6',kind:'tile'},
-  {id:'break',name:'Break room',x:15,y:15,w:6,h:5,floor:'#7A5A86',kind:'carpet'},
-  {id:'pantry',name:'Pantry',x:21,y:15,w:5,h:5,floor:'#E9E2D2',kind:'tile'},
-  {id:'wc',name:'Toilet',x:26,y:15,w:4,h:5,floor:'#DCE7EE',kind:'tile'},
-  {id:'spB',name:'Office B',x:30,y:15,w:4,h:5,floor:'#4A4F5E',kind:'carpet'},
+  {id:'me',name:'IRWIN',x:0,y:0,w:8,h:9,floor:'#2E4C6E',kind:'carpet'},
+  {id:'pantry',name:'Pantry',x:8,y:0,w:6,h:7,floor:'#E9E2D2',kind:'tile'},
+  {id:'bot',name:'Bot room',x:14,y:0,w:6,h:7,floor:'#33465C',kind:'carpet'},
+  {id:'log',name:'Logistics',x:20,y:0,w:6,h:7,floor:'#4B5D7A',kind:'carpet'},
+  {id:'fin',name:'Finance Manager',x:26,y:0,w:6,h:7,floor:'#3E5A4E',kind:'carpet'},
+  {id:'coo',name:'COO office',x:32,y:0,w:6,h:7,floor:'#3E4A5E',kind:'carpet'},
+  {id:'md',name:'Managing Director',x:38,y:0,w:8,h:12,floor:'#5A4632',kind:'carpet'},
+  {id:'meet',name:'Meeting room',x:0,y:9,w:8,h:8,floor:'#B98A58',kind:'wood'},
+  {id:'rec',name:'Reception',x:0,y:17,w:8,h:9,floor:'#2F6468',kind:'carpet'},
+  {id:'wc',name:'Toilet',x:0,y:26,w:8,h:5,floor:'#DCE7EE',kind:'tile'},
+  {id:'pd',name:'Project Director',x:38,y:12,w:8,h:6,floor:'#4E3E5A',kind:'carpet'},
+  {id:'spA',name:'MEP Manager',x:38,y:18,w:8,h:7,floor:'#4A4F5E',kind:'carpet'},
+  {id:'spB',name:'Office B',x:34,y:25,w:4,h:6,floor:'#4A4F5E',kind:'carpet'},
+  {id:'wh',name:'Warehouse',x:38,y:25,w:8,h:6,floor:'#B7BEC6',kind:'tile'},
+  {id:'plaza',name:'',x:8,y:7,w:30,h:24,floor:'#243047',kind:'tile'},
+  {id:'break',name:'Lounge',x:0,y:31,w:15,h:9,floor:'#7A5A86',kind:'carpet'},
+  {id:'acc',name:'Accounts',x:15,y:31,w:7,h:9,floor:'#C9935A',kind:'wood'},
+  {id:'hr',name:'Procurement',x:22,y:31,w:8,h:9,floor:'#5A4E3E',kind:'carpet'},
+  {id:'site',name:'Site room',x:30,y:31,w:16,h:9,floor:'#A9824F',kind:'wood'},
 ];
-// walls: [x1,y1,x2,y2,glass,doors (x for a wall along x, y for a wall along y)]
-const WALLS=[
-  // back row front walls (Reception is open to the corridor)
-  [6,6,11,6,false,[8]],[11,6,19,6,true,[13,16]],[19,6,24,6,true,[21]],[24,6,29,6,true,[26]],[29,6,34,6,true,[31]],
-  [6,0,6,6,false,[]],[11,0,11,6,false,[]],[19,0,19,6,true,[]],[24,0,24,6,true,[]],[29,0,29,6,true,[]],
-  // middle row
-  [0,8,5,8,true,[2]],[5,8,10,8,true,[7]],[10,8,18,8,false,[12,15]],[18,8,23,8,true,[20]],[23,8,28,8,true,[25]],[28,8,34,8,true,[30]],
-  [0,13,34,13,false,[]],[5,8,5,13,true,[]],[10,8,10,13,false,[]],[18,8,18,13,false,[]],[23,8,23,13,true,[]],[28,8,28,13,true,[]],
-  // front row
-  [0,15,8,15,false,[3,5]],[8,15,15,15,false,[11]],[15,15,21,15,false,[17,18]],[21,15,26,15,false,[25]],[26,15,30,15,false,[27]],[30,15,34,15,true,[31]],
-  [8,15,8,20,false,[]],[15,15,15,20,false,[]],[21,15,21,20,false,[]],[26,15,26,20,false,[]],[30,15,30,20,true,[]],
-];
+// doors per room side: cells along that side that stay open (2 cells = a door), all onto the hub except Warehouse -> Site
+const ROOM_DOORS={
+  me:{E:[7,8]}, pantry:{S:[10,11]}, bot:{S:[16,17]}, log:{S:[22,23]}, fin:{S:[28,29]}, coo:{S:[34,35]}, md:{W:[7,8]},
+  meet:{E:[15,16]}, rec:{E:[17,18,19,20,21,22,23,24,25]}, wc:{E:[27,28]}, pd:{W:[14,15]}, spA:{W:[21,22]}, spB:{W:[27,28]}, wh:{S:[40,41,42,43]},
+  break:{N:[9,10]}, acc:{N:[16,17]}, hr:{N:[26,27]}, site:{N:[30,31]},
+};
+// Walls between rooms (shared sides once; the outside octagon wall is drawn by the 3D view). g: 1 = solid, 2 = glass.
+// Glass only inside rooms: Procurement split into team / lead / architect, Site room split into QS area / Site DC area,
+// and the Managing Director's private toilet (solid).
+const WALLS=(()=>{const GW0=46,GH0=40,edges=new Map();
+  const put=(k,line,c,open,g)=>{const key=k+'|'+line+'|'+c,e=edges.get(key);edges.set(key,{k,line,c,open:open||(e&&e.open),g:g||(e&&e.g)||1});};
+  ROOMS.forEach((r)=>{if(r.id==='plaza')return;const d=ROOM_DOORS[r.id]||{};
+    for(let x=r.x;x<r.x+r.w;x++){if(r.y>0)put('h',r.y,x,(d.N||[]).includes(x));if(r.y+r.h<GH0)put('h',r.y+r.h,x,(d.S||[]).includes(x));}
+    for(let y=r.y;y<r.y+r.h;y++){if(r.x>0)put('v',r.x,y,(d.W||[]).includes(y));if(r.x+r.w<GW0)put('v',r.x+r.w,y,(d.E||[]).includes(y));}});
+  for(let x=22;x<30;x++)put('h',37,x,x===24||x===27,2);for(let y=37;y<40;y++)put('v',26,y,false,2); // Procurement: lead | architect
+  for(let y=34;y<40;y++)put('v',35,y,false,2); // Site room: QS area | Site DC area (open at the top)
+  for(let x=44;x<46;x++)put('h',10,x,x===44);for(let y=10;y<12;y++)put('v',44,y,false); // MD's private toilet (toilet + sink)
+  const lines=new Map();edges.forEach((e)=>{const key=e.k+'|'+e.line+'|'+e.g;if(!lines.has(key))lines.set(key,[]);lines.get(key).push(e);});
+  const out=[];lines.forEach((list)=>{list.sort((a,b)=>a.c-b.c);let run=null;list.forEach((e)=>{if(run&&e.c===run.end){run.end++;if(e.open)run.doors.push(e.c);}else{if(run)out.push(run);run={k:e.k,line:e.line,g:e.g,start:e.c,end:e.c+1,doors:e.open?[e.c]:[]};}});if(run)out.push(run);});
+  return out.map((r)=>r.k==='v'?[r.line,r.start,r.line,r.end,r.g,r.doors]:[r.start,r.line,r.end,r.line,r.g,r.doors]);})();
 const blockedEdge=new Set();
 function edgeKey(a,b){return a<b?a+'|'+b:b+'|'+a;}
 const tk=(x,y)=>x+','+y;
@@ -130,48 +156,68 @@ WALLS.forEach(([x1,y1,x2,y2,g,doors])=>{
   else{for(let x=x1;x<x2;x++){if(doors.includes(x))continue;blockedEdge.add(edgeKey(tk(x,y1-1),tk(x,y1)));}}
 });
 const blocked=new Set();
+for(let x=0;x<GW;x++)for(let y=0;y<GH;y++)if(!inOct(x,y))blocked.add(tk(x,y)); // outside the octagon
 const FURN=[];
 function F(o){FURN.push(o);if(o.block!==false)for(let i=0;i<Math.max(1,Math.round(o.w));i++)for(let j=0;j<Math.max(1,Math.round(o.d));j++)blocked.add(tk(Math.floor(o.x)+i,Math.floor(o.y)+j));}
 const PLANT=(x,y)=>F({x,y,w:1,d:1,h:26,col:'#3E8E4A',t:'plant'});
-// Reception: counter in front of the entrance (left wall), receptionists face the door
-[1,2,3,4].forEach((y)=>F({x:2,y,w:1,d:1,h:28,col:'#B07A45',t:'counter',pc:y===2||y===3}));F({x:5,y:0,w:1,d:1,h:56,col:'#7A5232',t:'shelf'});PLANT(0,0);PLANT(0,5);
-F({x:4,y:5,w:2,d:1,h:14,col:'#4A6B8A',t:'sofa',block:false});
-// Bot room: sorting shelf
-F({x:10,y:0,w:1,d:2,h:58,col:'#6B4A2E',t:'cubby'});
-// Logistics: records shelf
-F({x:18,y:0,w:1,d:2,h:62,col:'#6B4A2E',t:'books'});PLANT(11,5);
-// your office: desk faces the door, printer, records shelf, 2 visitor chairs
-F({x:20,y:3,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});F({x:23,y:0,w:1,d:2,h:62,col:'#6B4A2E',t:'books'});F({x:23,y:4,w:1,d:1,h:30,col:'#2D3550',t:'printer'});PLANT(19,0);
-// Managing Director
-F({x:25,y:3,w:3,d:1,h:24,col:'#7A4A2A',t:'exec'});F({x:28,y:0,w:1,d:2,h:62,col:'#6B4A2E',t:'books'});PLANT(24,0);PLANT(28,5);
-// Office A (spare)
-F({x:30,y:3,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});PLANT(33,0);
-// corridor
-F({x:33,y:6,w:1,d:1,h:34,col:'#BFD7E6',t:'cooler'});PLANT(0,7);PLANT(9,14);
-// Finance, HR
-F({x:1,y:9,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});PLANT(4,12);F({x:0,y:12,w:1,d:1,h:56,col:'#7A5232',t:'cabinet'});
-F({x:6,y:9,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});PLANT(5,12);F({x:9,y:12,w:1,d:1,h:56,col:'#7A5232',t:'cabinet'});
-// Accounts: two record cabinets (With Accounts, Reports)
-F({x:17,y:8,w:1,d:1,h:56,col:'#7A5232',t:'cabinet'});F({x:17,y:10,w:1,d:1,h:56,col:'#6B4A2E',t:'books'});PLANT(10,12);
-// COO (In Process cabinet), Project Director
-F({x:19,y:9,w:3,d:1,h:24,col:'#7A4A2A',t:'exec'});F({x:22,y:12,w:1,d:1,h:56,col:'#7A5232',t:'cabinet'});PLANT(18,12);
-F({x:24,y:9,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});PLANT(27,12);
-// Meeting room: big table
-F({x:29,y:10,w:4,d:2,h:14,col:'#8A5A35',t:'table'});PLANT(33,12);
-// Site room, Warehouse
-PLANT(7,19);
-F({x:14,y:15,w:1,d:4,h:64,col:'#5A6470',t:'rack'});F({x:13,y:19,w:1,d:1,h:20,col:'#B08A5A',t:'boxes'});
-// Break room: sofa facing the TV, table
-F({x:16,y:16,w:4,d:1,h:16,col:'#C84B45',t:'sofa'});F({x:17,y:18,w:2,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:20,y:19,w:1,d:1,h:40,col:'#2D3550',t:'tv'});
-// Pantry: kitchen + bar counter with stools
-F({x:21,y:15,w:3,d:1,h:28,col:'#D7D2C6',t:'kitchen'});F({x:24,y:15,w:1,d:1,h:56,col:'#EEF2F7',t:'fridge'});F({x:21,y:17,w:4,d:1,h:30,col:'#5A4632',t:'bar'});
-// Toilet: sinks, urinals on the wall, two WC cubicles
-F({x:28,y:15,w:2,d:1,h:26,col:'#E6EAEE',t:'sink'});
-F({x:26,y:17,w:1,d:1,h:30,col:'#F4F6F8',t:'urinal'});F({x:26,y:18,w:1,d:1,h:30,col:'#F4F6F8',t:'urinal'});
-F({x:29,y:17,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet'});F({x:29,y:19,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet'});
-F({x:28,y:18,w:2,d:.12,h:46,col:'#C9D4DE',t:'stall',block:false});F({x:28,y:16.9,w:2,d:.12,h:46,col:'#C9D4DE',t:'stall',block:false});
-// Office B (spare)
-F({x:31,y:17,w:2,d:1,h:24,col:'#8A5A35',t:'exec'});PLANT(33,19);
+const CAB=(x,y,face,t)=>F({x,y,w:1,d:1,h:56,col:'#7A5232',t:t||'cabinet',face});
+const RUG=(x,y,w,d)=>F({x,y,w,d,h:1,col:'#3C4A66',t:'rug',block:false});
+ // Private offices (same for everyone): desk + chair facing the door, two visitor chairs, a cabinet, books, plants.
+[['fin',26],['coo',32]].forEach(([id,X])=>{F({x:X+2,y:3,w:3,d:1,h:24,col:'#8A5A35',t:'exec'});CAB(X+5,0,'S');F({x:X,y:0,w:1,d:2,h:62,col:'#6B4A2E',t:'books',face:'E'});PLANT(X,6);PLANT(X+5,6);});
+ // Project Director + MEP Manager (right side, door on the west): the same set turned to face their door.
+[['pd',12],['spA',18]].forEach(([id,Y])=>{F({x:41,y:Y+2,w:1,d:3,h:24,col:'#8A5A35',t:'exec'});CAB(45,Y+1,'W');F({x:45,y:Y+3,w:1,d:2,h:62,col:'#6B4A2E',t:'books',face:'W'});PLANT(38,Y);PLANT(45,Y+5);});
+ // IRWIN: the corner office. Desk facing the door, two visitor chairs, printer (Ready to Print), cabinet, books, rug.
+RUG(3,3,4,5);F({x:5,y:4,w:1,d:3,h:24,col:'#7A4A2A',t:'exec'});F({x:2,y:7,w:1,d:2,h:62,col:'#6B4A2E',t:'books',face:'E'});F({x:7,y:2,w:1,d:1,h:30,col:'#2D3550',t:'printer',face:'W'});F({x:3,y:6,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});
+ // Managing Director: the corner office. Desk, two visitor chairs, sofa facing his own TV over a rug, books, cabinet.
+F({x:39,y:4,w:3,d:1,h:24,col:'#7A4A2A',t:'exec'});F({x:38,y:1,w:1,d:2,h:62,col:'#6B4A2E',t:'books',face:'E'});
+ // his sofa corner: a 2-seater facing the TV + a single by the door facing the window (L shape), further from the TV
+RUG(39,7,4,4);F({x:40,y:7,w:2,d:1,h:16,col:'#7152A3',t:'sofa',face:'S'});F({x:40.5,y:9,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:40,y:11,w:2,d:1,h:40,col:'#2D3550',t:'tv',face:'N'});
+CAB(38,10,'E');PLANT(38,11);
+ // his private toilet by the window corner: just a toilet and a sink
+F({x:45,y:10,w:1,d:1,h:26,col:'#E6EAEE',t:'sink',face:'W'});F({x:45,y:11,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet',face:'W'});F({x:44,y:10,w:2,d:2,h:1,col:'#DCE7EE',t:'tilefloor',block:false});
+ // Pantry: kitchen + fridge on the back wall, a high table with stools on both sides, water cooler; door kept clear.
+F({x:8,y:0,w:4,d:1,h:28,col:'#D7D2C6',t:'kitchen',face:'S'});F({x:12,y:0,w:1,d:1,h:56,col:'#EEF2F7',t:'fridge',face:'S'});F({x:9,y:3,w:3,d:1,h:30,col:'#5A4632',t:'bar'});F({x:13,y:5,w:1,d:1,h:30,col:'#E0E6EC',t:'cooler',face:'W'});PLANT(13,0);
+ // Bot room: the three bots in a cubicle pod; Sami's cubby on the wall.
+CAB(19,0,'S','cubby');PLANT(14,6);PLANT(19,6);
+ // Logistics (4): one cubicle pod, a low cabinet on the wall.
+F({x:25,y:1,w:1,d:2,h:30,col:'#6B4A2E',t:'lowcab',face:'W'});PLANT(20,6);PLANT(25,6);
+ // Meeting room: one table, 12 chairs around it, screen on the wall; the door is at the far end.
+F({x:2,y:12,w:4,d:2,h:14,col:'#8A5A35',t:'table'});F({x:3,y:9,w:2,d:1,h:40,col:'#2D3550',t:'tv',face:'S'});PLANT(0,9);PLANT(7,9);PLANT(0,16);
+ // Reception: open to the hub. One long desk facing the entrance door, a waiting corner, records shelf, plants.
+CAB(6,17,'S','shelf');PLANT(0,17);PLANT(0,25);PLANT(6,25);F({x:2,y:18,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});
+ // Toilet: sinks on the back wall, two cubicles, two urinals.
+F({x:2,y:26,w:3,d:1,h:26,col:'#E6EAEE',t:'sink',face:'S'});F({x:0,y:28,w:1,d:1,h:30,col:'#F4F6F8',t:'urinal',face:'E'});F({x:0,y:29,w:1,d:1,h:30,col:'#F4F6F8',t:'urinal',face:'E'});
+F({x:3,y:30,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet',face:'N'});F({x:5,y:30,w:1,d:1,h:22,col:'#F4F6F8',t:'toilet',face:'N'});
+F({x:2,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});F({x:4,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});F({x:6,y:29,w:.12,d:2,h:46,col:'#C9D4DE',t:'stall',block:false});
+ // Lounge (corner, the room for later): a U of sofas round a coffee table open to the TV, a reading corner, big plants.
+RUG(8,32,7,6);F({x:9,y:34,w:1,d:3,h:16,col:'#7C5CB0',t:'sofa',face:'E',block:false});F({x:11,y:33,w:3,d:1,h:16,col:'#7152A3',t:'sofa',face:'S',block:false});F({x:11,y:37,w:3,d:1,h:16,col:'#7152A3',t:'sofa',face:'N',block:false});
+F({x:12,y:35,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});F({x:14,y:35,w:1,d:1,h:40,col:'#2D3550',t:'tv',face:'W'});F({x:4,y:34,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});
+PLANT(1,32);PLANT(6,32);PLANT(14,32);PLANT(14,39);PLANT(8,39);PLANT(6,37);
+ // Accounts (4): one pod of four desks (glass dividers), the six cabinets on one wall (incl. the reports shelf).
+[32,33,34,35,36].forEach((y)=>CAB(21,y,'W'));F({x:21,y:37,w:1,d:1,h:62,col:'#6B4A2E',t:'books',face:'W'});
+ // their sofa corner by the window: a 2-seater on the window side + two singles = a U round a small table
+F({x:16,y:39,w:2,d:1,h:16,col:'#7152A3',t:'sofa',face:'N',block:false});F({x:16.5,y:38,w:1,d:1,h:12,col:'#E9E2D2',t:'table'});PLANT(15,32);PLANT(20,39);
+ // Procurement: three areas behind glass: the team of 3 (pod, cabinets on the wall), the lead (own cabinet), the architect.
+CAB(23,31,'S');CAB(24,31,'S');CAB(25,31,'S');CAB(22,38,'E');CAB(29,39,'W');PLANT(29,32);PLANT(22,33);
+ // Site room: QS area (pod of 4 + the head draftsman) | Site DC area (two pods of 4, whiteboard); opens to the Warehouse.
+[32,33,34,35,36].forEach((x)=>CAB(x,31,'S'));[31,32,33].forEach((x)=>CAB(x,39,'N'));F({x:37,y:31,w:3,d:1,h:40,col:'#F4F6F8',t:'board',face:'S'});PLANT(44,32);PLANT(38,38);PLANT(42,34);PLANT(36,39);
+ // Warehouse: racks + boxes.
+F({x:45,y:25,w:1,d:5,h:64,col:'#5A6470',t:'rack'});F({x:38,y:25,w:2,d:1,h:20,col:'#B08A5A',t:'boxes'});
+ // Office B.
+F({x:35,y:27,w:2,d:1,h:24,col:'#8A5A35',t:'exec'});CAB(37,25,'S');PLANT(37,30);
+ // Finishing touches: art frames on the walls, water dispensers in the hub corners, IBA logo walls in Reception + Lounge.
+const FRAME=(x,y,face,k)=>F({x,y,w:1,d:1,h:1,col:'#C9A24A',t:'art',face,k,block:false});
+ // (art frames removed 26-Nov per martin; FRAME helper kept for later)
+[[36,7,'S'],[8,30,'E'],[33,30,'N']].forEach(([x,y,f])=>F({x,y,w:1,d:1,h:30,col:'#E0E6EC',t:'cooler',face:f})); // water dispensers
+ // snack vending machine + glass-door drinks fridge on the hub wall by the pantry
+F({x:13,y:7,w:1,d:1,h:60,col:'#C8323C',t:'vending',face:'S'});F({x:14,y:7,w:1,d:1,h:60,col:'#2A2F3A',t:'drinks',face:'S'});
+F({x:2,y:17,w:3,d:1,h:60,col:'#1E2433',t:'adtv',face:'S',block:false});F({x:2,y:31,w:3,d:1,h:60,col:'#1E2433',t:'logo',face:'S'});
+ // The hub: octagon fountain with the IBA sign, long waiting sofas with small tables, big plants.
+F({x:20,y:16,w:7,d:7,h:20,col:'#2D3550',t:'fountain'});
+F({x:21,y:13,w:5,d:1,h:16,col:'#7152A3',t:'sofa',face:'S'});F({x:21,y:25,w:5,d:1,h:16,col:'#7152A3',t:'sofa',face:'N'});
+F({x:16,y:17,w:1,d:5,h:16,col:'#7152A3',t:'sofa',face:'E'});F({x:30,y:17,w:1,d:5,h:16,col:'#7152A3',t:'sofa',face:'W'});
+[[19,13],[27,13],[19,25],[27,25],[16,15],[16,23],[30,15],[30,23]].forEach(([x,y])=>F({x,y,w:1,d:1,h:12,col:'#E9E2D2',t:'table'}));
+[[17,13],[29,13],[17,25],[29,25],[9,8],[36,8],[9,29],[36,12]].forEach(([x,y])=>PLANT(x,y));
 // ---------- path finding ----------
 function walkable(x,y){return x>=0&&y>=0&&x<GW&&y<GH&&!blocked.has(tk(x,y));}
 function findPath(from,to){const s=tk(from[0],from[1]),g=tk(to[0],to[1]);if(s===g)return [];
@@ -189,7 +235,9 @@ function drawStatic(c){
     if(r.kind==='wood'){col=shade(r.floor,((x*7+y*13)%5-2)*.025);}
     if(r.kind==='tile'){col=((x+y)%2)?r.floor:shade(r.floor,-.06);}
     if(r.kind==='carpet'){col=shade(r.floor,((x+y)%2)*.03);}
-    poly(c,p,col);
+    const artCol=root.dataset.theme==='pixel'?(r.id==='plaza'?1:r.kind==='wood'?0:r.kind==='tile'?2:3):(r.kind==='wood'?0:r.id==='plaza'||r.kind==='tile'?2:3);
+    const center=iso(x+.5,y+.5,0);
+    if(!drawAtlasCell(c,ART.architecture,artCol,0,center[0]-TW/2-2,center[1]-TH/2-3,TW+4,TH+6))poly(c,p,col);
     if(r.kind==='wood'){c.strokeStyle='rgba(90,55,25,.18)';c.lineWidth=1;for(let k=1;k<3;k++){const a=iso(x+k/3,y),b=iso(x+k/3,y+1);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke();}}
     if(r.kind==='tile'){c.strokeStyle='rgba(0,0,0,.06)';c.stroke();}
   }
@@ -206,16 +254,17 @@ function drawStatic(c){
   poly(c,[iso(0,0,8),iso(GW,0,8),iso(GW,0),iso(0,0)],'#8A6A4A');
   poly(c,[iso(0,0,8),iso(0,GH,8),iso(0,GH),iso(0,0)],'#7A5C40');
   // windows on back wall (x along)
-  [0.7,7.6,12.4,15.3,20.2,25.2,30.4].forEach(x=>winX(c,x,1.6));
-  [9.6,16.4].forEach(y=>winY(c,y,1.6));
+  [0.7,7.6,12.4,15.3,20.2,25.2,30.4,33.2,37.6,41.2,43.7].forEach(x=>winX(c,x,1.3));
+  [9.6,16.4,25.4,33.2].forEach(y=>winY(c,y,1.6));
   // entrance door on left wall at y=3
   poly(c,[iso(0,2.6,70),iso(0,3.6,70),iso(0,3.6,0),iso(0,2.6,0)],'#7A4E2B');poly(c,[iso(0,2.7,64),iso(0,3.5,64),iso(0,3.5,0),iso(0,2.7,0)],'#9C6636');
   poly(c,[iso(0,3.35,34),iso(0,3.42,34),iso(0,3.42,30),iso(0,3.35,30)],'#E3C98A');
+  {const q=iso(1.3,4.2,2);c.save();c.translate(q[0],q[1]);c.fillStyle='rgba(8,13,24,.82)';rr(c,-74,-10,148,20,7);c.fill();c.fillStyle='#7df4ed';c.font='800 9px Inter,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('MAIN ENTRANCE / EXIT',0,0);c.restore();}
   // posters / boards
   posterX(c,3.0,'#2B3A55',null,'IBA');posterX(c,17.2,'#F4F1EA',ctxChart);
   // wall clock drawn dynamically
 }
-function winX(c,x,w){const z1=40,z2=96;poly(c,[iso(x,0,z2),iso(x+w,0,z2),iso(x+w,0,z1),iso(x,0,z1)],'#6E4A2A');
+function winX(c,x,w){if(ART.architecture&&ART.architecture.complete){const p=iso(x+w/2,0,0),dw=w*TW+16,dh=142;drawAtlasCell(c,ART.architecture,2,1,p[0]-dw/2,p[1]-dh,dw,dh);return;}const z1=40,z2=96;poly(c,[iso(x,0,z2),iso(x+w,0,z2),iso(x+w,0,z1),iso(x,0,z1)],'#6E4A2A');
   const g=c.createLinearGradient(...iso(x,0,z2),...iso(x,0,z1));g.addColorStop(0,'#8FD3F5');g.addColorStop(1,'#D8F1FC');
   poly(c,[iso(x+.08,0,z2-4),iso(x+w-.08,0,z2-4),iso(x+w-.08,0,z1+4),iso(x+.08,0,z1+4)],g);
   poly(c,[iso(x+w/2-.03,0,z2-4),iso(x+w/2+.03,0,z2-4),iso(x+w/2+.03,0,z1+4),iso(x+w/2-.03,0,z1+4)],'#6E4A2A');
@@ -228,6 +277,8 @@ function ctxChart(c,x){[[.2,14],[.45,22],[.7,18],[.95,30]].forEach(([o,h])=>poly
 function posterX(c,x,col,fn,label){poly(c,[iso(x,0,90),iso(x+1.3,0,90),iso(x+1.3,0,44),iso(x,0,44)],'#6E4A2A');poly(c,[iso(x+.06,0,87),iso(x+1.24,0,87),iso(x+1.24,0,47),iso(x+.06,0,47)],col);if(fn)fn(c,x);if(label){const p=iso(x+.65,0,67);c.save();c.translate(p[0],p[1]);c.transform(1,.5,0,1,0,0);c.fillStyle='#E3C98A';c.font='800 13px Inter,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(label,0,0);c.restore();}}
 // ---------- furniture drawing ----------
 function drawFurn(c,o,t){const z=o.z||0;
+  const map={desk:[0,0],exec:[1,0],counter:[2,0],table:o.w>=4?[3,0]:[2,2],shelf:[2,1],books:[2,1],cabinet:[2,1],cubby:[3,1],sofa:o.w>=2.5?[0,2]:[1,2],printer:[0,3],kitchen:[1,3],rack:[2,3],plant:[3,3]};
+  const sprite=map[o.t];if(sprite&&ART.furniture&&ART.furniture.complete){const p=iso(o.x+o.w/2,o.y+o.d/2,z),dw=Math.max(54,(o.w+o.d)*TW*.58),dh=Math.max(68,(o.h||20)*1.15+(o.w+o.d)*TH*.34);drawAtlasCell(c,ART.furniture,sprite[0],sprite[1],p[0]-dw/2,p[1]-dh+5,dw,dh);return;}
   shadowAt(c,o.x+o.w/2,o.y+o.d/2+.1,o.w*TW*.36,o.d*TH*.5,.16);
   switch(o.t){
     case 'plant':{box(c,o.x+.28,o.y+.28,.44,.44,16,'#B5502B');const p=iso(o.x+.5,o.y+.5,16);const leaf=(dx,dy,r,col)=>{c.fillStyle=col;c.beginPath();c.ellipse(p[0]+dx,p[1]+dy,r,r*.8,0,0,Math.PI*2);c.fill();};
@@ -271,7 +322,7 @@ function drawWall(c,o){if(o.frame){box(c,o.x,o.y,o.w,o.d,o.h,'#6B4A2E',o.z||0);r
 function go(p,to){return new Promise(res=>{const path=findPath([Math.round(p.x),Math.round(p.y)],to);if(reduce||!path.length){p.x=to[0];p.y=to[1];p.path=[];return setTimeout(res,reduce?150:0);}p.path=path;p.res=res;});}
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 function say(p,txt,ms=2600){p.bubble=txt;p.bubbleT=performance.now()+ms;}
-function drawPerson(c,p,t){if(p.hidden)return;const [sx,sy]=iso(p.x+.5,p.y+.5);const walking=p.path.length>0;
+function drawLegacyPerson(c,p,t){if(p.hidden)return;const [sx,sy]=iso(p.x+.5,p.y+.5);const walking=p.path.length>0;
   const bob=walking?Math.abs(Math.sin(t/110))*3:Math.sin(t/700+p.x)*0.8;const s=p.human?1:1;
   c.fillStyle='rgba(0,0,0,.28)';c.beginPath();c.ellipse(sx,sy,13,6,0,0,7);c.fill();
   const st=walking?null:seatAt(p);const seated=!!st;const back=!!(st&&(st.dir==='N'||st.dir==='W'));
@@ -318,7 +369,21 @@ function drawPerson(c,p,t){if(p.hidden)return;const [sx,sy]=iso(p.x+.5,p.y+.5);c
   if(p.bubble&&performance.now()<p.bubbleT){c.font='700 11.5px Inter,sans-serif';const w=Math.min(230,c.measureText(p.bubble).width+16);const bx=sx-w/2,by=sy-bob-112;
     c.fillStyle='#FFFFFF';rr(c,bx,by,w,24,10);c.fill();c.beginPath();c.moveTo(sx-5,by+24);c.lineTo(sx,by+31);c.lineTo(sx+5,by+24);c.fill();c.fillStyle='#1B1F2A';c.fillText(p.bubble,sx,by+12.5,w-10);}
 }
-function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function drawPerson(c,p,t){
+  if(p.hidden)return;
+  const atlas=p.human?ART.human:ART.bot;
+  if(!atlas||!atlas.complete||!atlas.naturalWidth){drawLegacyPerson(c,p,t);return;}
+  const [sx,sy]=iso(p.x+.5,p.y+.5),walking=p.path.length>0,st=walking?null:seatAt(p),now=performance.now();
+  const row=walking?1:(st||p.sit)?2:(p.bubble&&now<p.bubbleT)?3:0;
+  let col;
+  if(p.human){const h=hash(p.full||p.name);col=p.room==='site'?3:p.beard?1:(h%2?2:0);}
+  else{col=Math.max(0,BOTS.findIndex((b)=>b.name===p.name));}
+  const w=84,h=100,y=sy-h+5;c.fillStyle='rgba(0,0,0,.22)';c.beginPath();c.ellipse(sx,sy-2,18,7,0,0,Math.PI*2);c.fill();
+  c.save();if(p.face<0){c.translate(sx,0);c.scale(-1,1);drawAtlasCell(c,atlas,col,row,-w/2,y,w,h);}else drawAtlasCell(c,atlas,col,row,sx-w/2,y,w,h);c.restore();
+  c.font='700 10.5px Inter,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';
+  const label=p.me?'You':p.name,lw=c.measureText(label).width+10;c.fillStyle='rgba(14,17,23,.78)';rr(c,sx-lw/2,sy-105,lw,15,7);c.fill();c.fillStyle=p.human?'#E3C98A':p.hair;c.fillText(label,sx,sy-97.5);
+  if(p.bubble&&now<p.bubbleT){c.font='700 11.5px Inter,sans-serif';const bw=Math.min(230,c.measureText(p.bubble).width+16),bx=sx-bw/2,by=sy-137;c.fillStyle='#FFFFFF';rr(c,bx,by,bw,24,10);c.fill();c.beginPath();c.moveTo(sx-5,by+24);c.lineTo(sx,by+31);c.lineTo(sx+5,by+24);c.fill();c.fillStyle='#1B1F2A';c.fillText(p.bubble,sx,by+12.5,bw-10);}
+}function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 function stackAt(c,x,y,z,k){for(let i=0;i<Math.min(k,7);i++)box(c,x,y,.4,.3,2,'#F7F4EC',z+i*2.4,{edge:'rgba(0,0,0,.08)'});}
 function drawClock(c){const p=iso(9.6,0,76);c.save();c.translate(p[0],p[1]);c.transform(1,.5,0,1,0,0);c.fillStyle='#FFFFFF';c.beginPath();c.arc(0,0,13,0,7);c.fill();c.strokeStyle='#6E4A2A';c.lineWidth=2.5;c.stroke();
   const d=new Date(),ha=((d.getHours()%12)+d.getMinutes()/60)/12*Math.PI*2,ma=d.getMinutes()/60*Math.PI*2;c.strokeStyle='#1B1F2A';c.lineWidth=2;c.beginPath();c.moveTo(0,0);c.lineTo(Math.sin(ha)*6,-Math.cos(ha)*6);c.moveTo(0,0);c.lineTo(Math.sin(ma)*9.5,-Math.cos(ma)*9.5);c.stroke();c.restore();}
@@ -348,45 +413,56 @@ const norm = (s) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 const people = [];
 function person(o) { Object.assign(o, { px: o.x, py: o.y, path: [], res: null, carry: false, bubble: '', bubbleT: 0, hidden: false, face: 1, busy: false, sit: false }); people.push(o); return o; }
 const BOTS = [
-  person({ name: 'Rina', tag: 'Bot 1', role: 'Reception', room: 'rec', hair: '#3FD1C1', suit: '#1E7E75', style: 'twin', x: 7, y: 1, home: [7, 1], cab: [5, 1] }),
-  person({ name: 'Sami', tag: 'Bot 2', role: 'Sorting', room: 'bot', hair: '#E3C98A', suit: '#8A6A2E', style: 'spike', x: 9, y: 1, home: [9, 1], cab: [10, 2] }),
-  person({ name: 'Rafi', tag: 'Bot 3', role: 'Reports', room: 'acc', hair: '#5AA9FF', suit: '#2F5F9C', style: 'spike', x: 7, y: 3, home: [7, 3], cab: [17, 11] }),
-  person({ name: 'Ana', tag: 'Bot 4', role: 'Accounts', room: 'acc', hair: '#FF7EB6', suit: '#A34676', style: 'bob', x: 9, y: 3, home: [9, 3], cab: [17, 9] }),
+  person({ name: 'Rina', tag: 'Bot 1', role: 'Reception', room: 'rec', hair: '#3FD1C1', suit: '#1E7E75', style: 'twin', x: 5, y: 22, home: [5, 22], dir: 'W', cab: [6, 18] }),
+  person({ name: 'Sami', tag: 'Bot 2', role: 'Sorting', room: 'bot', hair: '#E3C98A', suit: '#8A6A2E', style: 'spike', x: 16, y: 2, home: [16, 2], cab: [19, 1] }),
+  person({ name: 'Rafi', tag: 'Bot 3', role: 'Reports', room: 'bot', hair: '#5AA9FF', suit: '#2F5F9C', style: 'spike', x: 17, y: 2, home: [17, 2], cab: [20, 37] }),
+  person({ name: 'Ana', tag: 'Bot 4', role: 'Accounts', room: 'bot', hair: '#FF7EB6', suit: '#A34676', style: 'bob', x: 16, y: 4, home: [16, 4], dir: 'N', cab: [20, 32] }),
 ];
-const SPOT = { myFront: [21, 4], sofa: [[16, 16], [17, 16], [18, 16], [19, 16]], pantry: [[21, 18], [22, 18], [23, 18], [24, 18]], wc: [[28, 17], [28, 19]], cooler: [32, 6] };
+// lounge sofa seats [x, y, facing]
+const SOFA_SEATS = [[9, 34, 'E'], [9, 35, 'E'], [9, 36, 'E'], [11, 33, 'S'], [12, 33, 'S'], [13, 33, 'S'], [11, 37, 'N'], [12, 37, 'N'], [13, 37, 'N']];
+const SPOT = { myFront: [6, 5], sofa: SOFA_SEATS.map(([x, y]) => [x, y]), pantry: [[9, 2], [10, 2], [11, 2], [9, 4], [10, 4], [11, 4]], wc: [[3, 29], [5, 29]], cooler: [12, 5] };
+const MEET_SEATS = [[2, 11, 'S'], [3, 11, 'S'], [4, 11, 'S'], [5, 11, 'S'], [2, 14, 'N'], [3, 14, 'N'], [4, 14, 'N'], [5, 14, 'N'], [1, 12, 'E'], [1, 13, 'E'], [6, 12, 'W'], [6, 13, 'W']];
 // seats [x, y, facing]: facing = where the desk is (S = toward you, N = back to you, W / E = sideways).
-// Every room's desks face its door. More people in a room = more seats here (Setup shows the max).
+// Shared rooms: desks in pods (two rows back to back sharing one desk row, glass dividers between them).
 const SEATS = {
-  rec: [[3, 2, 'W'], [3, 3, 'W']],
-  log: [[12, 1, 'S'], [14, 1, 'S'], [16, 1, 'S'], [12, 3, 'S'], [14, 3, 'S'], [16, 3, 'S']],
-  me: [[21, 2, 'S']], md: [[26, 2, 'S']], spA: [[31, 2, 'S']],
-  fin: [[2, 10, 'N'], [3, 12, 'N']], hr: [[7, 10, 'N'], [8, 12, 'N']],
-  acc: [[11, 10, 'N'], [13, 10, 'N'], [15, 10, 'N'], [11, 12, 'N'], [13, 12, 'N'], [15, 12, 'N']],
-  coo: [[20, 10, 'N']], pd: [[25, 10, 'N']],
-  site: [[1, 17, 'N'], [3, 17, 'N'], [5, 17, 'N'], [7, 17, 'N'], [1, 19, 'N'], [3, 19, 'N'], [5, 19, 'N']],
-  wh: [[9, 17, 'N'], [11, 17, 'N'], [9, 19, 'N'], [11, 19, 'N']],
-  spB: [[32, 18, 'N']],
-};
-const DIRV = { S: [0, 1], N: [0, -1], W: [-1, 0], E: [1, 0] };
+  rec: [[5, 20, 'W']], // Hafiz; Rina (bot) has the 2nd chair at the same desk
+  log: [[22, 2, 'S'], [23, 2, 'S'], [22, 4, 'N'], [23, 4, 'N']],
+  me: [[4, 5, 'E']], md: [[40, 3, 'S']], spA: [[42, 21, 'W']], fin: [[29, 2, 'S']], coo: [[35, 2, 'S']], pd: [[42, 15, 'W']],
+  acc: [[17, 34, 'S'], [18, 34, 'S'], [17, 36, 'N'], [18, 36, 'N']],
+  hr: [[23, 39, 'N'], [23, 33, 'S'], [24, 33, 'S'], [23, 35, 'N'], [27, 39, 'N']], // lead, team of 3, architect
+  site: [[37, 33, 'S'], [38, 33, 'S'], [37, 35, 'N'], [38, 35, 'N'], [40, 33, 'S'], [41, 33, 'S'], [40, 35, 'N'], [41, 35, 'N'], [31, 33, 'S'], [32, 33, 'S'], [31, 35, 'N'], [32, 35, 'N'], [34, 37, 'W']], // 8 Site DC, 4 QS, head draftsman
+  wh: [[40, 26, 'S'], [41, 26, 'S'], [40, 28, 'N'], [41, 28, 'N']],
+  spB: [[36, 26, 'S']],
+};const DIRV = { S: [0, 1], N: [0, -1], W: [-1, 0], E: [1, 0] };
 // every seat = a chair + its own desk and PC in the facing direction (an existing desk/counter/table there is shared)
 const CHAIRS = [];
-function deskAt(x, y) { return FURN.find((o) => x >= Math.floor(o.x) && x < Math.floor(o.x) + Math.max(1, Math.round(o.w)) && y >= Math.floor(o.y) && y < Math.floor(o.y) + Math.max(1, Math.round(o.d))); }
+function deskAt(x, y) { return FURN.find((o) => o.t !== 'divider' && o.t !== 'rug' && o.t !== 'tilefloor' && o.t !== 'art' && x >= Math.floor(o.x) && x < Math.floor(o.x) + Math.max(1, Math.round(o.w)) && y >= Math.floor(o.y) && y < Math.floor(o.y) + Math.max(1, Math.round(o.d))); }
 function addSeat(x, y, dir, col, opts) {
-  dir = dir || 'S'; CHAIRS.push(Object.assign({ x, y, dir, col: col || '#2E3A4E' }, opts || {}));
+  dir = dir || 'S'; CHAIRS.push(Object.assign({ x, y, dir, col: col || '#2E3A4E', sprite: 'work' }, opts || {}));
   if (opts && opts.noDesk) return; const v = DIRV[dir]; const dx = x + v[0], dy = y + v[1];
   if (!deskAt(dx, dy)) F({ x: dx, y: dy, w: 1, d: 1, h: 24, col: '#B07A45', t: 'desk' });
 }
-Object.keys(SEATS).forEach((rid) => SEATS[rid].forEach(([x, y, d]) => addSeat(x, y, d, ['me', 'md', 'coo', 'pd', 'fin', 'hr', 'spA', 'spB'].includes(rid) ? '#3A2A20' : null)));
-BOTS.forEach((b) => addSeat(b.home[0], b.home[1], 'S', '#24303F'));
-// visitor chairs in the managers' rooms, meeting room chairs all round the table, pantry stools, sofa places
-[[20, 4], [22, 4], [25, 4], [27, 4], [30, 4], [32, 4]].forEach(([x, y]) => addSeat(x, y, 'N', '#3A3F4A', { noDesk: true }));
-[[20, 8], [25, 8]].forEach(() => {});
-[29, 30, 31, 32].forEach((x) => { addSeat(x, 9, 'S', '#2E3A4E', { noDesk: true }); addSeat(x, 12, 'N', '#2E3A4E', { noDesk: true }); });
-addSeat(33, 10, 'W', '#2E3A4E', { noDesk: true }); addSeat(33, 11, 'W', '#2E3A4E', { noDesk: true });
-SPOT.pantry.forEach(([x, y]) => addSeat(x, y, 'N', '#5A4632', { noDesk: true, stool: true }));
-SPOT.sofa.forEach(([x, y]) => addSeat(x, y, 'S', '', { noDesk: true, hidden: true }));
+Object.keys(SEATS).forEach((rid) => SEATS[rid].forEach(([x, y, d], i) => addSeat(x, y, d, ['me', 'md', 'coo', 'pd', 'fin', 'spA', 'spB'].includes(rid) || (rid === 'hr' && i === 0) || (rid === 'site' && i === 12) ? '#3A2A20' : null)));
+BOTS.forEach((b) => addSeat(b.home[0], b.home[1], b.dir || 'S', '#24303F'));
+ // Pod dividers: glass along the middle of each shared desk row, and between the two desks of a row.
+const DIV = (x, y, w, d) => F({ x, y, w, d, h: 20, col: '#C9D4DE', t: 'divider', block: false });
+[[17, 35, 2], [23, 34, 2], [37, 34, 2], [40, 34, 2], [31, 34, 2], [22, 3, 2], [40, 27, 2], [16, 3, 2]].forEach(([x, y, n]) => { DIV(x, y + .46, n, .08); DIV(x + 1 - .04, y, .08, 1); });
+ // Visitor chairs: two in front of every private desk, meeting table, reception waiting corner.
+[26, 32].forEach((X) => { addSeat(X + 2, 4, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }); addSeat(X + 4, 4, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }); });
+[[39, 5], [41, 5], [35, 28], [36, 28]].forEach(([x, y]) => addSeat(x, y, 'N', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
+[[40, 14], [40, 16], [40, 20], [40, 22]].forEach(([x, y]) => addSeat(x, y, 'E', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
+[[6, 4], [6, 6]].forEach(([x, y]) => addSeat(x, y, 'W', '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
+[[3, 34, 'E'], [5, 34, 'W'], [15, 38, 'E'], [18, 38, 'W'], [39, 8, 'E']].forEach(([x, y, d]) => addSeat(x, y, d, '#69528C', { noDesk: true, sprite: 'lounge' })); // single sofas: Lounge reading corner, Accounts U, MD's L
+[[16, 39, 'N'], [17, 39, 'N']].forEach(([x, y, d]) => addSeat(x, y, d, '', { noDesk: true, hidden: true })); // Accounts 2-seater
+MEET_SEATS.forEach(([x, y, d]) => addSeat(x, y, d, '#2E3A4E', { noDesk: true, sprite: 'visitor' }));
+[[1, 18, 'E'], [3, 18, 'W'], [2, 19, 'N']].forEach(([x, y, d]) => addSeat(x, y, d, '#3A3F4A', { noDesk: true, sprite: 'visitor' }));
+SPOT.pantry.forEach(([x, y]) => addSeat(x, y, y < 3 ? 'S' : 'N', '#5A4632', { noDesk: true, stool: true }));
+SOFA_SEATS.forEach(([x, y, d]) => addSeat(x, y, d, '', { noDesk: true, hidden: true }));
 function seatAt(p) { return CHAIRS.find((o) => Math.abs(p.x - o.x) < .05 && Math.abs(p.y - o.y) < .05); }
-function drawChair(c, o, t) {
+function drawChair(c,o,t){
+  if(o.hidden)return;
+  if(o.stool){}
+  else if(ART.furniture&&ART.furniture.complete){const p=iso(o.x+.5,o.y+.5,0),cell=o.sprite==='visitor'?[1,1]:o.sprite==='lounge'?[3,2]:[0,1];drawAtlasCell(c,ART.furniture,cell[0],cell[1],p[0]-37,p[1]-80,74,84);return;}
   if (o.hidden) return;
   if (o.stool) { shadowAt(c, o.x + .5, o.y + .5, 9, 4, .16); box(c, o.x + .45, o.y + .45, .1, .1, 18, '#8A8F98'); box(c, o.x + .28, o.y + .28, .44, .44, 4, o.col, 18, { edge: 'rgba(255,255,255,.12)' }); return; }
   const occ = people.some((p) => !p.hidden && !p.path.length && Math.round(p.x) === o.x && Math.round(p.y) === o.y);
@@ -420,7 +496,7 @@ function defaultCfg() {
     coo: pick((a) => /^coo\b|chief operat/.test(pos(a)), 1),
     pd: pick((a) => /project director/.test(pos(a)) || /\be\.?\s*bara\b/.test(nm(a)), 1),
     fin: pick((a) => /finance manager/.test(pos(a)) || /\bmustafa\b|\bmostafa\b/.test(nm(a)), 1),
-    hr: pick((a) => /\bhr\b|human resource/.test(pos(a)), 2),
+  hr: pick((a) => /procurement|purchasing/.test(pos(a)), 4),
     log: pick((a) => /\b(imran|suhil|suhail)\b/.test(nm(a)) || /logistic/.test(pos(a)), 6),
     rec: pick((a) => /\bhafiz\b/.test(nm(a)) || /reception/.test(pos(a)), 2),
     acc: pick((a) => /\bgio\b/.test(nm(a)) || /account/.test(pos(a)), 6),
@@ -449,7 +525,7 @@ function isOnline(p) { if (p.me || !online) return true; return online.keys.has(
 // patch 141 (martin): everyone who signs in comes in through the entrance door and walks to their desk;
 // signing off = walks out through the door. Office closes at 6:00 PM (Qatar): whoever is still in goes home
 // then, so after 6 no one is in the office (until 6:00 AM). All times shown as 8:30 AM / 5:45 PM.
-const DOOR = [0, 3];
+const DOOR = [0, 21];
 function qatarMin() { try { const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); return (+p.find((x) => x.type === 'hour').value % 24) * 60 + (+p.find((x) => x.type === 'minute').value); } catch (_) { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); } }
 function officeClosed() { const m = qatarMin(); return m >= 18 * 60 || m < 6 * 60; }
 function awayHides(p) { return !!(p.away && AWAY[p.away.what] && AWAY[p.away.what].hide); }
@@ -457,6 +533,7 @@ function walkIn(p) { p.walking = 'in'; p.hidden = false; p.x = DOOR[0]; p.y = DO
 function walkOut(p) { if (p.hidden) { p.walking = null; return Promise.resolve(); } p.walking = 'out'; return go(p, DOOR).then(() => { if (p.walking === 'out') { p.walking = null; if (p.inside === false) p.hidden = true; } }); }
 let closedLogged = false;
 function todayQ() { try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar' }).format(new Date()); } catch (_) { return new Date().toDateString(); } }
+function markWalkInToday() { try { localStorage.setItem('iba-office-in-v1', todayQ()); } catch (_) {} }
 function applyPresence(quiet) {
   const closed = officeClosed();
   if (closed && !closedLogged && staff.some((p) => p.inside)) { closedLogged = true; log('6:00 PM · The office is closed. Everyone went home.'); }
@@ -465,10 +542,10 @@ function applyPresence(quiet) {
     const on = isOnline(p) && !closed;
     if (p.inside === undefined) {   // first look: people already in stay at their desk; you walk in once a day
       p.inside = on; p.hidden = !on || awayHides(p);
-      if (on && p.me) { let seen = ''; try { seen = localStorage.getItem('iba-office-in-v1') || ''; } catch (_) {} const t = todayQ(); if (seen !== t) { try { localStorage.setItem('iba-office-in-v1', t); } catch (_) {} if (!awayHides(p)) walkIn(p); } }
+      if (on && p.me && !awayHides(p)) { let seen = ''; try { seen = localStorage.getItem('iba-office-in-v1') || ''; } catch (_) {} if (seen !== todayQ()) { markWalkInToday(); walkIn(p); } }
       return;
     }
-    if (on && !p.inside) { p.inside = true; if (!quiet) log(`<b>${esc(p.full || p.name)}</b> came in.`); if (awayHides(p)) { p.walking = null; p.hidden = true; } else walkIn(p); }
+    if (on && !p.inside) { p.inside = true; if (!quiet) log(`<b>${esc(p.full || p.name)}</b> came in.`); if (awayHides(p)) { p.walking = null; p.hidden = true; } else { if (p.me) markWalkInToday(); walkIn(p); } }
     else if (!on && p.inside) { p.inside = false; if (!quiet && !closed) log(`<b>${esc(p.full || p.name)}</b> left the office.`); walkOut(p); }
     else if (!p.walking) p.hidden = !on || (awayHides(p) && !p.path.length);
   });
@@ -485,19 +562,18 @@ function myRoom() { const m = staff.find((p) => p.me); return m ? m.room : 'me';
 // ---------- real data ----------
 const CLOSED = /^(with accounts|cancelled|paid|closed|original po|report approved)$/i;
 const CABS = [
-  { id: 'rec', at: [5, 0], title: 'Reception · New entries', jobs: true },
-  { id: 'tray', at: [21, 3], tray: true, title: 'Your desk · Under Review', st: ['Under Review'] },
-  { id: 'bot', at: [10, 0], title: 'Bot room · SRV / IPC / Summary', st: ['For SRV', 'For IPC', 'IPC Application', 'For Summary', 'Pending'] },
-  { id: 'log', at: [18, 0], title: 'Logistics · On hold / inquiry', st: ['On Hold', 'For Inquiry', 'Unresolved'] },
-  { id: 'me', at: [23, 0], title: 'Your office · For Approval', st: ['For Approval'] },
-  { id: 'rtp', at: [23, 4], rtp: true, title: 'Printer · Ready to Print' },   // patch 140: the printer = Ready to Print
+  { id: 'rec', at: [6, 17], title: 'Reception · New entries', jobs: true },
+  { id: 'tray', at: [5, 4], tray: true, title: 'Your desk · Under Review', st: ['Under Review'] },
+  { id: 'bot', at: [19, 0], title: 'Bot room · SRV / IPC / Summary', st: ['For SRV', 'For IPC', 'IPC Application', 'For Summary', 'Pending'] },
+  { id: 'log', at: [25, 1], title: 'Logistics · On hold / inquiry', st: ['On Hold', 'For Inquiry', 'Unresolved'] },
+  { id: 'me', at: [2, 7], title: 'Your office · For Approval', st: ['For Approval'] },
+  { id: 'rtp', at: [7, 2], rtp: true, title: 'Printer · Ready to Print' },
   { id: 'print', at: [-1, -1], printer: true, title: 'Print basket' },
-  { id: 'md', at: [28, 0], title: 'Managing Director · CEO Approval', st: ['CEO Approval'] },
-  { id: 'acc', at: [17, 8], title: 'Accounts · With Accounts', st: ['With Accounts'] },
-  { id: 'rep', at: [17, 10], title: 'Accounts · Reports', st: ['Report', 'Report Approval'] },
-  { id: 'coo', at: [22, 12], title: 'COO office · In Process', st: ['In Process'] },
-];
-let rows = [];          // flat invoices
+  { id: 'md', at: [38, 10], title: 'Managing Director · CEO Approval', st: ['CEO Approval'] },
+  { id: 'acc', at: [21, 32], title: 'Accounts · With Accounts', st: ['With Accounts'] },
+  { id: 'rep', at: [21, 37], title: 'Accounts · Reports', st: ['Report', 'Report Approval'] },
+  { id: 'coo', at: [37, 0], title: 'COO office · In Process', st: ['In Process'] },
+];let rows = [];          // flat invoices
 let byStatus = {}, byAtt = {};
 let loadedAt = 0, loading = false;
 // last change of an invoice = newest of its dates and history lines
@@ -545,7 +621,7 @@ function attRows(p) { return byAtt[norm(p.full || p.name)] || []; }
 // ---------- room labels + counters ----------
 function badge(c, x, y, num) { if (!num) return; const s = String(num); c.font = '800 11px Inter,system-ui,sans-serif'; const w = Math.max(18, c.measureText(s).width + 10); c.fillStyle = '#E5484D'; rr(c, x - w / 2, y - 9, w, 18, 9); c.fill(); c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(s, x, y + .5); }
 function inRoom(r) { return people.filter((q) => !q.hidden && q.x + .5 >= r.x && q.x + .5 < r.x + r.w && q.y + .5 >= r.y && q.y + .5 < r.y + r.h); }
-function roomName(r) { return r.id === 'me' ? (staff.find((p) => p.room === 'me' && p.me) ? 'Your office' : 'Office') : r.name; }
+function roomName(r) { return r.id === 'me' ? 'IRWIN' : r.name; }
 function drawLabels(c) {
   const vr = myRoom();
   ROOMS.forEach((r) => { if (!r.name) return; const own = r.id === vr; const name = own && r.id !== 'me' ? 'Your office · ' + r.name : roomName(r); const p = iso(r.x + r.w / 2, r.y + r.h / 2, 0);
@@ -557,7 +633,20 @@ function drawLabels(c) {
   staff.forEach((p) => { if (!p.away) return; const h = iso(p.home[0] + .5, p.home[1] + .5, 34); const txt = awayText(p.away); c.font = '800 10.5px Inter,system-ui,sans-serif'; const w = c.measureText(txt).width + 14;
     c.fillStyle = 'rgba(247,165,49,.95)'; rr(c, h[0] - w / 2, h[1] - 9, w, 17, 8); c.fill(); c.fillStyle = '#1A140C'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, h[0], h[1]); });
 }
-// ---------- camera ----------
+function drawIbaLogo(c,t){
+  const bx=20.5,by=14.8,bw=5,bd=2.4,bh=22,p=iso(bx+bw/2,by+bd/2,bh),pixel=root.dataset.theme==='pixel';
+  const metal=pixel?'#27355A':'#737D8A',edge=pixel?'#55E8F0':'#D5DCE4',dark=pixel?'#11182B':'#3F4852';
+  shadowAt(c,bx+bw/2,by+bd/2,90,30,.25);box(c,bx,by,bw,bd,bh,metal,0,{edge});
+  box(c,bx+.22,by+.18,bw-.44,bd-.36,4,pixel?'#394B72':'#929DA8',bh-4,{edge});
+  const f1=iso(bx+.5,by+bd,bh-4),f2=iso(bx+bw-.5,by+bd,bh-4),f3=iso(bx+bw-.5,by+bd,5),f4=iso(bx+.5,by+bd,5);
+  poly(c,[f1,f2,f3,f4],dark,edge);
+  const plate=iso(bx+bw/2,by+bd,10);c.save();c.translate(plate[0],plate[1]);c.transform(1,.5,0,1,0,0);c.fillStyle=pixel?'#72F2EA':'#F1F4F7';c.font='900 16px Segoe UI,Arial,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('IBA OFFICE',0,0);c.restore();
+  const angle=t*.00075,sx=Math.cos(angle),top=iso(bx+bw/2,by+bd/2,bh+3);c.save();c.translate(top[0],top[1]);c.scale(Math.max(-1,Math.min(1,sx)),1);
+  c.font='900 88px Segoe UI,Arial,sans-serif';c.textAlign='center';c.textBaseline='middle';
+  for(let d=16;d>=1;d--){c.fillStyle=d>9?(pixel?'#263B72':'#556272'):(pixel?'#315FA3':'#3D6C97');c.fillText('IBA',0,-22-d);}
+  const g=c.createLinearGradient(0,-74,0,28);g.addColorStop(0,pixel?'#A5FFF0':'#F9FCFF');g.addColorStop(.5,pixel?'#38CEE1':'#8FC6E8');g.addColorStop(1,pixel?'#927BFF':'#496B96');
+  c.fillStyle=g;c.strokeStyle=edge;c.lineWidth=2;c.strokeText('IBA',0,-22);c.fillText('IBA',0,-22);c.restore();
+}// ---------- camera ----------
 const START_KEY = 'iba-office-start-v1';
 let zoom = 1; try { zoom = localStorage.getItem(START_KEY) === 'all' ? 0 : 1; } catch (_) {}
 function roomRect(r) { const xs = [iso(r.x, r.y + r.h)[0], iso(r.x + r.w, r.y)[0]]; const y0 = iso(r.x, r.y, WALL)[1] - 30, y1 = iso(r.x + r.w, r.y + r.h)[1] + 20; return { x: xs[0], y: y0, w: xs[1] - xs[0], h: y1 - y0 }; }
@@ -586,13 +675,14 @@ function composite() {
 // ---------- frame ----------
 function frame(t) {
   ctx.clearRect(0, 0, CW, CH); ctx.drawImage(st, 0, 0, CW, CH); drawClock(ctx);
-  const objs = [];
+   const objs = [];
   FURN.forEach((o) => objs.push({ d: o.x + o.w + o.y + o.d - .2, f: () => drawFurn(ctx, o, t) }));
   WALLOBJ.forEach((o) => objs.push({ d: o.x + o.w + o.y + o.d - .15, f: () => drawWall(ctx, o) }));
   CHAIRS.forEach((o) => objs.push({ d: o.x + o.y + 1.5, f: () => drawChair(ctx, o, t) }));
   people.forEach((p) => objs.push({ d: p.x + p.y + 1.6, f: () => drawPerson(ctx, p, t) }));
+  objs.push({d:43,f:()=>drawIbaLogo(ctx,t)});
   objs.sort((a, b) => a.d - b.d).forEach((o) => o.f());
-  dimOthers(ctx); drawLabels(ctx);
+   dimOthers(ctx); drawLabels(ctx);
   // counts over cabinets and people
   CABS.forEach((c, i) => { const o = furnAt(c.at[0], c.at[1]); if (!o) return; const n = (cabNewN[i] || 0); const p = iso(o.x + o.w / 2, o.y + o.d / 2, o.h + 18); badge(ctx, p[0], p[1], n); });
   staff.forEach((p) => { if (p.hidden) return; const n = attRows(p).length; const s = iso(p.x + .5, p.y + .5); badge(ctx, s[0] + 22, s[1] - 92, n); });
@@ -602,7 +692,9 @@ function loop(t) { if (!running) return; const dt = Math.min(.08, (t - last) / 1
   people.forEach((p) => { if (!p.path.length) return; const [tx, ty] = p.path[0]; const dx = tx - p.x, dy = ty - p.y, dist = Math.hypot(dx, dy), sp = 2.6 * dt;
     if (dx - dy !== 0) p.face = (dx - dy) > 0 ? 1 : -1;
     if (dist <= sp) { p.x = tx; p.y = ty; p.path.shift(); if (!p.path.length && p.res) { const r = p.res; p.res = null; r(); } } else { p.x += dx / dist * sp; p.y += dy / dist * sp; } });
-  frame(t); composite(); raf = requestAnimationFrame(loop); }
+  if (window.ibaOffice3DActive) { try { window.ibaOffice3DFrame(t, window.ibaOffice3DState()); } catch (e) { console.warn('Office 3D frame failed', e); } }
+  else { frame(t); composite(); }
+  raf = requestAnimationFrame(loop); }
 // ---------- side panel ----------
 function ampm(t) { const d = new Date(Number(t) || Date.now()); const h = d.getHours(); return (h % 12 || 12) + ':' + String(d.getMinutes()).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 function log(html) { const ul = Q('.iba-off-feed'); const li = document.createElement('li'); li.innerHTML = `<time>${ampm()}</time><span>${html}</span>`; ul.prepend(li); while (ul.children.length > 40) ul.lastChild.remove(); }
@@ -650,7 +742,7 @@ function openCab(c) {
     return;
   }
   if (c.tray) return openTray();
-  if (c.jobs) return showList(c.title, 'Reception entries waiting to become invoices. Rina collects them to your desk by herself. The ones she is not sure about stay here.', cabRows(c), false);
+  if (c.jobs) return showList(c.title, 'Reception entries waiting to become invoices. Rina collects them to your desk from 4:00 to 4:30 PM Qatar time while the Office is open. The ones she is not sure about stay here.', cabRows(c), false);
   showList(c.title, 'Shows what changed today and yesterday. Search finds anything in this cabinet. Read only.', cabRows(c), true);
   log(`Opened the cabinet: <b>${esc(c.title)}</b>.`);
 }
@@ -746,7 +838,9 @@ Q('.iba-off-cmd').addEventListener('submit', (e) => { e.preventDefault(); const 
 const CFG_PATH = 'system_settings/office_v1';
 const ROOM_SETUP = ['me', 'md', 'coo', 'pd', 'fin', 'hr', 'acc', 'log', 'rec', 'site', 'wh', 'spA', 'spB'];
 const BASE_NAMES = {}; ROOMS.forEach((r) => { BASE_NAMES[r.id] = r.name; });
-function applyNames() { const n = (cfg && cfg.names) || {}; ROOMS.forEach((r) => { if (r.name !== '' || BASE_NAMES[r.id]) r.name = (n[r.id] || BASE_NAMES[r.id] || ''); }); }
+const FIXED_ROOM_NAMES={rec:'Reception',me:'IRWIN',md:'Managing Director',spA:'MEP Manager',fin:'Finance Manager',coo:'COO office',pd:'Project Director',hr:'Procurement',acc:'Accounts',site:'Site room',break:'Lounge'};
+function applyNames(){const n=(cfg&&cfg.names)||{};ROOMS.forEach((r)=>{r.name=FIXED_ROOM_NAMES[r.id]||n[r.id]||BASE_NAMES[r.id]||'';});}
+
 async function loadCfg() {
   const d = mainDb(); let v = null;
   if (d) { try { const s = await d.ref(CFG_PATH).once('value'); v = s.val(); } catch (e) { console.warn('Office setup read failed', e); } }
@@ -759,7 +853,7 @@ function openSetup() {
   const rooms = (cfg && cfg.rooms) || {};
   Q('.iba-off-pop h3').textContent = 'Office setup';
   Q('.iba-off-pop p').textContent = 'Put people in rooms, pick a suit colour, and rename a room (Office A / Office B are spare rooms for a new department). Same-name users stay separate (picked by their user record). Saved for the office only.';
-  Q('.iba-off-popb').innerHTML = ROOM_SETUP.map((id) => { const label = id === 'me' ? 'Your office' : ((cfg.names || {})[id] || BASE_NAMES[id]); return `<div class="iba-off-room" data-room="${id}"><h4>${id === 'me' ? 'Your office' : `<input class="iba-off-rname" value="${esc(label)}" aria-label="Room name" maxlength="28">`} <small>${(SEATS[id] || []).length} desks</small></h4><div class="iba-off-ppl">${(rooms[id] || []).map((m) => pplRow(m)).join('')}</div><div class="iba-off-add"><select aria-label="Add a person to ${esc(label)}"><option value="">+ Add person…</option>${opts}</select></div></div>`; }).join('')
+  Q('.iba-off-popb').innerHTML = ROOM_SETUP.map((id) => { const label = id === 'me' ? 'Your office' : (FIXED_ROOM_NAMES[id] || (cfg.names || {})[id] || BASE_NAMES[id] || 'Support / expansion'); return `<div class="iba-off-room" data-room="${id}"><h4>${id === 'me' ? 'Your office' : `<input class="iba-off-rname" value="${esc(label)}" aria-label="Room name" maxlength="28">`} <small>${(SEATS[id] || []).length} desks</small></h4><div class="iba-off-ppl">${(rooms[id] || []).map((m) => pplRow(m)).join('')}</div><div class="iba-off-add"><select aria-label="Add a person to ${esc(label)}"><option value="">+ Add person…</option>${opts}</select></div></div>`; }).join('')
     + '<div class="iba-off-actions"><button type="button" class="iba-off-save">Save</button><button type="button" class="iba-off-reset">Reset to suggested</button></div>';
   Q('.iba-off-pop').hidden = false;
 }
@@ -792,6 +886,7 @@ root.addEventListener('click', (e) => {
   const b = t.closest('.iba-off-ctrl button'); if (!b) return;
   const act = b.dataset.act;
   if (act === 'close') close();
+  else if (act === 'theme') setOfficeTheme(officeTheme === 'pixel' ? 'clean' : 'pixel');
   else if (act === 'zin') zoom = Math.min(1, zoom + .25);
   else if (act === 'zout') zoom = Math.max(0, zoom - .25);
   else if (act === 'me' || act === 'all') { zoom = act === 'me' ? 1 : 0; try { localStorage.setItem(START_KEY, act); } catch (_) {} log(act === 'me' ? 'Opens on your office from now on.' : 'Opens on the whole office from now on.'); }
@@ -883,6 +978,7 @@ async function makeInvoice(j) {
 }
 async function rinaCollect() {
   if (collecting || !rinaOn() || !running || !allowed()) return;
+  const qMin = qatarMin(); if (qMin < 16 * 60 || qMin >= 16 * 60 + 30) return;
   const RB = window.ibaReceptionBatch, b = BOTS[0];
   if (!RB || !RB.numberFor || !RB.prepare || !RB.convert || !invDb() || !mainDb()) return;
   const todo = jobRows.filter((r) => !jobUnsure[r.key]);
@@ -957,7 +1053,7 @@ async function openTray() {
   for (const r of list) { const g = guessTask(r); const w = await whoFor(g.task, r); tray.choice[uid(r)] = { task: g.task, why: g.why, toWhy: w.why || '', name: r.invName || autoName(r), to: w.pick, cands: w.list, cand: { [g.task]: w.list }, candWhy: { [g.task]: w.why || '' } }; }
   Q('.iba-off-pop h3').textContent = 'Your desk · Under Review';
   Q('.iba-off-pop p').textContent = 'Sorted by site. Rina pre-ticked each one: IPC in the invoice no. = Report (to Gio), else For SRV (to the person who does SRV for that site). Change anything, then press Done and Sami sends them. "Later" keeps it on your desk.';
-  Q('.iba-off-popb').innerHTML = `<div class="iba-off-trayhead"><label><input type="checkbox" class="iba-off-rina" ${rinaOn() ? 'checked' : ''}> Rina collects Reception entries by herself</label><span class="iba-off-cnt">${list.length} on your desk</span><button type="button" class="iba-off-copyall" title="Same list as the Under Review list skill: no header, tab between cells, one row per invoice name, vendor A-Z">Copy all for Excel</button></div><div class="iba-off-rows"></div><div class="iba-off-actions"><button type="button" class="iba-off-done">Done</button><span class="iba-off-undo" hidden></span></div>`;
+  Q('.iba-off-popb').innerHTML = `<div class="iba-off-trayhead"><label><input type="checkbox" class="iba-off-rina" ${rinaOn() ? 'checked' : ''}> Rina collects Reception entries 4:00–4:30 PM</label><span class="iba-off-cnt">${list.length} on your desk</span><button type="button" class="iba-off-copyall" title="Same list as the Under Review list skill: no header, tab between cells, one row per invoice name, vendor A-Z">Copy all for Excel</button></div><div class="iba-off-rows"></div><div class="iba-off-actions"><button type="button" class="iba-off-done">Done</button><span class="iba-off-undo" hidden></span></div>`;
   paintTray(); Q('.iba-off-pop').hidden = false;
 }
 function optList(c) { const seen = new Set(); const out = []; (c.cands || []).concat(tray.names).forEach((n) => { const k = norm(n); if (!n || seen.has(k)) return; seen.add(k); out.push(n); }); if (c.to && !seen.has(norm(c.to))) out.unshift(c.to); return out; }
@@ -1036,8 +1132,8 @@ async function samiSend(send) {
   hidePop(); tray = null;
   const srv = done.filter((x) => x.c.task === 'For SRV').length, rep = done.length - srv;
   busy(b, async () => { status(b, 'Delivering'); b.hidden = false; await go(b, SPOT.myFront); b.carry = true; say(b, `Taking ${done.length}`, 1800); await wait(700);
-    if (srv) { await go(b, [4, 14]); say(b, `${srv} For SRV delivered`, 2600); await wait(1400); }
-    if (rep) { await go(b, [13, 7]); say(b, `${rep} for Gio`, 2600); await wait(1400); }
+    if (srv) { await go(b, [31, 32]); say(b, `${srv} For SRV delivered`, 2600); await wait(1400); }
+    if (rep) { await go(b, [16, 32]); say(b, `${rep} for Gio`, 2600); await wait(1400); }
     b.carry = false; status(b, b.role); await go(b, b.home); });
   await loadData(true);
 }
@@ -1051,8 +1147,8 @@ const AWAY_ROOT = 'system_settings/office_away'; // same branch as the office se
 const AWAY = {
   lunch: { label: 'At lunch', btn: 'Lunch', spots: () => SPOT.pantry },
   toilet: { label: 'In the toilet', btn: 'Toilet', spots: () => SPOT.wc, hide: true },
-  meeting: { label: 'In a meeting', btn: 'Meeting', spots: () => [[29, 9], [30, 9], [31, 9], [32, 9], [29, 12], [30, 12], [31, 12], [32, 12]] },
-  out: { label: 'Out of office', btn: 'Out of office', spots: () => [[0, 3]], hide: true },
+  meeting: { label: 'In a meeting', btn: 'Meeting', spots: () => MEET_SEATS.map(([x, y]) => [x, y]) },
+  out: { label: 'Out of office', btn: 'Out of office', spots: () => [[0, 21]], hide: true },
 };
 let awayAll = {}, myAway = null;
 function hhmm(t) { return ampm(t); }
@@ -1118,6 +1214,7 @@ async function open() {
   if (!allowed()) return;
   if (!staticDone) { drawStatic(sc); staticDone = true; team(); paintSum(); }
   root.hidden = false; document.body.classList.add('iba-office-on');
+  if (window.ibaOffice3DInit) { try { window.ibaOffice3DInit(window.ibaOffice3DState()); } catch (e) { console.error('Office 3D could not start', e); log('The 3D office could not start. Check that WebGL is available and the Three.js library loaded.'); } }
   if (!running) { running = true; last = 0; raf = requestAnimationFrame(loop); }
   timers.push(setInterval(idleTick, 3000), setInterval(() => { if (!document.hidden) loadData(true).then(() => { botsReport(); setTimeout(rinaCollect, 6000); }); }, 180000), setInterval(paintSum, 5000));
   if (!cfg) { await loadCfg(); log('Office opened.'); }
@@ -1130,5 +1227,13 @@ function close() {
   root.hidden = true; document.body.classList.remove('iba-office-on'); hidePop();
   running = false; cancelAnimationFrame(raf); timers.forEach(clearInterval); timers = [];
 }
+window.ibaOffice3DState = () => ({ rooms: ROOMS, walls: WALLS, furniture: FURN, chairs: CHAIRS, people, cabs: CABS, door: DOOR, oct: OCT, counts: cabNewN, currentRoom: myRoom(), theme: officeTheme, zoom });
+window.ibaOffice3DSelectCab = (id) => { const c = CABS.find((q) => q.id === id); if (c) openCab(c); };
+window.ibaOffice3DSelectPerson = (name) => { const p = people.find((q) => q.name === name); if (p) openPerson(p); };
+window.ibaOffice3DSetZoom = (value) => { zoom = Math.max(0, Math.min(1, Number(value) || 0)); };
 window.ibaOffice = { ready: true, open, close, refresh: () => loadData(), collect: () => rinaCollect() };
 })();
+
+
+
+
