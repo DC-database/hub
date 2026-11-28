@@ -68,7 +68,7 @@
         try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
         const meta = noteMeta();
         const out = [];
-        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s && (typeof window.ibaNoteIsDated !== 'function' || window.ibaNoteIsDated(s))) { /* p105: summary names have a date */ const m = meta[s.toLowerCase()] || {}; out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s), vid: m.vid || '', vname: m.vname || '' }); } });
+        (set ? Array.from(set) : []).forEach((t) => { const s = String(t || '').trim(); if (s && (typeof window.ibaNoteIsDated !== 'function' || window.ibaNoteIsDated(s))) { /* p105: summary names have a date */ const m = meta[s.toLowerCase()] || {}; out.push({ text: s, date: dateOf(s), vk: vendorKey(s), used: usedAt(s), vid: m.vid || '', vname: m.vname || '', done: !!m.done }); } });
         return out;
     }
     function isToday(n, today) {
@@ -94,8 +94,20 @@
         const same = (w, v) => w === v || (Math.min(w.length, v.length) >= 4 && (w.indexOf(v) === 0 || v.indexOf(w) === 0));
         return same(short[0], long[0]) && short.every((w) => long.some((v) => same(w, v))) ? 1 : 0;
     }
+    // 18.0.0 patch 160 (martin): Previous note = the same vendor's newest earlier note that is
+    // already With Accounts / Paid (a finished summary). Notes still in For Summary / CEO Approval /
+    // In Process, or with no invoice, are never filled in as Previous (still listed lower down).
+    const DONE_RE = /^(with accounts|paid)$/i;
     function earlierOf(list, n) {
         return list.filter((x) => x !== n && x.date && n.date && x.date < n.date && sameVendor(x, n)).sort((a, b) => b.date - a.date);
+    }
+    // finished = not active now (For Summary / CEO Approval / In Process) when that list is read,
+    // otherwise the note's saved status says With Accounts / Paid
+    function finished(x) { const act = activeKeys(); return act ? !act.has(x.text.toLowerCase()) : !!x.done; }
+    function finishedFirst(list) { return list.filter(finished).concat(list.filter((x) => !finished(x))); }
+    function prevPick(earlier, skip) {
+        const d = earlier.find((x) => finished(x) && !(skip && skip(x)));
+        return d ? d.text : '';
     }
     // 17.0.5 patch 132: each note's vendor ID from the saved note list (its last PO -> POVALUE2 Supplier ID)
     function noteMeta() {
@@ -113,7 +125,11 @@
             if (!po && it.refs && typeof it.refs === 'object') { const r = Object.values(it.refs)[0]; po = String((r && r.po) || '').trim().toUpperCase(); }
             const row = po && pos ? (pos[po] || null) : null;
             const vid = row ? String(row['Supplier ID'] || row['Supplier ID:'] || row['Vendor ID'] || '').trim() : '';
-            out[t] = { vid: vid, vname: String(it.lastVendor || (row && row['Supplier Name']) || '').trim().toLowerCase() };
+            // 18.0.0 patch 160: a note whose invoices went With Accounts / Paid = a finished summary
+            const sts = [String(it.lastStatus || '')];
+            try { Object.values(it.refs || {}).forEach((r) => sts.push(String((r && r.status) || ''))); } catch (_) {}
+            const done = sts.some((x) => DONE_RE.test(x.trim()));
+            out[t] = { vid: vid, vname: String(it.lastVendor || (row && row['Supplier Name']) || '').trim().toLowerCase(), done: done };
         });
         return out;
     }
@@ -122,7 +138,7 @@
         return list.filter((n) => isToday(n, today)).sort((a, b) => a.text.localeCompare(b.text)).map((n) => {
             const earlier = earlierOf(list, n);
             const others = list.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && x.date < n.date).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
-            return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), others: others };
+            return { cur: n.text, prev: prevPick(earlier), options: earlier.map((x) => x.text), others: others };
         });
     }
 
@@ -154,14 +170,47 @@
 
     // 18.0.0 patch 105: shared with the Summary Note page suggestions (js/iba-1800-sumnote.js)
     function recentFrom() { const q = new Date(Date.now() + 3 * 3600e3); return Date.UTC(q.getUTCFullYear(), q.getUTCMonth() - 1, 1); } // 1st of last month, Qatar
-    function noteObj(t, meta) { const m = (meta || {})[String(t).toLowerCase()] || {}; return { text: t, date: dateOf(t), vk: vendorKey(t), used: 0, vid: m.vid || '', vname: m.vname || '' }; }
+    function noteObj(t, meta) { const m = (meta || {})[String(t).toLowerCase()] || {}; return { text: t, date: dateOf(t), vk: vendorKey(t), used: 0, vid: m.vid || '', vname: m.vname || '', done: !!m.done }; }
     function knownNames() {
         let set = null;
         try { set = (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) ? allUniqueNotes : null; } catch (_) {}
         return (set ? Array.from(set) : []).map((t) => String(t || '').replace(/\s+/g, ' ').trim()).filter((t) => t && (typeof window.ibaNoteIsDated !== 'function' || window.ibaNoteIsDated(t)));
     }
+    // 18.0.0 patch 160 (martin): Current note = the notes whose invoices are active now:
+    // For Summary, CEO Approval or In Process. Read only those rows of invoice_tasks_by_user/All
+    // (indexed on status, small), kept 2 minutes. Until read (or if it fails): the old dated list.
+    const ACTIVE_ST = ['For Summary', 'CEO Approval', 'In Process'];
+    let active = null, activeAt = 0, activeRun = null;
+    async function refreshActive(force) {
+        if (!force && active && Date.now() - activeAt < 120000) return active;
+        if (activeRun) return activeRun;
+        activeRun = (async () => {
+            try {
+                if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('summary-active-notes', true)) return active;
+                const r = invoiceDb.ref('invoice_tasks_by_user/All');
+                const ok = (typeof wdAllStatusIndexed === 'function') ? await wdAllStatusIndexed() : true;
+                if (!ok) return active;
+                const snaps = await Promise.all(ACTIVE_ST.map((st) => r.orderByChild('status').equalTo(st).once('value')));
+                const map = new Map();
+                snaps.forEach((sn) => {
+                    const rows = (sn && sn.val()) || {};
+                    Object.keys(rows).forEach((k) => {
+                        const x = rows[k] || {};
+                        const t = String((typeof window.ibaSumNoteOf === 'function') ? window.ibaSumNoteOf(x) : (x.summaryNote || '')).replace(/\s+/g, ' ').trim();
+                        if (t && !map.has(t.toLowerCase())) map.set(t.toLowerCase(), t);
+                    });
+                });
+                active = Array.from(map.values());
+                activeAt = Date.now();
+            } catch (e) { console.warn('[IBA summary] active notes not read', e); }
+            return active;
+        })();
+        try { return await activeRun; } finally { activeRun = null; }
+    }
+    function activeKeys() { return active ? new Set(active.map((t) => t.toLowerCase())) : null; }
     // current note suggestions: this month and last month, newest first
     function currentOptions() {
+        if (active) return active.map((t) => ({ t: t, d: dateOf(t) })).sort((a, b) => (b.d - a.d) || a.t.localeCompare(b.t)).map((x) => x.t);
         const from = recentFrom();
         const seen = new Set();
         return knownNames().map((t) => ({ t: t, d: dateOf(t) })).filter((x) => x.d >= from && !seen.has(x.t.toLowerCase()) && seen.add(x.t.toLowerCase()))
@@ -174,7 +223,16 @@
         const meta = noteMeta();
         const list = knownNames().map((t) => noteObj(t, meta));
         const me = list.find((x) => x.text.toLowerCase() === c.toLowerCase()) || noteObj(c, meta);
-        return earlierOf(list, me).filter((x, i, a) => a.findIndex((y) => y.text.toLowerCase() === x.text.toLowerCase()) === i).slice(0, limit || 3).map((x) => x.text);
+        return finishedFirst(earlierOf(list, me)).filter((x, i, a) => a.findIndex((y) => y.text.toLowerCase() === x.text.toLowerCase()) === i).slice(0, limit || 3).map((x) => x.text);
+    }
+    // p160: the note to fill in as Previous (finished = With Accounts / Paid), '' when none
+    function previousPick(cur) {
+        const c = String(cur || '').replace(/\s+/g, ' ').trim();
+        if (!c) return '';
+        const meta = noteMeta();
+        const list = knownNames().map((t) => noteObj(t, meta));
+        const me = list.find((x) => x.text.toLowerCase() === c.toLowerCase()) || noteObj(c, meta);
+        return prevPick(earlierOf(list, me));
     }
 
     // ---- the window ---------------------------------------------------------------
@@ -198,7 +256,7 @@
         win.addEventListener('click', onClick);
         win.addEventListener('change', count);
         // 18.0.0 patch 104: the notes in CEO Approval (not "dated today" any more)
-        const [allNames, ceo] = await Promise.all([names(false), ceoNotes()]);
+        const [allNames, ceo] = await Promise.all([names(false), ceoNotes(), refreshActive().catch(() => null)]);
         let all = allNames;
         if (!win) return;
         const body = win.querySelector('.iba-esn-body');
@@ -211,7 +269,7 @@
             const others = all.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && (!n.date || x.date < n.date)).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
             // 18.0.0 patch 105 (martin): previous = the same vendor's 3 newest earlier notes; other notes only from the last 2 months
             const from = recentFrom();
-            return { cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.slice(0, 3).map((x) => x.text), others: all.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && x.date >= from && (!n.date || x.date < n.date)).sort((a, b) => b.date - a.date).map((x) => x.text), count: ceo[n.text.toLowerCase()].n, items: ceo[n.text.toLowerCase()].items };
+            return { cur: n.text, prev: prevPick(earlier, (x) => !!ceo[x.text.toLowerCase()]), options: finishedFirst(earlier).slice(0, 3).map((x) => x.text), others: all.filter((x) => x !== n && earlier.indexOf(x) === -1 && x.date && x.date >= from && (!n.date || x.date < n.date)).sort((a, b) => b.date - a.date).map((x) => x.text), count: ceo[n.text.toLowerCase()].n, items: ceo[n.text.toLowerCase()].items };
         });
         if (!rows.length) {
             // nothing dated today: the newest notes, to tick by hand
@@ -219,7 +277,7 @@
             recent.forEach((n) => {
                 const earlier = earlierOf(all, n);
                 const others = all.filter((x) => x !== n && earlier.indexOf(x) === -1).sort((a, b) => a.text.localeCompare(b.text)).map((x) => x.text);
-                rows.push({ cur: n.text, prev: earlier[0] ? earlier[0].text : '', options: earlier.map((x) => x.text), others: others, off: true });
+                rows.push({ cur: n.text, prev: prevPick(earlier, (x) => !!ceo[x.text.toLowerCase()]), options: earlier.map((x) => x.text), others: others, off: true });
             });
             if (!rows.length) { body.innerHTML = '<p class="iba-esn-sub">No summary notes found on this computer yet. Open the Summary Note once, then try again.</p>'; return; }
         }
@@ -371,6 +429,6 @@
         window.print();
     }
 
-    window.ibaSummaryBatch = { currentOptions, previousOptions, // p105
+    window.ibaSummaryBatch = { currentOptions, previousOptions, previousPick, refreshActive, // p105, p160
         open: open, _plan: plan, _vendorKey: vendorKey, _names: names, _print: printAll };
 })();

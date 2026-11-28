@@ -29,6 +29,10 @@
     }
     function currentOptions() { try { return SB().currentOptions ? SB().currentOptions() : []; } catch (_) { return []; } }
     function previousOptions(cur) { try { return SB().previousOptions ? SB().previousOptions(cur, 3) : []; } catch (_) { return []; } }
+    // 18.0.0 patch 160 (martin): Previous = the vendor's newest finished note (With Accounts / Paid);
+    // Current list = notes active now (For Summary / CEO Approval / In Process), read when the box is used
+    function previousPick(cur) { try { return SB().previousPick ? SB().previousPick(cur) : ''; } catch (_) { return ''; } }
+    function withActive(fn) { try { if (SB().refreshActive) SB().refreshActive().then(fn).catch(() => null); } catch (_) {} }
 
     // ---- Summary Note page ---------------------------------------------------------
     function wireSummaryPage() {
@@ -39,18 +43,20 @@
         cur.setAttribute('list', 'iba-sn-cur-list');
         prev.setAttribute('list', 'iba-sn-prev-list');
         const fillCur = () => fill(cl, currentOptions());
+        const fillCurFresh = () => { fillCur(); withActive(fillCur); };
         const fillPrev = () => fill(pl, previousOptions(cur.value));
         // the newest earlier note of the same vendor goes in Previous (unless you typed your own)
-        const autoPrev = () => {
+        const autoPrev0 = () => {
             const opts = previousOptions(cur.value);
             fill(pl, opts);
             const typed = String(prev.value || '').trim();
             if (!typed || typed === prev.dataset.ibaAuto) {
-                prev.value = opts[0] || '';
+                prev.value = previousPick(cur.value);
                 prev.dataset.ibaAuto = prev.value;
             }
         };
-        cur.addEventListener('focus', fillCur);
+        const autoPrev = () => { autoPrev0(); withActive(autoPrev0); }; // again once the active notes are known
+        cur.addEventListener('focus', fillCurFresh);
         cur.addEventListener('input', fillCur);
         cur.addEventListener('change', autoPrev);
         cur.addEventListener('blur', () => { if (String(cur.value || '').trim()) autoPrev(); });
@@ -121,7 +127,7 @@
         if (t && t.id === 'im-sumnote-field') fill(list('iba-ie-sum-list'), currentOptions());
     }, true);
     document.addEventListener('focusin', (e) => {
-        if (e.target && e.target.id === 'im-sumnote-field') fill(list('iba-ie-sum-list'), currentOptions());
+        if (e.target && e.target.id === 'im-sumnote-field') { fill(list('iba-ie-sum-list'), currentOptions()); withActive(() => fill(list('iba-ie-sum-list'), currentOptions())); }
     }, true);
 
     (function boot(n) {

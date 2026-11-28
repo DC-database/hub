@@ -191,7 +191,7 @@
       ? p.name + " is on vacation with NO replacement set. " + moved.length + " task(s) came to you:\n" + list + "\nOpen " + p.name + "'s profile and set the Replacement - these tasks then move to that person by themselves."
       : moved.length + " task(s) handed over to you from " + p.name + " (on vacation" + (p.target !== p.rep && p.rep ? ", via " + p.rep : "") + "):\n" + list;
     try {
-      const ref = d.ref("iba_assistant/reminders/" + safe(p.target)).push();
+      const ref = (window.ibaChatDb || d).ref("iba_assistant/reminders/" + safe(p.target)).push(); // p162: reminders live in the chat database
       await Promise.all([
         ref.set({ from: "IBA hand-over", to: p.target, text: text, po: moved[0].po || "", at: TS() }),
         d.ref("iba_assistant/handover_log").push({ from: p.name, to: p.target, noReplacement: !!p.noReplacement, count: moved.length, items: moved.slice(0, 50), at: TS(), by: (me() && me().Name) || "" })

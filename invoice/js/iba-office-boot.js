@@ -1,13 +1,25 @@
 /* js/iba-office-boot.js — 18.0.0 patch 132: "Office" menu button for the Super Admin only.
    Tiny: every 2 s it checks if the signed-in user is the Super Admin and shows/hides the button.
    The office itself (js/iba-office.js + css/iba-office.css) is downloaded only on the first click,
-   so nothing of the office runs for anyone else. Open from the console: window.ibaOfficeOpen() */
+   so nothing of the office runs for anyone else. Open from the console: window.ibaOfficeOpen()
+   18.0.0 patch 172 (martin): the Super Admin can also turn the office on for chosen people / positions in
+   Skill access ("IBA Office" row, system_settings/skill_access/iba_office, same window as the skills).
+   Those people get a GUEST office: their own tasks only (Active Task + Active Job, already loaded),
+   the buttons they already have, search and chat. No bots, no setup, no extra Firebase reads. */
 (function () {
     'use strict';
-    var V = '18.0.0-p158', loading = null;
+    var V = '18.0.0-p174', loading = null;
+    window.ibaSkillAccessExtra = (window.ibaSkillAccessExtra || []).concat([{ id: 'iba_office', name: 'IBA Office (guest)', group: 'Office',
+        desc: 'Who sees the Office menu. They get their own desk only: their tasks and transfers, the buttons they already have, INV / SRV in the side panel. No bots.', built: 'Only the Super Admin' }]);
     function isSuper() {
         try { if (window.ibaTestAs) return false; return typeof imIsCurrentUserSuperAdmin === 'function' && !!imIsCurrentUserSuperAdmin(); } catch (_) { return false; }
     }
+    // p172: Super Admin = full office; a person ticked in Skill access "IBA Office" = guest office
+    function isGuest() {
+        try { if (isSuper()) return false; var a = window.ibaSkillAccess; return !!(a && a.decide && a.decide('iba_office') === true); } catch (_) { return false; }
+    }
+    function allowed() { return isSuper() || isGuest(); }
+    window.ibaOfficeGuest = isGuest;
     function load() {
         if (window.ibaOffice && window.ibaOffice.ready) return Promise.resolve();
         if (loading) return loading;
@@ -20,28 +32,32 @@
                     return import('https://unpkg.com/three@0.187.0/build/three.module.js').then(function (mod) { window.THREE = mod; });
                 });
             }
-            three().then(function () { return script('js/iba-office.js?v=' + V); })
+            // p161: Irwin's own arrangement from Build mode (js/iba-office-layout.js). Always fetched fresh (no ?v= to bump);
+            // when the file is not there the office uses the original plan.
+            three().then(function () { return script('js/iba-office-layout.js?t=' + Date.now()).catch(function () { window.IBA_OFFICE_LAYOUT = window.IBA_OFFICE_LAYOUT || null; }); })
+              .then(function () { return script('js/iba-office.js?v=' + V); })
               .then(function () { return script('js/iba-office-3d.js?v=' + V); })
               .then(function () { return script('js/iba-office-print.js?v=' + V); })
+              .then(function () { return script('js/iba-office-info.js?v=' + V); }) // p163: info robot search window
               .then(res).catch(function (e) { loading = null; rej(e); });
         });
         return loading;
     }
     function openOffice() {
-        if (!isSuper()) return;
+        if (!allowed()) return;
         var b = document.getElementById('iba-office-nav'); if (b) b.disabled = true;
         load().then(function () { if (window.ibaOffice) window.ibaOffice.open(); })
             .catch(function (e) { console.warn('Office: could not load', e); })
             .then(function () { if (b) b.disabled = false; });
     }
     function paint() {
-        var ok = isSuper();
+        var ok = allowed() && !document.body.classList.contains('iba-mobile-ui') || isSuper();
         var li = document.getElementById('iba-office-nav-li');
         if (!li) {
             if (!ok) return;
             var list = document.querySelector('#iba-shell-sidebar .iba-nav-list'); if (!list) return;
             li = document.createElement('li'); li.id = 'iba-office-nav-li';
-            li.innerHTML = '<button class="iba-nav-btn" id="iba-office-nav" type="button" title="IBA Office (Super Admin, beta)"><i class="fa-solid fa-building"></i> Office <small style="font-size:10px;opacity:.7;letter-spacing:.05em">BETA</small></button>';
+            li.innerHTML = '<button class="iba-nav-btn" id="iba-office-nav" type="button" title="IBA Office (beta)"><i class="fa-solid fa-building"></i> Office <small style="font-size:10px;opacity:.7;letter-spacing:.05em">BETA</small></button>';
             var first = list.firstElementChild; list.insertBefore(li, first ? first.nextSibling : null);
             li.querySelector('button').addEventListener('click', openOffice);
         }

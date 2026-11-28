@@ -842,6 +842,76 @@ async function removeStaleInvoiceNoteRef(note, po, invoiceKey) {
     }
 }
 
+// 18.0.0 patch 160 (martin): a summary note whose invoices ALL moved to a new note
+// (e.g. "ABC 11-Nov-2026" -> SUM again -> "ABC 12-Nov-2026") stayed in the note
+// list for ever, so it was still offered / filled in as the "Previous note".
+// Now the old note's pointers are checked (memory first, then the one exact
+// invoice record each, never the whole invoice_entries) and when no invoice
+// carries it any more the note is taken out of invoice_note_index, the list in
+// memory and the saved copy. A note without pointers (very old) is left alone.
+function imForgetInvoiceNoteLocally(note) {
+    const text = imNormalizeInvoiceNoteText(note);
+    if (!text) return;
+    const low = text.toLowerCase();
+    const same = (x) => imNormalizeInvoiceNoteText(x && typeof x === 'object' ? (x.text || x.note) : x).toLowerCase() === low;
+    try {
+        if (typeof allUniqueNotes !== 'undefined' && allUniqueNotes) {
+            Array.from(allUniqueNotes).forEach(t => { if (same(t)) allUniqueNotes.delete(t); });
+        }
+    } catch (_) {}
+    try { __imInvoiceNoteUsageMeta.delete(imInvoiceNoteUsageKey(text)); } catch (_) {}
+    try {
+        const raw = JSON.parse(localStorage.getItem(IM_NOTE_INDEX_CACHE_KEY) || 'null');
+        if (raw && raw.data) {
+            if (Array.isArray(raw.data)) raw.data = raw.data.filter(x => !same(x));
+            else Object.keys(raw.data).forEach(k => { if (same(raw.data[k])) delete raw.data[k]; });
+            localStorage.setItem(IM_NOTE_INDEX_CACHE_KEY, JSON.stringify(raw));
+        }
+    } catch (_) {}
+}
+
+async function imPruneEmptyInvoiceNotes(notes) {
+    const list = Array.from(new Set((notes || []).map(imNormalizeInvoiceNoteText).filter(Boolean)));
+    const dropped = [];
+    if (!list.length) return dropped;
+    if (window.ibaShouldUseCacheOnly && window.ibaShouldUseCacheOnly('prune-invoice-notes', false)) return dropped;
+    if (window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('prune-invoice-notes', false)) return dropped;
+    if (typeof invoiceDb === 'undefined' || !invoiceDb || !invoiceDb.ref) return dropped;
+    for (const text of list) {
+        try {
+            const noteKey = imNoteIndexKey(text);
+            const snap = await invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${noteKey}/refs`).once('value');
+            const refs = snap.val() || {};
+            const keys = Object.keys(refs);
+            if (!keys.length) continue;                 // old note without pointers: keep it
+            let live = false;
+            for (const rk of keys) {
+                const r = refs[rk] || {};
+                const po = imNormalizeIndexText(r.po);
+                const ik = imNormalizeIndexText(r.invoiceKey || r.key);
+                if (!po || !ik) continue;
+                let inv = null;
+                try {
+                    const mem = allInvoiceData && allInvoiceData[po] && allInvoiceData[po][ik];
+                    // memory already shows it on another note (just saved): no read needed
+                    if (mem && !imNoteIndexIsExactNote(mem, text)) inv = mem;
+                } catch (_) {}
+                if (!inv) inv = (await invoiceDb.ref(`invoice_entries/${po}/${ik}`).once('value')).val();
+                if (inv && imNoteIndexIsExactNote(inv, text)) { live = true; break; }
+                try { await invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${noteKey}/refs/${rk}`).remove(); } catch (_) {}
+            }
+            if (live) continue;
+            await invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${noteKey}`).remove();
+            imForgetInvoiceNoteLocally(text);
+            dropped.push(text);
+        } catch (error) {
+            console.warn('Empty summary note cleanup skipped:', text, error);
+        }
+    }
+    if (dropped.length) console.info('[IBA notes] removed empty summary note(s):', dropped.join(' | '));
+    return dropped;
+}
+
 async function loadInvoicesByNoteIndex(note, options = {}) {
     const text = imNormalizeInvoiceNoteText(note);
     if (!text) return [];
@@ -883,6 +953,7 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
     const seen = new Set(fromMemory.map(r => `${r.po}::${r.key}`));
     const rows = [...fromMemory];
     const refList = Array.from(candidateMap.values()).slice(-Number(options.limit || 800));
+    let staleRefs = 0; // p160
 
     for (const ref of refList) {
         const po = imNormalizeIndexText(ref.po);
@@ -894,6 +965,7 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
             if (!imNoteIndexIsExactNote(inv, text)) {
                 // Clean stale pointer so old previous-note rows do not reappear in future current-note tables.
                 removeStaleInvoiceNoteRef(text, po, invoiceKey);
+                staleRefs++;
                 continue;
             }
             if (!allInvoiceData) allInvoiceData = {};
@@ -905,6 +977,18 @@ async function loadInvoicesByNoteIndex(note, options = {}) {
         } catch (error) {
             console.warn('Invoice note exact ref read skipped:', po, invoiceKey, error);
         }
+    }
+
+    // 18.0.0 patch 160: every pointer of this note was stale = no invoice has the note any more
+    // (all moved to a newer note): take the empty note out of the list so it is not offered again.
+    if (!rows.length && refs.length && staleRefs >= refs.length) {
+        try {
+            if (!(window.ibaShouldPauseFirebase && window.ibaShouldPauseFirebase('prune-invoice-notes', false))) {
+                invoiceDb.ref(`${IM_NOTE_INDEX_PATH}/${imNoteIndexKey(text)}`).remove().catch(() => null);
+            }
+            imForgetInvoiceNoteLocally(text);
+            console.info('[IBA notes] removed empty summary note:', text);
+        } catch (_) {}
     }
 
     return rows;
@@ -1091,6 +1175,8 @@ try {
     window.imNoteIndexKey = imNoteIndexKey;
     window.loadInvoiceNoteRefs = loadInvoiceNoteRefs;
     window.removeStaleInvoiceNoteRef = removeStaleInvoiceNoteRef;
+    window.imPruneEmptyInvoiceNotes = imPruneEmptyInvoiceNotes; // p160
+    window.imForgetInvoiceNoteLocally = imForgetInvoiceNoteLocally; // p160
     window.loadInvoicesByNoteIndex = loadInvoicesByNoteIndex;
     window.loadInvoicesByNoteSearch = loadInvoicesByNoteSearch;
     window.imNoteIndexMatchesQuery = imNoteIndexMatchesQuery;

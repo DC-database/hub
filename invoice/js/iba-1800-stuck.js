@@ -182,7 +182,7 @@
   }
   function safe(n) { return String(n || '').trim().replace(/[.#$\[\]\/\\]/g, '_').replace(/\s+/g, '_'); }
   async function sendRem(r, to, text) {
-    var d = mdb(); if (!d) throw new Error('no connection');
+    var d = window.ibaChatDb || mdb(); if (!d) throw new Error('no connection'); // p162: reminders live in the chat database
     var ref = d.ref('iba_assistant/reminders/' + safe(to)).push();
     var sentPath = 'iba_assistant/reminders_sent/' + safe(me()) + '/' + ref.key;
     var TS = firebase.database.ServerValue.TIMESTAMP;

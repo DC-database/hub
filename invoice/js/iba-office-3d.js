@@ -332,8 +332,10 @@ function roomPlates(p, state) { const done = new Set();
       const hub = o && o.id === 'plaza'; if (o && o.id === r.id) return; if (!best || (hub && !best.hub)) best = { v, line: v ? x1 : y1, a: run[0], b: run[run.length - 1] + 1, hub, sd: outside }; });
     if (!best) return; const key = (best.v ? 'v' : 'h') + best.line + ':' + best.a; if (done.has(key)) return; done.add(key);
     const lo = best.v ? r.y : r.x, hi = best.v ? r.y + r.h : r.x + r.w; let at = best.b + .7; if (at > hi - .5) at = best.a - .7; if (at < lo + .5) at = (best.a + best.b) / 2; // beside the door, inside the wall length
-    const off = best.sd * .09; const [x, z] = best.v ? W(best.line + off, at) : W(at, best.line + off);
-    const ry = best.v ? (best.sd < 0 ? -Math.PI / 2 : Math.PI / 2) : (best.sd < 0 ? Math.PI : 0);
+    let off = best.sd * .09; let [x, z] = best.v ? W(best.line + off, at) : W(at, best.line + off);
+    let ry = best.v ? (best.sd < 0 ? -Math.PI / 2 : Math.PI / 2) : (best.sd < 0 ? Math.PI : 0);
+    // p161 (martin): IRWIN's plaque sat on the pantry side of his wall. It goes on the hub face of the wall beside his door.
+    if (r.id === 'me') { [x, z] = W(9, 7 + .09); ry = 0; }
     // martin: a room shared by two departments = two plaques, one above the other
     if (r.depts && r.depts.length > 1) { wallPlaque(p, x, 1.14, z, ry, r.depts[0], null, false, 1.15); wallPlaque(p, x, .8, z, ry, r.depts[1], null, false, 1.15); }
     else wallPlaque(p, x, Y, z, ry, r.name, null, false, 1.3); });
@@ -431,7 +433,7 @@ function furniture(st, state, o) {
     case 'vending': return vending(st, cx, cz, faceIn(state, o, -1));
     case 'drinks': return drinksFridge(st, cx, cz, faceIn(state, o, -1));
     case 'adtv': return adTV(st, cx, cz, faceIn(state, o, 1), Math.max(o.w, o.d) * .8, ADS);
-    case 'fountain': return fountain(st, cx, cz);
+    case 'fountain': return kiosk(st, cx, cz); // p159 (martin): the info robot stands in the middle; the IBA fountain moved to the entrance roundabout
     case 'chair': return null;
     default: { const g = grp(st, cx, cz); add(g, RB(Math.max(.3, o.w * .9), Math.max(.4, (o.h || 20) / 30), Math.max(.3, o.d * .9), .04), M.woodDark, 0, Math.max(.4, (o.h || 20) / 30) / 2, 0); return g; }
   }
@@ -450,10 +452,65 @@ function chair(st, c) {
   if (c.sprite === 'lounge') return sofa(st, x, z, ry, 1, M.sofa2);
   const lead = c.col === '#3A2A20'; return chairOffice(st, x, z, ry, lead ? M.leather : M.chair);
 }
-// the hub: octagon fountain, IBA turning on top, an octagon rug around it
-function fountain(st, x, z) {
+// 18.0.0 patch 159 (martin): the info desk in the middle of the office. A big-head IBA robot in uniform behind a round
+// counter with screens. Anyone can ask it where an invoice is (it opens Ana's search); later it takes requests too.
+let KIOSK = null;
+function kiosk(st, x, z) {
   const oct = { ry: Math.PI / 8, cast: false, noOutline: true };
   add(st, cyl(7.3, 7.3, .03, 8), M.carpet, x, .015, z, oct); add(st, cyl(7.45, 7.45, .02, 8), M.trimA, x, .008, z, oct);
+  add(st, cyl(3.1, 3.25, .2, 8), M.wallDark, x, .1, z, { ry: Math.PI / 8 }); add(st, cyl(3.16, 3.16, .04, 8, true), M.trimA, x, .21, z, oct);
+  // round counter (open at the back so the robot can walk in), wooden top, gold trim
+  const ring = (r0, r1, h, y, mat, a0 = .5, len = Math.PI * 2 - 1) => { const sh = new T.Shape(); sh.absarc(0, 0, r1, a0, a0 + len, false); sh.absarc(0, 0, r0, a0 + len, a0, true);
+    const geo = new T.ExtrudeGeometry(sh, { depth: h, bevelEnabled: false, curveSegments: 40 }); geo.rotateX(-Math.PI / 2); return add(st, geo, mat, x, y, z, { ry: Math.PI / 2 }); };
+  ring(1.75, 2.0, .9, .2, M.wall); ring(1.7, 2.08, .07, 1.1, M.woodDark); ring(2.0, 2.1, .05, .7, M.trimA);
+  // p162 (martin): 3 big screens standing ON the front counter (the open back is where the robot walks in), facing
+  // the visitors, with a moving "searching the folders" picture; the INFORMATION plates follow the curve of the counter.
+  const scr = kioskScreen();
+  [-.5, 0, .5].forEach((a) => { const g = grp(st, x + Math.sin(a) * 1.86, z + Math.cos(a) * 1.86, a, 1.17);
+    add(g, cyl(.05, .09, .1, 10), M.black, 0, .05, -.05); add(g, RB(.06, .22, .05, .01), M.black, 0, .2, -.07);
+    add(g, RB(.86, .56, .05, .02), M.black, 0, .55, -.03); add(g, new T.PlaneGeometry(.8, .5), scr.mat, 0, .55, .0, { cast: false, noOutline: true }); });
+  const sg = tex(1024, 128, (c, w, h) => { c.fillStyle = DARK ? '#140E10' : '#1E2433'; c.fillRect(0, 0, w, h); c.fillStyle = '#C9A24A'; c.fillRect(0, 6, w, 4); c.fillRect(0, h - 10, w, 4);
+    c.fillStyle = '#F6EBD2'; c.font = '800 64px Space Grotesk, Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('i   INFORMATION', w / 2, h / 2 + 3); });
+  const sm = toon({ map: sg, side: T.FrontSide });
+  [0, Math.PI / 2, -Math.PI / 2].forEach((a) => { const len = 1.05; const geo = new T.CylinderGeometry(2.012, 2.012, .26, 24, 1, true, a - len / 2, len);
+    add(st, geo, sm, x, .5, z, { cast: false, noOutline: true }); }); // curved, flush on the counter front (below the gold trim)
+  // the robot: dynamic (it turns to look around), big head, IBA navy uniform with gold tie and badge
+  const g0 = new T.Group(); g0.position.set(x, .22, z);
+  const r = bot(g0, { name: 'IBA', color: 0xC9A24A, tie: true }); r.scale.setScalar(2.0); r.userData.uid = 777; r.userData.act = 'stand';
+  const rig = r.userData.rig; rig.head.scale.setScalar(1.18);
+  const navy = toon({ color: 0x24305E }); add(rig.torso, RB(.46, .3, .33, .12, 4), navy, 0, .19, 0);
+  const badge = tex(128, 64, (c, w, h) => { c.clearRect(0, 0, w, h); c.fillStyle = '#C9A24A'; c.font = '900 40px Inter, Segoe UI, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('IBA', w / 2, h / 2 + 2); });
+  add(rig.torso, new T.PlaneGeometry(.2, .1), new T.MeshBasicMaterial({ map: badge, transparent: true }), -.11, .27, -.17, { ry: Math.PI, cast: false, noOutline: true });
+  const hit = add(g0, new T.CylinderGeometry(2.1, 2.1, 2.6, 12), new T.MeshBasicMaterial({ visible: false }), 0, 1.3, 0, { cast: false, noOutline: true }); hit.userData.hit = { type: 'kiosk' }; pickables.push(hit);
+  KIOSK = { g: g0, r }; return null;
+}
+// the info desk screens: one small moving picture shared by the 3 screens (redrawn 8 times a second)
+let KSCR = null;
+function kioskScreen() {
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 200; const t = new T.CanvasTexture(cv); t.colorSpace = T.SRGBColorSpace;
+  KSCR = { cv, c: cv.getContext('2d'), t, last: 0, mat: new T.MeshBasicMaterial({ map: t, toneMapped: false }) }; drawKScr(0); return KSCR;
+}
+const KSCR_WORDS = ['Find a PO', 'Find a vendor', 'Where is my invoice?', 'Ask me'];
+function drawKScr(ts) {
+  const { c } = KSCR, w = 320, h = 200; const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#0E2A3A'); g.addColorStop(1, '#0A1622'); c.fillStyle = g; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#C9A24A'; c.fillRect(0, 0, w, 26); c.fillStyle = '#14202E'; c.font = '800 16px Inter, Segoe UI, sans-serif'; c.textBaseline = 'middle'; c.fillText('IBA  ·  INFORMATION', 10, 14);
+  // a row of folders; the magnifier glides over them, the one under it lifts and glows
+  const cols = ['#3FB8C8', '#E0A526', '#9B7CFF', '#4CC38A', '#E5484D'], n = 5, fw = 44, gap = 14, x0 = (w - (n * fw + (n - 1) * gap)) / 2, y0 = 70;
+  const mx = x0 + fw / 2 + ((Math.sin(ts * .9) + 1) / 2) * ((n - 1) * (fw + gap)); const on = Math.round((mx - x0 - fw / 2) / (fw + gap));
+  for (let i = 0; i < n; i++) { const fx = x0 + i * (fw + gap), lift = i === on ? 8 : 0; c.fillStyle = cols[i]; c.globalAlpha = i === on ? 1 : .55;
+    c.fillRect(fx, y0 - lift, fw * .45, 7); c.fillRect(fx, y0 + 5 - lift, fw, 34); c.globalAlpha = 1; }
+  c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; c.beginPath(); c.arc(mx, y0 + 18, 17, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.moveTo(mx + 12, y0 + 31); c.lineTo(mx + 24, y0 + 44); c.stroke();
+  // typing line
+  const word = KSCR_WORDS[Math.floor(ts / 3) % KSCR_WORDS.length], k = Math.min(word.length, Math.floor((ts % 3) * 12));
+  c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(16, 140, w - 32, 36); c.fillStyle = '#F6EBD2'; c.font = '600 18px Inter, Segoe UI, sans-serif';
+  c.fillText(word.slice(0, k) + (Math.floor(ts * 2) % 2 ? '|' : ''), 26, 158);
+  KSCR.t.needsUpdate = true;
+}
+function kioskTick(K, ts, dt) { if (!K) return; if (KSCR && ts - KSCR.last > .125) { KSCR.last = ts; try { drawKScr(ts); } catch (_) {} } const r = K.r; if (window.ibaOfficeKioskBusy) { K.spin = (K.spin || 0) + dt * 5.5; r.rotation.y = Math.PI + Math.sin(ts * .25) * 1.1 + K.spin; r.position.y = Math.abs(Math.sin(ts * 9)) * .12; } else { if (K.spin) K.spin = 0; r.rotation.y = Math.PI + Math.sin(ts * .25) * 1.1; r.position.y = Math.sin(ts * 1.6) * .03; } /* p163: spins + hops while searching */ try { applyPose(r, dt, ts); } catch (_) {} }
+// the hub: octagon fountain, IBA turning on top, an octagon rug around it
+function fountain(st, x, z, outdoor) {
+  const oct = { ry: Math.PI / 8, cast: false, noOutline: true };
+  if (!outdoor) { add(st, cyl(7.3, 7.3, .03, 8), M.carpet, x, .015, z, oct); add(st, cyl(7.45, 7.45, .02, 8), M.trimA, x, .008, z, oct); }
   add(st, cyl(3.3, 3.4, .5, 8), M.wallDark, x, .25, z, { ry: Math.PI / 8 }); add(st, cyl(3.36, 3.36, .05, 8, true), M.trimA, x, .52, z, oct);
   const water = toon({ color: DARK ? 0x1E8A96 : 0x4FB0D8, emissive: DARK ? 0x0E3A40 : 0x0A2A3A, emissiveIntensity: .35 });
   add(st, cyl(3.05, 3.05, .06, 8), water, x, .54, z, oct);
@@ -520,8 +577,83 @@ function outside(st, door) {
   add(st, new T.BoxGeometry(.1, .02, 38), line, -29.6, .03, 0, { cast: false, noOutline: true });
   [-16, -6, 6, 16].forEach((z) => streetLamp(st, -25.6, z)); [-12, 0, 12].forEach((z) => { if (Math.abs(z - dz) > 2) plantBig(st, -24.2, z, 1.1); });
 }
-function buildOffice(state) {
-  seed = 7; ADS = []; OUTER = []; CLOCKS = []; SIGN = null; FOUNT = null; chairByTile = new Map();
+// 18.0.0 patch 159 (martin): the land around the building was empty. Now: a road all round, pavements with trees
+// and street lamps, a park with palms, paths and benches at the back, a second car park, a bus stop and
+// low neighbour buildings in the distance. All static, merged with the rest (no extra cost per frame).
+function surroundings(st, door) {
+  const o = { cast: false, noOutline: true };
+  const grass = toon({ color: DARK ? 0x15241A : 0x86B160 }), grass2 = toon({ color: DARK ? 0x1A2C20 : 0x95BE6C }), asph = toon({ color: DARK ? 0x141214 : 0x5F6268 }),
+    pave = toon({ color: DARK ? 0x2A2224 : 0xD6CDBE }), kerb = toon({ color: DARK ? 0x3A3034 : 0xB9B0A2 }), path = toon({ color: DARK ? 0x33292B : 0xE2D3B6 }),
+    line = DARK ? M.gold : M.white, trunk = toon({ color: DARK ? 0x2A1A14 : 0x7A5236 }), leafA = toon({ color: DARK ? 0x1E5A3A : 0x4E8F3A }), leafB = toon({ color: DARK ? 0x26704A : 0x5FA645 }),
+    palm = toon({ color: DARK ? 0x1F6A48 : 0x3F8F4A }), bench = toon({ color: DARK ? 0x3A2A20 : 0x8A5A3A }), water = toon({ color: DARK ? 0x1E8A96 : 0x5BB6D8, emissive: DARK ? 0x0E3A40 : 0x0A2A3A, emissiveIntensity: .3 });
+  const box = (w, h, d, m, x, y, z, extra) => add(st, new T.BoxGeometry(w, h, d), m, x, y, z, Object.assign({}, o, extra || {}));
+  // the ground everywhere + the road ring (north, south, east; the west road runs past the front car park)
+  box(260, .1, 240, grass, 0, -.24, 0);
+  const R0 = 24.2, RW = 7;                                   // pavement starts at the building, road after it
+  box(52, .06, 3.4, pave, 0, -.03, -21.9); box(52, .06, 3.4, pave, 0, -.03, 21.9); box(3.4, .06, 47, pave, 24.9, -.03, 0);
+  box(86, .05, RW, asph, -6, -.05, -(R0 + 2.4 + RW / 2)); box(86, .05, RW, asph, -6, -.05, R0 + 2.4 + RW / 2); box(RW, .05, 74, asph, 30.1, -.05, 0);
+  box(RW, .05, 74, asph, -42.5, -.05, 0);
+  [[-(R0 + 2.4), 'z'], [R0 + 2.4, 'z'], [R0 + 2.4 + RW, 'z'], [-(R0 + 2.4 + RW), 'z']].forEach(([z]) => box(86, .12, .25, kerb, -6, -.01, z));
+  [26.6, 33.6].forEach((x) => box(.25, .12, 74, kerb, x, -.01, 0));
+  for (let x = -46; x < 36; x += 4) { box(2, .02, .18, line, x, -.02, -(R0 + 2.4 + RW / 2)); box(2, .02, .18, line, x, -.02, R0 + 2.4 + RW / 2); }
+  const [, DZ] = W(0, door[1] + .5);
+  for (let z = -34; z < 34; z += 4) { box(.18, .02, 2, line, 30.1, -.02, z); if (Math.abs(z - DZ) > 8.5) box(.18, .02, 2, line, -42.5, -.02, z); }
+  // zebra crossings at the front door road and the back park
+  for (let i = 0; i < 6; i++) { box(.5, .02, 1.6, M.white, -2 + i * .9, -.02, R0 + 2.4 + RW / 2); box(1.6, .02, .5, M.white, 30.1, -.02, -2 + i * .9); }
+  // outer pavements beyond the road
+  box(90, .06, 3, pave, -6, -.03, -(R0 + 2.4 + RW + 1.5)); box(90, .06, 3, pave, -6, -.03, R0 + 2.4 + RW + 1.5); box(3, .06, 80, pave, 35.1, -.03, 0);
+  // trees: round ones along the pavements, palms in the park
+  const tree = (x, z, s = 1) => { const g = grp(st, x, z); g.scale.setScalar(s); add(g, cyl(.12, .17, 1.6, 8), trunk, 0, .8, 0, o); const c = rnd() < .5 ? leafA : leafB;
+    add(g, new T.IcosahedronGeometry(1.0, 1), c, 0, 2.2, 0, o); add(g, new T.IcosahedronGeometry(.7, 1), c === leafA ? leafB : leafA, .45, 2.7, .2, o); add(g, new T.IcosahedronGeometry(.6, 1), c, -.4, 2.6, -.3, o);
+    add(g, cyl(.55, .55, .05, 12), M.soil, 0, .0, 0, o); return g; };
+  const palmT = (x, z, s = 1) => { const g = grp(st, x, z); g.scale.setScalar(s); const h = 3.4 + rnd() * .8; const lean = (rnd() - .5) * .25;
+    for (let i = 0; i < 6; i++) add(g, cyl(.14 - i * .01, .16 - i * .01, h / 6 + .02, 7), trunk, lean * i * .25, h / 12 + i * h / 6, 0, o);
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2 + rnd() * .3; const lf = add(g, new T.ConeGeometry(.22, 1.9, 4), palm, lean * 1.5 + Math.sin(a) * .8, h - .05, Math.cos(a) * .8, o); lf.rotation.set(Math.cos(a) * 1.15, 0, -Math.sin(a) * 1.15); lf.scale.set(1, 1, .25); }
+    add(g, new T.SphereGeometry(.2, 8, 6), trunk, lean * 1.5, h, 0, o); return g; };
+  const lamp = (x, z) => { const g = grp(st, x, z); add(g, cyl(.06, .08, 3.4, 8), M.black, 0, 1.7, 0, o); add(g, RB(.7, .1, .22, .03), M.black, .3, 3.4, 0, o); add(g, RB(.5, .04, .16, .02), M.lamp, .4, 3.34, 0, o); return g; };
+  const benchAt = (x, z, ry) => { const g = grp(st, x, z, ry); add(g, RB(1.6, .08, .45, .02), bench, 0, .45, 0, o); add(g, RB(1.6, .4, .08, .02), bench, 0, .7, .2, o); [-.7, .7].forEach((dx) => add(g, RB(.08, .45, .45, .01), M.black, dx, .22, 0, o)); };
+  for (let x = -20; x <= 20; x += 6) { tree(x, -21.6, .9); tree(x, 21.6, .9); }
+  for (let z = -18; z <= 18; z += 6) tree(25.2, z, .9);
+  for (let x = -44; x <= 30; x += 7) { tree(x, -(R0 + 2.4 + RW + 1.5), 1); tree(x + 3.5, R0 + 2.4 + RW + 1.5, 1); }
+  for (let z = -30; z <= 30; z += 7) tree(35.2, z, 1);
+  [[-14, -22.8], [6, -22.8], [-14, 22.8], [6, 22.8], [24.4, -12], [24.4, 12]].forEach(([x, z]) => lamp(x, z));
+  // the park behind the building (south): lawn, paths, a round pond, palms and benches
+  const pz = R0 + 2.4 + RW + 3, PW = 60, PD = 22;
+  box(PW, .08, PD, grass2, -6, -.16, pz + PD / 2);
+  box(PW - 4, .06, 2.2, path, -6, -.11, pz + PD / 2); box(2.2, .06, PD - 2, path, -6, -.11, pz + PD / 2); box(2.2, .06, PD - 2, path, -26, -.11, pz + PD / 2); box(2.2, .06, PD - 2, path, 14, -.11, pz + PD / 2);
+  add(st, cyl(4.2, 4.2, .3, 28), kerb, -6, -.05, pz + PD / 2, o); add(st, cyl(3.8, 3.8, .06, 28), water, -6, .08, pz + PD / 2, o);
+  [[-30, 4], [-22, 4], [-16, 16], [4, 16], [10, 4], [18, 18], [-32, 18], [22, 6]].forEach(([x, dz]) => palmT(x, pz + dz, 1));
+  [[-12, 8.2, 0], [0, 8.2, 0], [-12, 13.8, Math.PI], [0, 13.8, Math.PI], [-26, 5, Math.PI / 2], [14, 17, -Math.PI / 2]].forEach(([x, dz, ry]) => benchAt(x, pz + dz, ry));
+  // a small football pitch in the park
+  { const fx = 24, fz = pz + 11; box(14, .05, 9, toon({ color: DARK ? 0x1C3A24 : 0x5E9E48 }), fx, -.1, fz);
+    [[14, .12, .1, 0, -4.5], [14, .12, .1, 0, 4.5], [.1, .12, 9, -7, 0], [.1, .12, 9, 7, 0], [.1, .12, 9, 0, 0]].forEach(([w, h, d, dx, dz]) => box(w, .02, d, M.white, fx + dx, -.06, fz + dz));
+    add(st, new T.TorusGeometry(1.2, .05, 4, 28), M.white, fx, -.06, fz, Object.assign({ rx: Math.PI / 2 }, o));
+    [-7, 7].forEach((dx) => { const g = grp(st, fx + dx, fz); add(g, cyl(.05, .05, 1.2, 6), M.white, 0, .6, -1.5, o); add(g, cyl(.05, .05, 1.2, 6), M.white, 0, .6, 1.5, o); add(g, cyl(.05, .05, 3, 6), M.white, 0, 1.2, 0, Object.assign({ rx: Math.PI / 2 }, o)); }); }
+  // second car park on the north side, across the road
+  { const cz = -(R0 + 2.4 + RW + 3 + 8); box(40, .05, 14, asph, -14, -.12, cz);
+    for (let i = 0; i < 9; i++) { box(.12, .02, 5, line, -32 + i * 4.5, -.09, cz - 3.5); box(.12, .02, 5, line, -32 + i * 4.5, -.09, cz + 3.5); }
+    const cols = DARK ? [0x8A1626, 0x22202C, 0xB88A2A, 0x2E4A5A, 0x5A5A60] : [0xF2F4F8, 0x22305A, 0x8A2D3A, 0x9AA3AD, 0x2F5A48, 0xC9A24A];
+    [0, 1, 3, 4, 6, 7].forEach((i, k) => car(st, -29.75 + i * 4.5, cz - 3.5, 0, cols[k % cols.length]));
+    [1, 2, 5, 7].forEach((i, k) => car(st, -29.75 + i * 4.5, cz + 3.5, Math.PI, cols[(k + 2) % cols.length]));
+    for (let x = -32; x <= 4; x += 6) tree(x, cz - 8.2, .9); }
+  // bus stop on the east pavement
+  { const g = grp(st, 35.2, 8); add(g, RB(.1, 2.4, 3, .02), M.glass, -.6, 1.2, 0, o); add(g, RB(1.4, .1, 3.2, .03), M.black, 0, 2.45, 0, o); [-1.5, 1.5].forEach((dz) => add(g, cyl(.05, .05, 2.4, 6), M.black, .6, 1.2, dz, o)); add(g, RB(.4, .08, 2.4, .02), bench, -.3, .45, 0, o); }
+  // p159 (martin): the main entrance = a mini roundabout on the front road with the IBA fountain on a planted island,
+  // a walkway from the door straight to it. Cars drive round it to the door.
+  { const rx = -42.5, rz = DZ; add(st, cyl(7.2, 7.2, .04, 56), asph, rx, .0, rz, o); add(st, new T.TorusGeometry(5.6, .06, 4, 56), line, rx, .025, rz, Object.assign({ rx: Math.PI / 2 }, o));
+    add(st, cyl(4.05, 4.15, .26, 48), kerb, rx, .13, rz, o); add(st, cyl(3.95, 3.95, .04, 48), grass2, rx, .27, rz, o);
+    const fl = [0xE05A8A, 0xF3C45B, 0xFFFFFF, 0xB35AE0].map((c) => toon({ color: c })); for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2; add(st, new T.SphereGeometry(.12, 8, 6), fl[i % 4], rx + Math.sin(a) * 3.72, .36, rz + Math.cos(a) * 3.72, o); }
+    const isl = grp(st, 0, 0); isl.position.y = .27; fountain(isl, rx, rz, true); if (FOUNT) FOUNT.g.position.y = .27; if (IBA) IBA.position.y += .27;
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => palmT(rx + sx * 5.9, rz + sz * 5.9, .8));
+    box(4.6, .07, 2.4, pave, -37.4, -.0, rz); for (let i = 0; i < 4; i++) box(.35, .02, 1.6, M.white, -39.4 + i * -.01 + 0, .04, rz - .6 + i * .4, { ry: Math.PI / 2 }); }
+  // low neighbour buildings in the distance (windows painted on)
+  const facade = tex(128, 128, (c, w, h) => { c.fillStyle = DARK ? '#2A2228' : '#E4DCCF'; c.fillRect(0, 0, w, h); c.fillStyle = DARK ? '#F3C45B' : '#6E8FA8'; for (let y = 10; y < h; y += 32) for (let x = 10; x < w; x += 30) c.fillRect(x, y, 16, 18); }, [3, 2]);
+  const fm = toon({ color: 0xFFFFFF, map: facade }), roofM = toon({ color: DARK ? 0x1A1416 : 0xB8AEA0 });
+  [[-20, -66, 18, 6, 10], [8, -68, 14, 8, 10], [32, -64, 12, 5, 12], [54, -30, 12, 6, 16], [56, 2, 10, 8, 12], [54, 32, 12, 5, 14], [-62, 56, 14, 5, 10], [-22, 72, 20, 4, 10], [14, 72, 14, 7, 10], [44, 66, 12, 6, 12], [-66, -40, 10, 7, 14], [-66, -6, 10, 5, 12], [-66, 28, 10, 6, 14]]
+    .forEach(([x, z, w, h, d]) => { add(st, new T.BoxGeometry(w, h, d), fm, x, h / 2 - .2, z, { cast: false }); add(st, new T.BoxGeometry(w + .3, .3, d + .3), roofM, x, h - .05, z, o); });
+}
+function buildOffice(state, edit) {
+  seed = 7; ADS = []; OUTER = []; CLOCKS = []; SIGN = null; FOUNT = null; KIOSK = null; chairByTile = new Map();
   const st = new T.Group(), low = new T.Group();
   // ground + floors (wood / carpet / tiles, per room)
   // the building is an octagon: base slab, floors cut to the octagon, eight outside walls
@@ -529,7 +661,7 @@ function buildOffice(state) {
   { const sh = new T.Shape(); OCTP.forEach(([x, y], i) => { const [wx, wz] = W(x, y), px = wx * 1.012, pz = wz * 1.014; i ? sh.lineTo(px, -pz) : sh.moveTo(px, -pz); }); sh.closePath();
     const geo = new T.ExtrudeGeometry(sh, { depth: .4, bevelEnabled: false }); geo.rotateX(-Math.PI / 2); add(st, geo, M.base, 0, -.42, 0, { cast: false }); }
   floorPoly(st, OCTP, M.tiles, 1.4, 0);
-  state.rooms.forEach((r) => { if (r.id === 'plaza') return; const mat = r.kind === 'wood' ? M.wood : r.kind === 'carpet' ? (r.id === 'rec' ? M.carpet3 : LEAD.includes(r.id) || r.id === 'meet' ? M.carpet : M.carpet2) : M.tiles;
+  state.rooms.forEach((r) => { if (r.id === 'plaza') return; if (r.mat && M[r.mat]) { floorPoly(st, clipOct([[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]], oc), M[r.mat], r.mat === 'wood' ? 2.4 : 1.4, .004); return; } /* p161: floor picked in Build mode */ const mat = r.kind === 'wood' ? M.wood : r.kind === 'carpet' ? (r.id === 'rec' ? M.carpet3 : LEAD.includes(r.id) || r.id === 'meet' ? M.carpet : M.carpet2) : M.tiles;
     floorPoly(st, clipOct([[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]], oc), mat, r.kind === 'wood' ? 2.4 : 1.4, .004); });
   // outside walls: windows along every side, the one door at the entrance (left wall, Reception)
   const H = 2.8, door = state.door || [0, 3];
@@ -550,25 +682,29 @@ function buildOffice(state) {
   (state.walls || []).forEach(([x1, y1, x2, y2, g, doors]) => (g === 2 ? glassRun(st, x1, y1, x2, y2, doors) : solidRun(st, x1, y1, x2, y2, doors)));
   try { roomPlates(st, state); } catch (e) { console.warn('Office 3D: plates', e); }
   // furniture + chairs (every seat has its chair; desks face the chair that uses them)
+  let ed = null; // p161: in Build mode every piece is its own group, so it can be picked and moved
+  if (edit) { ed = new T.Group(); state.furniture.forEach((o) => editPiece(ed, state, o)); state.chairs.forEach((c) => { chairByTile.set(c.x + ',' + c.y, c); editPiece(ed, state, c, true); }); }
+  else {
   state.furniture.forEach((o) => { try { furniture(st, state, o); } catch (e) { console.warn('Office 3D: furniture', o.t, e); } });
-  state.chairs.forEach((c) => { chairByTile.set(c.x + ',' + c.y, c); chair(st, c); });
+  state.chairs.forEach((c) => { chairByTile.set(c.x + ',' + c.y, c); chair(st, c); }); }
   // Reception: one long front desk between the receptionists and the entrance, facing the door
   const recR = state.rooms.find((r) => r.id === 'rec'); if (recR) { const rs = state.chairs.filter((c) => c.x >= recR.x && c.x < recR.x + recR.w && c.y >= recR.y && c.y < recR.y + recR.h && c.dir === 'W' && !c.noDesk);
     if (rs.length) { const y0 = Math.min(...rs.map((c) => c.y)), y1 = Math.max(...rs.map((c) => c.y)); const [rx, rz] = W(rs[0].x - .6, (y0 + y1) / 2 + .5); const sc = Math.min(1, (y1 - y0 + 1.6) / 3); receptionDesk(st, rx, rz, Math.PI / 2, sc, rs.map((c) => -(W(c.x + .5, c.y + .5)[1] - rz) / sc)); } }
   outside(st, state.door || [0, 3]);
+  try { surroundings(st, state.door || [0, 3]); } catch (e) { console.warn('Office 3D: surroundings', e); }
   // wall clocks over the back wall of the leaders' rooms
   state.rooms.filter((r) => r.y === 0 && LEAD.includes(r.id) && r.x >= (state.oct || 0) && r.x + r.w <= 46 - (state.oct || 0)).forEach((r) => { const [x, z] = W(r.x + r.w / 2 + 1.2, 0); wallClock(st, x, 2.15, z + .16, 0); CLOCKS.push(hands(x, 2.15, z + .16, 0)); });
   // IBA in the middle of the plaza (its footprint is blocked in the plan)
   let sign = SIGN; if (!sign) { const ib = W(23.5, 19.5); sign = ibaSign(st, ib[0], ib[1], .62); }
   const statics = mergeStatic(st);
   const lowM = new T.Group(); low.children.slice().forEach((g) => lowM.add(g)); // exterior walls stay separate groups (they lower)
-  return { statics, low: lowM, sign, clocks: CLOCKS, fount: FOUNT };
+  return { statics, low: lowM, sign, clocks: CLOCKS, fount: FOUNT, kiosk: KIOSK, edit: ed };
 }
 
 // ================= anime-style 3D people (hair, uniform and style are all options) =================
 const SKIN = ['#FBE0C8', '#F1C9A5', '#DDA57C', '#B97D57', '#8D5A3B', '#6A4029'];
 const HAIRC = { black: '#1E1A22', dark: '#3A2A22', brown: '#6B4428', chestnut: '#8A4B2A', blonde: '#E2B867', grey: '#B9BCC4', navy: '#24305E', plum: '#5A2D63', teal: '#1F7A80', pink: '#E27BA8' };
-const HEAD_PTS = (() => { const pts = []; const N = 22; for (let i = 0; i <= N; i++) { const y = -.205 + (.43 * i) / N; let r;
+const HEAD_PTS = (() => { const pts = []; const N = 30; for (let i = 0; i <= N; i++) { const y = -.205 + (.43 * i) / N; let r;
   if (y < -.12) { const k = (y + .205) / .085; r = .07 + Math.sin(k * Math.PI / 2) * .06; }          // chin -> jaw
   else if (y < .02) { const k = (y + .12) / .14; r = .13 + Math.sin(k * Math.PI / 2) * .068; } // cheeks
   else { const k = (y - .02) / .205; r = .198 * Math.sqrt(Math.max(0, 1 - k * k)); }         // skull
@@ -607,6 +743,31 @@ function faceTex(o) {
 function lighten(hex, k) { const c = new T.Color(hex); c.lerp(new T.Color('#FFFFFF'), k); return '#' + c.getHexString(); }
 const grad2 = (() => { const d = new Uint8Array([175, 175, 175, 255, 255, 255, 255, 255]); const t = new T.DataTexture(d, 2, 1); t.minFilter = t.magFilter = T.NearestFilter; t.needsUpdate = true; return t; })();
 const mt = (c) => new T.MeshToonMaterial({ color: new T.Color(c), gradientMap: grad2 });
+// 18.0.0 patch 159 (martin: faces looked like bricks): skin + face get a soft, smooth light ramp instead of hard 2-3 tone bands
+const gradSoft = (() => { const d = new Uint8Array([200, 200, 200, 255, 232, 232, 232, 255, 255, 255, 255, 255]); const t = new T.DataTexture(d, 3, 1); t.minFilter = t.magFilter = T.LinearFilter; t.needsUpdate = true; return t; })();
+const mtSoft = (c) => new T.MeshToonMaterial({ color: new T.Color(c), gradientMap: gradSoft });
+// beard / moustache painted on a thin shell over the lower face (soft edges, a gap for the mouth)
+const BEARD_CACHE = {};
+function beardTex(o) {
+  const key = [o.beard || '', o.mustache ? 1 : 0, o.hairC].join('|'); if (BEARD_CACHE[key]) return BEARD_CACHE[key];
+  const hc = HAIRC[o.hairC] || o.hairC || '#1E1A22';
+  const t = tex(256, 256, (g, w, h) => { g.clearRect(0, 0, w, h); g.fillStyle = hc; g.strokeStyle = hc; g.shadowColor = hc; g.shadowBlur = 6;
+    // canvas top = nose level, bottom = chin; the middle column is the front of the face
+    const X = (u) => u * w, Y = (v) => (1 - v) * h; const mx = .5, mv = .44; // mouth
+    if (o.beard) { const full = o.beard === 'full', side = full ? .9 : .78, cheek = full ? .5 : .4, chin = 0;
+      g.beginPath(); g.moveTo(X(.1), Y(side)); g.lineTo(X(.14), Y(side));
+      g.bezierCurveTo(X(.16), Y(cheek + .05), X(.3), Y(cheek - .02), X(.38), Y(mv + .13));        // cheek line down to the moustache
+      g.lineTo(X(.62), Y(mv + .13));
+      g.bezierCurveTo(X(.7), Y(cheek - .02), X(.84), Y(cheek + .05), X(.86), Y(side)); g.lineTo(X(.9), Y(side));
+      g.bezierCurveTo(X(.95), Y(.4), X(.85), Y(chin), X(.5), Y(chin)); g.bezierCurveTo(X(.15), Y(chin), X(.05), Y(.4), X(.1), Y(side)); g.closePath(); g.fill();
+      // the mouth stays open
+      g.save(); g.globalCompositeOperation = 'destination-out'; g.shadowBlur = 4; g.beginPath(); g.ellipse(X(mx), Y(mv - .01), w * .06, h * .035, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      if (!full) { g.save(); g.globalCompositeOperation = 'destination-out'; g.shadowBlur = 10; g.beginPath(); g.ellipse(X(mx), Y(.6), w * .16, h * .14, 0, 0, Math.PI * 2); g.fill(); g.restore(); } }
+    if (o.mustache || o.beard === 'full') { g.beginPath(); g.moveTo(X(mx), Y(mv + .1)); g.bezierCurveTo(X(.43), Y(mv + .16), X(.37), Y(mv + .12), X(.35), Y(mv + .04)); g.bezierCurveTo(X(.4), Y(mv + .07), X(.45), Y(mv + .06), X(mx), Y(mv + .07));
+      g.bezierCurveTo(X(.55), Y(mv + .06), X(.6), Y(mv + .07), X(.65), Y(mv + .04)); g.bezierCurveTo(X(.63), Y(mv + .12), X(.57), Y(mv + .16), X(mx), Y(mv + .1)); g.fill(); }
+  });
+  t.wrapS = t.wrapT = T.ClampToEdgeWrapping; BEARD_CACHE[key] = t; return t;
+}
 function sph(p, r, mat, x, y, z, sc, o = {}) { return add(p, new T.SphereGeometry(r, 20, 14), mat, x, y, z, Object.assign({ sc }, o)); }
 function capsule(p, r, len, mat, x, y, z, o) { return add(p, new T.CapsuleGeometry(r, len, 6, 14), mat, x, y, z, o); }
 function shell(p, r, mat, phiStart, phiLen, th0, thLen, sc, y = 0, z = 0, o = {}) { return add(p, new T.SphereGeometry(r, 28, 18, phiStart, phiLen, th0, thLen), Object.assign(mat.clone ? mat : mat, {}), 0, y, z, Object.assign({ sc }, o)); }
@@ -615,10 +776,29 @@ function hairDo(head, o, hm) {
   const style = o.hair; const hl = mt(lighten(HAIRC[o.hairC] || o.hairC, .28));
   const cap = (low = .6, tilt = .42) => add(head, new T.SphereGeometry(.214, 30, 18, 0, Math.PI * 2, 0, Math.PI * low), hm, 0, .005, .012, { sc: [1.05, 1.1, 1.07], rx: tilt, side: true });
   const ring = () => null;
-  const bangs = (n, len, spread, tilt = 0, y0 = .14) => { for (let i = 0; i < n; i++) { const k = n === 1 ? 0 : i / (n - 1) - .5; const a = k * spread + tilt * .25; const L = len * (1 - Math.abs(k) * .35) * (i % 2 ? .82 : 1); const c = add(head, new T.ConeGeometry(.062, L, 10), hm, Math.sin(a) * .2, y0 + .03 - L * .5, -Math.cos(a) * .2 + .004, { sc: [1, 1, .4] }); c.rotation.order = 'YXZ'; c.rotation.set(Math.PI - .32, -a, -k * .45 + tilt * .35); } };
+  const bangs = (n, len, spread, tilt = 0, y0 = .14) => { for (let i = 0; i < n; i++) { const k = n === 1 ? 0 : i / (n - 1) - .5; const a = k * spread + tilt * .25; const L = len * (1 - Math.abs(k) * .35) * (i % 2 ? .82 : 1); const c = add(head, new T.SphereGeometry(.06, 14, 12), hm, Math.sin(a) * .2, y0 + .03 - L * .5, -Math.cos(a) * .2 + .004, { sc: [1, L * 8.3, .4] }); c.rotation.order = 'YXZ'; c.rotation.set(Math.PI - .32, -a, -k * .45 + tilt * .35); } };
   const sideLocks = (len, w = .06) => [-1, 1].forEach((s) => add(head, new T.SphereGeometry(w, 12, 10), hm, s * .185, .06 - len * .45, -.07, { sc: [.55, len * 9, .5], rz: s * .1 }));
-  if (style === 'buzz') { add(head, new T.SphereGeometry(.205, 28, 16, 0, Math.PI * 2, 0, Math.PI * .56), hm, 0, .0, .006, { sc: [1.02, 1.08, 1.04], rx: .45 }); return; }
   if (style === 'bald') return;
+  // 18.0.0 patch 159 (martin): new male hair. One clean base that hugs the skull (front hairline above the brows,
+  // down to the ears and the nape), then rounded locks per style. No sharp cones, no gaps on top.
+  const base = (th = .53, sc = 1.07, tilt = .6) => add(head, new T.SphereGeometry(.205, 40, 24, 0, Math.PI * 2, 0, Math.PI * th), hm, 0, .03, .012, { sc: [sc, sc * 1.03, sc * 1.03], rx: tilt, side: true });
+  const lock = (x, y, z, len, w, rx, rz, ry = 0) => { const m = add(head, new T.SphereGeometry(w, 16, 12), hm, x, y, z, { sc: [1, len / w, .55] }); m.rotation.order = 'YXZ'; m.rotation.set(rx, ry, rz); return m; };
+  if (style === 'buzz') { base(.53, 1.025, .6); return; }
+  if (style === 'side') { base(.53, 1.07, .6);
+    add(head, new T.SphereGeometry(.15, 24, 16), hm, -.035, .19, -.03, { sc: [1.25, .55, 1.15], rz: .12 });            // volume on top, swept to one side
+    for (let i = 0; i < 5; i++) { const k = i / 4; lock(-.13 + k * .22, .16 - k * .03, -.17 + Math.abs(k - .4) * .03, .07 - k * .015, .048, -.5, -.9 + k * .15); } // fringe swept across
+    [-1, 1].forEach((sd) => lock(sd * .19, .05, -.06, .07, .04, 0, sd * .15)); return; }                                   // tidy sideburns
+  if (style === 'slick') { base(.52, 1.05, .66);
+    add(head, new T.SphereGeometry(.16, 24, 16), hm, 0, .17, .05, { sc: [1.08, .38, 1.25], rx: -.1 });
+    for (let i = 0; i < 3; i++) lock(-.07 + i * .07, .19, -.11, .06, .04, -1.3, 0); [-1, 1].forEach((sd) => lock(sd * .19, .05, -.05, .06, .035, 0, sd * .1)); return; }
+  if (style === 'curly') { base(.53, 1.05, .6);
+    for (let i = 0; i < 34; i++) { const t = (i + .5) / 34, th = Math.acos(1 - t * .95), ph = i * 2.39996; const r = .215;
+      const x = Math.sin(th) * Math.sin(ph) * r * 1.04, y = .03 + Math.cos(th) * r * 1.06, z = .012 + Math.sin(th) * Math.cos(ph) * r * 1.04;
+      if (z < -.12 && y < .14) continue; add(head, new T.SphereGeometry(.052, 12, 10), hm, x, y, z); } return; }
+  if (style === 'spiky') { base(.53, 1.07, .6);
+    for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; const c = add(head, new T.ConeGeometry(.06, .16, 14), hm, Math.sin(a) * .11, .2 + Math.cos(a) * .015, Math.cos(a) * .1 + .03, { rx: Math.cos(a) * .9 + .25, rz: -Math.sin(a) * .9 });
+      add(head, new T.SphereGeometry(.022, 10, 8), hm, Math.sin(a) * .16, .26, Math.cos(a) * .15 + .04); }
+    for (let i = 0; i < 5; i++) { const k = i / 4 - .5; lock(k * .26, .15, -.17, .065, .048, -.5, k * .8); } return; }
   if (style === 'ghutra') { const cloth = mt('#F6F6F2'), agal = mt('#151318');
     add(head, new T.SphereGeometry(.23, 30, 18, 0, Math.PI * 2, 0, Math.PI * .56), cloth, 0, .01, .015, { sc: [1.05, 1.1, 1.06], rx: .5, side: true });
     add(head, new T.SphereGeometry(.245, 30, 18, FRONT + .95, Math.PI * 2 - 1.9, Math.PI * .4, Math.PI * .5), cloth, 0, -.02, .01, { sc: [1.02, 1.6, 1.04], side: true });
@@ -645,7 +825,7 @@ function hairDo(head, o, hm) {
 }
 function person(p, o) {
   const g = new T.Group(); p.add(g); const fem = o.g === 'f';
-  const skin = mt(typeof o.skin === 'string' ? o.skin : SKIN[o.skin ?? 1]); const hm = mt(HAIRC[o.hairC] || o.hairC || '#1E1A22');
+  const skin = mtSoft(typeof o.skin === 'string' ? o.skin : SKIN[o.skin ?? 1]); const hm = mt(HAIRC[o.hairC] || o.hairC || '#1E1A22');
   const U = OUTFITS[o.outfit] || OUTFITS.shirt; const top = mt(o.top || U.top), bottom = mt(o.bottom || U.bottom), shoe = mt(U.shoe || '#1A1720');
   const sleeve = mt(o.sleeve || U.sleeve || o.top || U.top);
   const hips = new T.Group(); hips.position.y = .82; g.add(hips);
@@ -657,12 +837,12 @@ function person(p, o) {
   if (U.extra) U.extra(torso, o, { top, bottom, skin, fem });
   // head
   const head = new T.Group(); head.position.y = .76; torso.add(head);
-  add(head, new T.LatheGeometry(HEAD_PTS, 40), skin, 0, 0, 0, { sc: [1, 1, .94] });
-  const face = add(head, new T.LatheGeometry(HEAD_PTS, 24, Math.PI - 1.0, 2.0), new T.MeshToonMaterial({ map: faceTex(o), transparent: true, alphaTest: .35, gradientMap: grad, polygonOffset: true, polygonOffsetFactor: -2 }), 0, 0, 0, { sc: [1.004, 1, .944], noOutline: true, cast: false });
+  add(head, new T.LatheGeometry(HEAD_PTS, 64), skin, 0, 0, 0, { sc: [1, 1, .94] });
+  const face = add(head, new T.LatheGeometry(HEAD_PTS, 40, Math.PI - 1.0, 2.0), new T.MeshToonMaterial({ map: faceTex(o), transparent: true, alphaTest: .35, gradientMap: gradSoft, polygonOffset: true, polygonOffsetFactor: -2 }), 0, 0, 0, { sc: [1.004, 1, .944], noOutline: true, cast: false });
   [-1, 1].forEach((s) => sph(head, .035, skin, s * .19, -.01, .01, [.6, 1, 1]));
   if (o.glasses) { const gm = mt(o.glassesC || '#1A1620'); [-1, 1].forEach((s) => add(head, new T.TorusGeometry(.052, .008, 6, 20), gm, s * .072, -.012, -.192, { sc: [1.15, .85, 1], noOutline: true })); add(head, RB(.04, .01, .01, .004), gm, 0, -.0, -.198, { noOutline: true }); }
-  if (o.beard) { const bm = mt(HAIRC[o.hairC] || o.hairC); const chin = HEAD_PTS.filter((v) => v.y < (o.beard === 'full' ? -.155 : -.17)); add(head, new T.LatheGeometry(chin, 24, Math.PI - 1.3, 2.6), bm, 0, 0, 0, { sc: [1.025, 1, .97], side: true, noOutline: true }); if (o.beard === 'full') { const sideP = HEAD_PTS.filter((v) => v.y < -.0); [[-1.45, .85], [.6, .85]].forEach(([a0, l]) => add(head, new T.LatheGeometry(sideP, 10, Math.PI + a0, l), bm, 0, 0, 0, { sc: [1.025, 1, .97], side: true, noOutline: true })); } }
-  if (o.mustache) [-1, 1].forEach((s) => add(head, new T.CapsuleGeometry(.008, .035, 4, 8), hm, s * .02, -.084, -.172, { rz: Math.PI / 2 + s * .35, noOutline: true }));
+  if (o.beard || o.mustache) { const low = HEAD_PTS.filter((v) => v.y <= .0); const bt = beardTex(o);
+    add(head, new T.LatheGeometry(low, 48, Math.PI - 1.3, 2.6), new T.MeshToonMaterial({ map: bt, transparent: true, alphaTest: .4, gradientMap: grad2, polygonOffset: true, polygonOffsetFactor: -4 }), 0, 0, 0, { sc: [1.03, 1, .975], noOutline: true, cast: false }); }
   hairDo(head, o, hm);
   if (o.hat === 'helmet') { const hc = mt(o.hatC || '#F6C21C'); add(head, new T.SphereGeometry(.24, 26, 14, 0, Math.PI * 2, 0, Math.PI * .5), hc, 0, .05, .0, { sc: [1.04, 1.02, 1.1] }); add(head, cyl(.27, .27, .025, 26), hc, 0, .055, -.03, { sc: [1, 1, 1.1] }); add(head, RB(.05, .04, .44, .02), hc, 0, .3, 0, { noOutline: true }); }
   // arms: shoulder -> elbow -> hand
@@ -783,7 +963,8 @@ function updateLabs() {
   const cv = renderer.domElement, w = cv.clientWidth, h = cv.clientHeight, ox = cv.offsetLeft, oy = cv.offsetTop;
   LABS.forEach((a) => { const el = a.userData.dom; let o = a, shown = true; while (o && o !== scene) { if (o.visible === false) shown = false; o = o.parent; }
     if (!o) { el.remove(); LABS.delete(a); return; }
-    _lv.setFromMatrixPosition(a.matrixWorld).project(camera); const x = ox + (_lv.x + 1) / 2 * w, y = oy + (1 - _lv.y) / 2 * h;
+    _lv.setFromMatrixPosition(a.matrixWorld).project(camera); let x = ox + (_lv.x + 1) / 2 * w, y = oy + (1 - _lv.y) / 2 * h;
+    if (a.userData.kind === 'bubble' && x > -80 && x < w + 80 && y > -300 && y < h + 40) { const bh = el.offsetHeight || 26, bw = (el.offsetWidth || 120) / 2; y = Math.max(oy + bh + 4, y); x = Math.min(ox + w - bw - 4, Math.max(ox + bw + 4, x)); } // p162: a talk bubble near the top edge stays in view
     if (a.userData.kind === 'tag' && view.size * zoomMul > 30) shown = false;
     if (a.userData.kind === 'room' && view.size * zoomMul <= 30) shown = false; // p157: zoomed in, the door plates carry the names // whole office: room signs only, names show when you zoom in
     if (!shown || x < -80 || y < -40 || x > w + 80 || y > h + 40) { if (el.style.display !== 'none') el.style.display = 'none'; return; }
@@ -825,15 +1006,15 @@ function setLights() { lights.forEach((l) => l.parent && l.parent.remove(l)); li
   if (DARK) [[0, 2.4, -4, P.trimA], [-16, 2.4, 12, P.trimB], [-4, 2.4, 12, P.trimA], [18, 2.4, 12, P.trimB], [-12, 2.4, -16, P.trimB], [8, 2.4, -16, P.accent], [17, 2.4, -2, P.trimA]].forEach(([x, y, z, c]) => { const l = new T.PointLight(c, 8, 11, 1.5); l.position.set(x, y, z); lights.push(l); });
   lights.forEach((l) => scene.add(l)); scene.background = new T.Color(P.bg); }
 function build(state) {
-  const k = themeKey(state); P = THEMES[k]; DARK = !!P.dark; lastTheme = state.theme;
-  if (built) { disposeTree(built.statics); disposeTree(built.low); disposeTree(built.sign); built.clocks.forEach(disposeTree); if (built.fount) disposeTree(built.fount.g); }
+  const k = themeKey(state); P = THEMES[k]; DARK = !!P.dark; lastTheme = state.theme; const edit = !!BLD;
+  if (built) { if (built.edit) disposeTree(built.edit); disposeTree(built.statics); disposeTree(built.low); disposeTree(built.sign); built.clocks.forEach(disposeTree); if (built.fount) disposeTree(built.fount.g); if (built.kiosk) disposeTree(built.kiosk.g); }
   disposeTree(people3); disposeTree(badges); roomLab.forEach((s) => s.parent && s.parent.remove(s)); roomLab.clear(); SPR.forEach((m) => { if (m.map) m.map.dispose(); m.dispose(); }); SPR.clear();
   actors.clear(); pickables = []; cabinets.clear();
-  materials(); built = buildOffice(state); addOutlines(built.low, OUT);
-  scene.add(built.statics, built.low, built.sign); if (built.fount) scene.add(built.fount.g); built.clocks.forEach((c) => scene.add(c));
+  materials(); built = buildOffice(state, edit); addOutlines(built.low, OUT);
+  scene.add(built.statics, built.low, built.sign); if (built.fount) scene.add(built.fount.g); if (built.kiosk && !edit) scene.add(built.kiosk.g); if (built.edit) scene.add(built.edit); built.clocks.forEach((c) => scene.add(c));
   people3 = new T.Group(); badges = new T.Group(); scene.add(people3, badges);
   disposeTree(rideG); rideG = new T.Group(); scene.add(rideG); RIDES = []; PARKED = {}; parkT = 0; // p157 rides
-  setLights(); addBadges(state);
+  setLights(); if (!edit) addBadges(state); if (edit) bldAfterBuild();
   const px = P.px || 1; renderer.setPixelRatio(px > 1 ? 1 / px : Math.min(1.5, devicePixelRatio || 1)); renderer.domElement.style.imageRendering = px > 1 ? 'pixelated' : '';
   resize3d();
 }
@@ -879,12 +1060,13 @@ function stepActor(p, a, dt, t) {
   let df = want - a.ry; df = ((df + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; a.ry += df * Math.min(1, dt * 10);
   a.holder.position.set(x, 0, z); a.holder.rotation.y = a.ry; a.holder.visible = !p.hidden;
   const talk = p.bubble && performance.now() < p.bubbleT ? String(p.bubble) : '';
-  const bubble = talk || (!moving && !p.hidden && p.awayLabel ? String(p.awayLabel) : ''); // p157: "Go here" / I'm in sign over your head
+  const bubble = talk; // p162 (martin): no "In the hall · time" sign over the head any more (only talk / chat bubbles)
   u.carry = !!p.carry; if (u.rig.paper) u.rig.paper.visible = !!p.carry;
   u.act = moving ? 'walk' : seated ? (talk ? 'sittalk' : (ch.sprite === 'work' && !ch.noDesk ? 'work' : 'sit')) : (talk ? 'talk' : 'stand');
   u.seatY = seatY(ch); u.deskH = ch ? ch.deskH : 0;
   if (bubble !== a.bubbleText) { if (a.bubble) a.holder.remove(a.bubble); a.bubbleText = bubble; a.bubble = null;
-    if (bubble) { a.bubble = sprite(bubble.length > 34 ? bubble.slice(0, 33) + '…' : bubble, { bg: '#FFFFFF', border: '#9B5CFF', color: '#16132B', tail: true }, .42); a.bubble.position.y = p.human ? 2.45 : 2.02; a.holder.add(a.bubble); } }
+    if (bubble) { const chat = !!p.chatBubble && bubble === String(p.bubble || ''); const lim = chat ? 120 : 34; a.bubble = sprite(bubble.length > lim ? bubble.slice(0, lim - 1) + '…' : bubble, { bg: '#FFFFFF', border: chat === 'pub' ? '#E0A526' : '#9B5CFF', color: '#16132B', tail: true }, .42);
+      if (chat) { const el = a.bubble.userData.dom; if (el) { if (bubble.length > 30) { el.style.whiteSpace = 'normal'; el.style.width = '230px'; el.style.textAlign = 'left'; } el.style.borderColor = p.chatBubble === 'pub' ? '#E0A526' : '#9B5CFF'; if (/^writing/.test(bubble)) el.style.fontStyle = 'italic'; } } /* p162: chat bubbles wrap */ a.bubble.position.y = p.human ? 2.45 : 2.02; a.holder.add(a.bubble); } }
   if (u.act === 'walk') u.ph = (u.ph || 0) + dt * 5;
   applyPose(a.g, dt, t);
 }
@@ -947,17 +1129,20 @@ function touchDown(e) { if (e.pointerType !== 'touch') return false; touches.set
 function touchMove(e) { if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return false; touches.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (!pinch || touches.size < 2) return false; const p = pinchNow();
   zoomMul = Math.max(.22, Math.min(1.5, pinch.zoom0 * pinch.d / p.d)); azimuth = pinch.az0 - (p.a - pinch.a); azGoal = azimuth; return true; }
 function touchUp(e) { if (e.pointerType !== 'touch') return; touches.delete(e.pointerId); if (touches.size < 2) pinch = null; }
-function onDown(e) { if (touchDown(e)) return; drag = { x: e.clientX, y: e.clientY, moved: false, pan: !(e.button === 2 || e.shiftKey) }; /* left-drag moves, right-drag (or Shift) turns */ try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {} }
-function onMove(e) { if (touchMove(e)) return; if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (!drag.moved) return; drag.x = e.clientX; drag.y = e.clientY;
+function onDown(e) { if (touchDown(e)) return; if (BLD && bldDown(e)) return; drag = { x: e.clientX, y: e.clientY, moved: false, pan: !(e.button === 2 || e.shiftKey) }; /* left-drag moves, right-drag (or Shift) turns */ try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {} }
+function onMove(e) { if (touchMove(e)) return; if (BLD && bldMoveP(e)) return; if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; if (!drag.moved) return; drag.x = e.clientX; drag.y = e.clientY;
   if (drag.pan) { const k = view.size * zoomMul / Math.max(1, stage.clientHeight); const cx = Math.cos(azimuth), sx = Math.sin(azimuth); pan.x += (-dx * cx - dy * sx / Math.sin(elevation)) * k; pan.z += (dx * sx - dy * cx / Math.sin(elevation)) * k; pan.x = Math.max(-26, Math.min(26, pan.x)); pan.z = Math.max(-22, Math.min(22, pan.z)); }
   else { azimuth -= dx * .008; azGoal = azimuth; elevation = Math.max(.42, Math.min(1.25, elevation + dy * .004)); } }
-function onUp(e) { touchUp(e); if (!drag) return; const click = !drag.moved; drag = null; if (!click) return; const r = renderer.domElement.getBoundingClientRect(); pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+function onUp(e) { touchUp(e); if (BLD && bldUp(e)) return; if (!drag) return; const click = !drag.moved; drag = null; if (!click) return; if (BLD) { bldClick(e); return; } const r = renderer.domElement.getBoundingClientRect(); pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   // 18.0.0 patch 157: right-CLICK (no drag) on the floor = small menu "Go here"; right-drag still turns the view
-  if (e.button === 2) { const g = groundAt(e); if (!g) return; const tx = Math.floor(g.x + 23), ty = Math.floor(g.z + 20); if (tx < 0 || ty < 0 || tx >= 46 || ty >= 40) return; if (window.ibaOfficeGoMenu) window.ibaOfficeGoMenu(tx, ty, e.clientX, e.clientY); return; }
+  if (e.button === 2) { raycaster.setFromCamera(pointer, camera); const ph = raycaster.intersectObjects(pickables, false).find((h) => h.object.userData.hit && h.object.userData.hit.type === 'person' && h.object.parent && h.object.parent.visible !== false);
+    if (ph && window.ibaOfficeWheel && window.ibaOfficeWheel(ph.object.userData.hit.name, e.clientX, e.clientY)) return; // p159: right-click a person / bot = the wheel
+    if (!ph && raycaster.intersectObjects(pickables, false).some((h) => h.object.userData.hit && h.object.userData.hit.type === 'kiosk')) { if (window.ibaOffice3DSelectKiosk) window.ibaOffice3DSelectKiosk(); return; } // p161: right-click the info robot = search too
+    const g = groundAt(e); if (!g) return; const tx = Math.floor(g.x + 23), ty = Math.floor(g.z + 20); if (tx < 0 || ty < 0 || tx >= 46 || ty >= 40) return; if (window.ibaOfficeGoMenu) window.ibaOfficeGoMenu(tx, ty, e.clientX, e.clientY); return; }
   raycaster.setFromCamera(pointer, camera); const hit = raycaster.intersectObjects(pickables, false).find((h) => { let o = h.object; while (o) { if (o.visible === false && !o.userData.hit) return false; o = o.parent; } return true; });
   if (!hit) { const g = groundAt(e); if (!g) return; const s = window.ibaOffice3DState(); const tx = Math.floor(g.x + 23), ty = Math.floor(g.z + 20); if (tx < 0 || ty < 0 || tx >= 46 || ty >= 40) return;
     const room = roomOf(s, tx, ty); if (!room) return; if (focusRoom === room.id) return; focusRoom = room.id; pan.x = pan.z = 0; zoomMul = 1; return; } // click a room = zoom into it
-  const q = hit.object.userData.hit; if (q.type === 'cab') window.ibaOffice3DSelectCab(q.id); else window.ibaOffice3DSelectPerson(q.name); }
+  const q = hit.object.userData.hit; if (q.type === 'kiosk') { if (window.ibaOffice3DSelectKiosk) window.ibaOffice3DSelectKiosk(); return; } if (q.type === 'cab') window.ibaOffice3DSelectCab(q.id); else window.ibaOffice3DSelectPerson(q.name); }
 const groundPlane = new T.Plane(new T.Vector3(0, 1, 0), 0);
 function groundAt(e) { const r = renderer.domElement.getBoundingClientRect(); pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); raycaster.setFromCamera(pointer, camera); const v = new T.Vector3(); return raycaster.ray.intersectPlane(groundPlane, v) ? v : null; }
 // wheel = zoom in / out toward the mouse (the point under the mouse stays put)
@@ -982,17 +1167,19 @@ function setup(state) {
   new ResizeObserver(() => resize3d()).observe(stage); window.addEventListener('resize', resize3d);
   build(state); const g = focusGoal(state); Object.assign(view, g); stage.classList.add('iba-off-3d-ready'); window.ibaOffice3DActive = true;
   const load = document.querySelector('#iba-office .iba-off-load'); if (load) load.textContent = '3D office ready';
-  addLookButton(); addViewButtons(); loadLooks();
+  addLookButton(); addBuildButton(); addViewButtons(); loadLooks();
 }
 function frame(t, state) {
   if (!renderer || !stage) return; const root = document.getElementById('iba-office'); if (root && root.hidden) return;
   const dt = Math.min(.08, Math.max(0, (t - lastT) / 1000) || .016); lastT = t; const ts = t / 1000;
   if (state.theme !== lastTheme) build(state);
+  if (BLD) bldFrame();
   roomLabels(state);
   const live = new Set(state.people); actors.forEach((a, p) => { if (live.has(p)) return; pickables = pickables.filter((m) => m !== a.hit); disposeTree(a.holder); if (a.bar) { disposeTree(a.bar); a.bar = null; } actors.delete(p); });
   state.people.forEach((p) => { const a = actors.get(p) || makeActor(p); stepActor(p, a, dt, ts); });
   if (IBA) IBA.rotation.y = ts * .35;
   if (built.fount) fountainTick(built.fount, ts);
+  if (built.kiosk) kioskTick(built.kiosk, ts, dt);
   const d = new Date(); built.clocks.forEach((c) => { const [h, m] = c.userData.hands; h.rotation.z = -((d.getHours() % 12) + d.getMinutes() / 60) / 12 * Math.PI * 2; m.rotation.z = -d.getMinutes() / 60 * Math.PI * 2; });
   updateBadges(state);
   const appView = (state.zoom || 0).toFixed(2) + '|' + state.currentRoom; if (appView !== lastAppView) { if (lastAppView) resetView(); lastAppView = appView; } // My office / Whole office = back to that view
@@ -1117,6 +1304,306 @@ function saveLook() {
   d.ref(`${LOOK_PATH}/${k}`).set(clean).then(() => msg(`Saved. ${p.full || p.name} now looks like this in the office.`), (e) => { console.warn('Office 3D: save look', e); msg('Could not save: ' + (e && e.message ? e.message : 'database error')); });
 }
 function fdb() { try { if (typeof db !== 'undefined' && db && db.ref) return db; } catch (_) {} try { if (window.db && window.db.ref) return window.db; } catch (_) {} try { return (typeof firebase !== 'undefined' && firebase.database) ? firebase.database() : null; } catch (_) { return null; } }
+
+// 18.0.0 patch 159 (martin): real faces in the Bot tasks panel. One small renderer of its own, head + shoulders,
+// cached per person + look, so it is drawn once and not every frame.
+let PORT = null; const PORTC = new Map();
+function portrait(name) {
+  try {
+    if (!T || !OUTP || !renderer) return ''; const st = window.ibaOffice3DState ? window.ibaOffice3DState() : null; const list = st ? st.people || [] : [];
+    const p = list.find((q) => q.name === name || (name === '@me' && q.me)); if (!p) return '';
+    const o = p.human ? Object.assign({ name: p.name }, lookOf(p)) : Object.assign({ name: p.name, color: new T.Color(p.hair || '#3FD1C1').getHex() }, BOTLOOK[p.name] || {});
+    const key = (p.human ? 'h|' : 'b|') + JSON.stringify(o); if (PORTC.has(key)) return PORTC.get(key);
+    if (!PORT) { const can = document.createElement('canvas'); const r = new T.WebGLRenderer({ canvas: can, antialias: true, alpha: true, preserveDrawingBuffer: true }); r.outputColorSpace = T.SRGBColorSpace; r.setPixelRatio(1); r.setSize(160, 160, false);
+      const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xFFFFFF, 0xC8BFAF, 1.6)); const sun = new T.DirectionalLight(0xFFF4E2, 2.0); sun.position.set(-1.5, 3, -3); sc.add(sun);
+      const cam = new T.PerspectiveCamera(20, 1, .05, 30); const holder = new T.Group(); sc.add(holder); PORT = { r, sc, cam, holder }; }
+    PORT.holder.children.slice().forEach((c) => disposeTree(c));
+    const g = p.human ? person(PORT.holder, o) : bot(PORT.holder, o); g.userData.uid = 9999; g.userData.act = 'stand'; g.rotation.y = -.3;
+    try { applyPose(g, .016, 0); } catch (_) {}
+    g.updateMatrixWorld(true); const bb = new T.Box3().setFromObject(g); const top = bb.max.y, hy = top - (p.human ? .27 : .3);
+    PORT.cam.position.set(.32, hy + .06, p.human ? -2.05 : -2.45); PORT.cam.lookAt(0, hy - .04, 0);
+    PORT.r.render(PORT.sc, PORT.cam); const url = PORT.r.domElement.toDataURL('image/png'); PORTC.set(key, url); return url;
+  } catch (e) { console.warn('Office 3D: portrait', name, e); return ''; }
+}
+window.ibaOffice3DPortrait = portrait;
+
+// ================= 18.0.0 patch 161 (martin): BUILD MODE (Super Admin only, Clean look) =================
+// Click Build: the office pauses (people hidden), a floor grid shows and every piece can be picked.
+// Drag = move, R = turn, Delete = remove, arrows = nudge, Ctrl+Z / Ctrl+Y = undo / redo. The left panel adds new pieces
+// and paints room floors. Save writes js/iba-office-layout.js straight into the Live folder on this PC (the folder is
+// picked once), with the old file copied to Backup\office-layout first. Nothing goes to Firebase.
+let BLD = null; const BPIECES = new Map();
+const BLD_DRAFT = 'iba-office-build-draft-v1';
+const S3 = () => window.ibaOffice3DState();
+const isChairP = (o) => o && o.t === undefined;
+const ROTF = { N: 'E', E: 'S', S: 'W', W: 'N' };
+const FACE_T = new Set(['books', 'shelf', 'cabinet', 'cubby', 'printer', 'kitchen', 'fridge', 'tv', 'sink', 'toilet', 'urinal', 'lowcab', 'board', 'art', 'logo', 'cooler', 'vending', 'drinks', 'adtv', 'sofa']);
+const SIZE_T = new Set(['rug', 'tilefloor', 'table', 'sofa', 'books', 'bar', 'kitchen', 'rack', 'board', 'lowcab', 'divider', 'stall', 'sink', 'adtv', 'logo', 'exec', 'tv', 'boxes']);
+const PNAME = { desk: 'Work desk', exec: 'Manager desk', counter: 'Counter', table: 'Table', sofa: 'Sofa', books: 'Bookcase', shelf: 'Shelf', cabinet: 'Cabinet', cubby: 'Cubby', printer: 'Printer', kitchen: 'Coffee bar', fridge: 'Fridge', bar: 'High table', rack: 'Store rack', boxes: 'Boxes', tv: 'TV', sink: 'Sink', toilet: 'Toilet', urinal: 'Urinal', stall: 'Toilet wall', plant: 'Plant', rug: 'Rug', tilefloor: 'Tile patch', lowcab: 'Low cabinet', board: 'Whiteboard', art: 'Wall art', logo: 'IBA logo wall', divider: 'Glass divider', cooler: 'Water cooler', vending: 'Snack machine', drinks: 'Drinks fridge', adtv: 'Welcome screen', fountain: 'Info robot (kiosk)' };
+function pieceName(o) { if (!isChairP(o)) return PNAME[o.t] || o.t; return o.stool ? 'Bar stool' : o.hidden ? 'Sofa seat' : o.sprite === 'visitor' ? 'Visitor chair' : o.sprite === 'lounge' ? 'Armchair' : 'Work chair'; }
+const nid = (i) => 'n' + Date.now().toString(36) + (i || 0);
+// the catalog: [label, make(x, y) -> pieces]  (f = furniture, c = chair)
+const CATALOG = [
+  ['Desks + chairs', [
+    ['Work desk + chair', (x, y) => [{ x, y: y + 1, w: 1, d: 1, h: 24, col: '#B07A45', t: 'desk' }, { x, y, dir: 'S', col: '#2E3A4E', sprite: 'work', seat: ['?', 999] }]],
+    ['Manager desk + chair', (x, y) => [{ x: x - 1, y: y + 1, w: 3, d: 1, h: 24, col: '#8A5A35', t: 'exec' }, { x, y, dir: 'S', col: '#3A2A20', sprite: 'work', seat: ['?', 999] }]],
+    ['Visitor chair', (x, y) => [{ x, y, dir: 'N', col: '#3A3F4A', sprite: 'visitor', noDesk: true }]],
+    ['Armchair', (x, y) => [{ x, y, dir: 'S', col: '#69528C', sprite: 'lounge', noDesk: true }]],
+    ['Bar stool', (x, y) => [{ x, y, dir: 'S', col: '#5A4632', stool: true, noDesk: true }]],
+  ]],
+  ['Tables + sofas', [
+    ['Sofa (2)', (x, y) => [{ x, y, w: 2, d: 1, h: 16, col: '#7152A3', t: 'sofa', face: 'S' }]],
+    ['Sofa (3)', (x, y) => [{ x, y, w: 3, d: 1, h: 16, col: '#7152A3', t: 'sofa', face: 'S' }]],
+    ['Small table', (x, y) => [{ x, y, w: 1, d: 1, h: 12, col: '#E9E2D2', t: 'table' }]],
+    ['Meeting table', (x, y) => [{ x, y, w: 4, d: 2, h: 14, col: '#8A5A35', t: 'table' }]],
+    ['High table', (x, y) => [{ x, y, w: 3, d: 1, h: 30, col: '#5A4632', t: 'bar' }]],
+  ]],
+  ['Storage', [
+    ['Cabinet', (x, y) => [{ x, y, w: 1, d: 1, h: 56, col: '#7A5232', t: 'cabinet', face: 'S' }]],
+    ['Bookcase', (x, y) => [{ x, y, w: 2, d: 1, h: 62, col: '#6B4A2E', t: 'books', face: 'S' }]],
+    ['Low cabinet', (x, y) => [{ x, y, w: 2, d: 1, h: 30, col: '#6B4A2E', t: 'lowcab', face: 'S' }]],
+    ['Shelf', (x, y) => [{ x, y, w: 1, d: 1, h: 56, col: '#7A5232', t: 'shelf', face: 'S' }]],
+    ['Store rack', (x, y) => [{ x, y, w: 3, d: 1, h: 64, col: '#5A6470', t: 'rack' }]],
+    ['Boxes', (x, y) => [{ x, y, w: 1, d: 1, h: 20, col: '#B08A5A', t: 'boxes' }]],
+  ]],
+  ['Office', [
+    ['Printer', (x, y) => [{ x, y, w: 1, d: 1, h: 30, col: '#2D3550', t: 'printer', face: 'S' }]],
+    ['TV', (x, y) => [{ x, y, w: 2, d: 1, h: 40, col: '#2D3550', t: 'tv', face: 'S' }]],
+    ['Whiteboard', (x, y) => [{ x, y, w: 2, d: 1, h: 40, col: '#F4F6F8', t: 'board', face: 'S' }]],
+    ['Glass divider', (x, y) => [{ x, y: y + .46, w: 2, d: .08, h: 20, col: '#C9D4DE', t: 'divider', block: false }]],
+    ['Welcome screen', (x, y) => [{ x, y, w: 3, d: 1, h: 60, col: '#1E2433', t: 'adtv', face: 'S', block: false }]],
+  ]],
+  ['Pantry + toilet', [
+    ['Coffee bar', (x, y) => [{ x, y, w: 3, d: 1, h: 28, col: '#D7D2C6', t: 'kitchen', face: 'S' }]],
+    ['Fridge', (x, y) => [{ x, y, w: 1, d: 1, h: 56, col: '#EEF2F7', t: 'fridge', face: 'S' }]],
+    ['Water cooler', (x, y) => [{ x, y, w: 1, d: 1, h: 30, col: '#E0E6EC', t: 'cooler', face: 'S' }]],
+    ['Snack machine', (x, y) => [{ x, y, w: 1, d: 1, h: 60, col: '#C8323C', t: 'vending', face: 'S' }]],
+    ['Drinks fridge', (x, y) => [{ x, y, w: 1, d: 1, h: 60, col: '#2A2F3A', t: 'drinks', face: 'S' }]],
+    ['Sink', (x, y) => [{ x, y, w: 1, d: 1, h: 26, col: '#E6EAEE', t: 'sink', face: 'S' }]],
+    ['Toilet', (x, y) => [{ x, y, w: 1, d: 1, h: 22, col: '#F4F6F8', t: 'toilet', face: 'N' }]],
+    ['Urinal', (x, y) => [{ x, y, w: 1, d: 1, h: 30, col: '#F4F6F8', t: 'urinal', face: 'E' }]],
+    ['Toilet wall', (x, y) => [{ x, y, w: .12, d: 2, h: 46, col: '#C9D4DE', t: 'stall', block: false }]],
+  ]],
+  ['Plants + rugs', [
+    ['Plant', (x, y) => [{ x, y, w: 1, d: 1, h: 26, col: '#3E8E4A', t: 'plant' }]],
+    ['Rug', (x, y) => [{ x, y, w: 3, d: 2, h: 1, col: '#3C4A66', t: 'rug', block: false }]],
+    ['Tile patch', (x, y) => [{ x, y, w: 2, d: 2, h: 1, col: '#DCE7EE', t: 'tilefloor', block: false }]],
+  ]],
+];
+const FLOORS = [['wood', 'Wood'], ['carpet', 'Navy carpet'], ['carpet2', 'Sand carpet'], ['carpet3', 'Teal carpet'], ['tiles', 'Tiles'], ['', 'As the plan (original)']];
+function editPiece(parent, state, o, chairP) {
+  const h = new T.Group(); const k0 = KIOSK;
+  try { if (chairP) chair(h, o); else furniture(h, state, o); } catch (e) { console.warn('Office build: piece', o.t, e); }
+  const g = h.children.length ? mergeStatic(h) : new T.Group(); g.userData.piece = o;
+  if (KIOSK && KIOSK !== k0) g.add(KIOSK.g);
+  parent.add(g); BPIECES.set(o, g); return g;
+}
+function bldFoot(o) { const w = isChairP(o) ? 1 : Math.max(1, Math.round(o.w)), d = isChairP(o) ? 1 : Math.max(1, Math.round(o.d)); const out = []; for (let i = 0; i < w; i++) for (let j = 0; j < d; j++) out.push([Math.floor(o.x) + i, Math.floor(o.y) + j]); return out; }
+function bldInside(o, dx = 0, dy = 0) { const L = window.ibaOfficeLayout; return bldFoot(o).every(([x, y]) => { x += dx; y += dy; return x >= 0 && y >= 0 && x < 46 && y < 40 && (!L || L.inOct(x, y)); }); }
+function bldAttached(s, o) { // chairs that go with a desk / table / sofa when it moves
+  if (isChairP(o) || ['rug', 'tilefloor', 'divider', 'stall', 'art', 'fountain'].includes(o.t)) return [];
+  const x0 = Math.floor(o.x), y0 = Math.floor(o.y), x1 = x0 + Math.max(1, Math.round(o.w)), y1 = y0 + Math.max(1, Math.round(o.d)); const inF = (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+  return s.chairs.filter((c) => { if (c.hidden) return inF(c.x, c.y); const v = DIRV[c.dir] || DIRV.S; return inF(c.x + v[0], c.y + v[1]); });
+}
+function bldDesksOf(s, list) { const out = new Set(); list.forEach((c) => { if (!isChairP(c)) return; const v = DIRV[c.dir] || DIRV.S; const x = c.x + v[0], y = c.y + v[1];
+  s.furniture.forEach((o) => { if ((o.t === 'desk' || o.t === 'exec') && x >= Math.floor(o.x) && x < Math.floor(o.x) + Math.max(1, Math.round(o.w)) && y >= Math.floor(o.y) && y < Math.floor(o.y) + Math.max(1, Math.round(o.d))) out.add(o); }); }); return [...out]; }
+function bldSnap() { return JSON.stringify(window.ibaOfficeLayout.now()); }
+function bldRestore(txt) { window.ibaOfficeLayout.apply(typeof txt === 'string' ? JSON.parse(txt) : txt); BLD.sel = []; build(S3()); }
+function bldChanged() { BLD.dirty = true; clearTimeout(BLD.dt); BLD.dt = setTimeout(() => { try { localStorage.setItem(BLD_DRAFT, JSON.stringify({ at: Date.now(), L: window.ibaOfficeLayout.now() })); } catch (_) {} }, 700); bldPaintUI(); }
+function bldPush() { BLD.undo.push(bldSnap()); if (BLD.undo.length > 80) BLD.undo.shift(); BLD.redo = []; }
+function bldRefresh(list) { const s = S3(); const all = new Set(list); list.forEach((o) => { if (isChairP(o)) bldDesksOf(s, [o]).forEach((d) => all.add(d)); });
+  all.forEach((o) => { const g = BPIECES.get(o); if (g) { disposeTree(g); BPIECES.delete(o); } const alive = isChairP(o) ? s.chairs.includes(o) : s.furniture.includes(o); if (alive && built && built.edit) { const k0 = KIOSK; editPiece(built.edit, s, o, isChairP(o)); if (KIOSK !== k0) built.kiosk = KIOSK; } });
+  bldMarks(); }
+function bldToast(t, ms = 4200) { const el = BLD && BLD.ui && BLD.ui.querySelector('.ibld-toast'); if (!el) return; el.innerHTML = t; el.hidden = false; clearTimeout(BLD.tt); BLD.tt = setTimeout(() => { el.hidden = true; }, ms); }
+function bldTile(e) { const g = groundAt(e); return g ? [Math.floor(g.x + 23), Math.floor(g.z + 20), g] : null; }
+function bldPick(e) {
+  const r = renderer.domElement.getBoundingClientRect(); pointer.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); raycaster.setFromCamera(pointer, camera);
+  const hits = built && built.edit ? raycaster.intersectObjects(built.edit.children, true) : [];
+  let best = null; for (const h of hits) { let o = h.object; while (o && !o.userData.piece) o = o.parent; if (!o) continue; const p = o.userData.piece; if (!best) best = p; if (p.t !== 'rug' && p.t !== 'tilefloor') { best = p; break; } }
+  if (best) return best; const t = bldTile(e); if (!t) return null; const s = S3();
+  return s.chairs.find((c) => c.x === t[0] && c.y === t[1] && !c.hidden) || s.furniture.find((o) => o.t !== 'rug' && o.t !== 'tilefloor' && bldFoot(o).some(([x, y]) => x === t[0] && y === t[1])) || s.furniture.find((o) => bldFoot(o).some(([x, y]) => x === t[0] && y === t[1])) || null;
+}
+function bldSelect(o) { const s = S3(); BLD.sel = o ? [o, ...bldAttached(s, o)] : []; bldMarks(); bldPaintUI(); }
+function bldMarks(dx = 0, dy = 0, bad = false) {
+  const m = BLD.marks; m.children.slice().forEach((c) => { c.geometry.dispose(); m.remove(c); }); m.position.set(0, 0, 0);
+  const col = bad ? 0xE0504A : 0xF3C45B; const fill = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: .3, depthWrite: false }), line = new T.LineBasicMaterial({ color: col });
+  BLD.sel.forEach((o, i) => { const w = isChairP(o) ? 1 : Math.max(.12, o.w), d = isChairP(o) ? 1 : Math.max(.12, o.d); const [cx, cz] = W((isChairP(o) ? o.x + .5 : o.x + o.w / 2) + dx, (isChairP(o) ? o.y + .5 : o.y + o.d / 2) + dy);
+    const pg = new T.PlaneGeometry(w, d); pg.rotateX(-Math.PI / 2); const pm = new T.Mesh(pg, fill); pm.position.set(cx, .05, cz); pm.renderOrder = 5; m.add(pm);
+    const eg = new T.EdgesGeometry(pg); const lm = new T.LineSegments(eg, line); lm.position.set(cx, .06, cz); m.add(lm);
+    if (i === 0) { const ag = new T.ConeGeometry(.14, .3, 12); const ar = new T.Mesh(ag, new T.MeshBasicMaterial({ color: col })); ar.rotation.x = Math.PI; ar.position.set(cx, 2.35, cz); m.add(ar); } });
+}
+function bldGrid() { const pts = [], L = window.ibaOfficeLayout, seen = new Set(); const seg = (x0, y0, x1, y1) => { const k = x0 + ',' + y0 + ',' + x1 + ',' + y1; if (seen.has(k)) return; seen.add(k); const a = W(x0, y0), b = W(x1, y1); pts.push(a[0], .03, a[1], b[0], .03, b[1]); };
+  for (let x = 0; x < 46; x++) for (let y = 0; y < 40; y++) { if (L && !L.inOct(x, y)) continue; seg(x, y, x + 1, y); seg(x, y + 1, x + 1, y + 1); seg(x, y, x, y + 1); seg(x + 1, y, x + 1, y + 1); }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pts, 3)); return new T.LineSegments(g, new T.LineBasicMaterial({ color: 0xC9A24A, transparent: true, opacity: .45, depthWrite: false })); }
+function bldAfterBuild() { if (!BLD) return; if (people3) people3.visible = false; if (badges) badges.visible = false; if (rideG) rideG.visible = false; if (!BLD.grid) BLD.grid = bldGrid(); scene.add(BLD.grid, BLD.marks);
+  const s = S3(); BLD.sel = BLD.sel.filter((o) => s.furniture.includes(o) || s.chairs.includes(o)); bldMarks(); }
+function bldFrame() { if (people3 && people3.visible) people3.visible = false; if (rideG && rideG.visible) rideG.visible = false; }
+// ---- changes
+function bldMove(dx, dy, quiet) {
+  if (!BLD.sel.length || (!dx && !dy)) return false; if (!BLD.sel.every((o) => bldInside(o, dx, dy))) { if (!quiet) bldToast('That spot is outside the building.'); bldRefreshPos(); return false; }
+  const s = S3(); const rec = s.rooms.find((r) => r.id === 'rec'); const inRec = (o) => rec && isChairP(o) && o.x >= rec.x && o.x < rec.x + rec.w && o.y >= rec.y && o.y < rec.y + rec.h;
+  bldPush(); const before = bldDesksOf(s, BLD.sel); let full = BLD.sel.some(inRec); BLD.sel.forEach((o) => { o.x += dx; o.y += dy; }); full = full || BLD.sel.some(inRec);
+  BLD.sel.forEach((o) => { const g = BPIECES.get(o); if (g) g.position.set(0, 0, 0); });
+  if (full) build(s); else bldRefresh([...BLD.sel, ...before]); bldChanged(); return true;
+}
+function bldRefreshPos() { BLD.sel.forEach((o) => { const g = BPIECES.get(o); if (g) g.position.set(0, 0, 0); }); bldMarks(); }
+function faceNow(s, o) { if (o.face && DIRV[o.face]) return o.face; const a = o.t === 'sofa' ? faceInSofa(s, o) - Math.PI : faceIn(s, o, 1); const v = [Math.round(Math.sin(a)), Math.round(Math.cos(a))]; return Object.keys(DIRV).find((k) => DIRV[k][0] === v[0] && DIRV[k][1] === v[1]) || 'S'; }
+function bldRotate() {
+  if (!BLD.sel.length) return; const s = S3(), main = BLD.sel[0]; const cen = (o) => isChairP(o) ? [o.x + .5, o.y + .5] : [o.x + o.w / 2, o.y + o.d / 2]; const [px, py] = cen(main);
+  const plan = BLD.sel.map((o) => { const [cx, cy] = cen(o); const nx = px - (cy - py), ny = py + (cx - px); const whole = Number.isInteger(o.x) && Number.isInteger(o.y);
+    if (isChairP(o)) return { o, x: Math.round(nx - .5), y: Math.round(ny - .5), dir: ROTF[o.dir || 'S'] || 'S' };
+    const w = o.d, d = o.w; let x = nx - w / 2, y = ny - d / 2; if (whole) { x = Math.round(x); y = Math.round(y); } return { o, x, y, w, d, face: FACE_T.has(o.t) ? ROTF[faceNow(s, o)] : o.face }; });
+  if (!plan.every((p) => bldInside(Object.assign({}, p.o, p), 0, 0))) { bldToast('No room to turn it here. Move it away from the outside wall first.'); return; }
+  bldPush(); const before = bldDesksOf(s, BLD.sel); plan.forEach((p) => { Object.keys(p).forEach((k) => { if (k !== 'o' && p[k] !== undefined) p.o[k] = p[k]; }); });
+  if (BLD.sel.some((o) => isChairP(o) && (roomOf(s, o.x, o.y) || {}).id === 'rec')) build(s); else bldRefresh([...BLD.sel, ...before]); bldChanged();
+}
+function bldDelete() {
+  if (!BLD.sel.length) return; const s = S3(); const L = window.ibaOfficeLayout; bldPush(); const before = bldDesksOf(s, BLD.sel);
+  const who = BLD.sel.filter(isChairP).map((c) => L.seatOwner(c)).filter(Boolean); const recs = BLD.sel.filter((o) => (o.cabs || []).length).map((o) => o.cabs.map((id) => (L.cabs().find((c) => c.id === id) || {}).title || id).join(', '));
+  BLD.sel.forEach((o) => { const arr = isChairP(o) ? s.chairs : s.furniture; const i = arr.indexOf(o); if (i >= 0) arr.splice(i, 1); });
+  const gone = BLD.sel.slice(); BLD.sel = []; bldRefresh([...gone, ...before]); bldChanged();
+  bldToast(`Removed ${gone.length > 1 ? gone.length + ' pieces' : esc(pieceName(gone[0]))}.` + (who.length ? ` <b>${esc(who.join(', '))}</b> has no chair now.` : '') + (recs.length ? ` It held <b>${esc(recs.join(', '))}</b>: pick another piece and set "Holds records".` : '') + ' Undo brings it back.', 7000);
+}
+function bldResize(dw, dd) {
+  const o = BLD.sel[0]; if (!o || isChairP(o) || !SIZE_T.has(o.t)) return; const w = o.w >= 1 ? Math.max(1, Math.min(16, o.w + dw)) : o.w, d = o.d >= 1 ? Math.max(1, Math.min(16, o.d + dd)) : o.d;
+  if (w === o.w && d === o.d) return; if (!bldInside(Object.assign({}, o, { w, d }))) { bldToast('No room for that size here.'); return; } bldPush(); o.w = w; o.d = d; bldSelect(o); bldRefresh([o]); bldChanged();
+}
+function bldHolds(id) { const o = BLD.sel[0]; if (!o || isChairP(o)) return; const s = S3(); bldPush(); s.furniture.forEach((f) => { if (f.cabs && f !== o) { f.cabs = f.cabs.filter((c) => c !== id); if (!f.cabs.length) delete f.cabs; } });
+  if (id) o.cabs = [id]; else delete o.cabs; bldChanged(); bldToast(id ? 'These records now live in this piece.' : 'This piece holds no records now.'); }
+function bldAdd(make) {
+  const r = renderer.domElement.getBoundingClientRect(); const g = groundAt({ clientX: r.left + r.width * .55, clientY: r.top + r.height / 2 }); let x = g ? Math.floor(g.x + 23) : 23, y = g ? Math.floor(g.z + 20) : 20;
+  x = Math.max(9, Math.min(36, x)); y = Math.max(8, Math.min(30, y)); const s = S3(); const items = make(x, y); items.forEach((o, i) => { o.id = nid(i); });
+  bldPush(); items.forEach((o) => (isChairP(o) ? s.chairs : s.furniture).push(o)); items.forEach((o) => editPiece(built.edit, s, o, isChairP(o))); bldRefresh(items.filter((o) => !isChairP(o)));
+  BLD.sel = items.filter((o) => !isChairP(o)).concat(items.filter(isChairP)); if (!BLD.sel.length) BLD.sel = items; bldMarks(); bldChanged(); bldToast('Added in the middle of your view. Drag it to its place.');
+}
+function bldFloor(e) { const t = bldTile(e); if (!t) return; const s = S3(); const r = s.rooms.find((q) => q.id !== 'plaza' && t[0] >= q.x && t[0] < q.x + q.w && t[1] >= q.y && t[1] < q.y + q.h);
+  if (!r) { bldToast('The hub floor stays as it is for now. Click a room.'); return; } bldPush(); if (BLD.paint === '-') delete r.mat; else r.mat = BLD.paint; build(s); bldChanged(); bldToast(`${esc(r.name || r.id)}: ${esc((FLOORS.find((f) => f[0] === (BLD.paint === '-' ? '' : BLD.paint)) || [])[1] || '')}`); }
+function bldUndo() { if (!BLD || !BLD.undo.length) return; BLD.redo.push(bldSnap()); bldRestore(BLD.undo.pop()); bldChanged(); }
+function bldRedo() { if (!BLD || !BLD.redo.length) return; BLD.undo.push(bldSnap()); bldRestore(BLD.redo.pop()); bldChanged(); }
+// ---- pointer (called from onDown / onMove / onUp while Build mode is on)
+function bldDown(e) { if (e.button !== 0 || BLD.paint) return false; const p = bldPick(e); if (!p) return false; if (!BLD.sel.includes(p) || BLD.sel[0] !== p && isChairP(p)) bldSelect(p); const g = groundAt(e); if (!g) return true;
+  BLD.drag = { x0: g.x, z0: g.z, dx: 0, dy: 0, sx: e.clientX, sy: e.clientY, moved: false }; try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {} return true; }
+function bldMoveP(e) { const d = BLD.drag; if (!d) return false; if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) > 4) d.moved = true; if (!d.moved) return true; const g = groundAt(e); if (!g) return true;
+  const dx = Math.round(g.x - d.x0), dy = Math.round(g.z - d.z0); if (dx === d.dx && dy === d.dy) return true; d.dx = dx; d.dy = dy;
+  BLD.sel.forEach((o) => { const gr = BPIECES.get(o); if (gr) gr.position.set(dx, .04, dy); }); bldMarks(dx, dy, !BLD.sel.every((o) => bldInside(o, dx, dy))); return true; }
+function bldUp(e) { const d = BLD.drag; if (!d) return false; BLD.drag = null; if (d.moved && (d.dx || d.dy)) bldMove(d.dx, d.dy); else bldRefreshPos(); return true; }
+function bldClick(e) { if (BLD.paint) { bldFloor(e); return; } bldSelect(null); }
+function bldKey(e) { if (!BLD) return; const tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; const k = e.key;
+  if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'Z')) { e.preventDefault(); if (e.shiftKey) bldRedo(); else bldUndo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (k === 'y' || k === 'Y')) { e.preventDefault(); bldRedo(); return; }
+  if (k === 'Escape') { if (BLD.paint) { BLD.paint = null; bldPaintUI(); } else bldSelect(null); return; }
+  if (!BLD.sel.length) return; if (k === 'r' || k === 'R') { e.preventDefault(); bldRotate(); } else if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); bldDelete(); }
+  else { const mv = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[k]; if (mv) { e.preventDefault(); bldMove(mv[0], mv[1]); } } }
+// ---- catalog pictures: each piece drawn once by a small renderer of its own
+let THB = null; const THBC = new Map();
+function thumb(label, make) {
+  if (THBC.has(label)) return THBC.get(label);
+  try { if (!THB) { const can = document.createElement('canvas'); const r = new T.WebGLRenderer({ canvas: can, antialias: true, alpha: true, preserveDrawingBuffer: true }); r.outputColorSpace = T.SRGBColorSpace; r.setPixelRatio(1); r.setSize(120, 96, false);
+      const sc = new T.Scene(); sc.add(new T.HemisphereLight(0xFFFFFF, 0xC8BFAF, 1.6)); const sun = new T.DirectionalLight(0xFFF4E2, 2.2); sun.position.set(-3, 6, -2); sc.add(sun); THB = { r, sc, cam: new T.OrthographicCamera(-1, 1, 1, -1, -50, 50), holder: new T.Group() }; sc.add(THB.holder); }
+    THB.holder.children.slice().forEach((c) => disposeTree(c)); const s = S3(); const items = make(23, 20); const k0 = KIOSK;
+    items.forEach((o) => { try { if (isChairP(o)) chair(THB.holder, o); else furniture(THB.holder, Object.assign({}, s, { chairs: items.filter(isChairP), furniture: items.filter((q) => !isChairP(q)) }), o); } catch (_) {} });
+    KIOSK = k0; THB.holder.updateMatrixWorld(true); const bb = new T.Box3().setFromObject(THB.holder); if (bb.isEmpty()) return ''; const c = bb.getCenter(new T.Vector3()), sz = bb.getSize(new T.Vector3()); const R = Math.max(.6, sz.length() * .52);
+    const cam = THB.cam; cam.left = -R * 1.25; cam.right = R * 1.25; cam.top = R; cam.bottom = -R; cam.updateProjectionMatrix(); cam.position.set(c.x + 6, c.y + 6, c.z + 6); cam.lookAt(c);
+    THB.r.render(THB.sc, cam); const url = THB.r.domElement.toDataURL('image/png'); THBC.set(label, url); return url; } catch (e) { console.warn('Office build: thumb', label, e); return ''; }
+}
+// ---- the panels
+function addBuildButton() {
+  const ctrl = document.querySelector('#iba-office .iba-off-ctrl'); if (!ctrl || ctrl.querySelector('.iba-off-build')) return;
+  if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 900) return; // a PC tool
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'iba-off-build'; b.innerHTML = '&#9874; Build'; b.title = 'Arrange the office: move, turn, add and remove furniture, change floors (only you)';
+  b.addEventListener('click', (e) => { e.stopPropagation(); if (BLD) return; bldEnter(); }); const looks = ctrl.querySelector('.iba-off-looks'); ctrl.insertBefore(b, looks || ctrl.querySelector('[data-act="setup"]') || null);
+}
+function bldEnter() {
+  if (BLD || !renderer || !window.ibaOfficeLayout) return; const s = S3();
+  BLD = { sel: [], undo: [], redo: [], start: bldSnap(), drag: null, paint: null, ui: null, marks: new T.Group(), grid: null, dirty: false, keep: { elevation, azGoal, zoomMul, focusRoom } };
+  stage.classList.add('iba-off-building'); bldUI(); focusRoom = null; zoomMul = .9; elevation = 1.12; build(s); window.addEventListener('keydown', bldKey, true);
+  let dr = null; try { dr = JSON.parse(localStorage.getItem(BLD_DRAFT) || 'null'); } catch (_) {}
+  const db = BLD.ui.querySelector('[data-b="draft"]'); if (dr && dr.L && db) { db.hidden = false; const t = new Date(dr.at); db.textContent = 'Continue unsaved work (' + t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + ')'; BLD.draft = dr.L; }
+  bldToast('Build mode: click a piece to pick it, drag to move it. People are paused while you build.', 6000);
+}
+function bldExit(msg) {
+  if (!BLD) return; window.removeEventListener('keydown', bldKey, true); clearTimeout(BLD.dt); const k = BLD.keep; if (BLD.grid) { scene.remove(BLD.grid); BLD.grid.geometry.dispose(); } scene.remove(BLD.marks);
+  if (BLD.ui) BLD.ui.remove(); stage.classList.remove('iba-off-building'); BLD = null; BPIECES.clear(); elevation = k.elevation; azGoal = k.azGoal; zoomMul = k.zoomMul; focusRoom = k.focusRoom; build(S3());
+  if (msg && window.ibaOfficeLog) try { window.ibaOfficeLog(msg); } catch (_) {}
+}
+function bldText(L) {
+  const line = (o) => '    ' + JSON.stringify(o);
+  return '/* js/iba-office-layout.js: the IBA Office arrangement, saved by Build mode (Super Admin) on ' + new Date().toString().replace(/ GMT.*/, '') + '.\n' +
+    '   Leave this file out (or delete it) and the office goes back to the original plan in js/iba-office.js. */\n' +
+    'window.IBA_OFFICE_LAYOUT = {\n  "v": 1,\n  "savedAt": ' + JSON.stringify(L.savedAt || '') + ',\n  "by": ' + JSON.stringify(L.by || '') + ',\n  "floors": ' + JSON.stringify(L.floors || {}) + ',\n' +
+    '  "furn": [\n' + L.furn.map(line).join(',\n') + '\n  ],\n  "chairs": [\n' + L.chairs.map(line).join(',\n') + '\n  ]\n};\n';
+}
+function idb(op, key, val) { return new Promise((ok) => { try { const rq = indexedDB.open('iba-office-build', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('h'); rq.onerror = () => ok(null);
+  rq.onsuccess = () => { try { const tx = rq.result.transaction('h', op === 'get' ? 'readonly' : 'readwrite'); const st = tx.objectStore('h'); const r = op === 'get' ? st.get(key) : op === 'del' ? st.delete(key) : st.put(val, key); r.onsuccess = () => ok(op === 'get' ? r.result : true); r.onerror = () => ok(null); } catch (_) { ok(null); } }; } catch (_) { ok(null); } }); }
+async function subDir(h, n) { try { return await h.getDirectoryHandle(n); } catch (_) { return null; } }
+async function hasFile(h, n) { try { await h.getFileHandle(n); return true; } catch (_) { return false; } }
+async function bldWritePc(text) {
+  if (!window.showDirectoryPicker) return null; let h = await idb('get', 'root');
+  if (h) { try { let p = await h.queryPermission({ mode: 'readwrite' }); if (p !== 'granted') p = await h.requestPermission({ mode: 'readwrite' }); if (p !== 'granted') h = null; } catch (_) { h = null; } }
+  if (!h) h = await window.showDirectoryPicker({ id: 'iba-office-live', mode: 'readwrite' });
+  let js = null, backup = null, label = ''; const live = await subDir(h, 'Live');
+  if (live && await subDir(live, 'js')) { js = await subDir(live, 'js'); backup = await subDir(h, 'Backup'); label = h.name + '\\Live\\js'; }
+  else if (await subDir(h, 'js') && await hasFile(h, 'index.html')) { js = await subDir(h, 'js'); label = h.name + '\\js'; }
+  else if (await hasFile(h, 'iba-office.js')) { js = h; label = h.name; }
+  if (!js) { await idb('del', 'root'); return { wrong: h.name }; }
+  await idb('put', 'root', h);
+  let backed = ''; try { const old = await (await (await js.getFileHandle('iba-office-layout.js')).getFile()).text(); const bk = backup || (live ? null : null);
+    if (bk && old) { const d = await bk.getDirectoryHandle('office-layout', { create: true }); const n = new Date(); const stamp = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') + '-' + String(n.getDate()).padStart(2, '0') + '_' + String(n.getHours()).padStart(2, '0') + String(n.getMinutes()).padStart(2, '0');
+      const f = await d.getFileHandle('iba-office-layout-' + stamp + '.js', { create: true }); const w = await f.createWritable(); await w.write(old); await w.close(); backed = 'Backup\\office-layout\\iba-office-layout-' + stamp + '.js'; } } catch (_) {}
+  const fh = await js.getFileHandle('iba-office-layout.js', { create: true }); const w = await fh.createWritable(); await w.write(text); await w.close();
+  return { path: label + '\\iba-office-layout.js', backed };
+}
+function bldDownload(text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'text/javascript' })); a.download = 'iba-office-layout.js'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); }
+async function bldSave() {
+  if (!BLD || BLD.saving) return; BLD.saving = true; const btn = BLD.ui.querySelector('[data-b="save"]'); if (btn) btn.textContent = 'Saving…';
+  const L = window.ibaOfficeLayout.now(); L.savedAt = new Date().toISOString(); L.by = ((S3().people || []).find((p) => p.me) || {}).name || ''; const text = bldText(L);
+  let res = null; try { res = await bldWritePc(text); } catch (e) { if (e && e.name === 'AbortError') { BLD.saving = false; if (btn) btn.textContent = 'Save layout'; bldToast('Not saved yet. Pick the folder (Project_01 or Live) to save into.'); return; } console.warn('Office build: save to PC', e); }
+  if (res && res.wrong) { BLD.saving = false; if (btn) btn.textContent = 'Save layout'; bldToast(`"${esc(res.wrong)}" is not the right folder. Pick <b>Project_01</b> (the one with Live and Backup) or <b>Live</b>.`, 8000); return; }
+  if (!res) bldDownload(text);
+  try { localStorage.setItem('iba-office-layout-last-v1', text); localStorage.removeItem(BLD_DRAFT); } catch (_) {}
+  window.IBA_OFFICE_LAYOUT = L; window.ibaOfficeLayout.apply(L);
+  bldExit(res ? `Office layout saved to <b>${esc(res.path)}</b>${res.backed ? ' (old one in ' + esc(res.backed) + ')' : ''}. Upload <b>js/iba-office-layout.js</b> to GitHub when you are happy.` : 'Office layout downloaded as <b>iba-office-layout.js</b>. Put it in Live\\js and upload it to GitHub.');
+}
+function bldUI() {
+  const ui = document.createElement('div'); ui.className = 'ibld'; BLD.ui = ui;
+  const cats = CATALOG.map(([g, list], gi) => `<h5>${esc(g)}</h5><div class="ibld-grid">${list.map(([n], i) => `<button type="button" data-cat="${gi}.${i}" title="Add ${esc(n)}"><img alt="" data-th="${gi}.${i}"><span>${esc(n)}</span></button>`).join('')}</div>`).join('');
+  const floors = FLOORS.map(([k, n]) => `<button type="button" data-floor="${k || '-'}"><i class="ibld-sw ibld-sw-${k || 'orig'}"></i>${esc(n)}</button>`).join('');
+  ui.innerHTML = `<div class="ibld-bar"><b>BUILD MODE</b><span>Only you · people paused</span>
+      <button type="button" data-b="undo" title="Undo (Ctrl+Z)">&#8630; Undo</button><button type="button" data-b="redo" title="Redo (Ctrl+Y)">&#8631; Redo</button>
+      <button type="button" data-b="top" title="Look straight down / normal angle">Top view</button><button type="button" data-b="reset" title="Put everything back as the original plan">Original layout</button>
+      <button type="button" data-b="draft" hidden></button><i class="ibld-sp"></i><button type="button" data-b="cancel">Cancel</button><button type="button" data-b="save" class="ibld-pri">Save layout</button></div>
+    <div class="ibld-cat"><div class="ibld-tabs"><button type="button" data-tab="add" class="on">Add furniture</button><button type="button" data-tab="floor">Floors</button></div>
+      <div class="ibld-pane" data-pane="add">${cats}</div><div class="ibld-pane" data-pane="floor" hidden><p>Pick a floor, then click rooms to paint them. Esc = stop.</p><div class="ibld-floors">${floors}</div></div></div>
+    <div class="ibld-sel" hidden></div><div class="ibld-toast" hidden></div><div class="ibld-help">Drag = move · R = turn · Del = remove · arrows = nudge · right-drag = turn the view · wheel = zoom</div>`;
+  stage.appendChild(ui);
+  ui.addEventListener('pointerdown', (e) => e.stopPropagation()); ui.addEventListener('wheel', (e) => e.stopPropagation());
+  ui.addEventListener('click', (e) => { const t = e.target.closest('button'); if (!t || !BLD) return; e.stopPropagation();
+    if (t.dataset.tab) { ui.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b === t)); ui.querySelectorAll('[data-pane]').forEach((p) => { p.hidden = p.dataset.pane !== t.dataset.tab; }); if (t.dataset.tab !== 'floor') BLD.paint = null; bldPaintUI(); return; }
+    if (t.dataset.cat) { const [gi, i] = t.dataset.cat.split('.').map(Number); bldAdd(CATALOG[gi][1][i][1]); return; }
+    if (t.dataset.floor) { BLD.paint = BLD.paint === t.dataset.floor ? null : t.dataset.floor; bldSelect(null); bldPaintUI(); if (BLD.paint) bldToast('Now click a room to give it this floor.'); return; }
+    if (t.dataset.s) { const a = t.dataset.s; if (a === 'turn') bldRotate(); else if (a === 'del') bldDelete(); else if (a === 'w+') bldResize(1, 0); else if (a === 'w-') bldResize(-1, 0); else if (a === 'd+') bldResize(0, 1); else if (a === 'd-') bldResize(0, -1); return; }
+    const b = t.dataset.b; if (b === 'undo') bldUndo(); else if (b === 'redo') bldRedo(); else if (b === 'top') { elevation = elevation > 1.2 ? .9 : 1.25; }
+    else if (b === 'reset') { bldPush(); bldRestore(window.ibaOfficeLayout.original()); bldChanged(); bldToast('Everything is back as the original plan. Save to keep it, or Undo.'); }
+    else if (b === 'draft' && BLD.draft) { bldPush(); bldRestore(BLD.draft); bldChanged(); t.hidden = true; bldToast('Your unsaved work is back.'); }
+    else if (b === 'save') bldSave();
+    else if (b === 'cancel') { if (BLD.dirty && !t.dataset.sure) { t.dataset.sure = '1'; t.textContent = 'Throw away changes?'; t.classList.add('ibld-warn'); setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = 'Cancel'; t.classList.remove('ibld-warn'); } }, 4000); return; }
+      const start = BLD.start; window.ibaOfficeLayout.apply(JSON.parse(start)); try { localStorage.removeItem(BLD_DRAFT); } catch (_) {} bldExit(); } });
+  ui.addEventListener('change', (e) => { const t = e.target; if (t.matches('[data-holds]')) bldHolds(t.value); });
+  // the catalog pictures: drawn one by one after the panel shows, so opening Build stays quick
+  const imgs = [...ui.querySelectorAll('img[data-th]')]; let i = 0; const next = () => { if (!BLD || i >= imgs.length) return; const im = imgs[i++]; const [gi, k] = im.dataset.th.split('.').map(Number); const it = CATALOG[gi][1][k]; const u = thumb(it[0], it[1]); if (u) im.src = u; setTimeout(next, 30); }; setTimeout(next, 200);
+  bldPaintUI();
+}
+function bldPaintUI() {
+  if (!BLD || !BLD.ui) return; const ui = BLD.ui; ui.querySelector('[data-b="undo"]').disabled = !BLD.undo.length; ui.querySelector('[data-b="redo"]').disabled = !BLD.redo.length;
+  ui.querySelectorAll('[data-floor]').forEach((b) => b.classList.toggle('on', b.dataset.floor === BLD.paint)); stage.classList.toggle('iba-off-painting', !!BLD.paint);
+  const box = ui.querySelector('.ibld-sel'); const o = BLD.sel[0]; if (!o) { box.hidden = true; return; } const s = S3(), L = window.ibaOfficeLayout;
+  const room = roomOf(s, Math.floor(o.x), Math.floor(o.y)); const who = isChairP(o) ? L.seatOwner(o) : BLD.sel.filter(isChairP).map((c) => L.seatOwner(c)).filter(Boolean).join(', ');
+  const more = BLD.sel.length > 1 ? `<small>+ ${BLD.sel.length - 1} chair${BLD.sel.length > 2 ? 's' : ''} that go with it</small>` : '';
+  const size = !isChairP(o) && SIZE_T.has(o.t) ? `<div class="ibld-size">${o.w >= 1 ? `<span>Width ${o.w}</span><button type="button" data-s="w-">−</button><button type="button" data-s="w+">+</button>` : ''}${o.d >= 1 ? `<span>Depth ${o.d}</span><button type="button" data-s="d-">−</button><button type="button" data-s="d+">+</button>` : ''}</div>` : '';
+  const holds = !isChairP(o) && !['rug', 'tilefloor', 'divider', 'stall', 'plant', 'art', 'fountain'].includes(o.t) ? `<label class="ibld-holds">Holds records <select data-holds><option value="">Nothing</option>${L.cabs().map((c) => `<option value="${esc(c.id)}"${(o.cabs || []).includes(c.id) ? ' selected' : ''}>${esc(c.title)}</option>`).join('')}</select></label>` : '';
+  box.innerHTML = `<h4>${esc(pieceName(o))}</h4><p>${esc(room && room.name ? room.name : room && room.id === 'plaza' ? 'Hub' : '')}${who ? ` · <b>${esc(who)}</b> sits here` : ''}</p>${more}${size}${holds}
+    <div class="ibld-acts"><button type="button" data-s="turn">&#10227; Turn <kbd>R</kbd></button><button type="button" data-s="del" class="ibld-del">Remove <kbd>Del</kbd></button></div>`; box.hidden = false;
+}
 
 window.ibaOffice3DInit = setup; window.ibaOffice3DFrame = frame; window.ibaOffice3DLooks = openLooks;
 })();

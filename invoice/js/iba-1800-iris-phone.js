@@ -530,7 +530,7 @@
 
     // ---------- 4: note for the PC ----------
     async function noteForPC(text) {
-        const d = mdb(), who = me();
+        const d = window.ibaChatDb || mdb(), who = me(); // p162: reminders live in the chat database
         if (!d || !who) { irisSay('Sign in first, then try again.', { listen: false }); return; }
         const extra = String(text || '').replace(/^\s*(?:number\s*)?(?:four|4|fourth)\b[\s,.:-]*/i, '').replace(/\b(?:add|save|make|put)?\s*(?:it\s+)?(?:as\s+)?(?:a\s+)?(?:note|reminder)\b/i, '').replace(/\b(?:please|thanks)\b/ig, '').trim();
         const body = 'Do on PC: ' + (ctx ? 'PO ' + ctx.po + (ctx.vendor ? ' · ' + ctx.vendor : '') : '') + (extra ? (ctx ? ' · ' : '') + extra : '');

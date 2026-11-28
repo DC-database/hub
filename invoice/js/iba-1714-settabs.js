@@ -42,6 +42,7 @@
             state: () => /Nobody yet/i.test(txt('iba-lpo-settings-card')) ? ['Only you'] : ['List set'] },
         { id: 'skills', g: 'super', label: 'Skill access', sub: 'Who can use each assistant skill', ic: 'spark', cards: ['#iba-sa-settings-card'],
             state: () => /built-in rule/i.test(txt('iba-sa-settings-card')) ? ['As built'] : ['Custom'] },
+        { id: 'chatuse', g: 'super', label: 'Chat usage', sub: 'Messages per person today and this week', ic: 'mail', cards: ['#iba-chatuse-card'] }, // p162
         { id: 'inv', g: 'super', label: 'Inventory permissions', sub: 'Material Stock functions per person', ic: 'box', cards: ['#iba-invperm-card'] },
         { id: 'news', g: 'super', label: 'Announcements', sub: 'Celebration banner and important message', ic: 'horn', cards: ['#celebration-settings-container', '#general-announcement-settings-container'],
             state: () => { const a = ($('general-announcement-enabled') || {}).checked, c = ($('celebration-enabled') || {}).checked; return a || c ? [(a && c ? 'Both on' : a ? 'Announcement on' : 'Banner on'), 'g'] : ['None on']; } },

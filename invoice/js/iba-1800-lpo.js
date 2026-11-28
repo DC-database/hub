@@ -243,7 +243,8 @@
   function onKey(e) { if (e.key === 'Escape' && $('iba-lpo-pop')) { e.stopPropagation(); close(); } }
   function isPhone() { return !!(document.body && document.body.classList.contains('iba-mobile-ui')); }
 
-  async function open() {
+  async function open(q) {
+    if (typeof q === 'string' && q.trim()) { S.q = q.trim(); S.copied = ''; } // p167: IBA Office / IBA Information LPO button = search this PO
     if (isPhone()) { alert('Find LPO works on the PC (it reads the synced Proc - LPO folder).'); return; }
     close();
     var w = document.createElement('div');

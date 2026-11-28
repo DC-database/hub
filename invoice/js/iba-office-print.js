@@ -56,17 +56,28 @@ function clock(t) { if (!t) return ''; const d = new Date(Number(t)); return d.t
 function forMe(att) { const A = window.ibaApprovals; try { if (A && A.namedForMe) return A.namedForMe(att); } catch (_) {} return norm(att).includes(norm(me())); }
 function approvedAt(r) { const d = r.approvalDecision || {}; return Number(d.timestamp) || Number(r.statusChangedAt) || 0; }
 function slots(r) { const n = Number(r.approvalCount); return n > 0 ? n : 1; }
-function defaultPlace(r) { const n = slots(r); return n <= 1 ? 'M' : n === 2 ? 'RB' : 'RM'; }
+// p161 (martin): 1st ESN = Middle, 2nd = Right bottom, 3rd = Right top (a 4th, rare, = Right middle).
+// The number comes from the invoice's approval count; when that is missing, the place after the ESN printed before.
+const ORDER = ['M', 'RB', 'RT', 'RM'];
+function defaultPlace(r, prev) { let n = slots(r); if (prev && prev.place && ORDER.includes(prev.place)) n = Math.max(n, ORDER.indexOf(prev.place) + 2); return ORDER[Math.min(ORDER.length, n) - 1]; }
 function wants(r) {
   return r && norm(r.status) === 'approved' && String(r.esn || '').trim() && r.approvalFlow !== 'site' && !r.esnState && forMe(r.attention);
 }
 
 // ---------------------------------------------------------------- queue
 let Qd = {}, meta = {}, ctx = null, busyIds = {};
+// 18.0.0 patch 161 (martin): a page that went to the printer must never stay in Ready to Print. If the "printed" mark
+// could not be saved (connection dropped right after printing), it is kept here and saved on the next read.
+const PENDING_KEY = 'iba-rtp-printed-pending-v1';
+function pendingGet() { try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '{}') || {}; } catch (_) { return {}; } }
+function pendingSet(o) { try { if (Object.keys(o).length) localStorage.setItem(PENDING_KEY, JSON.stringify(o)); else localStorage.removeItem(PENDING_KEY); } catch (_) {} }
+async function markPrinted(ref, id, upd) { let err = null; for (let i = 0; i < 3; i++) { try { await ref.update(upd); const p = pendingGet(); delete p[id]; pendingSet(p); return true; } catch (e) { err = e; await new Promise((ok) => setTimeout(ok, 1200 * (i + 1))); } }
+  const p = pendingGet(); p[id] = upd; pendingSet(p); console.warn('[ready to print] printed mark not saved yet', id, err); return false; }
 async function loadQueue() {
   const d = mainDb(); if (!d) return Qd;
+  const pend = pendingGet(); for (const id of Object.keys(pend)) { try { await d.ref(`${ROOT}/${id}`).update(pend[id]); delete pend[id]; } catch (_) {} } pendingSet(pend);
   const v = (await d.ref(ROOT).once('value')).val() || {};
-  meta = v._meta || {}; delete v._meta; Qd = v; return Qd;
+  meta = v._meta || {}; delete v._meta; Object.keys(pend).forEach((id) => { if (v[id]) Object.assign(v[id], pend[id]); }); Qd = v; return Qd;
 }
 function rowsOf(state) { return Object.keys(Qd).map((k) => Object.assign({ id: k }, Qd[k])).filter((x) => !state || x.state === state || (state === 'staged' && (x.state === 'error' || x.state === 'printing'))); }
 function count() { return rowsOf('staged').length; }
@@ -79,7 +90,7 @@ async function stage(r, why, autoPrint) {
   const pi = (ctx && ctx.poInfo) ? ctx.poInfo(r.po, inv) : {};
   const res = await mainDb().ref(`${ROOT}/${id}`).transaction((cur) => {
     if (cur && cur.esn === esn) return; // already staged / printed / skipped for this ESN
-    return { esn, state: 'staged', place: defaultPlace(inv), po: String(r.po), key: String(r.key), invNumber: inv.invNumber || '', invName: inv.invName || '', invEntryID: inv.invEntryID || '',
+    return { esn, state: 'staged', place: defaultPlace(inv, cur && cur.state === 'printed' ? cur : null), po: String(r.po), key: String(r.key), invNumber: inv.invNumber || '', invName: inv.invName || '', invEntryID: inv.invEntryID || '',
       vendor: pi.vendor || inv.vendorName || '', site: String(pi.site || inv.site || ''), value: inv.invValue || '', approver: inv.last_approver || '', approvals: slots(inv), autoPrint: !!autoPrint,
       stagedAt: Date.now(), stagedBy: why || 'bot', prev: cur && cur.state === 'printed' ? { esn: cur.esn || '', printedAt: cur.printedAt || 0, place: cur.place || '' } : null };
   });
@@ -214,27 +225,29 @@ async function claim(x, again) {
 }
 async function printOne(x, place, again) {
   if (busyIds[x.id]) return; busyIds[x.id] = true;
-  const ref = mainDb().ref(`${ROOT}/${x.id}`);
+  const ref = mainDb().ref(`${ROOT}/${x.id}`); let sent = false, inv = {};
   try {
     if (!(await claim(x, again))) { await loadQueue(); paint(); ctx.log(`PO ${esc(x.po)}: already printed or printing. Nothing sent.`); return; }
     setRow(x.id, 'Step 1 of 4 · Getting the PDF…', 15);
     // the invoice must still be approved with this ESN
-    const inv = (await invDb().ref(`invoice_entries/${x.po}/${x.key}`).once('value')).val() || {};
+    inv = (await invDb().ref(`invoice_entries/${x.po}/${x.key}`).once('value')).val() || {};
     if (!wants(inv) || String(inv.esn || '').trim() !== x.esn) throw new Error('This invoice is no longer approved with this ESN and assigned to you. Refresh the office.');
     setRow(x.id, 'Step 2 of 4 · Putting the ESN on page 1…', 40);
     const p = await prepare(x, place);
     setRow(x.id, 'Step 3 of 4 · Sending page 1 to ' + PRINTER + '…', 65);
     const res = await helper('/print?job=' + encodeURIComponent(x.id + '_' + x.esn.replace(/[^A-Za-z0-9]/g, '')) + (again ? '&again=1' : ''), { method: 'POST', body: p.bytes, headers: { 'Content-Type': 'application/pdf' }, timeout: 90000 });
-    x.queue = (res && res.queue) || '';
-    setRow(x.id, 'Step 4 of 4 · In the Windows print queue' + (x.queue ? ': ' + x.queue : '') + '…', 90);
+    sent = true; x.queue = (res && res.queue) || '';
+    // p161: the page is on its way: mark it printed FIRST (with retries), before anything else can go wrong
     const upd = { state: 'printed', queue: x.queue || '', place, file: p.file, printedAt: Date.now(), printedBy: me(), printer: PRINTER, error: null, claimAt: null, claimBy: null, again: again ? (Number(x.again || 0) + 1) : (x.again || 0) };
-    await ref.update(upd); Object.assign(Qd[x.id] = Qd[x.id] || {}, x, upd);
+    Object.assign(Qd[x.id] = Qd[x.id] || {}, x, upd); await markPrinted(ref, x.id, upd);
+    setRow(x.id, 'Step 4 of 4 · In the Windows print queue' + (x.queue ? ': ' + x.queue : '') + '…', 90);
     try { if (window.logInvoiceHistory) await window.logInvoiceHistory(x.po, x.key, inv.status || 'Approved', `${again ? 'Printed again' : 'Printed'}: ESN ${x.esn} on page 1 (${placeName(place)}) to ${PRINTER} by ${me()} · IBA Office`); } catch (_) {}
     ctx.log(`<b>Rafi</b> printed PO ${esc(x.po)} ${esc(x.invNumber || '')} page 1 with the ESN (${esc(placeName(place))}) on ${PRINTER}${x.queue ? ' · Windows: ' + esc(x.queue) : ''}.`);
     if (ctx.botWalk) ctx.botWalk('Rafi', 'Printed PO ' + x.po);
     setRow(x.id, 'Done · moved to History', 100); showDone = true; await new Promise((ok) => setTimeout(ok, 1500));
   } catch (e) {
     console.warn('[ready to print] print', x.po, e);
+    if (sent) { try { ctx.log(`PO ${esc(x.po)}: printed. (A small step after printing failed: ${esc(e.message || e)})`); } catch (_) {} return; } // p161: paper went out = never back to the list
     try { await ref.update({ state: 'error', error: String(e.message || e).slice(0, 300), claimAt: null, claimBy: null }); Object.assign(Qd[x.id] || {}, { state: 'error', error: e.message }); } catch (_) {}
     if (e.candidates) tmp[x.id] = { candidates: e.candidates };
     ctx.log(`PO ${esc(x.po)}: not printed. ${esc(e.message || e)}`);
@@ -322,13 +335,13 @@ function paint() {
   const done = rowsOf().filter((x) => x.state === 'printed' || x.state === 'skipped').sort((a, b) => (b.printedAt || b.skippedAt || 0) - (a.printedAt || a.skippedAt || 0)).slice(0, 40);
   const ready = health && health.ok;
   const row = (x) => { const t = tmp[x.id] || {}; const place = t.place || x.place || 'M'; const cands = t.candidates || [];
-    const st = x.state === 'printing' ? 'Printing…' : x.state === 'error' ? `<span class="iba-rtp-err">${esc(x.error || 'Did not print')}</span>` : '';
+    const st = x.state === 'printing' ? (busyIds[x.id] ? 'Printing…' : 'Stopped half-way. If the page came out, click "It printed".') : x.state === 'error' ? `<span class="iba-rtp-err">${esc(x.error || 'Did not print')}</span>` : '';
     const fileCell = x.file ? `<span title="Picked">${esc(x.file)}</span>` : cands.length ? `<select data-f="file"><option value="">Pick the PDF…</option>${cands.map((n) => `<option>${esc(n)}</option>`).join('')}</select>` : `<span class="iba-rtp-name">${esc(baseName(x.invName) || '(no name)')}.pdf</span>`;
     return `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}<br><small>Site ${esc(x.site || '')}</small></td><td class="n">${esc(money(x.value))}</td>
       <td><span class="iba-rtp-esn">${esc(x.esn)}</span><br><small>${esc(x.approver || '')}${x.approvals > 1 ? ` · approval ${x.approvals}` : ''}${x.prev ? ' · earlier ESN printed ' + esc(clock(x.prev.printedAt)) : ''}</small></td>
       <td>${fileCell}<br><small class="iba-rtp-msg">${st}</small></td>
       <td><select data-f="place">${PLACES.map(([k, l]) => `<option value="${k}" ${k === place ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-      <td class="iba-rtp-act"><button type="button" data-rtp="preview" ${ready ? '' : 'disabled'}>Preview</button><button type="button" data-rtp="print" class="is-go" ${ready && x.state !== 'printing' ? '' : 'disabled'}>Print</button><button type="button" data-rtp="skip">Skip</button>${x.state === 'printing' || x.state === 'error' ? '<button type="button" data-rtp="reset" title="Forget this row, so Rafi picks the invoice up again by himself">Reset</button>' : ''}</td></tr>`; };
+      <td class="iba-rtp-act"><button type="button" data-rtp="preview" ${ready ? '' : 'disabled'}>Preview</button><button type="button" data-rtp="print" class="is-go" ${ready && x.state !== 'printing' ? '' : 'disabled'}>Print</button><button type="button" data-rtp="skip">Skip</button>${x.state === 'printing' || x.state === 'error' ? '<button type="button" data-rtp="done" title="The page came out of the printer: move this row to History">It printed</button><button type="button" data-rtp="reset" title="Forget this row, so Rafi picks the invoice up again by himself">Reset</button>' : ''}</td></tr>`; };
   const doneRow = (x) => `<tr data-id="${esc(x.id)}"><td><b>${esc(x.po)}</b><br><small>${esc(x.invNumber || '')}</small></td><td>${esc(x.vendor || '')}</td><td>${esc(x.esn)}</td><td>${x.state === 'printed' ? `Printed ${esc(clock(x.printedAt))} · ${esc(placeName(x.place))}${x.again ? ' · again ×' + x.again : ''}${x.queue ? `<br><small>${esc(x.queue)}</small>` : ''}` : 'Skipped ' + esc(clock(x.skippedAt))}</td><td class="iba-rtp-act">${x.state === 'printed' ? `<button type="button" data-rtp="again" ${ready ? '' : 'disabled'}>Print again</button>` : '<button type="button" data-rtp="unskip">Back to the list</button>'}<button type="button" data-rtp="reset" title="For a test: forget this print, so Rafi picks the invoice up again and prints it by himself">Reset</button></td></tr>`;
   body.innerHTML = helperBar()
     + `<div class="iba-rtp-head"><span>${open.length} ready to print${inHours() ? '' : ' · the bot looks for new ones 8:30 AM – 6:00 PM'}</span>${olderN ? `<button type="button" data-rtp="older" title="Approved before Ready to Print started; they may already be on paper">Add older approved (${olderN})</button>` : ''}<button type="button" data-rtp="basket">Print basket</button></div>`
@@ -356,6 +369,8 @@ async function onClick(e) {
   }
   if (act === 'print') { if (!x.file && tmp[x.id] && tmp[x.id].candidates && tmp[x.id].candidates.length) { ctx.log(`PO ${esc(x.po)}: pick the PDF first.`); return; } return printOne(x, place, false); }
   if (act === 'again') { if (!confirm(`PO ${x.po} was printed ${clock(x.printedAt)}. Print page 1 again on ${PRINTER}?`)) return; return printOne(x, x.place || 'M', true); }
+  if (act === 'done') { const upd = { state: 'printed', printedAt: Date.now(), printedBy: me(), printer: PRINTER, error: null, claimAt: null, claimBy: null, byHand: true }; Object.assign(Qd[x.id] = Qd[x.id] || {}, upd); await markPrinted(mainDb().ref(`${ROOT}/${x.id}`), x.id, upd);
+    ctx.log(`PO ${esc(x.po)}: marked as printed (moved to History).`); showDone = true; paint(); if (ctx.refreshSum) ctx.refreshSum(); return; }
   if (act === 'skip') { await mainDb().ref(`${ROOT}/${x.id}`).update({ state: 'skipped', skippedAt: Date.now(), skippedBy: me() }); Object.assign(Qd[x.id], { state: 'skipped', skippedAt: Date.now() }); ctx.log(`PO ${esc(x.po)}: skipped (not printed).`); paint(); if (ctx.refreshSum) ctx.refreshSum(); return; }
   // 18.0.0 patch 156: Reset = forget this row in Ready to Print. Rafi checks again right away and, if the invoice is
   // still Approved with an ESN for you (8:30 AM - 6:00 PM), stages and prints it by himself - a test of the automatic road.

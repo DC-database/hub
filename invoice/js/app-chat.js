@@ -28,6 +28,8 @@ function formatChatTime(ts) {
 // - UI entry points added to: WorkDesk + Invoice Management + Inventory.
 // ============================================================================
 
+// 18.0.0 patch 162: the chat lives in its own Firebase project (js/iba-chat-db.js). Falls back to the main db.
+function dmDb() { return window.ibaChatDb || db; }
 const DM_PRESENCE_ROOT = 'presence';
 const DM_INBOX_ROOT = 'dm_inbox';
 const DM_THREADS_ROOT = 'dm_threads';
@@ -357,6 +359,8 @@ function dmEnsureUI() {
     const input = document.getElementById('dm-input');
     const sendBtn = document.getElementById('dm-send');
     sendBtn?.addEventListener('click', () => dmSendCurrent());
+    // 18.0.0 patch 162: "writing..." flag for the other person (one small on/off value, off after 5 s without typing)
+    input?.addEventListener('input', () => dmTypingPing(dmState.threadId));
     input?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -650,7 +654,7 @@ function dmOpenThread(toKey, toName) {
 
     // mark read
     if (dmState.threadId) {
-        db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${dmState.threadId}`).remove().catch(() => {});
+        dmDb().ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${dmState.threadId}`).remove().catch(() => {});
     }
 
     // clear list and subscribe
@@ -663,7 +667,7 @@ function dmOpenThread(toKey, toName) {
     dmClearThreadListener();
     if (!dmState.threadId) return;
 
-    dmState.threadMessagesRef = db.ref(`${DM_THREADS_ROOT}/${dmState.threadId}/messages`).limitToLast(200);
+    dmState.threadMessagesRef = dmDb().ref(`${DM_THREADS_ROOT}/${dmState.threadId}/messages`).limitToLast(200);
     dmState.onThreadMsg = (snap) => {
         const m = snap.val();
         if (!m) return;
@@ -716,7 +720,9 @@ async function dmSendMessage(toKey, toName, text) {
     // its unread count could not be cleared)
     if (String(fromKey) === String(toKey)) throw new Error('You cannot send a message to yourself.');
 
-    const msgId = db.ref(`${DM_THREADS_ROOT}/${threadId}/messages`).push().key;
+    if (!dmCapOk('p')) { dmToast('Messages', 'Daily message limit reached (' + DM_CAPS.p + '). It resets tomorrow.'); return; }
+    dmTypingStop(threadId);
+    const msgId = dmDb().ref(`${DM_THREADS_ROOT}/${threadId}/messages`).push().key;
     const msg = {
         fromKey,
         fromName,
@@ -735,14 +741,23 @@ async function dmSendMessage(toKey, toName, text) {
     updates[`${DM_INBOX_ROOT}/${toKey}/${msgId}`] = msg;
 
     try {
-        await db.ref().update(updates);
+        await dmDb().ref().update(updates);
+        dmCapCount('p');
+        // 18.0.0 patch 162 (quiet update): for 1 day after the switch, also drop the message in the OLD inbox, so a
+        // colleague whose page has not reloaded yet still gets the pop-up (they read the old database until then).
+        try {
+            if (window.ibaChatDb && typeof db !== 'undefined' && db && db.ref && window.ibaChatDb !== db) {
+                let first = 0; try { first = Number(localStorage.getItem('iba-chat-switch-v1')) || 0; } catch (_) { /* ignore */ }
+                if (first && Date.now() - first < 864e5) db.ref(`${DM_INBOX_ROOT}/${toKey}/${msgId}`).set(Object.assign({}, msg, { ts: Date.now() })).catch(() => {});
+            }
+        } catch (_) { /* ignore */ }
         
         // --- ADDED: PLAY SENT SOUND ---
         window.playMessageSent();
         // ------------------------------
 
         // Unread counters for recipient
-        const base = db.ref(`${DM_UNREAD_ROOT}/${toKey}/${threadId}`);
+        const base = dmDb().ref(`${DM_UNREAD_ROOT}/${toKey}/${threadId}`);
         base.child('count').transaction(c => (Number(c) || 0) + 1);
         base.child('lastText').set(msg.text);
         base.child('lastTs').set(firebase.database.ServerValue.TIMESTAMP);
@@ -797,6 +812,56 @@ function dmResolveUserByDisplayName(nameOrAttention) {
 
     return null;
 }
+
+// ---------------------------------------------------------------------------------------------
+// 18.0.0 patch 162 (martin): keep the chat database small. Daily caps per person (200 private,
+// 20 public), a usage counter Super Admin can see (chat_usage/{day}/{userKey}), the "writing..."
+// flag, and public office messages shown as a small toast to everyone (deleted after 1 day).
+// ---------------------------------------------------------------------------------------------
+const DM_CAPS = { p: 200, u: 20 };
+function dmDay() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function dmCapGet() { try { const v = JSON.parse(localStorage.getItem('iba-chat-cap-v1') || '{}'); return v.day === dmDay() ? v : { day: dmDay(), p: 0, u: 0 }; } catch (_) { return { day: dmDay(), p: 0, u: 0 }; } }
+function dmCapOk(kind) { return (dmCapGet()[kind] || 0) < DM_CAPS[kind]; }
+function dmCapLeft(kind) { return Math.max(0, DM_CAPS[kind] - (dmCapGet()[kind] || 0)); }
+function dmCapCount(kind) {
+    const v = dmCapGet(); v[kind] = (v[kind] || 0) + 1; try { localStorage.setItem('iba-chat-cap-v1', JSON.stringify(v)); } catch (_) { /* ignore */ }
+    try { if (!dmState.userKey) return; const r = dmDb().ref(`chat_usage/${dmDay()}/${dmState.userKey}`); r.child(kind).transaction((c) => (Number(c) || 0) + 1); r.child('n').set(dmState.userName || ''); } catch (_) { /* ignore */ }
+}
+const dmTyping = { tid: '', timer: null };
+function dmTypingPing(threadId) {
+    if (!threadId || !dmState.userKey) return;
+    try {
+        if (dmTyping.tid !== threadId) { dmTypingStop(dmTyping.tid); dmTyping.tid = threadId; dmDb().ref(`${DM_THREADS_ROOT}/${threadId}/typing/${dmState.userKey}`).set(true).catch(() => {}); }
+        if (dmTyping.timer) clearTimeout(dmTyping.timer); dmTyping.timer = setTimeout(() => dmTypingStop(threadId), 5000);
+    } catch (_) { /* ignore */ }
+}
+function dmTypingStop(threadId) {
+    if (!threadId || dmTyping.tid !== threadId) return; dmTyping.tid = '';
+    if (dmTyping.timer) { clearTimeout(dmTyping.timer); dmTyping.timer = null; }
+    try { dmDb().ref(`${DM_THREADS_ROOT}/${threadId}/typing/${dmState.userKey}`).remove().catch(() => {}); } catch (_) { /* ignore */ }
+}
+// public office messages: everyone sees the newest one as a toast (only messages from the last 10 minutes)
+function dmSubscribePublic() {
+    try {
+        const since = Date.now() - 10 * 60000;
+        dmDb().ref('office_chat').orderByChild('ts').startAt(since).limitToLast(3).on('child_added', (snap) => {
+            const m = snap.val() || {}; if (!m.text || String(m.fromKey) === String(dmState.userKey)) return;
+            if (window.ibaOfficeChatSeesPublic && window.ibaOfficeChatSeesPublic()) return; // the office shows it over the avatar
+            dmToast('📢 ' + (m.fromName || 'Everyone'), dmSafeText(m.text));
+        });
+    } catch (e) { console.warn('Public messages listener failed', e); }
+}
+async function dmSendPublic(text) {
+    const t = dmSafeText(text).slice(0, 200); if (!t || !dmState.userKey) return false;
+    if (!dmCapOk('u')) { dmToast('Messages', 'Daily public limit reached (' + DM_CAPS.u + '). It resets tomorrow.'); return false; }
+    await dmDb().ref('office_chat').push({ fromKey: dmState.userKey, fromName: dmState.userName, text: t, ts: firebase.database.ServerValue.TIMESTAMP });
+    dmCapCount('u');
+    // tidy: public messages older than 1 day are deleted
+    try { const old = await dmDb().ref('office_chat').orderByChild('ts').endAt(Date.now() - 864e5).limitToFirst(30).once('value'); old.forEach((c) => { c.ref.remove().catch(() => {}); }); } catch (_) { /* ignore */ }
+    return true;
+}
+window.ibaChat = { db: dmDb, threadId: dmGetThreadId, me: () => ({ key: dmState.userKey, name: dmState.userName }), send: (k, n, t) => dmSendDirectMessage(k, n, t), sendPublic: dmSendPublic,
+    typing: dmTypingPing, typingStop: dmTypingStop, capLeft: dmCapLeft, caps: DM_CAPS, day: dmDay, safe: dmSafeText };
 
 async function dmSendDirectMessage(toKey, toName, text) {
     try {
@@ -884,10 +949,10 @@ function dmInjectMessagesButtons() {
 
 function dmStartPresence() {
     if (!dmState.userKey) return;
-    dmState.connectedRef = db.ref('.info/connected');
+    dmState.connectedRef = dmDb().ref('.info/connected');
     dmState.onConnected = (snap) => {
         if (snap.val() !== true) return;
-        dmState.presenceRef = db.ref(`${DM_PRESENCE_ROOT}/${dmState.userKey}`);
+        dmState.presenceRef = dmDb().ref(`${DM_PRESENCE_ROOT}/${dmState.userKey}`);
         const offlinePayload = {
             name: dmState.userName,
             status: 'offline',
@@ -923,7 +988,7 @@ function dmStartPresence() {
 function dmSubscribePresenceList() {
     if (dmState.presenceListRef) return;
     dmState.presenceCache = dmState.presenceCache || {};
-    dmState.presenceListRef = db.ref(DM_PRESENCE_ROOT);
+    dmState.presenceListRef = dmDb().ref(DM_PRESENCE_ROOT);
 
     const onChild = (snap) => {
         dmState.presenceCache[snap.key] = snap.val() || {};
@@ -976,13 +1041,15 @@ function dmSubscribeInbox() {
         }, 1200);
     } catch (_) { /* ignore */ }
 
-    dmState.inboxRef = db.ref(`${DM_INBOX_ROOT}/${dmState.userKey}`).limitToLast(50);
+    dmState.inboxRef = dmDb().ref(`${DM_INBOX_ROOT}/${dmState.userKey}`).limitToLast(50);
     dmState.onInbox = (snap) => {
         const m = snap.val();
         if (!m) return;
         const fromKey = String(m.fromKey || '');
         const fromName = String(m.fromName || m.from || 'Message');
         const text = dmSafeText(m.text || '');
+        // 18.0.0 patch 162: the IBA Office mini chat with this person is open -> the office shows it (head bubble), no toast/pop-up
+        try { if (window.ibaOfficeChatTake && window.ibaOfficeChatTake(m)) { snap.ref.remove().catch(() => {}); return; } } catch (_) { /* ignore */ }
         
         if (text) {
             dmToast(fromName, text);
@@ -1019,11 +1086,20 @@ function dmSubscribeInbox() {
         snap.ref.remove().catch(() => {});
     };
     dmState.inboxRef.on('child_added', dmState.onInbox);
+    // 18.0.0 patch 162: for 3 days after the switch to the chat database, also pick up anything a colleague still on
+    // the old version sent to the OLD inbox (shown once as usual, then removed there).
+    try {
+        if (window.ibaChatDb && typeof db !== 'undefined' && db && db.ref && window.ibaChatDb !== db) {
+            var KEY = 'iba-chat-switch-v1', first = 0;
+            try { first = Number(localStorage.getItem(KEY)) || 0; if (!first) { first = Date.now(); localStorage.setItem(KEY, String(first)); } } catch (_) { first = Date.now(); }
+            if (Date.now() - first < 3 * 864e5) db.ref(`${DM_INBOX_ROOT}/${dmState.userKey}`).limitToLast(50).on('child_added', dmState.onInbox);
+        }
+    } catch (_) { /* ignore */ }
 }
 
 function dmSubscribeUnread() {
     if (!dmState.userKey) return;
-    dmState.unreadRef = db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}`);
+    dmState.unreadRef = dmDb().ref(`${DM_UNREAD_ROOT}/${dmState.userKey}`);
     dmState.onUnread = (snap) => {
         dmState.unreadCache = snap.val() || {};
         // 15.0.0 patch 39: an old message to yourself left a count that could
@@ -1031,7 +1107,7 @@ function dmSubscribeUnread() {
         const selfThread = dmGetThreadId(dmState.userKey, dmState.userKey);
         if (selfThread && dmState.unreadCache[selfThread]) {
             delete dmState.unreadCache[selfThread];
-            db.ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${selfThread}`).remove().catch(() => {});
+            dmDb().ref(`${DM_UNREAD_ROOT}/${dmState.userKey}/${selfThread}`).remove().catch(() => {});
         }
         dmUpdateBadges();
         if (dmState.open) dmRenderUserList();
@@ -1066,6 +1142,7 @@ function initDirectMessages() {
     try { dmStartPresence(); } catch (e) { console.warn('DM presence init failed:', e); }
     try { dmSubscribeUnread(); } catch (e) { console.warn('DM unread init failed:', e); }
     try { dmSubscribeInbox(); } catch (e) { console.warn('DM inbox init failed:', e); }
+    try { dmSubscribePublic(); } catch (_) { /* ignore */ }
 }
 
 function shutdownDirectMessages() {

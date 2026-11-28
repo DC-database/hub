@@ -1667,6 +1667,8 @@
     const jobStore = { all: null, at: 0, q: {} };
     const IDX_KEY = 'iba-ai-jobidx-v1';
     function mainDb() { try { return (typeof db !== 'undefined' && db && db.ref) ? db : null; } catch (_) { return null; } }
+    // 18.0.0 patch 162: reminders (iba_assistant/reminders + reminders_sent) live in the chat database (js/iba-chat-db.js)
+    function remDb() { return window.ibaChatDb || mainDb(); }
     function snapList(snap) { const v = (snap && typeof snap.val === 'function' && snap.val()) || {}; return Object.keys(v).map((k) => Object.assign({ key: k }, v[k] || {})); }
     function screenJobsIfFull() {
         try {
@@ -3319,6 +3321,12 @@
             if (mm && mm.brief) { showView('chat'); addUser(text); return openBrief(); }
             if (mm && mm.text && norm(mm.text) !== norm(text) && await localAnswer(mm.text, text)) return;
         }
+        // 18.0.0 patch 164 (martin): IRIS brain = the Obsidian notes (js/iba-iris-brain.js, no Firebase, no key).
+        // A clear how-to question ("how does Rina collection work", "esn printing", "iris notes") gets the note card.
+        if (!(opts && opts.silentUser) && window.ibaKnow) {
+            let kn = null; try { kn = window.ibaKnow.ask(text); } catch (_) { kn = null; }
+            if (kn) return localDo(text, async () => { addCard({ kind: 'know', data: kn }); });
+        }
         if (opts && opts.noAI) return 'no-ai'; // 18.0.0 patch 32: IRIS Talk mode never uses the AI
         if (!ready() && /\b(brief|waiting|today|remind(?:er)?s?|my tasks?|pending)\b/i.test(text)) {
             addUser(text);
@@ -3337,7 +3345,8 @@
         const steps = [];
         let minimize = false;
         let cardShown = false;
-        const msgs = [{ role: 'system', content: systemPrompt() }].concat(state.history.slice(-HISTORY_KEEP), [{ role: 'user', content: text }]);
+        let knowText = ''; try { knowText = window.ibaKnow ? window.ibaKnow.prompt(text) : ''; } catch (_) { knowText = ''; } // 18.0.0 patch 164
+        const msgs = [{ role: 'system', content: systemPrompt() + (knowText ? '\n' + knowText : '') }].concat(state.history.slice(-HISTORY_KEEP), [{ role: 'user', content: text }]);
         try {
             for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
                 const m = await callWithRetry(msgs, round < MAX_TOOL_ROUNDS);
@@ -3748,6 +3757,10 @@
                 return [{ tool: 'add_to_batch', args: { today_statuses: st } }];
             } },
         // 17.0.5 patch 219 (martin): start the screensaver now (everyone, PC) and open Empty merged items (Super Admin)
+        // 18.0.0 patch 164 (martin): the IRIS brain notes (Obsidian "Iris Knowledge"); office notes only for the Super Admin
+        iris_notes: { name: 'IRIS notes', icon: 'fa-brain', desc: 'How-to notes IRIS answers from (Rina, routing, ESN printing, PO lookup and report, Summary Review). Ask "how does ..." or open the list.',
+            check: () => !!window.ibaKnow && window.ibaKnow.count > 0,
+            ask: () => [], run: async () => { addCard({ kind: 'know', data: { list: true } }); return ''; } },
         screensaver: { name: 'Screensaver now', icon: 'fa-tv', desc: 'Starts the screensaver right away, without waiting for the minutes. Move the mouse or press a key to come back.',
             check: () => !!window.ibaIdle && typeof window.ibaIdle.show === 'function',
             ask: () => [], run: async () => {
@@ -3971,7 +3984,7 @@
             } catch (e) { skipped.push(Object.assign({ why: (e && e.message) || 'error' }, x)); }
         }));
         if (on && remind && done.length) {
-            const d = mainDb(), by = {};
+            const d = remDb(), by = {};
             done.forEach((x) => { const w = String(x.inv.attention || '').trim(); if (w) (by[w] = by[w] || []).push(x); });
             await Promise.all(Object.keys(by).map((w) => {
                 const rows = by[w];
@@ -4214,6 +4227,15 @@
             return;
         }
         if (t.closest('[data-rb-review]')) { toggle(false); try { await openBatchEntry(); } catch (_) {} }
+    }, true);
+    // 18.0.0 patch 164: a [[link]] or a row in an IRIS notes card opens that note as a new card
+    document.addEventListener('click', (e) => {
+        const t = e.target && e.target.closest ? e.target : null;
+        if (!t || !window.ibaKnow) return;
+        const o = t.closest('[data-know-open]'), l = !o && t.closest('[data-know-list]');
+        if (!o && !l) return;
+        e.preventDefault();
+        addCard({ kind: 'know', data: o ? { id: o.getAttribute('data-know-open') } : { list: true } });
     }, true);
     // run a skill straight away with values (IRIS: "register the new entries from yesterday")
     async function runTemplateNow(id, vals, shown) {
@@ -5458,7 +5480,7 @@
         return out;
     }
     async function pinForPC(q, btn) {
-        const d = mainDb();
+        const d = remDb();
         const me = myName();
         if (!d || !me) return;
         const li = btn.closest('li');
@@ -6131,14 +6153,14 @@
         return out;
     }
     async function remSaveSelf(dueAt, text, po) {
-        const d = mainDb(), me = myName();
+        const d = remDb(), me = myName();
         if (!d || !me) throw new Error('Sign in first, then try again.');
         const ref = d.ref('iba_assistant/reminders/' + remSafe(me)).push();
         await ref.set({ from: me, to: me, self: true, text: String(text || '').slice(0, 600), po: po || '', dueAt: dueAt, at: firebase.database.ServerValue.TIMESTAMP });
         return ref.key;
     }
     async function remCancel(id) {
-        const d = mainDb(), me = myName();
+        const d = remDb(), me = myName();
         if (!d || !me || !id) return;
         try { await d.ref('iba_assistant/reminders/' + remSafe(me) + '/' + id).remove(); } catch (_) {}
     }
@@ -6228,7 +6250,7 @@
                 return;
             }
             if (b.hasAttribute('data-rem-send')) {
-                const d = mainDb();
+                const d = remDb();
                 if (!d) { msg.textContent = 'Firebase is not ready.'; return; }
                 b.disabled = true;
                 try {
@@ -6261,7 +6283,7 @@
             '<span class="c-act"><button type="button" class="iba-ai-mini" data-rem-seen="' + esc(r.id) + '" title="Mark as seen"><i class="fa-solid fa-check"></i> Seen</button></span></li>').join('') + '</ul></div></div>' + remLaterHtml();
     }
     async function remMarkSeen(id) {
-        const d = mainDb();
+        const d = remDb();
         const r = remList.find((x) => x.id === id);
         if (!d || !r) return;
         const upd = {};
@@ -6272,7 +6294,7 @@
         }
     }
     function startReminders() {
-        const d = mainDb();
+        const d = remDb();
         const me = myName();
         if (!d || !me || remRef) return;
         remRef = d.ref('iba_assistant/reminders/' + remSafe(me)).limitToLast(30);
@@ -7118,6 +7140,8 @@
             d.innerHTML = transferFindHtml(x);
         } else if (card.kind === 'any_find') {
             d.innerHTML = anyFindHtml(x);
+        } else if (card.kind === 'know') {
+            d.innerHTML = window.ibaKnow ? window.ibaKnow.html(x) : '<p class="iba-ai-empty">IRIS notes are not loaded.</p>';
         } else if (card.kind === 'reception') {
             const ppl = Object.keys(x.entered_by || {}).map((k) => esc(k) + ' ' + esc(x.entered_by[k])).join(' · ');
             d.innerHTML = '<div class="iba-ai-card-head"><i class="fa-solid fa-inbox"></i> Received at Reception · ' + esc(x.period) + '<span class="iba-ai-badge is-plain">' + esc(x.total) + '</span></div>' +
@@ -7252,7 +7276,7 @@
     // a short line and a colour for each ready-made skill
     const SKILL_LOOK = {
         inv_status: ['Where is it, who has it', '#2a78d6'], receive_delivery: ['Scan the transfer paper', '#FF86A3'], photo_names: ['Item photo file names', '#F7BE45'], transfer: ['Who must act next', '#1f9d7a'], person: ['Message, call, email', '#e46b2c'], site_team: ['Site DC, Storekeeper at a site', '#0f766e'],
-        screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
+        iris_notes: ['How-to notes, the IRIS brain', '#8b5cf6'], screensaver: ['Start it now, no waiting', '#6d5bd0'], merge_clean: ['Zero cards left by a merge', '#a16207'],
         brief: ['Today\'s tasks and reminders', '#d39b12'], reception_batch: ['Reception entries into Batch', '#0d7e85'], today_batch: ['Today\'s invoices into Batch', '#2563eb'], stuck: ['Invoices that have not moved', '#b91c1c'], apv_wa: ['WhatsApp reminder to approve', '#16a34a'], pay_month: ['With Accounts month into Payments', '#0f766e'], notes_to_acc: ['CEO approved notes to Accounts', '#b45309'], batch: ['POs into Batch Entry', '#7a4bb3'], weekly: ['Meeting report by site', '#c2410c'],
         site_list: ['For SRV by site, to print', '#2563eb'], dbcheck: ['Indexes that keep downloads small', '#475569'], handover: ['See / undo moved tasks', '#9333ea'], urgent: ['Rush For Approval invoices', '#dc2626'],
         xl_wa: ['Morning / afternoon, copy or CSV', '#15803d'], xl_ur: ['Morning / afternoon, copy or CSV', '#0f766e'], recent: ['Moved lately, into Batch', '#0e7490'],
@@ -7268,7 +7292,7 @@
     // "Who can print ESN" / "Who can send LPO emails" are not tiles any more: they live in Settings.
     const SKILL_GROUPS = [
         ['Add new', ['new_invoice', 'new_job', 'new_requisition', 'new_delivery']],
-        ['My day', ['brief', 'remind_me', 'screensaver', 'dash_charts']],
+        ['My day', ['brief', 'remind_me', 'iris_notes', 'screensaver', 'dash_charts']],
         ['Find and track', ['inv_status', 'receive_delivery', 'transfer', 'person', 'site_team']],
         ['Batch and payments', ['batch', 'pay_month', 'reception_batch', 'notes_to_acc', 'recent', 'ceo_sort', 'today_batch', 'srv_batch']],
         ['Approvals', ['approvals_list', 'apv_wa', 'urgent', 'stuck']],
@@ -8001,7 +8025,22 @@
     window.ibaTaskActions = {
         html: (t) => taskActionsHtml(t),
         run: (btn) => taskAct(btn),
-        open: (q) => openTaskPage(q)
+        open: (q) => openTaskPage(q),
+        // 18.0.0 patch 172: guest IBA Office "Open in Active Job" for a transfer
+        openJob: (control) => openJobPage(control)
+    };
+    // 18.0.0 patch 172 (martin): the guest IBA Office desk = the user's own tasks, the SAME lists the Now brief
+    // uses (Active Task + Inventory Active Job, already in memory after sign-in). No extra Firebase reads.
+    // Each invoice task also carries its INV / SRV file names (from the Active Task row) for the PDF side panel.
+    window.ibaMyWork = async function (ms) {
+        const w = await waitingReady(ms || 8000);
+        if (!w) return null;
+        const l = briefLists(w);
+        let full = [];
+        try { if (typeof userActiveTasks !== 'undefined' && Array.isArray(userActiveTasks)) full = userActiveTasks; } catch (_) {}
+        const byKey = new Map(full.map((x) => [String((x && x.key) || ''), x]));
+        const tasks = l.tasks.map((t) => { const f = byKey.get(String(t.key)) || {}; return Object.assign({}, t, { invName: String(f.invName || ''), srvName: String(f.srvName || ''), invEntryID: String(f.invEntryID || ''), site: t.site || taskSite(t) }); });
+        return { tasks: tasks.sort(oldestFirst), jobs: l.jobs.slice().sort(oldestFirst), me: myName() };
     };
 
     window.ibaAddToBatch = async function (items) {
