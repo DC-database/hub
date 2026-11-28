@@ -1064,7 +1064,7 @@ function dmSubscribeInbox() {
         // Auto-open the chat (modal + sender thread) only when:
         // - user is actively using the system (tab is visible)
         // - message arrived after bootstrap
-        // - DM isn't already open (avoid yanking focus repeatedly)
+        // - neither AI Office nor the Messages window is already open
         // - basic throttle to prevent spam-opening
         try {
             const now = Date.now();
@@ -1072,6 +1072,7 @@ function dmSubscribeInbox() {
                 !!fromKey &&
                 fromKey !== dmState.userKey &&
                 !dmState.open &&
+                !document.body.classList.contains('iba-office-on') &&
                 (document.visibilityState === 'visible') &&
                 (dmState.inboxBootstrapped === true) &&
                 (now - (Number(dmState.lastAutoOpenAt || 0)) > 6000);
