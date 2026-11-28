@@ -979,6 +979,7 @@ async function command(txt) {
   if (GUEST) { mwQ = String(txt || '').trim(); mwCab = null; paintMyWork(true); return; } // p172: guests search their own work
   const s = String(txt || '').trim(); if (!s) return; log(`You: "${esc(s)}"`); const low = s.toLowerCase(); let m;
   if (/^(?:download my saved under review csv|under review list|under review csv)[.!?]?$/.test(low)) { exportRinaCsv(); return; }
+  if (/^(?:which pos? (?:do i need to |should i )?pull|check po pull[- ]out)[?!.]?$/.test(low)) { await checkWaitingPullOut(); return; }
   // p162 (martin): "rina collect", "rina collect po 67486 from reception please", "collect now" = Rina collects now,
   // and for one PO she says exactly why it stays (no PO / not in POVALUE2 or Progress-PO / already converted / not on your list).
   // p167 (martin): "rina collect oscar invoice from reception ..." collected ALL 9. Now the words after collect are a
@@ -1245,9 +1246,55 @@ async function rinaCollect(force, onePo) {
     });
     if (made.length) log(`<b>Rina</b> collected <b>${made.length}</b> from Reception into Under Review on your desk: ${made.map((m) => esc(m.po + ' ' + m.inv.invNumber)).join(', ')}.`);
     if (unsure.length) log(`<b>Rina</b> left ${unsure.length} at Reception for you: ${unsure.join('; ')}.`);
+    if (made.length) await openCollectedPullOut(made);
   } finally { collecting = false; paintBots(true); if (rinaAgain) { const a = rinaAgain; rinaAgain = null; setTimeout(() => rinaCollect(true, a.po), 800); } }
 }
 // ---- p167 (martin): "rina return today's to Hafiz" = undo today's collection ----
+async function openCollectedPullOut(collected) {
+  const file = window.ibaPoFile;
+  if (!isSuperNow() || !file || !file.addOne || !file.openList) return;
+  const pos = [...new Set(collected.map((item) => String(item.po || '').trim()).filter(Boolean))];
+  let eligible = 0;
+  const failures = [];
+  try {
+    for (const po of pos) {
+      if (!isSuperNow()) break;
+      const result = await file.addOne(po);
+      if (result.ok || result.why === 'already on the list') eligible++;
+      else if (/^(?:could not add|busy)/.test(result.why || '')) failures.push(po);
+    }
+    if (failures.length) log(`<b>Rina</b>: Could not queue PO ${failures.map(esc).join(', ')}. Check the pull-out list manually.`);
+    if (eligible && !root.hidden && isSuperNow()) await file.openList({ host: root });
+    return eligible;
+  } catch (error) {
+    console.warn('Office: PO pull-out preparation failed', error);
+    log('<b>Rina</b>: Collection finished. I could not open the PO pull-out list.');
+  }
+}
+
+async function checkWaitingPullOut() {
+  if (!isSuperNow() || root.hidden) return;
+  const file = window.ibaPoFile;
+  if (!file || !file.lookup || !file.activeOf) { log('The Progress-PO lookup is unavailable.'); return; }
+  const pending = new Map();
+  for (const item of runWaiting()) {
+    const po = String(item.po || '').trim();
+    if (/^\d+$/.test(po) && !pending.has(po)) pending.set(po, item);
+  }
+  if (!pending.size) { log('Rina has no POs waiting for a scan.'); return; }
+  const active = [], failed = [];
+  for (const [po, item] of pending) {
+    if (!isSuperNow() || root.hidden) return;
+    try {
+      if (file.activeOf(await file.lookup(po))) active.push('PO ' + esc(po) + (item.vendor ? ' · ' + esc(item.vendor) : ''));
+    } catch (_) { failed.push(esc(po)); }
+  }
+  if (!isSuperNow() || root.hidden) return;
+  log(active.length ? '<b>Active POs to pull:</b> ' + active.join('; ') + '.'
+    : 'No Active POs found among the waiting entries that could be checked.');
+  if (failed.length) log('Could not check PO ' + failed.join(', ') + ' in Progress-PO.');
+}
+
 // Only invoices Rina made today that are still Under Review (not sorted, nothing else done). Rina first lists them
 // and waits for "yes". Each: invoice removed, the Reception entry opens again as New Entry (Converted to Invoice taken
 // off), attention = the person named (must be who entered it, e.g. Hafiz) or stays yours, history line on the entry.
@@ -1515,8 +1562,16 @@ function exportRinaCsv() {
   const useSnapshot = snapshot && snapshot.at >= batchAt;
   const entries = SET.savedAt > SET.startedAt && Object.keys(SET.saved).length
     ? Object.values(SET.saved).filter((x) => !x.skip) : runList();
-  const data = useSnapshot ? snapshot.rows : entries.map((x) => {
-    const current = rows.find((r) => String(r.po) === x.po && String(r.key) === x.key);
+  const sortableEntries = entries.map((entry) => {
+    const current = rows.find((r) => String(r.po) === entry.po && String(r.key) === entry.key);
+    const vendor = entry.vendor || (current && poInfo(current.po, current).vendor) || '~';
+    return { entry, current, vendor };
+  });
+  sortableEntries.sort((a, b) => String(a.vendor).localeCompare(String(b.vendor), undefined, { sensitivity: 'base' })
+    || String(a.entry.po).localeCompare(String(b.entry.po), undefined, { numeric: true })
+    || ((Date.parse(a.current?.invoiceDate || '') || 0) - (Date.parse(b.current?.invoiceDate || '') || 0))
+    || String(a.entry.invNumber || '').localeCompare(String(b.entry.invNumber || ''), undefined, { numeric: true }));
+  const data = useSnapshot ? snapshot.rows : sortableEntries.map(({ entry: x, current }) => {
     const fields = current ? rinaCsvColumns(summaryRows([current], () => x.name)[0])
       : ['', x.po, x.site, x.invNumber, x.name, '', '', 'Under Review'];
     fields[7] = 'Under Review';
@@ -1999,7 +2054,36 @@ window.ibaOfficeWheel = (name, cx, cy) => {
 document.addEventListener('pointerdown', (e) => { if (wheel && !wheel.contains(e.target)) hideWheel(); }, true);
 document.addEventListener('keydown', (e) => { if (wheel && e.key === 'Escape') hideWheel(); });
 // your own avatar / a bot avatar in the office
-function openPersonDesk(p) { return openPersonOld(p); }
+function openPersonDesk(p) {
+  openPersonOld(p);
+  if (!p.me || !isSuperNow()) return;
+  const tools = document.createElement('div');
+  tools.className = 'iba-off-trayhead';
+  tools.innerHTML = '<b>Under Review tools</b><button type="button" class="iba-off-sm" data-desk-tool="csv">Download Under Review CSV</button><button type="button" class="iba-off-sm" data-desk-tool="queue">Add Waiting POs to Pull Out</button><button type="button" class="iba-off-sm" data-desk-tool="open">Open PO Pull Out</button>';
+  tools.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-desk-tool]');
+    if (!button || !isSuperNow() || root.hidden) return;
+    const action = button.dataset.deskTool;
+    if (action === 'csv') { exportRinaCsv(); return; }
+    const file = window.ibaPoFile;
+    if (!file?.openList) { log('The PO Pull Out list is unavailable.'); return; }
+    button.disabled = true;
+    try {
+      if (action === 'queue') {
+        const waiting = runWaiting();
+        if (!waiting.length) { log('There are no invoices waiting for PDFs.'); return; }
+        const eligible = await openCollectedPullOut(waiting);
+        if (!eligible) log('No waiting POs could be added. Check Progress-PO or open the pull-out list manually.');
+      } else {
+        await file.openList({ host: root });
+      }
+    } catch (error) {
+      console.warn('Office: desk tool failed', error);
+      log('Could not open the PO Pull Out list. Please try again.');
+    } finally { button.disabled = false; }
+  });
+  Q('.iba-off-popb').prepend(tools);
+}
 
 // ==========================================================================
 // 18.0.0 patch 157 (martin): right-click (no drag) on the floor = "Go here". Your avatar walks there and

@@ -190,7 +190,9 @@
             '<div class="iba-esn-foot"><span class="iba-esn-picked" data-pull-count></span><span class="iba-esn-sp"></span>' +
             '<button type="button" class="iba-esn-btn" data-pull-x>Close</button>' +
             '<button type="button" class="iba-esn-btn is-go" data-pull-go><i class="fa-solid fa-check-double"></i> Proceed</button></div></div>';
-        document.body.appendChild(win);
+        const host = (opts && opts.host) || document.body;
+        host.appendChild(win);
+        if (host !== document.body) win.style.zIndex = '50';
         const w = win;
         w.addEventListener('click', (e) => {
             if (e.target === w || e.target.closest('[data-pull-x]')) return close();
@@ -205,7 +207,7 @@
         w.addEventListener('change', (e) => { const i = e.target.closest && e.target.closest('[data-pull-to]'); if (i) setGiven(w, i); });
         w.addEventListener('submit', (e) => { if (e.target.closest('[data-pull-add]')) { e.preventDefault(); addTyped(w); } });
         w.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') close();
+            if (e.key === 'Escape') { e.stopPropagation(); close(); }
             else if (e.key === 'Enter' && e.target.closest('[data-pull-to]')) { e.preventDefault(); e.target.blur(); }
             else if (e.key === 'Enter' && !e.target.closest('button') && !e.target.closest('[data-pull-add]')) { e.preventDefault(); proceed(w, w.querySelector('[data-pull-go]')); }
         });
