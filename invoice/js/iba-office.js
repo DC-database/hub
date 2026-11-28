@@ -978,6 +978,7 @@ function findBot(s) { s = s.toLowerCase().trim(); const m = s.match(/bot\s*(\d)/
 async function command(txt) {
   if (GUEST) { mwQ = String(txt || '').trim(); mwCab = null; paintMyWork(true); return; } // p172: guests search their own work
   const s = String(txt || '').trim(); if (!s) return; log(`You: "${esc(s)}"`); const low = s.toLowerCase(); let m;
+  if (/^(?:download my saved under review csv|under review list|under review csv)[.!?]?$/.test(low)) { exportRinaCsv(); return; }
   // p162 (martin): "rina collect", "rina collect po 67486 from reception please", "collect now" = Rina collects now,
   // and for one PO she says exactly why it stays (no PO / not in POVALUE2 or Progress-PO / already converted / not on your list).
   // p167 (martin): "rina collect oscar invoice from reception ..." collected ALL 9. Now the words after collect are a
@@ -1489,16 +1490,53 @@ Q('.iba-off-pop').addEventListener('click', (e) => {
 // Inv Amount, Amount Paid, Status; no header, tabs; vendor A-Z, PO, invoice date; one row per invoice name.
 // The name is the one in the box (your fix included).
 function trayTsv() {
+  const list = summaryRows(tray.rows, (r) => (tray.choice[uid(r)] || {}).name);
+  const seen = new Set(), keep = list.filter((r) => { const n = norm(r.file); if (n && seen.has(n)) return false; if (n) seen.add(n); return true; });
+  const cell = (v) => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
+  return { n: keep.length, tsv: keep.map((r) => rinaCsvColumns(r).map(cell).join('\t')).join('\r\n') };
+}
+function rinaCsvColumns(r) { return [r.since, r.po, r.site, r.no, r.file, r.value, r.paid, r.status]; }
+function summaryRows(invoices, nameFor) {
   const reached = (r) => { const f = G('ibaStatusReachedAt'); const t = typeof f === 'function' ? f(r, 'under review') : Number(r.statusChangedAt) || 0; return t || 0; };
   const day = (t) => { if (!t) return ''; if (typeof window.ibaDay === 'function') return window.ibaDay(t); const d = new Date(t); return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g, '-'); };
   const clock = (t) => { try { return new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Qatar', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(t)); } catch (_) { return ''; } };
   const num = (v) => { const n = parseFloat(String(v == null ? '' : v).replace(/,/g, '')); return Number.isFinite(n) ? n : 0; };
-  const list = tray.rows.map((r) => { const pi = poInfo(r.po, r), c = tray.choice[uid(r)] || {}; const at = reached(r);
-    return { since: at ? day(at) + ' ' + clock(at) : '', po: r.po, site: pi.site || '', no: String(r.invNumber || '').trim(), file: String(c.name || r.invName || '').trim(), value: num(r.invValue), paid: num(r.amountPaid), status: r.status || 'Under Review', vendor: pi.vendor || '', idate: Date.parse(r.invoiceDate || '') || 0 }; });
+  const list = invoices.map((r) => { const pi = poInfo(r.po, r); const at = reached(r);
+    return { since: at ? day(at) + ' ' + clock(at) : '', po: r.po, site: pi.site || '', no: String(r.invNumber || '').trim(), file: String(nameFor(r) || r.invName || '').trim(), value: num(r.invValue).toFixed(2), paid: num(r.amountPaid).toFixed(2), status: r.status || 'Under Review', vendor: pi.vendor || '', idate: Date.parse(r.invoiceDate || '') || 0 }; });
   list.sort((x, y) => String(x.vendor || '~').localeCompare(String(y.vendor || '~'), undefined, { sensitivity: 'base' }) || String(x.po).localeCompare(String(y.po), undefined, { numeric: true }) || (x.idate - y.idate) || x.no.localeCompare(y.no, undefined, { numeric: true }));
-  const seen = new Set(), keep = list.filter((r) => { const n = norm(r.file); if (n && seen.has(n)) return false; if (n) seen.add(n); return true; });
-  const cell = (v) => String(v == null ? '' : v).replace(/[\t\r\n]+/g, ' ').trim();
-  return { n: keep.length, tsv: keep.map((r) => [r.since, r.po, r.site, r.no, r.file, r.value.toFixed(2), r.paid.toFixed(2), r.status].map(cell).join('\t')).join('\r\n') };
+  return list;
+}
+function rinaCsvKey() { return 'iba-office-under-review-csv:' + encodeURIComponent(meName()); }
+function exportRinaCsv() {
+  if (!allowed()) return;
+  let snapshot;
+  try { snapshot = JSON.parse(localStorage.getItem(rinaCsvKey()) || 'null'); } catch (_) {}
+  const batchAt = Math.max(SET.savedAt, SET.startedAt);
+  const useSnapshot = snapshot && snapshot.at >= batchAt;
+  const entries = SET.savedAt > SET.startedAt && Object.keys(SET.saved).length
+    ? Object.values(SET.saved).filter((x) => !x.skip) : runList();
+  const data = useSnapshot ? snapshot.rows : entries.map((x) => {
+    const current = rows.find((r) => String(r.po) === x.po && String(r.key) === x.key);
+    const fields = current ? rinaCsvColumns(summaryRows([current], () => x.name)[0])
+      : ['', x.po, x.site, x.invNumber, x.name, '', '', 'Under Review'];
+    fields[7] = 'Under Review';
+    return fields;
+  });
+  if (!data.length) { log('No saved Under Review set is available to export.'); return; }
+  const quote = (value, index) => {
+    let text = String(value == null ? '' : value);
+    if (index !== 5 && index !== 6 && /^[\s\uFEFF]*[=+\-@]/.test(text)) text = "'" + text;
+    return '"' + text.replace(/"/g, '""') + '"';
+  };
+  const header = ['Under Review since', 'PO', 'Site', 'Invoice number', 'Invoice name', 'Invoice value', 'Amount paid', 'Status'];
+  const csv = [header].concat(data).map((line) => line.map(quote).join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url; link.download = 'under-review.csv';
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  log(useSnapshot ? `Downloaded ${data.length} saved Under Review rows.`
+    : `Downloaded ${data.length} available set rows. This older set was reconstructed and some fields may be missing.`);
 }
 async function traySave() {
   if (!tray) return;
@@ -1507,6 +1545,11 @@ async function traySave() {
   const saved = {};
   tray.rows.forEach((r) => { const c = tray.choice[uid(r)]; saved[skey(uid(r))] = { po: String(r.po), key: String(r.key), task: c.task, to: String(c.to || ''), name: nameText(c.name), skip: !!c.skip, vendor: poInfo(r.po, r).vendor || '', site: String(poInfo(r.po, r).site || ''), invEntryID: r.invEntryID || '', invNumber: r.invNumber || '' }; });
   SET.saved = saved; SET.savedAt = Date.now();
+  try {
+    const selected = tray.rows.filter((r) => !tray.choice[uid(r)].skip);
+    const latest = summaryRows(selected, (r) => saved[skey(uid(r))].name);
+    localStorage.setItem(rinaCsvKey(), JSON.stringify({ at: SET.savedAt, rows: latest.map(rinaCsvColumns) }));
+  } catch (e) { console.warn('Office: CSV snapshot unavailable', e); }
   const n = tray.rows.filter((r) => !tray.choice[uid(r)].skip).length;
   hidePop(); tray = null; await saveSet();
   log(`You reviewed the Under Review set and saved it (${n} to send). <b>Rina</b> is ready: press <b>Start</b> on her card.`);
@@ -1518,6 +1561,13 @@ async function setStart() {
   list.forEach((r) => { const sv = SET.saved[skey(uid(r))]; if (!sv || sv.skip) return; SET.run[skey(uid(r))] = Object.assign({}, sv, { state: 'wait', at: Date.now() }); n++; });
   list.forEach((r) => { delete SET.saved[skey(uid(r))]; }); // skipped ones stay Under Review for the next set
   SET.startedAt = Date.now(); await saveSet();
+  try {
+    const snapshot = JSON.parse(localStorage.getItem(rinaCsvKey()) || 'null');
+    if (snapshot && snapshot.at === SET.savedAt) {
+      snapshot.at = SET.startedAt;
+      localStorage.setItem(rinaCsvKey(), JSON.stringify(snapshot));
+    }
+  } catch (e) { console.warn('Office: CSV snapshot unavailable', e); }
   log(`You pressed Start. <b>Rina</b> works on ${n} invoice${n === 1 ? '' : 's'} and <b>Sami</b> sends each one the moment its PDF is in DC Files\\INVOICE.`);
   const b = BOTS[0]; busy(b, async () => { b.hidden = false; status(b, 'Watching the INVOICE folder'); await go(b, SPOT.myFront); b.carry = true; say(b, `Got it, ${n} in the set`, 2600); await wait(1600); b.carry = false; await go(b, b.home); });
   paintBots(true); setTick(true);
