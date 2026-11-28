@@ -2082,7 +2082,68 @@ function openPersonDesk(p) {
       log('Could not open the PO Pull Out list. Please try again.');
     } finally { button.disabled = false; }
   });
-  Q('.iba-off-popb').prepend(tools);
+  const body = Q('.iba-off-popb');
+  const desk = document.createElement('div');
+  desk.append(...body.childNodes);
+  const tasks = document.createElement('div');
+  tasks.hidden = true;
+  const tabs = document.createElement('div');
+  tabs.className = 'iba-off-tabs';
+  tabs.innerHTML = '<button type="button" class="on" aria-pressed="true">Desk</button><button type="button" aria-pressed="false">Active Tasks</button>';
+  const [deskTab, taskTab] = tabs.children;
+  const selectTasks = (selected) => {
+    desk.hidden = selected;
+    tasks.hidden = !selected;
+    deskTab.classList.toggle('on', !selected);
+    taskTab.classList.toggle('on', selected);
+    deskTab.setAttribute('aria-pressed', String(!selected));
+    taskTab.setAttribute('aria-pressed', String(selected));
+    if (selected) loadDeskTasks(tasks);
+  };
+  deskTab.addEventListener('click', () => selectTasks(false));
+  taskTab.addEventListener('click', () => selectTasks(true));
+  tasks.addEventListener('click', (event) => handleDeskTask(tasks, event.target.closest('button')));
+  body.append(tabs, tools, desk, tasks);
+}
+
+const DESK_TASK_GROUPS = ['SRV Done', 'In Process', 'CEO Approval'];
+async function loadDeskTasks(panel) {
+  if (!isSuperNow() || root.hidden || panel.dataset.loading) return;
+  panel.dataset.loading = '1';
+  panel.textContent = 'Loading your Active Tasks…';
+  try {
+    const work = window.ibaMyWork && await window.ibaMyWork(8000);
+    if (!panel.isConnected || root.hidden || !isSuperNow()) return;
+    const tasks = work?.tasks || [];
+    panel.deskTasks = tasks;
+    const renderGroup = (label, matches) => {
+      const items = tasks.map((task, index) => matches(task) ? mwTaskLi(task, index) : '').filter(Boolean);
+      return items.length ? `<h4>${label} (${items.length})</h4><ul class="iba-off-mw">${items.join('')}</ul>` : '';
+    };
+    const groups = DESK_TASK_GROUPS.map((status) => renderGroup(status, (task) => norm(task.status) === norm(status)));
+    groups.push(renderGroup('Other Active Tasks', (task) => !DESK_TASK_GROUPS.some((status) => norm(task.status) === norm(status))));
+    const refresh = '<button type="button" class="iba-off-sm" data-desk-refresh>Refresh Active Tasks</button>';
+    panel.innerHTML = refresh + (groups.join('') || (work ? '<p>No Active Tasks assigned to you.</p>' : '<p>Your Active Tasks are unavailable. Try Refresh.</p>'));
+  } catch (error) {
+    console.warn('Office: Active Tasks unavailable', error);
+    panel.innerHTML = '<p>Could not load your Active Tasks.</p><button type="button" class="iba-off-sm" data-desk-refresh>Try again</button>';
+  } finally { delete panel.dataset.loading; }
+}
+async function handleDeskTask(panel, button) {
+  if (!button || !isSuperNow() || root.hidden) return;
+  if (button.hasAttribute('data-desk-refresh')) return loadDeskTasks(panel);
+  const actions = window.ibaTaskActions;
+  if (button.dataset.taskAct && actions) return actions.run(button);
+  const task = panel.deskTasks?.[Number(button.dataset.mi ?? button.dataset.mwOpen)];
+  if (!task) return;
+  const kind = button.dataset.mwPdf;
+  if (kind && window.ibaPdfPanel) {
+    return window.ibaPdfPanel.open({ kind, name: kind === 'INV' ? task.invName : task.srvName, po: task.po, site: task.site, invEntryID: task.invEntryID || '', title: `${kind} · PO ${task.po}` });
+  }
+  if (button.dataset.mwOpen !== undefined && actions) {
+    close();
+    actions.open({ key: task.key, po: task.po, ref: task.ref, kind: task.kind, status: task.status });
+  }
 }
 
 // ==========================================================================
