@@ -542,8 +542,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <h2>System Login</h2>
 <p>Please enter your IBA mobile number and password to login.</p>
 <form id="login-form">
-<input id="login-identifier" placeholder="IBA Mobile Number" required="" type="text"/>
-<input id="login-password-desktop" placeholder="Password" type="password"/>
+<input autocomplete="username" id="login-identifier" name="username" placeholder="IBA Mobile Number" required="" type="text"/>
+<input autocomplete="current-password" id="login-password-desktop" name="password" placeholder="Password" type="password"/>
 <button type="submit">Login</button>
 </form>
 <p class="error-message" id="login-error"></p>
@@ -560,11 +560,11 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <form id="mobile-login-form">
 <div class="input-icon-wrap">
 <i class="fa-solid fa-mobile-screen"></i>
-<input id="mobile-login-identifier" placeholder="Mobile Number" required="" type="text"/>
+<input autocomplete="username" id="mobile-login-identifier" name="username" placeholder="Mobile Number" required="" type="text"/>
 </div>
 <div class="input-icon-wrap">
 <i class="fa-solid fa-lock"></i>
-<input id="mobile-login-password" placeholder="Password" required="" type="password"/>
+<input autocomplete="current-password" id="mobile-login-password" name="password" placeholder="Password" required="" type="password"/>
 </div>
 <button class="mobile-login-btn" type="submit">Login</button>
 </form>
@@ -3797,6 +3797,9 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+<script src="js/iba-chat-db.js?v=18.0.0-p162"></script>
+<script src="js/iba-asks.js?v=18.0.0-p163"></script>
+<script src="js/iba-1800-pdfpanel.js?v=18.0.0-p172"></script>
 <script src="js/app-test-mode.js?v=18.0.0"></script>
 <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 <!-- Help Center dependencies (client-side PDF indexing + fuzzy search) -->
@@ -3830,18 +3833,18 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-invoice.js?v=18.0.0-p93"></script>
 <script src="js/app-mobile.js?v=18.0.0"></script>
 <script src="js/app-finance.js?v=18.0.0-p93"></script>
-<script src="js/app-chat.js?v=18.0.0"></script>
+<script src="js/app-chat.js?v=18.0.0-p162"></script>
 <script src="js/app-celebration.js?v=18.0.0"></script>
 <script src="js/app-utils.js?v=18.0.0"></script>
 <script src="js/app-vacation.js?v=18.0.0"></script>
 <script src="js/app-dom-refs.js?v=18.0.0"></script>
-<script src="app.js?v=18.0.0-p105"></script>
+<script src="app.js?v=18.0.0-p162"></script>
 <script src="js/iba-approvals.js?v=18.0.0-p102"></script>
 <script src="js/app-time-clock.js?v=18.0.0-p130"></script>
 <script src="js/app-domain-migration-notice.js?v=18.0.0"></script>
 <script src="js/iba-page-surfaces.js?v=18.0.0"></script>
 <script src="js/app-navigation-settings.js?v=18.0.0"></script>
-<script src="js/app-data-cache.js?v=18.0.0-p105"></script>
+<script src="js/app-data-cache.js?v=18.0.0-p160"></script>
 <script src="js/app-job-vendor.js?v=18.0.0"></script>
 <script src="js/app-workdesk-job-entry.js?v=18.0.0"></script>
 <script src="js/app-standard-job.js?v=18.0.0"></script>
@@ -3866,7 +3869,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/app-im-event-wiring.js?v=18.0.0-p105"></script>
 <script src="js/iba-1800-saveasnew.js?v=18.0.0-p92"></script>
 <script src="js/iba-1800-p93.js?v=18.0.0-p93"></script>
-<script src="js/iba-1800-stuck.js?v=18.0.0-p94"></script>
+<script src="js/iba-1800-stuck.js?v=18.0.0-p162"></script>
 <script src="js/app-history-transfer.js?v=18.0.0"></script>
 <script src="js/iba-1705-histfix.js?v=18.0.0"></script>
 <script src="js/iba-1705-pdfwin.js?v=18.0.0"></script>
@@ -3875,7 +3878,7 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-entry-po-mirror.js?v=18.0.0"></script>
 <script>
       window.IBA_SYSTEM_VERSION = '18.0.0';
- window.IBA_PATCH = '158'; window.IBA_PATCH_DATE = '26-Nov-2026'; // bump on every upload (Settings > System Version)
+ window.IBA_PATCH = '174'; window.IBA_PATCH_DATE = '28-Nov-2026'; // bump on every upload (Settings > System Version)
       window.IBA_VERSION_CHECK_URL = './version.json';
     </script>
 <script src="js/iba-inv-active-job.js?v=18.0.0"></script>
@@ -3896,7 +3899,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1705-idle.js?v=18.0.0-p157"></script>
 <script src="js/iba-1705-dashtools.js?v=18.0.0-p26"></script>
 <script src="js/iba-1800-mind.js?v=18.0.0-p62"></script>
-<script src="js/iba-assistant.js?v=18.0.0-p115"></script>
+<script src="js/iba-iris-brain.js?v=18.0.0-p174"></script>
+<script src="js/iba-assistant.js?v=18.0.0-p172"></script>
 <script src="js/iba-1717-slide.js?v=18.0.0-p118"></script>
 <script src="js/iba-1800-talk.js?v=18.0.0-p57"></script>
 <script src="js/iba-1800-kokoro.js?v=18.0.0-p58"></script>
@@ -3904,10 +3908,10 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1800-orb.js?v=18.0.0-p42"></script>
 <script src="js/iba-1800-botdrag.js?v=18.0.0-p130"></script>
 <script src="js/iba-1730-rowcheck.js?v=18.0.0-p130"></script>
-<script src="js/iba-1800-iris-phone.js?v=18.0.0-p77"></script>
+<script src="js/iba-1800-iris-phone.js?v=18.0.0-p162"></script>
 <script src="js/iba-1800-iris-guide.js?v=18.0.0-p51"></script>
 <script src="js/iba-1800-tidy.js?v=18.0.0-p93"></script>
-<script src="js/iba-1800-lpo.js?v=18.0.0-p129"></script>
+<script src="js/iba-1800-lpo.js?v=18.0.0-p167"></script>
 <script src="js/iba-status-options.js?v=18.0.0"></script>
 <script src="js/iba-job-po-fill.js?v=18.0.0"></script>
 <script src="js/iba-17-p1.js?v=18.0.0"></script>
@@ -3924,8 +3928,8 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-17-p27.js?v=18.0.0-p74"></script>
 <script src="js/iba-1800-snpo.js?v=18.0.0-p130"></script>
 <script src="js/iba-1800-snorder.js?v=18.0.0-p93"></script>
-<script src="js/iba-1705-snbatch.js?v=18.0.0-p107"></script>
-<script src="js/iba-1800-sumnote.js?v=18.0.0-p106"></script>
+<script src="js/iba-1705-snbatch.js?v=18.0.0-p160"></script>
+<script src="js/iba-1800-sumnote.js?v=18.0.0-p160"></script>
 <script src="js/iba-1705-notesync.js?v=18.0.0-p105"></script>
 <script src="js/iba-1702-urgent.js?v=18.0.0"></script>
 <script src="js/iba-1702-reception-batch.js?v=18.0.0-p90"></script>
@@ -3978,13 +3982,14 @@ html.iba-preview-shell #wd-activetask.hidden { display:block !important; }
 <script src="js/iba-1703-desk.js?v=18.0.0"></script>
 <script src="js/iba-1703-p4.js?v=18.0.0"></script>
 <script src="js/iba-weekly-report.js?v=18.0.0"></script>
-<script src="js/iba-vacation-handover.js?v=18.0.0"></script>
+<script src="js/iba-vacation-handover.js?v=18.0.0-p162"></script>
 <script src="js/iba-session-lock.js?v=18.0.0-p48"></script>
 <script src="js/app-version-checker.js?v=18.0.0"></script>
 <script src="js/iba-silent-update.js?v=18.0.0"></script>
 <script src="js/iba-1709-pwd.js?v=18.0.0-p121"></script>
-<script src="js/iba-1714-settabs.js?v=18.0.0-p130"></script>
-<script src="js/iba-office-boot.js?v=18.0.0-p158"></script>
+<script src="js/iba-1800-pwsave.js?v=18.0.0-p164"></script>
+<script src="js/iba-1714-settabs.js?v=18.0.0-p162"></script>
+<script src="js/iba-office-boot.js?v=18.0.0-p174"></script>
 </div>    <script src="js/app-approval-print.js?v=18.0.0"></script>
 <link href="css/iba-1705-black.css?v=18.0.0-p5" rel="stylesheet"/>
 <link href="css/iba-1705-nostripe.css?v=18.0.0-p130" rel="stylesheet"/>

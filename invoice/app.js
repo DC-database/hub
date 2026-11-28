@@ -5059,6 +5059,8 @@ async function handleUpdateInvoiceRun(e) {
     }
 
     const originalInvoiceData = currentPOInvoices[currentlyEditingInvoiceKey];
+    let ibaOldSumNote = ''; // 18.0.0 patch 160
+    try { ibaOldSumNote = imNormalizeInvoiceNoteText(ibaSumNoteOf(originalInvoiceData)); } catch (_) {}
     // Keep Group available for future group-aware SRV routing, including old records.
     const invoiceGroup = (typeof imGetCurrentInvoiceEntryGroup === 'function')
         ? imGetCurrentInvoiceEntryGroup()
@@ -5229,6 +5231,12 @@ async function handleUpdateInvoiceRun(e) {
                 }
             } catch (_) {}
         }
+        // 18.0.0 patch 160: the invoice left its old summary note: drop that note if no invoice has it now
+        try {
+            if (ibaOldSumNote && ibaOldSumNote.toLowerCase() !== imNormalizeInvoiceNoteText(ibaSumNoteOf(invoiceData)).toLowerCase() && typeof imPruneEmptyInvoiceNotes === 'function') {
+                imPruneEmptyInvoiceNotes([ibaOldSumNote]).catch(() => null);
+            }
+        } catch (_) {}
 
         // 10.3.0: Do not leave the WorkDesk Active Task list with an empty
         // allSystemEntries array after a normal Invoice Entry update. That made
@@ -5641,6 +5649,7 @@ async function imBatchSaveRun() {
     const savePromises = [];
     let newInvoicesCount = 0, updatedInvoicesCount = 0;
     const notesTouchedThisBatch = new Set();
+    const notesLeftThisBatch = new Set(); // 18.0.0 patch 160: old summary notes rows moved off
 
     // v8.3.4 safety fix:
     // Global Batch Entry overrides must be applied again at SAVE time.
@@ -5996,6 +6005,11 @@ async function imBatchSaveRun() {
             // updated below before the task index runs, so reading it later gave the
             // NEW person and the old person's Active Task kept a stale copy.
             const originalAttention = String(originalInvoice.attention || '').trim();
+            // 18.0.0 patch 160: the row moved to another summary note (SUM again): check the old note after Save
+            try {
+                const oldSum = imNormalizeInvoiceNoteText(ibaSumNoteOf(originalInvoice));
+                if (oldSum && oldSum.toLowerCase() !== imNormalizeInvoiceNoteText(ibaSumNoteOf(invoiceData)).toLowerCase()) notesLeftThisBatch.add(oldSum);
+            } catch (_) {}
 
             // v8.5.7: Batch Entry releaseDate must follow the same history rule as Invoice Entry.
             // Per-row and Global Override updates refresh Release Date only when status changes.
@@ -6096,6 +6110,15 @@ async function imBatchSaveRun() {
     try {
         imBatchSaveProgress('Finishing...');
         await Promise.all(savePromises);
+
+        // 18.0.0 patch 160 (martin): an old summary note that no invoice has any more
+        // (all its invoices got the new note) leaves the note list, so it is not the "Previous note".
+        if (notesLeftThisBatch.size && typeof imPruneEmptyInvoiceNotes === 'function') {
+            try {
+                Array.from(notesTouchedThisBatch).forEach(n => notesLeftThisBatch.delete(imNormalizeInvoiceNoteText(n)));
+                await imPruneEmptyInvoiceNotes(Array.from(notesLeftThisBatch));
+            } catch (pruneErr) { console.warn('Old summary note cleanup skipped:', pruneErr); }
+        }
 
         // 9.8.9: Batch Entry can change many invoice statuses at once.
         // Mark Invoice Records / CSV data as dirty so the next export/search uses

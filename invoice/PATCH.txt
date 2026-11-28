@@ -3,6 +3,210 @@ IBA System 18.0.0 (12-Nov-2026)
 Major version. Same features as 17.0.5 patch 219, every file reloads once (all ?v= tags = 18.0.0).
 The full 17.0.5 history (patches 1-219) is in PATCH-17.0.5.txt.
 
+18.0.0 patch 174 (28-Nov-2026)  - quiet update
+  IBA Office, Rina (martin, from the ChatGPT note): "reassign today's returned entries from Hafiz to Irwin" /
+  "rina move returned to me" / "rina reassign oscar to irwin" / "rina move po 67486 back to me". Rina lists the
+  Reception entries she returned (last 3 days, Job Records pocket first) with who has them, made day and returned day,
+  waits for "yes", rechecks each one, then changes only Attention (stays New Entry, "Reassigned" history line).
+  Collecting stays a separate command. IRIS notes "Reassign returned invoices" (now built) + Office commands updated.
+  Files: js/iba-office.js, js/iba-office-boot.js, js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge notes)
+
+18.0.0 patch 173 (28-Nov-2026)  - quiet update
+  IRIS brain: ChatGPT's new note "Reassign returned invoices" added (marked PLANNED, with what works today:
+  "rina collect <day/vendor>" also takes entries returned to Hafiz). Linked from AI Office and Office commands.
+  Brain rebuilt (22 notes).
+  Files: js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge notes)
+
+18.0.0 patch 172 (28-Nov-2026)  - quiet update
+  IBA Office for other users (martin): new row "IBA Office (guest)" in Skill access (system_settings/skill_access/
+  iba_office). Ticked people / positions (pilot: COO, Finance Manager, 2 users) get the Office menu on a PC with a GUEST
+  office: "My work" = only their own Active Task invoices + Active Job transfers (already in memory, no new Firebase
+  reads), their existing buttons (Approve / Reject, SRV Done, Process, Open in Active Task / Active Job), cabinets show
+  their own tasks in that step, search, chat, I'm in. No bots, Setup, Build, Characters or Ready to Print.
+  Irwin's office unchanged.
+  PDF side panel for everyone on a PC: INV / SRV read from the user's own synced DC Files folder (picked once,
+  Chrome / Edge folder picker, kept in the browser), no helper, no new window. Irwin's PC still uses the helper first.
+  Invoice Records keeps the old PDF window until that PC has picked the folder (or has the helper).
+  IRIS brain: "Office for other users" now built, "PDF folders and naming" (pick DC Files folder), rooms note.
+  Files: js/iba-office.js, js/iba-office-boot.js, css/iba-office.css, js/iba-1800-pdfpanel.js, js/iba-assistant.js,
+  js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge notes)
+
+18.0.0 patch 171 (28-Nov-2026)  - quiet update
+  IRIS brain (martin: "teach the brain so it never gets lost"): 2 new notes in Iris Knowledge (now 21):
+  "PDF folders and naming" (INV vs SRV vs Report vs LPO names and folders, side panel, print helper and the old-helper
+  fix, other users need no helper) and "Office for other users" (planned: COO first, on/off per person, own work only,
+  Firebase under 1 MB a day per user, no cost per user). Updated: IBA Office rooms and bots (Build layout, cabinets,
+  LPO = Find LPO), Firebase download rules (office usage), AI Office (links). Brain rebuilt from the folder.
+  Print helper installer (D:\IBA OFFICE\print-helper\install.ps1) now stops ANY old helper (the USB one held the port).
+  Files: js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge notes, others\iris-brain-build template)
+
+18.0.0 patch 170 (28-Nov-2026)  - quiet update
+  PDF panel (office cabinets, IBA Information, Invoice Records on martin's PC): SRV uses the invoice system's own SRV
+  naming only (srvName = YYYYMMDD-PO-INVID-Site-Vendor in DC Files\SRV). The invoice-style "Site-PO-INVID" guess is now
+  used for INV only, so a missing SRV no longer lists invoice-like names as "similar".
+  Files: js/iba-1800-pdfpanel.js, index.html, PATCH.txt
+
+18.0.0 patch 169 (28-Nov-2026)  - quiet update
+  IBA Office, Rina (martin): day names: "rina collect thursday" / "last thursday" = the most recent Thursday in the last
+  7 days (never an older month or year); works with return and with a vendor / PO / site too. Full day names only
+  (or "last thu"), so a vendor like "Sun ..." is not read as Sunday. IRIS note "Office commands" updated.
+  Files: js/iba-office.js, js/iba-office-boot.js, js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge\Office commands.md)
+
+18.0.0 patch 168 (28-Nov-2026)  - quiet update
+  IBA Office, Rina (martin): collect by day: "rina collect nov 26" / "26/11" / "yesterday" / "today" (the day Reception
+  made the entry), can be mixed with a vendor, PO or site. With any name / PO / site / day she also finds the entries she
+  returned in the last 3 days (now with Hafiz). Plain "rina collect" is unchanged (your Reception list only).
+  IRIS note "Office commands" updated.
+  Files: js/iba-office.js, js/iba-office-boot.js, js/iba-iris-brain.js, index.html, PATCH.txt (+ Iris Knowledge\Office commands.md)
+
+18.0.0 patch 167 (28-Nov-2026)  - quiet update
+  IBA Office fixes (martin):
+  - LPO button (office cabinets + IBA Information) now opens Find LPO already searching that PO, instead of guessing
+    one file in Proc - LPO by name (it opened a CVS invoice for Khalifa). Find LPO accepts a search: ibaFindLpo.open('67486').
+  - Record cabinets that lost their piece in Build mode take the nearest cabinet / bookcase / shelf in the same room
+    (Managing Director's count was on the water dispenser). Bots now walk to the cabinets, your desk, the cooler,
+    toilets and delivery stops of the SAVED Build layout, not the old plan.
+  - "rina collect oscar" / "rina collect site 175" / "rina collect po 67486" collect only those; a name that matches
+    nothing collects nothing (before, "rina collect oscar invoice ..." collected all 9).
+  - New "rina return today's to Hafiz": lists today's Rina invoices still Under Review, waits for "yes", then removes
+    the invoice and opens the Reception entry again as New Entry (attention Hafiz), with a history line.
+  - IRIS note "Office commands" updated with these commands.
+  Files: js/iba-office.js, js/iba-office-boot.js, js/iba-1800-pdfpanel.js, js/iba-1800-lpo.js, js/iba-iris-brain.js,
+  index.html, PATCH.txt (+ Iris Knowledge\Office commands.md)
+
+18.0.0 patch 166 (28-Nov-2026)  - quiet update
+  IRIS brain: 11 new notes in Iris Knowledge (now 18), linked with [[links]]:
+  Invoice flow (the hub), Mark urgent, CEO Approval, Payment days and Paid, Material transfers,
+  Passwords and sign-in (everyone); Batch Entry and summary notes, Print summary notes, Print basket and
+  ESN stickers, Firebase download rules, IBA Office rooms and bots (Super Admin only).
+  IRIS also answers short asks now ("forgot password", "who marks paid", "how does a transfer work").
+  Files: js/iba-iris-brain.js, index.html, PATCH.txt
+
+18.0.0 patch 165 (28-Nov-2026)  - quiet update
+  IBA Office: every cabinet / person list now has INV, SRV and LPO buttons beside Open (martin). They open the
+  same right-side PDF panel as the info robot (Print, Open full size); LPO finds "LPO# <PO>-..." in Proc - LPO.
+  On other PCs (no print helper) they open the docked PDF window as before.
+  Files: js/iba-office.js, js/iba-1800-pdfpanel.js, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 164 (28-Nov-2026)  - quiet update
+  IRIS brain (martin + the Obsidian vault "Iris Knowledge"):
+  - js/iba-iris-brain.js (NEW) = the Obsidian notes bundled into the app (built from
+    D:\IBA OFFICE\Project_01\Iris Knowledge). Comes from GitHub like every file: NO Firebase download.
+  - Ask IRIS a how-to ("how does Rina collection work", "esn printing", "how do I prepare summary for CEO approval"):
+    she answers from the matching note as a card, no AI key needed. [[links]] in a note are buttons that open
+    that note. "iris notes" (or the new IRIS notes skill tile in My day) lists all notes.
+  - With an AI key, only the 1-2 notes that fit the question go to the AI with it (short and cheap).
+  - A question with a PO number ("show me PO 12345", "make a report for PO 12345") still gets the real card.
+  - Office notes are Super Admin only; PO lookup / PO report are for everyone. Planned notes (Summary Review)
+    show "Planned · not ready yet". Obsidian properties iris-who: all|super, iris-status: ready|planned,
+    iris-words: extra search words change this per note. To update: edit in Obsidian, ask for "refresh brain".
+  Sign-in: the browser can now save the mobile number + password and fill them in next time (phone and PC).
+  - Login boxes marked username / current-password; after a sign-in that worked, Chrome / Edge / Android get the
+    "Save password?" offer (js/iba-1800-pwsave.js NEW). Not offered for a temporary or cleared password.
+    The app itself still stores no password; signing out works as before.
+  Files: js/iba-iris-brain.js (NEW), js/iba-1800-pwsave.js (NEW), js/iba-assistant.js, index.html, PATCH.txt
+
+18.0.0 patch 163 (28-Nov-2026)  - quiet update
+  IBA Office, info robot search (martin picked sample A "Folders on the desk"):
+  - Click the big robot in the hall: the IBA Information window opens in the middle of the office (not the side
+    panel), robot head on top + search box. Type a vendor, PO, invoice no. or "site 175" and press Search: the
+    robot looks through the cabinets (it spins on the counter), then drops ONE folder per department where it
+    was found: Reception (new entries), QS / Site (For SRV, Report, On hold...), Management (CEO Approval,
+    In Process), IRWIN (Under Review, For Approval, anything on you). Accounts (With Accounts / Paid) shows
+    the last 3 months; "Older records" shows the rest. Several spellings/vendors = chips to pick one.
+  - Folder = its invoices: INV / SRV (PDF preview), Remind, Do this now, Open (Invoice Records).
+  - PDF preview panel (js/iba-1800-pdfpanel.js): on Irwin's PC an INVOICE PDF is read through the print helper
+    and shown on the right with Print (all pages, any printer) and Open full size. SRV PDFs, and every other PC,
+    open in the docked PDF window as before (SharePoint does not allow its files inside our page).
+    Invoice Records INV buttons use the same panel on Irwin's PC.
+  - Requests (js/iba-asks.js, loaded for everyone): Remind / Do this now sends a request card with a sound to
+    the person holding the invoice (note optional). They press "Yes, I'll work on it"; it then sits in their
+    "Tasks from Irwin" pill (bottom centre) until they press Complete; you get "Done by <name> · time" with a
+    sound, and the row shows Done. Stored in the CHAT database ibachat-f1250 (iba_asks, iba_asks_sent,
+    iba_asks_back), never the main one. Search reads nothing new (saved copy); only your sent list (few KB).
+  - 163b (same day, martin): SRV and LPO open in the preview panel too (print helper 18.0.0-p163 reads DC Files\SRV
+    and Proc - LPO, read only; run "Install print helper" once to restart it). LPO button on every row (finds
+    "LPO# <PO>-..." in Proc - LPO). Invoice Records SRV buttons use the panel too. Clear button in IBA Information.
+  AFTER UPLOAD: paste the new chat-database-rules.json into ibachat-f1250 > Realtime Database > Rules > Publish
+  (adds iba_asks, iba_asks_sent, iba_asks_back; everything else the same).
+  Files: js/iba-office-info.js (NEW), js/iba-asks.js (NEW), js/iba-1800-pdfpanel.js (NEW), js/iba-office.js,
+  js/iba-office-3d.js, js/iba-office-boot.js, index.html, PATCH.txt
+
+18.0.0 patch 162 (28-Nov-2026)  - quiet update (no pop-up; martin's choice)
+  Chat database: Messages, online status, IRIS reminders, Stuck "Remind", vacation hand-over notes and the
+  IBA Office chat now live in their own Firebase project ibachat-f1250 (js/iba-chat-db.js). The main
+  database no longer carries any chat download. Fresh start: old chats stay in the old database (not
+  copied). For 3 days anything still sent to the old inbox by someone on the old version is shown once,
+  and for 1 day every new message is also dropped in the old inbox so people not yet reloaded still get the pop-up.
+  Limits: 200 private + 20 public messages a person a day; office messages max 200 characters; public
+  messages deleted after 1 day. Settings > Chat usage (Super Admin) shows today's and this week's count.
+  "writing ..." flag while someone types (one small on/off value, off after 5 s).
+  IBA Office:
+  - Online people come and go LIVE (no 1-minute wait).
+  - Chat: right-click a person > Chat = small glass window beside them (private). Right-click yourself >
+    Say to everyone (public, everyone gets a small pop-up). Switch Private/Public in its header. Tuck it
+    away (down arrow) = one slim typing line above the Command box; replies pop up over their head.
+    Command box pills: Command / Private / Public.
+  - Info desk: 3 big screens on the counter (moving "searching the folders" picture), INFORMATION plates follow
+    the curve of the counter. IBA Welcome board in HR removed. No plant in front of any door or name plaque.
+    No "In the hall · time" sign over heads any more. Talk bubbles stay inside the view.
+  - Rina: a new entry whose PO is not in POVALUE2.csv yet is taken when the PO is in Progress-PO (one small read
+    for that PO only). Held entries show in "Needs your answer" with the reason; a missing PO has "Add PO now"
+    (same Add PO window as Invoice Entry) and "Check again". Held POs are retried every 10 min. Command:
+    "rina collect" / "rina collect po 67486". A bot walk can never hang a job any more.
+  - Build mode (Super Admin, Clean look): move, turn, resize, delete and add furniture; Save writes
+    js/iba-office-layout.js in Live (a backup goes to Backup\office-layout).
+  Files: js/iba-chat-db.js (NEW), js/app-chat.js, js/iba-assistant.js, js/iba-1800-stuck.js,
+  js/iba-1800-iris-phone.js, js/iba-vacation-handover.js, js/iba-1714-settabs.js, js/iba-office.js,
+  js/iba-office-3d.js, js/iba-office-boot.js, css/iba-office.css, app.js, index.html.
+
+18.0.0 patch 161 (28-Nov-2026)
+  IBA Office:
+  - IRWIN door plaque moved to the hall side of the wall beside his door (it was on the pantry side).
+  - Ready to Print: once a page is sent to the printer it is marked printed straight away (tried 3 times,
+    and kept on this PC to save later if the connection drops), so a printed ESN never stays in the list.
+    A row that stopped half-way gets an "It printed" button that moves it to History.
+  - ESN place on page 1: 1st ESN = Middle, 2nd = Right bottom, 3rd = Right top (a rare 4th = Right middle).
+    When the approval count is missing, the place after the ESN printed before is used.
+  - Right-click on the info robot opens the search too (left-click already did).
+  Files: js/iba-office-3d.js, js/iba-office-print.js, js/iba-office-boot.js, index.html.
+
+18.0.0 patch 160 (27-Nov-2026)
+  Summary note: when the invoices of a saved (not yet submitted) note are loaded back into Batch Entry
+  and SUM gives them a new note (e.g. "ABC 11-Nov-2026" -> "ABC 12-Nov-2026"), the old note no longer
+  stays in the note list. After Save the old note is checked (only its own few invoice records are read)
+  and, when no invoice has it any more, it is removed, so it is not offered or printed as "Previous note".
+  Same for Invoice Entry. An old note already left empty is removed the first time Summary Note
+  Generate finds none of its invoices.
+  New rule for the two note boxes (Summary Note page, Invoice Entry and Print summary notes):
+  - Current note list = only the notes whose invoices are active now: For Summary, CEO Approval or
+    In Process (read from the small task list, kept 2 minutes).
+  - Previous note = the same vendor's newest earlier note that is already finished (With Accounts or
+    Paid, i.e. no longer active). A note still in For Summary / CEO Approval / In Process is never
+    filled in as Previous; it is still listed lower down if you want to pick it.
+  Files: app.js, js/app-data-cache.js, js/iba-1705-snbatch.js, js/iba-1800-sumnote.js, index.html.
+
+18.0.0 patch 159 (27-Nov-2026)
+  IBA Office:
+  - Bot tasks panel shows the real 3D faces of Rina, Sami, Rafi, Ana and you (drawn once, not every frame).
+  - Your own profile card on top: your face, where you are, My desk, Change my look.
+  - The land around the building is filled: road all round with crossings, pavements with trees and lamps,
+    a park at the back (pond, palms, benches, paths, small football pitch), a second car park across the road,
+    a bus stop and low neighbour buildings. Static, merged with the rest, no extra cost per frame.
+  - Characters: smoother rounder heads (more detail, soft light, no hard dark band on the face), softer
+    rounded hair locks, beard and moustache now painted on the face shape with an open mouth (no more black mask).
+  - Male hair redone: one clean base that hugs the head + rounded locks (short, side part, slick back, curly, spiky).
+  - Right-click (no drag) on a person or a bot = a round wheel. People: Chat (opens your app chat with them),
+    Call to my desk (sends them a chat message), Their desk, Wave, Walk over, Their look. You: My desk, Change my look,
+    Lunch, Toilet, Meeting, Back to desk. Bots: their own jobs (Rina Collect now / Review the set, Sami Check PDFs,
+    Rafi Ready to Print / My prints, Ana Find) + Call to my desk + bot card. Right-click on the floor = Go here (as before).
+  - Middle of the office: the fountain is replaced by an INFORMATION desk with a big-head IBA robot in uniform
+    (round counter, screens). Click it = Ana's search opens (vendor, PO, invoice no.); requests come later.
+  - Main entrance: a mini roundabout on the front road with the IBA fountain + letters on a planted island,
+    palms, flowers and a walkway straight to the door.
+  - Pixel · Crimson noir switched off for now; the Office always shows Clean · Walnut.
+  Files: js/iba-office.js, js/iba-office-3d.js, js/iba-office-boot.js, css/iba-office.css, index.html.
+
 18.0.0 patch 158 (26-Nov-2026)
   IBA Office: the IBA fountain in the middle now has moving water: 8 water arcs, water running down
   from the top basin, rings spreading on the pool. Files: js/iba-office-3d.js, js/iba-office-boot.js, index.html.
