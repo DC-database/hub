@@ -8021,6 +8021,7 @@
     // the print basket's "Move to Batch Entry"). Each invoice is read fresh.
     // 17.0.0 patch 21: the same task buttons on the Dashboard cards
     // (js/iba-17-p21.js), running the same routines as the brief
+    window.ibaOfficeReportData = (query) => trackSearch(query);
     window.ibaAssistantSkillList = () => Object.keys(SKILL_TPL).map((id) => ({ id: id, name: SKILL_TPL[id].name, superOnly: !!SKILL_TPL[id].superOnly, adminOnly: !!SKILL_TPL[id].adminOnly }));
     window.ibaTaskActions = {
         html: (t) => taskActionsHtml(t),

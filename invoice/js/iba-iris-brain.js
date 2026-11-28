@@ -201,7 +201,7 @@
   "status": "ready",
   "links": [],
   "words": "",
-  "text": "Template for a read-only report using current Invoice records. Example requests are “Make a report for PO 12345” and “Make a report for this PO” after opening a PO in Iris.\n\n## Report layout\n\n- PO number, vendor, site, and report time.\n- PO value and currency, when available.\n- Invoice list with invoice number, date, amount, and current status.\n- Pending approvals, items waiting for a PDF, and other open items when the system has a recorded status.\n- Invoice total, paid amount, and outstanding amount, when the app provides those totals.\n\nUse the selected PO for “this PO.” If there is no selected PO, ask for its number. Read records through the app using the signed-in user's permissions. Show unavailable fields as “Not available.” Keep the report on screen for review."
+  "text": "In AI Office Command mode (Super Admin), use PO report 66850 or Vendor report Oscar. Replace the number or vendor as needed. The preview shows a status pie chart, PO and invoice totals, and the available invoice records and recorded history. Review the preview, choose Print report, and select A4 Color in the browser print dialog. Vendor reports may be limited to the available preview; use a PO number for a specific PO. The report does not change invoice status."
  },
  {
   "id": "passwords-and-sign-in",

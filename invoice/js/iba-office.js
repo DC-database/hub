@@ -878,6 +878,68 @@ function openPdf(btn) {
   if (k === 'LPO' && !window.ibaPdfPanel.inPanel('LPO')) { if (window.ibaFindLpo && window.ibaFindLpo.open) window.ibaFindLpo.open(String(r.po)); return; }
   window.ibaPdfPanel.open({ kind: k, name: k === 'INV' ? r.invName : k === 'SRV' ? r.srvName : '', po: r.po, site: pi.site, invEntryID: r.invEntryID || '', title: `${k} · PO ${r.po}${r.invNumber ? ' · ' + r.invNumber : ''}` });
 }
+let officeReportRequest = 0;
+async function openOfficeReport(query) {
+  if (!isSuperNow() || root.hidden) return;
+  const request = ++officeReportRequest;
+  log('Preparing the invoice report…');
+  try {
+    const result = await window.ibaOfficeReportData(query);
+    if (request !== officeReportRequest || root.hidden || !isSuperNow()) return;
+    if (result.mode !== 'pos' || !result.pos.length) {
+      const choices = result.suggestions?.join('; ') || (result.mode === 'summary' ? 'Try a specific PO number for this vendor.' : '');
+      log(esc([result.message || 'Could not narrow the report to a PO.', choices].filter(Boolean).join(' ')));
+      return;
+    }
+    const title = query.po ? 'PO ' + query.po + ' report' : 'Vendor report · ' + (result.vendor || query.vendor);
+    const invoices = result.pos.flatMap((po) => po.items.filter((item) => item.kind === 'invoice'));
+    const counts = new Map();
+    invoices.forEach((item) => counts.set(item.status || 'Unknown', (counts.get(item.status || 'Unknown') || 0) + 1));
+    const colors = ['#1765a6', '#ae6019', '#268466', '#8849a4', '#b03850', '#397a85'];
+    let offset = 0;
+    const segments = Array.from(counts, ([status, count], i) => {
+      const start = offset;
+      offset += count / invoices.length * 100;
+      return { status, count, start, end: offset, color: colors[i % colors.length] };
+    });
+    const gradient = segments.map((s) => `${s.color} ${s.start}% ${s.end}%`).join(',');
+    const chart = segments.length ? `<div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:12px 0"><div aria-hidden="true" style="width:115px;height:115px;border-radius:50%;background:conic-gradient(${gradient})"></div><ul style="margin:0;padding:0;list-style:none">${segments.map((s) => `<li><span style="color:${s.color}">■</span> ${esc(s.status)} · ${s.count}</li>`).join('')}</ul></div>` : '';
+    const stamp = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Qatar' });
+    const display = (value) => esc(value ?? 'Not available');
+    const asAmount = (value) => Number(String(value || '').replace(/,/g, '').trim());
+    const amount = (value) => value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const sections = result.pos.map((po) => {
+      const items = po.items.filter((item) => item.kind === 'invoice');
+      const paid = items.filter((item) => norm(item.status) === 'paid').reduce((total, item) => total + asAmount(item.value), 0);
+      const hasTotals = po.invoiced != null && Number.isFinite(asAmount(po.invoiced)) && Number.isFinite(paid);
+      const details = items.map((item) => {
+        const steps = (item.steps || []).map((step) => [step.date, step.status, step.by].filter(Boolean).join(' · '));
+        return `<tr><td>${display(item.invoice_no)}${steps.length ? `<details open><summary>Recorded history</summary><small>${steps.map(esc).join('<br>')}</small></details>` : ''}</td><td>${display(item.invoice_date)}</td><td>${display(item.value)}</td><td>${display(item.status)}</td><td>${display(item.with)}</td></tr>`;
+      }).join('');
+      return `<section><h4>PO ${esc(po.po)} · ${display(po.vendor || null)} · Site ${display(po.site)}</h4><p>PO value: ${display(po.po_value)} · Invoiced: ${display(po.invoiced)} · Paid invoice value: ${display(hasTotals ? amount(paid) : null)} · Uninvoiced PO balance: ${display(po.balance)} · Unpaid invoice value: ${display(hasTotals ? amount(asAmount(po.invoiced) - paid) : null)}</p>${items.length ? `<table><thead><tr><th>Invoice</th><th>Date</th><th>Amount</th><th>Status</th><th>With</th></tr></thead><tbody>${details}</tbody></table>` : '<p>No invoice records returned.</p>'}</section>`;
+    }).join('');
+    const content = `<p>${esc(stamp)} Qatar time · ${invoices.length} invoice(s) · ${result.pos.length} PO(s)</p>${result.more ? `<p>${esc(result.more)} more POs are outside this preview. Run a specific PO report to see its details.</p>` : ''}${chart}${sections}`;
+    const panel = Q('.iba-off-pop');
+    Q('.iba-off-pop h3').textContent = title;
+    Q('.iba-off-pop p').textContent = 'Review the chart and invoice details before printing.';
+    Q('.iba-off-popb').innerHTML = '<button type="button" class="iba-off-sm" data-office-report-print>Print report</button>' + content;
+    Q('[data-office-report-print]').addEventListener('click', () => printOfficeReport(title, content));
+    panel.hidden = false;
+  } catch (error) {
+    console.warn('Office: report failed', error);
+    log('Could not load the report. Try again or use the main Iris PO report.');
+  }
+}
+function printOfficeReport(title, content) {
+  if (!isSuperNow() || root.hidden) return;
+  const page = window.open('', '_blank');
+  if (!page) { log('Allow pop-ups to open the report print preview.'); return; }
+  page.opener = null;
+  page.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>@page{size:A4;margin:12mm}body{font:12px system-ui;color:#182536}table{width:100%;border-collapse:collapse}td,th{border:1px solid #bdc4cc;text-align:left;padding:5px;vertical-align:top}thead{display:table-header-group}tr{break-inside:avoid}*{print-color-adjust:exact;-webkit-print-color-adjust:exact}</style></head><body><h2>${esc(title)}</h2>${content}</body></html>`);
+  page.document.close();
+  page.focus();
+  page.print();
+}
 function hidePop() { try { if (window.ibaPdfPanel) window.ibaPdfPanel.close(); } catch (_) {} Q('.iba-off-pop').hidden = true; }
 function openRecords(po) {
   close();
@@ -978,6 +1040,12 @@ function findBot(s) { s = s.toLowerCase().trim(); const m = s.match(/bot\s*(\d)/
 async function command(txt) {
   if (GUEST) { mwQ = String(txt || '').trim(); mwCab = null; paintMyWork(true); return; } // p172: guests search their own work
   const s = String(txt || '').trim(); if (!s) return; log(`You: "${esc(s)}"`); const low = s.toLowerCase(); let m;
+  const report = s.match(/^(?:po report\s+|(?:make a )?report (?:for )?po\s+)(\d{4,7})[?.]?$/i);
+  const vendorReport = s.match(/^(?:vendor report\s+|(?:make a )?report (?:for )?vendor\s+)(.+)$/i);
+  if (report || vendorReport) {
+    await openOfficeReport(report ? { po: report[1] } : { vendor: vendorReport[1].trim() });
+    return;
+  }
   if (/^(?:download my saved under review csv|under review list|under review csv)[.!?]?$/.test(low)) { exportRinaCsv(); return; }
   if (/^(?:which pos? (?:do i need to |should i )?pull|check po pull[- ]out)[?!.]?$/.test(low)) { await checkWaitingPullOut(); return; }
   // p162 (martin): "rina collect", "rina collect po 67486 from reception please", "collect now" = Rina collects now,

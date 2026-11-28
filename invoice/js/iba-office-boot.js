@@ -8,7 +8,7 @@
    the buttons they already have, search and chat. No bots, no setup, no extra Firebase reads. */
 (function () {
     'use strict';
-    var V = '18.0.0-p174-active-desk', loading = null;
+    var V = '18.0.0-p174-report', loading = null;
     window.ibaSkillAccessExtra = (window.ibaSkillAccessExtra || []).concat([{ id: 'iba_office', name: 'IBA Office (guest)', group: 'Office',
         desc: 'Who sees the Office menu. They get their own desk only: their tasks and transfers, the buttons they already have, INV / SRV in the side panel. No bots.', built: 'Only the Super Admin' }]);
     function isSuper() {
